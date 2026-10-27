@@ -64,6 +64,16 @@ npm run verify:runtime
 
 - 2.1.310 `chunk-y5vkfxm0.js` 中的 `xxt/e8t/Z5e/zto` 已恢复为可读的 Hook 元数据、事件分组、匹配排序及匹配读取函数，保留原导出别名，未以旧版覆盖新事件或权限逻辑。
 - `tests/hooks-source-restoration.test.cjs` 针对当前源码函数体执行受控行为验证，覆盖新 Hook 事件、工具匹配、插件来源、空匹配，以及异常分支；不需要启动整个 CLI。
-- `scripts/build-function-index.cjs` 按 TypeScript AST 遍历 2551 模块，枚举实际函数实体、位置、形参数量、调用点、模块导入导出、源码哈希和静态引用，输出可再生的索引。使用已有 TypeScript 5.x 分析器（`node scripts/build-function-index.cjs --full`），不执行源码业务逻辑。
+- `scripts/source-function-index.cjs` 按 TypeScript AST 遍历 2551 模块，枚举实际函数实体、位置、形参数量、调用点、模块导入导出、源码哈希和静态引用，输出可再生的索引。使用已有 TypeScript 5.x 分析器（`node scripts/source-function-index.cjs --full`），不执行源码业务逻辑。
 - `resources/function-summary.json` 保存当次可重复审计的聚合计数和源码指纹。较大的函数/调用点详情仅在 `.generated/` 按需再生，不提交研究中间产物。
 - 这些工作不代表所有函数语义已经确权，亦不代表完整 Hook Worker、插件或 MCP 端到端行为验收完成。
+
+## v3 源码恢复增量：插件测试源码（2026-10-27）
+
+- 从真实 2.1.310 内嵌 `kit-modules-02f8fcd0.js` 恢复 **294 份独立的 JavaScript 源文件**，写入 `src/plugin-testing-kit/`。这是插件测试工具包，**不计入 2551 个主程序模块**。
+- 原始文件存在 **628 处静态 import/re-export 引用**。已将原构建别名和无后缀引用恢复为实际相对路径，保持函数体和导出声明不变。
+- `scripts/restore-plugin-testing-kit.cjs` 可从保留的原始内嵌文档重复生成源码；`--check` 按文件逐字节比对，防止将人工修订误当成原版源码。
+- `npm run check:plugin-kit` 检查 294 份源码语法、628 条依赖并实测结构化比较与插件测试收集器的关键行为。
+- 修正 `npm run rebuild:functions` 指向不存在脚本的问题，统一使用现有 `source-function-index.cjs`。
+
+注意：恢复的是插件测试辅助工具包，不能据此宣称 Hook Worker、插件 API 及主代理全功能已经端到端验收。
