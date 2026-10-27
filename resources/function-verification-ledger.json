@@ -588,6 +588,14 @@
       "test": "tests/query-state-helpers.test.cjs",
       "role": "query-model-fallback-reason-truncation",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "McpOAuthProvider._doRefresh",
+      "anchor": "async _doRefresh(e){",
+      "test": "tests/mcp-oauth-refresh-errors.test.cjs",
+      "role": "oauth-refresh-retry-and-invalid-grant-recovery",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle && npm run check:mcp-issuer-echo && npm run check:mcp-oauth-lifecycle && npm run check:tool-layout && npm run check:design-sync-layout && npm run check:mcp-oauth-refresh-lock && npm run check:query-state-helpers",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle && npm run check:mcp-issuer-echo && npm run check:mcp-oauth-lifecycle && npm run check:tool-layout && npm run check:design-sync-layout && npm run check:mcp-oauth-refresh-lock && npm run check:query-state-helpers && npm run check:mcp-oauth-refresh-errors",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -48,7 +48,8 @@
     "check:tool-layout": "node --no-warnings --experimental-vm-modules tests/check-tool-layout.cjs",
     "check:design-sync-layout": "node --no-warnings --experimental-vm-modules tests/check-design-sync-layout.cjs",
     "check:mcp-oauth-refresh-lock": "node --test tests/mcp-oauth-refresh-lock.test.cjs",
-    "check:query-state-helpers": "node --test tests/query-state-helpers.test.cjs"
+    "check:query-state-helpers": "node --test tests/query-state-helpers.test.cjs",
+    "check:mcp-oauth-refresh-errors": "node --test tests/mcp-oauth-refresh-errors.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"

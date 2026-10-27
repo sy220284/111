@@ -136,3 +136,5 @@ npm run verify:runtime
 - 阶段 D Token Refresh：新增 `tests/mcp-oauth-refresh-lock.test.cjs` 直接执行 `Ben.refreshAuthorization` 和 `Ben.readConcurrentRefreshWinner` 原类方法，核对锁名、加锁参数、ELOCKED 重试、竞争赢家、刷新口令与异常释放，不涉及真实密钥或网络授权。
 
 - 阶段 C 主代理 `Du` 周边：恢复取消回合定位、最近用户消息、模型失败回退文案与错误原因截断四个函数的可读命名；保留 `sr/Ff/Gf/Iu` 原短符号。新增源码级状态测试，不把辅助函数验证算作完整 `Du` 执行状态机验收。
+
+- 阶段 D OAuth `_doRefresh`：补充 `tests/mcp-oauth-refresh-errors.test.cjs`，使用真正类方法验证授权元信息、SDK 错误类型、`invalid_grant`/`invalid_client` 的并发赢家保护、指数退避和失败收尾；Provider 可读类名为 `McpOAuthProvider`，保留原版 `Ben` 短符号。
