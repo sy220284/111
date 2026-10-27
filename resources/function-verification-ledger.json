@@ -236,6 +236,22 @@
       "test": "tests/streaming-tool-contract.test.cjs",
       "role": "hook-tool-event",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-q85nvv4x.js",
+      "symbol": "uun",
+      "anchor": "function isReservedPolicyHookModule(candidate)",
+      "test": "tests/hook-dispatch-source.test.cjs",
+      "role": "managed-hook-policy-gate",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-q85nvv4x.js",
+      "symbol": "HE",
+      "anchor": "function listModulesForHookDispatch(eventName)",
+      "test": "tests/hook-dispatch-source.test.cjs",
+      "role": "hook-dispatch-filter",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
