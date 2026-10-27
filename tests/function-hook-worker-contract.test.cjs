@@ -113,3 +113,35 @@ test('Worker 流式工具操作支持 op_pull 和提前关闭 op_close', async (
   assert.equal(sent.at(-1).type, 'op_close');
   assert.equal(sent.at(-1).opId, 1);
 });
+
+test('Worker next 取消通知携带正确编号，直到宿主回执前不伪造完成', async () => {
+  const { G, state, notifications } = workerProtocol();
+  const abort = new AbortController();
+  const pending = G(state, 31)({ command: 'read' }, abort.signal);
+  abort.abort('cancelled');
+  assert.equal(notifications[0].type, 'next');
+  assert.equal(notifications[1].type, 'next_abort');
+  assert.equal(notifications[1].id, 31);
+  assert.equal(notifications[1].nextId, 1);
+  state.pendingNext.get('31:1').reject(new Error('cancelled by host'));
+  await assert.rejects(pending, /cancelled by host/);
+});
+
+test('Worker 工具取消发送 op_abort，并保留等待回执的真实失败语义', async () => {
+  const { z, state } = workerProtocol();
+  const sent = [];
+  const pendingOps = new Map();
+  state.ports.set('env', {
+    port: { postMessage: message => sent.push(message) },
+    pendingOps,
+    owedOps: new Map()
+  });
+  const abort = new AbortController();
+  const pending = z(state, { environmentId: 'env', op: 'tool.call', args: [], signal: abort.signal });
+  abort.abort('cancelled');
+  assert.equal(sent[0].type, 'op');
+  assert.equal(sent[1].type, 'op_abort');
+  assert.equal(sent[1].opId, 1);
+  pendingOps.get(1).reject(new Error('cancelled by host'));
+  await assert.rejects(pending, /cancelled by host/);
+});
