@@ -71,6 +71,7 @@ const moduleIndexText = JSON.stringify(index);
 const callsiteIndexText = JSON.stringify(detailed);
 summary.moduleIndexFingerprint = crypto.createHash('sha256').update(moduleIndexText).digest('hex');
 summary.functionCallsitesFingerprint = crypto.createHash('sha256').update(callsiteIndexText).digest('hex');
+console.log(JSON.stringify(summary));
 const text=JSON.stringify(summary,null,2)+'\n';
 if(process.argv.includes('--check')) assert.equal(fs.readFileSync(summaryPath,'utf8'),text,'source index is stale');
 else {
