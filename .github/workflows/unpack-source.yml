@@ -1,0 +1,40 @@
+name: 解压源码包
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/unpack-source.yml
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: 解压并提交源码
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive='Claude_Code_2.1.310_源码修复版_v3_20261027.tar(1).zst'
+          target='Claude_Code_2.1.310_源码修复版_v3_20261027_解压'
+          test -s "$archive"
+          mkdir -p "$target"
+          echo '检查压缩包目录结构'
+          tar --zstd -tf "$archive" > "$RUNNER_TEMP/archive-manifest.txt"
+          echo "压缩包条目数: $(wc -l < "$RUNNER_TEMP/archive-manifest.txt")"
+          echo '开始解压'
+          tar --zstd -xf "$archive" -C "$target" --no-same-owner --no-same-permissions
+          test "$(find "$target" -type f | wc -l)" -gt 0
+          echo "解压常规文件数: $(find "$target" -type f | wc -l)"
+          echo "解压目录数: $(find "$target" -type d | wc -l)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f -A -- "$target"
+          git rm -f -- .github/workflows/unpack-source.yml
+          echo "已暂存文件数: $(git diff --cached --name-only --diff-filter=ACM | wc -l)"
+          git commit -m "解压 2.1.310 源码包并提交完整文件"
+          git push origin HEAD:main
