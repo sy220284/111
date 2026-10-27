@@ -440,6 +440,30 @@
       "legacy": "keo",
       "readable": "stopCurrentSession",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Vxn",
+      "readable": "isDaemonJobConfirmedAbsent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Oeo",
+      "readable": "formatUnpushedCommitCount",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "_cs",
+      "readable": "formatUnpushedCommitSummary",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Deo",
+      "readable": "isDaemonConnectionFailureMessage",
+      "style": "constAlias"
     }
   ]
 }

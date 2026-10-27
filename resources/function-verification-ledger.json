@@ -924,6 +924,38 @@
       "test": "tests/remote-stop-dispatch.test.cjs",
       "role": "remote-stop-command-dispatch",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Vxn",
+      "anchor": "async function isDaemonJobConfirmedAbsent(e)",
+      "test": "tests/daemon-job-evidence.test.cjs",
+      "role": "daemon-confirmed-absent",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Oeo",
+      "anchor": "function formatUnpushedCommitCount(e)",
+      "test": "tests/daemon-job-evidence.test.cjs",
+      "role": "git-unpushed-count",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "_cs",
+      "anchor": "function formatUnpushedCommitSummary(e)",
+      "test": "tests/daemon-job-evidence.test.cjs",
+      "role": "git-unpushed-summary",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Deo",
+      "anchor": "function isDaemonConnectionFailureMessage(e)",
+      "test": "tests/daemon-job-evidence.test.cjs",
+      "role": "daemon-disconnect-error-prefix",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
