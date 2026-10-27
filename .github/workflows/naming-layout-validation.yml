@@ -1,0 +1,32 @@
+name: 命名与资源完整性验收
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'resources/**'
+      - 'runtime/assets.mjs'
+      - 'tests/check-naming-layout.cjs'
+      - 'tests/runtime-assets.test.mjs'
+      - 'scripts/build-resource-consumers.cjs'
+      - '.github/workflows/naming-layout-validation.yml'
+  workflow_dispatch:
+
+jobs:
+  naming-and-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+      - name: 使用 Node.js 22.16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: 校验命名、全部解压资源及哈希
+        run: npm run check:naming-layout
+      - name: 校验 250 项 BunFS 资源及消费者
+        run: npm run check:resource-map
+      - name: 验证资源加载行为
+        run: npm run check:assets
+      - name: 验证 24 份内嵌源码
+        run: npm run check:embedded
