@@ -644,6 +644,22 @@
       "test": "tests/daemon-recovery-helpers.test.cjs",
       "role": "daemon-log-file-path",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "symbol": "QRn",
+      "anchor": "function findRetryableMcpConnections(n, o, e = !0)",
+      "test": "tests/mcp-retry-state.test.cjs",
+      "role": "mcp-retry-failed-connecting-config-guard",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "symbol": "aZr",
+      "anchor": "function trackTransientMcpRetries(n)",
+      "test": "tests/mcp-retry-state.test.cjs",
+      "role": "mcp-transient-retry-reference-count",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

@@ -147,3 +147,5 @@ npm run verify:runtime
 
 - `resources/restored-symbol-aliases.json` 记录 10 个主模块中 38 个已改造成可读声明的原短符号接口，排除只增加测试、没有改源码的函数。
 - `scripts/check-restored-aliases.cjs` 校验可读声明、旧符号链接、已有定向行为测试三者同时存在，并由 `npm test` 持续执行。防止并行提交无声覆盖恢复实现；不因此宣称整个 Claude Code 语义或线上环境等价。
+
+- 阶段 D/E MCP 故障恢复：`src/chunk-fbc1ty1s.js` 的 `QRn/aZr` 已恢复可维护业务命名，原短名保留；测试验证失败/连接中状态筛选、当前配置一致性和可嵌套的重试引用计数。两项纳入函数证据与防回退清单，防止账户/配置漂移导致错误重试。

@@ -230,6 +230,18 @@
       "legacy": "u",
       "readable": "isSessionRowEligibleForAppend",
       "style": "inlineVar"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "legacy": "QRn",
+      "readable": "findRetryableMcpConnections",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "legacy": "aZr",
+      "readable": "trackTransientMcpRetries",
+      "style": "constAlias"
     }
   ]
 }

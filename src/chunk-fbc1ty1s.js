@@ -148,14 +148,18 @@ function applyMcpConnectionSettlement(n, o) { let { client: e, tools: u, command
 } if (!FTt(r, e))
     return p = "dropped", m; return { ...m, clients: m.clients.map((g) => g.name === e.name ? e : g), tools: ri([...m.tools, ...u], "name"), commands: ri([...m.commands, ...d], "name") }; }), c?.(), p; }
 const hfr=applyMcpConnectionSettlement;
-function QRn(n, o, e = !0) { let u = o.getClients(); return Object.entries(n).filter(([d, s]) => { let c = u.find((p) => p.name === d); return c !== void 0 && (WLt(c) || e && bXe(c)) && R().areMcpConfigsEqual(c.config, s); }); }
-function aZr(n) { let o = (e) => { let u = xt().transientRetryPasses; for (let d of n) {
+/** Select retryable MCP connections whose current slot still matches its config. */
+function findRetryableMcpConnections(n, o, e = !0) { let u = o.getClients(); return Object.entries(n).filter(([d, s]) => { let c = u.find((p) => p.name === d); return c !== void 0 && (WLt(c) || e && bXe(c)) && R().areMcpConfigsEqual(c.config, s); }); }
+const QRn=findRetryableMcpConnections;
+/** Reference-count transient MCP retries until the disposable scope exits. */
+function trackTransientMcpRetries(n) { let o = (e) => { let u = xt().transientRetryPasses; for (let d of n) {
     let s = (u.get(d) ?? 0) + e;
     if (s > 0)
         u.set(d, s);
     else
         u.delete(d);
 } }; return o(1), { [Symbol.dispose]: () => o(-1) }; }
+const aZr=trackTransientMcpRetries;
 async function R6t(n, o, e, u = (s) => hfr(o, s), d) { const env_1 = { stack: [], error: void 0, hasError: false }; try {
     let s = () => QRn(n, o);
     if (s().length === 0)
@@ -308,4 +312,4 @@ function W({ servers: n, suppressed: o }, e, u, d) { return e.applyMcpUpdate((s)
 function E(n, o) { let e = io(o.name); return { ...n, clients: n.clients.map((u) => u.name === o.name ? o : u), tools: jB(n.tools, (u) => jc(u, o.name, e)), commands: jB(n.commands, (u) => Wb(u, o.name)), resources: Tk(n.resources, o.name), resourceTemplates: Tk(n.resourceTemplates, o.name) }; }
 function T(n) { if (Ul())
     ohe(n, void 0); n.cleanup().catch(() => { }), R().clearServerCache(n.name, n.config).catch(() => { }); }
-export { applyMcpConnectionSettlement, $ls, C6t, Fls, Uls, iZr, hfr, QRn, aZr, R6t, Bls };
+export{findRetryableMcpConnections,trackTransientMcpRetries, applyMcpConnectionSettlement, $ls, C6t, Fls, Uls, iZr, hfr, QRn, aZr, R6t, Bls };

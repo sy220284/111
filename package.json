@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:source-fragments && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle && npm run check:mcp-issuer-echo && npm run check:mcp-oauth-lifecycle && npm run check:tool-layout && npm run check:design-sync-layout && npm run check:mcp-oauth-refresh-lock && npm run check:query-state-helpers && npm run check:mcp-oauth-refresh-errors && npm run check:mcp-connection-settlement && npm run check:daemon-recovery-helpers && npm run check:restored-aliases",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:source-fragments && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle && npm run check:mcp-issuer-echo && npm run check:mcp-oauth-lifecycle && npm run check:tool-layout && npm run check:design-sync-layout && npm run check:mcp-oauth-refresh-lock && npm run check:query-state-helpers && npm run check:mcp-oauth-refresh-errors && npm run check:mcp-connection-settlement && npm run check:daemon-recovery-helpers && npm run check:restored-aliases && npm run check:mcp-retry-state",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -53,7 +53,8 @@
     "check:mcp-connection-settlement": "node --test tests/mcp-connection-settlement.test.cjs",
     "check:daemon-recovery-helpers": "node --test tests/daemon-recovery-helpers.test.cjs",
     "check:restored-aliases": "node scripts/check-restored-aliases.cjs",
-    "check:source-fragments": "node --test tests/source-extraction.test.cjs"
+    "check:source-fragments": "node --test tests/source-extraction.test.cjs",
+    "check:mcp-retry-state": "node --test tests/mcp-retry-state.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"
