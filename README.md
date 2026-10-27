@@ -149,3 +149,5 @@ npm run verify:runtime
 - `scripts/check-restored-aliases.cjs` 校验可读声明、旧符号链接、已有定向行为测试三者同时存在，并由 `npm test` 持续执行。防止并行提交无声覆盖恢复实现；不因此宣称整个 Claude Code 语义或线上环境等价。
 
 - 阶段 D/E MCP 故障恢复：`src/chunk-fbc1ty1s.js` 的 `QRn/aZr` 已恢复可维护业务命名，原短名保留；测试验证失败/连接中状态筛选、当前配置一致性和可嵌套的重试引用计数。两项纳入函数证据与防回退清单，防止账户/配置漂移导致错误重试。
+
+- MCP 重试执行器闭环：`R6t` 恢复为 `retryFailedMcpConnections` 并保留旧引用，离线执行原逻辑验证退避延迟、身份换号、Abort、配置漂移、策略拒绝、成功发布与异常资源释放；此仅为模拟宿主执行，并未实现真实联网 MCP 端到端测试。

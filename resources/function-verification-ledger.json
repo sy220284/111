@@ -660,6 +660,14 @@
       "test": "tests/mcp-retry-state.test.cjs",
       "role": "mcp-transient-retry-reference-count",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "symbol": "R6t",
+      "anchor": "async function retryFailedMcpConnections(n, o, e, u = (s) => hfr(o, s), d)",
+      "test": "tests/mcp-retry-executor.test.cjs",
+      "role": "mcp-retry-executor-account-epoch-backoff-and-disposal",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

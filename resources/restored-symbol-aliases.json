@@ -242,6 +242,12 @@
       "legacy": "aZr",
       "readable": "trackTransientMcpRetries",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "legacy": "R6t",
+      "readable": "retryFailedMcpConnections",
+      "style": "constAlias"
     }
   ]
 }
