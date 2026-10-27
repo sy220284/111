@@ -419,7 +419,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "artifact-plan.html-80a36a32.txt.zst": {
-      "path": "resources/templates/artifact/artifact-plan-80a36a32.html",
+      "path": "resources/templates/artifact/artifact-plan.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "c25b886e83066c5c4f2f591f654888e52fe27f142870c24eba49a086bccaa6b3",
@@ -432,7 +432,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "artifact-workshop.html-a79fa64e.txt.zst": {
-      "path": "resources/templates/artifact/artifact-workshop-a79fa64e.html",
+      "path": "resources/templates/artifact/artifact-workshop.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "bb0813a4aa7081ec08d1057ddd2d408d7ae3d3e669fd7e0e06a1b02ff59eb416",
@@ -573,7 +573,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "component.css-02637b0d.txt.zst": {
-      "path": "resources/templates/artifact/component-02637b0d.css",
+      "path": "resources/templates/artifact/component.css",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "76565ba32b3e7ed59706de795fbe96546dc707d106729c3a4906119f37f939bd",
@@ -677,7 +677,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "decisions-script.html-e58174c4.txt.zst": {
-      "path": "resources/templates/artifact/decisions-script-e58174c4.html",
+      "path": "resources/templates/artifact/decisions-script.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "dbe4b48e5fbcba9a24524f33680d644e72500142b2e7c78fc09383c31ad45e86",
@@ -716,7 +716,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "drop_block_probe-bcdfaa4d.py.zst": {
-      "path": "resources/tools/evaluation/drop_block_probe-bcdfaa4d.py",
+      "path": "resources/tools/evaluation/drop_block_probe.py",
       "kind": "python-source",
       "purpose": "evaluation and validation script",
       "compressedSha256": "7c2291534c84cbff589fade3b0b8784b827a79b9cb0b0c39ee3cb68d8b66ed3d",
@@ -1271,7 +1271,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "permissions_external-df98b90a.txt.zst": {
-      "path": "resources/docs/other/permissions_external-df98b90a.txt",
+      "path": "resources/docs/other/permissions-external.txt",
       "kind": "reference-text",
       "purpose": "embedded text reference",
       "compressedSha256": "40baa6fdec051c8a1ceaa357e6487d5ec7a82ead1f363eb158d775a36a1fe91a",
@@ -1336,7 +1336,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "prefix_diff-69deb9d3.py.zst": {
-      "path": "resources/tools/evaluation/prefix_diff-69deb9d3.py",
+      "path": "resources/tools/evaluation/prefix_diff.py",
       "kind": "python-source",
       "purpose": "evaluation and validation script",
       "compressedSha256": "11c3e750b5fc92ce88cb941d64643d97a9e68f74c1544f4524cacc47ff80e7bd",
@@ -1414,7 +1414,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "psl-data.json-ffeefa5c.txt.zst": {
-      "path": "resources/data/psl-data-ffeefa5c.json",
+      "path": "resources/data/psl-data.json",
       "kind": "json-data",
       "purpose": "embedded structured configuration or data",
       "compressedSha256": "1fffbf6109b16cc458484d83a7bebc1bcb8b1b5cba84129281a5bc5bd79e06a5",
@@ -1609,7 +1609,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "template.html-101715f9.txt.zst": {
-      "path": "resources/templates/artifact/template-101715f9.html",
+      "path": "resources/templates/artifact/document-editor.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "1ed702a7ba02ce601e2084f45a54be69d0bafa0ca140fb2580135e87d4d3b4b1",
@@ -1622,7 +1622,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "template.html-268183fd.txt.zst": {
-      "path": "resources/templates/artifact/template-268183fd.html",
+      "path": "resources/templates/artifact/report.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "39461c3ce009bd786566668d501cf54921c243ece23f5636ed90ae0b9590a433",
@@ -1635,7 +1635,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "template.html-cad26093.txt.zst": {
-      "path": "resources/templates/artifact/template-cad26093.html",
+      "path": "resources/templates/artifact/data-table.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "bff3359b0770eac8a92608390b466eb10bb96b2cf8b3268bf53194e4f89be61c",
@@ -1648,7 +1648,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tokens.css-6f9090cf.txt.zst": {
-      "path": "resources/templates/artifact/tokens-6f9090cf.css",
+      "path": "resources/templates/artifact/tokens.css",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "453a299bd4edc47c4648777acfc17232143c9ab4004e43b297e3856003d8fc20",
@@ -1739,7 +1739,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tools-snapshot.json-517c5f68.txt.zst": {
-      "path": "resources/data/tools-snapshot-517c5f68.json",
+      "path": "resources/data/tools-snapshot.json",
       "kind": "json-data",
       "purpose": "embedded structured configuration or data",
       "compressedSha256": "e42b1812e1656f2cec92c259316d0aac50e50609473fa4c761567d5b5f802e90",
@@ -1778,7 +1778,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "validate_palette.py-f97163c4.txt.zst": {
-      "path": "resources/docs/other/validate_palette.py-f97163c4.txt",
+      "path": "resources/tools/design/scripts/validate_palette.py",
       "kind": "reference-text",
       "purpose": "embedded text reference",
       "compressedSha256": "16452489db2a19c17b5433303795d1b9c63c1cf9dce33f27c18f98a8ee0aa76b",
@@ -1804,7 +1804,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "workshop-page.html-22624ec4.txt.zst": {
-      "path": "resources/templates/artifact/workshop-page-22624ec4.html",
+      "path": "resources/templates/artifact/workshop-page.html",
       "kind": "template",
       "purpose": "embedded HTML/CSS template",
       "compressedSha256": "276c3bf61ef62a026d3291815a1a844238dd26583dc831dd4e4fdb66a0ffbb74",

@@ -36,6 +36,28 @@ for (const [bunfsName, entry] of Object.entries(layout.entries)) {
     }
   }
 }
+// 第二批目标路径逐项按原始 BunFS 键确认（校验有据可查的职责，不推断动态依赖）。
+const normalizedBatchTwo = {
+  "artifact-plan.html-80a36a32.txt.zst": "resources/templates/artifact/artifact-plan.html",
+  "artifact-workshop.html-a79fa64e.txt.zst": "resources/templates/artifact/artifact-workshop.html",
+  "component.css-02637b0d.txt.zst": "resources/templates/artifact/component.css",
+  "decisions-script.html-e58174c4.txt.zst": "resources/templates/artifact/decisions-script.html",
+  "drop_block_probe-bcdfaa4d.py.zst": "resources/tools/evaluation/drop_block_probe.py",
+  "permissions_external-df98b90a.txt.zst": "resources/docs/other/permissions-external.txt",
+  "prefix_diff-69deb9d3.py.zst": "resources/tools/evaluation/prefix_diff.py",
+  "psl-data.json-ffeefa5c.txt.zst": "resources/data/psl-data.json",
+  "template.html-101715f9.txt.zst": "resources/templates/artifact/document-editor.html",
+  "template.html-268183fd.txt.zst": "resources/templates/artifact/report.html",
+  "template.html-cad26093.txt.zst": "resources/templates/artifact/data-table.html",
+  "tokens.css-6f9090cf.txt.zst": "resources/templates/artifact/tokens.css",
+  "tools-snapshot.json-517c5f68.txt.zst": "resources/data/tools-snapshot.json",
+  "validate_palette.py-f97163c4.txt.zst": "resources/tools/design/scripts/validate_palette.py",
+  "workshop-page.html-22624ec4.txt.zst": "resources/templates/artifact/workshop-page.html"
+};
+for (const [key, destination] of Object.entries(normalizedBatchTwo)) {
+  assert.equal(layout.entries[key]?.path, destination, `第二批目标路径失配：${key}`);
+}
+
 assert.equal(markdown, 83, 'Markdown 资源数量发生变化');
 assert.equal(skills, 14, '技能入口数量发生变化');
 console.log(JSON.stringify({ result: 'PASS', mappedResources: targetPaths.size, normalizedMarkdown: markdown, skillEntrypoints: skills }));
