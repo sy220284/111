@@ -700,6 +700,38 @@
       "test": "tests/daemon-orphan-cleanup.test.cjs",
       "role": "daemon-orphan-stderr-inode-checked-pruning",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "symbol": "Vg",
+      "anchor": "function fetchUncachedMcpToolList(e, n)",
+      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "role": "mcp-tools-list-force-bypass",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "symbol": "Wg",
+      "anchor": "function readUncachedMcpResource(e, n, r)",
+      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "role": "mcp-resource-bypass",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "symbol": "Gg",
+      "anchor": "function callMcpToolWithTaskContext(e, n, r)",
+      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "role": "mcp-tools-call-modern-task-context",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "symbol": "Gd",
+      "anchor": "function attachDeclaredMcpTaskContext(e, n)",
+      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "role": "mcp-task-pre-discovery-context",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

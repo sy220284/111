@@ -272,6 +272,30 @@
       "legacy": "Zt",
       "readable": "pruneExpiredLegacyDaemonLogDirs",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "legacy": "Vg",
+      "readable": "fetchUncachedMcpToolList",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "legacy": "Wg",
+      "readable": "readUncachedMcpResource",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "legacy": "Gg",
+      "readable": "callMcpToolWithTaskContext",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-r4g83g7p.js",
+      "legacy": "Gd",
+      "readable": "attachDeclaredMcpTaskContext",
+      "style": "constAlias"
     }
   ]
 }
