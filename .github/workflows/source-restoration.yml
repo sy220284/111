@@ -1,0 +1,27 @@
+name: 源码恢复验证
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'resources/**'
+      - 'runtime/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'package.json'
+      - '.github/workflows/source-restoration.yml'
+  workflow_dispatch:
+
+jobs:
+  source-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出恢复源码
+        uses: actions/checkout@v4
+      - name: 使用 Node.js 22.16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: 执行源码与功能级离线验证
+        run: npm test
