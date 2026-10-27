@@ -6,5 +6,7 @@
   "dynamicLiteralImports": 1483,
   "missingRelativeImports": 0,
   "parseFailed": 0,
-  "sourceFingerprint": "825bdf85e86d281a8f8ae36571c9b92d98b86e463d067ec28c9dad8c096a95e5"
+  "sourceFingerprint": "825bdf85e86d281a8f8ae36571c9b92d98b86e463d067ec28c9dad8c096a95e5",
+  "moduleIndexFingerprint": "4d05e05c6882251296d025ff06c3f64c68222293adfb75fad4e9aa2b7dc9dd20",
+  "functionCallsitesFingerprint": "7f8f61bda3933f8daca9898d5c2a8a00e0127f6fba60de6e162ff65799663207"
 }
