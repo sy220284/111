@@ -106,7 +106,8 @@ test('子代理历史必须从请求中的根 UUID 开始，且不可缺失父�
  assert.equal(f.sn([] ,[]),false);
  assert.equal(f.sn([{uuid:'child',parentUuid:'absent'}],['child']),false);
  assert.equal(f.sn([{uuid:'root'},{uuid:'child',parentUuid:'missing'}],['root']),false);
- assert.equal(f.sn([{uuid:'child',parentUuid:'root'}],['root']),false);
+ // A parent already represented in the kept conversation UUIDs need not be repeated in the fetched transcript.
+ assert.equal(f.sn([{uuid:'child',parentUuid:'root'}],['root']),true);
 });
 test('上下文压缩 preserving UUID 仅在可追溯于历史/已知行时通过',()=>{
  const f=originalResumeHarness();
