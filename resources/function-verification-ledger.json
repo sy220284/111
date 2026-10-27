@@ -668,6 +668,30 @@
       "test": "tests/mcp-retry-executor.test.cjs",
       "role": "mcp-retry-executor-account-epoch-backoff-and-disposal",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "symbol": "mfo",
+      "anchor": "function isSubagentDispatchToolUse(e)",
+      "test": "tests/subagent-shutdown-recovery.test.cjs",
+      "role": "agent-dispatch-valid-type-gate",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "symbol": "en",
+      "anchor": "function hasMatchedSubagentResult(e, k)",
+      "test": "tests/subagent-shutdown-recovery.test.cjs",
+      "role": "agent-correlation-tool-use-and-result",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "symbol": "Un",
+      "anchor": "function normalizeShutdownInterruptedAgentResult(e, k)",
+      "test": "tests/subagent-shutdown-recovery.test.cjs",
+      "role": "agent-shutdown-tool-result-normalization",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

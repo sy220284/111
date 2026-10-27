@@ -248,6 +248,24 @@
       "legacy": "R6t",
       "readable": "retryFailedMcpConnections",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "mfo",
+      "readable": "isSubagentDispatchToolUse",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "en",
+      "readable": "hasMatchedSubagentResult",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "Un",
+      "readable": "normalizeShutdownInterruptedAgentResult",
+      "style": "constAlias"
     }
   ]
 }

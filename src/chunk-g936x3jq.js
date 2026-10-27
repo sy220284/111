@@ -146,8 +146,11 @@ ${k.report}`), ee = { kind: "observer", from: S, senderTaskId: h };
     }, mapToolResultToToolResultBlockParam(e, k) { return { type: "tool_result", tool_use_id: k, content: e.message, is_error: !e.success }; }, renderToolUseMessage(e) { return `report: ${e.report}`; } });
 var jn = [Mn, GE, Me, ht, pu, el, Gs, Hp, dg];
 function lwr(e) { return [...e.filter((k) => jn.every((h) => !Rt(k, h))), Zt]; }
-function mfo(e) { return (e.name === ht || e.name === cf) && typeof e.input === "object" && e.input !== null && "subagent_type" in e.input && ddn(e.input.subagent_type); }
-function en(e, k) { let h = new Set; for (let b of e)
+/** Identify a valid Task/Agent call that carries a supported subagent type. */
+function isSubagentDispatchToolUse(e) { return (e.name === ht || e.name === cf) && typeof e.input === "object" && e.input !== null && "subagent_type" in e.input && ddn(e.input.subagent_type); }
+const mfo=isSubagentDispatchToolUse;
+/** Match a spawned subagent tool_use with its agent's matching tool_result row. */
+function hasMatchedSubagentResult(e, k) { let h = new Set; for (let b of e)
     if (b.type === "assistant") {
         let _ = b.message.content;
         if (!Array.isArray(_))
@@ -163,6 +166,7 @@ function en(e, k) { let h = new Set; for (let b of e)
         if (T.some((F) => F.type === "tool_result" && h.has(F.tool_use_id)))
             return !0;
     } return !1; }
+const en=hasMatchedSubagentResult;
 async function dwr(e, { origin: k, ...h }) { let b = kzn(e)?.hookOrigin, _ = await gwr({ ...h, agents: [], resume: Object.freeze({ agentId: e }), origin: b === void 0 ? k : [...b, ...k ?? []] }); if (_.starting !== bfo && Hxr(h.signal, h.background))
     throw _.starting?.[Symbol.dispose](), new Ye; return _; }
 function cwr(e) { return `a plugin declined the resume: ${e}`; }
@@ -505,8 +509,10 @@ catch (e_1) {
 finally {
     __disposeResources(env_1);
 } }
-function Un(e, k) { if (e.type !== "user" || !(("agentId" in e) && e.agentId === k) || e.interruptedByShutdown !== !0 || !Array.isArray(e.message.content))
+/** Restore agent-owned shutdown-interrupted tool results without changing other rows. */
+function normalizeShutdownInterruptedAgentResult(e, k) { if (e.type !== "user" || !(("agentId" in e) && e.agentId === k) || e.interruptedByShutdown !== !0 || !Array.isArray(e.message.content))
     return e; if (!Xue(e))
     return vm(e) ? { ...e, message: { ...e.message, content: [{ type: "text", text: a3o }] } } : e; return { ...e, toolUseResult: Gx, toolDenialKind: void 0, message: { ...e.message, content: e.message.content.map((h) => h.type === "tool_result" ? { ...h, content: Gx } : h) } }; }
+const Un=normalizeShutdownInterruptedAgentResult;
 function Yn(e, k, h, b) { return e === void 0 ? b : { ...b, joinedNoticeLengths: e, joinedNoticeOwn: k, joinedNoticeRunIds: h }; }
-export { lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };
+export { isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };

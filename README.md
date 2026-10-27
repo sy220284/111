@@ -151,3 +151,5 @@ npm run verify:runtime
 - 阶段 D/E MCP 故障恢复：`src/chunk-fbc1ty1s.js` 的 `QRn/aZr` 已恢复可维护业务命名，原短名保留；测试验证失败/连接中状态筛选、当前配置一致性和可嵌套的重试引用计数。两项纳入函数证据与防回退清单，防止账户/配置漂移导致错误重试。
 
 - MCP 重试执行器闭环：`R6t` 恢复为 `retryFailedMcpConnections` 并保留旧引用，离线执行原逻辑验证退避延迟、身份换号、Abort、配置漂移、策略拒绝、成功发布与异常资源释放；此仅为模拟宿主执行，并未实现真实联网 MCP 端到端测试。
+
+- Agent/Worker 恢复分支：`src/chunk-g936x3jq.js` 的 `mfo/en/Un` 恢复可读命名并保留原短符号，直接执行原函数检查子代理 `tool_use_id` 关联、Agent ID 隔离、关机中断后的工具结果映射及文本回退；新增 7 项离线回归，尚不代表真实 Worker/OS 恢复流程已完整验收。
