@@ -7,7 +7,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-t2adf9g4.js'),'utf8');
 function fragment(start,end){const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert.ok(a>=0&&b>a);return source.slice(a,b)}
 function absent(reply){const code=fragment('async function isDaemonJobConfirmedAbsent(e)','var Et=');return vm.runInNewContext(code+';({Vxn,isDaemonJobConfirmedAbsent})',{bh:async()=>reply,Oc:7})}
-function format(){const code=fragment('function formatUnpushedCommitCount(e)','async function Rt(e,n)');return vm.runInNewContext(code+';({Oeo,_cs,formatUnpushedCommitCount,formatUnpushedCommitSummary})',{wn:()=>'',I:(n,w)=>n===1?w:w+'s'})}
+function format(){const code=fragment('function formatUnpushedCommitCount(e)','async function isExpectedGitHead(e,n)');return vm.runInNewContext(code+';({Oeo,_cs,formatUnpushedCommitCount,formatUnpushedCommitSummary})',{wn:()=>'',I:(n,w)=>n===1?w:w+'s'})}
 function disconnected(){const code=fragment('function isDaemonConnectionFailureMessage(e)','var At=');return vm.runInNewContext(code+';({Deo,isDaemonConnectionFailureMessage})',{vn:()=>"Couldn't reach the Daemon"})}
 test('只有 has 协议明确回应 present=false 才能确认作业不存在',async()=>{
  for(const [reply,expected] of [
