@@ -380,6 +380,46 @@
       "test": "tests/session-append-storage.test.cjs",
       "role": "session-append-eligible-row",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "symbol": "Vds",
+      "anchor": "function listExternalTemplateIds()",
+      "test": "tests/permission-template-source.test.cjs",
+      "role": "external-template-identifiers",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "symbol": "qds",
+      "anchor": "function findExternalTemplateByDigest(sha256)",
+      "test": "tests/permission-template-source.test.cjs",
+      "role": "external-template-digest-lookup",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "symbol": "Oat",
+      "anchor": "function findExternalTemplateById(id)",
+      "test": "tests/permission-template-source.test.cjs",
+      "role": "external-template-id-lookup",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "symbol": "Nxn",
+      "anchor": "function isPreToolUseTemplateEvent(event)",
+      "test": "tests/permission-template-source.test.cjs",
+      "role": "external-template-hook-event",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "symbol": "$xn",
+      "anchor": "function externalTemplateConstantFlag()",
+      "test": "tests/permission-template-source.test.cjs",
+      "role": "external-template-constant-gate",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

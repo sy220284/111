@@ -116,3 +116,8 @@ npm run verify:runtime
 - `tests/query-loop-recovery.test.cjs` 针对原始 `Au/Uf/Nf/qf/Gr/Pu/Qf/vu` 执行 8 组 Thinking、截断、消息队列及失败 tool_result 测试。
 - `tests/session-append-storage.test.cjs` 直接执行 `src/chunk-w9w4r9w1.js` 的 `D/Te/u`，覆盖持久化路径 Hook 变更、异常兜底、fills 与不可追加事件；这是与上层 `Da` 对应的存储端阶段检查。
 - `resources/function-verification-ledger.json` 仅登记有限行为测试，所有登记项不得计作全功能恢复或已构建通过。
+
+## 阶段 D 权限模板源函数恢复
+
+- `src/chunk-eq8vmbm3.js` 的五个原始导出恢复为具名函数，保留原版空缓存初始化、摘要匹配优先级及 `PreToolUse` 条件；原版恒真函数保留恒真语义，不能推定其已实现完整权限引擎。
+- `tests/permission-template-source.test.cjs` 从实际代码加载注册表逻辑与导出，覆盖空表、同表复用、哈希和 ID 匹配、大小写边界、旧符号一致性。
