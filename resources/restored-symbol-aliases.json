@@ -686,6 +686,102 @@
       "legacy": "On",
       "readable": "checkJobStateFilePresence",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "F6",
+      "readable": "isFrameLiveAdoptable",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "xwe",
+      "readable": "collectAdoptableFrameSlugs",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Vxt",
+      "readable": "countAlreadyAdoptedWork",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "qxt",
+      "readable": "countOutstandingAdoptWork",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Q",
+      "readable": "attachAdoptionErrorCode",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "ke",
+      "readable": "parseAdoptionJsonOrNull",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Cno",
+      "readable": "formatAdoptionProcessIdentity",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "je",
+      "readable": "resolveAdoptedAgentParent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "kt",
+      "readable": "persistOwnedDaemonBeacon",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Kn",
+      "readable": "readDaemonGestureFromStorage",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "He",
+      "readable": "parseTerminalKittyKeyEscape",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "pn",
+      "readable": "scanTerminalInterruptSequence",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "qxn",
+      "readable": "hasTerminalInterruptSequence",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "kn",
+      "readable": "verifyDaemonJobOwnership",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Heo",
+      "readable": "retryDaemonJobUpdate",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "vn",
+      "readable": "formatDaemonConnectionRetryPrompt",
+      "style": "constAlias"
     }
   ]
 }

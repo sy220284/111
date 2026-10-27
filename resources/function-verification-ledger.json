@@ -1252,6 +1252,134 @@
       "test": "tests/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-On",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "F6",
+      "anchor": "function isFrameLiveAdoptable(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-F6",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "xwe",
+      "anchor": "function collectAdoptableFrameSlugs(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-xwe",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Vxt",
+      "anchor": "function countAlreadyAdoptedWork(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-Vxt",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "qxt",
+      "anchor": "function countOutstandingAdoptWork(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-qxt",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Q",
+      "anchor": "function attachAdoptionErrorCode(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-Q",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "ke",
+      "anchor": "function parseAdoptionJsonOrNull(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-ke",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Cno",
+      "anchor": "function formatAdoptionProcessIdentity(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-Cno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "je",
+      "anchor": "function resolveAdoptedAgentParent(",
+      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "role": "v40-verified-domain-je",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "kt",
+      "anchor": "function persistOwnedDaemonBeacon(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-kt",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Kn",
+      "anchor": "function readDaemonGestureFromStorage(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-Kn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "He",
+      "anchor": "function parseTerminalKittyKeyEscape(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-He",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "pn",
+      "anchor": "function scanTerminalInterruptSequence(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-pn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "qxn",
+      "anchor": "function hasTerminalInterruptSequence(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-qxn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "kn",
+      "anchor": "function verifyDaemonJobOwnership(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-kn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Heo",
+      "anchor": "function retryDaemonJobUpdate(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-Heo",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "vn",
+      "anchor": "function formatDaemonConnectionRetryPrompt(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "v40-verified-domain-vn",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
