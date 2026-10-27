@@ -692,6 +692,14 @@
       "test": "tests/subagent-shutdown-recovery.test.cjs",
       "role": "agent-shutdown-tool-result-normalization",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-wapyem7a.js",
+      "symbol": "Zt",
+      "anchor": "async function pruneExpiredLegacyDaemonLogDirs(e, r = $e())",
+      "test": "tests/daemon-orphan-cleanup.test.cjs",
+      "role": "daemon-orphan-stderr-inode-checked-pruning",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

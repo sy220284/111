@@ -153,3 +153,5 @@ npm run verify:runtime
 - MCP 重试执行器闭环：`R6t` 恢复为 `retryFailedMcpConnections` 并保留旧引用，离线执行原逻辑验证退避延迟、身份换号、Abort、配置漂移、策略拒绝、成功发布与异常资源释放；此仅为模拟宿主执行，并未实现真实联网 MCP 端到端测试。
 
 - Agent/Worker 恢复分支：`src/chunk-g936x3jq.js` 的 `mfo/en/Un` 恢复可读命名并保留原短符号，直接执行原函数检查子代理 `tool_use_id` 关联、Agent ID 隔离、关机中断后的工具结果映射及文本回退；新增 7 项离线回归，尚不代表真实 Worker/OS 恢复流程已完整验收。
+
+- Daemon 安全恢复：`src/chunk-wapyem7a.js` 中旧式 `cc-daemon-*` 过期目录清理函数 `Zt` 恢复为 `pruneExpiredLegacyDaemonLogDirs`。添加真实源函数测试验证仍在使用的 UID/PID/哈希命名跳过、单 stderr.log 限制、截止时间、目录 inode 防竞态重验和失败不删除。此处仅为清理安全链，不含运行中 Daemon 进程复活。

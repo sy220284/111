@@ -1008,7 +1008,8 @@ async function Jt() { let e = kS(), r = E(); if (e === null)
     }
     await T(h(n, f.name), s);
 } return r; }
-async function Zt(e, r = $e()) { let s = E(), n = ie(), f = process.getuid?.(), i; try {
+/** Delete only expired, single-file stderr-only legacy daemon directories after revalidating inode identity. */
+async function pruneExpiredLegacyDaemonLogDirs(e, r = $e()) { let s = E(), n = ie(), f = process.getuid?.(), i; try {
     i = await n.readdir(r);
 }
 catch (m) {
@@ -1054,6 +1055,7 @@ catch (m) {
             s.errors++;
     }
 } return s; }
+const Zt=pruneExpiredLegacyDaemonLogDirs;
 var Ns = new RegExp(`^${rkn}[A-Za-z0-9]{6}$`);
 var qt = new RegExp(`^${okn}[A-Za-z0-9]{6}$`);
 async function er(e = kS(), r = Ap()) { let s = E(); if (e === null)
@@ -1351,4 +1353,4 @@ async function be(e, r, s) { if (r === null)
     if (s > 1 && f.isDirectory() && await be(i, r, s - 1))
         return !0;
 } return !1; }
-export { Y$n, Rho, kS, vAs, yme, xho, Pho, Iho };
+export { pruneExpiredLegacyDaemonLogDirs, Y$n, Rho, kS, vAs, yme, xho, Pho, Iho };

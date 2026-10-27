@@ -266,6 +266,12 @@
       "legacy": "Un",
       "readable": "normalizeShutdownInterruptedAgentResult",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-wapyem7a.js",
+      "legacy": "Zt",
+      "readable": "pruneExpiredLegacyDaemonLogDirs",
+      "style": "constAlias"
     }
   ]
 }
