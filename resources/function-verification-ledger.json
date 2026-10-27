@@ -820,6 +820,30 @@
       "test": "tests/agent-resume-errors.test.cjs",
       "role": "agent-resume-inline-error-marker",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "tgr",
+      "anchor": "function mcpSettledForAdopt(e)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "mcp-adoption-readiness",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Pno",
+      "anchor": "function classifyAdoptReconciliationNotice(e)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "forked-skill-reconcile-notice",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Yxn",
+      "anchor": "async function probeDaemonJob(e,n)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "daemon-has-and-pid-fallback",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

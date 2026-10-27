@@ -362,6 +362,24 @@
       "legacy": "uwr",
       "readable": "isInlineResumedAgentError",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "tgr",
+      "readable": "mcpSettledForAdopt",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Pno",
+      "readable": "classifyAdoptReconciliationNotice",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Yxn",
+      "readable": "probeDaemonJob",
+      "style": "constAlias"
     }
   ]
 }
