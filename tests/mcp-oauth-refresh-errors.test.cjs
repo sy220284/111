@@ -34,6 +34,7 @@ function buildHarness({answers=[],winner,tokenData,metadata=true,client=true,str
    bbo:async()=>{
      const answer=answers[attempt++];
      calls.push({type:'exchange',attempt});
+     if(answer?.oauthCode)throw new OAuthError(answer.oauthCode);
      if(answer instanceof Error)throw answer;
      return answer;
    },
@@ -50,7 +51,8 @@ function buildHarness({answers=[],winner,tokenData,metadata=true,client=true,str
    d:error=>String(error),
    Fme:{emit:name=>calls.push({type:'emit',name})},
    X:async(ms)=>calls.push({type:'sleep',ms}),
-   URL
+   URL,
+   Error
  };
  const Harness=vm.runInNewContext('class Harness{'+raw+'; Harness',contexts);
  const instance=new Harness();
@@ -88,34 +90,23 @@ test('没有元数据或注册信息时不发送刷新请求',async()=>{
 });
 test('invalid_grant 有并发赢家时直接返回赢家，不执行失效操作',async()=>{
  const winner={access_token:'already-rotated'};
- const f=buildHarness({answers:[new Error('placeholder')],winner});
- const b=f.OAuthError;
- // Supply a genuine source-compatible OAuthError value to the original function.
- const err=new b('invalid_grant');
- const g=buildHarness({answers:[err],winner});
+ const g=buildHarness({answers:[{oauthCode:'invalid_grant'}],winner});
  assert.equal((await g.instance._doRefresh('old')).access_token,'already-rotated');
  assert.deepEqual(g.invalidations,[]);
  assert.ok(g.events.some(x=>x.detail==='mcp_oauth_refresh_concurrent_winner'));
 });
 test('invalid_grant 没有并发赢家时只清理 tokens 并通知监听者',async()=>{
- const temporary=buildHarness();
- const err=new temporary.OAuthError('invalid_grant');
- const f=buildHarness({answers:[err]});
- // Error instanceof binding is scoped per fixture; align constructors with the fixture source realm.
- f.OAuthError.prototype[Symbol.hasInstance];
+ const f=buildHarness({answers:[{oauthCode:'invalid_grant'}]});
  assert.equal(await f.instance._doRefresh('old'),undefined);
  assert.deepEqual(f.invalidations,['tokens']);
  assert.equal(f.calls.filter(x=>x.type==='emit').length,1);
 });
 test('invalid_client 并发注册变化时不清空新 client，普通失败才清理 all',async()=>{
- const temp=buildHarness();
- const changed=new temp.OAuthError('invalid_client');
- const f=buildHarness({answers:[changed],tokenData:{clientId:'new-client'}});
+ const f=buildHarness({answers:[{oauthCode:'invalid_client'}],tokenData:{clientId:'new-client'}});
  assert.equal(await f.instance._doRefresh('old'),undefined);
  assert.deepEqual(f.invalidations,[]);
  assert.ok(f.events.some(x=>x.detail==='mcp_oauth_refresh_concurrent_reregister'));
- const denied=new temp.OAuthError('unauthorized_client');
- const noWinner=buildHarness({answers:[denied]});
+ const noWinner=buildHarness({answers:[{oauthCode:'unauthorized_client'}]});
  assert.equal(await noWinner.instance._doRefresh('old'),undefined);
  assert.deepEqual(noWinner.invalidations,['all']);
 });
@@ -133,7 +124,7 @@ test('非暂时性错误不重试，三次超时耗尽时上报失败',async()=>
  const exhausted=buildHarness({answers:[Error('timeout'),Error('timeout'),Error('timeout')]});
  assert.equal(await exhausted.instance._doRefresh('refresh'),undefined);
  assert.deepEqual(exhausted.calls.filter(x=>x.type==='sleep').map(x=>x.ms),[1000,2000]);
- assert.ok(exhausted.events.some(x=>x.detail==='transient_retries_exhausted'));
+ assert.ok(exhausted.events.some(x=>x.name==='tengu_mcp_oauth_refresh_failure'&&x.detail.reason==='transient_retries_exhausted'));
 });
 test('Provider 改名仍保留 Ben 类身份与刷新方法边界',()=>{
  assert.match(source,/class McpOAuthProvider\{/);
