@@ -171,3 +171,5 @@ npm run verify:runtime
 - `npm test` 末尾新增全体 2,551 模块函数索引即时重算，与仓库 `resources/function-summary.json` 完整比对；CI 在运行测试前单独校验，堵住“源码指纹同步但函数计数或明细算法已失效”的空档。
 - `npm ci` 根据锁文件安装 `ws@8.22.0` 与用于索引的 `typescript@5.9.3`；从此 CI 不再依赖主机上碰巧预装的 TypeScript。
 - 以上属 AST/定向回归验收。完整 CLI 真实会话、取消传播、OAuth/MCP 远端、Bun/JSC 兼容仍需独立运行验收，不把 `npm test` 结果当成端到端通过。
+
+- CI 已实际完成锁定依赖安装与 CLI `--help` 启动；现将该浅入口设为阻断性验收，失败会使工作流失败。真实会话、取消及在线协议仍需另行验收。

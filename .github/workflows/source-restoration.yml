@@ -46,7 +46,6 @@ jobs:
         run: npm test
       - name: 实测 CLI 帮助入口（独立标记运行兼容状态）
         id: cli_runtime
-        continue-on-error: true
         run: timeout 45s npm run verify:runtime
       - name: 记录真实运行结果到工作流摘要
         if: always()
