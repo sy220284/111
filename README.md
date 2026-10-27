@@ -128,3 +128,5 @@ npm run verify:runtime
 
 - `src/chunk-x436erds.js` 五个 URL/Issuer 校验函数恢复可读名称，保留 `pt/pe/_t/mt/kUn` 全部原短符号调用；不改变默认 observe 模式、严格模式或 RFC 相关规则。
 - `tests/mcp-issuer-echo.test.cjs` 对原函数执行 9 组行为检查，覆盖 HTTP(S)、地址差异、跨源拦截、遥测失败隔离、功能开关失败回退和身份兼容；此为定向验证，完整 MCP OAuth 登录/刷新尚未端到端验收。
+
+- 阶段 D 继续恢复 MCP OAuth：`chunk-x436erds.js` 新增六个具名函数，保留 `jAi/WAi/LTr/Le/Dhi/Hhi` 原内部符号；新增真实源码离线测试覆盖同服务器授权流程竞争、完成与拒绝清理、占位凭据清理竞争防护、OAuth scope、Microsoft Issuer 白名单。未执行在线 OAuth 授权与持久存储真实读写验收。
