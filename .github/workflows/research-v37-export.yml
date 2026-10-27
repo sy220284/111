@@ -1,0 +1,33 @@
+name: v37 research snapshot export (temporary)
+on:
+  push:
+    branches: [research-v37-export-20261027]
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f3114c696c95acc9f65ab3767b9d67482539759f
+          fetch-depth: 1
+      - name: Create pin-verified source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "f3114c696c95acc9f65ab3767b9d67482539759f"
+          git rev-parse HEAD > /tmp/snapshot-commit.txt
+          git ls-tree -r HEAD > /tmp/snapshot-tree.txt
+          tar --exclude='./.git' -cf /tmp/claude-source-f3114c696c95.tar .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-source-f3114c696c95
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 6
+          path: |
+            /tmp/claude-source-f3114c696c95.tar
+            /tmp/snapshot-commit.txt
+            /tmp/snapshot-tree.txt
