@@ -89,3 +89,11 @@ npm run verify:runtime
 - `tests/streaming-tool-contract.test.cjs` 直接执行 `chunk-x3dkgs4r.js` 现有流事件转换/比较函数，覆盖文本、thinking、`input_json_delta`、索引和错误增量；另校验 `chunk-1nnn2mdy.js` 的 Hook 来源和 PreToolUse 规则。
 - `resources/docs/other/permissions_external-*.txt` 属权限策略指导资料，不能作为整个 Claude Code 权限引擎的同一版本可执行规范，未直接复制为权限实现。
 - 仅新增 2.1.310 源码的针对性回归，不重复处理已完成的 294 份插件测试源码；这些测试不等于完整 Worker 宿主/线上 SSE/工具执行与权限决策端到端等价。
+
+## v3 源码恢复：文档行为复核与函数证据（2026-10-27）
+
+- 依据原始 `reference-b976cc65.md`、`preserved-thinking-migration`、`prompt-caching`、`plugin-eval`、`error-codes` 和 `component-schemas` 补充源码行为测试，排除了此前已完成的 294 份插件测试源码。
+- 新测试覆盖：`session.append` 的行筛选/幂等/关闭/Hook 失败，原版 Cache/Thinking tokens 统计、停止理由/拒绝识别、拒绝后未完成工具补录、Plugin Eval 聚合检验、原版 Hook/Agent/MCP 事件注册域。
+- `resources/function-verification-ledger.json` 显式记录 **29 个已接受定向行为测试的原版短符号函数**，包含原始模块、源码定位锚点、业务职责和对应实际测试。其状态全部是 `targeted_behavior_test_only`，不得充作 29 个“完成语义重建”的函数，更不能推导全业务链验收。
+- `scripts/verify-function-ledger.cjs` 对登记项的源函数位置、测试文件和原 AST 全量函数摘要进行复查，`npm test` 每次执行，防止源代码或测试移除后还虚报覆盖。
+- 2551 个主模块的既有 AST 索引涵盖 **168102 个函数语法实体**，仅说明索引规模，不代表其已全部恢复语义。原版源码中没有证据的功能不要从通用 API 文档直接移植为“2.1.310 官方行为”。

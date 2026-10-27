@@ -1,0 +1,241 @@
+{
+  "version": "2.1.310",
+  "scope": "existing original source, not newly reconstructed implementations",
+  "statusDefinition": {
+    "targeted_behavior_test_only": "Covered by a limited, executable test; no claim of full semantic or end-to-end parity."
+  },
+  "entries": [
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "gp",
+      "anchor": "gp = (e) =>",
+      "test": "tests/session-append-source.test.cjs",
+      "role": "session-row-filter",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Da",
+      "anchor": "function Da(e, o)",
+      "test": "tests/session-append-source.test.cjs",
+      "role": "session-append-proxy",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "ed",
+      "anchor": "function ed(e, o)",
+      "test": "tests/model-request-source.test.cjs",
+      "role": "refusal-retry-gate",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "nr",
+      "anchor": "function nr(e)",
+      "test": "tests/model-request-source.test.cjs",
+      "role": "refusal-detection",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "td",
+      "anchor": "function td({ refused: e",
+      "test": "tests/model-refusal-recovery.test.cjs",
+      "role": "refusal-tool-closure",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-3827ysmv.js",
+      "symbol": "Ss",
+      "anchor": "function Ss()",
+      "test": "tests/model-request-source.test.cjs",
+      "role": "usage-aggregation",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "lr",
+      "anchor": "function lr(e, n)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "stream-delta-comparison",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "dr",
+      "anchor": "function dr(e, n)",
+      "test": "tests/model-request-source.test.cjs",
+      "role": "stream-stop-comparison",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "Da",
+      "anchor": "var Da = (e) =>",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "tool-input-delta",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "pr",
+      "anchor": "var pr = (e) =>",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "text-delta",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "Na",
+      "anchor": "var Na = (e) =>",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "thinking-delta",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "Fa",
+      "anchor": "function Fa(e)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "delta-encoder",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "_r",
+      "anchor": "function _r(e, n, s)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "delta-decoder",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x3dkgs4r.js",
+      "symbol": "Tr",
+      "anchor": "function Tr(e)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "tool-input-lifecycle",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9da5g4tn.js",
+      "symbol": "fe",
+      "anchor": "function fe(e)",
+      "test": "tests/plugin-eval-report-source.test.cjs",
+      "role": "eval-aggregate-check",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-pbffp8rf.js",
+      "symbol": "e0e",
+      "anchor": "var e0e = (e) =>",
+      "test": "tests/plugin-event-registry.test.cjs",
+      "role": "hook-event-membership",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-pbffp8rf.js",
+      "symbol": "BVo",
+      "anchor": "var BVo = (e) =>",
+      "test": "tests/plugin-event-registry.test.cjs",
+      "role": "hook-core-operation",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-pbffp8rf.js",
+      "symbol": "xyn",
+      "anchor": "var xyn = (e) =>",
+      "test": "tests/plugin-event-registry.test.cjs",
+      "role": "hook-stream-op",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-pbffp8rf.js",
+      "symbol": "Xzt",
+      "anchor": "var Xzt = (e) =>",
+      "test": "tests/plugin-event-registry.test.cjs",
+      "role": "plugin-event-namespace",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
+      "symbol": "B",
+      "anchor": "var B=(o)=>",
+      "test": "tests/function-hook-worker-contract.test.cjs",
+      "role": "worker-session-state",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
+      "symbol": "G",
+      "anchor": "var G=(o,n)=>",
+      "test": "tests/function-hook-worker-contract.test.cjs",
+      "role": "worker-next",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
+      "symbol": "z",
+      "anchor": "function z(o,",
+      "test": "tests/function-hook-worker-contract.test.cjs",
+      "role": "worker-host-operation",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
+      "symbol": "J",
+      "anchor": "var J=(o,n)=>",
+      "test": "tests/function-hook-worker-contract.test.cjs",
+      "role": "worker-next-stream",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
+      "symbol": "Q",
+      "anchor": "var Q=(o,",
+      "test": "tests/function-hook-worker-contract.test.cjs",
+      "role": "worker-host-stream",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
+      "symbol": "W",
+      "anchor": "function W(o)",
+      "test": "tests/function-hook-worker-contract.test.cjs",
+      "role": "worker-unload-pending",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "symbol": "QMn",
+      "anchor": "function QMn(n)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "hook-origin-id",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "symbol": "ZMn",
+      "anchor": "function ZMn(n)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "hook-plugin-id",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "symbol": "jhs",
+      "anchor": "function jhs(n,e)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "hook-tool-match",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "symbol": "Whs",
+      "anchor": "function Whs(n)",
+      "test": "tests/streaming-tool-contract.test.cjs",
+      "role": "hook-tool-event",
+      "status": "targeted_behavior_test_only"
+    }
+  ]
+}
