@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { resolveEmbeddedPath, loadEmbeddedRequire } from '../runtime/assets.mjs';
-import { Nwo, Xft, dt } from '../src/chunk-6gaf2snv.js';
-import { Fe } from '../src/chunk-a2y39866.js';
+import { Nwo, Xft, dt, readEmbeddedAssetBytes, readEmbeddedAssetText, readEmbeddedAssetTextAsync } from '../src/chunk-6gaf2snv.js';
+import { Fe, loadEmbeddedModule } from '../src/chunk-a2y39866.js';
 
 const require = createRequire(import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('../resources/manifest.json', import.meta.url), 'utf8'));
@@ -85,4 +85,25 @@ test('全部 12 份从原版 UTF-16LE 规范化的文档能按 UTF-8 读取', ()
     assert.ok(expected.length > 100, name);
     assert.equal(loadEmbeddedRequire(path, require), expected);
   }
+});
+
+
+test('恢复的资源读取函数与 2.1.310 原始短符号完全兼容', async () => {
+  assert.equal(readEmbeddedAssetBytes, Nwo);
+  assert.equal(readEmbeddedAssetText, dt);
+  assert.equal(readEmbeddedAssetTextAsync, Xft);
+  assert.equal(loadEmbeddedModule, Fe);
+  const path = resolveEmbeddedPath('README-29cff9e7.md.zst');
+  assert.deepEqual(readEmbeddedAssetBytes(path, process.cwd()), Nwo(path, process.cwd()));
+  assert.equal(readEmbeddedAssetText(path, process.cwd()), dt(path, process.cwd()));
+  assert.equal(await readEmbeddedAssetTextAsync(path, process.cwd()), await Xft(path, process.cwd()));
+  assert.equal(loadEmbeddedModule(path), Fe(path));
+});
+
+test('资源缺失与损坏的同步读取异常保留原始路径与原因', () => {
+  const missing = resolveEmbeddedPath('definitely-missing-resource.md.zst');
+  assert.throws(() => readEmbeddedAssetBytes(missing, process.cwd()), error =>
+    error.message === 'embedded asset is missing or corrupt' &&
+    error.path === missing &&
+    error.cause?.code === 'ENOENT');
 });
