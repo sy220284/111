@@ -30,7 +30,7 @@ function recovery(overrides={}) {
   return vm.runInNewContext(body + ';({Au,Uf,Nf,qf})',context);
 }
 function queueGate(overrides={}) {
-  const body=fragment('function findLastInteractiveUserIndex(e)', 'export { describeQueryModelFallback,');
+  const body=fragment('function Gr(e)', 'export { describeQueryModelFallback,');
   return vm.runInNewContext(body+';({Gr,Pu,Qf})',{N7t:(under, current)=>under===current,...overrides});
 }
 
