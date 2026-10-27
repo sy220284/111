@@ -81,5 +81,5 @@ test('Transient retry 对初始已有计数的服务器保持既有引用，不�
 test('原版名称仍保持单一别名与源码级兼容',()=>{
  assert.match(source,/const QRn=findRetryableMcpConnections/);
  assert.match(source,/const aZr=trackTransientMcpRetries/);
- assert.match(source,/export\{findRetryableMcpConnections,trackTransientMcpRetries,/);
+ assert.match(source,/export\{retryFailedMcpConnections,findRetryableMcpConnections,trackTransientMcpRetries,/);
 });
