@@ -3,7 +3,7 @@
   "description": "Runtime relocation of original embedded Zstandard resources; keys retain 2.1.310 BunFS names",
   "entries": {
     "README-29cff9e7.md.zst": {
-      "path": "resources/docs/managed-agents/php/README-29cff9e7.md",
+      "path": "resources/docs/managed-agents/php/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents php overview",
       "compressedSha256": "6ccea88790248af3342eaef5ad38fbb6988371fc6628c53c93ce38e7785093c2",
@@ -16,7 +16,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-4f0b5262.md.zst": {
-      "path": "resources/docs/claude-api/typescript/README-4f0b5262.md",
+      "path": "resources/docs/claude-api/typescript/README.md",
       "kind": "reference-document",
       "purpose": "claude-api typescript overview",
       "compressedSha256": "5a90304999ec9ca41308a7ecc21c557a874357415b75700c8d31e5472f0ce6fc",
@@ -29,7 +29,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-51f12603.md.zst": {
-      "path": "resources/docs/claude-api/go/README-51f12603.md",
+      "path": "resources/docs/claude-api/go/README.md",
       "kind": "reference-document",
       "purpose": "claude-api go overview",
       "compressedSha256": "6aa3442fdb5e9b881efc21a5832b4bdbc251de3b2e899dbd6e44f6ab0c3d1760",
@@ -42,7 +42,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-74802ac4.md.zst": {
-      "path": "resources/docs/managed-agents/python/README-74802ac4.md",
+      "path": "resources/docs/managed-agents/python/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents python overview",
       "compressedSha256": "71c7b72c75cbb2466b3e812da8500c1e9cb579403af0e4b1628e7e07ea6f73a8",
@@ -55,7 +55,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-74fc4077.md.zst": {
-      "path": "resources/docs/claude-api/java/README-74fc4077.md",
+      "path": "resources/docs/claude-api/java/README.md",
       "kind": "reference-document",
       "purpose": "claude-api java overview",
       "compressedSha256": "49bb5e92a28220fa1ab5bf9e6a90bd2590a94e81c522feb4e7fea1224dd7b296",
@@ -68,7 +68,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-7a1fe9f0.md.zst": {
-      "path": "resources/docs/managed-agents/go/README-7a1fe9f0.md",
+      "path": "resources/docs/managed-agents/go/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents go overview",
       "compressedSha256": "b5c9785b703f333d00f2f5ce8903e2479f31e1f2ed5c975a26d55f403a17929d",
@@ -81,7 +81,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-9ed2461c.md.zst": {
-      "path": "resources/docs/claude-api/python/README-9ed2461c.md",
+      "path": "resources/docs/claude-api/python/README.md",
       "kind": "reference-document",
       "purpose": "claude-api python overview",
       "compressedSha256": "662bcbbfe7c31c1ca134df681238d28900fbb258f990687c3ae8180d3a26684f",
@@ -94,7 +94,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-b02de282.md.zst": {
-      "path": "resources/docs/managed-agents/csharp/README-b02de282.md",
+      "path": "resources/docs/managed-agents/csharp/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents csharp overview",
       "compressedSha256": "0cc01f4e9127073980feabbd356889ca23e6bf672bb500d277ea8ac87fa20a5a",
@@ -107,7 +107,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-c729f2c2.md.zst": {
-      "path": "resources/docs/managed-agents/typescript/README-c729f2c2.md",
+      "path": "resources/docs/managed-agents/typescript/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents typescript overview",
       "compressedSha256": "d5c2cc1096ccf2f53e2ac6229f4d6e7de5c24e10cfe07c565b901cc9170039bc",
@@ -120,7 +120,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-d26070a5.md.zst": {
-      "path": "resources/docs/managed-agents/ruby/README-d26070a5.md",
+      "path": "resources/docs/managed-agents/ruby/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents ruby overview",
       "compressedSha256": "053fd75b0b0219014f1765af5110ceaca95217d3d3f28300f4a5627a0e511b8d",
@@ -133,7 +133,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "README-f73e91a6.md.zst": {
-      "path": "resources/docs/managed-agents/java/README-f73e91a6.md",
+      "path": "resources/docs/managed-agents/java/README.md",
       "kind": "reference-document",
       "purpose": "managed-agents java overview",
       "compressedSha256": "b5a61b16e98fc664f43c58d8b83d326d17193f1782b45121b8abec7d8d83c5f7",
@@ -146,7 +146,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SCHEMA-7cf439b0.md.zst": {
-      "path": "resources/docs/schemas/SCHEMA-7cf439b0.md",
+      "path": "resources/docs/schemas/SCHEMA.md",
       "kind": "schema-document",
       "purpose": "JSON state schema reference",
       "compressedSha256": "6b41a2614c936dc80e499f5402061530ad13f295cd74a5149a7c6aa3e086133b",
@@ -159,7 +159,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-15dc2cc1.md.zst": {
-      "path": "resources/skills/artifact-design/SKILL-15dc2cc1.md",
+      "path": "resources/skills/artifact-design/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "200b2db5150c0073a2a5c647e0169df122925483868d160005d6cc833cd98521",
@@ -172,7 +172,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-1755097b.md.zst": {
-      "path": "resources/skills/building-llm-powered-applications-with-claude/SKILL-1755097b.md",
+      "path": "resources/skills/building-llm-powered-applications-with-claude/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "e9e8f43b85c26fbdd6fd686b5b3b23ff3bae243fd00941c3a9e0d8c5387078af",
@@ -185,7 +185,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-4364cf72.md.zst": {
-      "path": "resources/skills/claude-test-the-spec-author-background-nobody-is-watchi/SKILL-4364cf72.md",
+      "path": "resources/skills/claude-test-the-spec-author-background-nobody-is-watchi/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "5af881ed5254656b04c15ad0fde2058f378326c5eae0fc382db7b22f0775b3ce",
@@ -198,7 +198,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-616338f0.md.zst": {
-      "path": "resources/skills/claude-test-runner-drive-the-app-in-a-browser-judge-eac/SKILL-616338f0.md",
+      "path": "resources/skills/claude-test-runner-drive-the-app-in-a-browser-judge-eac/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "0cebcb743addbbf8c9ed233ff07b964b4845f8d64fb3339ce26e222afecd2ea6",
@@ -211,7 +211,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-76b8b2a9.md.zst": {
-      "path": "resources/skills/storybook-source-shape/SKILL-76b8b2a9.md",
+      "path": "resources/skills/storybook-source-shape/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "7215a7eaca38bd5a59b4f2d3f58302e5eaf8ab57e164ad588f1c577d9f22b4d3",
@@ -224,7 +224,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-a71d0623.md.zst": {
-      "path": "resources/skills/cowork-plugin-authoring/SKILL-a71d0623.md",
+      "path": "resources/skills/cowork-plugin-authoring/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "b49c7faa604ce70af4b3d7a54d7ff02bfad41261f0939540333e70bf8e940864",
@@ -237,7 +237,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-a98d25a2.md.zst": {
-      "path": "resources/skills/package-source-shape/SKILL-a98d25a2.md",
+      "path": "resources/skills/package-source-shape/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "74ec5e0dd2c851290dfac97f921f22a9256ab78abcb99df3e7a48280127d7b43",
@@ -250,7 +250,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-aa0d9c2d.md.zst": {
-      "path": "resources/skills/plugin-authoring/SKILL-aa0d9c2d.md",
+      "path": "resources/skills/plugin-authoring/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "9bf69122dbf880c3391b3ad4ce1ca1fb4bf94827d10e15d2916d68eaf5933043",
@@ -263,7 +263,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-b0897508.md.zst": {
-      "path": "resources/skills/prototype/SKILL-b0897508.md",
+      "path": "resources/skills/prototype/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "cb0ddb66db25ef0616f0e4a39ec5137ad360da0269eefeff6af677c8691c5b4d",
@@ -276,7 +276,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-b6859017.md.zst": {
-      "path": "resources/skills/design-sync/SKILL-b6859017.md",
+      "path": "resources/skills/design-sync/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "d8614e873137063f846988f2889d099a6f62344f54277bdcaf504daa011d8888",
@@ -289,7 +289,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-cc984d7e.md.zst": {
-      "path": "resources/skills/claude-test-the-conversation-side/SKILL-cc984d7e.md",
+      "path": "resources/skills/claude-test-the-conversation-side/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "f6ec7d4e45fb8ca7040fc7054e4f99dc997a17df00df492bc7c3b15de3a0cb83",
@@ -302,7 +302,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-cf37e4b8.md.zst": {
-      "path": "resources/skills/verify/SKILL-cf37e4b8.md",
+      "path": "resources/skills/verify/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "5f3a30cf78646e867c0148064dc20f450e90bf91c1397b5fdf0981bd38386271",
@@ -315,7 +315,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-e3d212e9.md.zst": {
-      "path": "resources/skills/run-skill-generator/SKILL-e3d212e9.md",
+      "path": "resources/skills/run-skill-generator/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "89f62e9080ed914b8247c7b62ef333f0c47032c30d5376e53b9c33c897f0e69d",
@@ -328,7 +328,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "SKILL-e92179a2.md.zst": {
-      "path": "resources/skills/workshop/SKILL-e92179a2.md",
+      "path": "resources/skills/workshop/SKILL.md",
       "kind": "skill-document",
       "purpose": "skill instructions",
       "compressedSha256": "5bb6de53a27b4e37377d6289af7e7888e78c82446a45172ca5eaee876b5469fd",
@@ -341,7 +341,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "admin-api-4b056a98.md.zst": {
-      "path": "resources/docs/claude-api/admin-api-4b056a98.md",
+      "path": "resources/docs/claude-api/admin-api.md",
       "kind": "reference-document",
       "purpose": "Admin API (Organization Management)",
       "compressedSha256": "a9a59e84248db04fe2cd045da2d6ad87bb9a4b447a9589fcbdd2c53397b8b7f4",
@@ -354,7 +354,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "agent-design-fa62971c.md.zst": {
-      "path": "resources/docs/claude-api/agent-design-fa62971c.md",
+      "path": "resources/docs/claude-api/agent-design.md",
       "kind": "reference-document",
       "purpose": "Agent Design Patterns",
       "compressedSha256": "327a839d028537e0efd609c06bbd15d6d877f52e3fe5864e440fe3524aade00c",
@@ -380,7 +380,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "anthropic-cli-cd9f2868.md.zst": {
-      "path": "resources/docs/claude-api/anthropic-cli-cd9f2868.md",
+      "path": "resources/docs/claude-api/anthropic-cli.md",
       "kind": "reference-document",
       "purpose": "Anthropic CLI (`ant`)",
       "compressedSha256": "73847deede37803ff6d8c35eeb31e22dcbb4f0fe67a3810f8dba44a03a713d4b",
@@ -393,7 +393,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "api-version-migration-f8391d66.md.zst": {
-      "path": "resources/docs/claude-api/api-version-migration-f8391d66.md",
+      "path": "resources/docs/claude-api/api-version-migration.md",
       "kind": "reference-document",
       "purpose": "Migrating to a newer Claude API version",
       "compressedSha256": "2f2ee3cfe5928fa2eb5cc97065514e9c1839a971550e63900123c0ce733bd0c1",
@@ -445,7 +445,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "build-eval-e9acb85b.md.zst": {
-      "path": "resources/docs/evaluation/build-eval-e9acb85b.md",
+      "path": "resources/docs/evaluation/build-eval.md",
       "kind": "reference-document",
       "purpose": "Building an Eval for a Claude-Powered Application",
       "compressedSha256": "ce592737ebbc56b3718c6674ae43a8d67e03813b60f6c4ec12974f4196cb565a",
@@ -484,7 +484,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "causes-dedf5d6e.md.zst": {
-      "path": "resources/docs/migration/causes-dedf5d6e.md",
+      "path": "resources/docs/migration/causes.md",
       "kind": "reference-document",
       "purpose": "Preserved Thinking - Causes, Fixes, and the Keep List",
       "compressedSha256": "528abda5553bfc2749bc3c3d7d6e2f0353b77991d52dfa3e95bf1498addb379c",
@@ -521,7 +521,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "color-formula-22636152.md.zst": {
-      "path": "resources/docs/design/color-formula-22636152.md",
+      "path": "resources/docs/design/color-formula.md",
       "kind": "reference-document",
       "purpose": "Color formula",
       "compressedSha256": "785c53ec10f27281693562f518a71957e4d36eaecb8b5da9093488fa4394d864",
@@ -560,7 +560,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "component-schemas-7fabf82f.md.zst": {
-      "path": "resources/docs/plugin-authoring/component-schemas-7fabf82f.md",
+      "path": "resources/docs/plugin-authoring/component-schemas.md",
       "kind": "reference-document",
       "purpose": "Component Schemas",
       "compressedSha256": "12d321ddc4f589300eba70cc601fcb6bc22b8ac8dc84fa89e4db71b6c2203b05",
@@ -599,7 +599,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "cost-hillclimb-be195324.md.zst": {
-      "path": "resources/docs/evaluation/cost-hillclimb-be195324.md",
+      "path": "resources/docs/evaluation/cost-hillclimb.md",
       "kind": "reference-document",
       "purpose": "Cost-reduction search: how to structure it",
       "compressedSha256": "ab3686c7cdeb9ef1d57173c702d907769145f2bed107d8e39abbb1d37489779c",
@@ -612,7 +612,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "cost-optimization-df985707.md.zst": {
-      "path": "resources/docs/claude-api/cost-optimization-df985707.md",
+      "path": "resources/docs/claude-api/cost-optimization.md",
       "kind": "reference-document",
       "purpose": "Cost Optimization - Cutting Spend per Completed Task",
       "compressedSha256": "87fecc7e058495e1f38892760a8f57e49c1cdd7f5aea4beca4ee2625fb253f7c",
@@ -742,7 +742,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "electron-8035775b.md.zst": {
-      "path": "resources/docs/misc/electron-8035775b.md",
+      "path": "resources/docs/misc/electron.md",
       "kind": "reference-document",
       "purpose": "Example: Electron / desktop GUI app",
       "compressedSha256": "e6067e1b2d8818ad04a5e7a5745a7c661573828721c763bc28ae6d775b3bce5d",
@@ -781,7 +781,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "error-codes-4eee6402.md.zst": {
-      "path": "resources/docs/claude-api/error-codes-4eee6402.md",
+      "path": "resources/docs/claude-api/error-codes.md",
       "kind": "reference-document",
       "purpose": "HTTP Error Codes Reference",
       "compressedSha256": "08a1218964d2dd359feb43a5ccee12f93d3773ac689956ad41a901710527ab6b",
@@ -794,7 +794,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "eval-audit-d52687b9.md.zst": {
-      "path": "resources/docs/evaluation/eval-audit-d52687b9.md",
+      "path": "resources/docs/evaluation/eval-audit.md",
       "kind": "reference-document",
       "purpose": "Eval health checklist",
       "compressedSha256": "bbd0c36b96b782e7bc8a6d68cc775b273d880b7cbc5a80f83ffeb0aba66d28b0",
@@ -807,7 +807,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "eval-hillclimb-643520d6.md.zst": {
-      "path": "resources/docs/evaluation/eval-hillclimb-643520d6.md",
+      "path": "resources/docs/evaluation/eval-hillclimb.md",
       "kind": "reference-document",
       "purpose": "Hill-Climbing on an Eval",
       "compressedSha256": "6746ffbbeb1257bfb7d99f8aed69fe3403bc534bee523a805ae7e02d2fe5b65d",
@@ -820,7 +820,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "examples-edce50f1.md.zst": {
-      "path": "resources/docs/misc/examples-edce50f1.md",
+      "path": "resources/docs/misc/examples.md",
       "kind": "reference-document",
       "purpose": "Claude API - cURL / Raw HTTP",
       "compressedSha256": "b6350771fc7a06f598d821e9f62a7d02fc128b449710d2dd4b7cf63c1af2473b",
@@ -846,7 +846,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "google-cloud-anthropic-managed-690a44d5.md.zst": {
-      "path": "resources/docs/claude-api/google-cloud-anthropic-managed-690a44d5.md",
+      "path": "resources/docs/claude-api/google-cloud-anthropic-managed.md",
       "kind": "reference-document",
       "purpose": "Claude Models on Google Cloud (Anthropic managed)",
       "compressedSha256": "f06ea3477fd537ae139a47117aa0d5633e13c4624b6036f763751c7147aab244",
@@ -909,7 +909,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "live-sources-de7dea53.md.zst": {
-      "path": "resources/docs/misc/live-sources-de7dea53.md",
+      "path": "resources/docs/misc/live-sources.md",
       "kind": "reference-document",
       "purpose": "Live Documentation Sources",
       "compressedSha256": "d44344fc949a47098a9f7790065c32aee98abeec46b160656cbe2088c84a2273",
@@ -922,7 +922,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-api-reference-5249320e.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-api-reference-5249320e.md",
+      "path": "resources/docs/managed-agents/managed-agents-api-reference.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Endpoint Reference",
       "compressedSha256": "0ef0ea7489fe7c9e4469dcab82904c0042975e8012df13d761b83a764d5eb5cc",
@@ -935,7 +935,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-client-patterns-05c93984.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-client-patterns-05c93984.md",
+      "path": "resources/docs/managed-agents/managed-agents-client-patterns.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Common Client Patterns",
       "compressedSha256": "9561d224d1950e9063438b13255bca9ce3c4224856c29ce1cdbfdb070839a5c1",
@@ -948,7 +948,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-core-c5fcb8e4.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-core-c5fcb8e4.md",
+      "path": "resources/docs/managed-agents/managed-agents-core.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Core Concepts",
       "compressedSha256": "c3797103d0ca2f09ecf169f311c4746b9c0b387c331cb5f1890e1712cd5f64d1",
@@ -961,7 +961,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-environments-2c396a08.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-environments-2c396a08.md",
+      "path": "resources/docs/managed-agents/managed-agents-environments.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Environments & Resources",
       "compressedSha256": "851afc4cbe019a63785acb3e44f39d4cc98c74b87a13edc2337fb037593b486a",
@@ -974,7 +974,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-events-98177506.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-events-98177506.md",
+      "path": "resources/docs/managed-agents/managed-agents-events.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Events & Steering",
       "compressedSha256": "6e47b0d9415142b89cdaee878221279247461587937aec353b65f865236fe84f",
@@ -987,7 +987,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-ffd8c358.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-ffd8c358.md",
+      "path": "resources/docs/managed-agents/managed-agents.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - cURL / Raw HTTP",
       "compressedSha256": "b0f7f730e8b85de1031f50ee61063a441438d4ad3676f9a9dae7f30c2ac5d1ef",
@@ -1000,7 +1000,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-memory-3a172a12.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-memory-3a172a12.md",
+      "path": "resources/docs/managed-agents/managed-agents-memory.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Memory Stores",
       "compressedSha256": "1a0238e15a277dfc78e76fa3aa55e97f32dc01d3cdf8d126da6a913e0c23ba57",
@@ -1013,7 +1013,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-multiagent-2391e3af.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-multiagent-2391e3af.md",
+      "path": "resources/docs/managed-agents/managed-agents-multiagent.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Multiagent Sessions",
       "compressedSha256": "fc8a880495cd93e2169f71c8716a47f4b1901d0dd9cbadb4363c5080d9204715",
@@ -1026,7 +1026,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-onboarding-0b38bb5f.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-onboarding-0b38bb5f.md",
+      "path": "resources/docs/managed-agents/managed-agents-onboarding.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Onboarding Flow",
       "compressedSha256": "65985224d6652c2392c3fb73cde7a54af789bb8c779e90e237c8872ee2e2a979",
@@ -1039,7 +1039,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-onboarding-from-quickstart-3ad1d0c1.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-quickstart-3ad1d0c1.md",
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-quickstart.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Onboarding From a Bundled Quickstart",
       "compressedSha256": "65a085b172ab2b860b11b2db9416b87d532cd3c72cca5fda6a54a36fdef4ddf4",
@@ -1052,7 +1052,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-onboarding-from-url-10200722.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-url-10200722.md",
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-url.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Onboarding From a URL",
       "compressedSha256": "5488dc2bf06f7d985a950110d33948a46bcba7085b3717be3c9876bcbff98306",
@@ -1065,7 +1065,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-outcomes-bad5446f.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-outcomes-bad5446f.md",
+      "path": "resources/docs/managed-agents/managed-agents-outcomes.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Outcomes",
       "compressedSha256": "c11c4c0e13ec2d62535bed33eef8125a32f54885d3428dd026a8e50992e331ec",
@@ -1078,7 +1078,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-overview-0d09c3a4.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-overview-0d09c3a4.md",
+      "path": "resources/docs/managed-agents/managed-agents-overview.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Overview",
       "compressedSha256": "1068b244b468228c233ef99cc62b2bf34cfaadbec6f59472260aa1308b1906d2",
@@ -1091,7 +1091,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-scheduled-deployments-7c6a1a7e.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-scheduled-deployments-7c6a1a7e.md",
+      "path": "resources/docs/managed-agents/managed-agents-scheduled-deployments.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Scheduled Deployments",
       "compressedSha256": "9eeedd1ad0e91c45a590386d6ac030521d3c85d0e196d358cd145074531a4d23",
@@ -1104,7 +1104,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-secure-8f1a4973.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-secure-8f1a4973.md",
+      "path": "resources/docs/managed-agents/managed-agents-secure.md",
       "kind": "reference-document",
       "purpose": "Secure a Managed Agents deployment",
       "compressedSha256": "b99f56fa037f7367cd80da34406cd54780f29256f02af07e056cf7480fbf51f1",
@@ -1117,7 +1117,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-self-hosted-sandboxes-b2d3e09c.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-self-hosted-sandboxes-b2d3e09c.md",
+      "path": "resources/docs/managed-agents/managed-agents-self-hosted-sandboxes.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Self-Hosted Sandboxes",
       "compressedSha256": "60d8ee911cc72be71518947eada0ffbac558c4856b7bb8ec9adfa8f7de6b5c01",
@@ -1130,7 +1130,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-tools-7cc8a37b.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-tools-7cc8a37b.md",
+      "path": "resources/docs/managed-agents/managed-agents-tools.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Tools & Skills",
       "compressedSha256": "7ac23a8170536c42ef579b510f507ed9dc2939cba7b9e0deb60eec2e13a1c025",
@@ -1143,7 +1143,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "managed-agents-webhooks-c9326ad3.md.zst": {
-      "path": "resources/docs/managed-agents/managed-agents-webhooks-c9326ad3.md",
+      "path": "resources/docs/managed-agents/managed-agents-webhooks.md",
       "kind": "reference-document",
       "purpose": "Managed Agents - Webhooks",
       "compressedSha256": "8a761e6cdac856890a6b09f6e3ebae9ff45fe171370c00266268d03c1996e79e",
@@ -1167,7 +1167,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "model-migration-7891819d.md.zst": {
-      "path": "resources/docs/claude-api/model-migration-7891819d.md",
+      "path": "resources/docs/claude-api/model-migration.md",
       "kind": "reference-document",
       "purpose": "Model Migration Guide",
       "compressedSha256": "055262dbf6b94761287928270880cc204c39bcb38ea5638b28888d5a86bec276",
@@ -1180,7 +1180,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "models-176e5f7a.md.zst": {
-      "path": "resources/docs/misc/models-176e5f7a.md",
+      "path": "resources/docs/misc/models.md",
       "kind": "reference-document",
       "purpose": "Claude Model Catalog",
       "compressedSha256": "896e720137f0e8dd836da5b1f7e881f719d280e614b7fe8af576bac831096338",
@@ -1193,7 +1193,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "onboarding-8fc5cece.md.zst": {
-      "path": "resources/docs/onboarding/onboarding-8fc5cece.md",
+      "path": "resources/docs/onboarding/onboarding.md",
       "kind": "reference-document",
       "purpose": "Onboarding — the machine first, then the starter suite, with the person",
       "compressedSha256": "48cff56e758d823af6c66e48cdba10073182f565f7cb33ae4d17078fc06a9475",
@@ -1206,7 +1206,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "opentelemetry-abc03100.md.zst": {
-      "path": "resources/docs/claude-api/opentelemetry-abc03100.md",
+      "path": "resources/docs/claude-api/opentelemetry.md",
       "kind": "reference-document",
       "purpose": "OpenTelemetry Tracing for the Claude API",
       "compressedSha256": "6598cae5f21685f1883d71706b1124db020aa484b39cc398e6769a3479a174b4",
@@ -1245,7 +1245,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "palette-f0ae74f9.md.zst": {
-      "path": "resources/docs/design/palette-f0ae74f9.md",
+      "path": "resources/docs/design/palette.md",
       "kind": "reference-document",
       "purpose": "Reference palette",
       "compressedSha256": "2d66bddc107fc3da45a4503a96986269ae8f9ff986a98df3a0a3304571dbf699",
@@ -1258,7 +1258,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "performance-tuner-6c866b59.md.zst": {
-      "path": "resources/docs/evaluation/performance-tuner-6c866b59.md",
+      "path": "resources/docs/evaluation/performance-tuner.md",
       "kind": "reference-document",
       "purpose": "---",
       "compressedSha256": "dbd70667304ae0d79a149c07d30ffc5d41f914421d3e954766eb7f26aa6280ef",
@@ -1284,7 +1284,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "platform-availability-7671ac66.md.zst": {
-      "path": "resources/docs/claude-api/platform-availability-7671ac66.md",
+      "path": "resources/docs/claude-api/platform-availability.md",
       "kind": "reference-document",
       "purpose": "Platform Availability",
       "compressedSha256": "4e6e9521e53e92388ba5a3ec5e1fa3406b15864e8444d4b08c5cf8bda7aa00e0",
@@ -1310,7 +1310,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "plugin-eval-8fcbd81e.md.zst": {
-      "path": "resources/docs/plugin-authoring/plugin-eval-8fcbd81e.md",
+      "path": "resources/docs/plugin-authoring/plugin-eval.md",
       "kind": "reference-document",
       "purpose": "Plugin eval (`claude plugin eval`) and `/skill-doctor`",
       "compressedSha256": "d321c4f089b80ed1fcbd10c651afda76d9f614b34d0d4733c7dba9b6cadbcc83",
@@ -1323,7 +1323,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "plugin-eval-quickref-e95bcd1b.md.zst": {
-      "path": "resources/docs/plugin-authoring/plugin-eval-quickref-e95bcd1b.md",
+      "path": "resources/docs/plugin-authoring/plugin-eval-quickref.md",
       "kind": "reference-document",
       "purpose": "Plugin eval and `/skill-doctor` - quick reference",
       "compressedSha256": "6ab0ed99ca5be4720f72edf2f5799040408025be419186ceba77f1b533fdd8c6",
@@ -1349,7 +1349,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "preserved-thinking-migration-84258a5d.md.zst": {
-      "path": "resources/docs/migration/preserved-thinking-migration-84258a5d.md",
+      "path": "resources/docs/migration/preserved-thinking-migration.md",
       "kind": "reference-document",
       "purpose": "Preserved Thinking - Keeping Earlier Reasoning Valid Across a Conversation",
       "compressedSha256": "78f585cc29bd4f4f7a67dab719ec774185143647670633d1154704157c68bc08",
@@ -1388,7 +1388,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "prompt-audit-c0e24c48.md.zst": {
-      "path": "resources/docs/claude-api/prompt-audit-c0e24c48.md",
+      "path": "resources/docs/claude-api/prompt-audit.md",
       "kind": "reference-document",
       "purpose": "Prompt Audit - Finding and Removing Dated Prompting Patterns",
       "compressedSha256": "5ac60824199cda9046234af1bbe3cbf8582e3b52e762dcba568a2cfe405b156a",
@@ -1401,7 +1401,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "prompt-caching-44ffa968.md.zst": {
-      "path": "resources/docs/claude-api/prompt-caching-44ffa968.md",
+      "path": "resources/docs/claude-api/prompt-caching.md",
       "kind": "reference-document",
       "purpose": "Prompt Caching - Design & Optimization",
       "compressedSha256": "9fffcab9ab581ffb421572eea737c7e12234b4367cb98cac1766d286ad7fb4e9",
@@ -1427,7 +1427,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "reference-b976cc65.md.zst": {
-      "path": "resources/docs/plugin-authoring/reference-b976cc65.md",
+      "path": "resources/docs/plugin-authoring/reference.md",
       "kind": "reference-document",
       "purpose": "Function hooks: the long form",
       "compressedSha256": "e2f965913725c7c52b742af22249f90f243f77d6530dc877cd6b7e8aac695f82",
@@ -1492,7 +1492,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "sdk-upgrade-d991ae22.md.zst": {
-      "path": "resources/docs/claude-api/sdk-upgrade-d991ae22.md",
+      "path": "resources/docs/claude-api/sdk-upgrade.md",
       "kind": "reference-document",
       "purpose": "Upgrading the `anthropic` Python SDK: 0.x -> 1.x",
       "compressedSha256": "885250f7d1cea5ca7e8bda787f2870eef2b98c2935dcfc6cca97405afce766ba",
@@ -1570,7 +1570,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "streaming-e0e3c46f.md.zst": {
-      "path": "resources/docs/claude-api/streaming-e0e3c46f.md",
+      "path": "resources/docs/claude-api/typescript/streaming.md",
       "kind": "reference-document",
       "purpose": "Streaming - TypeScript",
       "compressedSha256": "e2452fdfd7b22a201f0dea1600e2454ef018b419a3c7ef1ed7a461aae3c6ac3d",
@@ -1583,7 +1583,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "streaming-fbb1ea6d.md.zst": {
-      "path": "resources/docs/claude-api/streaming-fbb1ea6d.md",
+      "path": "resources/docs/claude-api/python/streaming.md",
       "kind": "reference-document",
       "purpose": "Streaming - Python",
       "compressedSha256": "6a5f23fa08d9bf3cb0694788ba4a92c7cb9177ba8600827852ee9185d1832d00",
@@ -1661,7 +1661,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tool-use-0ba43b6b.md.zst": {
-      "path": "resources/docs/claude-api/tool-use-0ba43b6b.md",
+      "path": "resources/docs/claude-api/java/tool-use.md",
       "kind": "reference-document",
       "purpose": "Tool Use - Java",
       "compressedSha256": "93fdfe8e31e22419b0d071cda58e0dec44ef7d158529384e99c81dff29e7eeaf",
@@ -1674,7 +1674,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tool-use-1b429d2c.md.zst": {
-      "path": "resources/docs/claude-api/tool-use-1b429d2c.md",
+      "path": "resources/docs/claude-api/python/tool-use.md",
       "kind": "reference-document",
       "purpose": "Tool Use - Python",
       "compressedSha256": "d633d0b5d17feb249657943496e4b43af3ce5c8a71faaa2627684d45c18fc7a8",
@@ -1687,7 +1687,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tool-use-277d8154.md.zst": {
-      "path": "resources/docs/claude-api/tool-use-277d8154.md",
+      "path": "resources/docs/claude-api/typescript/tool-use.md",
       "kind": "reference-document",
       "purpose": "Tool Use - TypeScript",
       "compressedSha256": "4416958dae0c46269362baf0c3800fe4e6629ad07fa7a7a2eb8b96196b3f9b70",
@@ -1700,7 +1700,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tool-use-49b89f92.md.zst": {
-      "path": "resources/docs/claude-api/tool-use-49b89f92.md",
+      "path": "resources/docs/claude-api/php/tool-use.md",
       "kind": "reference-document",
       "purpose": "Tool Use - PHP",
       "compressedSha256": "a52bfceb5537b4226390cdbf47ded805049a85e5469592884f3a4c2be0b532f2",
@@ -1713,7 +1713,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tool-use-582a7836.md.zst": {
-      "path": "resources/docs/claude-api/tool-use-582a7836.md",
+      "path": "resources/docs/claude-api/go/tool-use.md",
       "kind": "reference-document",
       "purpose": "Tool Use - Go",
       "compressedSha256": "b423ad1cef10155ea3cec0cf118ba15489e82a41a24dabdbda85e12caa24fe2b",
@@ -1726,7 +1726,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tool-use-concepts-c2460f49.md.zst": {
-      "path": "resources/docs/claude-api/tool-use-concepts-c2460f49.md",
+      "path": "resources/docs/claude-api/tool-use-concepts.md",
       "kind": "reference-document",
       "purpose": "Tool Use Concepts",
       "compressedSha256": "f1747a5aeda07982407a2aff5e8e2323f9644d8d5a7a7d9445be299793701b93",

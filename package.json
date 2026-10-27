@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -35,7 +35,8 @@
     "check:source-fingerprint": "node scripts/check-source-fingerprint.cjs --check",
     "check:restored-hook-identifiers": "node --test tests/hook-identifier-restored.test.cjs",
     "check:hook-dispatch": "node --no-warnings --experimental-vm-modules --test tests/hook-dispatch-source.test.cjs",
-    "check:cli-routing": "node --test tests/cli-command-dispatch-source.test.cjs"
+    "check:cli-routing": "node --test tests/cli-command-dispatch-source.test.cjs",
+    "check:naming-layout": "node tests/check-naming-layout.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"
