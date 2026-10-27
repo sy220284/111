@@ -22,6 +22,7 @@ function fixture({ active = true, disabled = false, hookEnabled = true, thrown =
     rows: () => [], attachLoop: () => taken
   };
   const api = vm.runInNewContext(body + ';({Da,gp,yp})', {
+    Symbol,
     Tpt: { set: () => {} }, Ms: () => {},
     As: () => false, eJe: () => hookEnabled,
     Xp: () => ({ conversation: () => conversation }),
