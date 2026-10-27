@@ -9,7 +9,6 @@ assert.equal(aliases.version,ledger.version);
 assert.ok(aliases.entries.length>0);
 const valid=new Set(['exportAlias','constAlias','inlineVar']);
 const seen=new Set(),coveredFiles=new Set();
-const escapeRegExp=txt=>txt.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 for(const {source,legacy,readable,style} of aliases.entries){
  assert.ok(valid.has(style),'unsupported alias style '+style);
  const id=source+'::'+legacy;
