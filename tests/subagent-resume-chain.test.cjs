@@ -128,5 +128,7 @@ test('恢复辅助函数继续暴露原短符号供旧调用方引用',()=>{
   ['cwr','formatPluginResumeDenial'],
   ['sn','hasCoherentResumedSubagentTranscript']
  ])assert.ok(source.includes('const '+oldName+'='+readable));
- assert.match(source,/export \{ resumeSubagentWithInheritedHookOrigin,formatPluginResumeDenial,hasCoherentResumedSubagentTranscript,/);
+ const exportList=source.slice(source.lastIndexOf('export {'));
+ for(const name of ['resumeSubagentWithInheritedHookOrigin','formatPluginResumeDenial','hasCoherentResumedSubagentTranscript'])
+   assert.ok(exportList.includes(name),name+' must remain exported');
 });
