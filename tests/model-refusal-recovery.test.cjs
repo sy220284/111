@@ -7,8 +7,8 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname,'..');
 const code = p => fs.readFileSync(path.join(root,p),'utf8');
 const query=code('src/chunk-tqjdehqd.js');
-const refs=code('resources/docs/claude-api/error-codes-4eee6402.md');
-const model=code('resources/docs/claude-api/model-migration-7891819d.md');
+const refs=code('resources/docs/claude-api/error-codes.md');
+const model=code('resources/docs/claude-api/model-migration.md');
 function recoveredRefusal() {
   const from=query.indexOf('function td({ refused: e, kept: o, answered: n, started: r');
   const to=query.indexOf('function od({ sentOn: e',from);

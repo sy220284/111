@@ -7,8 +7,8 @@ const vm = require('node:vm');
 
 const source = readFileSync(path.resolve(__dirname, '../src/chunk-x3dkgs4r.js'), 'utf8');
 const declarations = readFileSync(path.resolve(__dirname, '../resources/tools/plugin-api/types/claude-code-bf9d954c.d.ts'), 'utf8');
-const docs = readFileSync(path.resolve(__dirname, '../resources/docs/claude-api/streaming-e0e3c46f.md'), 'utf8');
-const toolDocs = readFileSync(path.resolve(__dirname, '../resources/docs/claude-api/tool-use-concepts-c2460f49.md'), 'utf8');
+const docs = readFileSync(path.resolve(__dirname, '../resources/docs/claude-api/typescript/streaming.md'), 'utf8');
+const toolDocs = readFileSync(path.resolve(__dirname, '../resources/docs/claude-api/tool-use-concepts.md'), 'utf8');
 
 // Execute exact extracted 2.1.310 wire-stream handlers, not recreated equivalents.
 function streamFunctions() {

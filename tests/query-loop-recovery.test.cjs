@@ -6,8 +6,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.resolve(__dirname,'../src/chunk-tqjdehqd.js'),'utf8');
-const migration = fs.readFileSync(path.resolve(__dirname,'../resources/docs/claude-api/model-migration-7891819d.md'),'utf8');
-const thinking = fs.readFileSync(path.resolve(__dirname,'../resources/docs/migration/preserved-thinking-migration-84258a5d.md'),'utf8');
+const migration = fs.readFileSync(path.resolve(__dirname,'../resources/docs/claude-api/model-migration.md'),'utf8');
+const thinking = fs.readFileSync(path.resolve(__dirname,'../resources/docs/migration/preserved-thinking-migration.md'),'utf8');
 function fragment(start, end) {
   const a = source.indexOf(start), b = source.indexOf(end,a);
   assert.ok(a >= 0 && b > a, 'missing actual source fragment ' + start);
