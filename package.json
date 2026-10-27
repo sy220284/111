@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -32,7 +32,8 @@
     "check:model-refusal": "node --test tests/model-refusal-recovery.test.cjs",
     "check:plugin-events": "node --test tests/plugin-event-registry.test.cjs",
     "check:function-evidence": "node scripts/verify-function-ledger.cjs",
-    "check:source-fingerprint": "node scripts/check-source-fingerprint.cjs --check"
+    "check:source-fingerprint": "node scripts/check-source-fingerprint.cjs --check",
+    "check:restored-hook-identifiers": "node --test tests/hook-identifier-restored.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"

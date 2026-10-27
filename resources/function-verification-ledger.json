@@ -208,7 +208,7 @@
     {
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "QMn",
-      "anchor": "function QMn(n)",
+      "anchor": "function parseHookSourceDescriptor(value)",
       "test": "tests/streaming-tool-contract.test.cjs",
       "role": "hook-origin-id",
       "status": "targeted_behavior_test_only"
@@ -216,7 +216,7 @@
     {
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "ZMn",
-      "anchor": "function ZMn(n)",
+      "anchor": "function parsePluginHookIdentity(value)",
       "test": "tests/streaming-tool-contract.test.cjs",
       "role": "hook-plugin-id",
       "status": "targeted_behavior_test_only"
@@ -224,7 +224,7 @@
     {
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "jhs",
-      "anchor": "function jhs(n,e)",
+      "anchor": "function resolvePreToolUseRegistration(registration, toolName)",
       "test": "tests/streaming-tool-contract.test.cjs",
       "role": "hook-tool-match",
       "status": "targeted_behavior_test_only"
@@ -232,7 +232,7 @@
     {
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "Whs",
-      "anchor": "function Whs(n)",
+      "anchor": "function parseToolPermissionEvent(event)",
       "test": "tests/streaming-tool-contract.test.cjs",
       "role": "hook-tool-event",
       "status": "targeted_behavior_test_only"

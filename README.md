@@ -97,3 +97,6 @@ npm run verify:runtime
 - `resources/function-verification-ledger.json` 显式记录 **29 个已接受定向行为测试的原版短符号函数**，包含原始模块、源码定位锚点、业务职责和对应实际测试。其状态全部是 `targeted_behavior_test_only`，不得充作 29 个“完成语义重建”的函数，更不能推导全业务链验收。
 - `scripts/verify-function-ledger.cjs` 对登记项的源函数位置、测试文件和原 AST 全量函数摘要进行复查，`npm test` 每次执行，防止源代码或测试移除后还虚报覆盖。
 - 2551 个主模块的既有 AST 索引涵盖 **168102 个函数语法实体**，仅说明索引规模，不代表其已全部恢复语义。原版源码中没有证据的功能不要从通用 API 文档直接移植为“2.1.310 官方行为”。
+
+- 阶段 A/C 实际源码整理：将 `src/chunk-1nnn2mdy.js` 内的 4 个 Hook 来源、插件身份与工具匹配函数恢复为有业务命名、输入输出契约的可维护函数，旧 `QMn/ZMn/jhs/Whs` 导出保留为相同函数的别名；不改变 2.1.310 的识别规则。新增独立边界测试。
+- 源码指纹校验已在 `npm test` 执行：源码改变后应同步更新 `resources/function-summary.json` 的完整代码哈希，防止把旧 AST 索引标为当前源码。
