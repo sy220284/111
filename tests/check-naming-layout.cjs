@@ -1,5 +1,5 @@
 'use strict';
-// 规范化后仍以 2.1.310 原始 BunFS 键索引，确保路径、内容与技能入口保持一致。
+// 以原版 BunFS 键为依据，验证命名迁移的无损性；不要把合法八字母词尾误判成随机散列。
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -17,16 +17,22 @@ for (const [bunfsName, entry] of Object.entries(layout.entries)) {
   const absolute = path.resolve(root, entry.path);
   assert.ok(absolute.startsWith(root + path.sep), `目标路径越界：${bunfsName}`);
   assert.ok(fs.existsSync(absolute), `资源丢失：${bunfsName} => ${entry.path}`);
-  const actual = crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex');
+  const data = fs.readFileSync(absolute);
+  const actual = crypto.createHash('sha256').update(data).digest('hex');
   assert.equal(actual, entry.decodedSha256, `解压后内容不一致：${bunfsName}`);
   if (entry.path.endsWith('.md')) {
     markdown++;
-    assert.doesNotMatch(path.basename(entry.path), /-[a-z0-9]{8}\.md$/, `Markdown 仍有临时散列名：${entry.path}`);
+    const expectedBasename = bunfsName.replace(/\.zst$/, '').replace(/-[a-z0-9]{8}(?=\.md$)/, '');
+    assert.equal(path.basename(entry.path), expectedBasename, `Markdown 目标名称与原始键不一致：${bunfsName}`);
     if (entry.path.startsWith('resources/skills/')) {
       skills++;
       assert.equal(path.basename(entry.path), 'SKILL.md', `技能入口命名不规范：${entry.path}`);
-      const front = fs.readFileSync(absolute, 'utf8');
-      assert.match(front, /^---\r?\nname:\s*\S+/m, `技能 frontmatter 不完整：${entry.path}`);
+      const content = data.toString('utf8');
+      assert.ok(content.trim().length > 0, `技能内容为空：${entry.path}`);
+      // 原版技能并非全部含 YAML frontmatter；保留原件，不伪造缺失字段。
+      if (content.startsWith('---\n') || content.startsWith('---\r\n')) {
+        assert.match(content, /^---\r?\n[\s\S]*?description:/, `原版技能元数据缺失：${entry.path}`);
+      }
     }
   }
 }
