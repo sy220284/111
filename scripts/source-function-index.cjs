@@ -65,12 +65,17 @@ for (const file of files) {
 summary.sourceFingerprint=fingerprint.digest('hex');
 assert.equal(summary.parseFailed,0);
 assert.equal(summary.missingRelativeImports,0);
+// Hash the actual generated module and callsite indexes as well as the source.
+// This detects changes to the indexer algorithm even when source bytes do not change.
+const moduleIndexText = JSON.stringify(index);
+const callsiteIndexText = JSON.stringify(detailed);
+summary.moduleIndexFingerprint = crypto.createHash('sha256').update(moduleIndexText).digest('hex');
+summary.functionCallsitesFingerprint = crypto.createHash('sha256').update(callsiteIndexText).digest('hex');
 const text=JSON.stringify(summary,null,2)+'\n';
 if(process.argv.includes('--check')) assert.equal(fs.readFileSync(summaryPath,'utf8'),text,'source index is stale');
 else {
   fs.mkdirSync(generated,{recursive:true});
   fs.writeFileSync(summaryPath,text);
-  fs.writeFileSync(path.join(generated,'module-index.json'),JSON.stringify(index));
-  if(process.argv.includes('--full')) fs.writeFileSync(path.join(generated,'function-callsites.json'),JSON.stringify(detailed));
+  fs.writeFileSync(path.join(generated,'module-index.json'),moduleIndexText);
+  if(process.argv.includes('--full')) fs.writeFileSync(path.join(generated,'function-callsites.json'),callsiteIndexText);
 }
-console.log(JSON.stringify(summary));
