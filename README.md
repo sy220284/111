@@ -108,3 +108,11 @@ npm run verify:runtime
 - 阶段 A/D 新增对 `src/chunk-q85nvv4x.js` 的 Hook 事件消费者过滤函数语义恢复：从原短符号 `uun/HE` 恢复可读的托管策略模块识别与敏感 Hook 事件过滤实现，保持旧导出和按事件区别处理的权限边界，新增原模块导入实际链接与运行测试。未增加对其他权限规则的无证据猜测。
 
 - 阶段 A/D/E：原版 `chunk-y7venc25.js` 的 Plugin Eval、MCP serve、Agent JSON、Remote Control 与 Project Verb 五个命令识别函数恢复为具名、独立可读源码，保留全部已有公共导出及细节边界。运行回归测试验证命令识别；这只验收 CLI 分流函数，并不声称这些后台功能均可运行。
+
+
+## 阶段 A/C 主查询循环与会话写入调用链
+
+- 追踪并通过 CI 静态复查 `src/chunk-tqjdehqd.js` 的原版 `pN -> Ou -> Du` 结构，明确外层会话保持 `Da` 的接入位置、内部 `Du` 的 Thinking 续接/工具收尾状态；见 `scripts/trace-query-loop-callchain.cjs`。
+- `tests/query-loop-recovery.test.cjs` 针对原始 `Au/Uf/Nf/qf/Gr/Pu/Qf/vu` 执行 8 组 Thinking、截断、消息队列及失败 tool_result 测试。
+- `tests/session-append-storage.test.cjs` 直接执行 `src/chunk-w9w4r9w1.js` 的 `D/Te/u`，覆盖持久化路径 Hook 变更、异常兜底、fills 与不可追加事件；这是与上层 `Da` 对应的存储端阶段检查。
+- `resources/function-verification-ledger.json` 仅登记有限行为测试，所有登记项不得计作全功能恢复或已构建通过。

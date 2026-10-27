@@ -356,6 +356,30 @@
       "test": "tests/query-loop-recovery.test.cjs",
       "role": "query-command-queue-suppression",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-w9w4r9w1.js",
+      "symbol": "D",
+      "anchor": "async function D(e,o,r)",
+      "test": "tests/session-append-storage.test.cjs",
+      "role": "session-append-dispatch-fallback",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-w9w4r9w1.js",
+      "symbol": "Te",
+      "anchor": "async function Te(e,o,r)",
+      "test": "tests/session-append-storage.test.cjs",
+      "role": "session-append-batch-store",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-w9w4r9w1.js",
+      "symbol": "u",
+      "anchor": "var u=(e)=>",
+      "test": "tests/session-append-storage.test.cjs",
+      "role": "session-append-eligible-row",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
