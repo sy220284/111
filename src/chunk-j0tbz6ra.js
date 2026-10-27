@@ -1,3 +1,4 @@
+import * as __cc310EsmCycle0 from "./chunk-3r4gzd8n.js";
 import __cc310RecapCommand from "./chunk-81tmxf49.js";
 import {resolveEmbeddedPath as __cc310AssetPath} from "../runtime/assets.mjs";
 import {createRequire as __cc310CreateRequire} from "node:module"; if(typeof import.meta.require!=="function") import.meta.require=__cc310CreateRequire(import.meta.url);
@@ -41057,7 +41058,7 @@ async function $lr(e, n) { let r = null, s = !1, h = !1; try {
 catch (y) {
     return l(N(y)), f("cmd_load", "cmd_load_skills_failed"), t("Unexpected error in getSkills, returning empty"), { skillDirCommands: [], pluginSkills: [], bundledSkills: [], builtinPluginSkills: [], trustedNamesFailedToLoad: !0 };
 } }
-var { getWorkflowCommands: Hlr, invalidateWorkflowCache: Ulr, warmWorkflows: jlr } = import.meta.require("./chunk-3r4gzd8n.js");
+var { getWorkflowCommands: Hlr, invalidateWorkflowCache: Ulr, warmWorkflows: jlr } = __cc310EsmCycle0;
 function ACo(e, n = Lrn(), r = _Jn()) { return `${odn()}:${rtr()}:${ye()}:${AC()}:${gmn()}:${wX()}:${r}:${u7t(n)}${BU()}${Voe(e)}`; }
 function Wlr(e, n, r) { return Koe(br().loadedCommands, ACo(e, void 0, r), () => Glr(e, n, r)); }
 async function ogt(e, n) { try {
