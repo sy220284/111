@@ -28,15 +28,20 @@ for (const name of names) {
   }
 }
 
-// Runtime adapter participates in the same static link graph; do not silently skip its imports.
-const runtimeId = '../runtime/assets.mjs';
-const runtimeText = fs.readFileSync(path.resolve(src, runtimeId), 'utf8');
-const runtimeModule = new vm.SourceTextModule(runtimeText, { identifier: runtimeId });
-modules.set(runtimeId, runtimeModule);
-for (const specifier of runtimeModule.dependencySpecifiers) {
-  refs++;
-  if (!specifier.startsWith('.')) externalRequests.add(specifier);
-  else assert.ok(fs.existsSync(path.resolve(src, 'runtime', specifier)), `runtime: missing ${specifier}`);
+// Runtime adapters participate in the same static link graph. A restored main
+// source module may import these files directly; check real named ESM exports.
+const runtimeFiles = ['assets.mjs', 'string-width.mjs'];
+for (const filename of runtimeFiles) {
+  const runtimeId = '../runtime/' + filename;
+  const runtimeText = fs.readFileSync(path.resolve(src, runtimeId), 'utf8');
+  const runtimeModule = new vm.SourceTextModule(runtimeText, { identifier: runtimeId });
+  modules.set(runtimeId, runtimeModule);
+  for (const specifier of runtimeModule.dependencySpecifiers) {
+    refs++;
+    if (!specifier.startsWith('.')) externalRequests.add(specifier);
+    else assert.ok(fs.existsSync(path.resolve(src, 'runtime', specifier)),
+      `runtime: missing ${specifier}`);
+  }
 }
 const requireFromProject = createRequire(path.join(src, 'cli.js'));
 for (const specifier of externalRequests) {
