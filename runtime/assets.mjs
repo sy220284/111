@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, resolve, sep, isAbsolute } from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
@@ -25,9 +25,20 @@ export function resolveEmbeddedPath(name) {
 }
 
 /** Only known embedded files may bypass normal Node require semantics. */
+// Only classify canonical, existing assets as embedded. Raw prefix matching would
+// trust "resources/bunfs/../sensitive-file" and symlinks pointing outside BunFS.
 export function isEmbeddedPath(path) {
-  return typeof path === 'string' && (relocatedPaths.has(path) ||
-    (isAbsolute(path) && path.startsWith(embeddedRoot + sep)));
+  if (typeof path !== 'string' || !isAbsolute(path) || resolve(path) !== path) return false;
+  const raw = path.startsWith(embeddedRoot + sep);
+  if (!raw && !relocatedPaths.has(path)) return false;
+  try {
+    const actual = realpathSync(path);
+    const trustedRoot = realpathSync(raw ? embeddedRoot : projectRoot);
+    if (!actual.startsWith(trustedRoot + sep)) return false;
+    return raw || relocatedPaths.has(path);
+  } catch {
+    return false;
+  }
 }
 
 export function loadEmbeddedRequire(path, fallbackRequire) {

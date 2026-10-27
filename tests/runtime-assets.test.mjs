@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
+import { join, dirname, sep } from 'node:path';
 import { createHash as hashForLayout } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { resolveEmbeddedPath, loadEmbeddedRequire } from '../runtime/assets.mjs';
+import { resolveEmbeddedPath, isEmbeddedPath, embeddedRoot, loadEmbeddedRequire } from '../runtime/assets.mjs';
 import { Nwo, Xft, dt, readEmbeddedAssetBytes, readEmbeddedAssetText, readEmbeddedAssetTextAsync } from '../src/chunk-6gaf2snv.js';
 import { Fe, loadEmbeddedModule } from '../src/chunk-a2y39866.js';
 
@@ -117,4 +117,22 @@ test('资源缺失与损坏的同步读取异常保留原始路径与原因', ()
     error.message === 'embedded asset is missing or corrupt' &&
     error.path === missing &&
     error.cause?.code === 'ENOENT');
+});
+
+test('内嵌资源路径只接受规范化且实际仍位于受信任目录的文件', () => {
+  const validOriginal=resolveEmbeddedPath('NOTICE-chm3rwx9.txt');
+  const validMapped=resolveEmbeddedPath('README-29cff9e7.md.zst');
+  assert.equal(isEmbeddedPath(validOriginal),true);
+  assert.equal(isEmbeddedPath(validMapped),true);
+  // A raw prefix-only check would treat this path as a BunFS asset and read a file outside it.
+  const escaped=embeddedRoot+sep+'..'+sep+'asset-layout.json';
+  assert.equal(isEmbeddedPath(escaped),false);
+  assert.equal(isEmbeddedPath(embeddedRoot+sep+'..'+sep+'..'+sep+'README.md'),false);
+  assert.equal(isEmbeddedPath(validOriginal+sep+'..'),false);
+  assert.equal(isEmbeddedPath('resources/bunfs/NOTICE-chm3rwx9.txt'),false);
+  assert.equal(isEmbeddedPath(undefined),false);
+  let fallback=0;
+  const sentinel={from:'fallback'};
+  assert.equal(loadEmbeddedRequire(escaped,()=>{fallback++;return sentinel;}),sentinel);
+  assert.equal(fallback,1,'traversal path must not bypass ordinary require handling');
 });
