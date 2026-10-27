@@ -8,5 +8,6 @@
 // (c) Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 // Version: 2.1.310
-import{xyt}from"./chunk-cprpn48m.js";import{Cie}from"./chunk-mdxeekqd.js";import{KHn}from"./chunk-nehqevjg.js";async function keo(e,a){e();let o=xyt();if(o!==null)return o.close(),null;return await KHn("stop_command",a.storageV5,Cie()),null}
-export{keo};
+import{xyt}from"./chunk-cprpn48m.js";import{Cie}from"./chunk-mdxeekqd.js";import{KHn}from"./chunk-nehqevjg.js";async function stopCurrentSession(e,a){e();let o=xyt();if(o!==null)return o.close(),null;return await KHn("stop_command",a.storageV5,Cie()),null}
+const keo=stopCurrentSession;
+export{keo,stopCurrentSession};

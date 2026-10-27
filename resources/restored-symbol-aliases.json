@@ -434,6 +434,12 @@
       "legacy": "u6e",
       "readable": "isTaskMarkedAdoptable",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9xz7emqc.js",
+      "legacy": "keo",
+      "readable": "stopCurrentSession",
+      "style": "constAlias"
     }
   ]
 }
