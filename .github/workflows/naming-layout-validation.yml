@@ -11,6 +11,17 @@ on:
       - 'tests/runtime-assets.test.mjs'
       - 'scripts/build-resource-consumers.cjs'
       - '.github/workflows/naming-layout-validation.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'resources/**'
+      - 'src/embedded/**'
+      - 'tests/check-embedded.cjs'
+      - 'runtime/assets.mjs'
+      - 'tests/check-naming-layout.cjs'
+      - 'tests/runtime-assets.test.mjs'
+      - 'scripts/build-resource-consumers.cjs'
+      - '.github/workflows/naming-layout-validation.yml'
   workflow_dispatch:
 
 jobs:
