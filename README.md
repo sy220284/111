@@ -121,3 +121,5 @@ npm run verify:runtime
 
 - `src/chunk-eq8vmbm3.js` 的五个原始导出恢复为具名函数，保留原版空缓存初始化、摘要匹配优先级及 `PreToolUse` 条件；原版恒真函数保留恒真语义，不能推定其已实现完整权限引擎。
 - `tests/permission-template-source.test.cjs` 从实际代码加载注册表逻辑与导出，覆盖空表、同表复用、哈希和 ID 匹配、大小写边界、旧符号一致性。
+
+- 阶段 C：对主代理原版流式模型改写函数 `chunk-x3dkgs4r.js::Sr` 新增 `tests/thinking-model-override.test.cjs`；严格执行原函数，覆盖 Thinking 未完成时保持原模型、安全切换、只提示一次和 Hook effort 更新。仅登记定向行为测试，不把这段测试算作完整恢复。
