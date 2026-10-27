@@ -367,7 +367,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "allow-tool.mjs-dec5a728.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/allow-tool-dec5a728.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/allow-tool.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "8fcf17571a84a971bf07a1e9631c4503be4057a6bdbe1e4ead858ef599fd71ca",
@@ -586,7 +586,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "config.mjs-c64f0576.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/config-c64f0576.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/config.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "82e722f79c1fa3c83daf8991ceb8c9448e970fed57e9dd6fe55daa15d1b4faa0",
@@ -638,7 +638,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "ct-auth.mjs-12e61ad0.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/ct-auth-12e61ad0.mjs",
+      "path": "resources/tools/claude-test/scripts/ct-auth.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "91aff8861c5419de3e99ef6e95e25d316a230f2227266664fdc0ec8eb3e0ca93",
@@ -651,7 +651,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "ct.mjs-db1716e5.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/ct-db1716e5.mjs",
+      "path": "resources/tools/claude-test/scripts/ct.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "30c5cbde796cec1ac8e5f39daa746acf3babd6d2e32e023b5d66b39c0fe955e1",
@@ -664,7 +664,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "ctbrowser.mjs-c343fa0d.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/ctbrowser-c343fa0d.mjs",
+      "path": "resources/tools/claude-test/scripts/ctbrowser.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "8344f14755e8c48fef105d407d2b969c9b96e116b4cf2ce5fa976a12deefaf32",
@@ -690,7 +690,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "discover.mjs-05fbb73b.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/discover-05fbb73b.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/discover.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "cbba1c8ef436e726d4e461793864991eab406ffdb1e16769a796a01527f77746",
@@ -768,7 +768,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "envreport.mjs-2a6a40b0.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/envreport-2a6a40b0.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/envreport.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "65dbe5a801122bb79a75cf8b9ea0e4e9e42148909ef625c68a6984822820ffdc",
@@ -833,7 +833,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "fence-proxy.mjs-e706eaf6.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/fence-proxy-e706eaf6.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/fence-proxy.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "3a593b08b4c54a9ef1fe7151e90d4fb09baa908e4478aa385de3f72ee4c67038",
@@ -859,7 +859,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "guard.mjs-167f6a6a.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/guard-167f6a6a.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/guard.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "7b32a3d758e617a5728ad7a523b254d3f2e3a5a5c6750c9183de309eb6849937",
@@ -896,7 +896,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "live-page.mjs-841e1124.txt.zst": {
-      "path": "resources/tools/other/scripts/live-page-841e1124.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/live-page.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "b861d27597fe2afb07d0f43e900e5d61599746d3c55015a19abef17c832053aa",
@@ -1297,7 +1297,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "playwright-mcp.mjs-4153e6ec.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/playwright-mcp-4153e6ec.mjs",
+      "path": "resources/tools/claude-test/scripts/playwright-mcp.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "6f2f2b2a34a7a07af5bb3cf6f08c4d1cbd8bb89ca08152366550d74503b1e7f0",
@@ -1466,7 +1466,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "run-tools.mjs-0e78c453.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/run-tools-0e78c453.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/run-tools.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "9170344bcbcfb4cff7087969b3dcf185df02deb4f4c5e19d5cc65a7cc3e05ddd",
@@ -1479,7 +1479,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "runs.mjs-766956db.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/runs-766956db.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/runs.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "7cdac056d3882f8f06074cbd2a792c36cd691d3c70ec403135c9890d431f9976",
@@ -1505,7 +1505,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "sign-in.mjs-e560d968.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/sign-in-e560d968.mjs",
+      "path": "resources/tools/claude-test/scripts/sign-in.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "5c82dd62b97b2f1a28d7cecc8dfa68fff2fa513a15d7c98b7b091d7aab302242",
@@ -1518,7 +1518,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "signin.mjs-e32ba544.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/signin-e32ba544.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/signin.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "4369332c1a96f67a64f3f7d33378c491377c0b575649fa46215308bfc7d2df4f",
@@ -1544,7 +1544,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "stop-on-exit.mjs-da3fcb46.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/stop-on-exit-da3fcb46.mjs",
+      "path": "resources/tools/claude-test/scripts/stop-on-exit.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "c06323aaa0b22db6ea25e93d0b0b3cc48fa001839e175ff275a757582b4165db",
@@ -1752,7 +1752,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tools.mjs-6ad628aa.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/tools-6ad628aa.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/tools.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "0af08402dceddd2f4aabba522e7eee905a6258ea60360dc215dcc7a11565ac7a",
@@ -1791,7 +1791,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "vet.mjs-e320abbd.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/vet-e320abbd.mjs",
+      "path": "resources/tools/claude-test/scripts/lib/vet.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "250f4a678540ddc717c4fe9e576971eaff87a55f291a9bffce8c2edf6bca86f6",

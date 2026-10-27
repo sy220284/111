@@ -492,54 +492,6 @@
       "test": "tests/mcp-issuer-echo.test.cjs",
       "role": "mcp-oauth-issuer-strict-or-observe",
       "status": "targeted_behavior_test_only"
-    },
-    {
-      "source": "src/chunk-x436erds.js",
-      "symbol": "jAi",
-      "anchor": "function registerActiveMcpOAuthFlow(e,t)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
-      "role": "oauth-active-flow-race-safe-cleanup",
-      "status": "targeted_behavior_test_only"
-    },
-    {
-      "source": "src/chunk-x436erds.js",
-      "symbol": "WAi",
-      "anchor": "function getActiveMcpOAuthFlow(e)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
-      "role": "oauth-active-flow-lookup",
-      "status": "targeted_behavior_test_only"
-    },
-    {
-      "source": "src/chunk-x436erds.js",
-      "symbol": "LTr",
-      "anchor": "async function clearTokenlessMcpOAuthPlaceholder(e,t)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
-      "role": "oauth-empty-credential-stub-guard",
-      "status": "targeted_behavior_test_only"
-    },
-    {
-      "source": "src/chunk-x436erds.js",
-      "symbol": "Le",
-      "anchor": "function selectMcpOAuthMetadataScope(e)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
-      "role": "oauth-scope-extraction",
-      "status": "targeted_behavior_test_only"
-    },
-    {
-      "source": "src/chunk-x436erds.js",
-      "symbol": "Dhi",
-      "anchor": "function includeSupportedOfflineAccessScope(e,t)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
-      "role": "oauth-offline-access-gate",
-      "status": "targeted_behavior_test_only"
-    },
-    {
-      "source": "src/chunk-x436erds.js",
-      "symbol": "Hhi",
-      "anchor": "function isMicrosoftMcpOAuthIssuer(e)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
-      "role": "oauth-ms-issuer-host-classification",
-      "status": "targeted_behavior_test_only"
     }
   ]
 }
