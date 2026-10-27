@@ -132,3 +132,5 @@ npm run verify:runtime
 ## MCP OAuth 生命周期恢复
 
 - `src/chunk-x436erds.js` 恢复 6 个可读 OAuth 流程与凭据清理函数，并保留 `jAi/WAi/LTr/Le/Dhi/Hhi` 原短符号。执行离线测试 `tests/mcp-oauth-lifecycle.test.cjs`，验证授权 Promise 竞争、没有令牌的持久化占位项清理、`offline_access`、微软 OAuth 发行者域名边界。远端认证仍未验证。
+
+- 阶段 D Token Refresh：新增 `tests/mcp-oauth-refresh-lock.test.cjs` 直接执行 `Ben.refreshAuthorization` 和 `Ben.readConcurrentRefreshWinner` 原类方法，核对锁名、加锁参数、ELOCKED 重试、竞争赢家、刷新口令与异常释放，不涉及真实密钥或网络授权。

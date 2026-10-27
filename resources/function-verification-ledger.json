@@ -540,6 +540,22 @@
       "test": "tests/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-ms-issuer-host-classification",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "Ben.refreshAuthorization",
+      "anchor": "async refreshAuthorization(e){",
+      "test": "tests/mcp-oauth-refresh-lock.test.cjs",
+      "role": "oauth-cross-process-lock-refresh",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "Ben.readConcurrentRefreshWinner",
+      "anchor": "async readConcurrentRefreshWinner(){",
+      "test": "tests/mcp-oauth-refresh-lock.test.cjs",
+      "role": "oauth-concurrent-token-winner",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
