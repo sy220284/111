@@ -44,3 +44,15 @@ jobs:
           npm run audit:functions
       - name: 执行源码与功能级离线验证
         run: npm test
+      - name: 实测 CLI 帮助入口（独立标记运行兼容状态）
+        id: cli_runtime
+        continue-on-error: true
+        run: timeout 45s npm run verify:runtime
+      - name: 记录真实运行结果到工作流摘要
+        if: always()
+        run: |
+          if [ "${{ steps.cli_runtime.outcome }}" = "success" ]; then
+            echo "CLI --help：真实 Node 入口通过（不代表完整业务会话通过）" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "CLI --help：真实 Node 入口未通过，需按本次日志修复运行时兼容；静态测试结果不能替代运行验收。" >> "$GITHUB_STEP_SUMMARY"
+          fi
