@@ -471,7 +471,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "capture.mjs-9e2f2f8b.txt.zst": {
-      "path": "resources/tools/other/scripts/capture-9e2f2f8b.mjs",
+      "path": "resources/tools/design-sync/capture.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "95e405b84589920957ef7b89f83c3356bf97b3bcf1bae4aa965604f1881bd94e",
@@ -547,7 +547,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "compare.mjs-4b810a57.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/compare-4b810a57.mjs",
+      "path": "resources/tools/design-sync/storybook/compare.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "5f2b25c057fe794a9b52082f8fd35a63bd0d2b6798fcc38ddfc57bdc077b4da4",
@@ -703,7 +703,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "docs.mjs-0d218ce7.txt.zst": {
-      "path": "resources/tools/other/scripts/docs-0d218ce7.mjs",
+      "path": "resources/tools/design-sync/lib/docs.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "8014463cc126bf883b5a126e6d2e6e9acda85b9a8498989f96025904c1f7d87e",
@@ -729,7 +729,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "dts.mjs-59972049.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/dts-59972049.mjs",
+      "path": "resources/tools/design-sync/lib/dts.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "51401a86444a65f79cba21f33339ea82fe9437d8f598209b2c90a7c0b10febff",
@@ -755,7 +755,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "emit.mjs-7951914b.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/emit-7951914b.mjs",
+      "path": "resources/tools/design-sync/lib/emit.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "41d52543349472ffc8567937fdd0831654285fb679b844c411285fe7e56adac6",
@@ -1219,7 +1219,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "package-build.mjs-5c9a3b66.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/package-build-5c9a3b66.mjs",
+      "path": "resources/tools/design-sync/package-build.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "94243f637340870939684cf9edb02d88d2c904db20395bd0586ed08c72606384",
@@ -1232,7 +1232,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "package-validate.mjs-3a0e4e2a.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/package-validate-3a0e4e2a.mjs",
+      "path": "resources/tools/design-sync/package-validate.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "fea9d9754f6ca6d8e64ff5714efc545a147d59f413132646aa5ca07a9f02e98f",
@@ -1362,7 +1362,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "preview-rebuild.mjs-88e389b0.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/preview-rebuild-88e389b0.mjs",
+      "path": "resources/tools/design-sync/lib/preview-rebuild.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "fd511241b12db26f80110e3d8b2dab21fdb3c9d5d91d65717dc2a1a668e9cbf8",
@@ -1440,7 +1440,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "remote-diff.mjs-a2ecedbc.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/remote-diff-a2ecedbc.mjs",
+      "path": "resources/tools/design-sync/lib/remote-diff.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "92b5dd7afef45d95c0acda50209e0e8a72a633616804fd9935efa09592783413",
@@ -1453,7 +1453,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "resync.mjs-4ec2827e.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/resync-4ec2827e.mjs",
+      "path": "resources/tools/design-sync/resync.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "15ec8a3ede371a0dd1dba946a37ed6b827c91a4b28151decc7a8566b451f091a",
@@ -1531,7 +1531,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "source-storybook.mjs-125aecbd.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/source-storybook-125aecbd.mjs",
+      "path": "resources/tools/design-sync/lib/source-storybook.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "22aacb2cc5ec3d3143a620072a21fb9b0784dab0e8bfa6d675218126c6e45abe",
@@ -1557,7 +1557,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "story-imports.mjs-c9db5303.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/story-imports-c9db5303.mjs",
+      "path": "resources/tools/design-sync/lib/story-imports.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "97bda05fdf962a8d844e6e67c8aa372cde92c16b096830ba156c5abddb988d49",

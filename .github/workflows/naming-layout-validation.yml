@@ -32,5 +32,7 @@ jobs:
         run: npm run check:assets
       - name: 规范化工具源码与相对依赖检查
         run: npm run check:tool-layout
+      - name: 校验设计同步工具的原始目录及依赖
+        run: npm run check:design-sync-layout
       - name: 验证 24 份内嵌源码
         run: npm run check:embedded
