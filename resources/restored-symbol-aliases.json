@@ -548,6 +548,78 @@
       "legacy": "kno",
       "readable": "takeExitRetryFrameEntries",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "at",
+      "readable": "daemonLocalRecordPath",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Ue",
+      "readable": "daemonStorageRecordKey",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "yt",
+      "readable": "daemonStorageJsonKey",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Ee",
+      "readable": "isDaemonRegistryDirectoryAvailable",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Gn",
+      "readable": "readDaemonGestureRecord",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "nn",
+      "readable": "parseDaemonGestureRecord",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "rn",
+      "readable": "isDaemonProcessGoneOrReused",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "qn",
+      "readable": "isDaemonRosterRecordStale",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "tr",
+      "readable": "mapDaemonErrorCode",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Te",
+      "readable": "bufferMatchesAtOffset",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Ie",
+      "readable": "countBufferPrefixOverlap",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "y3t",
+      "readable": "classifyDaemonSessionTarget",
+      "style": "constAlias"
     }
   ]
 }

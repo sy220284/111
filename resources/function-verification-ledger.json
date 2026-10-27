@@ -1068,6 +1068,102 @@
       "test": "tests/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-kno",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "at",
+      "anchor": "function daemonLocalRecordPath(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-at",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Ue",
+      "anchor": "function daemonStorageRecordKey(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-Ue",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "yt",
+      "anchor": "function daemonStorageJsonKey(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-yt",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Ee",
+      "anchor": "function isDaemonRegistryDirectoryAvailable(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-Ee",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Gn",
+      "anchor": "function readDaemonGestureRecord(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-Gn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "nn",
+      "anchor": "function parseDaemonGestureRecord(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-nn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "rn",
+      "anchor": "function isDaemonProcessGoneOrReused(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-rn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "qn",
+      "anchor": "function isDaemonRosterRecordStale(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-qn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "tr",
+      "anchor": "function mapDaemonErrorCode(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-tr",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Te",
+      "anchor": "function bufferMatchesAtOffset(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-Te",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Ie",
+      "anchor": "function countBufferPrefixOverlap(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-Ie",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "y3t",
+      "anchor": "function classifyDaemonSessionTarget(",
+      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "role": "daemon-original-protocol-y3t",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
