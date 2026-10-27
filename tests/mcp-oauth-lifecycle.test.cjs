@@ -76,7 +76,7 @@ test('凭据库写入失败只产生日志，不将清理异常冒充登录失�
 });
 function scopeFixture(){
  const start=source.indexOf('function selectMcpOAuthMetadataScope(e)');
- const end=source.indexOf('export{registerActiveMcpOAuthFlow',start);
+ const end=source.indexOf('export{McpOAuthProvider,registerActiveMcpOAuthFlow',start);
  assert.ok(start>0&&end>start,'original OAuth scope helpers missing');
  return vm.runInNewContext(source.slice(start,end)+';({Le,Dhi,Hhi,selectMcpOAuthMetadataScope,includeSupportedOfflineAccessScope,isMicrosoftMcpOAuthIssuer})',{URL});
 }
