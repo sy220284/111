@@ -6,13 +6,16 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { zstdDecompressSync } = require('node:zlib');
 const assert = require('node:assert/strict');
 
 const project = path.resolve(__dirname, '..');
 const source = path.join(project, 'src');
 const resourceDirectory = path.join(project, 'resources/bunfs');
 const provenance = JSON.parse(fs.readFileSync(path.join(project, 'resources/manifest.json'), 'utf8'));
-const output = path.join(project, 'resources/consumers.json');
+const generatedDirectory = path.join(project, '.generated');
+const output = path.join(generatedDirectory, 'resource-consumers.json');
+const summaryOutput = path.join(project, 'resources/resource-consumer-summary.json');
 const callsite = /\b__cc310AssetPath\(\s*(['"])([^'"\r\n]+)\1\s*\)/g;
 const consumers = new Map();
 
@@ -63,17 +66,37 @@ const orphanNames = Object.entries(entries).filter(([, item]) => !item.literalCo
 assert.equal(Object.keys(entries).length, 250, 'all 2.1.310 embedded resources');
 assert.equal(referenced, provenance.referenced_virtual_assets, 'literal resource consumer coverage');
 assert.deepEqual(orphanNames, [...provenance.additional_unreferenced_v35_assets].sort());
+// These bundles use the 2.1.310 source-side loader instead of a BunFS call.
+// Prove the source text is byte-for-byte equal to the original embedded payload,
+// and associate it with its actual loader module (not a guessed consumer).
+const sourceSide = fs.readdirSync(source).filter(name => name.endsWith('.js') && !orphanNames.includes(name));
+for (const name of orphanNames) {
+  const raw = fs.readFileSync(path.join(resourceDirectory, name));
+  assert.equal(entries[name].encoding, 'zstd', 'expected compressed embedded bundle: ' + name);
+  const decoded = zstdDecompressSync(raw);
+  const sourceCopy = fs.readFileSync(path.join(source, name));
+  assert.ok(sourceCopy.equals(decoded), 'embedded/source copy mismatch: ' + name);
+  const loaders = sourceSide.filter(file => fs.readFileSync(path.join(source, file), 'utf8').includes('./' + name)).map(file => 'src/' + file).sort();
+  assert.ok(loaders.length > 0, 'embedded bundle has no source loader: ' + name);
+  entries[name].equivalentSource = 'src/' + name;
+  entries[name].sourceLoaderConsumers = loaders;
+}
+
 
 const index = {
   version: '2.1.310',
   detection: 'literal __cc310AssetPath callsites; dynamic code paths not counted',
-  summary: { total: Object.keys(entries).length, literalReferenced: referenced, withoutLiteralReference: orphanNames.length },
+  summary: { total: Object.keys(entries).length, literalReferenced: referenced, sourceLoaderReferenced: orphanNames.length, withoutFunctionalConsumer: 0 },
   resources: entries,
 };
 const content = JSON.stringify(index, null, 2) + '\n';
+const compact = JSON.stringify({version:index.version,summary:index.summary,sourceBundles:Object.fromEntries(orphanNames.map(name=>[name,{source:entries[name].equivalentSource,loaders:entries[name].sourceLoaderConsumers,sha256:entries[name].sha256}]))},null,2) + '\n';
 if (process.argv.includes('--check')) {
+  assert.equal(fs.readFileSync(summaryOutput, 'utf8'), compact, 'resource consumer summary is stale');
   console.log(JSON.stringify({ ...index.summary, index: 'verified' }));
 } else {
+  fs.mkdirSync(generatedDirectory,{recursive:true});
   fs.writeFileSync(output, content);
+  fs.writeFileSync(summaryOutput, compact);
   console.log(JSON.stringify({ ...index.summary, index: 'generated' }));
 }

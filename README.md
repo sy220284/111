@@ -71,3 +71,6 @@ npm run verify:runtime
 
 运行 `node scripts/source-function-index.cjs --full`，使用 TypeScript 5.x AST 分析器扫描全部 2551 个模块，生成函数位置、调用表达式、模块导入导出及哈希索引。大索引保存在本地 `.generated/`，不混入代码提交；`resources/function-summary.json` 保存已经核验的全量聚合和源码指纹。运行 `npm run audit:functions` 可检查当前源码是否与聚合记录一致。该脚本只解析源码、不执行业务函数，不将函数候选误判为语义等价。
 
+## 250 份资源的完整消费链
+
+247 份通过 `__cc310AssetPath` 直接引用；另 3 份 `chart.umd.min.js`、`hljsBundle.generated.min.js`、`mermaid.min.js` 通过 `loadChartBundleJs`、`loadHljsBundleJs`、`loadMermaidBundleJs` 间接使用。新增校验会验证其压缩原件与 `src/` 解压副本逐字节一致，并执行真实加载函数。`resources/resource-consumer-summary.json` 为固定摘要，详单由 `scripts/build-resource-consumers.cjs` 生成于 `.generated/`。这仅确认资源读取及关联链，不代表图表界面完整行为均已验收。
