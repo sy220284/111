@@ -1,0 +1,38 @@
+name: 一次性 ESM 循环依赖来源修复
+on:
+  push:
+    branches:
+      - fix/v37-ast-evidence-runtime-audit-20261027
+    paths:
+      - 'scripts/restore-eager-cycles.cjs'
+      - '.github/workflows/restore-esm-cycles-once.yml'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出分支
+        uses: actions/checkout@v4
+        with:
+          ref: fix/v37-ast-evidence-runtime-audit-20261027
+          persist-credentials: true
+      - name: 使用 Node 22.16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装源码 AST 依赖
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 恢复实际存在的模块初始化循环加载
+        run: node scripts/restore-eager-cycles.cjs
+      - name: 更新源文件、函数与调用索引
+        run: npm run rebuild:functions
+      - name: 提交当前分支修复后的完整源码
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/chunk-j0tbz6ra.js resources/function-summary.json
+          git diff --cached --quiet && { echo "没有找到源码修改"; exit 1; }
+          git commit -m "批量修复有反向导入证据的初始化循环依赖"
+          git push origin HEAD:fix/v37-ast-evidence-runtime-audit-20261027
