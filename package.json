@@ -17,7 +17,9 @@
     "verify:runtime": "node bin/claude-310.mjs --help",
     "check:resource-map": "node scripts/build-resource-consumers.cjs --check",
     "check:hooks": "node --test tests/hooks-source-restoration.test.cjs",
-    "check:native-audio": "node --test tests/native-audio-source.test.cjs"
+    "check:native-audio": "node --test tests/native-audio-source.test.cjs",
+    "audit:functions": "node scripts/source-function-index.cjs --check",
+    "generate:functions": "node scripts/source-function-index.cjs --full"
   },
   "dependencies": {
     "ws": "8.22.0"

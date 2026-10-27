@@ -67,3 +67,7 @@ npm run verify:runtime
 - 新增 6 项直接执行当前源代码函数体的受控测试，覆盖新版 Hook 事件、用户与插件配置合并、权限说明、音频初始化、故障回退和录放状态。
 - 不宣称已恢复 .node 二进制内部实现、整个 Hook Worker、MCP 或远程服务的完整行为。
 
+## 全模块函数索引（可复现）
+
+运行 `node scripts/source-function-index.cjs --full`，使用 TypeScript 5.x AST 分析器扫描全部 2551 个模块，生成函数位置、调用表达式、模块导入导出及哈希索引。大索引保存在本地 `.generated/`，不混入代码提交；`resources/function-summary.json` 保存已经核验的全量聚合和源码指纹。运行 `npm run audit:functions` 可检查当前源码是否与聚合记录一致。该脚本只解析源码、不执行业务函数，不将函数候选误判为语义等价。
+
