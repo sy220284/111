@@ -11,26 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: f3114c696c95acc9f65ab3767b9d67482539759f
+          ref: 3c64d1669174e825fb0fbae088c5ec95edaa7339
           fetch-depth: 0
       - name: Create pin-verified source snapshot
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "f3114c696c95acc9f65ab3767b9d67482539759f"
+          test "$(git rev-parse HEAD)" = "3c64d1669174e825fb0fbae088c5ec95edaa7339"
           git rev-parse HEAD > /tmp/snapshot-commit.txt
           git ls-tree -r HEAD > /tmp/snapshot-tree.txt
           git log HEAD --date=iso-strict --pretty=format:'%H%x09%aI%x09%s' > /tmp/snapshot-history.tsv
           git log HEAD --date=iso-strict --pretty=format:'COMMIT %H' --name-status > /tmp/snapshot-commit-files.txt
-          tar --exclude='./.git' -cf /tmp/claude-source-f3114c696c95.tar .
+          tar --exclude='./.git' -cf /tmp/claude-source-3c64d1669174.tar .
       - uses: actions/upload-artifact@v4
         with:
-          name: claude-source-f3114c696c95
+          name: claude-source-3c64d1669174
           if-no-files-found: error
           retention-days: 3
           compression-level: 6
           path: |
-            /tmp/claude-source-f3114c696c95.tar
+            /tmp/claude-source-3c64d1669174.tar
             /tmp/snapshot-commit.txt
             /tmp/snapshot-tree.txt
             /tmp/snapshot-history.tsv
