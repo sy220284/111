@@ -464,6 +464,30 @@
       "legacy": "Deo",
       "readable": "isDaemonConnectionFailureMessage",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Mno",
+      "readable": "hasPendingAdoptableWork",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Yxt",
+      "readable": "countUnadoptedFrames",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Dno",
+      "readable": "hasAdoptionPayloadTasks",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "oIn",
+      "readable": "summarizeAdoptedPayloadCounts",
+      "style": "constAlias"
     }
   ]
 }
