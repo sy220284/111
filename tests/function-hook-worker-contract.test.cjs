@@ -103,7 +103,7 @@ test('Worker 流式工具操作支持 op_pull 和提前关闭 op_close', async (
   const port = { postMessage: message => sent.push(message) };
   const pendingOps = new Map();
   state.ports.set('env', { port, pendingOps, owedOps: new Map() });
-  const iterator = Q(state, { environmentId: 'env', op: 'tool.call', args: [], dispatchId: 8 })();
+  const iterator = Q(state, { environmentId: 'env', op: 'tool.call', args: [], dispatchId: 8 });
   const first = iterator.next();
   assert.equal(sent[0].type, 'op_pull');
   assert.equal(sent[0].open.op, 'tool.call');
