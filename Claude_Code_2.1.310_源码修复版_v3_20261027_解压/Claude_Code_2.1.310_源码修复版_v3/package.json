@@ -1,0 +1,41 @@
+{
+  "name": "claude-code-2.1.310-source-restoration-v3",
+  "version": "2.1.310",
+  "private": true,
+  "type": "module",
+  "description": "Claude Code 2.1.310 reconstructed JS modules and complete recovered 250 embedded resources (partial Bun/JSC runtime parity)",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
+    "check:version": "node tests/smoke-version.cjs",
+    "test": "npm run check:source && npm run check:embedded && npm run check:assets && npm run check:version",
+    "check:embedded": "node tests/check-embedded.cjs",
+    "check:assets": "node --test tests/runtime-assets.test.mjs",
+    "start": "node bin/claude-310.mjs",
+    "verify:runtime": "node bin/claude-310.mjs --help"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "bin": {
+    "claude-310-source": "./bin/claude-310.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "runtime/",
+    "resources/",
+    "tests/",
+    "scripts/",
+    "README.md",
+    "package.json"
+  ]
+}
