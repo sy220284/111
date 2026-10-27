@@ -142,3 +142,8 @@ npm run verify:runtime
 - 阶段 D MCP 连接：`chunk-fbc1ty1s.js` 的结算函数 `hfr` 恢复为 `applyMcpConnectionSettlement`，旧符号兼容。离线测试覆盖配置过期、账户切换、连接禁用、策略拒绝以及成功安装时工具/命令登记，防止迟到连接覆盖已有状态。
 
 - 阶段 E Daemon：恢复 `chunk-2af27mew.js` 的故障分类、重试计数、退出决策和 `chunk-yhfqc2mr.js` 的状态/日志路径，共 5 个可读函数，保留所有旧符号。新增 5 个边界测试；真实 Daemon 进程、OS 恢复与续跑仍未验收。
+
+## 阶段 F：可读函数旧符号防回退验收
+
+- `resources/restored-symbol-aliases.json` 记录 10 个主模块中 38 个已改造成可读声明的原短符号接口，排除只增加测试、没有改源码的函数。
+- `scripts/check-restored-aliases.cjs` 校验可读声明、旧符号链接、已有定向行为测试三者同时存在，并由 `npm test` 持续执行。防止并行提交无声覆盖恢复实现；不因此宣称整个 Claude Code 语义或线上环境等价。

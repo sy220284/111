@@ -1,0 +1,235 @@
+{
+  "version": "2.1.310",
+  "scope": "reconstructed readable function declaration plus legacy linkage; targeted tests only",
+  "completionClaim": "source-link integrity, not entire semantic or end-to-end parity",
+  "entries": [
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "legacy": "QMn",
+      "readable": "parseHookSourceDescriptor",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "legacy": "ZMn",
+      "readable": "parsePluginHookIdentity",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "legacy": "jhs",
+      "readable": "resolvePreToolUseRegistration",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-1nnn2mdy.js",
+      "legacy": "Whs",
+      "readable": "parseToolPermissionEvent",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-q85nvv4x.js",
+      "legacy": "uun",
+      "readable": "isReservedPolicyHookModule",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-q85nvv4x.js",
+      "legacy": "HE",
+      "readable": "listModulesForHookDispatch",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "legacy": "Vds",
+      "readable": "listExternalTemplateIds",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "legacy": "qds",
+      "readable": "findExternalTemplateByDigest",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "legacy": "Oat",
+      "readable": "findExternalTemplateById",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "legacy": "Nxn",
+      "readable": "isPreToolUseTemplateEvent",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-eq8vmbm3.js",
+      "legacy": "$xn",
+      "readable": "externalTemplateConstantFlag",
+      "style": "exportAlias"
+    },
+    {
+      "source": "src/chunk-23vy5pjb.js",
+      "legacy": "de",
+      "readable": "safeTaskFileId",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-23vy5pjb.js",
+      "legacy": "tTi",
+      "readable": "removeTaskUploadReferences",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-23vy5pjb.js",
+      "legacy": "nTi",
+      "readable": "diagnosePreparedTaskUpload",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "pt",
+      "readable": "isEquivalentMcpIssuerEcho",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "pe",
+      "readable": "parseMcpIssuerHttpUrl",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "_t",
+      "readable": "classifyMcpIssuerOrigin",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "mt",
+      "readable": "listMcpIssuerDifferenceFacets",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "kUn",
+      "readable": "verifyMcpOAuthIssuerEcho",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "jAi",
+      "readable": "registerActiveMcpOAuthFlow",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "WAi",
+      "readable": "getActiveMcpOAuthFlow",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "LTr",
+      "readable": "clearTokenlessMcpOAuthPlaceholder",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "Le",
+      "readable": "selectMcpOAuthMetadataScope",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "Dhi",
+      "readable": "includeSupportedOfflineAccessScope",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "legacy": "Hhi",
+      "readable": "isMicrosoftMcpOAuthIssuer",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "legacy": "sr",
+      "readable": "getCancelledMainTurnMessageId",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "legacy": "Ff",
+      "readable": "findLatestTrailingUserMessageUuid",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "legacy": "Gf",
+      "readable": "describeQueryModelFallback",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "legacy": "Iu",
+      "readable": "abbreviateModelFallbackReason",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fbc1ty1s.js",
+      "legacy": "hfr",
+      "readable": "applyMcpConnectionSettlement",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-2af27mew.js",
+      "legacy": "_gi",
+      "readable": "parseDaemonAttemptCount",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-2af27mew.js",
+      "legacy": "xyr",
+      "readable": "classifyDaemonWorkerFailure",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-2af27mew.js",
+      "legacy": "bgi",
+      "readable": "chooseDaemonWorkerExit",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-yhfqc2mr.js",
+      "legacy": "aD",
+      "readable": "getDaemonStateFilePath",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-yhfqc2mr.js",
+      "legacy": "Xpe",
+      "readable": "getDaemonLogFilePath",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-w9w4r9w1.js",
+      "legacy": "D",
+      "readable": "dispatchStoredSessionRow",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-w9w4r9w1.js",
+      "legacy": "Te",
+      "readable": "appendSessionRows",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-w9w4r9w1.js",
+      "legacy": "u",
+      "readable": "isSessionRowEligibleForAppend",
+      "style": "inlineVar"
+    }
+  ]
+}
