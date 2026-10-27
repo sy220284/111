@@ -124,7 +124,8 @@ function B(n, o, e, u = !1, d, s, c, p, f, m) { let r = Object.keys(n); if (r.le
     setImmediate(O);
 else
     O(); return v; }
-function hfr(n, o) { let { client: e, tools: u, commands: d, attemptEpoch: s } = o, c, p = "applied", f = hft(e.config, s); return n.applyMcpUpdate((m) => { p = "applied", c = void 0; let r = m.clients.find((g) => g.name === e.name); if (!r || !R().areMcpConfigsEqual(r.config, e.config)) {
+/** Apply an MCP connection settlement only to the matching live configuration and identity epoch. */
+function applyMcpConnectionSettlement(n, o) { let { client: e, tools: u, commands: d, attemptEpoch: s } = o, c, p = "applied", f = hft(e.config, s); return n.applyMcpUpdate((m) => { p = "applied", c = void 0; let r = m.clients.find((g) => g.name === e.name); if (!r || !R().areMcpConfigsEqual(r.config, e.config)) {
     if (e.type === "connected")
         se(e.name, r ? "applyConnectionResult: disposing orphaned connect (slot config changed mid-flight)" : "applyConnectionResult: disposing orphaned connect (slot removed mid-flight)"), c = () => T(e);
     return p = "dropped", m;
@@ -146,6 +147,7 @@ function hfr(n, o) { let { client: e, tools: u, commands: d, attemptEpoch: s } =
         T(e); R().dropDiscoveryEntry(e.name, e.config).catch(() => { }); }, p = "refused", E(m, { name: e.name, type: "failed", config: r.config, ...jb(S, e.name, e.config) });
 } if (!FTt(r, e))
     return p = "dropped", m; return { ...m, clients: m.clients.map((g) => g.name === e.name ? e : g), tools: ri([...m.tools, ...u], "name"), commands: ri([...m.commands, ...d], "name") }; }), c?.(), p; }
+const hfr=applyMcpConnectionSettlement;
 function QRn(n, o, e = !0) { let u = o.getClients(); return Object.entries(n).filter(([d, s]) => { let c = u.find((p) => p.name === d); return c !== void 0 && (WLt(c) || e && bXe(c)) && R().areMcpConfigsEqual(c.config, s); }); }
 function aZr(n) { let o = (e) => { let u = xt().transientRetryPasses; for (let d of n) {
     let s = (u.get(d) ?? 0) + e;
@@ -306,4 +308,4 @@ function W({ servers: n, suppressed: o }, e, u, d) { return e.applyMcpUpdate((s)
 function E(n, o) { let e = io(o.name); return { ...n, clients: n.clients.map((u) => u.name === o.name ? o : u), tools: jB(n.tools, (u) => jc(u, o.name, e)), commands: jB(n.commands, (u) => Wb(u, o.name)), resources: Tk(n.resources, o.name), resourceTemplates: Tk(n.resourceTemplates, o.name) }; }
 function T(n) { if (Ul())
     ohe(n, void 0); n.cleanup().catch(() => { }), R().clearServerCache(n.name, n.config).catch(() => { }); }
-export { $ls, C6t, Fls, Uls, iZr, hfr, QRn, aZr, R6t, Bls };
+export { applyMcpConnectionSettlement, $ls, C6t, Fls, Uls, iZr, hfr, QRn, aZr, R6t, Bls };

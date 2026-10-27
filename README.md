@@ -138,3 +138,5 @@ npm run verify:runtime
 - 阶段 C 主代理 `Du` 周边：恢复取消回合定位、最近用户消息、模型失败回退文案与错误原因截断四个函数的可读命名；保留 `sr/Ff/Gf/Iu` 原短符号。新增源码级状态测试，不把辅助函数验证算作完整 `Du` 执行状态机验收。
 
 - 阶段 D OAuth `_doRefresh`：补充 `tests/mcp-oauth-refresh-errors.test.cjs`，使用真正类方法验证授权元信息、SDK 错误类型、`invalid_grant`/`invalid_client` 的并发赢家保护、指数退避和失败收尾；Provider 可读类名为 `McpOAuthProvider`，保留原版 `Ben` 短符号。
+
+- 阶段 D MCP 连接：`chunk-fbc1ty1s.js` 的结算函数 `hfr` 恢复为 `applyMcpConnectionSettlement`，旧符号兼容。离线测试覆盖配置过期、账户切换、连接禁用、策略拒绝以及成功安装时工具/命令登记，防止迟到连接覆盖已有状态。
