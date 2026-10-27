@@ -314,6 +314,36 @@
       "legacy": "sn",
       "readable": "hasCoherentResumedSubagentTranscript",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "nJ",
+      "readable": "resumeSubagentForNotification",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "gfo",
+      "readable": "resumeSubagentInline",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "fwr",
+      "readable": "resumeSubagentForReply",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "it",
+      "readable": "runSubagentResumeExclusively",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "Yn",
+      "readable": "addJoinedAgentNoticeMetadata",
+      "style": "constAlias"
     }
   ]
 }

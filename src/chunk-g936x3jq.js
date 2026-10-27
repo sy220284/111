@@ -206,11 +206,18 @@ class rte extends Vu {
 class Sve extends Vu {
     constructor(e) { super(e); this.name = "AgentStillStoppingError"; }
 }
-function nJ(e) { return it(e, "notification"); }
-function gfo(e) { return it(e, "inline"); }
+/** Resume an existing subagent for the owner-notification delivery path. */
+function resumeSubagentForNotification(e) { return it(e, "notification"); }
+const nJ=resumeSubagentForNotification;
+/** Resume a subagent inline while the parent turn awaits its result. */
+function resumeSubagentInline(e) { return it(e, "inline"); }
+const gfo=resumeSubagentInline;
 function an(e, k = Db) { return typeof e === "string" && e !== "" && !cy(e) && !zs(e) && !gl(e) && !Yw(e) && !Kn.test(e) && Im(k, e, { surfaceNetworkRaw: !0, unreadableAncestry: "unverified" }) === void 0 ? e : void 0; }
-function fwr(e) { return it(e, "reply"); }
-async function it(e, k) { let { agentId: h } = e, { resumesInFlight: b } = zn(); if (b.has(h))
+/** Resume a subagent to deliver its reply to the invoking tool. */
+function resumeSubagentForReply(e) { return it(e, "reply"); }
+const fwr=resumeSubagentForReply;
+/** Claim one in-flight resume per agent and release it on success or failure. */
+async function runSubagentResumeExclusively(e, k) { let { agentId: h } = e, { resumesInFlight: b } = zn(); if (b.has(h))
     throw new rte(`Agent ${h} is already running or being resumed`); b.add(h); let _ = !0, T = () => { if (_)
     _ = !1, b.delete(h); }; try {
     return await Qn(e, k, T);
@@ -218,6 +225,7 @@ async function it(e, k) { let { agentId: h } = e, { resumesInFlight: b } = zn();
 finally {
     T();
 } }
+const it=runSubagentResumeExclusively;
 async function Qn({ agentId: e, prompt: k, promptOrigin: h, promptNoticeLengths: b, promptNoticeOwn: _, promptNoticeRunIds: T, promptIsMeta: F, continueInterruptedTurn: S, resultsOnly: at, toolUseContext: r, liveTranscript: ee, canUseTool: V, invokingRequestId: dt, parentPromptId: Pe, userInitiated: x, suppressOwnerNotification: dn, workerPermissionMode: un, onDeliveryCommitted: ln, isWebFetchLaunch: cn }, X, mn) { const env_1 = { stack: [], error: void 0, hasError: false }; try {
     let fn = Date.now(), xn = !1, Ne = r.getAppState(), de = ae(r), { taskRegistry: y } = r, ue = de.mode, te = r.agentId;
     if (te !== void 0 && h1(te))
@@ -520,5 +528,7 @@ function normalizeShutdownInterruptedAgentResult(e, k) { if (e.type !== "user" |
     return e; if (!Xue(e))
     return vm(e) ? { ...e, message: { ...e.message, content: [{ type: "text", text: a3o }] } } : e; return { ...e, toolUseResult: Gx, toolDenialKind: void 0, message: { ...e.message, content: e.message.content.map((h) => h.type === "tool_result" ? { ...h, content: Gx } : h) } }; }
 const Un=normalizeShutdownInterruptedAgentResult;
-function Yn(e, k, h, b) { return e === void 0 ? b : { ...b, joinedNoticeLengths: e, joinedNoticeOwn: k, joinedNoticeRunIds: h }; }
-export { resumeSubagentWithInheritedHookOrigin,formatPluginResumeDenial,hasCoherentResumedSubagentTranscript,isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };
+/** Attach joined agent notification metadata when it is actually supplied. */
+function addJoinedAgentNoticeMetadata(e, k, h, b) { return e === void 0 ? b : { ...b, joinedNoticeLengths: e, joinedNoticeOwn: k, joinedNoticeRunIds: h }; }
+const Yn=addJoinedAgentNoticeMetadata;
+export { resumeSubagentForNotification,resumeSubagentInline,resumeSubagentForReply,runSubagentResumeExclusively,addJoinedAgentNoticeMetadata, resumeSubagentWithInheritedHookOrigin,formatPluginResumeDenial,hasCoherentResumedSubagentTranscript,isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };
