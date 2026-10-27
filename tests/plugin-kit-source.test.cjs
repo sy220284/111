@@ -92,3 +92,34 @@ test('实际恢复的插件测试收集器执行分组、用例注册和关闭�
   collector.close();
   assert.throws(() => collector.test('late', () => true), /while the file loads/);
 });
+
+test('插件测试入口到运行器：注册、宿主初始化、执行及失败回收', async () => {
+  const { install, test: register, run } = await import('../src/plugin-testing-kit/index.js');
+  const opened = [];
+  const closed = [];
+  const host = {
+    now: () => Date.now(),
+    open: payload => {
+      const id = 'seat-' + (opened.length + 1);
+      opened.push({ id, request: JSON.parse(payload) });
+      return id;
+    },
+    close: async id => {
+      closed.push(id);
+      return { told: '' };
+    },
+  };
+  install(host, '[]');
+  register('full-chain success', () => true);
+  register('full-chain failure', () => { throw new Error('plugin body failed'); });
+  const result = JSON.parse(await run());
+  assert.ok(result.length >= 2);
+  const pass = result.find(row => row.title === 'full-chain success');
+  const fail = result.find(row => row.title === 'full-chain failure');
+  assert.equal(pass?.failure, null);
+  assert.match(fail?.failure, /plugin body failed/);
+  assert.equal(opened.length, result.length);
+  assert.equal(closed.length, result.length);
+  assert.ok(opened.every(item => item.request.tier === 'user'));
+  assert.deepEqual(closed.sort(), opened.map(x => x.id).sort());
+});
