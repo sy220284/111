@@ -102,3 +102,5 @@ npm run verify:runtime
 - 源码指纹校验已在 `npm test` 执行：源码改变后应同步更新 `resources/function-summary.json` 的完整代码哈希，防止把旧 AST 索引标为当前源码。
 
 - 阶段 A/D 新增对 `src/chunk-q85nvv4x.js` 的 Hook 事件消费者过滤函数语义恢复：从原短符号 `uun/HE` 恢复可读的托管策略模块识别与敏感 Hook 事件过滤实现，保持旧导出和按事件区别处理的权限边界，新增原模块导入实际链接与运行测试。未增加对其他权限规则的无证据猜测。
+
+- 阶段 A/D/E：原版 `chunk-y7venc25.js` 的 Plugin Eval、MCP serve、Agent JSON、Remote Control 与 Project Verb 五个命令识别函数恢复为具名、独立可读源码，保留全部已有公共导出及细节边界。运行回归测试验证命令识别；这只验收 CLI 分流函数，并不声称这些后台功能均可运行。
