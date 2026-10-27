@@ -51,7 +51,9 @@ test('实际恢复的插件测试收集器执行分组、用例注册和关闭�
   const collector = createCollector();
   assert.equal(collector.fileTier(), 'user');
   collector.describe('hook', () => collector.test('works', () => true));
-  assert.equal(collector.cases().length, 1);
+  collector.test('with options', { timeoutMs: 42 }, () => true);
+  assert.equal(collector.cases().length, 2);
+  assert.equal(collector.cases()[1].timeoutMs, 42);
   assert.match(collector.cases()[0].title, /works/);
   collector.close();
   assert.throws(() => collector.test('late', () => true), /while the file loads/);

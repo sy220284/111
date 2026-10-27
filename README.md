@@ -71,9 +71,11 @@ npm run verify:runtime
 ## v3 源码恢复增量：插件测试源码（2026-10-27）
 
 - 从真实 2.1.310 内嵌 `kit-modules-02f8fcd0.js` 恢复 **294 份独立的 JavaScript 源文件**，写入 `src/plugin-testing-kit/`。这是插件测试工具包，**不计入 2551 个主程序模块**。
-- 原始文件存在 **628 处静态 import/re-export 引用**。已将原构建别名和无后缀引用恢复为实际相对路径，保持函数体和导出声明不变。
+- 原始文件存在 **628 处静态 import/re-export 引用**。已将原构建别名和无后缀引用恢复为实际相对路径，保持导出声明不变；运行测试另发现并修复插件测试收集器的可变参数转发错误。
 - `scripts/restore-plugin-testing-kit.cjs` 可从保留的原始内嵌文档重复生成源码；`--check` 按文件逐字节比对，防止将人工修订误当成原版源码。
 - `npm run check:plugin-kit` 检查 294 份源码语法、628 条依赖并实测结构化比较与插件测试收集器的关键行为。
 - 修正 `npm run rebuild:functions` 指向不存在脚本的问题，统一使用现有 `source-function-index.cjs`。
 
 注意：恢复的是插件测试辅助工具包，不能据此宣称 Hook Worker、插件 API 及主代理全功能已经端到端验收。
+
+- 插件测试收集器修复：原件 `test: (name, rest)` 将回调函数直接交给需要可迭代参数数组的 `testCaseOf(title, rest)`，导致实际注册失败；改为 `test: (name, ...rest)`，恢复单回调及带选项两种调用。生成脚本对该改动有明确、可复验的修复规则。

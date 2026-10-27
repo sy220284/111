@@ -33,12 +33,20 @@ function resolveSpecifier(from, specifier) {
   return relative;
 }
 
+// Verified behavioral correction: testCaseOf(title, rest) destructures rest as an array.
+function repairSource(name, source) {
+  if (name !== 'collector/create-collector/create-collector.js') return source;
+  const oldSignature = 'test: (name, rest) => {';
+  assert.equal(source.split(oldSignature).length, 2, 'unexpected original collector source');
+  return source.replace(oldSignature, 'test: (name, ...rest) => {');
+}
+
 const check = process.argv.includes('--check');
 const expected = new Set();
 let references = 0;
 for (const [name, source] of sources) {
   assert.ok(!path.posix.isAbsolute(name) && !name.split('/').includes('..'), 'invalid source path: ' + name);
-  const rewritten = source.replace(/(\bfrom\s*|\bimport\s*|\bimport\(\s*)(['"])([^'"\r\n]+)\2/g,
+  const rewritten = repairSource(name, source).replace(/(\bfrom\s*|\bimport\s*|\bimport\(\s*)(['"])([^'"\r\n]+)\2/g,
     (entire, head, quote, specifier) => {
       references++;
       return head + quote + resolveSpecifier(name, specifier) + quote;

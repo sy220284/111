@@ -29,7 +29,7 @@ export function createCollector() {
                 current = outer;
             }
         },
-        test: (name, rest) => {
+        test: (name, ...rest) => {
             collecting('test');
             if (typeof name !== 'string') {
                 throw new TypeError('test(name, ...): the name is a string');
