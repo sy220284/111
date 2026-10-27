@@ -8,7 +8,7 @@
 // (c) Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 // Version: 2.1.310
-import{CC}from"./chunk-wrtp8qz8.js";import{Odi}from"./chunk-dmtyt8s1.js";import{c4t}from"./chunk-v19xty83.js";import{Ud,Ddi}from"./chunk-d54avynm.js";import{Tjs,Ajs}from"./chunk-6h7ejyet.js";function xxt(e){return{PreToolUse:{summary:"Before tool execution",description:`Input to command is JSON of tool call arguments.
+import{CC}from"./chunk-wrtp8qz8.js";import{Odi}from"./chunk-dmtyt8s1.js";import{c4t}from"./chunk-v19xty83.js";import{Ud,Ddi}from"./chunk-d54avynm.js";import{Tjs,Ajs}from"./chunk-6h7ejyet.js";function createHookEventMetadata(e){return{PreToolUse:{summary:"Before tool execution",description:`Input to command is JSON of tool call arguments.
 Exit code 0 - stdout/stderr not shown
 Exit code 2 - show stderr to model and block tool call
 Other exit codes - show stderr to user only but continue with tool call`,matcherMetadata:{fieldToMatch:"tool_name",values:e}},PostToolUse:{summary:"After tool execution",description:`Input to command is JSON with fields "inputs" (tool call arguments) and "response" (tool call response).
@@ -104,5 +104,5 @@ Other exit codes - stderr is debug-logged on both paths; for /add-dir, a failure
 Output JSON with hookSpecificOutput containing displayContent to replace the delta on screen.
 Display-only: the stored message and what the model sees are untouched.
 Exit code 0 - use hook response if provided
-Other exit codes - display the original delta`}}}function e8t(e,n){let t=Object.create(null);for(let o of Ud)t[o]=Object.create(null);let i=xxt(n);Tjs(e).forEach((o)=>{let s=t[o.event];if(s){let r=i[o.event].matcherMetadata!==void 0?o.matcher||"":"";if(!s[r])s[r]=[];s[r].push(o)}});let c=CC();if(c)for(let[o,s]of Object.entries(c)){let r=o,d=t[r];if(!d)continue;for(let a of s){let l=a.matcher||"";if("pluginRoot"in a){d[l]??=[];for(let u of a.hooks)d[l].push({event:r,config:u,matcher:a.matcher,source:"pluginHook",pluginName:a.pluginId})}}}return t}function Z5e(e,n){let t=Object.keys(e[n]||{});return Ajs(t,e,n)}function zto(e,n,t){let i=t??"";return e[n]?.[i]??[]}
-export{xxt,e8t,Z5e,zto};
+Other exit codes - display the original delta`}}}function groupHooksByEventAndMatcher(e,n){let t=Object.create(null);for(let o of Ud)t[o]=Object.create(null);let i=createHookEventMetadata(n);Tjs(e).forEach((o)=>{let s=t[o.event];if(s){let r=i[o.event].matcherMetadata!==void 0?o.matcher||"":"";if(!s[r])s[r]=[];s[r].push(o)}});let c=CC();if(c)for(let[o,s]of Object.entries(c)){let r=o,d=t[r];if(!d)continue;for(let a of s){let l=a.matcher||"";if("pluginRoot"in a){d[l]??=[];for(let u of a.hooks)d[l].push({event:r,config:u,matcher:a.matcher,source:"pluginHook",pluginName:a.pluginId})}}}return t}function listEventMatchersSorted(e,n){let t=Object.keys(e[n]||{});return Ajs(t,e,n)}function getHooksForMatcher(e,n,t){let i=t??"";return e[n]?.[i]??[]}
+export{createHookEventMetadata as xxt,groupHooksByEventAndMatcher as e8t,listEventMatchersSorted as Z5e,getHooksForMatcher as zto,createHookEventMetadata,groupHooksByEventAndMatcher,listEventMatchersSorted,getHooksForMatcher};

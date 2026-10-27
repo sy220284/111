@@ -8,4 +8,85 @@
 // (c) Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 // Version: 2.1.310
-import{HKo}from"./chunk-wc1zcry1.js";import{Fe}from"./chunk-a2y39866.js";var a=null,i=!1;function r(){if(i)return a;i=!0;let t="linux";if(t!=="darwin"&&t!=="linux"&&t!=="win32")return null;try{return a=HKo(),a}catch{}let o=`x64-${t}`,u=(t==="linux"?[o,`${o}-musl`]:[o]).flatMap((n)=>[`./vendor/audio-capture/${n}/audio-capture.node`,`../audio-capture/${n}/audio-capture.node`]);for(let n of u)try{return a=Fe(n),a}catch{}return null}function c(){return r()!==null}function l(t,o){let e=r();if(!e)return!1;return e.startRecording(t,o)}function s(){let t=r();if(!t)return;t.stopRecording()}function d(){let t=r();if(!t)return!1;return t.isRecording()}function p(t,o){let e=r();if(!e)return!1;return e.startPlayback(t,o)}function f(t){let o=r();if(!o)return;o.writePlaybackData(t)}function m(){let t=r();if(!t)return;t.stopPlayback()}function b(){let t=r();if(!t)return!1;return t.isPlaying()}function v(){let t=r();if(!t||!t.microphoneAuthorizationStatus)return 0;return t.microphoneAuthorizationStatus()}export{c as isNativeAudioAvailable,b as isNativePlaying,d as isNativeRecordingActive,v as microphoneAuthorizationStatus,p as startNativePlayback,l as startNativeRecording,m as stopNativePlayback,s as stopNativeRecording,f as writeNativePlaybackData};
+import { HKo } from './chunk-wc1zcry1.js';
+import { Fe } from './chunk-a2y39866.js';
+
+let nativeAudioAddon = null;
+let hasAttemptedAudioLoad = false;
+
+function loadNativeAudioAddon() {
+  if (hasAttemptedAudioLoad) return nativeAudioAddon;
+  hasAttemptedAudioLoad = true;
+  // Preserve the extracted 2.1.310 linux-x64 build target.
+  const targetPlatform = 'linux';
+  if (targetPlatform !== 'darwin' && targetPlatform !== 'linux' && targetPlatform !== 'win32') return null;
+  try {
+    nativeAudioAddon = HKo();
+    return nativeAudioAddon;
+  } catch {}
+
+  const architecture = 'x64-' + targetPlatform;
+  const candidates = (targetPlatform === 'linux' ? [architecture, architecture + '-musl'] : [architecture])
+    .flatMap(name => ['./vendor/audio-capture/' + name + '/audio-capture.node', '../audio-capture/' + name + '/audio-capture.node']);
+  for (const candidate of candidates) {
+    try {
+      nativeAudioAddon = Fe(candidate);
+      return nativeAudioAddon;
+    } catch {}
+  }
+  return null;
+}
+
+function isNativeAudioAvailable() { return loadNativeAudioAddon() !== null; }
+function startNativeRecording(device, onData) {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return false;
+  return addon.startRecording(device, onData);
+}
+function stopNativeRecording() {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return;
+  addon.stopRecording();
+}
+function isNativeRecordingActive() {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return false;
+  return addon.isRecording();
+}
+function startNativePlayback(format, options) {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return false;
+  return addon.startPlayback(format, options);
+}
+function writeNativePlaybackData(data) {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return;
+  addon.writePlaybackData(data);
+}
+function stopNativePlayback() {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return;
+  addon.stopPlayback();
+}
+function isNativePlaying() {
+  const addon = loadNativeAudioAddon();
+  if (!addon) return false;
+  return addon.isPlaying();
+}
+function microphoneAuthorizationStatus() {
+  const addon = loadNativeAudioAddon();
+  if (!addon || !addon.microphoneAuthorizationStatus) return 0;
+  return addon.microphoneAuthorizationStatus();
+}
+
+export {
+  isNativeAudioAvailable,
+  isNativePlaying,
+  isNativeRecordingActive,
+  microphoneAuthorizationStatus,
+  startNativePlayback,
+  startNativeRecording,
+  stopNativePlayback,
+  stopNativeRecording,
+  writeNativePlaybackData,
+};
