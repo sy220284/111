@@ -68,6 +68,25 @@ for (const [key, target] of Object.entries(pluginApiCanonical)) {
   assert.equal(layout.entries[key]?.path, target, '插件接口与工具包实际目录失配：'+key);
 }
 
+
+const dependencyAwareToolBatch = {
+  "appifact_sdk.js-852e8bcb.txt.zst": "resources/tools/artifact/scripts/appifact_sdk.js",
+  "validate_palette.js-f945bc6a.txt.zst": "resources/tools/design/scripts/validate_palette.js",
+  "common.mjs-21a45017.txt.zst": "resources/tools/design-sync/lib/common.mjs",
+  "bundle.mjs-c7466167.txt.zst": "resources/tools/design-sync/lib/bundle.mjs",
+  "css.mjs-0d869c37.txt.zst": "resources/tools/design-sync/lib/css.mjs",
+  "previews.mjs-8fcda441.txt.zst": "resources/tools/design-sync/lib/previews.mjs",
+  "sync-hashes.mjs-a0844915.txt.zst": "resources/tools/design-sync/lib/sync-hashes.mjs"
+};
+for (const [key, target] of Object.entries(dependencyAwareToolBatch)) {
+  assert.equal(layout.entries[key]?.path, target, '工具资源规范路径失配：'+key);
+}
+for (const name of ['bundle.mjs', 'css.mjs', 'previews.mjs']) {
+  const dep = path.join(root, 'resources/tools/design-sync/lib', name);
+  assert.ok(fs.readFileSync(dep, 'utf8').includes('./common.mjs'), '缺少原版公共库依赖：'+name);
+  assert.ok(fs.existsSync(path.join(path.dirname(dep),'common.mjs')), '无法解析公共库依赖：'+name);
+}
+
 assert.equal(markdown, 83, 'Markdown 资源数量发生变化');
 assert.equal(skills, 14, '技能入口数量发生变化');
 console.log(JSON.stringify({ result: 'PASS', mappedResources: targetPaths.size, normalizedMarkdown: markdown, skillEntrypoints: skills }));

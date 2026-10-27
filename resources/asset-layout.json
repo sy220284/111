@@ -406,7 +406,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "appifact_sdk.js-852e8bcb.txt.zst": {
-      "path": "resources/tools/artifact/scripts/appifact_sdk-852e8bcb.js",
+      "path": "resources/tools/artifact/scripts/appifact_sdk.js",
       "kind": "javascript-source",
       "purpose": "embedded JavaScript helper",
       "compressedSha256": "c1cc3d71a6133dc8ea76632c110d3da68ae120c9337e5bdf24cf42e90d679ff3",
@@ -458,7 +458,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "bundle.mjs-c7466167.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/bundle-c7466167.mjs",
+      "path": "resources/tools/design-sync/lib/bundle.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "eea0c3056637f5ed3472c51792dd5da10eefd6c51a29b7571a8c0118f9dd759a",
@@ -534,7 +534,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "common.mjs-21a45017.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/common-21a45017.mjs",
+      "path": "resources/tools/design-sync/lib/common.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "9a2a85b8e4fb01f104c51a12e96997b5a11ea1ed378d29d03439c2693abcc2b2",
@@ -625,7 +625,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "css.mjs-0d869c37.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/css-0d869c37.mjs",
+      "path": "resources/tools/design-sync/lib/css.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "d45ca03e771054d7fa3d018afaed0ca48a65273aa400ce150636d5336919269c",
@@ -1375,7 +1375,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "previews.mjs-8fcda441.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/previews-8fcda441.mjs",
+      "path": "resources/tools/design-sync/lib/previews.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "f950e077649fc49f8540dabd5baaa22a8c2d7985e1aab85dead0c615e658d253",
@@ -1596,7 +1596,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "sync-hashes.mjs-a0844915.txt.zst": {
-      "path": "resources/tools/design-sync/scripts/sync-hashes-a0844915.mjs",
+      "path": "resources/tools/design-sync/lib/sync-hashes.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "f1c0bc0b017dd550a10286dcc787640c4c9f2580dfbf6f29a3693b5a11bc37da",
@@ -1765,7 +1765,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "validate_palette.js-f945bc6a.txt.zst": {
-      "path": "resources/tools/design/scripts/validate_palette-f945bc6a.js",
+      "path": "resources/tools/design/scripts/validate_palette.js",
       "kind": "javascript-source",
       "purpose": "embedded JavaScript helper",
       "compressedSha256": "a7036cff4ddf24d5a4124f098c151d5ea317239f733f91ef03108a92007ccb2f",
