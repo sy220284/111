@@ -844,6 +844,38 @@
       "test": "tests/daemon-adoption-contract.test.cjs",
       "role": "daemon-has-and-pid-fallback",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "b3t",
+      "anchor": "async function listAliveDaemonJobs(e)",
+      "test": "tests/daemon-job-contract.test.cjs",
+      "role": "daemon-list-and-liveness-fallback",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Meo",
+      "anchor": "async function isDaemonJobPresent(e)",
+      "test": "tests/daemon-job-contract.test.cjs",
+      "role": "daemon-present-flag",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Bn",
+      "anchor": "function matchesBackgroundJobReference(e,n)",
+      "test": "tests/daemon-job-contract.test.cjs",
+      "role": "daemon-background-session-match",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "zat",
+      "anchor": "function refreshDaemonJobRecord(e,n)",
+      "test": "tests/daemon-job-contract.test.cjs",
+      "role": "daemon-job-refresh",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

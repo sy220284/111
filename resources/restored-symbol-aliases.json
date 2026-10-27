@@ -380,6 +380,30 @@
       "legacy": "Yxn",
       "readable": "probeDaemonJob",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "b3t",
+      "readable": "listAliveDaemonJobs",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Meo",
+      "readable": "isDaemonJobPresent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Bn",
+      "readable": "matchesBackgroundJobReference",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "zat",
+      "readable": "refreshDaemonJobRecord",
+      "style": "constAlias"
     }
   ]
 }

@@ -28,7 +28,7 @@ function adoptionFixture() {
 }
 
 function daemonFixture({ reply, roster, alive }) {
-  const source = originalFragment(daemonSource, 'async function probeDaemonJob(e,n)', 'async function Meo(e)');
+  const source = originalFragment(daemonSource, 'async function probeDaemonJob(e,n)', 'async function isDaemonJobPresent(e)');
   const seen = [];
   const api = vm.runInNewContext(source + '\n({probeDaemonJob,Yxn})', {
     bh: async query => { seen.push(query); return reply; },
