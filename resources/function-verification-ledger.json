@@ -556,6 +556,38 @@
       "test": "tests/mcp-oauth-refresh-lock.test.cjs",
       "role": "oauth-concurrent-token-winner",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "sr",
+      "anchor": "function getCancelledMainTurnMessageId(e)",
+      "test": "tests/query-state-helpers.test.cjs",
+      "role": "query-main-cancel-reason",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Ff",
+      "anchor": "function findLatestTrailingUserMessageUuid(e)",
+      "test": "tests/query-state-helpers.test.cjs",
+      "role": "query-last-trailing-user",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Gf",
+      "anchor": "function describeQueryModelFallback(e, o, n, r)",
+      "test": "tests/query-state-helpers.test.cjs",
+      "role": "query-model-fallback-explanation",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Iu",
+      "anchor": "function abbreviateModelFallbackReason(e)",
+      "test": "tests/query-state-helpers.test.cjs",
+      "role": "query-model-fallback-reason-truncation",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

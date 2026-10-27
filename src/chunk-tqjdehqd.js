@@ -2875,10 +2875,14 @@ function* vu(e, o, n, r) { for (let y of e) {
 } }
 function ho(e, o) { let n = Lo(e); if (!no || !n || !o.startsWith("repl_main_thread") || e.agentId)
     return; no().markTurnAborted(n, Pg()); }
-function sr(e) { if (e.agentId)
+/** Report a direct user/remote cancellation only for the main agent, never for a subagent. */
+function getCancelledMainTurnMessageId(e) { if (e.agentId)
     return; let o = Fi(e.abortController.signal.reason); if (o !== "user-cancel" && o !== "remote-cancel")
     return; return hFe() ?? void 0; }
-function Ff(e) { let o = e.findLastIndex((r) => r.type === "assistant"); return e.slice(o + 1).findLast(nQ)?.uuid ?? null; }
+const sr=getCancelledMainTurnMessageId;
+/** Locate the last eligible post-assistant user row for end-turn cancellation tracking. */
+function findLatestTrailingUserMessageUuid(e) { let o = e.findLastIndex((r) => r.type === "assistant"); return e.slice(o + 1).findLast(nQ)?.uuid ?? null; }
+const Ff=findLatestTrailingUserMessageUuid;
 async function* Lf({ endTurnSource: e, messagesForQuery: o, assistantMessages: n, toolResults: r, toolUseBlocks: y, systemPrompt: s, userContext: h, systemContext: C, toolUseContext: E, updatedToolUseContext: T, querySource: I, stopHookActive: A, stickyBetas: H, queryChainIdForAnalytics: P, queryDepth: D, deps: Z }) { try {
     if (a("tengu_mcp_tool_result_ended_turn", { queryChainId: P, queryDepth: D, source: c(e) }), e === "mcp_meta")
         ho(E, I);
@@ -4430,7 +4434,8 @@ catch (e_3) {
 finally {
     __disposeResources(env_3);
 } }
-function Gf(e, o, n, r) { switch (e) {
+/** Explain model fallback without confusing transient overload with permanent unavailability. */
+function describeQueryModelFallback(e, o, n, r) { switch (e) {
     case "overloaded":
     case "server_error": return `Switched to ${n} due to high demand for ${o}`;
     case "model_not_found":
@@ -4441,7 +4446,10 @@ function Gf(e, o, n, r) { switch (e) {
     }
     case "last_resort": return `Switched to ${n} because ${o} returned an error that could not be retried${Iu(r)}`;
 } }
-function Iu(e) { let o = e === void 0 ? "" : d(e), n = re(o, 300), r = n.length < o.length ? `${n}\u2026` : o; return r ? ` (${r})` : ""; }
+const Gf=describeQueryModelFallback;
+/** Truncate the raw fallback reason before including it in user-facing text. */
+function abbreviateModelFallbackReason(e) { let o = e === void 0 ? "" : d(e), n = re(o, 300), r = n.length < o.length ? `${n}\u2026` : o; return r ? ` (${r})` : ""; }
+const Iu=abbreviateModelFallbackReason;
 async function Wf(e, o) { if (e === void 0)
     return []; if (e.sessionTitle !== void 0)
     try {
@@ -4470,4 +4478,4 @@ function Pu(e) { let o = !1; return (n) => { if (o && n.mode === "prompt")
 function Qf(e, o) { if (e.drainOnly === !0 || e.screeningPending === !0)
     return !0; if (e.promptSubmitted === void 0)
     return !1; let n = o(); return n === void 0 || N7t(e.promptSubmitted.under, n); }
-export { Bwe, I6e, Gro, jwe, Xq, nOn, zro, tae, idt, rOn, TPt, oOn, c9t, sOn, ihr, Kro, eps, tps, nps, rps, Vro, iOn, pN };
+export { describeQueryModelFallback,abbreviateModelFallbackReason,getCancelledMainTurnMessageId,findLatestTrailingUserMessageUuid,Bwe, I6e, Gro, jwe, Xq, nOn, zro, tae, idt, rOn, TPt, oOn, c9t, sOn, ihr, Kro, eps, tps, nps, rps, Vro, iOn, pN };
