@@ -296,6 +296,24 @@
       "legacy": "Gd",
       "readable": "attachDeclaredMcpTaskContext",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "dwr",
+      "readable": "resumeSubagentWithInheritedHookOrigin",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "cwr",
+      "readable": "formatPluginResumeDenial",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "sn",
+      "readable": "hasCoherentResumedSubagentTranscript",
+      "style": "constAlias"
     }
   ]
 }

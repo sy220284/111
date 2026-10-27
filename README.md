@@ -157,3 +157,5 @@ npm run verify:runtime
 - Daemon 安全恢复：`src/chunk-wapyem7a.js` 中旧式 `cc-daemon-*` 过期目录清理函数 `Zt` 恢复为 `pruneExpiredLegacyDaemonLogDirs`。添加真实源函数测试验证仍在使用的 UID/PID/哈希命名跳过、单 stderr.log 限制、截止时间、目录 inode 防竞态重验和失败不删除。此处仅为清理安全链，不含运行中 Daemon 进程复活。
 
 - 阶段 D MCP 工具执行层：恢复 `src/chunk-r4g83g7p.js` 的 `Vg/Wg/Gg/Gd` 四个可读函数，保留原符号和协议分支。新增真实执行测试，覆盖 tools/list、resources/read 禁用缓存、tools/call 现代协议任务上下文、声明的任务引用以及旧协议不注入任务元信息；真实 MCP 远端服务仍未验收。
+
+- 阶段 E Agent 恢复链：`src/chunk-g936x3jq.js` 的 `dwr/cwr/sn` 已恢复具名代码，原短符号兼容。执行级检查覆盖冻结的恢复 agentId、Hook 来源继承、启动中断句柄释放、插件拒绝、历史消息 UUID 父链及压缩 UUID 一致性。未声称所有后台 Agent OS 进程恢复已完成。

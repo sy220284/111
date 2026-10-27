@@ -7,7 +7,7 @@ const path=require('node:path');
 const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-g936x3jq.js'),'utf8');
 function dispatch(){
  const start=source.indexOf('function isSubagentDispatchToolUse(e)');
- const end=source.indexOf('async function dwr(',start);
+ const end=source.indexOf('async function resumeSubagentWithInheritedHookOrigin(',start);
  assert.ok(start>=0&&end>start,'subagent dispatch functions missing');
  return vm.runInNewContext(source.slice(start,end)+
  ';({mfo,en,isSubagentDispatchToolUse,hasMatchedSubagentResult})',{

@@ -167,10 +167,16 @@ function hasMatchedSubagentResult(e, k) { let h = new Set; for (let b of e)
             return !0;
     } return !1; }
 const en=hasMatchedSubagentResult;
-async function dwr(e, { origin: k, ...h }) { let b = kzn(e)?.hookOrigin, _ = await gwr({ ...h, agents: [], resume: Object.freeze({ agentId: e }), origin: b === void 0 ? k : [...b, ...k ?? []] }); if (_.starting !== bfo && Hxr(h.signal, h.background))
+/** Resume an agent with its persisted hook origin and a frozen agent identity. */
+async function resumeSubagentWithInheritedHookOrigin(e, { origin: k, ...h }) { let b = kzn(e)?.hookOrigin, _ = await gwr({ ...h, agents: [], resume: Object.freeze({ agentId: e }), origin: b === void 0 ? k : [...b, ...k ?? []] }); if (_.starting !== bfo && Hxr(h.signal, h.background))
     throw _.starting?.[Symbol.dispose](), new Ye; return _; }
-function cwr(e) { return `a plugin declined the resume: ${e}`; }
-function sn(e, k) { let h = e.filter(H), b = new Map(h.flatMap((S) => S.uuid === void 0 ? [] : [[S.uuid, S.parentUuid]])), _ = new Set(k), T = (S) => b.has(S) || _.has(S), F = new Set(h.flatMap(Vn)); return k.length > 0 && nn(b.get(k[0])) && [...F].every(T) && h.every((S) => nn(S.parentUuid) || T(S.parentUuid) || F.has(S.uuid)); }
+const dwr=resumeSubagentWithInheritedHookOrigin;
+/** Preserve the plugin's explicit resume-denial reason in the user-facing result. */
+function formatPluginResumeDenial(e) { return `a plugin declined the resume: ${e}`; }
+const cwr=formatPluginResumeDenial;
+/** Verify that all resumed subagent transcript ancestors and compacted UUIDs are present. */
+function hasCoherentResumedSubagentTranscript(e, k) { let h = e.filter(H), b = new Map(h.flatMap((S) => S.uuid === void 0 ? [] : [[S.uuid, S.parentUuid]])), _ = new Set(k), T = (S) => b.has(S) || _.has(S), F = new Set(h.flatMap(Vn)); return k.length > 0 && nn(b.get(k[0])) && [...F].every(T) && h.every((S) => nn(S.parentUuid) || T(S.parentUuid) || F.has(S.uuid)); }
+const sn=hasCoherentResumedSubagentTranscript;
 function nn(e) { return e === void 0 || e === null; }
 function Vn({ compactMetadata: e }) { let k = H(e) ? e.preservedMessages : void 0; return H(k) && Array.isArray(k.uuids) ? k.uuids : []; }
 var qn = 2000;
@@ -515,4 +521,4 @@ function normalizeShutdownInterruptedAgentResult(e, k) { if (e.type !== "user" |
     return vm(e) ? { ...e, message: { ...e.message, content: [{ type: "text", text: a3o }] } } : e; return { ...e, toolUseResult: Gx, toolDenialKind: void 0, message: { ...e.message, content: e.message.content.map((h) => h.type === "tool_result" ? { ...h, content: Gx } : h) } }; }
 const Un=normalizeShutdownInterruptedAgentResult;
 function Yn(e, k, h, b) { return e === void 0 ? b : { ...b, joinedNoticeLengths: e, joinedNoticeOwn: k, joinedNoticeRunIds: h }; }
-export { isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };
+export { resumeSubagentWithInheritedHookOrigin,formatPluginResumeDenial,hasCoherentResumedSubagentTranscript,isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };
