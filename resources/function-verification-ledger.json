@@ -428,6 +428,30 @@
       "test": "tests/thinking-model-override.test.cjs",
       "role": "model-switch-preserve-incomplete-thinking",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-23vy5pjb.js",
+      "symbol": "de",
+      "anchor": "function safeTaskFileId(r)",
+      "test": "tests/task-upload-lifecycle.test.cjs",
+      "role": "remote-file-id-validation",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-23vy5pjb.js",
+      "symbol": "tTi",
+      "anchor": "async function removeTaskUploadReferences(r,e,n)",
+      "test": "tests/task-upload-lifecycle.test.cjs",
+      "role": "remote-file-reference-cleanup",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-23vy5pjb.js",
+      "symbol": "nTi",
+      "anchor": "function diagnosePreparedTaskUpload(r,e)",
+      "test": "tests/task-upload-lifecycle.test.cjs",
+      "role": "remote-task-upload-expiry",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

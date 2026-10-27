@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -41,7 +41,8 @@
     "check:query-loop-callchain": "node scripts/trace-query-loop-callchain.cjs",
     "check:session-append-storage": "node --test tests/session-append-storage.test.cjs",
     "check:permission-templates": "node --test tests/permission-template-source.test.cjs",
-    "check:thinking-model-override": "node --test tests/thinking-model-override.test.cjs"
+    "check:thinking-model-override": "node --test tests/thinking-model-override.test.cjs",
+    "check:task-upload-lifecycle": "node --test tests/task-upload-lifecycle.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"
