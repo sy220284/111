@@ -360,7 +360,7 @@
     {
       "source": "src/chunk-w9w4r9w1.js",
       "symbol": "D",
-      "anchor": "async function D(e,o,r)",
+      "anchor": "async function dispatchStoredSessionRow(e,o,r)",
       "test": "tests/session-append-storage.test.cjs",
       "role": "session-append-dispatch-fallback",
       "status": "targeted_behavior_test_only"
@@ -368,7 +368,7 @@
     {
       "source": "src/chunk-w9w4r9w1.js",
       "symbol": "Te",
-      "anchor": "async function Te(e,o,r)",
+      "anchor": "async function appendSessionRows(e,o,r)",
       "test": "tests/session-append-storage.test.cjs",
       "role": "session-append-batch-store",
       "status": "targeted_behavior_test_only"
@@ -376,7 +376,7 @@
     {
       "source": "src/chunk-w9w4r9w1.js",
       "symbol": "u",
-      "anchor": "var u=(e)=>",
+      "anchor": "function isSessionRowEligibleForAppend(e)",
       "test": "tests/session-append-storage.test.cjs",
       "role": "session-append-eligible-row",
       "status": "targeted_behavior_test_only"
