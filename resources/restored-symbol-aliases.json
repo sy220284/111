@@ -488,6 +488,66 @@
       "legacy": "oIn",
       "readable": "summarizeAdoptedPayloadCounts",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "yno",
+      "readable": "saveUnresumedAdoptTasks",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "_no",
+      "readable": "claimUnresumedAdoptTasksForOwner",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "egr",
+      "readable": "takeUnresumedAdoptTasks",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "bno",
+      "readable": "storeUnresumedFrameEntries",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Sno",
+      "readable": "claimUnresumedFrameEntriesForOwner",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "tIn",
+      "readable": "takeUnresumedFrameEntries",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "wno",
+      "readable": "appendUnresumedFrameEntries",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "vno",
+      "readable": "removeUnresumedFrameSlug",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Eno",
+      "readable": "cacheExitRetryFrameEntries",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "kno",
+      "readable": "takeExitRetryFrameEntries",
+      "style": "constAlias"
     }
   ]
 }

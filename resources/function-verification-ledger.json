@@ -988,6 +988,86 @@
       "test": "tests/adoption-summary.test.cjs",
       "role": "adopt-payload-counters",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "yno",
+      "anchor": "function saveUnresumedAdoptTasks(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-yno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "_no",
+      "anchor": "function claimUnresumedAdoptTasksForOwner(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-_no",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "egr",
+      "anchor": "function takeUnresumedAdoptTasks(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-egr",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "bno",
+      "anchor": "function storeUnresumedFrameEntries(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-bno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Sno",
+      "anchor": "function claimUnresumedFrameEntriesForOwner(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-Sno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "tIn",
+      "anchor": "function takeUnresumedFrameEntries(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-tIn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "wno",
+      "anchor": "function appendUnresumedFrameEntries(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-wno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "vno",
+      "anchor": "function removeUnresumedFrameSlug(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-vno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Eno",
+      "anchor": "function cacheExitRetryFrameEntries(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-Eno",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "kno",
+      "anchor": "function takeExitRetryFrameEntries(",
+      "test": "tests/adoption-state-ownership.test.cjs",
+      "role": "adopt-state-ownership-kno",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
