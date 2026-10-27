@@ -60,17 +60,10 @@ npm run verify:runtime
 
 本版本确认的是 **资源恢复闭环、模块静态检查、技能文档动态加载、原生插件导出检查和版本浅入口**；不宣称完成整个 Bun 运行时兼容与全部业务函数恢复。
 
-## 源码级恢复：Hook 与原生音频接口
+## v3 源码恢复增量：Hook 函数与函数级索引（2026-10-27）
 
-- 恢复 `chunk-y5vkfxm0.js` 中 Hook 元数据、事件分组、匹配读取与排序函数的可读名称，旧导出保持兼容。
-- 恢复 `chunk-2ctyt5p9.js` 中原生音频适配器的可读源码，保持回退加载顺序、参数转发与缺失行为。
-- 新增 6 项直接执行当前源代码函数体的受控测试，覆盖新版 Hook 事件、用户与插件配置合并、权限说明、音频初始化、故障回退和录放状态。
-- 不宣称已恢复 .node 二进制内部实现、整个 Hook Worker、MCP 或远程服务的完整行为。
-
-## 全模块函数索引（可复现）
-
-运行 `node scripts/source-function-index.cjs --full`，使用 TypeScript 5.x AST 分析器扫描全部 2551 个模块，生成函数位置、调用表达式、模块导入导出及哈希索引。大索引保存在本地 `.generated/`，不混入代码提交；`resources/function-summary.json` 保存已经核验的全量聚合和源码指纹。运行 `npm run audit:functions` 可检查当前源码是否与聚合记录一致。该脚本只解析源码、不执行业务函数，不将函数候选误判为语义等价。
-
-## 250 份资源的完整消费链
-
-247 份通过 `__cc310AssetPath` 直接引用；另 3 份 `chart.umd.min.js`、`hljsBundle.generated.min.js`、`mermaid.min.js` 通过 `loadChartBundleJs`、`loadHljsBundleJs`、`loadMermaidBundleJs` 间接使用。新增校验会验证其压缩原件与 `src/` 解压副本逐字节一致，并执行真实加载函数。`resources/resource-consumer-summary.json` 为固定摘要，详单由 `scripts/build-resource-consumers.cjs` 生成于 `.generated/`。这仅确认资源读取及关联链，不代表图表界面完整行为均已验收。
+- 2.1.310 `chunk-y5vkfxm0.js` 中的 `xxt/e8t/Z5e/zto` 已恢复为可读的 Hook 元数据、事件分组、匹配排序及匹配读取函数，保留原导出别名，未以旧版覆盖新事件或权限逻辑。
+- `tests/hooks-source-restoration.test.cjs` 针对当前源码函数体执行受控行为验证，覆盖新 Hook 事件、工具匹配、插件来源、空匹配，以及异常分支；不需要启动整个 CLI。
+- `scripts/build-function-index.cjs` 按 TypeScript AST 遍历 2551 模块，枚举实际函数实体、位置、形参数量、调用点、模块导入导出、源码哈希和静态引用，输出可再生的索引。使用已有 TypeScript 5.x 分析器（`node scripts/build-function-index.cjs --full`），不执行源码业务逻辑。
+- `resources/function-summary.json` 保存当次可重复审计的聚合计数和源码指纹。较大的函数/调用点详情仅在 `.generated/` 按需再生，不提交研究中间产物。
+- 这些工作不代表所有函数语义已经确权，亦不代表完整 Hook Worker、插件或 MCP 端到端行为验收完成。

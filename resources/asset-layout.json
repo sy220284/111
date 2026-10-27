@@ -1,0 +1,1839 @@
+{
+  "version": "2.1.310",
+  "description": "Runtime relocation of original embedded Zstandard resources; keys retain 2.1.310 BunFS names",
+  "entries": {
+    "README-29cff9e7.md.zst": {
+      "path": "resources/docs/managed-agents/php/README-29cff9e7.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents php overview",
+      "compressedSha256": "6ccea88790248af3342eaef5ad38fbb6988371fc6628c53c93ce38e7785093c2",
+      "decodedSha256": "91cbf020c309158a07cc76fc9ddd2b308a464bd43ca10b6b6ebf3264668435a2",
+      "compressedBytes": 4994,
+      "decodedBytes": 16713,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-4f0b5262.md.zst": {
+      "path": "resources/docs/claude-api/typescript/README-4f0b5262.md",
+      "kind": "reference-document",
+      "purpose": "claude-api typescript overview",
+      "compressedSha256": "5a90304999ec9ca41308a7ecc21c557a874357415b75700c8d31e5472f0ce6fc",
+      "decodedSha256": "775d6396ada3c327ede07c0b7d340336c93581a938509eb098ae8000a9f59542",
+      "compressedBytes": 5381,
+      "decodedBytes": 15802,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-51f12603.md.zst": {
+      "path": "resources/docs/claude-api/go/README-51f12603.md",
+      "kind": "reference-document",
+      "purpose": "claude-api go overview",
+      "compressedSha256": "6aa3442fdb5e9b881efc21a5832b4bdbc251de3b2e899dbd6e44f6ab0c3d1760",
+      "decodedSha256": "a94ac3749f669572640afa19ef48765a48e36c0ded4c3402e13b7296a505fe45",
+      "compressedBytes": 3309,
+      "decodedBytes": 8463,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-74802ac4.md.zst": {
+      "path": "resources/docs/managed-agents/python/README-74802ac4.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents python overview",
+      "compressedSha256": "71c7b72c75cbb2466b3e812da8500c1e9cb579403af0e4b1628e7e07ea6f73a8",
+      "decodedSha256": "1da1fcc14ec04756004b0d27d016b5a4d66681304a4d1a70d85c751c2980529f",
+      "compressedBytes": 4764,
+      "decodedBytes": 15028,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-74fc4077.md.zst": {
+      "path": "resources/docs/claude-api/java/README-74fc4077.md",
+      "kind": "reference-document",
+      "purpose": "claude-api java overview",
+      "compressedSha256": "49bb5e92a28220fa1ab5bf9e6a90bd2590a94e81c522feb4e7fea1224dd7b296",
+      "decodedSha256": "c05f55081871237e876d802a57713a43923663292eafc4c53af5f68fcda05900",
+      "compressedBytes": 4315,
+      "decodedBytes": 11947,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-7a1fe9f0.md.zst": {
+      "path": "resources/docs/managed-agents/go/README-7a1fe9f0.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents go overview",
+      "compressedSha256": "b5c9785b703f333d00f2f5ce8903e2479f31e1f2ed5c975a26d55f403a17929d",
+      "decodedSha256": "8a78f9a562fa75e3111e0a989988ee45c7cf735f946ec9f55390dff557ac2d1d",
+      "compressedBytes": 5165,
+      "decodedBytes": 22623,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-9ed2461c.md.zst": {
+      "path": "resources/docs/claude-api/python/README-9ed2461c.md",
+      "kind": "reference-document",
+      "purpose": "claude-api python overview",
+      "compressedSha256": "662bcbbfe7c31c1ca134df681238d28900fbb258f990687c3ae8180d3a26684f",
+      "decodedSha256": "a749b38768bb3d236cdc84bf330b427fba5f11837bf053adff12a630319ae341",
+      "compressedBytes": 6896,
+      "decodedBytes": 20572,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-b02de282.md.zst": {
+      "path": "resources/docs/managed-agents/csharp/README-b02de282.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents csharp overview",
+      "compressedSha256": "0cc01f4e9127073980feabbd356889ca23e6bf672bb500d277ea8ac87fa20a5a",
+      "decodedSha256": "b65f91344a99b2210258ec76b2f42af2dd7e506ae7dea62f1e7321c69e8c580e",
+      "compressedBytes": 6865,
+      "decodedBytes": 18917,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-c729f2c2.md.zst": {
+      "path": "resources/docs/managed-agents/typescript/README-c729f2c2.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents typescript overview",
+      "compressedSha256": "d5c2cc1096ccf2f53e2ac6229f4d6e7de5c24e10cfe07c565b901cc9170039bc",
+      "decodedSha256": "c4d0cc1c6154326aff567fe20567ee5fc7bb63a758453a06b475597594ebf37b",
+      "compressedBytes": 4661,
+      "decodedBytes": 14217,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-d26070a5.md.zst": {
+      "path": "resources/docs/managed-agents/ruby/README-d26070a5.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents ruby overview",
+      "compressedSha256": "053fd75b0b0219014f1765af5110ceaca95217d3d3f28300f4a5627a0e511b8d",
+      "decodedSha256": "9c87b0c2fd92ecbf45c5133878557965ae91fd06e3ba667566e3a44d891f5ccf",
+      "compressedBytes": 4260,
+      "decodedBytes": 12362,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "README-f73e91a6.md.zst": {
+      "path": "resources/docs/managed-agents/java/README-f73e91a6.md",
+      "kind": "reference-document",
+      "purpose": "managed-agents java overview",
+      "compressedSha256": "b5a61b16e98fc664f43c58d8b83d326d17193f1782b45121b8abec7d8d83c5f7",
+      "decodedSha256": "eb387eb81f825b631a405b3dcf29316eecfda633cbd96c1a3ed7683ae370191c",
+      "compressedBytes": 5120,
+      "decodedBytes": 20626,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SCHEMA-7cf439b0.md.zst": {
+      "path": "resources/docs/schemas/SCHEMA-7cf439b0.md",
+      "kind": "schema-document",
+      "purpose": "JSON state schema reference",
+      "compressedSha256": "6b41a2614c936dc80e499f5402061530ad13f295cd74a5149a7c6aa3e086133b",
+      "decodedSha256": "9a83404a9b3c413113df39d9bdf08e003ff4d6a75386f4010887da3298766687",
+      "compressedBytes": 6348,
+      "decodedBytes": 16121,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-15dc2cc1.md.zst": {
+      "path": "resources/skills/artifact-design/SKILL-15dc2cc1.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "200b2db5150c0073a2a5c647e0169df122925483868d160005d6cc833cd98521",
+      "decodedSha256": "8e4917f5394af51deb3552fdb962051074b9b5df2de2a77a8773009a9d86a62f",
+      "compressedBytes": 8938,
+      "decodedBytes": 22082,
+      "literalConsumers": [
+        "src/chunk-nhwqp72d.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-1755097b.md.zst": {
+      "path": "resources/skills/building-llm-powered-applications-with-claude/SKILL-1755097b.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "e9e8f43b85c26fbdd6fd686b5b3b23ff3bae243fd00941c3a9e0d8c5387078af",
+      "decodedSha256": "023d75c931c6be7a252e30d7e05bea7db3ace2ced8aedf20bec91ecfce8b0a12",
+      "compressedBytes": 33896,
+      "decodedBytes": 106554,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-4364cf72.md.zst": {
+      "path": "resources/skills/claude-test-the-spec-author-background-nobody-is-watchi/SKILL-4364cf72.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "5af881ed5254656b04c15ad0fde2058f378326c5eae0fc382db7b22f0775b3ce",
+      "decodedSha256": "751bdb5c89654884fb22de190031f0902c6d89f84e7b522b9d6d53524961056d",
+      "compressedBytes": 7881,
+      "decodedBytes": 22588,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-616338f0.md.zst": {
+      "path": "resources/skills/claude-test-runner-drive-the-app-in-a-browser-judge-eac/SKILL-616338f0.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "0cebcb743addbbf8c9ed233ff07b964b4845f8d64fb3339ce26e222afecd2ea6",
+      "decodedSha256": "79cf35f01c12c9a8c64c3897079c18bcc63f7c5d346692d39b0ed779cb3b7fab",
+      "compressedBytes": 21233,
+      "decodedBytes": 64752,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-76b8b2a9.md.zst": {
+      "path": "resources/skills/storybook-source-shape/SKILL-76b8b2a9.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "7215a7eaca38bd5a59b4f2d3f58302e5eaf8ab57e164ad588f1c577d9f22b4d3",
+      "decodedSha256": "25714b54d589b5d8bc5a1ad2460f361f4f5f14d21eeeeace6a98f19e0d2267e7",
+      "compressedBytes": 24466,
+      "decodedBytes": 69242,
+      "literalConsumers": [
+        "src/chunk-5e8e2f77.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-a71d0623.md.zst": {
+      "path": "resources/skills/cowork-plugin-authoring/SKILL-a71d0623.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "b49c7faa604ce70af4b3d7a54d7ff02bfad41261f0939540333e70bf8e940864",
+      "decodedSha256": "23416ed0054f0d323fb6adfd67b3ffd990128888755e359762af797cb98ace63",
+      "compressedBytes": 7396,
+      "decodedBytes": 19818,
+      "literalConsumers": [
+        "src/chunk-7pz78vfw.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-a98d25a2.md.zst": {
+      "path": "resources/skills/package-source-shape/SKILL-a98d25a2.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "74ec5e0dd2c851290dfac97f921f22a9256ab78abcb99df3e7a48280127d7b43",
+      "decodedSha256": "78fa6e4ce2153422b8598b6702f9363dc6f8c789569463f94b6a36fd5d24eb53",
+      "compressedBytes": 21709,
+      "decodedBytes": 59213,
+      "literalConsumers": [
+        "src/chunk-5e8e2f77.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-aa0d9c2d.md.zst": {
+      "path": "resources/skills/plugin-authoring/SKILL-aa0d9c2d.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "9bf69122dbf880c3391b3ad4ce1ca1fb4bf94827d10e15d2916d68eaf5933043",
+      "decodedSha256": "05f4c4017a8cbc12329ff8fbbfd49023015d7e937a9cc5912f5270af1e7138ed",
+      "compressedBytes": 3646,
+      "decodedBytes": 8606,
+      "literalConsumers": [
+        "src/chunk-7hdrsgvw.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-b0897508.md.zst": {
+      "path": "resources/skills/prototype/SKILL-b0897508.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "cb0ddb66db25ef0616f0e4a39ec5137ad360da0269eefeff6af677c8691c5b4d",
+      "decodedSha256": "3c60dfa728ba73b9fd800b4ccca63c59e6324f02b779ec38b61993d5a5e30502",
+      "compressedBytes": 4877,
+      "decodedBytes": 11626,
+      "literalConsumers": [
+        "src/chunk-7kj5etk8.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-b6859017.md.zst": {
+      "path": "resources/skills/design-sync/SKILL-b6859017.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "d8614e873137063f846988f2889d099a6f62344f54277bdcaf504daa011d8888",
+      "decodedSha256": "c6e0680ba50cd02193edaa373bac768346a465302dbbcdd68938bc2972d26c33",
+      "compressedBytes": 10751,
+      "decodedBytes": 28225,
+      "literalConsumers": [
+        "src/chunk-5e8e2f77.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-cc984d7e.md.zst": {
+      "path": "resources/skills/claude-test-the-conversation-side/SKILL-cc984d7e.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "f6ec7d4e45fb8ca7040fc7054e4f99dc997a17df00df492bc7c3b15de3a0cb83",
+      "decodedSha256": "e205c5bb84639a8312953d44da4489964f3d2ee45c32b236b8ea2e17b1c08ae7",
+      "compressedBytes": 34058,
+      "decodedBytes": 112658,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-cf37e4b8.md.zst": {
+      "path": "resources/skills/verify/SKILL-cf37e4b8.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "5f3a30cf78646e867c0148064dc20f450e90bf91c1397b5fdf0981bd38386271",
+      "decodedSha256": "1555c291f4eaf9a496176f3d07c0e86449a6650f91179fa5d3ac1712b63837ac",
+      "compressedBytes": 5499,
+      "decodedBytes": 12308,
+      "literalConsumers": [
+        "src/chunk-xjqvd3xg.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-e3d212e9.md.zst": {
+      "path": "resources/skills/run-skill-generator/SKILL-e3d212e9.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "89f62e9080ed914b8247c7b62ef333f0c47032c30d5376e53b9c33c897f0e69d",
+      "decodedSha256": "0809696a81a4c063a02f12df590a79a41d9595618e9825309c5a6cebb1320486",
+      "compressedBytes": 6814,
+      "decodedBytes": 16553,
+      "literalConsumers": [
+        "src/chunk-mdm3gerg.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "SKILL-e92179a2.md.zst": {
+      "path": "resources/skills/workshop/SKILL-e92179a2.md",
+      "kind": "skill-document",
+      "purpose": "skill instructions",
+      "compressedSha256": "5bb6de53a27b4e37377d6289af7e7888e78c82446a45172ca5eaee876b5469fd",
+      "decodedSha256": "b9cb992e1762d757c089e87c463871d7b3754c3da01279e9f5cfc5d0ebb60fa8",
+      "compressedBytes": 14930,
+      "decodedBytes": 40528,
+      "literalConsumers": [
+        "src/chunk-yayv0m3f.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "admin-api-4b056a98.md.zst": {
+      "path": "resources/docs/claude-api/admin-api-4b056a98.md",
+      "kind": "reference-document",
+      "purpose": "Admin API (Organization Management)",
+      "compressedSha256": "a9a59e84248db04fe2cd045da2d6ad87bb9a4b447a9589fcbdd2c53397b8b7f4",
+      "decodedSha256": "e24e5ddcbeb918d35194f70023af8f6d47b35012db26154b1a23686f308f8fe1",
+      "compressedBytes": 4480,
+      "decodedBytes": 12657,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "agent-design-fa62971c.md.zst": {
+      "path": "resources/docs/claude-api/agent-design-fa62971c.md",
+      "kind": "reference-document",
+      "purpose": "Agent Design Patterns",
+      "compressedSha256": "327a839d028537e0efd609c06bbd15d6d877f52e3fe5864e440fe3524aade00c",
+      "decodedSha256": "9960728faf6976a2ddfceed02ed72af122d3b2558af573a9a0ea207b3adec2bc",
+      "compressedBytes": 3625,
+      "decodedBytes": 8736,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "allow-tool.mjs-dec5a728.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/allow-tool-dec5a728.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "8fcf17571a84a971bf07a1e9631c4503be4057a6bdbe1e4ead858ef599fd71ca",
+      "decodedSha256": "a101569fd88b57acbf94c50ac99603beb267617f0de7b37311686a345d7816b5",
+      "compressedBytes": 24642,
+      "decodedBytes": 99611,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "anthropic-cli-cd9f2868.md.zst": {
+      "path": "resources/docs/claude-api/anthropic-cli-cd9f2868.md",
+      "kind": "reference-document",
+      "purpose": "Anthropic CLI (`ant`)",
+      "compressedSha256": "73847deede37803ff6d8c35eeb31e22dcbb4f0fe67a3810f8dba44a03a713d4b",
+      "decodedSha256": "5cb93ecee4f6e427072312dc690b9de8db54f2f0ec595eedc88fc02f5e1fd6ca",
+      "compressedBytes": 9782,
+      "decodedBytes": 25754,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "api-version-migration-f8391d66.md.zst": {
+      "path": "resources/docs/claude-api/api-version-migration-f8391d66.md",
+      "kind": "reference-document",
+      "purpose": "Migrating to a newer Claude API version",
+      "compressedSha256": "2f2ee3cfe5928fa2eb5cc97065514e9c1839a971550e63900123c0ce733bd0c1",
+      "decodedSha256": "aa2ce93b01a1de378e21177bbeb42faa8bd17e1b521e624f9baa7a46bc00baf0",
+      "compressedBytes": 12182,
+      "decodedBytes": 36829,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "appifact_sdk.js-852e8bcb.txt.zst": {
+      "path": "resources/tools/artifact/scripts/appifact_sdk-852e8bcb.js",
+      "kind": "javascript-source",
+      "purpose": "embedded JavaScript helper",
+      "compressedSha256": "c1cc3d71a6133dc8ea76632c110d3da68ae120c9337e5bdf24cf42e90d679ff3",
+      "decodedSha256": "1318b718036bd571083117345cc59dd6f57e57940352d0feeac8f5d02ba42177",
+      "compressedBytes": 8030,
+      "decodedBytes": 25159,
+      "literalConsumers": [
+        "src/chunk-6qvf795m.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "artifact-plan.html-80a36a32.txt.zst": {
+      "path": "resources/templates/artifact/artifact-plan-80a36a32.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "c25b886e83066c5c4f2f591f654888e52fe27f142870c24eba49a086bccaa6b3",
+      "decodedSha256": "b7d078b5beb32e8fb2ef5905a3c017e41caf162c7576cd09eb96b3e5e5102b0b",
+      "compressedBytes": 9738,
+      "decodedBytes": 38063,
+      "literalConsumers": [
+        "src/chunk-8jkwk4df.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "artifact-workshop.html-a79fa64e.txt.zst": {
+      "path": "resources/templates/artifact/artifact-workshop-a79fa64e.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "bb0813a4aa7081ec08d1057ddd2d408d7ae3d3e669fd7e0e06a1b02ff59eb416",
+      "decodedSha256": "faa389e38ea32512eafd062172620da6cd3d07db2601e03e48f77fecfd099cd2",
+      "compressedBytes": 31835,
+      "decodedBytes": 117582,
+      "literalConsumers": [
+        "src/chunk-yayv0m3f.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "build-eval-e9acb85b.md.zst": {
+      "path": "resources/docs/evaluation/build-eval-e9acb85b.md",
+      "kind": "reference-document",
+      "purpose": "Building an Eval for a Claude-Powered Application",
+      "compressedSha256": "ce592737ebbc56b3718c6674ae43a8d67e03813b60f6c4ec12974f4196cb565a",
+      "decodedSha256": "c08e4aaf8be1f2ad6f75b62bdffff27241de55fea94cfa6650b4030cbc67bd0a",
+      "compressedBytes": 20311,
+      "decodedBytes": 55207,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "bundle.mjs-c7466167.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/bundle-c7466167.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "eea0c3056637f5ed3472c51792dd5da10eefd6c51a29b7571a8c0118f9dd759a",
+      "decodedSha256": "2680b62649b8fb24650cee9c16ea37f0ebb1872def756962aa8c6de2def2721d",
+      "compressedBytes": 6001,
+      "decodedBytes": 15686,
+      "literalConsumers": [
+        "src/chunk-07sc0v3e.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "capture.mjs-9e2f2f8b.txt.zst": {
+      "path": "resources/tools/other/scripts/capture-9e2f2f8b.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "95e405b84589920957ef7b89f83c3356bf97b3bcf1bae4aa965604f1881bd94e",
+      "decodedSha256": "b51d7aff26487cd2fed0ec432a47e2d138c39303437792342f79539f261648b9",
+      "compressedBytes": 5996,
+      "decodedBytes": 15723,
+      "literalConsumers": [
+        "src/chunk-6f0sv657.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "causes-dedf5d6e.md.zst": {
+      "path": "resources/docs/migration/causes-dedf5d6e.md",
+      "kind": "reference-document",
+      "purpose": "Preserved Thinking - Causes, Fixes, and the Keep List",
+      "compressedSha256": "528abda5553bfc2749bc3c3d7d6e2f0353b77991d52dfa3e95bf1498addb379c",
+      "decodedSha256": "3ffa29732f290b35cf893c2a6c8f86038f9f689ea35d3a5e4771f34e3bb212e0",
+      "compressedBytes": 14086,
+      "decodedBytes": 45303,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "chart.umd.min.js": {
+      "path": "src/chart.umd.min.js",
+      "kind": "bundled-runtime-library",
+      "purpose": "runtime chart/highlight/diagram JS library, already present in src",
+      "compressedSha256": "bd2f410be835f42c3001faa320f78673904613b4f8ba5017b98024c8cc3c7ddf",
+      "decodedSha256": "48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a",
+      "compressedBytes": 64021,
+      "decodedBytes": 208522,
+      "literalConsumers": [],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "claude-code.d.ts-bf9d954c.txt.zst": {
+      "path": "resources/tools/plugin-api/types/claude-code-bf9d954c.d.ts",
+      "kind": "typescript-declaration",
+      "purpose": "function hook API declarations",
+      "compressedSha256": "888e95b7a59851c8edd7d31dff5a66aa279cc384401813ec649a1e52f17bd582",
+      "decodedSha256": "356c1a2ccacc1baaea875aca03e0881f4a9da539c2c8d95ca36eb311a45a6c90",
+      "compressedBytes": 148293,
+      "decodedBytes": 664173,
+      "literalConsumers": [
+        "src/chunk-2yktpxwc.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "color-formula-22636152.md.zst": {
+      "path": "resources/docs/design/color-formula-22636152.md",
+      "kind": "reference-document",
+      "purpose": "Color formula",
+      "compressedSha256": "785c53ec10f27281693562f518a71957e4d36eaecb8b5da9093488fa4394d864",
+      "decodedSha256": "6924caad41a9a19c14764a95e97430a30a9891abac13c6a1a5dd5a01727b5187",
+      "compressedBytes": 3963,
+      "decodedBytes": 8509,
+      "literalConsumers": [
+        "src/chunk-819m691z.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "common.mjs-21a45017.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/common-21a45017.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "9a2a85b8e4fb01f104c51a12e96997b5a11ea1ed378d29d03439c2693abcc2b2",
+      "decodedSha256": "92890bbce8d3d76d9473c6c7a09f83622730f8806811ac4bfbb63f157901f0ec",
+      "compressedBytes": 5366,
+      "decodedBytes": 12029,
+      "literalConsumers": [
+        "src/chunk-4tzyj603.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "compare.mjs-4b810a57.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/compare-4b810a57.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "5f2b25c057fe794a9b52082f8fd35a63bd0d2b6798fcc38ddfc57bdc077b4da4",
+      "decodedSha256": "af83862a5d7e1f847b76840e5583be9231b099991ca204bf88e1028044573f89",
+      "compressedBytes": 15598,
+      "decodedBytes": 46110,
+      "literalConsumers": [
+        "src/chunk-vveb39dm.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "component-schemas-7fabf82f.md.zst": {
+      "path": "resources/docs/plugin-authoring/component-schemas-7fabf82f.md",
+      "kind": "reference-document",
+      "purpose": "Component Schemas",
+      "compressedSha256": "12d321ddc4f589300eba70cc601fcb6bc22b8ac8dc84fa89e4db71b6c2203b05",
+      "decodedSha256": "e1c0f1fd06680a7b59346a67c442fea3ec36509578a8fda87adc326f1f36eb47",
+      "compressedBytes": 4407,
+      "decodedBytes": 11602,
+      "literalConsumers": [
+        "src/chunk-7pz78vfw.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "component.css-02637b0d.txt.zst": {
+      "path": "resources/templates/artifact/component-02637b0d.css",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "76565ba32b3e7ed59706de795fbe96546dc707d106729c3a4906119f37f939bd",
+      "decodedSha256": "f94f4ee6aeacf98f3973ebf8027e9551a53f0635c70e4631339d69fd75819197",
+      "compressedBytes": 3536,
+      "decodedBytes": 11779,
+      "literalConsumers": [
+        "src/chunk-rpkaxt7x.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "config.mjs-c64f0576.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/config-c64f0576.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "82e722f79c1fa3c83daf8991ceb8c9448e970fed57e9dd6fe55daa15d1b4faa0",
+      "decodedSha256": "e63ac2cce675b169f6c5ba48bc349bfeb2195f8a52ee5267b919efed4c33e7c5",
+      "compressedBytes": 27735,
+      "decodedBytes": 99118,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "cost-hillclimb-be195324.md.zst": {
+      "path": "resources/docs/evaluation/cost-hillclimb-be195324.md",
+      "kind": "reference-document",
+      "purpose": "Cost-reduction search: how to structure it",
+      "compressedSha256": "ab3686c7cdeb9ef1d57173c702d907769145f2bed107d8e39abbb1d37489779c",
+      "decodedSha256": "dd46a354fed24d96c7f9acf42f9da64f5cceaa797949662d82374fd2cf7a3515",
+      "compressedBytes": 12192,
+      "decodedBytes": 31711,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "cost-optimization-df985707.md.zst": {
+      "path": "resources/docs/claude-api/cost-optimization-df985707.md",
+      "kind": "reference-document",
+      "purpose": "Cost Optimization - Cutting Spend per Completed Task",
+      "compressedSha256": "87fecc7e058495e1f38892760a8f57e49c1cdd7f5aea4beca4ee2625fb253f7c",
+      "decodedSha256": "eba32b8954e1c47913b134c726e481d538bd8df19c5aa83befff75bede50188f",
+      "compressedBytes": 20128,
+      "decodedBytes": 58662,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "css.mjs-0d869c37.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/css-0d869c37.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "d45ca03e771054d7fa3d018afaed0ca48a65273aa400ce150636d5336919269c",
+      "decodedSha256": "d8084a4107dc61c64a501491b35656f83cf821c7196f450d80bf93ccc02569ec",
+      "compressedBytes": 3497,
+      "decodedBytes": 8432,
+      "literalConsumers": [
+        "src/chunk-gp8b3zne.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "ct-auth.mjs-12e61ad0.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/ct-auth-12e61ad0.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "91aff8861c5419de3e99ef6e95e25d316a230f2227266664fdc0ec8eb3e0ca93",
+      "decodedSha256": "84f2920c2eddf2f872f5885f46b35a9bbdea8f46c8a1b6b378663bad0d0d2be2",
+      "compressedBytes": 6336,
+      "decodedBytes": 20148,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "ct.mjs-db1716e5.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/ct-db1716e5.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "30c5cbde796cec1ac8e5f39daa746acf3babd6d2e32e023b5d66b39c0fe955e1",
+      "decodedSha256": "e0637aa3a5a531d60e87149005c8ac650ec9cdd6a3338fc23f54ab5c6c506e28",
+      "compressedBytes": 35815,
+      "decodedBytes": 139817,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "ctbrowser.mjs-c343fa0d.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/ctbrowser-c343fa0d.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "8344f14755e8c48fef105d407d2b969c9b96e116b4cf2ce5fa976a12deefaf32",
+      "decodedSha256": "2f7a7d0138da825e1553d9f4c5fd96942d9858dda569bab27e771e5165450c39",
+      "compressedBytes": 4766,
+      "decodedBytes": 14621,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "decisions-script.html-e58174c4.txt.zst": {
+      "path": "resources/templates/artifact/decisions-script-e58174c4.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "dbe4b48e5fbcba9a24524f33680d644e72500142b2e7c78fc09383c31ad45e86",
+      "decodedSha256": "7795feb86b004560639ec77b7a340daa16670e0c5a827187b53ca5747065aa22",
+      "compressedBytes": 19326,
+      "decodedBytes": 65648,
+      "literalConsumers": [
+        "src/chunk-rpkaxt7x.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "discover.mjs-05fbb73b.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/discover-05fbb73b.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "cbba1c8ef436e726d4e461793864991eab406ffdb1e16769a796a01527f77746",
+      "decodedSha256": "91181b3199359757110b06f17db085a945c41e26f995be84eb5b7bdb5c2740a7",
+      "compressedBytes": 13283,
+      "decodedBytes": 43842,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "docs.mjs-0d218ce7.txt.zst": {
+      "path": "resources/tools/other/scripts/docs-0d218ce7.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "8014463cc126bf883b5a126e6d2e6e9acda85b9a8498989f96025904c1f7d87e",
+      "decodedSha256": "40e5d99baf3c72b0e39249d96613ebe9e4cf3103a2f4c6ce6ea8049431db0108",
+      "compressedBytes": 5278,
+      "decodedBytes": 13432,
+      "literalConsumers": [
+        "src/chunk-cd76yxc1.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "drop_block_probe-bcdfaa4d.py.zst": {
+      "path": "resources/tools/evaluation/drop_block_probe-bcdfaa4d.py",
+      "kind": "python-source",
+      "purpose": "evaluation and validation script",
+      "compressedSha256": "7c2291534c84cbff589fade3b0b8784b827a79b9cb0b0c39ee3cb68d8b66ed3d",
+      "decodedSha256": "6dae043c8215fd1c1dd1d42a37580b476423e4e0a461f9a230a86a9f3dda3f3b",
+      "compressedBytes": 18893,
+      "decodedBytes": 67677,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "dts.mjs-59972049.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/dts-59972049.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "51401a86444a65f79cba21f33339ea82fe9437d8f598209b2c90a7c0b10febff",
+      "decodedSha256": "674618e662674ec8e2d3275df4ad9acf246a2577048cc9fe7a72ae1bc549dd22",
+      "compressedBytes": 10697,
+      "decodedBytes": 30120,
+      "literalConsumers": [
+        "src/chunk-xpbcjz0x.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "electron-8035775b.md.zst": {
+      "path": "resources/docs/misc/electron-8035775b.md",
+      "kind": "reference-document",
+      "purpose": "Example: Electron / desktop GUI app",
+      "compressedSha256": "e6067e1b2d8818ad04a5e7a5745a7c661573828721c763bc28ae6d775b3bce5d",
+      "decodedSha256": "dff7e5927be5d44350ec0be741aa54382e8c58ce71ade6de8c747d6e6f653a94",
+      "compressedBytes": 5620,
+      "decodedBytes": 14341,
+      "literalConsumers": [
+        "src/chunk-bz2yw77z.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "emit.mjs-7951914b.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/emit-7951914b.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "41d52543349472ffc8567937fdd0831654285fb679b844c411285fe7e56adac6",
+      "decodedSha256": "368f67e69c06c472ee5411f9d00f6ec1fa971438d7c0b1e0390844f8cff5743d",
+      "compressedBytes": 13557,
+      "decodedBytes": 37817,
+      "literalConsumers": [
+        "src/chunk-rn52fjvs.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "envreport.mjs-2a6a40b0.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/envreport-2a6a40b0.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "65dbe5a801122bb79a75cf8b9ea0e4e9e42148909ef625c68a6984822820ffdc",
+      "decodedSha256": "3ad0f8c9a3aa685d7574cbf4a129059ace961be0adaae446f336e0ae34da3320",
+      "compressedBytes": 9443,
+      "decodedBytes": 28619,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "error-codes-4eee6402.md.zst": {
+      "path": "resources/docs/claude-api/error-codes-4eee6402.md",
+      "kind": "reference-document",
+      "purpose": "HTTP Error Codes Reference",
+      "compressedSha256": "08a1218964d2dd359feb43a5ccee12f93d3773ac689956ad41a901710527ab6b",
+      "decodedSha256": "4d48cd8ea60fe26514e4c9b4b61f0f4e965874b89efb0be7de85c14013a54996",
+      "compressedBytes": 6813,
+      "decodedBytes": 21146,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "eval-audit-d52687b9.md.zst": {
+      "path": "resources/docs/evaluation/eval-audit-d52687b9.md",
+      "kind": "reference-document",
+      "purpose": "Eval health checklist",
+      "compressedSha256": "bbd0c36b96b782e7bc8a6d68cc775b273d880b7cbc5a80f83ffeb0aba66d28b0",
+      "decodedSha256": "a013f8eb0452c51c5a31860df0fb47219dcdb4da507092fc98867225095026ba",
+      "compressedBytes": 11072,
+      "decodedBytes": 27892,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "eval-hillclimb-643520d6.md.zst": {
+      "path": "resources/docs/evaluation/eval-hillclimb-643520d6.md",
+      "kind": "reference-document",
+      "purpose": "Hill-Climbing on an Eval",
+      "compressedSha256": "6746ffbbeb1257bfb7d99f8aed69fe3403bc534bee523a805ae7e02d2fe5b65d",
+      "decodedSha256": "1c1529ed51351934563f01cc98696d70c3089275789fa21996d797ac76a392e7",
+      "compressedBytes": 24732,
+      "decodedBytes": 69160,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "examples-edce50f1.md.zst": {
+      "path": "resources/docs/misc/examples-edce50f1.md",
+      "kind": "reference-document",
+      "purpose": "Claude API - cURL / Raw HTTP",
+      "compressedSha256": "b6350771fc7a06f598d821e9f62a7d02fc128b449710d2dd4b7cf63c1af2473b",
+      "decodedSha256": "c43a4281c32d49e374f96640a3e68240d0348757a75a5696843f4b0c1edd3a37",
+      "compressedBytes": 3068,
+      "decodedBytes": 9696,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "fence-proxy.mjs-e706eaf6.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/fence-proxy-e706eaf6.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "3a593b08b4c54a9ef1fe7151e90d4fb09baa908e4478aa385de3f72ee4c67038",
+      "decodedSha256": "bf0e0e50c06317f2e6c44caa40158107a4a29f3318ae88b462268e479310ee22",
+      "compressedBytes": 3973,
+      "decodedBytes": 12123,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "google-cloud-anthropic-managed-690a44d5.md.zst": {
+      "path": "resources/docs/claude-api/google-cloud-anthropic-managed-690a44d5.md",
+      "kind": "reference-document",
+      "purpose": "Claude Models on Google Cloud (Anthropic managed)",
+      "compressedSha256": "f06ea3477fd537ae139a47117aa0d5633e13c4624b6036f763751c7147aab244",
+      "decodedSha256": "681dc6da16f557d27f86e393df6430328d7d6885e4de5a3fcf3063d187ff9281",
+      "compressedBytes": 3796,
+      "decodedBytes": 9560,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "guard.mjs-167f6a6a.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/guard-167f6a6a.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "7b32a3d758e617a5728ad7a523b254d3f2e3a5a5c6750c9183de309eb6849937",
+      "decodedSha256": "9062a576b5629e49a18e2d36807d460c3d184491363a16a48235f2d5c0c342a7",
+      "compressedBytes": 4800,
+      "decodedBytes": 14332,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "hljsBundle.generated.min.js": {
+      "path": "src/hljsBundle.generated.min.js",
+      "kind": "bundled-runtime-library",
+      "purpose": "runtime chart/highlight/diagram JS library, already present in src",
+      "compressedSha256": "d7749ea32a9646d5dfa844a610851c6d10d1c31059426a4d7de3e1f0f420afaa",
+      "decodedSha256": "ae4a713108fb2d92e1be0156d49821df6c4df5c88e885c490e55b2a66df48973",
+      "compressedBytes": 170760,
+      "decodedBytes": 606473,
+      "literalConsumers": [],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "kit-modules.js-02f8fcd0.txt.zst": {
+      "path": "resources/tools/plugin-api/scripts/kit-modules-02f8fcd0.js",
+      "kind": "javascript-source",
+      "purpose": "embedded JavaScript helper",
+      "compressedSha256": "0ef008f6cdc8ec2e63b10482d74f67db62f1bf30a63a9896bcbc935f20f5c51b",
+      "decodedSha256": "1b333a6c98ea2776f6d320871c302ae606c3ccdeb83467cc21b57aa7f0a5a615",
+      "compressedBytes": 14172,
+      "decodedBytes": 82755,
+      "literalConsumers": [
+        "src/chunk-wwcnjtfb.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "live-page.mjs-841e1124.txt.zst": {
+      "path": "resources/tools/other/scripts/live-page-841e1124.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "b861d27597fe2afb07d0f43e900e5d61599746d3c55015a19abef17c832053aa",
+      "decodedSha256": "01e68a883c9f49d417f00706f3bf87a588aad32f68e3b0397931350389836f29",
+      "compressedBytes": 12713,
+      "decodedBytes": 40317,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "live-sources-de7dea53.md.zst": {
+      "path": "resources/docs/misc/live-sources-de7dea53.md",
+      "kind": "reference-document",
+      "purpose": "Live Documentation Sources",
+      "compressedSha256": "d44344fc949a47098a9f7790065c32aee98abeec46b160656cbe2088c84a2273",
+      "decodedSha256": "9c4ffa565174e1e985be9236cba6deba9f97723966e71e199c318050646611bf",
+      "compressedBytes": 5327,
+      "decodedBytes": 19209,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-api-reference-5249320e.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-api-reference-5249320e.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Endpoint Reference",
+      "compressedSha256": "0ef0ea7489fe7c9e4469dcab82904c0042975e8012df13d761b83a764d5eb5cc",
+      "decodedSha256": "6dd5cd6036590128df521b1dc571ed6f1c19178dfc9d5f043a1a8abfe369b530",
+      "compressedBytes": 9311,
+      "decodedBytes": 35292,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-client-patterns-05c93984.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-client-patterns-05c93984.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Common Client Patterns",
+      "compressedSha256": "9561d224d1950e9063438b13255bca9ce3c4224856c29ce1cdbfdb070839a5c1",
+      "decodedSha256": "043d7eeff816ca4afddfabe07f19ce6586e4aab3b973a66d10811dfb7d1b12fc",
+      "compressedBytes": 4705,
+      "decodedBytes": 12478,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-core-c5fcb8e4.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-core-c5fcb8e4.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Core Concepts",
+      "compressedSha256": "c3797103d0ca2f09ecf169f311c4746b9c0b387c331cb5f1890e1712cd5f64d1",
+      "decodedSha256": "026bf66edb5544f3cf1e8a911846f0ef98199e3660e17ca821bcb1abf75c1cfc",
+      "compressedBytes": 11073,
+      "decodedBytes": 33700,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-environments-2c396a08.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-environments-2c396a08.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Environments & Resources",
+      "compressedSha256": "851afc4cbe019a63785acb3e44f39d4cc98c74b87a13edc2337fb037593b486a",
+      "decodedSha256": "65aab030e73d1bccd6b8fbea769da1f59add506e8ba00d52cb2bb8c3c451fe26",
+      "compressedBytes": 5078,
+      "decodedBytes": 14325,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-events-98177506.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-events-98177506.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Events & Steering",
+      "compressedSha256": "6e47b0d9415142b89cdaee878221279247461587937aec353b65f865236fe84f",
+      "decodedSha256": "77a409fe06490b1941a51cf2192e26f485852c2a699c393cc267ae60f0da5b0c",
+      "compressedBytes": 9229,
+      "decodedBytes": 26030,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-ffd8c358.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-ffd8c358.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - cURL / Raw HTTP",
+      "compressedSha256": "b0f7f730e8b85de1031f50ee61063a441438d4ad3676f9a9dae7f30c2ac5d1ef",
+      "decodedSha256": "9617c59de9929c99714368ecd3edf4cfbd6303f45fe8a24cf8b89fb14dd41e29",
+      "compressedBytes": 3058,
+      "decodedBytes": 10992,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-memory-3a172a12.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-memory-3a172a12.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Memory Stores",
+      "compressedSha256": "1a0238e15a277dfc78e76fa3aa55e97f32dc01d3cdf8d126da6a913e0c23ba57",
+      "decodedSha256": "ab45ddaf130730d37bf818c68a0fb81b42e45b03dff9d0a0e19df54083a7a884",
+      "compressedBytes": 4335,
+      "decodedBytes": 11412,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-multiagent-2391e3af.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-multiagent-2391e3af.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Multiagent Sessions",
+      "compressedSha256": "fc8a880495cd93e2169f71c8716a47f4b1901d0dd9cbadb4363c5080d9204715",
+      "decodedSha256": "4ca48a92b81df214f9fc3dba48d622a3d0d45f358a4b47ccbe98bba74ada0b4b",
+      "compressedBytes": 20421,
+      "decodedBytes": 72037,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-onboarding-0b38bb5f.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-0b38bb5f.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Onboarding Flow",
+      "compressedSha256": "65985224d6652c2392c3fb73cde7a54af789bb8c779e90e237c8872ee2e2a979",
+      "decodedSha256": "5b94f354dd4f5256b333bca4bf1eb679cf88e8f63388226f142495bc3fd04bd2",
+      "compressedBytes": 7045,
+      "decodedBytes": 17278,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-onboarding-from-quickstart-3ad1d0c1.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-quickstart-3ad1d0c1.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Onboarding From a Bundled Quickstart",
+      "compressedSha256": "65a085b172ab2b860b11b2db9416b87d532cd3c72cca5fda6a54a36fdef4ddf4",
+      "decodedSha256": "a4f78c5dced3f345749e253156666322abaea22da58901c6f11aa23ff8000d1e",
+      "compressedBytes": 7611,
+      "decodedBytes": 19841,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-onboarding-from-url-10200722.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-url-10200722.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Onboarding From a URL",
+      "compressedSha256": "5488dc2bf06f7d985a950110d33948a46bcba7085b3717be3c9876bcbff98306",
+      "decodedSha256": "cb8150ac025ecd7c1d4748708b14ec31dc98fab77df68177b4638dab615289b2",
+      "compressedBytes": 12703,
+      "decodedBytes": 35235,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-outcomes-bad5446f.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-outcomes-bad5446f.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Outcomes",
+      "compressedSha256": "c11c4c0e13ec2d62535bed33eef8125a32f54885d3428dd026a8e50992e331ec",
+      "decodedSha256": "d36e1703b5d4f72c3e5463437699b0057ff18b4d915ba255742571a7e787821e",
+      "compressedBytes": 3697,
+      "decodedBytes": 8957,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-overview-0d09c3a4.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-overview-0d09c3a4.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Overview",
+      "compressedSha256": "1068b244b468228c233ef99cc62b2bf34cfaadbec6f59472260aa1308b1906d2",
+      "decodedSha256": "fcc7728e20b9df6ef98cf46ec434b33ce1c4f02f3892187723f54aa898993381",
+      "compressedBytes": 5492,
+      "decodedBytes": 14700,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-scheduled-deployments-7c6a1a7e.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-scheduled-deployments-7c6a1a7e.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Scheduled Deployments",
+      "compressedSha256": "9eeedd1ad0e91c45a590386d6ac030521d3c85d0e196d358cd145074531a4d23",
+      "decodedSha256": "0f797a414f772f228ebfa7894daf42aab3a1d6930376b1ac574dff1e8e0475b1",
+      "compressedBytes": 3890,
+      "decodedBytes": 9561,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-secure-8f1a4973.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-secure-8f1a4973.md",
+      "kind": "reference-document",
+      "purpose": "Secure a Managed Agents deployment",
+      "compressedSha256": "b99f56fa037f7367cd80da34406cd54780f29256f02af07e056cf7480fbf51f1",
+      "decodedSha256": "2cc933a98354d8af69a27a829e88316aefc6c9995946f1331e5dadb8a929080d",
+      "compressedBytes": 9084,
+      "decodedBytes": 28140,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-self-hosted-sandboxes-b2d3e09c.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-self-hosted-sandboxes-b2d3e09c.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Self-Hosted Sandboxes",
+      "compressedSha256": "60d8ee911cc72be71518947eada0ffbac558c4856b7bb8ec9adfa8f7de6b5c01",
+      "decodedSha256": "66b99904806e3a6712dac009952a765f7fd7556982c61cfef99c6fad5ed34631",
+      "compressedBytes": 10033,
+      "decodedBytes": 29331,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-tools-7cc8a37b.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-tools-7cc8a37b.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Tools & Skills",
+      "compressedSha256": "7ac23a8170536c42ef579b510f507ed9dc2939cba7b9e0deb60eec2e13a1c025",
+      "decodedSha256": "815560d3707ef77ccab1cd979470f886fc51f4c23cff3eaee7339e03a69dc51e",
+      "compressedBytes": 12743,
+      "decodedBytes": 37896,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "managed-agents-webhooks-c9326ad3.md.zst": {
+      "path": "resources/docs/managed-agents/managed-agents-webhooks-c9326ad3.md",
+      "kind": "reference-document",
+      "purpose": "Managed Agents - Webhooks",
+      "compressedSha256": "8a761e6cdac856890a6b09f6e3ebae9ff45fe171370c00266268d03c1996e79e",
+      "decodedSha256": "38746f77a3ee971f9b1f7d47cec9e753131bf271fd795aed5c3da1764c9a6ac1",
+      "compressedBytes": 4203,
+      "decodedBytes": 11321,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "mermaid.min.js": {
+      "path": "src/mermaid.min.js",
+      "kind": "bundled-runtime-library",
+      "purpose": "runtime chart/highlight/diagram JS library, already present in src",
+      "compressedSha256": "d98ea41d54f7d3253f244c7834baf3f322f2aaa9e09fa9205db627e58ebd84cf",
+      "decodedSha256": "18327bef70d96fb505fe7287d9f6a7362ebf07ff6576ddfaffb1a06f3e1a2954",
+      "compressedBytes": 785819,
+      "decodedBytes": 3566058,
+      "literalConsumers": [],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "model-migration-7891819d.md.zst": {
+      "path": "resources/docs/claude-api/model-migration-7891819d.md",
+      "kind": "reference-document",
+      "purpose": "Model Migration Guide",
+      "compressedSha256": "055262dbf6b94761287928270880cc204c39bcb38ea5638b28888d5a86bec276",
+      "decodedSha256": "bc7eae25a33ba34a6208a72bda1aff6ccb4b5ffab088721bbc0c82dbcd6380f2",
+      "compressedBytes": 89856,
+      "decodedBytes": 348741,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "models-176e5f7a.md.zst": {
+      "path": "resources/docs/misc/models-176e5f7a.md",
+      "kind": "reference-document",
+      "purpose": "Claude Model Catalog",
+      "compressedSha256": "896e720137f0e8dd836da5b1f7e881f719d280e614b7fe8af576bac831096338",
+      "decodedSha256": "82ac828e6b9ddd1eb77f8e053f1e76ccb9cae4af73a4ebc2bb4afe18f3765868",
+      "compressedBytes": 5160,
+      "decodedBytes": 17576,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "onboarding-8fc5cece.md.zst": {
+      "path": "resources/docs/onboarding/onboarding-8fc5cece.md",
+      "kind": "reference-document",
+      "purpose": "Onboarding — the machine first, then the starter suite, with the person",
+      "compressedSha256": "48cff56e758d823af6c66e48cdba10073182f565f7cb33ae4d17078fc06a9475",
+      "decodedSha256": "86d7a7da624b84f8f72f8f0b6f62a58118daedf83f65d08ef51bcbc8d1b3a895",
+      "compressedBytes": 16753,
+      "decodedBytes": 47946,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "opentelemetry-abc03100.md.zst": {
+      "path": "resources/docs/claude-api/opentelemetry-abc03100.md",
+      "kind": "reference-document",
+      "purpose": "OpenTelemetry Tracing for the Claude API",
+      "compressedSha256": "6598cae5f21685f1883d71706b1124db020aa484b39cc398e6769a3479a174b4",
+      "decodedSha256": "b7d961138760e1a260c366c5ef97700340bf5d7a6b67a14d465bba256a684eef",
+      "compressedBytes": 15920,
+      "decodedBytes": 51622,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "package-build.mjs-5c9a3b66.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/package-build-5c9a3b66.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "94243f637340870939684cf9edb02d88d2c904db20395bd0586ed08c72606384",
+      "decodedSha256": "3e6584fdad080a45aee401860decd7fa1992c9088182f2cd3e1b6d2d67681d7a",
+      "compressedBytes": 18694,
+      "decodedBytes": 55699,
+      "literalConsumers": [
+        "src/chunk-ytp0th9g.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "package-validate.mjs-3a0e4e2a.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/package-validate-3a0e4e2a.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "fea9d9754f6ca6d8e64ff5714efc545a147d59f413132646aa5ca07a9f02e98f",
+      "decodedSha256": "0b84d3ea1c7c62093e6eb64f2028bb25adf5c97e0e2751195ae45105b19a88f7",
+      "compressedBytes": 17379,
+      "decodedBytes": 51938,
+      "literalConsumers": [
+        "src/chunk-ccks6f1g.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "palette-f0ae74f9.md.zst": {
+      "path": "resources/docs/design/palette-f0ae74f9.md",
+      "kind": "reference-document",
+      "purpose": "Reference palette",
+      "compressedSha256": "2d66bddc107fc3da45a4503a96986269ae8f9ff986a98df3a0a3304571dbf699",
+      "decodedSha256": "b0eb3882e9cf8467a2979c4f63a69f2f83510318e7ebeb7a07e0ebd89189bba1",
+      "compressedBytes": 4323,
+      "decodedBytes": 9523,
+      "literalConsumers": [
+        "src/chunk-819m691z.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "performance-tuner-6c866b59.md.zst": {
+      "path": "resources/docs/evaluation/performance-tuner-6c866b59.md",
+      "kind": "reference-document",
+      "purpose": "---",
+      "compressedSha256": "dbd70667304ae0d79a149c07d30ffc5d41f914421d3e954766eb7f26aa6280ef",
+      "decodedSha256": "ad392a2f5acf2a5899f6154f7558fc5daa9a0f9d2e311496cef82998968ad1d2",
+      "compressedBytes": 4088,
+      "decodedBytes": 11390,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "permissions_external-df98b90a.txt.zst": {
+      "path": "resources/docs/other/permissions_external-df98b90a.txt",
+      "kind": "reference-text",
+      "purpose": "embedded text reference",
+      "compressedSha256": "40baa6fdec051c8a1ceaa357e6487d5ec7a82ead1f363eb158d775a36a1fe91a",
+      "decodedSha256": "377ce3cba7577de2666e79f315e91c2f726e390970ace1ea37925abb8242377a",
+      "compressedBytes": 31683,
+      "decodedBytes": 96102,
+      "literalConsumers": [
+        "src/chunk-fkxpd7gr.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "platform-availability-7671ac66.md.zst": {
+      "path": "resources/docs/claude-api/platform-availability-7671ac66.md",
+      "kind": "reference-document",
+      "purpose": "Platform Availability",
+      "compressedSha256": "4e6e9521e53e92388ba5a3ec5e1fa3406b15864e8444d4b08c5cf8bda7aa00e0",
+      "decodedSha256": "1b0c4181cbd01bedef4d1f70dea3d0c3f346e7ca7ab674071c662c30b67e85a4",
+      "compressedBytes": 5289,
+      "decodedBytes": 16546,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "playwright-mcp.mjs-4153e6ec.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/playwright-mcp-4153e6ec.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "6f2f2b2a34a7a07af5bb3cf6f08c4d1cbd8bb89ca08152366550d74503b1e7f0",
+      "decodedSha256": "95edf639acd5964bea191012d247c4c6d03d3597213ae4d62eaef030539befda",
+      "compressedBytes": 27138,
+      "decodedBytes": 106115,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "plugin-eval-8fcbd81e.md.zst": {
+      "path": "resources/docs/plugin-authoring/plugin-eval-8fcbd81e.md",
+      "kind": "reference-document",
+      "purpose": "Plugin eval (`claude plugin eval`) and `/skill-doctor`",
+      "compressedSha256": "d321c4f089b80ed1fcbd10c651afda76d9f614b34d0d4733c7dba9b6cadbcc83",
+      "decodedSha256": "d83bb3c6b948bc85d80f109113eb002738e1e96fd24d3ff151b733abb2457f67",
+      "compressedBytes": 28506,
+      "decodedBytes": 83457,
+      "literalConsumers": [
+        "src/chunk-cp434xjt.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "plugin-eval-quickref-e95bcd1b.md.zst": {
+      "path": "resources/docs/plugin-authoring/plugin-eval-quickref-e95bcd1b.md",
+      "kind": "reference-document",
+      "purpose": "Plugin eval and `/skill-doctor` - quick reference",
+      "compressedSha256": "6ab0ed99ca5be4720f72edf2f5799040408025be419186ceba77f1b533fdd8c6",
+      "decodedSha256": "ac56c5fee4bca34cd7fb7e83f58058eda03fe84fe017066fd7b4212956fa719e",
+      "compressedBytes": 4688,
+      "decodedBytes": 10378,
+      "literalConsumers": [
+        "src/chunk-tnvvabe7.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "prefix_diff-69deb9d3.py.zst": {
+      "path": "resources/tools/evaluation/prefix_diff-69deb9d3.py",
+      "kind": "python-source",
+      "purpose": "evaluation and validation script",
+      "compressedSha256": "11c3e750b5fc92ce88cb941d64643d97a9e68f74c1544f4524cacc47ff80e7bd",
+      "decodedSha256": "734934b81b5f26e9ed2f8f51f44fed6554233de4f37b22a8845ae4ffcb622ac0",
+      "compressedBytes": 24379,
+      "decodedBytes": 94008,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "preserved-thinking-migration-84258a5d.md.zst": {
+      "path": "resources/docs/migration/preserved-thinking-migration-84258a5d.md",
+      "kind": "reference-document",
+      "purpose": "Preserved Thinking - Keeping Earlier Reasoning Valid Across a Conversation",
+      "compressedSha256": "78f585cc29bd4f4f7a67dab719ec774185143647670633d1154704157c68bc08",
+      "decodedSha256": "eb051c0f32b6ebc0ca563b66837ac8cfd52f7dd95d91352667b6e8531c426e3a",
+      "compressedBytes": 20853,
+      "decodedBytes": 64039,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "preview-rebuild.mjs-88e389b0.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/preview-rebuild-88e389b0.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "fd511241b12db26f80110e3d8b2dab21fdb3c9d5d91d65717dc2a1a668e9cbf8",
+      "decodedSha256": "438e0846c7ed985a3800478b17ee6bd879940811265cb77717c8c127d822abd5",
+      "compressedBytes": 5898,
+      "decodedBytes": 16294,
+      "literalConsumers": [
+        "src/chunk-y08b5b6y.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "previews.mjs-8fcda441.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/previews-8fcda441.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "f950e077649fc49f8540dabd5baaa22a8c2d7985e1aab85dead0c615e658d253",
+      "decodedSha256": "19061b6f2a4236377cb02398eb45049ae1a87e0188f7edb6700a0e0380ac536f",
+      "compressedBytes": 3696,
+      "decodedBytes": 9596,
+      "literalConsumers": [
+        "src/chunk-ftm2kfxw.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "prompt-audit-c0e24c48.md.zst": {
+      "path": "resources/docs/claude-api/prompt-audit-c0e24c48.md",
+      "kind": "reference-document",
+      "purpose": "Prompt Audit - Finding and Removing Dated Prompting Patterns",
+      "compressedSha256": "5ac60824199cda9046234af1bbe3cbf8582e3b52e762dcba568a2cfe405b156a",
+      "decodedSha256": "7379b10b6707d6f185ac08e751058bb2795145bf4fa71a267fe2940ce2915399",
+      "compressedBytes": 18150,
+      "decodedBytes": 49350,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "prompt-caching-44ffa968.md.zst": {
+      "path": "resources/docs/claude-api/prompt-caching-44ffa968.md",
+      "kind": "reference-document",
+      "purpose": "Prompt Caching - Design & Optimization",
+      "compressedSha256": "9fffcab9ab581ffb421572eea737c7e12234b4367cb98cac1766d286ad7fb4e9",
+      "decodedSha256": "9c55ae1eafddf61765326d250880479646f67ba5f1e9d663fa835798dc5c79fc",
+      "compressedBytes": 11429,
+      "decodedBytes": 33274,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "psl-data.json-ffeefa5c.txt.zst": {
+      "path": "resources/data/psl-data-ffeefa5c.json",
+      "kind": "json-data",
+      "purpose": "embedded structured configuration or data",
+      "compressedSha256": "1fffbf6109b16cc458484d83a7bebc1bcb8b1b5cba84129281a5bc5bd79e06a5",
+      "decodedSha256": "d2c3348b6d4a4db8df267de386ee2bd6f0077e509e2df21bad49298701013c82",
+      "compressedBytes": 41172,
+      "decodedBytes": 167048,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "reference-b976cc65.md.zst": {
+      "path": "resources/docs/plugin-authoring/reference-b976cc65.md",
+      "kind": "reference-document",
+      "purpose": "Function hooks: the long form",
+      "compressedSha256": "e2f965913725c7c52b742af22249f90f243f77d6530dc877cd6b7e8aac695f82",
+      "decodedSha256": "df42d276d37dc5e98a1ddb5d76765c486bce1ab71da1c762efb6094727efbe8f",
+      "compressedBytes": 25744,
+      "decodedBytes": 77613,
+      "literalConsumers": [
+        "src/chunk-7hdrsgvw.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "remote-diff.mjs-a2ecedbc.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/remote-diff-a2ecedbc.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "92b5dd7afef45d95c0acda50209e0e8a72a633616804fd9935efa09592783413",
+      "decodedSha256": "e1ea1b5f09ebfb368a7734f5f8c45d259f7d88dfc6befc9f8c7cdc52b6069b31",
+      "compressedBytes": 4728,
+      "decodedBytes": 13764,
+      "literalConsumers": [
+        "src/chunk-k5ae3q9b.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "resync.mjs-4ec2827e.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/resync-4ec2827e.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "15ec8a3ede371a0dd1dba946a37ed6b827c91a4b28151decc7a8566b451f091a",
+      "decodedSha256": "509db748227c1ea3a9a8f3d1c3dd2387861058b701ef46c5fefe9f35f8264d43",
+      "compressedBytes": 8343,
+      "decodedBytes": 23240,
+      "literalConsumers": [
+        "src/chunk-81gxtw6q.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "run-tools.mjs-0e78c453.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/run-tools-0e78c453.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "9170344bcbcfb4cff7087969b3dcf185df02deb4f4c5e19d5cc65a7cc3e05ddd",
+      "decodedSha256": "5ee796ffcecb9c6fabda03f775bed2d04dbbcfc9fed2fbc86a5aff01cf7b4127",
+      "compressedBytes": 17464,
+      "decodedBytes": 68536,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "runs.mjs-766956db.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/runs-766956db.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "7cdac056d3882f8f06074cbd2a792c36cd691d3c70ec403135c9890d431f9976",
+      "decodedSha256": "cdab14bdc1a22a31ff897d8e5613b74a255de84219f508c3c6c86ee98acb7481",
+      "compressedBytes": 3511,
+      "decodedBytes": 11351,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "sdk-upgrade-d991ae22.md.zst": {
+      "path": "resources/docs/claude-api/sdk-upgrade-d991ae22.md",
+      "kind": "reference-document",
+      "purpose": "Upgrading the `anthropic` Python SDK: 0.x -> 1.x",
+      "compressedSha256": "885250f7d1cea5ca7e8bda787f2870eef2b98c2935dcfc6cca97405afce766ba",
+      "decodedSha256": "52d7ee3f507b5c10494fc9fa868edeae05681ddf221edf0f1e14430887c09621",
+      "compressedBytes": 10845,
+      "decodedBytes": 30047,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "sign-in.mjs-e560d968.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/sign-in-e560d968.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "5c82dd62b97b2f1a28d7cecc8dfa68fff2fa513a15d7c98b7b091d7aab302242",
+      "decodedSha256": "296503c3d7b8990c45df39e3cab170d4d6fe40cc43ff6c533ce60650df52ff7c",
+      "compressedBytes": 4600,
+      "decodedBytes": 11857,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "signin.mjs-e32ba544.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/signin-e32ba544.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "4369332c1a96f67a64f3f7d33378c491377c0b575649fa46215308bfc7d2df4f",
+      "decodedSha256": "0ec40e03af3f241560c62fd3e9aa452e2af66f117be6a4e99bb285e46aded5d5",
+      "compressedBytes": 9774,
+      "decodedBytes": 33603,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "source-storybook.mjs-125aecbd.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/source-storybook-125aecbd.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "22aacb2cc5ec3d3143a620072a21fb9b0784dab0e8bfa6d675218126c6e45abe",
+      "decodedSha256": "90f6a529cbacd220fc98243e667d3b2b9314dcccf7784e098262d2be9085f900",
+      "compressedBytes": 7028,
+      "decodedBytes": 18429,
+      "literalConsumers": [
+        "src/chunk-rfe9reh2.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "stop-on-exit.mjs-da3fcb46.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/stop-on-exit-da3fcb46.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "c06323aaa0b22db6ea25e93d0b0b3cc48fa001839e175ff275a757582b4165db",
+      "decodedSha256": "3eee68691f57501a8c805f95599a656019491c306e0473e8767f26b8e72cb54f",
+      "compressedBytes": 2490,
+      "decodedBytes": 8197,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "story-imports.mjs-c9db5303.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/story-imports-c9db5303.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "97bda05fdf962a8d844e6e67c8aa372cde92c16b096830ba156c5abddb988d49",
+      "decodedSha256": "6795125e4f7a180d4fc18b6453c047e2d372fae97d0781460c2b1c8b50a76ec3",
+      "compressedBytes": 6196,
+      "decodedBytes": 15829,
+      "literalConsumers": [
+        "src/chunk-5xrhrmrz.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "streaming-e0e3c46f.md.zst": {
+      "path": "resources/docs/claude-api/streaming-e0e3c46f.md",
+      "kind": "reference-document",
+      "purpose": "Streaming - TypeScript",
+      "compressedSha256": "e2452fdfd7b22a201f0dea1600e2454ef018b419a3c7ef1ed7a461aae3c6ac3d",
+      "decodedSha256": "5e6e3a7b57eef6fe67dee93d38e602860ef282284a8711e8b6572e9b1002e516",
+      "compressedBytes": 3397,
+      "decodedBytes": 9607,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "streaming-fbb1ea6d.md.zst": {
+      "path": "resources/docs/claude-api/streaming-fbb1ea6d.md",
+      "kind": "reference-document",
+      "purpose": "Streaming - Python",
+      "compressedSha256": "6a5f23fa08d9bf3cb0694788ba4a92c7cb9177ba8600827852ee9185d1832d00",
+      "decodedSha256": "fbcbbd15ea88c9505c7b21cef7cf4e7316d5414d00275cf46223766b3d9f67fa",
+      "compressedBytes": 3858,
+      "decodedBytes": 11922,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "sync-hashes.mjs-a0844915.txt.zst": {
+      "path": "resources/tools/design-sync/scripts/sync-hashes-a0844915.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "f1c0bc0b017dd550a10286dcc787640c4c9f2580dfbf6f29a3693b5a11bc37da",
+      "decodedSha256": "91e02e0761897472e48f89295c521892f1b442fd5b31edf2c7d08b667d616de9",
+      "compressedBytes": 4162,
+      "decodedBytes": 10800,
+      "literalConsumers": [
+        "src/chunk-q2qs27jq.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "template.html-101715f9.txt.zst": {
+      "path": "resources/templates/artifact/template-101715f9.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "1ed702a7ba02ce601e2084f45a54be69d0bafa0ca140fb2580135e87d4d3b4b1",
+      "decodedSha256": "fcbd2a53c14297bffbc2c6ccbc5ac20d3cf725a12b73fa377902507b4799d169",
+      "compressedBytes": 27705,
+      "decodedBytes": 96539,
+      "literalConsumers": [
+        "src/chunk-k81jgez0.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "template.html-268183fd.txt.zst": {
+      "path": "resources/templates/artifact/template-268183fd.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "39461c3ce009bd786566668d501cf54921c243ece23f5636ed90ae0b9590a433",
+      "decodedSha256": "1e74785a11bf67f8ed2df22d94857f86b71418bc57589e2fff0381dba6f934fa",
+      "compressedBytes": 3696,
+      "decodedBytes": 10559,
+      "literalConsumers": [
+        "src/chunk-c15fbtea.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "template.html-cad26093.txt.zst": {
+      "path": "resources/templates/artifact/template-cad26093.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "bff3359b0770eac8a92608390b466eb10bb96b2cf8b3268bf53194e4f89be61c",
+      "decodedSha256": "a198e178c8f085669b1e7feed9af25c79aba7d048d208cbe4997772d16b3268e",
+      "compressedBytes": 4134,
+      "decodedBytes": 10892,
+      "literalConsumers": [
+        "src/chunk-c15fbtea.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tokens.css-6f9090cf.txt.zst": {
+      "path": "resources/templates/artifact/tokens-6f9090cf.css",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "453a299bd4edc47c4648777acfc17232143c9ab4004e43b297e3856003d8fc20",
+      "decodedSha256": "e1e35f3a80e97001291783f53474405b3f86c4961cc959cb970506d1415ad5cb",
+      "compressedBytes": 6109,
+      "decodedBytes": 28236,
+      "literalConsumers": [
+        "src/chunk-rpkaxt7x.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tool-use-0ba43b6b.md.zst": {
+      "path": "resources/docs/claude-api/tool-use-0ba43b6b.md",
+      "kind": "reference-document",
+      "purpose": "Tool Use - Java",
+      "compressedSha256": "93fdfe8e31e22419b0d071cda58e0dec44ef7d158529384e99c81dff29e7eeaf",
+      "decodedSha256": "c7cf4ed716dbbe472455a019a6e33351d7f3a75ec1a5b554ea50a9684dbf24af",
+      "compressedBytes": 3762,
+      "decodedBytes": 11110,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tool-use-1b429d2c.md.zst": {
+      "path": "resources/docs/claude-api/tool-use-1b429d2c.md",
+      "kind": "reference-document",
+      "purpose": "Tool Use - Python",
+      "compressedSha256": "d633d0b5d17feb249657943496e4b43af3ce5c8a71faaa2627684d45c18fc7a8",
+      "decodedSha256": "2259557f33fcd76291cb8445ccd0c0566d461a187c91dea4225f20caece1b2a8",
+      "compressedBytes": 6119,
+      "decodedBytes": 21322,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tool-use-277d8154.md.zst": {
+      "path": "resources/docs/claude-api/tool-use-277d8154.md",
+      "kind": "reference-document",
+      "purpose": "Tool Use - TypeScript",
+      "compressedSha256": "4416958dae0c46269362baf0c3800fe4e6629ad07fa7a7a2eb8b96196b3f9b70",
+      "decodedSha256": "b1a11cbd5ccf4942a671aee9815dd4b9dc97ac6d835a88caa6225a7fa6dc72b7",
+      "compressedBytes": 7503,
+      "decodedBytes": 24218,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tool-use-49b89f92.md.zst": {
+      "path": "resources/docs/claude-api/tool-use-49b89f92.md",
+      "kind": "reference-document",
+      "purpose": "Tool Use - PHP",
+      "compressedSha256": "a52bfceb5537b4226390cdbf47ded805049a85e5469592884f3a4c2be0b532f2",
+      "decodedSha256": "ebde4ebb0529d5cf1d79f32259077e7b59c8e5827bf1c207b6635a03200931cb",
+      "compressedBytes": 3411,
+      "decodedBytes": 9686,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tool-use-582a7836.md.zst": {
+      "path": "resources/docs/claude-api/tool-use-582a7836.md",
+      "kind": "reference-document",
+      "purpose": "Tool Use - Go",
+      "compressedSha256": "b423ad1cef10155ea3cec0cf118ba15489e82a41a24dabdbda85e12caa24fe2b",
+      "decodedSha256": "2b44e0aa84ec106fe9f3ba9ac2666fddf32d49cd4a8bf83f13f3ba3262573945",
+      "compressedBytes": 3691,
+      "decodedBytes": 9998,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tool-use-concepts-c2460f49.md.zst": {
+      "path": "resources/docs/claude-api/tool-use-concepts-c2460f49.md",
+      "kind": "reference-document",
+      "purpose": "Tool Use Concepts",
+      "compressedSha256": "f1747a5aeda07982407a2aff5e8e2323f9644d8d5a7a7d9445be299793701b93",
+      "decodedSha256": "ff8c6318510dfe2d78040d3b887bc32648c91bb814d614591ba02f8140c5c9d2",
+      "compressedBytes": 15507,
+      "decodedBytes": 44784,
+      "literalConsumers": [
+        "src/chunk-7kf9j3c4.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tools-snapshot.json-517c5f68.txt.zst": {
+      "path": "resources/data/tools-snapshot-517c5f68.json",
+      "kind": "json-data",
+      "purpose": "embedded structured configuration or data",
+      "compressedSha256": "e42b1812e1656f2cec92c259316d0aac50e50609473fa4c761567d5b5f802e90",
+      "decodedSha256": "85463d363faa9f4a65b5d71db185bc84af93b37aa14dc8dfac19f5ec64213ca7",
+      "compressedBytes": 3337,
+      "decodedBytes": 16387,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "tools.mjs-6ad628aa.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/tools-6ad628aa.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "0af08402dceddd2f4aabba522e7eee905a6258ea60360dc215dcc7a11565ac7a",
+      "decodedSha256": "3556e9b62c6b35c6d192bf0b4af8a99cf45db094e4df9bf6d3e3561dbd06b251",
+      "compressedBytes": 15154,
+      "decodedBytes": 54985,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "validate_palette.js-f945bc6a.txt.zst": {
+      "path": "resources/tools/design/scripts/validate_palette-f945bc6a.js",
+      "kind": "javascript-source",
+      "purpose": "embedded JavaScript helper",
+      "compressedSha256": "a7036cff4ddf24d5a4124f098c151d5ea317239f733f91ef03108a92007ccb2f",
+      "decodedSha256": "25df43beb77674dad34348b9fe338d5a47f568e08bcf51b38780e51386cf866e",
+      "compressedBytes": 7789,
+      "decodedBytes": 19958,
+      "literalConsumers": [
+        "src/chunk-18qhshaa.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "validate_palette.py-f97163c4.txt.zst": {
+      "path": "resources/docs/other/validate_palette.py-f97163c4.txt",
+      "kind": "reference-text",
+      "purpose": "embedded text reference",
+      "compressedSha256": "16452489db2a19c17b5433303795d1b9c63c1cf9dce33f27c18f98a8ee0aa76b",
+      "decodedSha256": "949f8c86dc1c98c589f1455bb2d7cd8967ffecf85d77eed2789dce62ce6c2cf4",
+      "compressedBytes": 6991,
+      "decodedBytes": 17684,
+      "literalConsumers": [
+        "src/chunk-e9gz66xn.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "vet.mjs-e320abbd.txt.zst": {
+      "path": "resources/tools/claude-test/scripts/vet-e320abbd.mjs",
+      "kind": "javascript-module",
+      "purpose": "embedded tool module",
+      "compressedSha256": "250f4a678540ddc717c4fe9e576971eaff87a55f291a9bffce8c2edf6bca86f6",
+      "decodedSha256": "6af855d160ac146633e871d30699a2ec3ff09b9db8758281fc3cc1fce82b8a07",
+      "compressedBytes": 5020,
+      "decodedBytes": 14874,
+      "literalConsumers": [
+        "src/chunk-phhdc0aj.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    },
+    "workshop-page.html-22624ec4.txt.zst": {
+      "path": "resources/templates/artifact/workshop-page-22624ec4.html",
+      "kind": "template",
+      "purpose": "embedded HTML/CSS template",
+      "compressedSha256": "276c3bf61ef62a026d3291815a1a844238dd26583dc831dd4e4fdb66a0ffbb74",
+      "decodedSha256": "cef77853bc96562c9300c6cc47988918be738532c3e1c6536c1d570f2dcabff7",
+      "compressedBytes": 34497,
+      "decodedBytes": 127858,
+      "literalConsumers": [
+        "src/chunk-yayv0m3f.js"
+      ],
+      "source": "2.1.310 embedded BunFS"
+    }
+  },
+  "summary": {
+    "totalRelocated": 140,
+    "materializedNewFiles": 137,
+    "reusedExistingSourceBundles": 3,
+    "directlyReferenced": 137,
+    "categories": {
+      "bundled-runtime-library": 3,
+      "javascript-module": 35,
+      "javascript-source": 3,
+      "json-data": 2,
+      "python-source": 2,
+      "reference-document": 68,
+      "reference-text": 2,
+      "schema-document": 1,
+      "skill-document": 14,
+      "template": 9,
+      "typescript-declaration": 1
+    }
+  }
+}

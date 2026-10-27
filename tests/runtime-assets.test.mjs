@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { createHash as hashForLayout } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { resolveEmbeddedPath, loadEmbeddedRequire } from '../runtime/assets.mjs';
 import { Nwo, Xft, dt, readEmbeddedAssetBytes, readEmbeddedAssetText, readEmbeddedAssetTextAsync } from '../src/chunk-6gaf2snv.js';
@@ -10,6 +11,8 @@ import { Fe, loadEmbeddedModule } from '../src/chunk-a2y39866.js';
 
 const require = createRequire(import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('../resources/manifest.json', import.meta.url), 'utf8'));
+const layout = JSON.parse(readFileSync(new URL('../resources/asset-layout.json', import.meta.url), 'utf8'));
+const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
 test('原资源清单、文件哈希和来源标注一致', () => {
   assert.equal(manifest.referenced_virtual_assets, 247);
@@ -24,7 +27,13 @@ test('原资源清单、文件哈希和来源标注一致', () => {
   for (const [name, entry] of Object.entries(manifest.asset_provenance)) {
     const file = resolveEmbeddedPath(name);
     assert.ok(existsSync(file), `资源缺失: ${name}`);
-    assert.equal(createHash('sha256').update(readFileSync(file)).digest('hex'), entry.sha256, `资源变更: ${name}`);
+    const compressed = layout.entries[name];
+    if (compressed) {
+      assert.equal(compressed.compressedSha256, entry.sha256, `压缩来源校验失配: ${name}`);
+      assert.equal(digest(readFileSync(file)), compressed.decodedSha256, `解压内容变更: ${name}`);
+    } else {
+      assert.equal(digest(readFileSync(file)), entry.sha256, `原始资源变更: ${name}`);
+    }
   }
 });
 
@@ -38,6 +47,7 @@ test('从源码直接读取未压缩的真实 2.1.310 内嵌资源', () => {
 
 test('从源码同步及异步读取 Zstandard 压缩资源', async () => {
   const path = resolveEmbeddedPath('README-29cff9e7.md.zst');
+  assert.match(path, /resources\/docs\/managed-agents\/php/);
   const bytes = Nwo(path, process.cwd());
   assert.ok(bytes.length > 100);
   assert.equal(bytes.toString('utf8'), dt(path, process.cwd()));
@@ -94,6 +104,7 @@ test('恢复的资源读取函数与 2.1.310 原始短符号完全兼容', async
   assert.equal(readEmbeddedAssetTextAsync, Xft);
   assert.equal(loadEmbeddedModule, Fe);
   const path = resolveEmbeddedPath('README-29cff9e7.md.zst');
+  assert.match(path, /resources\/docs\/managed-agents\/php/);
   assert.deepEqual(readEmbeddedAssetBytes(path, process.cwd()), Nwo(path, process.cwd()));
   assert.equal(readEmbeddedAssetText(path, process.cwd()), dt(path, process.cwd()));
   assert.equal(await readEmbeddedAssetTextAsync(path, process.cwd()), await Xft(path, process.cwd()));

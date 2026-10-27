@@ -4,7 +4,8 @@
     "total": 250,
     "literalReferenced": 247,
     "sourceLoaderReferenced": 3,
-    "withoutFunctionalConsumer": 0
+    "withoutFunctionalConsumer": 0,
+    "relocatedCompressed": 140
   },
   "sourceBundles": {
     "chart.umd.min.js": {
@@ -12,21 +13,21 @@
       "loaders": [
         "src/chunk-nxfv8sbm.js"
       ],
-      "sha256": "bd2f410be835f42c3001faa320f78673904613b4f8ba5017b98024c8cc3c7ddf"
+      "sha256": "48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a"
     },
     "hljsBundle.generated.min.js": {
       "source": "src/hljsBundle.generated.min.js",
       "loaders": [
         "src/chunk-crqz6t7m.js"
       ],
-      "sha256": "d7749ea32a9646d5dfa844a610851c6d10d1c31059426a4d7de3e1f0f420afaa"
+      "sha256": "ae4a713108fb2d92e1be0156d49821df6c4df5c88e885c490e55b2a66df48973"
     },
     "mermaid.min.js": {
       "source": "src/mermaid.min.js",
       "loaders": [
         "src/chunk-axeech6e.js"
       ],
-      "sha256": "d98ea41d54f7d3253f244c7834baf3f322f2aaa9e09fa9205db627e58ebd84cf"
+      "sha256": "18327bef70d96fb505fe7287d9f6a7362ebf07ff6576ddfaffb1a06f3e1a2954"
     }
   }
 }
