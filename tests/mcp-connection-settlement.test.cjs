@@ -7,7 +7,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-fbc1ty1s.js'),'utf8');
 function fixture({original={name:'mcp-a',type:'pending',config:{url:'https://a'}},accountChanged=false,blocked,disable=false,match=true}={}){
  const from=source.indexOf('function applyMcpConnectionSettlement(n, o)');
- const to=source.indexOf('function QRn(n, o, e = !0)',from);
+ const to=source.indexOf('function findRetryableMcpConnections(n, o, e = !0)',from);
  assert.ok(from>0&&to>from,'real 2.1.310 MCP settlement handler missing');
  let state={clients:[original],tools:[],commands:[]};
  const disposed=[],logs=[],dropped=[];
