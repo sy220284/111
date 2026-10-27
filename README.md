@@ -172,4 +172,6 @@ npm run verify:runtime
 - `npm ci` 根据锁文件安装 `ws@8.22.0` 与用于索引的 `typescript@5.9.3`；从此 CI 不再依赖主机上碰巧预装的 TypeScript。
 - 以上属 AST/定向回归验收。完整 CLI 真实会话、取消传播、OAuth/MCP 远端、Bun/JSC 兼容仍需独立运行验收，不把 `npm test` 结果当成端到端通过。
 
-- CI 已实际完成锁定依赖安装与 CLI `--help` 启动；现将该浅入口设为阻断性验收，失败会使工作流失败。真实会话、取消及在线协议仍需另行验收。
+- CI 已实测锁定依赖安装；CLI `--help` 真实启动为阻断性验收，曾暴露 `ERR_REQUIRE_CYCLE_MODULE` 和 `Bun.stringWidth` 缺失等运行时问题，需以最新 CI 结果判定。真实会话、取消及在线协议仍需另行验收。
+
+- 针对原版终端帮助信息的 `Bun.stringWidth(..., {ambiguousIsNarrow:true})`，在 Node 环境增加 Unicode 字素簇、CJK 与表情双宽、ANSI 控制码识别；原生 Bun 调用保持原样。CLI 宽度测试独立加入 `npm test`。

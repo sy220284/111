@@ -1,0 +1,33 @@
+name: 一次性同步终端兼容源码索引
+on:
+  push:
+    branches: [fix/v37-ast-evidence-runtime-audit-20261027]
+    paths:
+      - '.github/workflows/sync-string-width-index-once.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v37-ast-evidence-runtime-audit-20261027
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 验证终端字符串宽度行为
+        run: npm run check:string-width
+      - name: 重建 2551 模块及函数调用指纹
+        run: npm run rebuild:functions
+      - name: 提交新索引摘要
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add resources/function-summary.json
+          git diff --cached --quiet && { echo "源代码变更后未产生预期的指纹更新"; exit 1; }
+          git commit -m "同步终端宽度适配后的完整函数调用指纹"
+          git push origin HEAD:fix/v37-ast-evidence-runtime-audit-20261027

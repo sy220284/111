@@ -1,3 +1,4 @@
+import { nodeTerminalStringWidth } from '../runtime/string-width.mjs';
 // @bun @bytecode
 // Claude Code is a Beta product per Anthropic's Commercial Terms of Service.
 // By using Claude Code, you agree that all code acceptance or rejection decisions you make,
@@ -8,5 +9,5 @@
 // (c) Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 // Version: 2.1.310
-var o={ambiguousIsNarrow:!0};function le(r){return Bun.stringWidth(r,o)}import{constants as t}from"fs";var pSe=t.O_NONBLOCK,$s=t.O_NOFOLLOW|pSe;
+var o={ambiguousIsNarrow:!0};function le(r){return typeof Bun!=='undefined'?Bun.stringWidth(r,o):nodeTerminalStringWidth(r)}import{constants as t}from"fs";var pSe=t.O_NONBLOCK,$s=t.O_NOFOLLOW|pSe;
 export{pSe,$s,le};
