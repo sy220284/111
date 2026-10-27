@@ -10,7 +10,11 @@ const libDir=path.join(scriptDir,'lib');
 const source=fs.readFileSync(path.join(scriptDir,'package-build.mjs'),'utf8');
 // These are the real constant-name adapters used by package-build, including
 // destructured exports in branch-specific paths; no hardcoded copied API list.
-const calls=[...source.matchAll(/\b(?:const|let)\s*\{([^{}]+)\}\s*=\s*await\s+loadLib\(\s*['"]([^'"]+)['"]\s*\)/gs)];
+const directCalls=[...source.matchAll(/\b(?:const|let)\s*\{([^{}]+)\}\s*=\s*await\s+loadLib\(\s*['"]([^'"]+)['"]\s*\)/gs)];
+// Some adapters are conditional destructures: const {name}=shape==='storybook'
+//   ? await loadLib('preview-gen-storybook') : { name: fallback };
+const conditionalCalls=[...source.matchAll(/\bconst\s*\{([^{}]+)\}\s*=\s*\w+\s*===\s*['"][^'"]+['"]\s*\?\s*await\s+loadLib\(\s*['"]([^'"]+)['"]\s*\)/gs)];
+const calls=[...directCalls,...conditionalCalls];
 const expected=new Map();
 for(const [,bindings,name] of calls){
  const existing=expected.get(name)||new Set();
@@ -24,6 +28,9 @@ for(const [,bindings,name] of calls){
 const uniqueCallNames=[...source.matchAll(/\bloadLib\(\s*['"]([^'"]+)['"]\s*\)/g)].map(x=>x[1]);
 test('Design Sync 14项动态依赖均为真实调用源文件，并保留解构函数契约',async()=>{
  assert.equal(expected.size,14,'adapter declaration set changed');
+ assert.equal(directCalls.length,15,'unexpected number of direct named adapter destructures');
+ assert.equal(conditionalCalls.length,1,'must detect the conditionally loaded Storybook preview adapter');
+ assert.ok(expected.get('preview-gen-storybook')?.has('generatePreviewSource'),'conditional Storybook helper export contract omitted');
  assert.deepEqual([...new Set(uniqueCallNames)].sort(),[...expected.keys()].sort(),'untracked literal adapter name');
  const cache=new Map(),externals=new Map(),visited=new Set();
  const staticImportCounts={relative:0,builtin:0,thirdPartyMock:0};
