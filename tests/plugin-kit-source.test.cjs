@@ -60,6 +60,17 @@ test('插件测试包根入口可实际加载公开导出', async () => {
   assert.equal(typeof api.run, 'function');
 });
 
+test('插件测试包公开 test 入口正确转发单回调与带选项回调', async () => {
+  const { test: register, collector } = await import('../src/plugin-testing-kit/index.js');
+  const count = collector.cases().length;
+  register('public single callback', () => true);
+  register('public options callback', { timeoutMs: 35 }, () => true);
+  assert.equal(collector.cases().length, count + 2);
+  assert.equal(typeof collector.cases()[count].body, 'function');
+  assert.equal(collector.cases()[count + 1].timeoutMs, 35);
+  assert.equal(typeof collector.cases()[count + 1].body, 'function');
+});
+
 test('实际恢复的结构化相等函数处理对象、循环引用与不等值', async () => {
   const { equals } = await import('../src/plugin-testing-kit/equality/equals/equals.js');
   assert.equal(equals({ x: [1, 2] }, { x: [1, 2] }, 'strict'), true);
