@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:source-fragments && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle && npm run check:mcp-issuer-echo && npm run check:mcp-oauth-lifecycle && npm run check:tool-layout && npm run check:design-sync-layout && npm run check:design-sync-adapters && npm run check:mcp-oauth-refresh-lock && npm run check:query-state-helpers && npm run check:mcp-oauth-refresh-errors && npm run check:mcp-connection-settlement && npm run check:daemon-recovery-helpers && npm run check:restored-aliases && npm run check:mcp-retry-state && npm run check:mcp-retry-executor && npm run check:subagent-shutdown-recovery && npm run check:daemon-orphan-cleanup && npm run check:mcp-tool-forwarding && npm run check:subagent-resume-chain && npm run check:subagent-resume-lock && npm run check:agent-resume-errors",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract && npm run check:session-append && npm run check:model-request && npm run check:plugin-eval-source && npm run check:model-refusal && npm run check:plugin-events && npm run check:function-evidence && npm run check:source-fingerprint && npm run check:restored-hook-identifiers && npm run check:hook-dispatch && npm run check:cli-routing && npm run check:naming-layout && npm run check:source-fragments && npm run check:query-loop-recovery && npm run check:query-loop-callchain && npm run check:session-append-storage && npm run check:permission-templates && npm run check:thinking-model-override && npm run check:task-upload-lifecycle && npm run check:mcp-issuer-echo && npm run check:mcp-oauth-lifecycle && npm run check:tool-layout && npm run check:design-sync-layout && npm run check:design-sync-adapters && npm run check:mcp-oauth-refresh-lock && npm run check:query-state-helpers && npm run check:mcp-oauth-refresh-errors && npm run check:mcp-connection-settlement && npm run check:daemon-recovery-helpers && npm run check:restored-aliases && npm run check:mcp-retry-state && npm run check:mcp-retry-executor && npm run check:subagent-shutdown-recovery && npm run check:daemon-orphan-cleanup && npm run check:mcp-tool-forwarding && npm run check:subagent-resume-chain && npm run check:subagent-resume-lock && npm run check:agent-resume-errors && npm run check:string-width && npm run audit:functions",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -62,7 +62,8 @@
     "check:mcp-tool-forwarding": "node --test tests/mcp-tool-forwarding.test.cjs",
     "check:subagent-resume-chain": "node --test tests/subagent-resume-chain.test.cjs",
     "check:subagent-resume-lock": "node --test tests/subagent-resume-lock.test.cjs",
-    "check:agent-resume-errors": "node --test tests/agent-resume-errors.test.cjs"
+    "check:agent-resume-errors": "node --test tests/agent-resume-errors.test.cjs",
+    "check:string-width": "node --test tests/string-width-runtime.test.mjs"
   },
   "dependencies": {
     "ws": "8.22.0"
@@ -85,5 +86,8 @@
     "scripts/",
     "README.md",
     "package.json"
-  ]
+  ],
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
 }

@@ -163,3 +163,15 @@ npm run verify:runtime
 - 阶段 E 子代理恢复链：恢复三条 notification/inline/reply 入口、恢复单飞锁 `it` 与 Agent 通知关联结果 `Yn` 的 5 个具名源码，保留原短符号。新增直接执行原函数的子代理并发隔离、正常/异常释放及元数据回填测试；此处并不宣称网络或进程恢复完整验收。
 
 - 子代理续跑错误分类：恢复 `Jgi`/`CF`/`uwr` 为可读函数，保留旧短符号；新增真实源函数测试验证临时/永久错误、插件拒绝类型与 resumedInline 标记，避免恢复失败被误分类。
+
+
+## v37 对照：函数证据与 CI 验收加固（2026-10-27）
+
+- 将原先仅匹配文本的 102 项函数证据检查升级为 TypeScript AST 函数签名定位：排除注释、字符串、同名非函数语句，确认原函数标识符及对应测试中的实际 `test()` 调用。该台账仍只计入定向行为测试，不宣称完整调用链运行通过。
+- `npm test` 末尾新增全体 2,551 模块函数索引即时重算，与仓库 `resources/function-summary.json` 完整比对；CI 在运行测试前单独校验，堵住“源码指纹同步但函数计数或明细算法已失效”的空档。
+- `npm ci` 根据锁文件安装 `ws@8.22.0` 与用于索引的 `typescript@5.9.3`；从此 CI 不再依赖主机上碰巧预装的 TypeScript。
+- 以上属 AST/定向回归验收。完整 CLI 真实会话、取消传播、OAuth/MCP 远端、Bun/JSC 兼容仍需独立运行验收，不把 `npm test` 结果当成端到端通过。
+
+- CI 已实测锁定依赖安装；CLI `--help` 真实启动为阻断性验收，曾暴露 `ERR_REQUIRE_CYCLE_MODULE` 和 `Bun.stringWidth` 缺失等运行时问题，需以最新 CI 结果判定。真实会话、取消及在线协议仍需另行验收。
+
+- 针对原版终端帮助信息的 `Bun.stringWidth(..., {ambiguousIsNarrow:true})`，在 Node 环境增加 Unicode 字素簇、CJK 与表情双宽、ANSI 控制码识别；原生 Bun 调用保持原样。CLI 宽度测试独立加入 `npm test`。
