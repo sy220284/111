@@ -75,7 +75,9 @@ test('Design Sync 14项动态依赖均为真实调用源文件，并保留解构
  let expectedSymbols=0;
  for(const [moduleName,symbols] of expected){
   const mod=cache.get(path.join(libDir,moduleName+'.mjs'));
-  const exports=new Set(Object.keys(mod.namespace));
+  // Enumerate export *names* without GetOwnPropertyDescriptor: linked modules have
+  // live bindings that are still in TDZ before evaluation, and Object.keys throws.
+  const exports=new Set(Reflect.ownKeys(mod.namespace));
   for(const symbol of symbols){
    assert.ok(exports.has(symbol),'Design Sync: package-build expects '+moduleName+'.'+symbol+' but the real lib does not export it');
    expectedSymbols++;
