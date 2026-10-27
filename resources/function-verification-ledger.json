@@ -1164,6 +1164,94 @@
       "test": "tests/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-y3t",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "st",
+      "anchor": "function runDaemonGroupExclusively(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-st",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Vn",
+      "anchor": "function scheduleDaemonReconciliation(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-Vn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Rt",
+      "anchor": "function isExpectedGitHead(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-Rt",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "vt",
+      "anchor": "function runGitWorktreeCommand(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-vt",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "wn",
+      "anchor": "function formatCommitCountOverflow(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-wn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "jr",
+      "anchor": "function shortenWorktreePathLabel(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-jr",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Tn",
+      "anchor": "function classifyWorktreeOwnership(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-Tn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "xe",
+      "anchor": "function hasSameCanonicalPath(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-xe",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "ft",
+      "anchor": "function normalizeWorktreePath(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-ft",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "En",
+      "anchor": "function isPathWithinWorktreeRoot(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-En",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "On",
+      "anchor": "function checkJobStateFilePresence(",
+      "test": "tests/worktree-daemon-guards.test.cjs",
+      "role": "daemon-worktree-guard-On",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

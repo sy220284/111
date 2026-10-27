@@ -620,6 +620,72 @@
       "legacy": "y3t",
       "readable": "classifyDaemonSessionTarget",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "st",
+      "readable": "runDaemonGroupExclusively",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Vn",
+      "readable": "scheduleDaemonReconciliation",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Rt",
+      "readable": "isExpectedGitHead",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "vt",
+      "readable": "runGitWorktreeCommand",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "wn",
+      "readable": "formatCommitCountOverflow",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "jr",
+      "readable": "shortenWorktreePathLabel",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Tn",
+      "readable": "classifyWorktreeOwnership",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "xe",
+      "readable": "hasSameCanonicalPath",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "ft",
+      "readable": "normalizeWorktreePath",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "En",
+      "readable": "isPathWithinWorktreeRoot",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "On",
+      "readable": "checkJobStateFilePresence",
+      "style": "constAlias"
     }
   ]
 }
