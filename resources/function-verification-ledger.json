@@ -452,6 +452,46 @@
       "test": "tests/task-upload-lifecycle.test.cjs",
       "role": "remote-task-upload-expiry",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "pt",
+      "anchor": "function isEquivalentMcpIssuerEcho(e,t)",
+      "test": "tests/mcp-issuer-echo.test.cjs",
+      "role": "mcp-oauth-issuer-echo-equivalence",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "pe",
+      "anchor": "function parseMcpIssuerHttpUrl(e)",
+      "test": "tests/mcp-issuer-echo.test.cjs",
+      "role": "mcp-oauth-issuer-url-parse",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "_t",
+      "anchor": "function classifyMcpIssuerOrigin(e,t)",
+      "test": "tests/mcp-issuer-echo.test.cjs",
+      "role": "mcp-oauth-issuer-origin-classification",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "mt",
+      "anchor": "function listMcpIssuerDifferenceFacets(e,t)",
+      "test": "tests/mcp-issuer-echo.test.cjs",
+      "role": "mcp-oauth-issuer-difference-facets",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-x436erds.js",
+      "symbol": "kUn",
+      "anchor": "function verifyMcpOAuthIssuerEcho({serverName:e",
+      "test": "tests/mcp-issuer-echo.test.cjs",
+      "role": "mcp-oauth-issuer-strict-or-observe",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

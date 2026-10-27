@@ -123,3 +123,8 @@ npm run verify:runtime
 - `tests/permission-template-source.test.cjs` 从实际代码加载注册表逻辑与导出，覆盖空表、同表复用、哈希和 ID 匹配、大小写边界、旧符号一致性。
 
 - 阶段 C：对主代理原版流式模型改写函数 `chunk-x3dkgs4r.js::Sr` 新增 `tests/thinking-model-override.test.cjs`；严格执行原函数，覆盖 Thinking 未完成时保持原模型、安全切换、只提示一次和 Hook effort 更新。仅登记定向行为测试，不把这段测试算作完整恢复。
+
+## 阶段 D MCP OAuth Issuer 回显校验
+
+- `src/chunk-x436erds.js` 五个 URL/Issuer 校验函数恢复可读名称，保留 `pt/pe/_t/mt/kUn` 全部原短符号调用；不改变默认 observe 模式、严格模式或 RFC 相关规则。
+- `tests/mcp-issuer-echo.test.cjs` 对原函数执行 9 组行为检查，覆盖 HTTP(S)、地址差异、跨源拦截、遥测失败隔离、功能开关失败回退和身份兼容；此为定向验证，完整 MCP OAuth 登录/刷新尚未端到端验收。
