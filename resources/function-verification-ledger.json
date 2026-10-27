@@ -292,6 +292,70 @@
       "test": "tests/cli-command-dispatch-source.test.cjs",
       "role": "remote-control-command-route",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "vu",
+      "anchor": "function* vu(e, o, n, r)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-unanswered-tool-result-synthesis",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Au",
+      "anchor": "function Au(e)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-max-output-error",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Uf",
+      "anchor": "function Uf(e, o, n)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-truncated-output-recovery-gate",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Nf",
+      "anchor": "function Nf(e, o)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-thinking-resumption-gate",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "qf",
+      "anchor": "function qf(e, o)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-recovery-prompt-merge",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Gr",
+      "anchor": "function Gr(e)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-last-interactive-user",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Pu",
+      "anchor": "function Pu(e)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-prompt-queue-gate",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-tqjdehqd.js",
+      "symbol": "Qf",
+      "anchor": "function Qf(e, o)",
+      "test": "tests/query-loop-recovery.test.cjs",
+      "role": "query-command-queue-suppression",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
