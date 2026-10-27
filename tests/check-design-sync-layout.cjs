@@ -29,8 +29,34 @@ for(const [p,name] of [
  ['resources/tools/design-sync/resync.mjs','storybook/compare.mjs'],
  ['resources/tools/design-sync/resync.mjs','lib/remote-diff.mjs'],
  ['resources/tools/design-sync/package-build.mjs','lib/source-kit.mjs'],
- ['resources/tools/design-sync/capture.mjs','storybook/http-serve.mjs']]){
+ ['resources/tools/design-sync/package-capture.mjs','storybook/http-serve.mjs']]){
  assert.ok(fs.existsSync(path.join(path.dirname(path.join(root,p)),name)),'driver dependency missing: '+p+' -> '+name);
 }
-assert.ok(source.knownUnresolved.length>0,'external/dynamic unfinished dependencies must stay explicit');
-console.log(JSON.stringify({result:'PASS',tool:'design-sync',mapped:source.migrated.length,helpers:source.supporting.length,staticRelativeImports:staticImports,unresolvedTracked:source.knownUnresolved.length}));
+// The original BunFS entry was named capture.mjs, but its real executable contract is package-capture.mjs.
+const captureKey='capture.mjs-9e2f2f8b.txt.zst';
+const restoredCapture='resources/tools/design-sync/package-capture.mjs';
+assert.equal(layout.entries[captureKey]?.path,restoredCapture,'original BunFS mapping must point to executable name');
+assert.equal(source.migrated.find(x=>x.key===captureKey)?.path,restoredCapture,'source provenance must track renamed executable');
+assert.ok(!fs.existsSync(path.join(root,'resources/tools/design-sync/capture.mjs')),'obsolete capture alias must be removed');
+const resyncText=fs.readFileSync(path.join(root,'resources/tools/design-sync/resync.mjs'),'utf8');
+const scriptsHashText=fs.readFileSync(path.join(root,'resources/tools/design-sync/lib/sync-hashes.mjs'),'utf8');
+assert.ok(resyncText.includes("runStage('capture', './package-capture.mjs', args)"),'resync capture stage must invoke actual filename');
+assert.ok(scriptsHashText.includes("'package-capture.mjs'"),'build recipe fingerprint must include the same file');
+const packageBuildText=fs.readFileSync(path.join(root,'resources/tools/design-sync/package-build.mjs'),'utf8');
+const adapters=[...packageBuildText.matchAll(/loadLib\(['"]([^'"]+)['"]\)/g)].map(x=>x[1]);
+const distinct=[...new Set(adapters)].sort();
+assert.equal(distinct.length,14,'all literal dynamic package-build adapters must be accounted for');
+for(const name of distinct){
+ const dep=path.join(root,'resources/tools/design-sync/lib',name+'.mjs');
+ assert.ok(fs.existsSync(dep),'runtime-selected adapter file missing: '+name);
+ new vm.SourceTextModule(fs.readFileSync(dep,'utf8'),{identifier:dep});
+}
+// CLI error-path smoke test: runs the real executable, loading its actual imported libraries.
+const {spawnSync}=require('node:child_process');
+const smoke=spawnSync(process.execPath,[path.join(root,restoredCapture)],{cwd:root,encoding:'utf8',timeout:12000});
+assert.equal(smoke.status,2,'missing --out must exit 2, indicating the actual script loaded and validated its arguments: '+smoke.stderr);
+assert.match(smoke.stderr,/usage: package-capture\.mjs --out/,'original package-capture CLI error contract');
+assert.deepEqual(source.knownUnresolved,[],'previous two filename/module-presence blockers are resolved');
+assert.equal(source.runtimeNotYetVerified.length,2,'actual Playwright and build execution still require separate validation');
+
+console.log(JSON.stringify({result:'PASS',tool:'design-sync',mapped:source.migrated.length,helpers:source.supporting.length,staticRelativeImports:staticImports,resolvedDynamicAdapters:distinct.length,unresolvedTracked:source.knownUnresolved.length,runtimeLimits:source.runtimeNotYetVerified.length}));

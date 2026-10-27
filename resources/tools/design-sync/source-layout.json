@@ -5,7 +5,7 @@
     {
       "key": "capture.mjs-9e2f2f8b.txt.zst",
       "old": "resources/tools/other/scripts/capture-9e2f2f8b.mjs",
-      "path": "resources/tools/design-sync/capture.mjs",
+      "path": "resources/tools/design-sync/package-capture.mjs",
       "sha": "c10344f12030efa260093335e54a036fc724cef5"
     },
     {
@@ -107,18 +107,24 @@
       "sha": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85"
     }
   ],
-  "knownUnresolved": [
+  "knownUnresolved": [],
+  "runtimeNotYetVerified": [
     {
-      "from": "resources/tools/design-sync/resync.mjs",
-      "module": "./package-capture.mjs",
-      "evidence": "runStage('capture', './package-capture.mjs', args)",
-      "reason": "Original executable not present among recovered 2.1.310 independent script resources"
+      "flow": "package-capture",
+      "reason": "CLI argument/error branch is exercised; actual Playwright Chromium screenshots, output screenshots and grade-writing still require an integration environment",
+      "dependsOn": [
+        "playwright",
+        "chromium",
+        ".design-sync/.cache/review"
+      ]
     },
     {
-      "from": "resources/tools/design-sync/package-build.mjs",
-      "module": "dynamic lib adapter names",
-      "evidence": "BUNDLED_LIB import(new URL(`${name}.mjs`, BUNDLED_LIB))",
-      "reason": "Must enumerate actual runtime-selected names/branches before declaring all package build paths complete"
+      "flow": "package-build",
+      "reason": "All 14 literal loadLib adapter names resolve to a repository source; dynamic runtime-selected overrides and actual esbuild/React toolchain execution have not been tested",
+      "dependsOn": [
+        "esbuild",
+        "optional .design-sync/overrides"
+      ]
     }
   ]
 }

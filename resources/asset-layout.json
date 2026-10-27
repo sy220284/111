@@ -471,7 +471,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "capture.mjs-9e2f2f8b.txt.zst": {
-      "path": "resources/tools/design-sync/capture.mjs",
+      "path": "resources/tools/design-sync/package-capture.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "95e405b84589920957ef7b89f83c3356bf97b3bcf1bae4aa965604f1881bd94e",
