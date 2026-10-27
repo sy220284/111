@@ -88,7 +88,7 @@ npm run verify:runtime
 
 ## v3 新增：2.1.310 插件接口声明与 Hook/流式协议针对性验收
 
-- `resources/tools/plugin-api/types/claude-code-bf9d954c.d.ts` 原始声明不改动；从 `HookStream`、`StreamNext`、`PermissionRequestDecision`、`PreToolUseResult`、`ToolCallInput/ToolCallResult` 等定义提取验收契约，防止误用旧版结构。
+- `resources/tools/plugin-api/types/claude-code.d.ts` 原始声明不改动；从 `HookStream`、`StreamNext`、`PermissionRequestDecision`、`PreToolUseResult`、`ToolCallInput/ToolCallResult` 等定义提取验收契约，防止误用旧版结构。
 - `tests/function-hook-worker-contract.test.cjs` 直接执行 `hooks-worker.js` 中现有 `B/G/z/J/Q/W` 函数，覆盖 next 消息编号、工具操作回执、未加载环境拒绝、卸载中断与流提前关闭。
 - `tests/streaming-tool-contract.test.cjs` 直接执行 `chunk-x3dkgs4r.js` 现有流事件转换/比较函数，覆盖文本、thinking、`input_json_delta`、索引和错误增量；另校验 `chunk-1nnn2mdy.js` 的 Hook 来源和 PreToolUse 规则。
 - `resources/docs/other/permissions_external-*.txt` 属权限策略指导资料，不能作为整个 Claude Code 权限引擎的同一版本可执行规范，未直接复制为权限实现。

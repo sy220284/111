@@ -4,7 +4,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
-const bundle = fs.readFileSync(path.join(root, 'resources/tools/plugin-api/scripts/kit-modules-02f8fcd0.js'), 'utf8');
+const bundle = fs.readFileSync(path.join(root, 'resources/tools/plugin-api/scripts/kit-modules.js'), 'utf8');
 const destination = path.join(root, 'src/plugin-testing-kit');
 const prefix = '@/src/plugins/functionHooks/plugin-test/testing';
 const headers = [...bundle.matchAll(/^\/\/\/\/ ([^\r\n]+)$/gm)];

@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'resources/**'
+      - 'src/embedded/**'
+      - 'tests/check-embedded.cjs'
       - 'runtime/assets.mjs'
       - 'tests/check-naming-layout.cjs'
       - 'tests/runtime-assets.test.mjs'

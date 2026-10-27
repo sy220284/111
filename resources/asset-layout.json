@@ -508,7 +508,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "claude-code.d.ts-bf9d954c.txt.zst": {
-      "path": "resources/tools/plugin-api/types/claude-code-bf9d954c.d.ts",
+      "path": "resources/tools/plugin-api/types/claude-code.d.ts",
       "kind": "typescript-declaration",
       "purpose": "function hook API declarations",
       "compressedSha256": "888e95b7a59851c8edd7d31dff5a66aa279cc384401813ec649a1e52f17bd582",
@@ -883,7 +883,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "kit-modules.js-02f8fcd0.txt.zst": {
-      "path": "resources/tools/plugin-api/scripts/kit-modules-02f8fcd0.js",
+      "path": "resources/tools/plugin-api/scripts/kit-modules.js",
       "kind": "javascript-source",
       "purpose": "embedded JavaScript helper",
       "compressedSha256": "0ef008f6cdc8ec2e63b10482d74f67db62f1bf30a63a9896bcbc935f20f5c51b",

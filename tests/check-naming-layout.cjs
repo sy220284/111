@@ -58,6 +58,16 @@ for (const [key, destination] of Object.entries(normalizedBatchTwo)) {
   assert.equal(layout.entries[key]?.path, destination, `第二批目标路径失配：${key}`);
 }
 
+
+// 插件 API 及测试工具包的规范路径；原始 BunFS 键与字节哈希继续保留。
+const pluginApiCanonical = {
+  "claude-code.d.ts-bf9d954c.txt.zst": "resources/tools/plugin-api/types/claude-code.d.ts",
+  "kit-modules.js-02f8fcd0.txt.zst": "resources/tools/plugin-api/scripts/kit-modules.js"
+};
+for (const [key, target] of Object.entries(pluginApiCanonical)) {
+  assert.equal(layout.entries[key]?.path, target, '插件接口与工具包实际目录失配：'+key);
+}
+
 assert.equal(markdown, 83, 'Markdown 资源数量发生变化');
 assert.equal(skills, 14, '技能入口数量发生变化');
 console.log(JSON.stringify({ result: 'PASS', mappedResources: targetPaths.size, normalizedMarkdown: markdown, skillEntrypoints: skills }));

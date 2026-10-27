@@ -8,7 +8,7 @@ const root=path.resolve(__dirname,'..');
 const source=fs.readFileSync(path.join(root,'src/chunk-pbffp8rf.js'),'utf8');
 const guide=fs.readFileSync(path.join(root,'resources/docs/plugin-authoring/reference.md'),'utf8');
 const schema=fs.readFileSync(path.join(root,'resources/docs/plugin-authoring/component-schemas.md'),'utf8');
-const pluginTypes=fs.readFileSync(path.join(root,'resources/tools/plugin-api/types/claude-code-bf9d954c.d.ts'),'utf8');
+const pluginTypes=fs.readFileSync(path.join(root,'resources/tools/plugin-api/types/claude-code.d.ts'),'utf8');
 function registry(){
   const a=source.indexOf('var Ge = UKr.map(');
   const b=source.indexOf('var XZs =',a);
