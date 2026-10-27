@@ -8,7 +8,13 @@
 // (c) Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 // Version: 2.1.310
-import{d}from"./chunk-fs43t96t.js";import{uVt}from"./chunk-zkq2y8s1.js";import{Kj,$Ne}from"./chunk-qzh3w7y7.js";import{$r}from"./chunk-a2y39866.js";var nio={};$r(nio,{default:()=>nio,endsInARowOf:()=>_gi,unsettledBy:()=>xyr,workerEndingOf:()=>bgi});function _gi(e){let n=Number(e);return Number.isSafeInteger(n)&&n>0?n:0}var xyr=(e)=>({reason:`Error: ${d(e)}`,kind:e instanceof uVt?"passing":"lasting"});var o=5,m=`It did not pass in ${o} tries`,p="it is held for good, or refused to this process",t="Start the daemon again once this is mended.",a=`${m}: ${p}. ${t}`;function bgi(e,n){let r=e.kind==="passing",s=r&&n+1<o,i=r?a:t;return s?{code:$Ne,said:`${e.reason}
+import{d}from"./chunk-fs43t96t.js";import{uVt}from"./chunk-zkq2y8s1.js";import{Kj,$Ne}from"./chunk-qzh3w7y7.js";import{$r}from"./chunk-a2y39866.js";var nio={};$r(nio,{default:()=>nio,endsInARowOf:()=>_gi,unsettledBy:()=>xyr,workerEndingOf:()=>bgi});/** Convert a persisted daemon retry count to a nonnegative safe integer. */
+function parseDaemonAttemptCount(e){let n=Number(e);return Number.isSafeInteger(n)&&n>0?n:0}const _gi=parseDaemonAttemptCount;
+/** Distinguish a transient daemon worker failure from a permanent failure. */
+function classifyDaemonWorkerFailure(e){return{reason:`Error: ${d(e)}`,kind:e instanceof uVt?"passing":"lasting"}};
+const xyr=classifyDaemonWorkerFailure;var o=5,m=`It did not pass in ${o} tries`,p="it is held for good, or refused to this process",t="Start the daemon again once this is mended.",a=`${m}: ${p}. ${t}`;/** Choose retry or terminal shutdown using the daemon's five-attempt ceiling. */
+function chooseDaemonWorkerExit(e,n){let r=e.kind==="passing",s=r&&n+1<o,i=r?a:t;return s?{code:$Ne,said:`${e.reason}
 `}:{code:Kj,said:`${e.reason}
 ${i}
-`}}export{_gi,xyr,bgi,nio};
+`}}const bgi=chooseDaemonWorkerExit;
+export{parseDaemonAttemptCount,classifyDaemonWorkerFailure,chooseDaemonWorkerExit,_gi,xyr,bgi,nio};

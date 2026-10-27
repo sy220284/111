@@ -140,3 +140,5 @@ npm run verify:runtime
 - 阶段 D OAuth `_doRefresh`：补充 `tests/mcp-oauth-refresh-errors.test.cjs`，使用真正类方法验证授权元信息、SDK 错误类型、`invalid_grant`/`invalid_client` 的并发赢家保护、指数退避和失败收尾；Provider 可读类名为 `McpOAuthProvider`，保留原版 `Ben` 短符号。
 
 - 阶段 D MCP 连接：`chunk-fbc1ty1s.js` 的结算函数 `hfr` 恢复为 `applyMcpConnectionSettlement`，旧符号兼容。离线测试覆盖配置过期、账户切换、连接禁用、策略拒绝以及成功安装时工具/命令登记，防止迟到连接覆盖已有状态。
+
+- 阶段 E Daemon：恢复 `chunk-2af27mew.js` 的故障分类、重试计数、退出决策和 `chunk-yhfqc2mr.js` 的状态/日志路径，共 5 个可读函数，保留所有旧符号。新增 5 个边界测试；真实 Daemon 进程、OS 恢复与续跑仍未验收。

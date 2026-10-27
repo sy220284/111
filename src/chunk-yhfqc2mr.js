@@ -8,5 +8,9 @@
 // (c) Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 // Version: 2.1.310
-import{Le}from"./chunk-jazcqqqr.js";import{join as o}from"path";function aD(){return o(Le(),"daemon.json")}function Xpe(){return o(Le(),"daemon.log")}
-export{aD,Xpe};
+import{Le}from"./chunk-jazcqqqr.js";import{join as o}from"path";/** Location of the original daemon.json state file. */
+function getDaemonStateFilePath(){return o(Le(),"daemon.json")}const aD=getDaemonStateFilePath;
+/** Location of the original daemon.log output file. */
+function getDaemonLogFilePath(){return o(Le(),"daemon.log")}
+const Xpe=getDaemonLogFilePath;
+export{getDaemonStateFilePath,getDaemonLogFilePath,aD,Xpe};

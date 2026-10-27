@@ -604,6 +604,46 @@
       "test": "tests/mcp-connection-settlement.test.cjs",
       "role": "mcp-connection-config-and-identity-epoch-guard",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-2af27mew.js",
+      "symbol": "_gi",
+      "anchor": "function parseDaemonAttemptCount(e)",
+      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "role": "daemon-retry-counter-normalization",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-2af27mew.js",
+      "symbol": "xyr",
+      "anchor": "function classifyDaemonWorkerFailure(e)",
+      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "role": "daemon-transient-failure-classification",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-2af27mew.js",
+      "symbol": "bgi",
+      "anchor": "function chooseDaemonWorkerExit(e,n)",
+      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "role": "daemon-retry-ceiling-and-exit-decision",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-yhfqc2mr.js",
+      "symbol": "aD",
+      "anchor": "function getDaemonStateFilePath()",
+      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "role": "daemon-state-file-path",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-yhfqc2mr.js",
+      "symbol": "Xpe",
+      "anchor": "function getDaemonLogFilePath()",
+      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "role": "daemon-log-file-path",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
