@@ -56,6 +56,20 @@ const {spawnSync}=require('node:child_process');
 const smoke=spawnSync(process.execPath,[path.join(root,restoredCapture)],{cwd:root,encoding:'utf8',timeout:12000});
 assert.equal(smoke.status,2,'missing --out must exit 2, indicating the actual script loaded and validated its arguments: '+smoke.stderr);
 assert.match(smoke.stderr,/usage: package-capture\.mjs --out/,'original package-capture CLI error contract');
+// scriptsShaFor actual runtime hash smoke: silent missing-file fallback in hashFile
+// must not conceal a vanished input to the design upload recipe.
+const expectedHashedPaths=[
+  'package-build.mjs','package-validate.mjs','package-capture.mjs','resync.mjs',
+  'storybook/compare.mjs','storybook/http-serve.mjs','storybook/probe.mjs'
+];
+for(const item of expectedHashedPaths)
+ assert.ok(fs.existsSync(path.join(root,'resources/tools/design-sync',item)),'recipe input file missing: '+item);
+const hashProbe=spawnSync(process.execPath,['--input-type=module','--eval',
+  "import {scriptsShaFor} from './resources/tools/design-sync/lib/sync-hashes.mjs'; process.stdout.write(scriptsShaFor());"
+],{cwd:root,encoding:'utf8',timeout:12000});
+assert.equal(hashProbe.status,0,'scriptsShaFor original implementation failed to execute: '+hashProbe.stderr);
+assert.match(hashProbe.stdout,/^[0-9a-f]{16}$/,'source recipe fingerprint must be stable 16-hex string');
+
 assert.deepEqual(source.knownUnresolved,[],'previous two filename/module-presence blockers are resolved');
 assert.equal(source.runtimeNotYetVerified.length,2,'actual Playwright and build execution still require separate validation');
 
