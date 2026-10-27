@@ -25,9 +25,9 @@ for (const entry of records) {
  assert.ok(entry.old!==entry.path && !fs.existsSync(path.join(root,entry.old)), '原始路径未清除：'+entry.old);
  const absolute=path.join(root,entry.path), data=fs.readFileSync(absolute);
  assert.ok(data.length>0 && !data.includes(0), '空文件或非法字节：'+entry.path);
- const blobSha1=crypto.createHash('sha1').update('blob '+data.length+'\\0').update(data).digest('hex');
+ const blobSha1=crypto.createHash('sha1').update('blob '+data.length+String.fromCharCode(0)).update(data).digest('hex');
  assert.equal(blobSha1,entry.gitBlobSha1,'提取源码字节与原始 Git blob 不一致：'+entry.path);
- if (/\\.(?:mjs|js)$/.test(entry.path)) {
+ if (entry.path.endsWith('.mjs') || entry.path.endsWith('.js')) {
    const result=spawnSync(process.execPath,['--check',absolute],{encoding:'utf8'});
    assert.equal(result.status,0,entry.path+': '+result.stderr);
    checkedJavaScript++;
