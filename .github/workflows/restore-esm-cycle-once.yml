@@ -1,0 +1,38 @@
+name: 一次性主源码循环加载修复
+on:
+  push:
+    branches:
+      - fix/v37-ast-evidence-runtime-audit-20261027
+    paths:
+      - 'scripts/restore-esm-cycle-dependency.cjs'
+      - '.github/workflows/restore-esm-cycle-once.yml'
+permissions:
+  contents: write
+jobs:
+  rewrite-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出修复分支
+        uses: actions/checkout@v4
+        with:
+          ref: fix/v37-ast-evidence-runtime-audit-20261027
+          persist-credentials: true
+      - name: Node.js 22.16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装已锁定分析器
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 按源码实际锚点修复循环依赖
+        run: node scripts/restore-esm-cycle-dependency.cjs
+      - name: 重新生成全部函数与调用索引
+        run: npm run rebuild:functions
+      - name: 将修复后的主源码及摘要提交至当前分支
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/chunk-j0tbz6ra.js resources/function-summary.json
+          git diff --cached --quiet && { echo "没有发现预期源码修改"; exit 1; }
+          git commit -m "修复 Recap 循环加载并同步完整函数调用索引"
+          git push origin HEAD:fix/v37-ast-evidence-runtime-audit-20261027
