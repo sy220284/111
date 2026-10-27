@@ -83,3 +83,54 @@ test('实际权限/Hook 来源规则保留显式来源和 PreToolUse 匹配边�
   assert.equal(Whs('tool.check'), 'tool.check');
   assert.equal(Whs('PostToolUse'), undefined);
 });
+
+test('真实模型流工具调用块保持 tool_use id、名称及分块参数的关联', () => {
+  const decoder = source.slice(source.indexOf('function _r(e, n, s)'), source.indexOf('var hr = (e, n, s)'));
+  const block = source.slice(source.indexOf('var hr = (e, n, s)'), source.indexOf('function bwr(e, n)'));
+  assert.ok(block.startsWith('var hr') && block.includes('function Tr(e)'));
+  const { Tr } = vm.runInNewContext(decoder + block + ';({Tr})', {
+    fo: () => undefined,
+    xn: value => value,
+    On: () => ({ output_tokens: 6 })
+  });
+  const blocks = new Map([[4, { kind: 'tool' }]]);
+  const seen = [];
+  const tracker = {
+    latest: () => ({ blocks }),
+    hold: chunk => chunk,
+    filed: (ref, part) => seen.push(part)
+  };
+  const reader = Tr(tracker);
+  const started = reader.chunkOf({ type: 'stream_event', event: {
+    type: 'content_block_start', index: 4,
+    content_block: { type: 'tool_use', id: 'toolu_1', name: 'Read', input: {} }
+  } });
+  assert.equal(started.kind, 'tool');
+  assert.equal(started.id, 'toolu_1');
+  assert.equal(started.name, 'Read');
+  const delta = reader.chunkOf({ type: 'stream_event', event: {
+    type: 'content_block_delta', index: 4, delta: { type: 'input_json_delta', partial_json: '{"file_path":' }
+  } });
+  assert.equal(delta.kind, 'input');
+  assert.equal(delta.index, 4);
+  assert.equal(delta.json, '{"file_path":');
+  assert.equal(seen.length, 2);
+});
+
+test('真实工具结果映射器保留调用 ID，失败结果显式标记 is_error', () => {
+  const toolSource = readFileSync(path.resolve(__dirname, '../src/chunk-g936x3jq.js'), 'utf8');
+  const begin = toolSource.indexOf('mapToolResultToToolResultBlockParam(e, k)');
+  const end = toolSource.indexOf(', renderToolUseMessage', begin);
+  assert.ok(begin > 0 && end > begin);
+  const method = toolSource.slice(begin, end);
+  const mapper = vm.runInNewContext('({' + method + '})').mapToolResultToToolResultBlockParam;
+  const ok = mapper({ success: true, message: 'queued' }, 'toolu_1');
+  const fail = mapper({ success: false, message: 'denied' }, 'toolu_2');
+  assert.equal(ok.tool_use_id, 'toolu_1');
+  assert.equal(ok.type, 'tool_result');
+  assert.equal(ok.is_error, false);
+  assert.equal(ok.content, 'queued');
+  assert.equal(fail.tool_use_id, 'toolu_2');
+  assert.equal(fail.is_error, true);
+  assert.equal(fail.content, 'denied');
+});
