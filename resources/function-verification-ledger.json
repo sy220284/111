@@ -336,7 +336,7 @@
     {
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Gr",
-      "anchor": "function Gr(e)",
+      "anchor": "function findLastInteractiveUserIndex(e)",
       "test": "tests/query-loop-recovery.test.cjs",
       "role": "query-last-interactive-user",
       "status": "targeted_behavior_test_only"

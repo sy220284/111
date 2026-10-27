@@ -11,7 +11,7 @@ const required = {
   engineLoop: 'async function* Ou(',
   perIteration: 'async function* Du()',
   turnGeneratorCall: 'yield* Du()',
-  terminalUserIndex: 'function Gr(e)',
+  terminalUserIndex: 'function findLastInteractiveUserIndex(e)',
   queuedPromptGate: 'function Pu(e)',
   queuedPromptRule: 'function Qf(e, o)'
 };
