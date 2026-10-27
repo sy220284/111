@@ -4,16 +4,17 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
 const root=path.resolve(__dirname,'..');
 const policy=fs.readFileSync(path.join(root,'src/chunk-2af27mew.js'),'utf8');
 const paths=fs.readFileSync(path.join(root,'src/chunk-yhfqc2mr.js'),'utf8');
 
 function policyFixture(){
  const from=policy.indexOf('function parseDaemonAttemptCount(e)');
- const end=policy.indexOf('export{parseDaemonAttemptCount',from);
- assert.ok(from>=0&&end>from,'original 2.1.310 daemon retry decisions missing');
+
+ assert.ok(from>=0,'original 2.1.310 daemon retry decisions missing');
  class PassingFailure extends Error{}
- const api=vm.runInNewContext(policy.slice(from,end)+';({parseDaemonAttemptCount,classifyDaemonWorkerFailure,chooseDaemonWorkerExit,_gi,xyr,bgi})',{
+ const api=vm.runInNewContext(fragmentToModuleExports(policy,'function parseDaemonAttemptCount(e)')+';({parseDaemonAttemptCount,classifyDaemonWorkerFailure,chooseDaemonWorkerExit,_gi,xyr,bgi})',{
   uVt:PassingFailure,
   d:e=>String(e),
   Kj:'fatal', $Ne:'retry'
@@ -22,9 +23,9 @@ function policyFixture(){
 }
 function pathFixture(){
  const from=paths.indexOf('function getDaemonStateFilePath()');
- const end=paths.indexOf('export{getDaemonStateFilePath',from);
- assert.ok(from>=0&&end>from);
- return vm.runInNewContext(paths.slice(from,end)+';({aD,Xpe,getDaemonStateFilePath,getDaemonLogFilePath})',{
+
+ assert.ok(from>=0,'daemon path helpers missing');
+ return vm.runInNewContext(fragmentToModuleExports(paths,'function getDaemonStateFilePath()')+';({aD,Xpe,getDaemonStateFilePath,getDaemonLogFilePath})',{
   Le:()=>'/tmp/claude-state',
   o:path.join
  });

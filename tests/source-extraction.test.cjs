@@ -26,3 +26,22 @@ test('实际主代理与 OAuth 模块的已恢复函数片段不受导出排序�
  assert.doesNotMatch(q,/\nexport\s*\{/);
  assert.doesNotMatch(o,/\nexport\s*\{/);
 });
+
+test('Daemon 真实源码提取容忍出口名单调整，保留原函数别名',()=>{
+ const root=path.resolve(__dirname,'..');
+ for(const [file,start,names] of [
+  ['src/chunk-2af27mew.js','function parseDaemonAttemptCount(e)',[
+    'function parseDaemonAttemptCount(e)','function classifyDaemonWorkerFailure(e)','function chooseDaemonWorkerExit(e,n)'
+  ]],
+  ['src/chunk-yhfqc2mr.js','function getDaemonStateFilePath()',[
+    'function getDaemonStateFilePath()','function getDaemonLogFilePath()'
+  ]]
+ ]){
+  const original=fs.readFileSync(path.join(root,file),'utf8');
+  const fragment=fragmentToModuleExports(original,start);
+  for(const name of names)assert.ok(fragment.includes(name),file+': '+name);
+  // New exports added by subsequent source restoration must not break extraction.
+  const rewritten=original.replace(/\nexport\s*\{[^\n]+\};\s*$/, '\nexport { additionalApi, legacyAlias };');
+  assert.equal(fragmentToModuleExports(rewritten,start),fragment);
+ }
+});
