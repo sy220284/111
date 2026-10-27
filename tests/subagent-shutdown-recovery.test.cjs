@@ -102,5 +102,7 @@ test('Agent 恢复业务命名与原版短符号均保留同一实际函数',()=
  for(const alias of ['const mfo=isSubagentDispatchToolUse',
  'const en=hasMatchedSubagentResult','const Un=normalizeShutdownInterruptedAgentResult'])
  assert.ok(source.includes(alias),alias);
- assert.match(source,/export \{ isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,/);
+ const exported=source.slice(source.lastIndexOf('export {'));
+ for(const name of ['isSubagentDispatchToolUse','hasMatchedSubagentResult','normalizeShutdownInterruptedAgentResult'])
+  assert.ok(exported.includes(name),name+' must remain exported');
 });
