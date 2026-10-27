@@ -37,6 +37,29 @@ test('294 个模块可解析，628 个导入和再导出均指向存在的源码
   assert.equal(edges, 628);
 });
 
+test('294 个插件测试模块完整链接，所有导入名称都由对应模块真实导出', async () => {
+  const files = scan(kit);
+  const modules = new Map(files.map(file => [file, new vm.SourceTextModule(
+    readFileSync(file, 'utf8'), { identifier: file }
+  )]));
+  const resolve = (specifier, from) => {
+    const file = path.resolve(path.dirname(from.identifier), specifier);
+    assert.ok(modules.has(file), from.identifier + ' -> ' + specifier);
+    return modules.get(file);
+  };
+  for (const module of modules.values()) {
+    if (module.status === 'unlinked') await module.link(resolve);
+  }
+  assert.deepEqual([...modules.values()].filter(module => module.status !== 'linked').map(module => module.identifier), []);
+});
+
+test('插件测试包根入口可实际加载公开导出', async () => {
+  const api = await import('../src/plugin-testing-kit/index.js');
+  assert.equal(typeof api.createCollector, 'function');
+  assert.equal(typeof api.equals, 'function');
+  assert.equal(typeof api.run, 'function');
+});
+
 test('实际恢复的结构化相等函数处理对象、循环引用与不等值', async () => {
   const { equals } = await import('../src/plugin-testing-kit/equality/equals/equals.js');
   assert.equal(equals({ x: [1, 2] }, { x: [1, 2] }, 'strict'), true);
