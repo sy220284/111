@@ -101,7 +101,7 @@ test('最后一个交互式用户输入跳过工具结果、元消息与压缩�
 
 test('Queued prompt 闩锁阻止重复终止条件，允许其他不冲突命令',()=>{
  const {Pu,Qf}=queueGate();
- const context={id:'session'};
+ const context='session';
  assert.equal(Qf({drainOnly:true},()=>context),true);
  assert.equal(Qf({screeningPending:true},()=>context),true);
  assert.equal(Qf({promptSubmitted:{under:'session'}},()=>context),true);
