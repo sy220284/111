@@ -161,3 +161,5 @@ npm run verify:runtime
 - 阶段 E Agent 恢复链：`src/chunk-g936x3jq.js` 的 `dwr/cwr/sn` 已恢复具名代码，原短符号兼容。执行级检查覆盖冻结的恢复 agentId、Hook 来源继承、启动中断句柄释放、插件拒绝、历史消息 UUID 父链及压缩 UUID 一致性。未声称所有后台 Agent OS 进程恢复已完成。
 
 - 阶段 E 子代理恢复链：恢复三条 notification/inline/reply 入口、恢复单飞锁 `it` 与 Agent 通知关联结果 `Yn` 的 5 个具名源码，保留原短符号。新增直接执行原函数的子代理并发隔离、正常/异常释放及元数据回填测试；此处并不宣称网络或进程恢复完整验收。
+
+- 子代理续跑错误分类：恢复 `Jgi`/`CF`/`uwr` 为可读函数，保留旧短符号；新增真实源函数测试验证临时/永久错误、插件拒绝类型与 resumedInline 标记，避免恢复失败被误分类。

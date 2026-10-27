@@ -181,11 +181,17 @@ function nn(e) { return e === void 0 || e === null; }
 function Vn({ compactMetadata: e }) { let k = H(e) ? e.preservedMessages : void 0; return H(k) && Array.isArray(k.uuids) ? k.uuids : []; }
 var qn = 2000;
 function rt(e, k) { return `its saved state cannot be read (${E(e) ?? kA(e) ?? "storage error"}), so it cannot be told whether the user stopped it. ${k ? "Send the message again in a moment, or the user" : "The user"} can resume it themselves.`; }
-function Jgi(e) { if (e instanceof Vu)
+/** Preserve known resume errors and classify unknown failures as transient or lasting. */
+function normalizeAgentResumeError(e) { if (e instanceof Vu)
     return e; let k = e instanceof kne || n8(E(e) ?? kA(e)), h = Vt(e) ? rt(e, k) : d(e); return k ? new pL(h) : new Vu(h); }
-function CF(e) { return typeof e === "object" && e !== null && "deniedByPlugin" in e && typeof e.deniedByPlugin === "string"; }
+const Jgi=normalizeAgentResumeError;
+/** Distinguish structured plugin resume denials from general execution failures. */
+function isAgentResumePluginDenial(e) { return typeof e === "object" && e !== null && "deniedByPlugin" in e && typeof e.deniedByPlugin === "string"; }
+const CF=isAgentResumePluginDenial;
 var ot = "resumedInline", Gn = "Background agents cannot be started in this session right now. Send the message again if you still need this agent: it should then run while you wait, and its report will be that call's result.", on = "This agent cannot be resumed in the background in this session. Start a new agent instead.", Kn = /[<>\p{Cc}]|(?![\u200c\u200d])\p{Cf}/u;
-function uwr(e) { return e instanceof Error && ot in e && e[ot] === !0; }
+/** Recognize an error explicitly marked as inline-resumed. */
+function isInlineResumedAgentError(e) { return e instanceof Error && ot in e && e[ot] === !0; }
+const uwr=isInlineResumedAgentError;
 class Vu extends Error {
     transcriptMissing;
     constructor(e, k) { super(e); this.name = "ResumeAgentStateError", this.transcriptMissing = k?.transcriptMissing === !0; }
@@ -531,4 +537,4 @@ const Un=normalizeShutdownInterruptedAgentResult;
 /** Attach joined agent notification metadata when it is actually supplied. */
 function addJoinedAgentNoticeMetadata(e, k, h, b) { return e === void 0 ? b : { ...b, joinedNoticeLengths: e, joinedNoticeOwn: k, joinedNoticeRunIds: h }; }
 const Yn=addJoinedAgentNoticeMetadata;
-export { resumeSubagentForNotification,resumeSubagentInline,resumeSubagentForReply,runSubagentResumeExclusively,addJoinedAgentNoticeMetadata, resumeSubagentWithInheritedHookOrigin,formatPluginResumeDenial,hasCoherentResumedSubagentTranscript,isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };
+export { normalizeAgentResumeError,isAgentResumePluginDenial,isInlineResumedAgentError, resumeSubagentForNotification,resumeSubagentInline,resumeSubagentForReply,runSubagentResumeExclusively,addJoinedAgentNoticeMetadata, resumeSubagentWithInheritedHookOrigin,formatPluginResumeDenial,hasCoherentResumedSubagentTranscript,isSubagentDispatchToolUse,hasMatchedSubagentResult,normalizeShutdownInterruptedAgentResult,lwr, mfo, dwr, cwr, Jgi, CF, uwr, Vu, pL, Z2, eK, rte, Sve, nJ, gfo, fwr };

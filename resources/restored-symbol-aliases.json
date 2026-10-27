@@ -344,6 +344,24 @@
       "legacy": "Yn",
       "readable": "addJoinedAgentNoticeMetadata",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "Jgi",
+      "readable": "normalizeAgentResumeError",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "CF",
+      "readable": "isAgentResumePluginDenial",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-g936x3jq.js",
+      "legacy": "uwr",
+      "readable": "isInlineResumedAgentError",
+      "style": "constAlias"
     }
   ]
 }
