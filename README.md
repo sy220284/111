@@ -81,3 +81,11 @@ npm run verify:runtime
 - 插件测试收集器修复：原件 `test: (name, rest)` 将回调函数直接交给需要可迭代参数数组的 `testCaseOf(title, rest)`，导致实际注册失败；改为 `test: (name, ...rest)`，恢复单回调及带选项两种调用。生成脚本对该改动有明确、可复验的修复规则。
 
 - 完整调用链复查发现公开 `test()` 对 `collector.test()` 的旧式数组传递；已同步改为可变参数展开，并把公开入口的单回调/带选项测试加入 CI，避免仅修复内部方法却破坏实际外部调用。
+
+## v3 新增：2.1.310 插件接口声明与 Hook/流式协议针对性验收
+
+- `resources/tools/plugin-api/types/claude-code-bf9d954c.d.ts` 原始声明不改动；从 `HookStream`、`StreamNext`、`PermissionRequestDecision`、`PreToolUseResult`、`ToolCallInput/ToolCallResult` 等定义提取验收契约，防止误用旧版结构。
+- `tests/function-hook-worker-contract.test.cjs` 直接执行 `hooks-worker.js` 中现有 `B/G/z/J/Q/W` 函数，覆盖 next 消息编号、工具操作回执、未加载环境拒绝、卸载中断与流提前关闭。
+- `tests/streaming-tool-contract.test.cjs` 直接执行 `chunk-x3dkgs4r.js` 现有流事件转换/比较函数，覆盖文本、thinking、`input_json_delta`、索引和错误增量；另校验 `chunk-1nnn2mdy.js` 的 Hook 来源和 PreToolUse 规则。
+- `resources/docs/other/permissions_external-*.txt` 属权限策略指导资料，不能作为整个 Claude Code 权限引擎的同一版本可执行规范，未直接复制为权限实现。
+- 仅新增 2.1.310 源码的针对性回归，不重复处理已完成的 294 份插件测试源码；这些测试不等于完整 Worker 宿主/线上 SSE/工具执行与权限决策端到端等价。

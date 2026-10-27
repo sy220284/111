@@ -10,7 +10,7 @@
   "scripts": {
     "check:source": "node --no-warnings --experimental-vm-modules tests/check-source.cjs",
     "check:version": "node tests/smoke-version.cjs",
-    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit",
+    "test": "npm run check:source && npm run check:embedded && npm run check:resource-map && npm run check:hooks && npm run check:native-audio && npm run check:js-bundles && npm run check:assets && npm run check:version && npm run check:plugin-kit && npm run check:function-hooks-worker && npm run check:streaming-tool-contract",
     "check:embedded": "node tests/check-embedded.cjs",
     "check:assets": "node --test tests/runtime-assets.test.mjs",
     "start": "node bin/claude-310.mjs",
@@ -23,7 +23,9 @@
     "check:native-audio": "node --test tests/native-audio-source.test.cjs",
     "generate:functions": "node scripts/source-function-index.cjs --full",
     "check:plugin-kit": "node --no-warnings --experimental-vm-modules --test tests/plugin-kit-source.test.cjs",
-    "restore:plugin-kit": "node scripts/restore-plugin-testing-kit.cjs"
+    "restore:plugin-kit": "node scripts/restore-plugin-testing-kit.cjs",
+    "check:function-hooks-worker": "node --test tests/function-hook-worker-contract.test.cjs",
+    "check:streaming-tool-contract": "node --test tests/streaming-tool-contract.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"
