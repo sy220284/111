@@ -1380,6 +1380,14 @@
       "test": "tests/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-vn",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Ge",
+      "anchor": "function invokeDaemonInteractiveRunner(",
+      "test": "tests/daemon-control-evidence.test.cjs",
+      "role": "daemon-interactive-runner-bridge",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

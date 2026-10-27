@@ -782,6 +782,12 @@
       "legacy": "vn",
       "readable": "formatDaemonConnectionRetryPrompt",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Ge",
+      "readable": "invokeDaemonInteractiveRunner",
+      "style": "constAlias"
     }
   ]
 }

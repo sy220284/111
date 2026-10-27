@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
 const p=path.resolve(__dirname,'../src/chunk-t2adf9g4.js'),ast=ts.createSourceFile(p,fs.readFileSync(p,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
-const entries={kt:'persistOwnedDaemonBeacon',Kn:'readDaemonGestureFromStorage',He:'parseTerminalKittyKeyEscape',pn:'scanTerminalInterruptSequence',qxn:'hasTerminalInterruptSequence',kn:'verifyDaemonJobOwnership',Heo:'retryDaemonJobUpdate',vn:'formatDaemonConnectionRetryPrompt'};
+const entries={kt:'persistOwnedDaemonBeacon',Kn:'readDaemonGestureFromStorage',He:'parseTerminalKittyKeyEscape',pn:'scanTerminalInterruptSequence',qxn:'hasTerminalInterruptSequence',kn:'verifyDaemonJobOwnership',Heo:'retryDaemonJobUpdate',vn:'formatDaemonConnectionRetryPrompt',Ge:'invokeDaemonInteractiveRunner'};
 function fixture(other={}){
  const src=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&Object.values(entries).includes(n.name?.text)).map(n=>n.getText(ast));
  a.equal(src.length,Object.keys(entries).length);
@@ -9,7 +9,7 @@ function fixture(other={}){
  const ownedBeacons=new Map();
  const deps={Ee:async()=>true,yF:()=>({ownedBeacons}),yt:x=>'beacon:'+x,_:JSON.stringify,Ue:x=>'storage:'+x,ot:1024,nn:x=>{try{return JSON.parse(x)}catch{return null}},Buffer,
   ln:93,cn:3,sr:4,fn:27,mn:Buffer.from('CTRL_C'),dr:9,cr:Buffer.from('CTRL_D'),Et:27,un:99,dt:Buffer.from('ARM'),Te:(buf,pos,pat)=>Buffer.from(buf).subarray(pos,pos+pat.length).equals(pat),
-  Dp:()=>{},lo:async()=>({id:'job'}),WFe:()=>false,Vat:()=>undefined,Mie:async()=>true,xr:async(e,n,opts)=>({e,n,opts}),Qp:()=> 'Daemon',...other};
+  Dp:()=>{},lo:async()=>({id:'job'}),WFe:()=>false,Vat:()=>undefined,Mie:async()=>true,xr:async(e,n,opts)=>({e,n,opts}),Spr:async(e,o)=>({e,o}),Qp:()=> 'Daemon',...other};
  const names=[...Object.keys(entries),...Object.values(entries)].join(',');
  return {...vm.runInNewContext(src.join('\n')+';({'+names+'})',deps),ownedBeacons};
 }
@@ -50,4 +50,10 @@ test('强制更新重试选项以及 Daemon 连接提示保留原版',async()=>{
  const f=fixture(),r=await f.Heo('job',{attempt:1});
  a.deepEqual(JSON.parse(JSON.stringify(r.opts)),{overStream:false,onlyToRetry:false});
  a.match(f.vn(),/Couldn.t reach the Daemon/);a.match(f.vn(),/Press Enter to retry/);
+});
+
+test('交互式执行桥接准确转发业务选项，执行错误不得静默消失',async()=>{
+ const f=fixture(),opts={tag:'work'},r=await f.Ge('daemon','unused',opts);
+ a.equal(r.e,'daemon');a.equal(r.o,opts);
+ await a.rejects(fixture({Spr:async()=>{throw Error('runner failed')}}).Ge('daemon','unused',opts),/runner failed/);
 });
