@@ -17,7 +17,7 @@ function dispatch(){
 }
 function interrupted(){
  const start=source.indexOf('function normalizeShutdownInterruptedAgentResult(e, k)');
- const end=source.indexOf('function Yn(e, k, h, b)',start);
+ const end=source.indexOf('function addJoinedAgentNoticeMetadata(e, k, h, b)',start);
  assert.ok(start>=0&&end>start,'shutdown normalization function missing');
  return vm.runInNewContext(source.slice(start,end)+
  ';({Un,normalizeShutdownInterruptedAgentResult})',{
