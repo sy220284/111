@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
 
 const source = fs.readFileSync(path.resolve(__dirname,'../src/chunk-tqjdehqd.js'),'utf8');
 const migration = fs.readFileSync(path.resolve(__dirname,'../resources/docs/claude-api/model-migration.md'),'utf8');
@@ -30,7 +31,7 @@ function recovery(overrides={}) {
   return vm.runInNewContext(body + ';({Au,Uf,Nf,qf})',context);
 }
 function queueGate(overrides={}) {
-  const body=fragment('function Gr(e)', 'export { describeQueryModelFallback,');
+  const body=fragmentToModuleExports(source,'function Gr(e)');
   return vm.runInNewContext(body+';({Gr,Pu,Qf})',{N7t:(under, current)=>under===current,...overrides});
 }
 

@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
 const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-x436erds.js'),'utf8');
 
 function inFlightFixture({initial={mcpOAuth:{}},preMutation,failMutation=false}={}){
@@ -76,9 +77,8 @@ test('凭据库写入失败只产生日志，不将清理异常冒充登录失�
 });
 function scopeFixture(){
  const start=source.indexOf('function selectMcpOAuthMetadataScope(e)');
- const end=source.indexOf('export{McpOAuthProvider,registerActiveMcpOAuthFlow',start);
- assert.ok(start>0&&end>start,'original OAuth scope helpers missing');
- return vm.runInNewContext(source.slice(start,end)+';({Le,Dhi,Hhi,selectMcpOAuthMetadataScope,includeSupportedOfflineAccessScope,isMicrosoftMcpOAuthIssuer})',{URL});
+ const fragment=fragmentToModuleExports(source,'function selectMcpOAuthMetadataScope(e)');
+ return vm.runInNewContext(fragment+';({Le,Dhi,Hhi,selectMcpOAuthMetadataScope,includeSupportedOfflineAccessScope,isMicrosoftMcpOAuthIssuer})',{URL});
 }
 test('优先明确 scope，然后 default_scope；不对非字符串进行猜测',()=>{
  const f=scopeFixture();
