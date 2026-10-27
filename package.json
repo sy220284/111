@@ -45,7 +45,7 @@
     "check:task-upload-lifecycle": "node --test tests/task-upload-lifecycle.test.cjs",
     "check:mcp-issuer-echo": "node --test tests/mcp-issuer-echo.test.cjs",
     "check:mcp-oauth-lifecycle": "node --test tests/mcp-oauth-lifecycle.test.cjs",
-    "check:tool-layout": "node tests/check-tool-layout.cjs",
+    "check:tool-layout": "node --no-warnings --experimental-vm-modules tests/check-tool-layout.cjs",
     "check:design-sync-layout": "node --no-warnings --experimental-vm-modules tests/check-design-sync-layout.cjs"
   },
   "dependencies": {
