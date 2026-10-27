@@ -8,7 +8,7 @@ const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-fbc1ty1s.js'),
 
 function fixture({clients=[],transient=new Map()}={}){
  const start=source.indexOf('function findRetryableMcpConnections(n, o, e = !0)');
- const end=source.indexOf('async function R6t(n, o, e, u = (s) => hfr(o, s), d)',start);
+ const end=source.indexOf('async function retryFailedMcpConnections(n, o, e, u = (s) => hfr(o, s), d)',start);
  assert.ok(start>=0&&end>start,'real restored MCP retry source is missing');
  const module={getClients:()=>clients};
  const env={
