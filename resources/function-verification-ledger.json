@@ -876,6 +876,46 @@
       "test": "tests/daemon-job-contract.test.cjs",
       "role": "daemon-job-refresh",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "ngr",
+      "anchor": "function isShellAdoptable(e,n)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "adopt-eligibility-ngr",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "lUe",
+      "anchor": "function isCronAdoptable(e,n)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "adopt-eligibility-lUe",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "rgr",
+      "anchor": "function isAgentAdoptable(e,n)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "adopt-eligibility-rgr",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "rIn",
+      "anchor": "function isWorkflowAdoptable(e,n)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "adopt-eligibility-rIn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "u6e",
+      "anchor": "function isTaskMarkedAdoptable(e,n)",
+      "test": "tests/daemon-adoption-contract.test.cjs",
+      "role": "adopt-eligibility-u6e",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

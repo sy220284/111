@@ -16,14 +16,14 @@ function originalFragment(source, begin, end) {
   return source.slice(first, last);
 }
 
-function adoptionFixture() {
+function adoptionFixture(featureEnabled=true) {
   const source = originalFragment(adoptionSource, 'function mcpSettledForAdopt(e)', 'function nIn(e')
-    + '\n' + originalFragment(adoptionSource, 'function ngr(e,n)', 'function Vxt(e,n');
-  return vm.runInNewContext(source + '\n({tgr,mcpSettledForAdopt,Pno,classifyAdoptReconciliationNotice,ngr,lUe,rgr,rIn,u6e})', {
+    + '\n' + originalFragment(adoptionSource, 'function isShellAdoptable(e,n)', 'function Vxt(e,n');
+  return vm.runInNewContext(source + '\n({tgr,mcpSettledForAdopt,Pno,classifyAdoptReconciliationNotice,ngr,lUe,rgr,rIn,u6e,isShellAdoptable,isCronAdoptable,isAgentAdoptable,isWorkflowAdoptable,isTaskMarkedAdoptable})', {
     pp: row => row.kind === 'shell',
     Tn: row => row.kind === 'agent',
     fLr: row => row.kind === 'workflow',
-    SIe: () => true
+    SIe: () => featureEnabled
   });
 }
 
@@ -83,4 +83,29 @@ test('Daemon 不可连接时依照 roster 及 PID/启动时间的探测结果回
   const active = daemonFixture({ reply: { ok: false, code: 'ENOCONN' }, roster, alive: true });
   assert.deepEqual({ ...await dead.probeDaemonJob('job-a', {}) }, { alive: false, present: false, daemonUp: false });
   assert.deepEqual({ ...await active.probeDaemonJob('job-a', {}) }, { alive: true, present: true, daemonUp: false });
+});
+
+test('五个可接管资格具名函数与旧入口共享同一函数',()=>{
+ const api=adoptionFixture();
+ for(const [legacy,readable] of [['ngr','isShellAdoptable'],['lUe','isCronAdoptable'],['rgr','isAgentAdoptable'],['rIn','isWorkflowAdoptable'],['u6e','isTaskMarkedAdoptable']])
+  assert.equal(api[legacy],api[readable],legacy);
+});
+test('接管类型检查与标记规则不互相越权',()=>{
+ const a=adoptionFixture(),flags=new Map([['s',true],['a',true],['w',true]]);
+ assert.equal(a.isShellAdoptable({kind:'shell',id:'s'},flags),true);
+ assert.equal(a.isAgentAdoptable({kind:'agent',id:'a'},flags),true);
+ assert.equal(a.isWorkflowAdoptable({kind:'workflow',id:'w'},flags),true);
+ assert.equal(a.isAgentAdoptable({kind:'shell',id:'a'},flags),false);
+ assert.equal(a.isShellAdoptable({kind:'agent',id:'s'},flags),false);
+ assert.equal(a.isWorkflowAdoptable({kind:'agent',id:'w'},flags),false);
+ assert.equal(a.isTaskMarkedAdoptable({id:'s'},flags),true);
+ assert.equal(a.isTaskMarkedAdoptable({id:'missing'},flags),false);
+});
+test('Cron 接管要求功能启用，子任务还要求父任务可接管',()=>{
+ const on=adoptionFixture(true),off=adoptionFixture(false),flags=new Map([['parent',true]]);
+ assert.equal(on.isCronAdoptable({},flags),true);
+ assert.equal(on.isCronAdoptable({agentId:'parent'},flags),true);
+ assert.equal(on.isCronAdoptable({agentId:'missing'},flags),false);
+ assert.equal(off.isCronAdoptable({},flags),false);
+ assert.equal(off.isCronAdoptable({agentId:'parent'},flags),false);
 });

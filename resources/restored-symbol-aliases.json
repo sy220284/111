@@ -404,6 +404,36 @@
       "legacy": "zat",
       "readable": "refreshDaemonJobRecord",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "ngr",
+      "readable": "isShellAdoptable",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "lUe",
+      "readable": "isCronAdoptable",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "rgr",
+      "readable": "isAgentAdoptable",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "rIn",
+      "readable": "isWorkflowAdoptable",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "u6e",
+      "readable": "isTaskMarkedAdoptable",
+      "style": "constAlias"
     }
   ]
 }
