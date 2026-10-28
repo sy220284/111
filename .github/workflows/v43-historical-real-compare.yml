@@ -75,5 +75,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: 111-v43-real-historical-function-candidates
-          path: |\n            .generated/v43-historical-real-full.json\n            .generated/v44-reviewed-703.json
+          path: |
+            .generated/v43-historical-real-full.json
+            .generated/v44-reviewed-703.json
           retention-days: 30
