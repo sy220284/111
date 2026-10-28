@@ -43,6 +43,7 @@ function analyze(sources, ledger = []) {
     parsed.set(file,ast);
   }
   const modules=new Map(), links=[], external=new Map(), functions=new Map();
+  const unresolvedReasons=Object.create(null);
   const stats={calls:0,resolvedCalls:0,unresolvedCalls:0,dynamicImports:0};
   for(const file of files) {
     const ast=parsed.get(file), importBindings=new Map(), deps=new Set(), exports=new Map(),
@@ -58,9 +59,14 @@ function analyze(sources, ledger = []) {
     for(const stmt of ast.statements) {
       const top=definitionName(stmt);
       if(top) defs.set(top,{file,symbol:top});
+      const isExported=!!stmt.modifiers?.some(x=>x.kind===ts.SyntaxKind.ExportKeyword);
+      const isDefault=!!stmt.modifiers?.some(x=>x.kind===ts.SyntaxKind.DefaultKeyword);
+      if(top && isExported) exports.set(isDefault?'default':top,{file,local:top});
       if(ts.isVariableStatement(stmt)) for(const d of stmt.declarationList.declarations)
-        if(ts.isIdentifier(d.name) && d.initializer && functionLike(d.initializer))
+        if(ts.isIdentifier(d.name) && d.initializer && functionLike(d.initializer)) {
           defs.set(d.name.text,{file,symbol:d.name.text});
+          if(isExported) exports.set(d.name.text,{file,local:d.name.text});
+        }
       if(ts.isImportDeclaration(stmt) && ts.isStringLiteralLike(stmt.moduleSpecifier)){
         const target=addDependency(stmt.moduleSpecifier.text,'import',stmt.getStart(ast));
         const clause=stmt.importClause;
@@ -81,7 +87,7 @@ function analyze(sources, ledger = []) {
         else if(target) exportAll.push(target);
       }
     }
-    modules.set(file,{file,imports:importBindings,deps,defs,exports,exportAll});
+    modules.set(file,{file,imports:importBindings,deps,staticDeps:new Set(deps),defs,exports,exportAll});
   }
   function exportTarget(file,symbol,seen=new Set()){
     if(!file || seen.has(file+'#'+symbol)) return null;
@@ -95,12 +101,38 @@ function analyze(sources, ledger = []) {
       const binding=m.imports.get(out.local);
       if(binding?.target) return exportTarget(binding.target,binding.export,seen);
     }
-    if(m.defs.has(symbol)) return {file,symbol};
     for(const other of m.exportAll) {
-      const found=exportTarget(other,symbol,seen);
+      const found=exportTarget(other,symbol,new Set(seen));
       if(found)return found;
     }
     return null;
+  }
+  // A name+line key collides for compressed JS with several functions on one line.
+  // Use AST start/end offsets as the identity; keep the previous trace prefix readable.
+  function collectNames(pattern,out) {
+    if(!pattern)return;
+    if(ts.isIdentifier(pattern)){out.add(pattern.text);return;}
+    if(ts.isObjectBindingPattern(pattern)||ts.isArrayBindingPattern(pattern))
+      for(const element of pattern.elements){
+        if(ts.isBindingElement(element))collectNames(element.name,out);
+      }
+  }
+  function localBindings(fn){
+    const names=new Set();
+    for(const param of fn.parameters||[])collectNames(param.name,names);
+    function walk(node){
+      if(node!==fn.body && functionLike(node)){
+        if(ts.isFunctionDeclaration(node)&&node.name)names.add(node.name.text);
+        return;
+      }
+      if(ts.isVariableDeclaration(node))collectNames(node.name,names);
+      if(ts.isCatchClause(node)&&node.variableDeclaration)
+        collectNames(node.variableDeclaration.name,names);
+      if(ts.isClassDeclaration(node)&&node.name)names.add(node.name.text);
+      ts.forEachChild(node,walk);
+    }
+    if(fn.body)walk(fn.body);
+    return names;
   }
   const edges=new Map();
   function addEdge(from,to,kind,file,ast,node){
@@ -115,44 +147,69 @@ function analyze(sources, ledger = []) {
   for(const file of files){
     const ast=parsed.get(file), m=modules.get(file);
     let current=null;
+    const activeScopes=[];
     function visit(node) {
       const before=current;
-      if(functionLike(node)) {
+      const isFunction=functionLike(node);
+      if(isFunction) {
+        activeScopes.push(localBindings(node));
         let label=node.name && ts.isIdentifier(node.name)?node.name.text:null;
         if(!label && ts.isVariableDeclaration(node.parent) &&
            ts.isIdentifier(node.parent.name))label=node.parent.name.text;
         if(!label && ts.isPropertyAssignment(node.parent))label=node.parent.name.getText(ast);
         const p=ast.getLineAndCharacterOfPosition(node.getStart(ast));
-        current={file,symbol:label||'<anonymous>@'+(p.line+1),line:p.line+1};
-        functions.set(file+'#'+current.symbol+'@'+current.line,current);
+        const start=node.getStart(ast),end=node.getEnd();
+        current={file,symbol:label||'<anonymous>@'+(p.line+1)+':'+(p.character+1),
+          line:p.line+1,column:p.character+1,start,end};
+        current.id=file+'#'+current.symbol+'@'+current.line+':'+current.column;
+        functions.set(current.id,current);
       }
       if(ts.isCallExpression(node)||ts.isNewExpression(node)) {
         stats.calls++;
-        const exp=node.expression, owner=current ?
-          file+'#'+current.symbol+'@'+current.line :file+'#<module>';
-        let target=null,kind='dynamic_or_property';
+        const exp=node.expression, owner=current ? current.id :file+'#<module>';
+        let target=null,kind='dynamic_or_property',reason='complex_callable_expression';
         if(ts.isIdentifier(exp)){
-          const binding=m.imports.get(exp.text);
-          if(binding?.target && !binding.namespace) {
-            target=exportTarget(binding.target,binding.export);
-            if(target)kind='import_binding_candidate';
-          }else if(m.defs.has(exp.text)){
-            target=m.defs.get(exp.text);
-            kind='same_module_candidate';
+          const shadowed=activeScopes.some(s=>s.has(exp.text));
+          if(shadowed)reason='local_binding_or_parameter';
+          else {
+            const binding=m.imports.get(exp.text);
+            if(binding?.target && !binding.namespace) {
+              target=exportTarget(binding.target,binding.export);
+              if(target)kind='import_binding_candidate';
+              else reason='import_without_proven_export';
+            }else if(m.defs.has(exp.text)){
+              target=m.defs.get(exp.text);
+              kind='same_module_candidate';
+            }else reason='unknown_identifier';
           }
         }else if(ts.isPropertyAccessExpression(exp)&&ts.isIdentifier(exp.expression)){
           const ns=m.imports.get(exp.expression.text);
-          if(ns?.target && ns.namespace){
+          if(ns?.target && ns.namespace && !activeScopes.some(s=>s.has(exp.expression.text))){
             target=exportTarget(ns.target,exp.name.text);
             if(target)kind='namespace_import_candidate';
           }
+          if(!target)reason='property_or_namespace_unresolved';
+        }else if(ts.isPropertyAccessExpression(exp)||ts.isElementAccessExpression(exp)){
+          reason='dynamic_property';
         }
-        if(target)stats.resolvedCalls++;else stats.unresolvedCalls++;
-        // Keep unresolved call counts without fabricating a callee.
+        if(ts.isCallExpression(node) && exp.kind===ts.SyntaxKind.ImportKeyword){
+          stats.dynamicImports++;
+          reason='dynamic_import';
+          if(node.arguments?.length===1&&ts.isStringLiteralLike(node.arguments[0])){
+            const spec=node.arguments[0].text;
+            const dep=resolve(file,spec,known);
+            if(dep)m.deps.add(dep);
+            else if(spec.startsWith('.'))errors.push({file,offset:node.getStart(ast),
+              message:'unresolved literal dynamic import '+spec});
+          }
+        }
+        if(target)stats.resolvedCalls++;
+        else { stats.unresolvedCalls++;unresolvedReasons[reason]=(unresolvedReasons[reason]||0)+1; }
+        // Never fabricate dynamic call targets or treat a candidate as executed.
         if(target)addEdge(owner,target,kind,file,ast,node);
-        if(ts.isCallExpression(node) && exp.kind===ts.SyntaxKind.ImportKeyword)stats.dynamicImports++;
       }
       ts.forEachChild(node,visit);
+      if(isFunction)activeScopes.pop();
       current=before;
     }
     visit(ast);
@@ -167,13 +224,13 @@ function analyze(sources, ledger = []) {
   const stack=[],indices=new Map(),low=new Map(),onStack=new Set(),cycles=[];
   function strong(v){
     indices.set(v,counter);low.set(v,counter++);stack.push(v);onStack.add(v);
-    for(const w of modules.get(v).deps){
+    for(const w of modules.get(v).staticDeps){
       if(!indices.has(w)){strong(w);low.set(v,Math.min(low.get(v),low.get(w)));}
       else if(onStack.has(w))low.set(v,Math.min(low.get(v),indices.get(w)));
     }
     if(low.get(v)===indices.get(v)){
       const s=[];let w;do{w=stack.pop();onStack.delete(w);s.push(w)}while(w!==v);
-      if(s.length>1 || modules.get(v).deps.has(v))cycles.push(s.sort());
+      if(s.length>1 || modules.get(v).staticDeps.has(v))cycles.push(s.sort());
     }
   }
   for(const f of files)if(!indices.has(f))strong(f);
@@ -184,10 +241,14 @@ function analyze(sources, ledger = []) {
   return {
     schema:1,kind:'111-evidence-code-graph',errors,
     summary:{modules:files.length,moduleDependencies:moduleDeps.reduce((a,b)=>a+b.dependsOn.length,0),
+      staticModuleDependencies:[...modules.values()].reduce((a,m)=>a+m.staticDeps.size,0),
+      cyclesScope:'static-import-export-only',
       externalSpecifiers:[...external.keys()].sort(),cyclicGroups:cycles.length,
       functionEntities:functions.size,callExpressions:stats.calls,
       candidateResolvedCalls:stats.resolvedCalls,unresolvedCallExpressions:stats.unresolvedCalls,
       uniqueCandidateEdges:uniqueEdges.length,recordedSemantics:semantics.length,
+      unresolvedReasons:Object.fromEntries(Object.entries(unresolvedReasons).sort()),
+      functionIdentity:'file+lexical-symbol+AST start line/column; no same-line collisions',
       warning:'Calls are syntax/lexical/import candidates, NOT proven runtime call targets. Ledger roles are targeted-test evidence, NOT full semantic restoration.'},
     modules:moduleDeps, cycles, callEdges:uniqueEdges, semantics
   };

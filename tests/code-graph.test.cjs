@@ -59,3 +59,51 @@ test('repository source selection includes embedded worker and both runtime adap
   assert.ok(files.includes('runtime/assets.mjs'));
   assert.ok(files.includes('runtime/string-width.mjs'));
 });
+
+test('function positions disambiguate same-line anonymous and named functions',()=>{
+  const g=analyze({'src/a.js':'const a=()=>1,b=()=>2; const c=(v)=>v;'});
+  assert.equal(g.summary.functionEntities,3);
+  assert.match(g.summary.functionIdentity,/same-line/);
+});
+test('unexported function is NOT a proven cross-file import target',()=>{
+  const g=analyze({'src/a.js':'function privateFn(){}','src/b.js':
+    'import { privateFn } from "./a.js";export function run(){privateFn();}'});
+  assert.equal(g.summary.candidateResolvedCalls,0);
+  assert.equal(g.summary.unresolvedReasons.import_without_proven_export,1);
+});
+test('declared export function / const and default function are recognized',()=>{
+  const g=analyze({
+    'src/a.js':'export function named(){};export const f=()=>1;export default function primary(){}',
+    'src/b.js':'import primary,{named,f} from "./a.js";function run(){named();f();primary()}'
+  });
+  assert.equal(g.summary.candidateResolvedCalls,3);
+});
+test('local parameters mask same-module globals and import aliases',()=>{
+  const g=analyze({
+    'src/a.js':'export function fn(){}',
+    'src/b.js':'import {fn} from "./a.js";function run(fn){fn();}',
+    'src/c.js':'function g(){};function outer(g){g();}'
+  });
+  assert.equal(g.summary.candidateResolvedCalls,0);
+  assert.equal(g.summary.unresolvedReasons.local_binding_or_parameter,2);
+});
+test('literal dynamic imports add real dependency without inventing a function call',()=>{
+  const g=analyze({
+    'src/a.js':'async function run(){return import("./b.js")}',
+    'src/b.js':'export function f(){}'
+  });
+  assert.equal(g.summary.moduleDependencies,1);
+  assert.equal(g.summary.unresolvedReasons.dynamic_import,1);
+});
+
+test('lazy dynamic import does not count as an eager/static cycle',()=>{
+ const g=analyze({
+   'src/a.js':'import "./b.js"; export async function load(){return import("./c.js")}',
+   'src/b.js':'export const b=1;',
+   'src/c.js':'import "./a.js";export const c=2;'
+ });
+ assert.equal(g.summary.moduleDependencies,3);
+ assert.equal(g.summary.staticModuleDependencies,2);
+ assert.equal(g.summary.cyclicGroups,0);
+ assert.equal(g.summary.cyclesScope,'static-import-export-only');
+});
