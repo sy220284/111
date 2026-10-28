@@ -84,7 +84,7 @@ bash tools/dev/ai-toolchain.sh plan --profile reverse
 # 将同一次 Actions 运行的两个组件解压到 /path/to/artifacts/<组件名>/
 bash tools/dev/ai-toolchain.sh bootstrap --profile reverse --artifacts-dir /path/to/artifacts
 bash tools/dev/ai-toolchain.sh check --profile reverse
-bash tools/dev/ai-toolchain.sh run -- bash tools/analysis/ghidra-headless.sh \
+bash tools/dev/ai-toolchain.sh run --profile reverse -- bash tools/analysis/ghidra-headless.sh \
   --input /path/to/native-binary --output /path/to/evidence
 ```
 
