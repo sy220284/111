@@ -45,7 +45,7 @@ function analyze(sources, ledger = []) {
   // Recovered minified code often uses var. Follow var/let only when the
   // identifier and its visible properties have no explicit write anywhere in
   // the module; file-wide name checking is intentionally conservative.
-  const unsafeByFile=new Map();
+  const unsafeByFile=new Map(),propertyMutationsByFile=new Map();
   function assignmentRoot(node){
     while(node&&(ts.isParenthesizedExpression(node)||
       ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node)))
@@ -53,10 +53,18 @@ function analyze(sources, ledger = []) {
     return node&&ts.isIdentifier(node)?node.text:null;
   }
   for(const file of files){
-    const unsafe=new Set(),ast=parsed.get(file);
+    const unsafe=new Set(),propertyMutations=new Set(),ast=parsed.get(file);
     function mark(node){
       const name=assignmentRoot(node);
-      if(name)unsafe.add(name);
+      if(name){
+        unsafe.add(name);
+        // Rebinding `alias=other` does not mutate the object held by an
+        // independent alias. Only `alias.member=...`, delete and updates
+        // propagate invalidation through the object identity group.
+        while(ts.isParenthesizedExpression(node))node=node.expression;
+        if(ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node))
+          propertyMutations.add(name);
+      }
     }
     function findWrites(node){
       if(ts.isBinaryExpression(node)&&
@@ -74,7 +82,27 @@ function analyze(sources, ledger = []) {
       ts.forEachChild(node,findWrites);
     }
     findWrites(ast);
+    // Propagate *property mutations*, not standalone binding reassignments.
+    // Module-local aliases can share object identity, but `b=unknown` does
+    // not mutate `a`. Nested lexical scopes remain separate below.
+    const neighbors=new Map();
+    for(const stmt of ast.statements)if(ts.isVariableStatement(stmt))
+      for(const d of stmt.declarationList.declarations)
+        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isIdentifier(d.initializer)){
+          const a=d.name.text,b=d.initializer.text;
+          if(!neighbors.has(a))neighbors.set(a,new Set());
+          if(!neighbors.has(b))neighbors.set(b,new Set());
+          neighbors.get(a).add(b);neighbors.get(b).add(a);
+        }
+    const queue=[...propertyMutations];
+    for(let i=0;i<queue.length;i++)
+      for(const other of neighbors.get(queue[i])||[])
+        if(!propertyMutations.has(other)){
+          propertyMutations.add(other);queue.push(other);
+        }
+    for(const name of propertyMutations)unsafe.add(name);
     unsafeByFile.set(file,unsafe);
+    propertyMutationsByFile.set(file,propertyMutations);
   }
   const modules=new Map(), links=[], external=new Map(), functions=new Map();
   const unresolvedReasons=Object.create(null),unresolvedCallsites=[];
@@ -151,7 +179,10 @@ function analyze(sources, ledger = []) {
     const out=m.exports.get(symbol);
     if(out) {
       if(out.file!==file) return exportTarget(out.file,out.local,seen);
-      if(m.defs.has(out.local))return m.defs.get(out.local);
+      // ESM exports are live bindings. Reassigning an exported function
+      // invalidates the old implementation as a static callee candidate.
+      if(m.defs.has(out.local) && !unsafeByFile.get(file)?.has(out.local))
+        return m.defs.get(out.local);
       const binding=m.imports.get(out.local);
       if(binding?.target) return exportTarget(binding.target,binding.export,seen);
     }
@@ -286,13 +317,33 @@ function analyze(sources, ledger = []) {
   function scopedBindings(fn,file,ast,localNames){
     const callables=new Map(),objects=new Map(),keys=new Map(),aliases=[];
     if(!fn.body||!ts.isBlock(fn.body))return {callables,objects,keys};
+    // A mutation through any direct lexical alias invalidates all aliases
+    // of the same local object. Unlike module-scoped names, process only
+    // this function body to avoid conflating minified names across functions.
+    const localPoison=new Set(unsafeByFile.get(file)||[]);
+    const contagious=new Set(propertyMutationsByFile.get(file)||[]);
+    const pairs=[];
+    for(const stmt of fn.body.statements)if(ts.isVariableStatement(stmt))
+      for(const d of stmt.declarationList.declarations)
+        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isIdentifier(d.initializer))
+          pairs.push([d.name.text,d.initializer.text]);
+    for(let pass=0;pass<pairs.length;pass++){
+      let changed=false;
+      for(const [alias,original] of pairs)
+        if(contagious.has(alias)||contagious.has(original)){
+          if(!contagious.has(alias)){contagious.add(alias);changed=true;}
+          if(!contagious.has(original)){contagious.add(original);changed=true;}
+          localPoison.add(alias);localPoison.add(original);
+        }
+      if(!changed)break;
+    }
     for(const stmt of fn.body.statements){
       if(ts.isFunctionDeclaration(stmt)&&stmt.name)
         callables.set(stmt.name.text,nodeTarget(stmt,file,ast,stmt.name.text));
       if(!ts.isVariableStatement(stmt))continue;
       for(const d of stmt.declarationList.declarations){
         if(!ts.isIdentifier(d.name)||!d.initializer||
-           unsafeByFile.get(file).has(d.name.text))continue;
+           localPoison.has(d.name.text))continue;
         if(functionLike(d.initializer))
           callables.set(d.name.text,nodeTarget(d.initializer,file,ast,
             d.initializer.name?.text||d.name.text));
@@ -309,6 +360,7 @@ function analyze(sources, ledger = []) {
     for(let pass=0;pass<aliases.length;pass++){
       let changed=false;
       for(const [alias,original] of aliases){
+        if(localPoison.has(alias)||localPoison.has(original))continue;
         if(!callables.has(alias)&&callables.has(original)){
           callables.set(alias,callables.get(original));changed=true;
         }
@@ -450,7 +502,7 @@ function analyze(sources, ledger = []) {
               target=exportTarget(binding.target,binding.export);
               if(target)kind='import_binding_candidate';
               else reason='import_without_proven_export';
-            }else if(m.defs.has(callee.text)){
+            }else if(m.defs.has(callee.text) && !unsafeByFile.get(file).has(callee.text)){
               target=m.defs.get(callee.text);
               kind='same_module_candidate';
             }else reason='unknown_identifier';

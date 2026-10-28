@@ -312,3 +312,68 @@ test('函数内未重赋值 var 对象可解析，重赋值的同名 minified �
  assert.equal(g.summary.candidateResolvedCalls,0);
  assert.equal(g.summary.unresolvedCallExpressions,2);
 });
+
+
+test('top-level aliases inherit property mutations and never fabricate stale static dispatch',()=>{
+ const g=analyze({'src/alias.js':
+  'var original={run(){}}; var alias=original; var c=alias;'+
+  'c.run=()=>42;original.run();alias.run();c.run();'+
+  'var safe={go(){}};var other=safe;other.go()'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,3);
+ assert.equal(g.callEdges[0].to.symbol,'go');
+});
+test('top-level function declaration reassignment invalidates its static candidate',()=>{
+ const g=analyze({'src/a.js':
+   'function changed(){return 1}changed=()=>2;changed();'+
+   'function stable(){return 1}stable()'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,1);
+ assert.equal(g.callEdges[0].to.symbol,'stable');
+});
+
+
+test('local object alias method rewrite invalidates only its enclosing function body',()=>{
+ const g=analyze({'src/local.js':
+   'function damaged(){var origin={go(){}};var b=origin;b.go=()=>0;origin.go();b.go()}'+
+   'function untouched(){var origin={go(){}};origin.go()}'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+ assert.equal(g.callEdges[0].kind,'lexical_object_method_candidate');
+});
+
+
+test('uninitialized var declarations remain valid while alias safety analysis scans them',()=>{
+ const g=analyze({'src/uninitialized.js':
+  'var placeholder;var original={run(){}};var stable=original;stable.run();'+
+  'function inner(){var other;var local={go(){}};local.go()}'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+});
+
+
+test('reassigned exported function has no stale ESM live-binding candidate',()=>{
+ const g=analyze({
+  'src/api.js':'export function changed(){return 1};changed=()=>2;export function stable(){return 3}',
+  'src/client.js':'import {changed,stable} from "./api.js";changed();stable()'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,1);
+ assert.equal(g.callEdges[0].to.symbol,'stable');
+ assert.equal(g.unresolvedCallsites[0].reason,'import_without_proven_export');
+});
+
+
+test('Jelly triage Python contract executes with real unittest assertions',()=>{
+ const cp=require('node:child_process');
+ const r=cp.spawnSync('python3',['-m','unittest','discover','-s','tests',
+   '-p','test_jelly_triage.py','-v'],{cwd:path.resolve(__dirname,'..'),
+   encoding:'utf8',timeout:15000,maxBuffer:1024*1024});
+ assert.equal(r.status,0,(r.error?.message||'')+'\n'+r.stdout+'\n'+r.stderr);
+ assert.match(r.stderr,/Ran [3-9] tests?/);
+});
