@@ -122,7 +122,7 @@ test('测试工作不能谎称纯文档',()=>{
 test('治理配置仅允许仓库约定治理文件',()=>{
   const accepted=auditDelivery({title:'修正门禁',body:'交付类别：治理配置\n不计入功能恢复',
     changed:['AGENTS.md','.github/workflows/restoration-delivery-gate.yml',
-      'scripts/check-restoration-delivery.cjs','tests/restoration-delivery-gate.test.cjs']});
+      'scripts/check-restoration-delivery.cjs','tests/governance/restoration-delivery-gate.test.cjs']});
   assert.equal(accepted.ok,true,accepted.errors.join('\n'));
   rejected(auditDelivery({title:'治理',body:'交付类别：治理配置\n不计入功能恢复',
     changed:['scripts/restore-plugin-testing-kit.cjs']}),'交付类别与实际修改范围不符');
@@ -275,13 +275,13 @@ test('目录整理拒绝没有迁移证据、测试或混入运行时文件',()=
 
 
 test('治理配置保留原路径与新目录的门禁回归测试文件白名单',()=>{
-  assert.equal(categoryPathAllowed('治理配置','tests/restoration-delivery-gate.test.cjs'),true);
+  assert.equal(categoryPathAllowed('治理配置','tests/governance/restoration-delivery-gate.test.cjs'),true);
   assert.equal(categoryPathAllowed('治理配置','tests/governance/restoration-delivery-gate.test.cjs'),true);
   assert.equal(categoryPathAllowed('治理配置','tests/agents/agent-resume-errors.test.cjs'),false);
 });
 
 test('真实历史703用例仅迁移时委托专用完整工作流，其他场景不跳过',()=>{
-  const previous='tests/v44-real-historical-703.test.cjs';
+  const previous='tests/restoration/v44-real-historical-703.test.cjs';
   const current='tests/restoration/v44-real-historical-703.test.cjs';
   const workflow='pull_request:\\n- tests/restoration/v44-real-historical-703.test.cjs\\nnode --test tests/restoration/v44-real-historical-703.test.cjs\\n--expected 703\\nOLD_SOURCE_ROOT';
   const change={oldPath:previous,path:current,status:'R100'};
@@ -290,4 +290,20 @@ test('真实历史703用例仅迁移时委托专用完整工作流，其他场�
   assert.equal(delegatedHistoricalRename({...change,status:'M'},'目录整理',workflow),false);
   assert.equal(delegatedHistoricalRename({...change,oldPath:'tests/unrelated.test.cjs'},'目录整理',workflow),false);
   assert.throws(()=>delegatedHistoricalRename(change,'目录整理','pull_request:\\nnode --test tests/restoration/v44-real-historical-703.test.cjs'),/不得绕过/);
+});
+
+
+test('目录整理对经过Git原始字节及清单验证的独立源码重命名单独认可',()=>{
+ const old='embedded/runtime/state-library.js',current='embedded/runtime/state-library.js';
+ const base={title:'独立源码归档',body:'交付类别：目录整理\n不计入功能恢复',
+  changed:[old,current,'resources/layout/relocations.json','docs/architecture/structure.md','tests/runtime/a.test.cjs'],
+  testChanges:[{path:'tests/runtime/a.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.ok(true));",status:'A'}]};
+ const before=auditDelivery(base);
+ assert.equal(before.ok,false);
+ assert.ok(before.errors.some(x=>x.includes('运行态源码')));
+ const accepted=auditDelivery({...base,verifiedRelocations:[{old,current}]});
+ assert.equal(accepted.ok,true,accepted.errors.join('\\n'));
+ const modified=auditDelivery({...base,changed:[...base.changed,'src/chunk-target.js'],verifiedRelocations:[{old,current}]});
+ assert.equal(modified.ok,false);
+ assert.ok(modified.errors.some(x=>x.includes('运行态源码')));
 });

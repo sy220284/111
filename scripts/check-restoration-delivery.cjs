@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const cp = require('node:child_process');
 const path = require('node:path');
 const ts = require('typescript');
+const crypto=require('node:crypto');
 
 const CATEGORIES = new Set(['功能恢复','缺陷修复','独立测试','工具维护','文档维护','治理配置','目录整理']);
 const FUNCTIONAL = new Set(['功能恢复','缺陷修复']);
@@ -163,11 +164,12 @@ function checkScriptIntegrity(before, after) {
   }
   return errors;
 }
-function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null}) {
+function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null,verifiedRelocations=[]}) {
   const errors=[], warnings=[];
   const category=field(body,'交付类别');
   if (!CATEGORIES.has(category)) errors.push('必须声明唯一有效的交付类别');
-  const implementation=changed.filter(businessPath);
+  const sanctioned=category==='目录整理'?new Set(verifiedRelocations.flatMap(x=>[x.old,x.current])):new Set();
+  const implementation=changed.filter(p=>businessPath(p)&&!sanctioned.has(p));
   const tests=changed.filter(testPath);
   const isFunction=FUNCTIONAL.has(category);
   const statusByPath=new Map([...sourceChanges,...testChanges].map(x=>[x.path,x]));
@@ -202,7 +204,7 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
   } else if (CATEGORIES.has(category)) {
     if (!/^\s*不计入功能恢复\s*$/m.test(body)) errors.push('非恢复类必须独立声明“不计入功能恢复”');
     if (implementation.length) errors.push('非恢复类不得夹带运行态源码或资源变更');
-    const unexpected=changed.filter(p=>!categoryPathAllowed(category,p));
+    const unexpected=changed.filter(p=>!categoryPathAllowed(category,p)&&!sanctioned.has(p));
     if (unexpected.length) errors.push('交付类别与实际修改范围不符：'+unexpected.join(', '));
     if (category==='独立测试' && !tests.length) errors.push('独立测试类没有实际修改测试');
     if(category==='目录整理'){
@@ -298,6 +300,29 @@ function delegatedHistoricalRename(change, category, workflow) {
     throw Error('历史 703 项测试必须由完整的专用工作流执行，不得绕过');
   return true;
 }
+// 目录整理只认可原始模块的逐字节重命名；需要原基线 Git blob、
+// 固定的新路径和搬迁清单三者相互吻合，绝不豁免真实业务代码变更。
+function verifiedStandaloneSourceMoves(changes,head){
+ const data=gitAt(head,'resources/layout/relocations.json');
+ if(!data)return [];
+ const manifest=JSON.parse(data.toString('utf8'));
+ const records=new Map(manifest.files.map(e=>[e.old,e]));
+ const approved=[];
+ for(const change of changes.diffs){
+  const old=change.oldPath;
+  const dest=old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
+    old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):old;
+  if(dest===old||change.path!==dest||change.status!=='R100')continue;
+  const row=records.get(old);
+  if(!row||row.current!==dest||!['embedded-source','plugin-source'].includes(row.kind))continue;
+  const before=gitAt(changes.ancestor,old),after=gitAt(head,change.path);
+  if(!before||!after||!before.equals(after))continue;
+  const blob=crypto.createHash('sha1').update('blob '+before.length+String.fromCharCode(0)).update(before).digest('hex');
+  if(row.originalGitBlob!==blob)continue;
+  approved.push({old,current:dest});
+ }
+ return approved;
+}
 function runChangedTests(report, changes) {
   if(!report.ok) return;
   if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试' && report.category!=='目录整理') return;
@@ -324,6 +349,7 @@ function main() {
     title:event.pull_request.title,body:event.pull_request.body,
     changed:changes.changed,
     sourceChanges:changes.sourceChanges,testChanges:changes.testChanges,
+    verifiedRelocations:verifiedStandaloneSourceMoves(changes,event.pull_request.head.sha),
     packageBefore:gitAt(changes.ancestor,'package.json'),
     packageAfter:gitAt(event.pull_request.head.sha,'package.json')
   });
@@ -348,4 +374,4 @@ function main() {
 }
 if(require.main===module)main();
 module.exports={field,businessPath,testPath,docPath,categoryPathAllowed,astShape,
-  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename};
+  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename,verifiedStandaloneSourceMoves};
