@@ -312,3 +312,24 @@ test('函数内未重赋值 var 对象可解析，重赋值的同名 minified �
  assert.equal(g.summary.candidateResolvedCalls,0);
  assert.equal(g.summary.unresolvedCallExpressions,2);
 });
+
+
+test('top-level aliases inherit property mutations and never fabricate stale static dispatch',()=>{
+ const g=analyze({'src/alias.js':
+  'var original={run(){}}; var alias=original; var c=alias;'+
+  'c.run=()=>42;original.run();alias.run();c.run();'+
+  'var safe={go(){}};var other=safe;other.go()'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,3);
+ assert.equal(g.callEdges[0].to.symbol,'go');
+});
+test('top-level callable initializer reassignment invalidates same-module candidate',()=>{
+ const g=analyze({'src/a.js':
+   'var changed=()=>1;changed=()=>2;changed();'+
+   'const stable=()=>1;stable()'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,1);
+ assert.equal(g.callEdges[0].to.symbol,'stable');
+});
