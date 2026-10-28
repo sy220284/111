@@ -7,7 +7,7 @@ const path=require('node:path');
 const cp=require('node:child_process');
 const {
   field,businessPath,testPath,categoryPathAllowed,classifyCodeChange,registeredTest,
-  auditDelivery,gitDiff
+  auditDelivery,gitDiff,inspectGit
 }=require('../scripts/check-restoration-delivery.cjs');
 
 const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
@@ -182,4 +182,43 @@ test('真实 git rename/delete/create 名称和状态不丢失',()=>{
     assert.ok(diffs.some(x=>x.status==='D'&&x.path==='old.js'));
     assert.ok(diffs.some(x=>x.status==='A'&&x.path==='added.js'));
   } finally {process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('源码重命名到 docs 仍识别为源码删除，不能用文档类别绕过',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-gate-rename-')),cwd=process.cwd();
+  function g(...args){return cp.execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim()}
+  try {
+    g('init','-q');g('config','user.email','gate@example.com');g('config','user.name','Gate Test');
+    fs.mkdirSync(path.join(dir,'src'));fs.mkdirSync(path.join(dir,'docs'));
+    fs.writeFileSync(path.join(dir,'src','active.js'),'export function active(){return 1}\n');
+    g('add','.');g('commit','-qm','初始');const base=g('rev-parse','HEAD');
+    fs.renameSync(path.join(dir,'src','active.js'),path.join(dir,'docs','active.js'));
+    g('add','-A');g('commit','-qm','改名');const head=g('rev-parse','HEAD');
+    process.chdir(dir);
+    const actual=inspectGit({pull_request:{base:{sha:base},head:{sha:head}}});
+    assert.ok(actual.changed.includes('src/active.js'));
+    assert.ok(actual.changed.includes('docs/active.js'));
+    const r=auditDelivery({title:'文档整理',body:'交付类别：文档维护\n不计入功能恢复',
+      changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
+    rejected(r,'非恢复类不得夹带运行态源码');
+  }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('测试文件重命名成文档不得逃避有效测试检查',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-gate-test-rename-')),cwd=process.cwd();
+  function g(...args){return cp.execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim()}
+  try {
+    g('init','-q');g('config','user.email','gate@example.com');g('config','user.name','Gate Test');
+    fs.mkdirSync(path.join(dir,'tests'));fs.mkdirSync(path.join(dir,'docs'));
+    fs.writeFileSync(path.join(dir,'tests','old.test.cjs'),"test('active',()=>assert.ok(true))\n");
+    g('add','.');g('commit','-qm','初始');const base=g('rev-parse','HEAD');
+    fs.renameSync(path.join(dir,'tests','old.test.cjs'),path.join(dir,'docs','old.test.cjs'));
+    g('add','-A');g('commit','-qm','改名');const head=g('rev-parse','HEAD');
+    process.chdir(dir);
+    const actual=inspectGit({pull_request:{base:{sha:base},head:{sha:head}}});
+    assert.ok(actual.changed.includes('tests/old.test.cjs'));
+    const r=auditDelivery({title:'整理文档',body:'交付类别：文档维护\n不计入功能恢复',
+      changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
+    rejected(r,'交付类别与实际修改范围不符');
+  }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
 });
