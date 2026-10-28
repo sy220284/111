@@ -39,7 +39,7 @@ test('原生音频：原始平台回退搜索顺序',()=>{
  assert.equal(audio.isNativeRecordingActive(),false);
  assert.deepEqual(attempts,[
  './vendor/audio-capture/x64-linux/audio-capture.node',
- '../../audio-capture/x64-linux/audio-capture.node',
+ '../audio-capture/x64-linux/audio-capture.node',
  './vendor/audio-capture/x64-linux-musl/audio-capture.node',
  ]);
 });
