@@ -81,3 +81,12 @@ test('设计同步与浏览器工具归属固定、保留已知未验证的真�
  assert.equal(design.runtimeNotYetVerified.length,2);
  assert.deepEqual(design.knownUnresolved,[]);
 });
+
+test('Claude Test独立ctbrowser入口保留原版拒绝门禁，不能绕过受限浏览器宿主',()=>{
+ const {spawnSync}=require('node:child_process');
+ const script=path.join(root,'resources/tools/claude-test/scripts/ctbrowser.mjs');
+ const actual=spawnSync(process.execPath,[script,'--help'],{cwd:root,encoding:'utf8',timeout:10000});
+ assert.equal(actual.status,2,actual.stderr);
+ assert.match(actual.stderr,/not available/);
+ assert.match(actual.stderr,/Nothing was started/);
+});
