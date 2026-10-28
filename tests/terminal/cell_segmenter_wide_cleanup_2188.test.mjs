@@ -1,5 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { CellSegmenter } from '../../runtime/terminal/cell-segmenter.mjs';
+import { test } from 'node:test';
+test('真实终端单元与宽字符/BiDi 行为：_wide_cleanup.test', () => {
 const s = new CellSegmenter({ screen: { widthMask: 3, narrow: 0, wide: 1, spacerTail: 2, spacerHead: 3, emptyCharIndex: 0, spacerCharIndex: 1, emptyWord: 0 } });
 const width = 6;
 const blank = () => new Int32Array(width * 2);
@@ -49,3 +51,5 @@ assert.equal(char(c, 5), 88);
 assert.equal(c.length, width * 2);
 assert.deepEqual(damage(p), { left: 5, right: 6, finish: 6 });
 console.log(JSON.stringify({ status: 'pass', scenarios: 5, source: '2.1.88 ink/screen.ts setCellAt' }));
+
+});
