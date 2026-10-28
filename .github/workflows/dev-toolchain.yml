@@ -114,6 +114,7 @@ jobs:
           npm run check:cli-live-mcp
           npm run check:cli-live-model-turn
           npm run check:cli-live-mcp-tools
+          npm run check:daemon-live-supervisor
       - name: 上传 Node 组件
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
