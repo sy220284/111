@@ -35,8 +35,8 @@ test('完整候选清单逐项复核、维护独立SHA和可追溯定位',()=>{
   fs.writeFileSync(path.join(old,'historical.ts'),oldCode);
   fs.writeFileSync(path.join(newRoot,'chunk-test.js'),newCode);
   const c={schema:1,reference:'2.1.88 test fixture',baseline:'2.1.310',scanned:{oldFiles:1,newFiles:1},counts:{review:1,high:0,ambiguous:0},review:[{
-   old:{file:'historical.ts',name:'classify',line:1,tokens:40},
-   new:{file:'chunk-test.js',name:'q',line:1,tokens:40},score:0.8
+   old:{file:'historical.ts',name:'classify',line:1,offset:0,tokens:40},
+   new:{file:'chunk-test.js',name:'q',line:1,offset:0,tokens:40},score:0.8
   }]};
   const result=audit(c,old,newRoot);
   assert.equal(result.summary.candidates,1);
@@ -48,6 +48,24 @@ test('完整候选清单逐项复核、维护独立SHA和可追溯定位',()=>{
   assert.ok(result.items[0].independent.controlSimilarity<=1);
   assert.equal(result.items[0].proof.semanticEquivalenceConfirmed,false);
   assert.throws(()=>audit({...c,counts:{review:2}},old,newRoot),/truncated/);
-  assert.throws(()=>audit({...c,review:[{...c.review[0],old:{...c.review[0].old,line:2}}]},old,newRoot),/candidate no longer/);
+  assert.throws(()=>audit({...c,review:[{...c.review[0],old:{...c.review[0].old,line:2}}]},old,newRoot),/candidate source line changed/);
+ }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
+
+test('同行同名函数必须以AST起始偏移区分，不能只用行号冒充唯一索引',()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'111-history-same-line-'));
+ const old=path.join(root,'old'),next=path.join(root,'src');
+ fs.mkdirSync(old);fs.mkdirSync(next);
+ try{
+  const decl1='function f(a) { return a.startsWith("persistent-record-key")&&a.includes("background-session-failure") }';
+  const decl2='function f(a) { return a.endsWith("persistent-record-key")&&a.includes("background-session-failure") }';
+  fs.writeFileSync(path.join(old,'src.ts'),decl1+';'+decl2);
+  fs.writeFileSync(path.join(next,'chunk-test.js'),decl1+';'+decl2);
+  const row=i=>({new:{file:'chunk-test.js',name:'f',line:1,offset:i,tokens:25},
+    old:{file:'src.ts',name:'f',line:1,offset:i,tokens:25},score:0.9});
+  const rows=[row(0),row(decl1.length+1)];
+  const reviewed=audit({schema:1,reference:'fixed',baseline:'2.1.310',scanned:{oldFiles:1,newFiles:1},counts:{review:2},review:rows},old,next);
+  assert.equal(reviewed.summary.sourceLocationsValidated,2);
+  assert.notEqual(reviewed.items[0].id,reviewed.items[1].id);
  }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
