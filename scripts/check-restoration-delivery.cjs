@@ -37,7 +37,7 @@ function field(body, name) {
   return matches.length === 1 ? matches[0][1].trim() : '';
 }
 function businessPath(p) {
-  return /^(?:src|core|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
+  return /^(?:src|core|embedded|plugins|plugin-testing-kit|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
 }
 function testPath(p) { return /^tests\/.+/.test(p) && TEST_EXT.test(p); }
 function docPath(p) {

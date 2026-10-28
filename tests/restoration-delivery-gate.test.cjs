@@ -10,12 +10,12 @@ const {
   auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename,exactManifestPaths,verifiedStandaloneSourceMoves
 }=require('../scripts/check-restoration-delivery.cjs');
 
-const impl='chunk-demo.js', suite='tests/model-transport.test.cjs';
+const impl='core/chunk-demo.js', suite='tests/model-transport.test.cjs';
 const body=[
   '交付类别：功能恢复',
   '业务问题：真实 CLI 模型返回失败',
-  '实际代码改动：src/chunk-demo.js 修复调用流程',
-  '调用链：bin/claude-310.mjs → src/chunk-demo.js → 模型回包',
+  '实际代码改动：core/chunk-demo.js 修复调用流程',
+  '调用链：bin/claude-310.mjs → core/chunk-demo.js → 模型回包',
   '验收测试：tests/model-transport.test.cjs',
   '验证命令：node --test tests/model-transport.test.cjs',
   '验证结果：改动后真实逻辑正常及取消分支通过',
@@ -101,7 +101,7 @@ test('运行源码未检查实际差异不得跳过',()=>{
 test('验证说明不能只是伪造的文件路径',()=>{
   rejected(verify({body:body.replace('验收测试：tests/model-transport.test.cjs','验收测试：tests/unrelated.test.cjs')}),
     '“验收测试”必须列出');
-  rejected(verify({body:body.replace('实际代码改动：src/chunk-demo.js','实际代码改动：src/other.js')}),
+  rejected(verify({body:body.replace('实际代码改动：core/chunk-demo.js','实际代码改动：core/other.js')}),
     '“实际代码改动”必须指明');
 });
 test('验收字段必须有效、明确且唯一',()=>{
@@ -294,7 +294,7 @@ test('真实历史703用例仅迁移时委托专用完整工作流，其他场�
 
 
 test('目录整理对经过Git原始字节及清单验证的独立源码重命名单独认可',()=>{
- const old='embedded/runtime/state-library.js',current='embedded/runtime/state-library.js';
+ const old='src/embedded/runtime/state-library.js',current='embedded/runtime/state-library.js';
  const base={title:'独立源码归档',body:'交付类别：目录整理\n不计入功能恢复',
   changed:[old,current,'resources/layout/relocations.json','docs/architecture/structure.md','tests/runtime/a.test.cjs'],
   testChanges:[{path:'tests/runtime/a.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.ok(true));",status:'A'}]};
@@ -310,13 +310,13 @@ test('目录整理对经过Git原始字节及清单验证的独立源码重命�
 
 
 test('目录整理资源清单只接受实际文件完整搬迁后的路径变更',()=>{
- const records=new Map([['resources/tools/design-sync/a.mjs','tools/bundled/design-sync/a.mjs'],['embedded/runtime/state-library.js','embedded/runtime/state-library.js']]);
+ const records=new Map([['resources/tools/design-sync/a.mjs','tools/bundled/design-sync/a.mjs'],['src/embedded/runtime/state-library.js','embedded/runtime/state-library.js']]);
  const asset={version:'1',entries:{a:{path:'resources/tools/design-sync/a.mjs',decodedSha256:'stable'}}};
  const assetNew={version:'1',entries:{a:{path:'tools/bundled/design-sync/a.mjs',decodedSha256:'stable'}}};
  assert.equal(exactManifestPaths(asset,assetNew,records,'asset'),true);
  assert.equal(exactManifestPaths(asset,{...assetNew,entries:{a:{...assetNew.entries.a,decodedSha256:'mutated'}}},records,'asset'),false);
  assert.equal(exactManifestPaths(asset,assetNew,new Map(),'asset'),false);
- const embedded={version:'1',entries:[{old:'original.mjs',path:'embedded/runtime/state-library.js',gitBlobSha1:'unchanged'}]};
+ const embedded={version:'1',entries:[{old:'original.mjs',path:'src/embedded/runtime/state-library.js',gitBlobSha1:'unchanged'}]};
  const embeddedNew={version:'1',entries:[{...embedded.entries[0],path:'embedded/runtime/state-library.js'}]};
  assert.equal(exactManifestPaths(embedded,embeddedNew,records,'embedded'),true);
  assert.equal(exactManifestPaths(embedded,{...embeddedNew,entries:[{...embeddedNew.entries[0],gitBlobSha1:'changed'}]},records,'embedded'),false);
