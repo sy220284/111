@@ -53,7 +53,8 @@ function diagnosticModules(){
   const d=[
     {original:'cli.js',copy:'.e2e-cli-debug.js'},
     {original:'chunk-kfdf5pq3.js',copy:'.e2e-main-debug.js'},
-    {original:'chunk-mh7sh27p.js',copy:'.e2e-commander-debug.js'}
+    {original:'chunk-mh7sh27p.js',copy:'.e2e-commander-debug.js'},
+    {original:'chunk-6d8swme1.js',copy:'.e2e-action-debug.js'}
   ];
   const files=[];
   try {
@@ -71,11 +72,22 @@ function diagnosticModules(){
           'if(D&&!H)return console.error("TRACE_PARSE_IN"),go("run_before_parse"),await s.parseAsync(process.argv),console.error("TRACE_PARSE_OUT"),go("run_after_parse"),s;']
       ],
       'chunk-mh7sh27p.js':[
+        ['from"./chunk-6d8swme1.js"','from"./.e2e-action-debug.js"'],
         ['function iis(e){','function iis(e){console.error("TRACE_IIS");'],
         ['r.hook("preAction",async(h,y)=>{','r.hook("preAction",async(h,y)=>{console.error("TRACE_PRE_ACTION");'],
         ['await Promise.all([ONe(),pwn()])','console.error("TRACE_AWAIT_INIT"),await Promise.all([ONe(),pwn()]),console.error("TRACE_INIT_DONE")'],
         ['n=await Jio(','console.error("TRACE_JIO"),n=await Jio('],
         ['B.action(async(h,y)=>{','B.action(async(h,y)=>{console.error("TRACE_ACTION");']
+      ],
+      'chunk-6d8swme1.js':[
+        ['async function Yoo(e, o, n, r, u, p, h, S, y) {','async function Yoo(e, o, n, r, u, p, h, S, y) {console.error("TRACE_YOO_BEGIN");'],
+        ['let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {','console.error("TRACE_NA_START");let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {'],
+        ['if (!Ke.ok)','console.error("TRACE_NA_DONE",Ke.ok);if (!Ke.ok)'],
+        ['q4t("action_before_mcp_policy_wait"), await VB({','console.error("TRACE_VB_START"),q4t("action_before_mcp_policy_wait"), await VB({'],
+        ['let Me = await oys(e || "", j ?? "text")','console.error("TRACE_OYS_START"), Me = await oys(e || "", j ?? "text")'],
+        ['go("action_after_input_prompt");','console.error("TRACE_OYS_DONE"),go("action_after_input_prompt");'],
+        ['let Nl = Date.now()','console.error("TRACE_SETUP_IMPORT"),let Nl = Date.now()'],
+        ['await Bl;','await Bl;console.error("TRACE_SETUP_DONE");']
       ]
     };
     for(const {original,copy} of d){
