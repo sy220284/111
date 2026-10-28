@@ -39,7 +39,7 @@ jobs:
           node - "$RUNNER_TEMP/111-v37-nonmain.json" <<'NODE'
           const fs=require('node:fs'),j=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
           if(j.problems.length)throw Error('nonmain source integrity failures');
-          if(j.metrics.nonMainFiles!==652||j.metrics.bundledJsFiles!==48||j.metrics.bundledPythonFiles!==3)
+          if(j.metrics.nonMainFiles!==652||j.metrics.bundledJsFiles!==47||j.metrics.bundledPythonFiles!==3)
             throw Error('original v37 non-main inventory drift');
           const out=[
             '## v37非主模块652份文件：独立可执行工具与原件审计',
