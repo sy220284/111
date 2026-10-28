@@ -50,7 +50,7 @@ jobs:
       - name: 先检查函数证据与源码指纹，防止改名后索引/账本陈旧
         run: |
           npm run audit:functions
-npm run check:source-fingerprint
+          npm run check:source-fingerprint
           npm run check:function-evidence
       - name: 执行源码与功能级离线验证（含跨版本只读匹配器）
         run: npm test
