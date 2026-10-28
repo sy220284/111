@@ -5,141 +5,141 @@
     {
       "key": "allow-tool.mjs-dec5a728.txt.zst",
       "old": "resources/tools/claude-test/scripts/allow-tool-dec5a728.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/allow-tool.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/allow-tool.mjs",
       "sha": "b97427c16c223e1e419d47ae150762530d21c4f4"
     },
     {
       "key": "config.mjs-c64f0576.txt.zst",
       "old": "resources/tools/claude-test/scripts/config-c64f0576.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/config.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/config.mjs",
       "sha": "399e61c65124cf6ba64ad5b4e8530027d7fadf01"
     },
     {
       "key": "ct-auth.mjs-12e61ad0.txt.zst",
       "old": "resources/tools/claude-test/scripts/ct-auth-12e61ad0.mjs",
-      "path": "resources/tools/claude-test/scripts/ct-auth.mjs",
+      "path": "tools/bundled/claude-test/scripts/ct-auth.mjs",
       "sha": "35f4f18f11312392236cf2355389ed558f8a2f63"
     },
     {
       "key": "ct.mjs-db1716e5.txt.zst",
       "old": "resources/tools/claude-test/scripts/ct-db1716e5.mjs",
-      "path": "resources/tools/claude-test/scripts/ct.mjs",
+      "path": "tools/bundled/claude-test/scripts/ct.mjs",
       "sha": "7a79ebb54fc6001af721e07d15e4ea7e0d19d4d9"
     },
     {
       "key": "ctbrowser.mjs-c343fa0d.txt.zst",
       "old": "resources/tools/claude-test/scripts/ctbrowser-c343fa0d.mjs",
-      "path": "resources/tools/claude-test/scripts/ctbrowser.mjs",
+      "path": "tools/bundled/claude-test/scripts/ctbrowser.mjs",
       "sha": "af776d7405da27ff28dcc0657f6c382f7672da2b"
     },
     {
       "key": "discover.mjs-05fbb73b.txt.zst",
       "old": "resources/tools/claude-test/scripts/discover-05fbb73b.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/discover.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/discover.mjs",
       "sha": "7875e735c41f99c83e0b38244751a2946c3b5d5d"
     },
     {
       "key": "envreport.mjs-2a6a40b0.txt.zst",
       "old": "resources/tools/claude-test/scripts/envreport-2a6a40b0.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/envreport.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/envreport.mjs",
       "sha": "84e3c09d103a96f335c213875ac0b7aaa8325454"
     },
     {
       "key": "fence-proxy.mjs-e706eaf6.txt.zst",
       "old": "resources/tools/claude-test/scripts/fence-proxy-e706eaf6.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/fence-proxy.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/fence-proxy.mjs",
       "sha": "cbd1281e78d35913c5140d5f21240b00d97c0e5a"
     },
     {
       "key": "guard.mjs-167f6a6a.txt.zst",
       "old": "resources/tools/claude-test/scripts/guard-167f6a6a.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/guard.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/guard.mjs",
       "sha": "8b43c67b4897054cd632c6837c3f91c4c811b4e2"
     },
     {
       "key": "playwright-mcp.mjs-4153e6ec.txt.zst",
       "old": "resources/tools/claude-test/scripts/playwright-mcp-4153e6ec.mjs",
-      "path": "resources/tools/claude-test/scripts/playwright-mcp.mjs",
+      "path": "tools/bundled/claude-test/scripts/playwright-mcp.mjs",
       "sha": "4726f3c53ddba60fea76cb47eb2a4d56f90d1e8a"
     },
     {
       "key": "run-tools.mjs-0e78c453.txt.zst",
       "old": "resources/tools/claude-test/scripts/run-tools-0e78c453.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/run-tools.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/run-tools.mjs",
       "sha": "1cef27aed5d4016f65820df8b824f384300954ca"
     },
     {
       "key": "runs.mjs-766956db.txt.zst",
       "old": "resources/tools/claude-test/scripts/runs-766956db.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/runs.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/runs.mjs",
       "sha": "e0ca31c5ba389d677d824c09e504a40444d55537"
     },
     {
       "key": "sign-in.mjs-e560d968.txt.zst",
       "old": "resources/tools/claude-test/scripts/sign-in-e560d968.mjs",
-      "path": "resources/tools/claude-test/scripts/sign-in.mjs",
+      "path": "tools/bundled/claude-test/scripts/sign-in.mjs",
       "sha": "6fe1cf168e19dd64b7c3e38632d54dca32d940b1"
     },
     {
       "key": "signin.mjs-e32ba544.txt.zst",
       "old": "resources/tools/claude-test/scripts/signin-e32ba544.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/signin.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/signin.mjs",
       "sha": "d93f403093ded8aced25bf85b0d1bb7c5269432f"
     },
     {
       "key": "stop-on-exit.mjs-da3fcb46.txt.zst",
       "old": "resources/tools/claude-test/scripts/stop-on-exit-da3fcb46.mjs",
-      "path": "resources/tools/claude-test/scripts/stop-on-exit.mjs",
+      "path": "tools/bundled/claude-test/scripts/stop-on-exit.mjs",
       "sha": "888d2f64512880478668c530d971b01a35354b48"
     },
     {
       "key": "tools.mjs-6ad628aa.txt.zst",
       "old": "resources/tools/claude-test/scripts/tools-6ad628aa.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/tools.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/tools.mjs",
       "sha": "3f1ca62a495958d0456b39bca9d6ca134365415d"
     },
     {
       "key": "vet.mjs-e320abbd.txt.zst",
       "old": "resources/tools/claude-test/scripts/vet-e320abbd.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/vet.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/vet.mjs",
       "sha": "7d2159d8bbe92037da471f0bf70c779d11b93533"
     },
     {
       "key": "live-page.mjs-841e1124.txt.zst",
       "old": "resources/tools/other/scripts/live-page-841e1124.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/live-page.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/live-page.mjs",
       "sha": "6d4547d1dfbf8e506cf01b65da76b0b2ce1695e5"
     }
   ],
   "supporting": [
     {
       "source": "src/embedded/browser-tools/hosts.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/hosts.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/hosts.mjs",
       "sha": "87e746e091f5af7f308bfee7382023b15abd7f08"
     },
     {
       "source": "src/embedded/browser-tools/open-page.mjs",
-      "path": "resources/tools/claude-test/scripts/lib/open-page.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/open-page.mjs",
       "sha": "b1f38cce8c914ce24f1d979489a99272606069ef"
     },
     {
       "source": "src/embedded/browser-tools/install-tools.mjs",
-      "path": "resources/tools/claude-test/scripts/install-tools.mjs",
+      "path": "tools/bundled/claude-test/scripts/install-tools.mjs",
       "sha": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa"
     },
     {
       "source": "src/embedded/browser-tools/tools-lock.json",
-      "path": "resources/tools/claude-test/scripts/lib/tools-lock.json",
+      "path": "tools/bundled/claude-test/scripts/lib/tools-lock.json",
       "sha": "682cff7d1c29c81de536661ac3837e06b6f5b6ae"
     },
     {
       "source": "resources/data/psl-data.json",
-      "path": "resources/tools/claude-test/scripts/lib/psl-data.json",
+      "path": "tools/bundled/claude-test/scripts/lib/psl-data.json",
       "sha": "1fdb1de5e9206c6fc46b38bca3d1bd89d7791d25"
     },
     {
       "source": "resources/data/tools-snapshot.json",
-      "path": "resources/tools/claude-test/scripts/tools-snapshot.json",
+      "path": "tools/bundled/claude-test/scripts/tools-snapshot.json",
       "sha": "d17b7fe09a040f02883d36ccc938597dc55d2461"
     }
   ],

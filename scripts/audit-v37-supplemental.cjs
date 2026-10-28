@@ -34,9 +34,9 @@ function shaBlob(data){
  return crypto.createHash('sha1').update('blob '+data.length+'\0').update(data).digest('hex');
 }
 function kind(p){
- if(p.startsWith('src/plugin-testing-kit/')&&p.endsWith('.js'))return 'plugin_test_kit';
- if(p.startsWith('src/embedded/')&&/\.(mjs|js|ts|tsx|d\.ts)$/.test(p))return 'embedded_source';
- if(p.startsWith('src/embedded/'))return 'embedded_non_code_asset';
+ if(p.startsWith('plugin-testing-kit/')&&p.endsWith('.js'))return 'plugin_test_kit';
+ if(p.startsWith('embedded/')&&/\.(mjs|js|ts|tsx|d\.ts)$/.test(p))return 'embedded_source';
+ if(p.startsWith('embedded/'))return 'embedded_non_code_asset';
  throw Error('out of scope '+p);
 }
 function identifiers(ast){
@@ -84,8 +84,9 @@ function parse(p,data){
 function build({root=ROOT,baseline=PIN,semantics,verify=true}={}){
  root=path.resolve(root);
  const refObjects=verify?gitObjects(root,baseline):null;
- const kit=walk(path.join(root,'src/plugin-testing-kit'));
- const embedded=walk(path.join(root,'src/embedded'));
+ const historicalPaths=new Map(JSON.parse(fs.readFileSync(path.join(root,'resources/layout/relocations.json'),'utf8')).files.map(e=>[e.current,e.old]));
+ const kit=walk(path.join(root,'plugin-testing-kit'));
+ const embedded=walk(path.join(root,'embedded'));
  const files=[...kit,...embedded].sort();
  const problems=[];
  const entries=[];
@@ -93,7 +94,7 @@ function build({root=ROOT,baseline=PIN,semantics,verify=true}={}){
  let functionEntities=0,exportSymbols=0;
  for(const file of files){
   const bytes=fs.readFileSync(path.join(root,file));
-  const hash=shaBlob(bytes),reference=refObjects?.get(file)||null;
+  const hash=shaBlob(bytes),reference=refObjects?.get(historicalPaths.get(file)||file)||null;
   const classification=kind(file);
   if(verify&&reference!==hash)problems.push(file+': v37 Git blob differs or unavailable');
   const ast=parse(file,bytes);
@@ -102,7 +103,7 @@ function build({root=ROOT,baseline=PIN,semantics,verify=true}={}){
   entries.push({file,kind:classification,bytes:bytes.length,
    currentBlob:hash,v37Blob:reference,byteIdenticalToV37:reference===hash,
    ...ast});
-  if(classification==='plugin_test_kit'||file==='src/embedded/runtime/state-library.js')
+  if(classification==='plugin_test_kit'||file==='embedded/runtime/state-library.js')
    graphSources[file]=bytes.toString('utf8');
  }
  if(kit.length!==294)problems.push('expected 294 plugin test kit source files, got '+kit.length);

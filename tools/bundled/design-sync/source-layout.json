@@ -5,105 +5,105 @@
     {
       "key": "capture.mjs-9e2f2f8b.txt.zst",
       "old": "resources/tools/other/scripts/capture-9e2f2f8b.mjs",
-      "path": "resources/tools/design-sync/package-capture.mjs",
+      "path": "tools/bundled/design-sync/package-capture.mjs",
       "sha": "c10344f12030efa260093335e54a036fc724cef5"
     },
     {
       "key": "compare.mjs-4b810a57.txt.zst",
       "old": "resources/tools/design-sync/scripts/compare-4b810a57.mjs",
-      "path": "resources/tools/design-sync/storybook/compare.mjs",
+      "path": "tools/bundled/design-sync/storybook/compare.mjs",
       "sha": "bda88455d84d40bcebf5ef474ac197d76b003031"
     },
     {
       "key": "docs.mjs-0d218ce7.txt.zst",
       "old": "resources/tools/other/scripts/docs-0d218ce7.mjs",
-      "path": "resources/tools/design-sync/lib/docs.mjs",
+      "path": "tools/bundled/design-sync/lib/docs.mjs",
       "sha": "69dcb3fc8ba9c06f78f00bb74618cbe083e14f1c"
     },
     {
       "key": "dts.mjs-59972049.txt.zst",
       "old": "resources/tools/design-sync/scripts/dts-59972049.mjs",
-      "path": "resources/tools/design-sync/lib/dts.mjs",
+      "path": "tools/bundled/design-sync/lib/dts.mjs",
       "sha": "4a600b717ec30554104a32ca683597ad66dda59a"
     },
     {
       "key": "emit.mjs-7951914b.txt.zst",
       "old": "resources/tools/design-sync/scripts/emit-7951914b.mjs",
-      "path": "resources/tools/design-sync/lib/emit.mjs",
+      "path": "tools/bundled/design-sync/lib/emit.mjs",
       "sha": "c46517acf16fa6743ca963578edbbb9bcb6a8d2b"
     },
     {
       "key": "package-build.mjs-5c9a3b66.txt.zst",
       "old": "resources/tools/design-sync/scripts/package-build-5c9a3b66.mjs",
-      "path": "resources/tools/design-sync/package-build.mjs",
+      "path": "tools/bundled/design-sync/package-build.mjs",
       "sha": "029faaaa5c7773bfea10f12841b75b4c9da49052"
     },
     {
       "key": "package-validate.mjs-3a0e4e2a.txt.zst",
       "old": "resources/tools/design-sync/scripts/package-validate-3a0e4e2a.mjs",
-      "path": "resources/tools/design-sync/package-validate.mjs",
+      "path": "tools/bundled/design-sync/package-validate.mjs",
       "sha": "9a0f277d2882764a518f16cc0301e0e8c102c699"
     },
     {
       "key": "preview-rebuild.mjs-88e389b0.txt.zst",
       "old": "resources/tools/design-sync/scripts/preview-rebuild-88e389b0.mjs",
-      "path": "resources/tools/design-sync/lib/preview-rebuild.mjs",
+      "path": "tools/bundled/design-sync/lib/preview-rebuild.mjs",
       "sha": "b9c30825961e7bff1622ac794cf3d39a5bbc8bdb"
     },
     {
       "key": "remote-diff.mjs-a2ecedbc.txt.zst",
       "old": "resources/tools/design-sync/scripts/remote-diff-a2ecedbc.mjs",
-      "path": "resources/tools/design-sync/lib/remote-diff.mjs",
+      "path": "tools/bundled/design-sync/lib/remote-diff.mjs",
       "sha": "04307628611370cdc4748b94e9ea1e605f47843c"
     },
     {
       "key": "resync.mjs-4ec2827e.txt.zst",
       "old": "resources/tools/design-sync/scripts/resync-4ec2827e.mjs",
-      "path": "resources/tools/design-sync/resync.mjs",
+      "path": "tools/bundled/design-sync/resync.mjs",
       "sha": "d91879ff03bf9024c667bc41f75782adf0428228"
     },
     {
       "key": "source-storybook.mjs-125aecbd.txt.zst",
       "old": "resources/tools/design-sync/scripts/source-storybook-125aecbd.mjs",
-      "path": "resources/tools/design-sync/lib/source-storybook.mjs",
+      "path": "tools/bundled/design-sync/lib/source-storybook.mjs",
       "sha": "cebb31dbbd70a862aea4ddad255098138599b3ac"
     },
     {
       "key": "story-imports.mjs-c9db5303.txt.zst",
       "old": "resources/tools/design-sync/scripts/story-imports-c9db5303.mjs",
-      "path": "resources/tools/design-sync/lib/story-imports.mjs",
+      "path": "tools/bundled/design-sync/lib/story-imports.mjs",
       "sha": "ec275864eecf19bc8d402dcd9b2bbd98e4278a9d"
     }
   ],
   "supporting": [
     {
       "source": "src/embedded/component-build/detect.mjs",
-      "path": "resources/tools/design-sync/lib/detect.mjs",
+      "path": "tools/bundled/design-sync/lib/detect.mjs",
       "sha": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9"
     },
     {
       "source": "src/embedded/component-build/http-serve.mjs",
-      "path": "resources/tools/design-sync/storybook/http-serve.mjs",
+      "path": "tools/bundled/design-sync/storybook/http-serve.mjs",
       "sha": "a268825307998a6a1111b0370d72bede9f15c99a"
     },
     {
       "source": "src/embedded/component-build/preview-gen-storybook.mjs",
-      "path": "resources/tools/design-sync/lib/preview-gen-storybook.mjs",
+      "path": "tools/bundled/design-sync/lib/preview-gen-storybook.mjs",
       "sha": "0b224d7a270de4629445dd8e6656d7e9db381fa6"
     },
     {
       "source": "src/embedded/component-build/source-kit.mjs",
-      "path": "resources/tools/design-sync/lib/source-kit.mjs",
+      "path": "tools/bundled/design-sync/lib/source-kit.mjs",
       "sha": "56da936d52f0de5de47eb88605d798764ed791f2"
     },
     {
       "source": "src/embedded/component-build/css-fallback.mjs",
-      "path": "resources/tools/design-sync/lib/css-fallback.mjs",
+      "path": "tools/bundled/design-sync/lib/css-fallback.mjs",
       "sha": "1460b41bc3545121b19d070b2141b08a50d5fb08"
     },
     {
       "source": "src/embedded/component-build/probe.mjs",
-      "path": "resources/tools/design-sync/storybook/probe.mjs",
+      "path": "tools/bundled/design-sync/storybook/probe.mjs",
       "sha": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85"
     }
   ],
