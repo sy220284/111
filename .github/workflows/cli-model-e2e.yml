@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'tests/cli-live-model-turn.test.cjs'
       - 'core/**'
       - 'plugins/**'
@@ -17,6 +18,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'tests/cli-live-model-turn.test.cjs'
       - 'core/**'
       - 'plugins/**'

@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'resources/**'
       - 'embedded/**'
       - 'plugin-testing-kit/**'
@@ -17,6 +18,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'resources/**'
       - 'embedded/**'
       - 'plugin-testing-kit/**'

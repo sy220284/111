@@ -3,10 +3,10 @@ name: 111 全历史反编译单包汇总与校验
 on:
   pull_request:
     branches: [main]
-    paths: [.github/workflows/full-reverse-archive.yml]
+    paths: [.github/workflows/full-reverse-archive.yml, 'docs/verification/2026-10-28-全仓联合验收触发.md']
   push:
     branches: [main]
-    paths: [.github/workflows/full-reverse-archive.yml]
+    paths: [.github/workflows/full-reverse-archive.yml, 'docs/verification/2026-10-28-全仓联合验收触发.md']
   workflow_dispatch:
 
 permissions:
