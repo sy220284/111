@@ -105,7 +105,7 @@ test('真实 daemon exec worker 正常和异常退出均记录退出码与输出
     supervisor=await start(home,env);
     const dispatchDir=path.join(home,'.claude/daemon/dispatch');
     fs.mkdirSync(dispatchDir,{recursive:true});
-    const bound=read(path.join(home,'supervisor.log')).match(/control socket bound at (\\S+\\/control\\.sock)/);
+    const bound=read(path.join(home,'supervisor.log')).match(/control socket bound at (\S+\/control\.sock)/);
     assert.ok(bound,'真实 daemon 必须报告已绑定 control socket');
     const ptyDir=path.join(path.dirname(bound[1]),'pty');
     fs.mkdirSync(ptyDir,{recursive:true,mode:0o700});
