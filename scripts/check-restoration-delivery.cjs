@@ -418,20 +418,22 @@ function verifiedStandaloneSourceMoves(changes,head){
  return approved;
 }
 // 只接受经原文件与 Git R100 重命名逐字节验证的磁盘路径变更，其他字段原样保留。
-function exactManifestPaths(before,after,relocations,type){
+function exactManifestPaths(before,after,relocations,type,sourceRelocations=new Map()){
  const expected=JSON.parse(JSON.stringify(before));
  let altered=0;
  const upgrade=old=>{
   const dest=type==='asset'&&old.startsWith('resources/tools/')?'tools/bundled/'+old.slice('resources/tools/'.length):
-    type==='embedded'&&old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):null;
+    type==='embedded'&&old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
+    type==='asset'&&old.startsWith('src/')?sourceRelocations.get(old):null;
   if(!dest)return null;
-  const move=relocations.get(old);
+  const move=old.startsWith('src/')&&type==='asset'?sourceRelocations.get(old):relocations.get(old);
   if(!move || move!==dest)return null;
   altered++;
   return dest;
  };
  if(type==='asset')for(const item of Object.values(expected.entries)){
   const next=upgrade(item.path);if(next)item.path=next;
+  if(Array.isArray(item.literalConsumers))item.literalConsumers=item.literalConsumers.map(name=>upgrade(name)||name);
  }else if(type==='embedded')for(const item of expected.entries){
   const next=upgrade(item.path);if(next)item.path=next;
  }else return false;
@@ -439,13 +441,14 @@ function exactManifestPaths(before,after,relocations,type){
 }
 function verifiedManifestRelocations(changes,head){
  const moved=new Map(verifiedStandaloneSourceMoves(changes,head).map(x=>[x.old,x.current]));
+ const sourceRelocations=new Map(verifiedRootSourceMoves(changes,head).map(x=>[x.old,x.current]));
  const checked=[];
  for(const [file,type]of [['resources/asset-layout.json','asset'],['resources/embedded-source-layout.json','embedded']]){
   const change=changes.diffs.find(x=>x.path===file && x.oldPath===file);
   if(!change)continue;
   const rawBefore=gitAt(changes.ancestor,file),rawAfter=gitAt(head,file);
   if(!rawBefore||!rawAfter)continue;
-  if(exactManifestPaths(JSON.parse(rawBefore),JSON.parse(rawAfter),moved,type))checked.push(file);
+  if(exactManifestPaths(JSON.parse(rawBefore),JSON.parse(rawAfter),moved,type,sourceRelocations))checked.push(file);
  }
  return checked;
 }

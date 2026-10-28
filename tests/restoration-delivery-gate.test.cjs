@@ -398,3 +398,12 @@ test('严格按Git文件树原始字节核验搬迁，不依赖易漏报的R100�
     '真实字节改变必须拒绝视为纯迁移');
  }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test('资源映射验收同时核对主源码文件和消费者，不允许更改哈希等其他字段',()=>{
+ const old={entries:{chart:{path:'src/chart.js',literalConsumers:['src/chunk-a.js'],sha256:'frozen'}}};
+ const changed={entries:{chart:{path:'core/chart.js',literalConsumers:['core/chunk-a.js'],sha256:'frozen'}}};
+ const originals=new Map([['src/chart.js','core/chart.js'],['src/chunk-a.js','core/chunk-a.js']]);
+ assert.equal(exactManifestPaths(old,changed,new Map(),'asset',originals),true);
+ assert.equal(exactManifestPaths(old,{entries:{chart:{...changed.entries.chart,sha256:'tampered'}}},
+  new Map(),'asset',originals),false);
+});
