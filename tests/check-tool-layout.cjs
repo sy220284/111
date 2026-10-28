@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),vm=require('node:vm'),{spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
-const manifest=JSON.parse(fs.readFileSync(path.join(root,'resources/tools/claude-test/source-layout.json'),'utf8'));
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'resources/layout/claude-test-source-layout.json'),'utf8'));
 const assets=JSON.parse(fs.readFileSync(path.join(root,'resources/asset-layout.json'),'utf8'));
 assert.equal(manifest.migrated.length,18);
 assert.equal(manifest.supporting.length,6);

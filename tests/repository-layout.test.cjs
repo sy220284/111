@@ -17,6 +17,7 @@ test('所有原件归位后仍有唯一目标、无旧路径、原 Git Blob 与�
  assert.equal(kinds['plugin-source'].length,294);
  assert.equal(kinds['bundled-tool'].length,54);
  assert.equal(kinds.document.length,16);
+ assert.equal(kinds['tool-provenance'].length,2);
  for(const x of rows){
   assert.ok(!byNew.has(x.current),'duplicate: '+x.current);byNew.add(x.current);
   assert.equal(fs.existsSync(path.join(ROOT,x.old)),false,'old file remains: '+x.old);

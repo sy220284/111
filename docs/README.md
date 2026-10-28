@@ -10,3 +10,5 @@
 - `history/`：历史版本原始研究材料
 
 源码根目录：`src/`（主程序）、`embedded/`（内嵌源码）、`plugin-testing-kit/`（插件测试源码）、`tools/bundled/`（附带独立工具源码）。原始压缩资源位于 `resources/bunfs/`，原始搬迁路径对照见 `resources/layout/relocations.json`。
+
+两份原始工具来源清单已按内容归入 `resources/layout/claude-test-source-layout.json` 与 `resources/layout/design-sync-source-layout.json`，字段内的旧路径仅作原始来源记录，新执行路径由 `resources/layout/relocations.json` 定位。

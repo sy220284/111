@@ -2332,6 +2332,18 @@
       "current": "docs/conventions/源码与资源统一命名规范.md",
       "originalGitBlob": "419dc7a8d9e0a3bb7cbf0cb96e129fcf274e88f2",
       "kind": "document"
+    },
+    {
+      "old": "resources/tools/claude-test/source-layout.json",
+      "current": "resources/layout/claude-test-source-layout.json",
+      "originalGitBlob": "be8c5198aa76e8aa09827c31fb0e26dd48003348",
+      "kind": "tool-provenance"
+    },
+    {
+      "old": "resources/tools/design-sync/source-layout.json",
+      "current": "resources/layout/design-sync-source-layout.json",
+      "originalGitBlob": "4a2bf45b197ad48353839e4facd6335cfaea5a9f",
+      "kind": "tool-provenance"
     }
   ]
 }

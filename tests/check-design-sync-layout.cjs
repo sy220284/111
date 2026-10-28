@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const layout=JSON.parse(fs.readFileSync(path.join(root,'resources/asset-layout.json'),'utf8'));
-const source=JSON.parse(fs.readFileSync(path.join(root,'resources/tools/design-sync/source-layout.json'),'utf8'));
+const source=JSON.parse(fs.readFileSync(path.join(root,'resources/layout/design-sync-source-layout.json'),'utf8'));
 const sha=d=>crypto.createHash('sha1').update('blob '+d.length+String.fromCharCode(0)).update(d).digest('hex');
 assert.equal(source.migrated.length,12,'expected original source modules');
 assert.equal(source.supporting.length,6,'expected source-backed helper modules');

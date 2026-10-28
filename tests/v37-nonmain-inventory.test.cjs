@@ -70,14 +70,14 @@ test('浏览器安全来源与DNS钉住：输入边界必须能解析而不能�
 });
 test('设计同步与浏览器工具归属固定、保留已知未验证的真实构建条件',()=>{
  for(const [file,expectedMoved,expectedSupporting] of [
-  ['resources/tools/claude-test/source-layout.json',18,6],
-  ['resources/tools/design-sync/source-layout.json',12,6]]){
+  ['resources/layout/claude-test-source-layout.json',18,6],
+  ['resources/layout/design-sync-source-layout.json',12,6]]){
   const m=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
   assert.equal(m.migrated.length,expectedMoved);
   assert.equal(m.supporting.length,expectedSupporting);
   for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path.startsWith('resources/tools/')?'tools/bundled/'+e.path.slice('resources/tools/'.length):e.path.startsWith('src/embedded/')?'embedded/'+e.path.slice('src/embedded/'.length):e.path)));
  }
- const design=JSON.parse(fs.readFileSync(path.join(root,'resources/tools/design-sync/source-layout.json'),'utf8'));
+ const design=JSON.parse(fs.readFileSync(path.join(root,'resources/layout/design-sync-source-layout.json'),'utf8'));
  assert.equal(design.runtimeNotYetVerified.length,2);
  assert.deepEqual(design.knownUnresolved,[]);
 });
