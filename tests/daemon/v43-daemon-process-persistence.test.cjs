@@ -5,7 +5,7 @@ const cp=require('node:child_process');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
-const script=path.resolve(__dirname,'fixtures/v43-daemon-persistence-worker.cjs');
+const script=path.resolve(__dirname,'../fixtures/v43-daemon-persistence-worker.cjs');
 function execute(mode,dir){
  const out=cp.spawnSync(process.execPath,[script,mode,dir],{
   encoding:'utf8',timeout:15000,env:{...process.env,NODE_ENV:'test'}
