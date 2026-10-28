@@ -1,0 +1,71 @@
+name: v37 非主模块源码语义证据
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/plugin-testing-kit/**'
+      - 'src/embedded/**'
+      - 'scripts/audit-v37-supplemental.cjs'
+      - 'resources/research/v37-supplemental-semantics.json'
+      - 'tests/v37-supplemental-*.test.cjs'
+      - '.github/workflows/v37-supplemental-semantics.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/plugin-testing-kit/**'
+      - 'src/embedded/**'
+      - 'scripts/audit-v37-supplemental.cjs'
+      - 'resources/research/v37-supplemental-semantics.json'
+      - 'tests/v37-supplemental-*.test.cjs'
+      - '.github/workflows/v37-supplemental-semantics.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  supplemental-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装锁定依赖并执行 v37 子工程真实函数行为测试
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:v37-supplemental
+          npm run check:plugin-kit
+          npm run check:embedded
+      - name: 从 Git 固定 v37 原始 Blob 全量核实 318 份内嵌源码并生成函数语义证据
+        run: |
+          set -euo pipefail
+          node scripts/audit-v37-supplemental.cjs --output "$RUNNER_TEMP/111-v37-supplemental.json"
+          node - "$RUNNER_TEMP/111-v37-supplemental.json" <<'NODE'
+          const fs=require('node:fs'),r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const m=r.metrics;
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
+            '## v37 非主模块源码及可执行语义证据',
+            '- 独立插件测试 JS 模块：'+m.kitModules,
+            '- 内嵌源码与配置实体：'+m.embeddedEntities,
+            '- 与固定 v37 Git Blob 完全一致：'+m.v37ByteIdentical,
+            '- 补充源码函数语法实体：'+m.syntaxFunctions,
+            '- 已挂真实测试的函数语义记录：'+m.semanticTestRecords,
+            '- 插件子图静态依赖：'+m.staticModuleDependencies,
+            '- 自引用导出 barrel：'+m.selfReferentialBarrels,
+            '- 跨模块循环依赖组：'+m.multiModuleCycles,
+            '- 子图调用候选：'+m.candidateCallExpressions,
+            '- 未解析调用：'+m.unresolvedCallExpressions,
+            '**此代码是独立内嵌子工程，不能计入 2,551 个主模块的函数恢复率。**'
+          ].join('\n')+'\n');
+          NODE
+      - name: 上传 v37 非主模块函数与依赖证据清单
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-v37-supplemental-semantic-evidence
+          path: ${{ runner.temp }}/111-v37-supplemental.json
+          retention-days: 30
+          if-no-files-found: error
