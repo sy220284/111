@@ -48,82 +48,11 @@ function serve(req,res,received){
     res.end();
   });
 }
-
-function diagnosticModules(){
-  const d=[
-    {original:'cli.js',copy:'.e2e-cli-debug.js'},
-    {original:'chunk-kfdf5pq3.js',copy:'.e2e-main-debug.js'},
-    {original:'chunk-mh7sh27p.js',copy:'.e2e-commander-debug.js'},
-    {original:'chunk-6d8swme1.js',copy:'.e2e-action-debug.js'}
-  ];
-  const files=[];
-  try {
-    const edits={
-      'cli.js':[
-        ['async function Ye(){','async function Ye(){console.error("TRACE_CLI_ENTRY");'],
-        ['import("./chunk-kfdf5pq3.js")','import("./.e2e-main-debug.js")'],
-        ['await Pe(s),P("cli_after_main_complete")','console.error("TRACE_MAIN_CALL"),await Pe(s),console.error("TRACE_MAIN_RETURN"),P("cli_after_main_complete")']
-      ],
-      'chunk-kfdf5pq3.js':[
-        ['from"./chunk-mh7sh27p.js"','from"./.e2e-commander-debug.js"'],
-        ['async function xu(n){','async function xu(n){console.error("TRACE_XU");'],
-        ['async function rr(n,e,C){','async function rr(n,e,C){console.error("TRACE_RR");'],
-        ['if(D&&!H)return go("run_before_parse"),await s.parseAsync(process.argv),go("run_after_parse"),s;',
-          'if(D&&!H)return console.error("TRACE_PARSE_IN"),go("run_before_parse"),await s.parseAsync(process.argv),console.error("TRACE_PARSE_OUT"),go("run_after_parse"),s;']
-      ],
-      'chunk-mh7sh27p.js':[
-        ['from"./chunk-6d8swme1.js"','from"./.e2e-action-debug.js"'],
-        ['function iis(e){','function iis(e){console.error("TRACE_IIS");'],
-        ['r.hook("preAction",async(h,y)=>{','r.hook("preAction",async(h,y)=>{console.error("TRACE_PRE_ACTION");'],
-        ['await Promise.all([ONe(),pwn()])','console.error("TRACE_AWAIT_INIT"),await Promise.all([ONe(),pwn()]),console.error("TRACE_INIT_DONE")'],
-        ['n=await Jio(','console.error("TRACE_JIO"),n=await Jio('],
-        ['B.action(async(h,y)=>{','B.action(async(h,y)=>{console.error("TRACE_ACTION");']
-      ],
-      'chunk-6d8swme1.js':[
-        ['async function Oi({ cwd: e, toolPermissionContext: o, applyCoordinatorFilter: n, agentsJson: r, agentSetting: u, commandsPromise: p, agentDefsPromise: h, deferCommands: S, onToolsLoaded: y, storageV5: w }) {','async function Oi({ cwd: e, toolPermissionContext: o, applyCoordinatorFilter: n, agentsJson: r, agentSetting: u, commandsPromise: p, agentDefsPromise: h, deferCommands: S, onToolsLoaded: y, storageV5: w }) {console.error("TRACE_OI_ENTER");'],
-        ['let [T, P] = await Promise.all([S ? Promise.resolve([]) : M, h ?? NC(e, w)]), ee = [];','let commandInput=S ? Promise.resolve([]) : M, agentInput=h ?? NC(e,w);console.error("TRACE_OI_AWAIT",Boolean(p),Boolean(h),Boolean(S));Promise.resolve(commandInput).then(()=>console.error("TRACE_COMMAND_INPUT_DONE"),e=>console.error("TRACE_COMMAND_INPUT_FAIL",e?.stack||String(e)));Promise.resolve(agentInput).then(()=>console.error("TRACE_AGENT_INPUT_DONE"),e=>console.error("TRACE_AGENT_INPUT_FAIL",String(e)));let [T,P] = await Promise.all([commandInput,agentInput]), ee = [];'],
-        ['async function Yoo(e, o, n, r, u, p, h, S, y) {','async function Yoo(e, o, n, r, u, p, h, S, y) {console.error("TRACE_YOO_BEGIN");'],
-        ['let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {','console.error("TRACE_NA_START");let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {'],
-        ['if (!Ke.ok)','console.error("TRACE_NA_DONE",Ke.ok);if (!Ke.ok)'],
-        ['q4t("action_before_mcp_policy_wait"), await VB({','console.error("TRACE_VB_START"),q4t("action_before_mcp_policy_wait"), await VB({'],
-        ['let Me = await oys(e || "", j ?? "text")','console.error("TRACE_OYS_START");let Me = await oys(e || "", j ?? "text")'],
-        ['go("action_after_input_prompt");','console.error("TRACE_OYS_DONE"),go("action_after_input_prompt");'],
-        ['let Nl = Date.now()','console.error("TRACE_SETUP_IMPORT");let Nl = Date.now()'],
-        ['await Bl;','await Bl;console.error("TRACE_SETUP_DONE");'],
-        ['go("action_after_setup"), await Zn();','go("action_after_setup"),console.error("TRACE_ZN1_BEGIN"),await Zn(),console.error("TRACE_ZN1_DONE");'],
-        ['Ls = await Joo(() => tM(y))','Ls = (console.error("TRACE_JOO_BEGIN"),await Joo(() => tM(y)))'],
-        ['let Vo = await Oi({','console.error("TRACE_TOOLS_BEGIN");let Vo = await Oi({'],
-        ['Dr("tools_commands_load_ms"','console.error("TRACE_TOOLS_DONE");Dr("tools_commands_load_ms"'],
-        ['await tMn({ headless: Q0() }), Dr(','console.error("TRACE_TMN_BEGIN"),await tMn({ headless: Q0() }),console.error("TRACE_TMN_DONE"),Dr('],
-        ['let zs = await cPs({','console.error("TRACE_CPS_BEGIN");let zs = await cPs({'],
-        ['if (zs !== void 0)','console.error("TRACE_CPS_DONE");if (zs !== void 0)'],
-        ['let { effectiveModel: Xs','console.error("TRACE_MODEL_SELECT_BEGIN");let { effectiveModel: Xs']
-      ]
-    };
-    for(const {original,copy} of d){
-      const input=fs.readFileSync(path.join(root,'src',original),'utf8');
-      let output=input;
-      for(const [needle,replacement] of edits[original]){
-        assert.ok(output.includes(needle),'instrumentation anchor missing '+original+': '+needle);
-        output=output.replace(needle,replacement);
-      }
-      const target=path.join(root,'src',copy);
-      fs.writeFileSync(target,output);
-      files.push(target);
-    }
-    return {bin:files[0],cleanup:()=>{for(const p of files)fs.rmSync(p,{force:true})}};
-  }catch(e){
-    for(const p of files)fs.rmSync(p,{force:true});
-    throw e;
-  }
-}
-
 test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {timeout:75000},async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-model-e2e-'));
   const requests=[];
   const server=http.createServer((req,res)=>serve(req,res,requests));
   let child,timeout;
-  const trace=diagnosticModules();
   try{
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const port=server.address().port;
@@ -135,7 +64,7 @@ test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {time
       ANTHROPIC_AUTH_TOKEN:'',ANTHROPIC_BASE_URL:'http://127.0.0.1:'+port,
       HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'
     };
-    const args=[trace.bin,'--bare','--print','Say '+marker+' exactly',
+    const args=[bin,'--bare','--print','Say '+marker+' exactly',
       '--model','claude-sonnet-4-5','--output-format','json',
       '--no-session-persistence','--max-turns','1'];
     child=spawn(runtime,args,{cwd:dir,env,stdio:['ignore','pipe','pipe']});
@@ -149,12 +78,12 @@ test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {time
     clearTimeout(timeout);timeout=null;
     assert.equal(exit.code,0,'real CLI failed; stdout='+stdout.slice(-3000)+' stderr='+stderr.slice(-3500)+' requests='+JSON.stringify(requests.map(x=>x.url)));
     assert.ok(requests.some(r=>new URL(r.url,'http://localhost').pathname.endsWith('/messages')&&r.method==='POST'),'actual model messages HTTP request missing; stdout='+stdout.slice(-4000)+' stderr='+stderr.slice(-4000)+' requests='+JSON.stringify(requests.map(x=>x.url)));
+    assert.ok(requests.some(r=>r.body?.stream===true),'real model call must use SSE streaming');
     assert.ok(stdout.includes(marker),'model SSE text absent from CLI result: '+stdout.slice(-3000));
   }finally{
     if(timeout)clearTimeout(timeout);
     if(child&&child.exitCode===null)child.kill('SIGKILL');
     await new Promise(resolve=>server.close(resolve));
     fs.rmSync(dir,{recursive:true,force:true});
-    trace.cleanup();
   }
 });
