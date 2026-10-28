@@ -100,11 +100,24 @@ test('真实 daemon 分发 exec worker、写 roster、supervisor 崩溃后继续
 test('真实 daemon exec worker 正常和异常退出均记录退出码与输出尾部',{timeout:120000},async()=>{
   const home=fs.mkdtempSync(path.join(os.tmpdir(),'111-daemon-worker-exit-'));
   const env=environment(home);
-  let supervisor;
+  let supervisor,watcher;
   try{
     supervisor=await start(home,env);
     const dispatchDir=path.join(home,'.claude/daemon/dispatch');
     fs.mkdirSync(dispatchDir,{recursive:true});
+    const bound=read(path.join(home,'supervisor.log')).match(/control socket bound at (\\S+\\/control\\.sock)/);
+    assert.ok(bound,'真实 daemon 必须报告已绑定 control socket');
+    const ptyDir=path.join(path.dirname(bound[1]),'pty');
+    fs.mkdirSync(ptyDir,{recursive:true,mode:0o700});
+    const seenReceipts=new Map();
+    const observeReceipts=()=>{
+      for(const file of fs.readdirSync(ptyDir).filter(x=>x.endsWith('.exec-exit'))){
+        const raw=read(path.join(ptyDir,file));
+        try{seenReceipts.set(file,JSON.parse(raw))}catch{}
+      }
+    };
+    // 在实际 worker 启动前开始观察：原版 PTY 清理可能在回执写入后快速移走文件。
+    watcher=fs.watch(ptyDir,()=>observeReceipts());
     const cases=[
       {short:'c1d2e3f4',exitCode:0,token:'completed-worker-111'},
       {short:'d1e2f3a4',exitCode:7,token:'failed-worker-111'}
@@ -126,25 +139,16 @@ test('真实 daemon exec worker 正常和异常退出均记录退出码与输出
       fs.writeFileSync(temp,JSON.stringify(dispatch));
       fs.renameSync(temp,path.join(dispatchDir,job.short));
       await waitFor(()=>fs.existsSync(marker),'actual worker '+job.short+' launched',home,30000);
-      const receipts=()=>{
-        const bound=read(path.join(home,'supervisor.log')).match(/control socket bound at (\S+\/control\.sock)/);
-        const socketRoot=bound?path.dirname(bound[1]):null;
-        const files=socketRoot&&fs.existsSync(socketRoot)?
-          fs.readdirSync(socketRoot,{recursive:true}).filter(name=>name.endsWith('.exec-exit')):[];
-        for(const file of files){
-          let record;
-          try{record=JSON.parse(read(path.join(socketRoot,file)))}catch{continue}
-          if(record.tail?.includes(job.token+'-stdout'))return record;
-        }
-        return null;
-      };
-      await waitFor(()=>receipts()!==null,'worker exit receipt '+job.short,home,20000);
+      const receipts=()=>{observeReceipts();return seenReceipts.get(job.short+'.sock.exec-exit')??null;};
+      await waitFor(()=>receipts()?.tail?.includes(job.token+'-stdout'),
+        'worker exit receipt '+job.short,home,20000);
       const receipt=receipts();
       assert.equal(receipt.code,job.exitCode,'actual child exit code was lost');
       assert.ok(receipt.tail.includes(job.token+'-stdout'),'stdout tail lost');
       assert.ok(receipt.tail.includes(job.token+'-stderr'),'stderr tail lost');
     }
   }finally{
+    watcher?.close();
     if(supervisor?.exitCode===null)supervisor.kill('SIGKILL');
     fs.rmSync(home,{recursive:true,force:true});
   }
