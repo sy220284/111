@@ -13,6 +13,21 @@ const LEVELS = new Set(['局部行为已验证','业务链已验证','部分完�
 const PLACEHOLDER = /^(?:待填写|待补充|待测试|TODO|TBD|未执行|无内容|占位|.{0,2}|[-—])$/i;
 const SOURCE_EXT = /\.(?:cjs|mjs|js|jsx|ts|tsx)$/;
 const TEST_EXT = /\.(?:test|spec)\.(?:cjs|mjs|js|ts)$/;
+const PROTECTED_CHECKS = new Set([
+  '.github/workflows/source-restoration.yml',
+  '.github/workflows/restoration-delivery-gate.yml',
+  'scripts/check-source-fingerprint.cjs',
+  'scripts/verify-function-ledger.cjs',
+  'scripts/check-restored-aliases.cjs',
+  'scripts/source-function-index.cjs',
+  'tools/analysis/code-graph.cjs',
+  'tools/analysis/closure-audit.cjs',
+  'tests/check-source.cjs'
+]);
+const REQUIRED_SCRIPT_KEYS = [
+  'test','check:source','check:source-fingerprint','check:function-evidence',
+  'audit:functions','check:restored-aliases'
+];
 
 function field(body, name) {
   const matches = String(body || '').split(/\r?\n/)
@@ -115,7 +130,33 @@ function registeredTest(code, filename) {
   visit(ast);
   return registered && asserted;
 }
-function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[]}) {
+function checkScriptIntegrity(before, after) {
+  const errors=[];
+  if(!before || !after) return ['缺少 PR 前后 package.json，无法核对完整回归入口'];
+  let oldScripts,newScripts;
+  try {
+    oldScripts=JSON.parse(asText(before)).scripts;
+    newScripts=JSON.parse(asText(after)).scripts;
+  }catch{ return ['package.json 解析失败，不能验收功能恢复']; }
+  if(!oldScripts || !newScripts)return ['缺少 package.json scripts，不能验收功能恢复'];
+  for(const key of REQUIRED_SCRIPT_KEYS) {
+    const previous=oldScripts[key], next=newScripts[key];
+    if(typeof previous!=='string'||typeof next!=='string') {
+      errors.push('必需源码回归命令缺失：'+key);continue;
+    }
+    if(key==='test') {
+      const cmds=previous.split('&&').map(x=>x.trim()).filter(Boolean);
+      const actual=next.split('&&').map(x=>x.trim()).filter(Boolean);
+      let at=0;
+      for(const cmd of actual)if(cmd===cmds[at])at++;
+      if(at!==cmds.length)errors.push('npm test 删除或修改了既有回归检查，必须先独立治理变更');
+    } else if(previous!==next) {
+      errors.push('核心校验命令被功能 PR 修改：'+key);
+    }
+  }
+  return errors;
+}
+function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null}) {
   const errors=[], warnings=[];
   const category=field(body,'交付类别');
   if (!CATEGORIES.has(category)) errors.push('必须声明唯一有效的交付类别');
@@ -124,6 +165,7 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
   const isFunction=FUNCTIONAL.has(category);
   const statusByPath=new Map([...sourceChanges,...testChanges].map(x=>[x.path,x]));
   if (isFunction) {
+    if (/^\s*不计入功能恢复\s*$/m.test(body)) errors.push('恢复类与“不计入功能恢复”声明矛盾');
     if (!implementation.length) errors.push('缺少实际业务源码或运行资源变更');
     if (!tests.length) errors.push('缺少对应测试文件的实际变更');
     for (const name of REQUIRED) {
@@ -174,8 +216,12 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
     }
     if(tests.length && !valid) errors.push('没有有效新增/修改的可执行断言测试');
   }
-  if(isFunction && changed.some(p=>p==='.github/workflows/source-restoration.yml'))
-    errors.push('功能 PR 不得同时修改主源码回归工作流，请将 CI 治理修改独立提交');
+  if(isFunction) {
+    const touched=changed.filter(p=>PROTECTED_CHECKS.has(p));
+    if(touched.length)errors.push('功能 PR 不得修改验收器、指纹与回归门禁：'+touched.join(', '));
+    if(packageBefore!==null || packageAfter!==null)
+      errors.push(...checkScriptIntegrity(packageBefore,packageAfter));
+  }
   return {ok:errors.length===0,category,implementation,tests,errors,warnings};
 }
 function git(args) {
@@ -249,7 +295,9 @@ function main() {
   const report=auditDelivery({
     title:event.pull_request.title,body:event.pull_request.body,
     changed:changes.changed,
-    sourceChanges:changes.sourceChanges,testChanges:changes.testChanges
+    sourceChanges:changes.sourceChanges,testChanges:changes.testChanges,
+    packageBefore:gitAt(changes.ancestor,'package.json'),
+    packageAfter:gitAt(event.pull_request.head.sha,'package.json')
   });
   const summary=[
     '## 111 恢复交付门禁（基于 BASE 信任版本）',
@@ -272,4 +320,4 @@ function main() {
 }
 if(require.main===module)main();
 module.exports={field,businessPath,testPath,docPath,categoryPathAllowed,astShape,
-  classifyCodeChange,registeredTest,auditDelivery,gitDiff,inspectGit,runChangedTests};
+  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests};
