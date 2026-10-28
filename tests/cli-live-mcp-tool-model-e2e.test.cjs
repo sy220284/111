@@ -107,6 +107,23 @@ test('真实 CLI 模型工具调用跨 MCP 子进程执行并将工具结果交�
     assert.ok(calls.slice(1).some(body=>JSON.stringify(body.messages||[]).includes('MCP_TOOL_RESULT_'+token)),
       'tool_result not returned to model: '+diagnostics());
     assert.ok(stdout.includes(marker),'model final answer absent: '+diagnostics());
+    if(process.env.CLAUDE_E2E_TRACE_FILE){
+      const trace={schema:1,kind:'111-live-mcp-tool-loop',
+        mockedLocalHTTP:true,realMCPStdioChild:true,
+        mcpChildRuntime:'node',originalELFCompared:false,
+        requestCount:calls.length,
+        steps:calls.map(body=>({
+          model:body.model,stream:body.stream===true,
+          messageRoles:(body.messages||[]).map(m=>m.role),
+          hasToolResult:JSON.stringify(body.messages||[]).includes('MCP_TOOL_RESULT_'+token),
+          toolsAvailable:Array.isArray(body.tools)?body.tools.some(t=>t.name==='mcp__local__echo'):false
+        })),
+        mcpToolsListed:seen.some(e=>e.kind==='list'),
+        mcpToolExecuted:seen.some(e=>e.kind==='call'&&e.name==='echo'&&e.arguments?.text===token),
+        stdoutContainsExpectedMarker:stdout.includes(marker),
+        cliExitCode:result.code};
+      fs.writeFileSync(process.env.CLAUDE_E2E_TRACE_FILE,JSON.stringify(trace,null,2)+'\n');
+    }
     // Real CLI-emitted request bodies from the isolated local HTTP model service.
     // The fixture contains only synthetic tool/user data and no cloud credentials.
     if(process.env.V37_REPORT_DIR){

@@ -82,6 +82,22 @@ test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {time
     assert.ok(requests.some(r=>Array.isArray(r.body?.messages)&&JSON.stringify(r.body.messages).includes(marker)),
       'real model request must contain original user prompt');
     assert.ok(stdout.includes(marker),'model SSE text absent from CLI result: '+stdout.slice(-3000));
+    // Opt-in reproducible evidence: never persist API keys, raw request bodies
+    // or temporary local ports. Only synthetic fixture semantics are recorded.
+    if(process.env.CLAUDE_E2E_TRACE_FILE){
+      const messages=requests.filter(r=>r.method==='POST'&&
+        new URL(r.url,'http://localhost').pathname.endsWith('/messages'));
+      const trace={schema:1,kind:'111-live-model-sse',
+        mockedLocalHTTP:true,originalELFCompared:false,
+        requestCount:messages.length,steps:messages.map(r=>({
+          model:r.body?.model,stream:r.body?.stream===true,
+          messageRoles:(r.body?.messages||[]).map(m=>m.role),
+          userPromptObserved:JSON.stringify(r.body?.messages||[]).includes(marker),
+          toolsAvailable:Array.isArray(r.body?.tools)?r.body.tools.length:0
+        })),
+        stdoutContainsExpectedMarker:stdout.includes(marker),cliExitCode:exit.code};
+      fs.writeFileSync(process.env.CLAUDE_E2E_TRACE_FILE,JSON.stringify(trace,null,2)+'\n');
+    }
   }finally{
     if(timeout)clearTimeout(timeout);
     if(child&&child.exitCode===null)child.kill('SIGKILL');

@@ -1,0 +1,166 @@
+name: 111 全历史反编译单包汇总与校验
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/full-reverse-archive.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  complete-archive:
+    name: 汇总恢复源码、研究历史、全量调用证据及离线工具
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: 检出完整 Git 历史和可重建工具
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 固定源码及历史的可重现压缩快照
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v git
+          command -v zstd
+          command -v gh
+          stage="$RUNNER_TEMP/111-complete-reverse-archive"
+          mkdir -p "$stage"/{00_manifest,01_latest_source,02_verified_decompile,03_jelly_full_corpus,04_offline_toolchain,05_runtime_differential,06_previous_verified_baseline,07_history}
+          git rev-parse HEAD > "$stage/00_manifest/PACKAGING_COMMIT.txt"
+          git status --short > "$stage/00_manifest/PACKAGING_WORKTREE.txt"
+          git archive --format=tar HEAD | zstd -T0 -3 -o "$stage/01_latest_source/111-current-source-tree.tar.zst"
+          git bundle create "$stage/07_history/111-all-fetched-git-history.bundle" --all
+          git bundle verify "$stage/07_history/111-all-fetched-git-history.bundle"
+          # Include independently verified PR #47 code even when another merge
+          # or directory reorganization changes the current main snapshot.
+          git fetch --no-tags origin a71019781ff7218e500fb27be6151e48b08de31a
+          test "$(git rev-parse FETCH_HEAD)" = a71019781ff7218e500fb27be6151e48b08de31a
+          git archive --format=tar FETCH_HEAD | zstd -T0 -3 -o "$stage/07_history/111-PR47-verified-static-triage-snapshot.tar.zst"
+          echo 'a71019781ff7218e500fb27be6151e48b08de31a' > "$stage/07_history/PR47_VERIFIED_HEAD.txt"
+          cat > "$stage/00_manifest/README_先读.txt" <<'READ'
+          111 Claude Code 2.1.310 x64：此前全部 GitHub 可交付研究成果的单包归档
+
+          01_latest_source: 压缩时真实仓库工作树 (includes src/runtime/bin/resources/scripts/tests/tools)
+          02_verified_decompile: PR47已验收的纯净反编译源码、完整AST图谱、全量Jelly交叉分析、分级候选表和所有静态分析原生证据
+          03_jelly_full_corpus: 8分片Jelly原始分析JSON、输入摘要与静态候选完整记录
+          04_offline_toolchain: Node22/npm缓存/Bun1.4.4/Jelly0.13.0/actionlint组件
+          05_runtime_differential: Node/Bun回归及Bun/JSC诊断原始报告；不等于ELF完整等价
+          06_previous_verified_baseline: 更早完整成功构建的纯净反编译版本（独立保留，不覆盖新证据）
+          07_history: 仓库Git提交历史及PR47定版代码快照
+          00_manifest: 版本、artifact来源、全量文件SHA256与计数
+
+          仅将已有测试证明的静态候选标为静态；未运行确权的调用、ELF原版等价、完整Bun/JSC等价仍未验证。
+          用户在ChatGPT资料库中单独上传的原版ELF发行包与v36-v40历史压缩包，不在GitHub Actions执行环境中；
+          本归档不声称携带那些外部原件字节，避免伪造或重复归档。
+          READ
+          printf 'previous verified PR47 clean: GitHub Actions run 40656111783\n' > "$stage/00_manifest/PROVENANCE.txt"
+          printf 'previous base clean: GitHub Actions run 40648699702\n' >> "$stage/00_manifest/PROVENANCE.txt"
+          printf 'official toolchain: GitHub Actions run 40659090129\n' >> "$stage/00_manifest/PROVENANCE.txt"
+          printf 'Node/Bun differential: GitHub Actions run 40659186630\n' >> "$stage/00_manifest/PROVENANCE.txt"
+      - name: 获取之前实际通过的所有反编译包和Jelly完整证据
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-complete-reverse-archive"
+          gh run download 40656111783 --repo "$GITHUB_REPOSITORY" \
+            --name 111-clean-decompile-2.1.310-x64-full-graphs \
+            --dir "$stage/02_verified_decompile"
+          (cd "$stage/02_verified_decompile" && sha256sum -c SHA256SUMS)
+          for i in 0 1 2 3 4 5 6 7; do
+            gh run download 40656111783 --repo "$GITHUB_REPOSITORY" \
+              --name "111-jelly-corpus-shard-$i" \
+              --dir "$stage/03_jelly_full_corpus/shard-$i"
+            test -s "$stage/03_jelly_full_corpus/shard-$i/summary.json"
+            test -s "$stage/03_jelly_full_corpus/shard-$i/call2fun-candidates.tsv"
+          done
+          gh run download 40648699702 --repo "$GITHUB_REPOSITORY" \
+            --name 111-clean-decompile-2.1.310-x64-full-graphs \
+            --dir "$stage/06_previous_verified_baseline"
+          (cd "$stage/06_previous_verified_baseline" && sha256sum -c SHA256SUMS)
+          # Original verified archive must contain original-source diagnostics
+          # and full trace, not only the top-level pipeline summary.
+          name="111-Claude-Code-2.1.310-x64-clean-decompiled-source-graphs.tar.zst"
+          tar --zstd -tf "$stage/02_verified_decompile/$name" > "$stage/00_manifest/VERIFIED_ARCHIVE_CONTENTS.txt"
+          grep -Fq 'Jelly未解析调用候选分级.tsv' "$stage/00_manifest/VERIFIED_ARCHIVE_CONTENTS.txt"
+          grep -Fq 'Jelly唯一索引候选待验收.tsv' "$stage/00_manifest/VERIFIED_ARCHIVE_CONTENTS.txt"
+          grep -Fq 'Jelly原生分片证据/' "$stage/00_manifest/VERIFIED_ARCHIVE_CONTENTS.txt"
+          grep -Fq 'src/chunk-tqjdehqd.js' "$stage/00_manifest/VERIFIED_ARCHIVE_CONTENTS.txt"
+      - name: 下载真正固定并在CI运行的完整离线工具链与差异报告
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-complete-reverse-archive"
+          for name in 111-toolchain-node-latest 111-toolchain-npm-cache-latest 111-toolchain-bun-latest 111-toolchain-jelly-latest 111-toolchain-actionlint-latest; do
+            gh run download 40659090129 --repo "$GITHUB_REPOSITORY" --name "$name" \
+              --dir "$stage/04_offline_toolchain/$name"
+            (cd "$stage/04_offline_toolchain/$name" && sha256sum -c SHA256SUMS)
+          done
+          for name in 111-bun-jsc-compat-report 111-jelly-points-to-real-source-report; do
+            gh run download 40659090129 --repo "$GITHUB_REPOSITORY" --name "$name" \
+              --dir "$stage/05_runtime_differential/$name"
+          done
+          gh run download 40659186630 --repo "$GITHUB_REPOSITORY" \
+            --name 111-node-bun-live-differential-evidence \
+            --dir "$stage/05_runtime_differential/111-node-bun-live-differential-evidence"
+      - name: 全包完整性、历史证据、工具链与Jelly覆盖核验
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-complete-reverse-archive"
+          python3 - "$stage" <<'PY'
+          import json,sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          assert len(list((root/'03_jelly_full_corpus').glob('shard-*/summary.json')))==8
+          sums=[]
+          for p in sorted((root/'03_jelly_full_corpus').glob('shard-*/summary.json')):
+              j=json.loads(p.read_text())
+              assert j['kind']=='111-independent-points-to-corpus'
+              assert j['sourceModuleTotal']==2551 and j['attempted']==j['selected']
+              sums.append(j)
+          assert sum(x['selected'] for x in sums)==2551
+          assert sum(x['failed'] for x in sums)==0
+          assert sum(x['uniqueCandidateEdges'] for x in sums)==236166
+          assert sum(x['successful'] for x in sums)==2551
+          assert len(list((root/'04_offline_toolchain').glob('*/SHA256SUMS')))==5
+          assert len(list((root/'05_runtime_differential').rglob('*')))>3
+          for where in ('01_latest_source','02_verified_decompile','03_jelly_full_corpus','04_offline_toolchain','05_runtime_differential','06_previous_verified_baseline','07_history'):
+              assert any((root/where).rglob('*')),where
+          summary={
+            'type':'111-one-archive',
+            'verifiedSourceModules':2551,
+            'verifiedJellyUniqueStaticCandidates':236166,
+            'verifiedJellyFailures':0,
+            'rawJellyShards':8,
+            'offlineToolchainComponents':5,
+            'originalELFEquivalenceConfirmed':False,
+            'completeBunJSCParityConfirmed':False,
+            'remoteSourceArchivesNotIncluded':'User Library originals are separate private files',
+            'provenanceRunIds':[40656111783,40648699702,40659090129,40659186630]
+          }
+          (root/'00_manifest/VERIFICATION.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(summary,ensure_ascii=False))
+          PY
+          cd "$stage"
+          find . -type f ! -path './00_manifest/ALL_FILES_SHA256SUMS' -print0 \
+            | sort -z | xargs -0 sha256sum > 00_manifest/ALL_FILES_SHA256SUMS
+          sha256sum -c 00_manifest/ALL_FILES_SHA256SUMS >/dev/null
+          find . -type f -print | sort > 00_manifest/ALL_PATHS.txt
+          echo "File count: $(wc -l < 00_manifest/ALL_PATHS.txt)"
+          du -sh .
+      - name: 上传仅一个完整ZIP归档到本次Actions产物
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-Claude-Code-2.1.310-complete-reverse-archive-20261028
+          path: ${{ runner.temp }}/111-complete-reverse-archive/
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: error
