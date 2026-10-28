@@ -320,9 +320,9 @@ test('目录整理资源清单只接受实际文件完整搬迁后的路径变�
  const embeddedNew={version:'1',entries:[{...embedded.entries[0],path:'embedded/runtime/state-library.js'}]};
  assert.equal(exactManifestPaths(embedded,embeddedNew,records,'embedded'),true);
  assert.equal(exactManifestPaths(embedded,{...embeddedNew,entries:[{...embeddedNew.entries[0],gitBlobSha1:'changed'}]},records,'embedded'),false);
- const context={title:'目录整理',body:'交付类别：目录整理\\n不计入功能恢复',
+ const context={title:'目录整理',body:['交付类别：目录整理','不计入功能恢复'].join(String.fromCharCode(10)),
   changed:['docs/architecture/name.md','tests/mcp/m.test.cjs','resources/layout/relocations.json','resources/asset-layout.json'],
-  testChanges:[{path:'tests/mcp/m.test.cjs',before:null,after:\"const {test}=require('node:test');const assert=require('node:assert');test('works',()=>assert.ok(1));\",status:'A'}]};
+  testChanges:[{path:'tests/mcp/m.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('works',()=>assert.ok(1));",status:'A'}]};
  assert.equal(auditDelivery(context).ok,false);
  assert.equal(auditDelivery({...context,verifiedMetadata:['resources/asset-layout.json']}).ok,true);
 });
