@@ -457,6 +457,36 @@ jobs:
           retention-days: 30
           compression-level: 0
           if-no-files-found: error
+      - name: 拆分 Ghidra 离线载荷以支持小于 512 MiB 的下载接口
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/111-components/111-toolchain-ghidra-latest"
+          mkdir -p "$RUNNER_TEMP/ghidra-split/00" "$RUNNER_TEMP/ghidra-split/01"
+          split --bytes=320m --numeric-suffixes=0 --suffix-length=2 "$dir/payload.tar.gz" "$RUNNER_TEMP/ghidra-part-"
+          test -f "$RUNNER_TEMP/ghidra-part-00"
+          test -f "$RUNNER_TEMP/ghidra-part-01"
+          test "$(find "$RUNNER_TEMP" -maxdepth 1 -name 'ghidra-part-*' | wc -l)" -eq 2
+          mv "$RUNNER_TEMP/ghidra-part-00" "$RUNNER_TEMP/ghidra-split/00/payload.part-00"
+          mv "$RUNNER_TEMP/ghidra-part-01" "$RUNNER_TEMP/ghidra-split/01/payload.part-01"
+          cp "$dir/component.env" "$dir/SHA256SUMS" "$RUNNER_TEMP/ghidra-split/00/"
+          cat "$RUNNER_TEMP/ghidra-split/00/payload.part-00" "$RUNNER_TEMP/ghidra-split/01/payload.part-01" | sha256sum | cut -d' ' -f1 > "$RUNNER_TEMP/ghidra-rejoined.sha"
+          test "$(cat "$RUNNER_TEMP/ghidra-rejoined.sha")" = "$(sha256sum "$dir/payload.tar.gz" | cut -d' ' -f1)"
+          test "$(stat -c %s "$RUNNER_TEMP/ghidra-split/00/payload.part-00")" -lt 536870912
+          test "$(stat -c %s "$RUNNER_TEMP/ghidra-split/01/payload.part-01")" -lt 536870912
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-ghidra-part-00
+          path: ${{ runner.temp }}/ghidra-split/00/
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-ghidra-part-01
+          path: ${{ runner.temp }}/ghidra-split/01/
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: 111-toolchain-jdk-latest
