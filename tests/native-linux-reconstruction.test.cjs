@@ -66,6 +66,15 @@ console.log(JSON.stringify({before,ok:true}));`;
   assert.equal(res.status,0,res.stderr);
   assert.equal(JSON.parse(res.stdout).ok,true);
 });
+test('explicit opt-in loader does not override original addons', {skip:!isLinux||build?.status!==0}, async()=>{
+  const {loadNativeLinuxAlternative,nativeLinuxAlternativeNames}=await import('../runtime/native-linux.mjs');
+  assert.deepEqual([...nativeLinuxAlternativeNames].sort(),['audio','clipboard','linuxSystem']);
+  assert.equal(typeof loadNativeLinuxAlternative('linuxSystem').getPeerPid,'function');
+  assert.equal(typeof loadNativeLinuxAlternative('audio').startPlayback,'function');
+  assert.equal(typeof loadNativeLinuxAlternative('clipboard').getLinuxClipboardText,'function');
+  assert.throws(()=>loadNativeLinuxAlternative('../escape'),RangeError);
+  assert.ok(!require.cache[path.join(original,'audio-capture.node')]);
+});
 test('exported audio/clipboard N-API ABI matches original binary surface', {skip:!isLinux||build?.status!==0},()=>{
   for(const n of ['audio-capture','clipboard-napi']){
     const orig=path.join(original,n+'.node');
