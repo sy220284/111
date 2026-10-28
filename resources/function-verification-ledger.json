@@ -1388,6 +1388,54 @@
       "test": "tests/daemon-control-evidence.test.cjs",
       "role": "daemon-interactive-runner-bridge",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-y93r9xd4.js",
+      "symbol": "Tat",
+      "anchor": "function createFleetViewHost(",
+      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "role": "v40-source-export-verified-createFleetViewHost",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-y93r9xd4.js",
+      "symbol": "BZr",
+      "anchor": "function useAttachFleetOwners(",
+      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "role": "v40-source-export-verified-useAttachFleetOwners",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "symbol": "NFt",
+      "anchor": "function rosterKey(",
+      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "role": "v40-source-export-verified-rosterKey",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "symbol": "JN",
+      "anchor": "function readRoster(",
+      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "role": "v40-source-export-verified-readRoster",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "symbol": "ax",
+      "anchor": "function bgShort(",
+      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "role": "v40-source-export-verified-bgShort",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "symbol": "Hne",
+      "anchor": "function updateRoster(",
+      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "role": "v40-source-export-verified-updateRoster",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

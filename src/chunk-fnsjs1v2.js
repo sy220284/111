@@ -228,9 +228,10 @@ catch (n) {
 } }
 function DLr(e) { return e?.code === "Failed" && (e.telemetryCode === "ENXIO" || e.telemetryCode === "EFBIG" || e.telemetryCode === "ELOOP" || e.telemetryCode === "ENAMETOOLONG"); }
 var Pt = Ge(["proto", "supervisorPid", "updatedAt", "workers", "pid", "procStart", "sessionId", "rendezvousSock", "ptySock", "messagingSock", "rvAuth", "ptyAuth", "replPid", "replProcStart", "cliVersion", "startedAt", "attempt", "cwd", "worktreePath", "dispatch", "pendingRespawn", "decModes", "firedInteractiveMarks", "kind", "msgsLoaded", "msgsInJsonl", "msgsRenderedAtFirstPaint", "short", "restoresTranscript", "nonce", "createdAt", "cols", "rows", "source", "launch", "mode", "args", "fork", "flagArgs", "cmd", "env", "reattachEnv", "worktree", "path", "ownershipToken", "isolation", "respawnFlags", "seed", "intent", "name", "agent", "routine", "attachStallRespawns"]), Pe = 8388608;
-function NFt() { return We.daemon(["roster.json"]); }
+function rosterKey() { return We.daemon(["roster.json"]); }
+const NFt=rosterKey;
 function Q() { return { proto: Oc, supervisorPid: process.pid, updatedAt: Date.now(), workers: {} }; }
-async function JN(e, n) { if (n) {
+async function readRoster(e, n) { if (n) {
     let { roster: s, inspectFailed: f } = await Xe(n, e);
     return f ? { ...s, inspectFailed: !0 } : s;
 } let r; try {
@@ -252,6 +253,7 @@ catch (s) {
         l(Qe(N(s), "bg roster.json read/parse failed")), a("tengu_bg_roster_parse_failed", { orphaned: -1, quarantined: 1, errCode: yh(s) }), await ge(void 0);
     return { ...Q(), parseFailed: !0 };
 } return Ye(r, e, void 0); }
+const JN=readRoster;
 async function Ye(e, n, r) { let s; try {
     s = GBs().safeParse(e);
 }
@@ -302,7 +304,8 @@ catch (m) {
 async function It(e) { let n = await e.delete(NFt()).catch(() => { return; }); if (n === void 0 || !n.ok)
     l(new R(`roster quarantine v5 delete failed: ${n?.error.code ?? "threw"}`, "roster quarantine v5 delete failed")); }
 function Ke(e) { return PLr(e, () => Pt); }
-function ax(e) { return NP.test(e) ? Hn(e) : b("invalid"); }
+function bgShort(e) { return NP.test(e) ? Hn(e) : b("invalid"); }
+const ax=bgShort;
 function Ve(e) { let n = e !== null && typeof e === "object" ? e.workers : void 0; return n !== null && typeof n === "object" && !Array.isArray(n) ? Object.keys(n).length : 0; }
 async function Ct(e, n) { let { parseFailed: r, inspectFailed: s, ...f } = e; if (n) {
     let g = await n.write(NFt(), _(f, null, 2), { mode: 384 });
@@ -320,7 +323,8 @@ async function Ct(e, n) { let { parseFailed: r, inspectFailed: s, ...f } = e; if
     return;
 } throw g; }); }
 var Ft = Wh();
-function Hne(e, n) { return Ft.run("roster", async () => { let r = await Dt(n), s = e(r) ?? r; s.supervisorPid = process.pid, s.updatedAt = Date.now(), await Ct(s, n); }); }
+function updateRoster(e, n) { return Ft.run("roster", async () => { let r = await Dt(n), s = e(r) ?? r; s.supervisorPid = process.pid, s.updatedAt = Date.now(), await Ct(s, n); }); }
+const Hne=updateRoster;
 async function Dt(e) { if (!e)
     return JN(); let n = await Xe(e); if (n.inspectFailed)
     throw new R("bg roster.json update skipped: the file could not be inspected", "bg roster.json update skipped: the file could not be inspected"); return n.roster; }
@@ -912,4 +916,4 @@ function Iht(e) { let n = []; for (let r = 0; r < e.length; r++) {
 } return n; }
 var pn = 100;
 function UFt(e) { let n = re(e, pn); return sCt(_(n.length < e.length ? `${n}\u2026` : n)); }
-export { n8, RFt, RLr, xLr, ZJe, xFt, vOo, bht, UBs, BBs, PLr, jBs, Oc, Lan, NP, WBs, Sht, Dne, zqn, wht, ILr, EOo, vht, kOo, nde, TOo, Kqn, PFt, IFt, Eht, OFt, eQe, Nan, MFt, iGe, tQe, DFt, nQe, HFt, rQe, AOo, Vqn, LFt, OLr, GBs, COo, aGe, ROo, xOo, oQe, qqn, MLr, DLr, NFt, JN, ax, Hne, Yqn, $an, gDe, zBs, Lne, POo, KBs, ghe, IOo, Nne, hhe, Dk, Fan, Uan, VBs, Xqn, OOo, kht, qBs, LL, lx, Ban, HLr, NL, _o, Pg, Tht, Aht, MOo, LLr, ad, Rl, jan, rde, Dp, DOo, lo, HOo, Wan, sQe, $ne, Gan, NLr, zan, LOo, iQe, bO, NOo, $Oo, FOo, Jqn, UOo, aQe, Qqn, dx, Cht, yhe, PS, Rht, lQe, lGe, $Ft, uTe, BOo, ab, jC, Wa, RE, xht, FFt, ode, Kan, Pht, r8, dQe, YBs, jOo, XBs, JBs, WOo, cQe, GOo, Iht, UFt };
+export { rosterKey,readRoster,bgShort,updateRoster,n8, RFt, RLr, xLr, ZJe, xFt, vOo, bht, UBs, BBs, PLr, jBs, Oc, Lan, NP, WBs, Sht, Dne, zqn, wht, ILr, EOo, vht, kOo, nde, TOo, Kqn, PFt, IFt, Eht, OFt, eQe, Nan, MFt, iGe, tQe, DFt, nQe, HFt, rQe, AOo, Vqn, LFt, OLr, GBs, COo, aGe, ROo, xOo, oQe, qqn, MLr, DLr, NFt, JN, ax, Hne, Yqn, $an, gDe, zBs, Lne, POo, KBs, ghe, IOo, Nne, hhe, Dk, Fan, Uan, VBs, Xqn, OOo, kht, qBs, LL, lx, Ban, HLr, NL, _o, Pg, Tht, Aht, MOo, LLr, ad, Rl, jan, rde, Dp, DOo, lo, HOo, Wan, sQe, $ne, Gan, NLr, zan, LOo, iQe, bO, NOo, $Oo, FOo, Jqn, UOo, aQe, Qqn, dx, Cht, yhe, PS, Rht, lQe, lGe, $Ft, uTe, BOo, ab, jC, Wa, RE, xht, FFt, ode, Kan, Pht, r8, dQe, YBs, jOo, XBs, JBs, WOo, cQe, GOo, Iht, UFt };

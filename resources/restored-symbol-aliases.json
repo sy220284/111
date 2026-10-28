@@ -788,6 +788,42 @@
       "legacy": "Ge",
       "readable": "invokeDaemonInteractiveRunner",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-y93r9xd4.js",
+      "legacy": "Tat",
+      "readable": "createFleetViewHost",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-y93r9xd4.js",
+      "legacy": "BZr",
+      "readable": "useAttachFleetOwners",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "legacy": "NFt",
+      "readable": "rosterKey",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "legacy": "JN",
+      "readable": "readRoster",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "legacy": "ax",
+      "readable": "bgShort",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-fnsjs1v2.js",
+      "legacy": "Hne",
+      "readable": "updateRoster",
+      "style": "constAlias"
     }
   ]
 }
