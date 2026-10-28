@@ -20,7 +20,7 @@ PROFILE=build
 usage() {
   cat <<'EOF'
 111 开发工具链（Linux x64；使用 777 的按需 Artifact 工作方式）
-  bash tools/dev/ai-toolchain.sh plan [--profile build|full|compat]
+  bash tools/dev/ai-toolchain.sh plan [--profile build|full|compat|analysis|analysis|analysis]
   bash tools/dev/ai-toolchain.sh bootstrap --artifacts-dir PATH [--profile build|full|compat]
   bash tools/dev/ai-toolchain.sh check [--profile build|full|compat]
   bash tools/dev/ai-toolchain.sh status
@@ -30,6 +30,7 @@ usage() {
 build：Node 22.16.0 + npm 10.9.2 + 离线 npm 依赖（TypeScript/ws）
 full：追加 actionlint 1.7.12
 compat：追加 Bun/JSC 1.4.4 参照运行时（不替代 Node 主程序）
+analysis：在 build 基础上追加 Jelly 0.13.0 Points-to 调用图分析组件
 plan 不联网；bootstrap 仅接受 GitHub Actions 产出的已校验 Artifact；
 run 仅使用已就绪环境，不进行网络安装。无 Android/Gradle/JDK 工具。
 EOF
@@ -43,7 +44,7 @@ while [ "$#" -gt 0 ]; do
     *) break ;;
   esac
 done
-case "$PROFILE" in build|full|compat) ;; *) die "未知档位 $PROFILE" ;; esac
+case "$PROFILE" in build|full|compat|analysis) ;; *) die "未知档位 $PROFILE" ;; esac
 
 host_check() {
   [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] ||
@@ -98,6 +99,14 @@ component_ready() {
           [ "$(bun --version 2>/dev/null)" = "$BUN_VERSION" ]
       fi
       ;;
+    jelly)
+      [ -f "$TOOLS_ROOT/jelly/node_modules/@cs-au-dk/jelly/package.json" ] &&
+      [ -f "$TOOLS_ROOT/bin/jelly" ] &&
+      "$(selected_node)" -e '
+        const fs=require("node:fs");const p=process.argv[1];
+        if(JSON.parse(fs.readFileSync(p,"utf8")).version!==process.argv[2])process.exit(1)
+      ' "$TOOLS_ROOT/jelly/node_modules/@cs-au-dk/jelly/package.json" "$JELLY_VERSION" 2>/dev/null
+      ;;
     actionlint)
       if [ -x "$TOOLS_ROOT/bin/actionlint" ]; then
         "$TOOLS_ROOT/bin/actionlint" -version 2>/dev/null | grep -Fq "$ACTIONLINT_VERSION"
@@ -113,6 +122,7 @@ required_components() {
   printf '%s\n' $BUILD_COMPONENTS
   if [ "$PROFILE" = full ] || [ "$PROFILE" = compat ]; then printf '%s\n' $FULL_EXTRA_COMPONENTS; fi
   if [ "$PROFILE" = compat ]; then printf '%s\n' $COMPAT_EXTRA_COMPONENTS; fi
+  if [ "$PROFILE" = analysis ]; then printf '%s\n' $ANALYSIS_EXTRA_COMPONENTS; fi
 }
 missing_components() {
   local component
@@ -142,6 +152,10 @@ verify_artifact() {
   if [ "$component" = bun ]; then
     grep -Fxq "ARTIFACT_BUN_VERSION=$BUN_VERSION" "$dir/component.env" || die "Bun/JSC 版本不匹配"
   fi
+  if [ "$component" = jelly ]; then
+    grep -Fxq "ARTIFACT_JELLY_VERSION=$JELLY_VERSION" "$dir/component.env" ||
+      die "Jelly 组件版本不匹配"
+  fi
   if [ "$component" = npm-cache ]; then
     grep -Fxq "ARTIFACT_LOCK_SHA256=$(lock_hash)" "$dir/component.env" ||
       die "npm 锁文件哈希不匹配，必须重建依赖产物"
@@ -151,6 +165,7 @@ verify_artifact() {
     node) top=node ;;
     npm-cache) top=npm-cache ;;
     actionlint|bun) top=bin ;;
+    jelly) top=jelly ;;
     *) die "未知组件：$component" ;;
   esac
   tar -tzf "$dir/payload.tar.gz" | awk -v top="$top" '
@@ -189,6 +204,24 @@ install_component() {
       (cd "$REPO_ROOT" && run_npm ci --offline --ignore-scripts --no-audit --no-fund --cache "$TOOLS_ROOT/npm-cache") ||
         die "npm ci --offline 失败"
       deps_ready || die "npm 离线依赖版本验收失败"
+      ;;
+    jelly)
+      [ -f "$tmp/jelly/node_modules/@cs-au-dk/jelly/lib/main.js" ] ||
+        die "Jelly CLI 程序缺失"
+      [ "$(node -p 'require(process.argv[1]).version' "$tmp/jelly/node_modules/@cs-au-dk/jelly/package.json")" = "$JELLY_VERSION" ] ||
+        die "Jelly 版本不匹配"
+      rm -rf "$TOOLS_ROOT/jelly"
+      mv "$tmp/jelly" "$TOOLS_ROOT/jelly"
+      mkdir -p "$TOOLS_ROOT/bin"
+      cat > "$TOOLS_ROOT/bin/jelly" <<'JELLY_LAUNCHER'
+#!/usr/bin/env bash
+set -euo pipefail
+tool_root="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -x "$tool_root/node/bin/node" ]; then node="$tool_root/node/bin/node"; else node="$(command -v node)"; fi
+exec "$node" "$tool_root/jelly/node_modules/@cs-au-dk/jelly/lib/main.js" "$@"
+JELLY_LAUNCHER
+      chmod 755 "$TOOLS_ROOT/bin/jelly"
+      "$TOOLS_ROOT/bin/jelly" --help >/dev/null || die "Jelly CLI 无法启动"
       ;;
     bun)
       [ -x "$tmp/bin/bun" ] || die "Bun/JSC 载荷缺失"
