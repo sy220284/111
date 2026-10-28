@@ -3,6 +3,7 @@
 import argparse, csv, hashlib, json, shutil
 from collections import defaultdict
 from pathlib import Path
+from jelly_evidence import append_evidence
 
 def read(p): return json.loads(Path(p).read_text(encoding="utf-8"))
 def table(path,head,records):
@@ -26,6 +27,7 @@ def main():
     p=argparse.ArgumentParser()
     for k in ("graph","module_index","callsites","closure","root","out"):
         p.add_argument("--"+k.replace("_","-"),required=True)
+    p.add_argument('--jelly-shards', help='Jelly all-corpus sharded evidence artifacts')
     a=p.parse_args()
     root=Path(a.root).resolve(); out=Path(a.out).resolve()
     report=out/"图谱与证据";report.mkdir(parents=True,exist_ok=True)
@@ -33,6 +35,7 @@ def main():
     summary=read(root/"resources/function-summary.json")
     ledger=read(root/"resources/function-verification-ledger.json")["entries"]
     s=graph["summary"]
+    jelly_evidence=None
     assert graph["errors"]==[],graph["errors"][:3]
     assert s["modules"]==2553 and summary["modules"]==2551
     assert len(module)==len(calls)==2551 and set(module)==set(calls)
@@ -109,6 +112,8 @@ def main():
                         (a.callsites,"完整函数及调用点.json"),
                         (a.closure,"静态闭环审计.json")]:
         shutil.copy2(origin,report/name)
+    if a.jelly_shards:
+        jelly_evidence=append_evidence(root,a.jelly_shards,report,graph)
     for folder in ("src","runtime","bin"):
         shutil.copytree(root/folder,out/folder,dirs_exist_ok=True)
     shutil.copytree(root/"resources",out/"resources",
@@ -126,6 +131,7 @@ def main():
         "unresolvedReasons":s["unresolvedReasons"],
         "candidateKinds":{k:{"uniqueEdges":v[0],"callOccurrences":v[1]}
                           for k,v in sorted(kinds.items())},
+        "jelly":jelly_evidence,
         "targetedSemanticEvidence":len(ledger),"sourceFingerprint":summary["sourceFingerprint"],
         "embeddedResourceCount":len(resolved_assets)+len(resources), "mappedResourceCount":len(resolved_assets), "originalBunfsFileCount":len(resources),
         "note":"All syntax calls are indexed; candidate edges are not proven executed. Dynamic dispatch unresolved."
@@ -141,6 +147,9 @@ def main():
         "未解析调用逐点清单.tsv 列出全部剩余调用的函数位置、表达式、归类原因；"
         "未解析原因汇总.tsv 用于识别最值得进一步恢复的调用模式。"
         "调用候选类型分布.tsv 按静态解析规则列出候选边数与调用次数，均不等于实际执行确权。"
+        "Jelly跨分析器调用候选.tsv 按源码位置对齐独立 points-to 分析，且核验全仓源码 SHA256；"
+        "Jelly原生分片证据包含压缩原生 JSON 及每批的成功/失败状态。"
+        "Jelly 只提供静态候选，分批的忽略依赖模式不能证明全程序跨模块调用，亦非运行时确权。\\n\\n"
         "本包不等于原始 TypeScript，也没有验收 ELF 二进制等价、完整 Bun/JSC 兼容或在线业务等价。\n\n"
         "请查阅 图谱与证据/结果核验.json 了解实际覆盖范围和源码指纹。\n",encoding="utf-8")
     assert len(list((out/"src").glob("*.js")))>=2550
