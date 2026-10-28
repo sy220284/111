@@ -196,7 +196,7 @@ test('源码重命名到 docs 仍识别为源码删除，不能用文档类别�
     g('add','-A');g('commit','-qm','改名');const head=g('rev-parse','HEAD');
     process.chdir(dir);
     const actual=inspectGit({pull_request:{base:{sha:base},head:{sha:head}}});
-    assert.ok(actual.changed.includes('active.js'));
+    assert.ok(actual.changed.includes('src/active.js'));
     assert.ok(actual.changed.includes('docs/active.js'));
     const r=auditDelivery({title:'文档整理',body:'交付类别：文档维护\n不计入功能恢复',
       changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
@@ -303,7 +303,7 @@ test('目录整理对经过Git原始字节及清单验证的独立源码重命�
  assert.ok(before.errors.some(x=>x.includes('运行态源码')));
  const accepted=auditDelivery({...base,verifiedRelocations:[{old,current}]});
  assert.equal(accepted.ok,true,accepted.errors.join('\\n'));
- const modified=auditDelivery({...base,changed:[...base.changed,'chunk-target.js'],verifiedRelocations:[{old,current}]});
+ const modified=auditDelivery({...base,changed:[...base.changed,'core/chunk-target.js'],verifiedRelocations:[{old,current}]});
  assert.equal(modified.ok,false);
  assert.ok(modified.errors.some(x=>x.includes('运行态源码')));
 });
