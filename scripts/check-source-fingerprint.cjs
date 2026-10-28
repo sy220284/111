@@ -1,4 +1,7 @@
 'use strict';
+// TEMPORARY branch-only preview: refresh fingerprint on CI checkout to print all three SHA-256s.
+require('node:child_process').execFileSync(process.execPath,['scripts/source-function-index.cjs'],{stdio:'inherit'});
+
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');

@@ -1388,6 +1388,30 @@
       "test": "tests/daemon-control-evidence.test.cjs",
       "role": "daemon-interactive-runner-bridge",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-wrtp8qz8.js",
+      "symbol": "Hxe",
+      "anchor": "function intersperseArray(",
+      "test": "tests/historical-array-parity.test.cjs",
+      "role": "array-intersperse-2.1.88",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-wrtp8qz8.js",
+      "symbol": "F",
+      "anchor": "function countMatching(",
+      "test": "tests/historical-array-parity.test.cjs",
+      "role": "array-count-2.1.88",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-wrtp8qz8.js",
+      "symbol": "L",
+      "anchor": "function uniqueIterable(",
+      "test": "tests/historical-array-parity.test.cjs",
+      "role": "array-uniq-2.1.88",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
