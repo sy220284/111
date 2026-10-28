@@ -127,11 +127,13 @@ test('真实 daemon exec worker 正常和异常退出均记录退出码与输出
       fs.renameSync(temp,path.join(dispatchDir,job.short));
       await waitFor(()=>fs.existsSync(marker),'actual worker '+job.short+' launched',home,30000);
       const receipts=()=>{
-        const files=fs.readdirSync(home,{recursive:true})
-          .filter(name=>name.endsWith('.exec-exit'));
+        const bound=read(path.join(home,'supervisor.log')).match(/control socket bound at ([^\\s]+\\/control\\.sock)/);
+        const socketRoot=bound?path.dirname(bound[1]):null;
+        const files=socketRoot&&fs.existsSync(socketRoot)?
+          fs.readdirSync(socketRoot,{recursive:true}).filter(name=>name.endsWith('.exec-exit')):[];
         for(const file of files){
           let record;
-          try{record=JSON.parse(read(path.join(home,file)))}catch{continue}
+          try{record=JSON.parse(read(path.join(socketRoot,file)))}catch{continue}
           if(record.tail?.includes(job.token+'-stdout'))return record;
         }
         return null;
