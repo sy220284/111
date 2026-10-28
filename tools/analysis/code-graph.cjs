@@ -47,7 +47,7 @@ function analyze(sources, ledger = []) {
   const stats={calls:0,resolvedCalls:0,unresolvedCalls:0,dynamicImports:0};
   for(const file of files) {
     const ast=parsed.get(file), importBindings=new Map(), deps=new Set(), exports=new Map(),
-      defs=new Map(), exportAll=[], constAliases=[];
+      defs=new Map(), exportAll=[];
     function addDependency(spec,kind,at){
       const target=resolve(file,spec,known);
       if (target) deps.add(target);
@@ -62,19 +62,11 @@ function analyze(sources, ledger = []) {
       const isExported=!!stmt.modifiers?.some(x=>x.kind===ts.SyntaxKind.ExportKeyword);
       const isDefault=!!stmt.modifiers?.some(x=>x.kind===ts.SyntaxKind.DefaultKeyword);
       if(top && isExported) exports.set(isDefault?'default':top,{file,local:top});
-      if(ts.isVariableStatement(stmt)) for(const d of stmt.declarationList.declarations){
-        if(!ts.isIdentifier(d.name)||!d.initializer)continue;
-        if(functionLike(d.initializer)){
+      if(ts.isVariableStatement(stmt)) for(const d of stmt.declarationList.declarations)
+        if(ts.isIdentifier(d.name) && d.initializer && functionLike(d.initializer)) {
           defs.set(d.name.text,{file,symbol:d.name.text});
           if(isExported) exports.set(d.name.text,{file,local:d.name.text});
-        }else if((stmt.declarationList.flags&ts.NodeFlags.Const)!==0 &&
-          ts.isIdentifier(d.initializer)){
-          // An immutable function alias is the same callable, not a new implementation.
-          // Never follow let/var reassignment or property/reflective aliases.
-          constAliases.push({alias:d.name.text,pointTo:d.initializer.text});
-          if(isExported)exports.set(d.name.text,{file,local:d.name.text});
         }
-      }
       if(ts.isImportDeclaration(stmt) && ts.isStringLiteralLike(stmt.moduleSpecifier)){
         const target=addDependency(stmt.moduleSpecifier.text,'import',stmt.getStart(ast));
         const clause=stmt.importClause;
@@ -95,15 +87,6 @@ function analyze(sources, ledger = []) {
         else if(target) exportAll.push(target);
       }
     }
-    // Resolve chains of immutable aliases only when the target is a known local
-    // top-level function. Do not invent cross-module/dynamic callable targets.
-    for(let pass=0;pass<constAliases.length;pass++){
-      let resolved=0;
-      for(const {alias,pointTo} of constAliases)if(!defs.has(alias)&&defs.has(pointTo)){
-        defs.set(alias,defs.get(pointTo));resolved++;
-      }
-      if(!resolved)break;
-    }
     modules.set(file,{file,imports:importBindings,deps,staticDeps:new Set(deps),defs,exports,exportAll});
   }
   function exportTarget(file,symbol,seen=new Set()){
@@ -114,7 +97,7 @@ function analyze(sources, ledger = []) {
     const out=m.exports.get(symbol);
     if(out) {
       if(out.file!==file) return exportTarget(out.file,out.local,seen);
-      if(m.defs.has(out.local))return m.defs.get(out.local);
+      if(m.defs.has(out.local))return {file,symbol:out.local};
       const binding=m.imports.get(out.local);
       if(binding?.target) return exportTarget(binding.target,binding.export,seen);
     }
