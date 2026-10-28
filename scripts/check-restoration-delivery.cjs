@@ -31,13 +31,21 @@ function testPath(path) {
   return /^tests\/.*\.(?:test|spec)\.(?:cjs|mjs|js|ts)$/.test(path) ||
     /\.(?:test|spec)\.(?:cjs|mjs|js|ts)$/.test(path);
 }
-function lex(source, identifiersOnly = false) {
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, source);
+function astSignature(source, identifiersOnly = false) {
+  // 对比真正的 AST 结构，而不是把可选分号、注释或空白当成功能变化。
+  const ast = ts.createSourceFile('restoration-source.js', source,
+    ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  if (ast.parseDiagnostics.length) throw Error('业务源码无法解析，不能认定为有效源码变更');
   const tokens = [];
-  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
-    const value = identifiersOnly && kind === ts.SyntaxKind.Identifier ? '标识符' : scanner.getTokenText();
-    tokens.push(kind + ':' + value);
+  function visit(node) {
+    tokens.push(node.kind);
+    if (ts.isIdentifier(node)) tokens.push(identifiersOnly ? '标识符' : node.text);
+    else if (ts.isLiteralExpression(node) || ts.isRegularExpressionLiteral(node)) {
+      tokens.push(node.getText(ast));
+    }
+    ts.forEachChild(node, visit);
   }
+  visit(ast);
   return tokens.join('\u0000');
 }
 function classifyCodeChange(change) {
@@ -45,10 +53,10 @@ function classifyCodeChange(change) {
     return change.before !== change.after ? 'effective' : 'none';
   }
   if (change.before === null || change.after === null) return 'effective';
-  const previous = lex(change.before);
-  const current = lex(change.after);
+  const previous = astSignature(change.before);
+  const current = astSignature(change.after);
   if (previous === current) return 'cosmetic';
-  if (lex(change.before, true) === lex(change.after, true)) return 'identifier_only';
+  if (astSignature(change.before, true) === astSignature(change.after, true)) return 'identifier_only';
   return 'effective';
 }
 function auditDelivery({title = '', body = '', changed = [], sourceChanges = []}) {
