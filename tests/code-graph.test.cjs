@@ -324,10 +324,10 @@ test('top-level aliases inherit property mutations and never fabricate stale sta
  assert.equal(g.summary.unresolvedCallExpressions,3);
  assert.equal(g.callEdges[0].to.symbol,'go');
 });
-test('top-level callable initializer reassignment invalidates same-module candidate',()=>{
+test('top-level function declaration reassignment invalidates its static candidate',()=>{
  const g=analyze({'src/a.js':
-   'var changed=()=>1;changed=()=>2;changed();'+
-   'const stable=()=>1;stable()'});
+   'function changed(){return 1}changed=()=>2;changed();'+
+   'function stable(){return 1}stable()'});
  assert.deepEqual(g.errors,[]);
  assert.equal(g.summary.candidateResolvedCalls,1);
  assert.equal(g.summary.unresolvedCallExpressions,1);
