@@ -86,6 +86,25 @@ jobs:
           printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=actionlint\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\n' "$NODE_VERSION" > "$lint_dir/component.env"
           tar -czf "$lint_dir/payload.tar.gz" -C "$RUNNER_TEMP/actionlint-stage" bin
           (cd "$lint_dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
+      - name: 验证官方 SHA256 并制作 Bun/JSC 可选离线组件
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          archive="bun-linux-x64-baseline.zip"
+          curl --fail --location --retry 3 \
+            "https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/$archive" \
+            -o "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$BUN_LINUX_X64_BASELINE_SHA256" "$RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bun-unpacked" "$RUNNER_TEMP/bun-stage/bin"
+          unzip -q "$RUNNER_TEMP/$archive" -d "$RUNNER_TEMP/bun-unpacked"
+          install -m 755 "$RUNNER_TEMP/bun-unpacked/bun-linux-x64-baseline/bun" "$RUNNER_TEMP/bun-stage/bin/bun"
+          test "$("$RUNNER_TEMP/bun-stage/bin/bun" --version)" = "$BUN_VERSION"
+          dir="$RUNNER_TEMP/111-components/111-toolchain-bun-latest"
+          mkdir -p "$dir"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=bun\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_BUN_VERSION=%s\n' \
+            "$NODE_VERSION" "$BUN_VERSION" > "$dir/component.env"
+          tar -czf "$dir/payload.tar.gz" -C "$RUNNER_TEMP/bun-stage" bin
+          (cd "$dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
       - name: 上传 Node 组件
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -105,6 +124,13 @@ jobs:
         with:
           name: 111-toolchain-actionlint-latest
           path: ${{ runner.temp }}/111-components/111-toolchain-actionlint-latest/
+          retention-days: 30
+          if-no-files-found: error
+      - name: 上传 Bun/JSC 可选参照运行时
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-bun-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-bun-latest/
           retention-days: 30
           if-no-files-found: error
 
@@ -129,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           bash tools/dev/ai-toolchain.sh plan --profile full
-          for c in node npm-cache actionlint; do
+          for c in node npm-cache actionlint bun; do
             bash tools/dev/ai-toolchain.sh verify-artifact "$c" "$DEV111_ARTIFACTS_DIR/111-toolchain-$c-latest"
           done
           # 直接调用 run，检验仅凭已下载 Artifact 自动完成 build 档依赖安装。
@@ -138,6 +164,15 @@ jobs:
           # full 档在复用上述组件基础上只补 actionlint。
           bash tools/dev/ai-toolchain.sh bootstrap --profile full --artifacts-dir "$DEV111_ARTIFACTS_DIR"
           bash tools/dev/ai-toolchain.sh check --profile full
+      - name: 按需安装 compat 档的 Bun/JSC 并复验真实 API
+        run: |
+          set -euo pipefail
+          bash tools/dev/ai-toolchain.sh plan --profile compat | grep -F '111-toolchain-bun-latest'
+          bash tools/dev/ai-toolchain.sh bootstrap --profile compat --artifacts-dir "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile compat
+          bash tools/dev/ai-toolchain.sh run -- bun --version
+          bash tools/dev/ai-toolchain.sh run -- node tools/dev/bun-jsc-compat.cjs report --json \
+            --bun "$DEV111_TOOLS_ROOT/bin/bun" --require-bun --output "$RUNNER_TEMP/111-bun-jsc-offline.json" > /dev/null
       - name: 真实离线源码测试、CLI 版本与工作流语法
         run: |
           set -euo pipefail
@@ -155,8 +190,8 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf "$DEV111_ARTIFACTS_DIR"
-          bash tools/dev/ai-toolchain.sh check --profile full
-          output="$(bash tools/dev/ai-toolchain.sh plan --profile full)"
+          bash tools/dev/ai-toolchain.sh check --profile compat
+          output="$(bash tools/dev/ai-toolchain.sh plan --profile compat)"
           echo "$output"
           echo "$output" | grep -F '"missing_artifacts":[]'
       - name: 再次启动真实 CLI 帮助入口（失败直接阻断）
