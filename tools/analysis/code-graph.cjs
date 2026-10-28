@@ -180,7 +180,17 @@ function analyze(sources, ledger = []) {
   // Nested object-literal values form an explicit tree. Only leaf functions
   // are callable. A spread or unknown computed property can replace any key,
   // so reject the entire object's methods rather than inventing bindings.
-  function objectMethods(expr,file,ast,depth=0){
+  function knownCallable(name,file,localCallables,localNames){
+    if(localCallables?.has(name))return localCallables.get(name);
+    if(localNames?.has(name))return null;
+    const m=modules.get(file);
+    if(m?.defs.has(name))return m.defs.get(name);
+    const imported=m?.imports.get(name);
+    if(imported?.target&&!imported.namespace)
+      return exportTarget(imported.target,imported.export);
+    return null;
+  }
+  function objectMethods(expr,file,ast,depth=0,localCallables=null,localNames=null){
     const result=new Map();
     if(!expr||!ts.isObjectLiteralExpression(expr)||depth>12)return result;
     for(const property of expr.properties){
@@ -196,7 +206,16 @@ function analyze(sources, ledger = []) {
       }else if(ts.isPropertyAssignment(property)){
         const fn=property.initializer;
         if(functionLike(fn))result.set(name,nodeTarget(fn,file,ast,fn.name?.text||name));
-        else if(ts.isObjectLiteralExpression(fn))result.set(name,objectMethods(fn,file,ast,depth+1));
+        else if(ts.isObjectLiteralExpression(fn))
+          result.set(name,objectMethods(fn,file,ast,depth+1,localCallables,localNames));
+        else if(ts.isIdentifier(fn)){
+          const target=knownCallable(fn.text,file,localCallables,localNames);
+          if(target)result.set(name,target);
+          else result.delete(name);
+        }else result.delete(name);
+      }else if(ts.isShorthandPropertyAssignment(property)){
+        const target=knownCallable(property.name.text,file,localCallables,localNames);
+        if(target)result.set(name,target);
         else result.delete(name);
       }else if(ts.isGetAccessorDeclaration(property)||ts.isSetAccessorDeclaration(property)){
         result.delete(name);
@@ -230,7 +249,7 @@ function analyze(sources, ledger = []) {
     }
     return ts.isIdentifier(cur)&&members.length?{root:cur.text,members}:null;
   }
-  function scopedBindings(fn,file,ast){
+  function scopedBindings(fn,file,ast,localNames){
     const callables=new Map(),objects=new Map(),keys=new Map(),aliases=[];
     if(!fn.body||!ts.isBlock(fn.body))return {callables,objects,keys};
     for(const stmt of fn.body.statements){
@@ -246,7 +265,7 @@ function analyze(sources, ledger = []) {
         else if(ts.isIdentifier(d.initializer))
           aliases.push([d.name.text,d.initializer.text]);
         else if(ts.isObjectLiteralExpression(d.initializer))
-          objects.set(d.name.text,objectMethods(d.initializer,file,ast));
+          objects.set(d.name.text,objectMethods(d.initializer,file,ast,0,callables,localNames));
         else if(ts.isStringLiteralLike(d.initializer)||ts.isNumericLiteral(d.initializer))
           keys.set(d.name.text,d.initializer.text);
       }
@@ -360,8 +379,9 @@ function analyze(sources, ledger = []) {
       const before=current;
       const isFunction=functionLike(node);
       if(isFunction) {
-        activeScopes.push(localBindings(node));
-        activeDefinitions.push(scopedBindings(node,file,ast));
+        const names=localBindings(node);
+        activeScopes.push(names);
+        activeDefinitions.push(scopedBindings(node,file,ast,names));
         let label=node.name && ts.isIdentifier(node.name)?node.name.text:null;
         if(!label && ts.isVariableDeclaration(node.parent) &&
            ts.isIdentifier(node.parent.name))label=node.parent.name.text;
