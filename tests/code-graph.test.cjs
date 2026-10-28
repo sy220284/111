@@ -344,3 +344,13 @@ test('local object alias method rewrite invalidates only its enclosing function 
  assert.equal(g.summary.unresolvedCallExpressions,2);
  assert.equal(g.callEdges[0].kind,'lexical_object_method_candidate');
 });
+
+
+test('uninitialized var declarations remain valid while alias safety analysis scans them',()=>{
+ const g=analyze({'src/uninitialized.js':
+  'var placeholder;var original={run(){}};var stable=original;stable.run();'+
+  'function inner(){var other;var local={go(){}};local.go()}'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+});
