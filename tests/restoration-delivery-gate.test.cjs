@@ -7,7 +7,7 @@ const path=require('node:path');
 const cp=require('node:child_process');
 const {
   field,businessPath,testPath,categoryPathAllowed,classifyCodeChange,registeredTest,
-  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity
+  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename
 }=require('../scripts/check-restoration-delivery.cjs');
 
 const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
@@ -271,4 +271,23 @@ test('目录整理拒绝没有迁移证据、测试或混入运行时文件',()=
   const result=auditDelivery({title:'整理',body,changed});
   assert.equal(result.ok,false);
  }
+});
+
+
+test('治理配置保留原路径与新目录的门禁回归测试文件白名单',()=>{
+  assert.equal(categoryPathAllowed('治理配置','tests/restoration-delivery-gate.test.cjs'),true);
+  assert.equal(categoryPathAllowed('治理配置','tests/governance/restoration-delivery-gate.test.cjs'),true);
+  assert.equal(categoryPathAllowed('治理配置','tests/agents/agent-resume-errors.test.cjs'),false);
+});
+
+test('真实历史703用例仅迁移时委托专用完整工作流，其他场景不跳过',()=>{
+  const previous='tests/v44-real-historical-703.test.cjs';
+  const current='tests/restoration/v44-real-historical-703.test.cjs';
+  const workflow='pull_request:\\n- tests/restoration/v44-real-historical-703.test.cjs\\nnode --test tests/restoration/v44-real-historical-703.test.cjs\\n--expected 703\\nOLD_SOURCE_ROOT';
+  const change={oldPath:previous,path:current,status:'R100'};
+  assert.equal(delegatedHistoricalRename(change,'目录整理',workflow),true);
+  assert.equal(delegatedHistoricalRename(change,'独立测试',workflow),false);
+  assert.equal(delegatedHistoricalRename({...change,status:'M'},'目录整理',workflow),false);
+  assert.equal(delegatedHistoricalRename({...change,oldPath:'tests/unrelated.test.cjs'},'目录整理',workflow),false);
+  assert.throws(()=>delegatedHistoricalRename(change,'目录整理','pull_request:\\nnode --test tests/restoration/v44-real-historical-703.test.cjs'),/不得绕过/);
 });
