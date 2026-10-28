@@ -9,7 +9,7 @@ on:
       - '.github/workflows/recovery-evidence.yml'
       - 'tools/analysis/ghidra-headless.sh'
       - 'tools/analysis/ghidra-scripts/**'
-      - 'src/**'
+      - 'core/**'
       - 'runtime/**'
       - 'bin/**'
       - 'resources/bunfs/*.node'
@@ -26,7 +26,7 @@ on:
       - '.github/workflows/recovery-evidence.yml'
       - 'tools/analysis/ghidra-headless.sh'
       - 'tools/analysis/ghidra-scripts/**'
-      - 'src/**'
+      - 'core/**'
       - 'runtime/**'
       - 'bin/**'
       - 'resources/bunfs/*.node'
@@ -81,7 +81,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/jelly-cli"
           node tools/analysis/jelly-runner.cjs \
             --jelly "$RUNNER_TEMP/jelly-cli" --out .recovery-ci/source/jelly \
-            --timeout 110 --entry src/chunk-sdz0xp27.js --entry src/chunk-01qhvw6m.js
+            --timeout 110 --entry core/chunk-sdz0xp27.js --entry core/chunk-01qhvw6m.js
       - name: 真实 Node CLI 的本地模型 SSE 与 MCP 工具往返
         run: |
           set -euo pipefail
