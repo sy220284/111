@@ -80,6 +80,8 @@ function diagnosticModules(){
         ['B.action(async(h,y)=>{','B.action(async(h,y)=>{console.error("TRACE_ACTION");']
       ],
       'chunk-6d8swme1.js':[
+        ['async function Oi({ cwd: e, toolPermissionContext: o, applyCoordinatorFilter: n, agentsJson: r, agentSetting: u, commandsPromise: p, agentDefsPromise: h, deferCommands: S, onToolsLoaded: y, storageV5: w }) {','async function Oi({ cwd: e, toolPermissionContext: o, applyCoordinatorFilter: n, agentsJson: r, agentSetting: u, commandsPromise: p, agentDefsPromise: h, deferCommands: S, onToolsLoaded: y, storageV5: w }) {console.error("TRACE_OI_ENTER");'],
+        ['let [T, P] = await Promise.all([S ? Promise.resolve([]) : M, h ?? NC(e, w)]), ee = [];','let commandInput=S ? Promise.resolve([]) : M, agentInput=h ?? NC(e,w);console.error("TRACE_OI_AWAIT",Boolean(p),Boolean(h),Boolean(S));Promise.resolve(commandInput).then(()=>console.error("TRACE_COMMAND_INPUT_DONE"),e=>console.error("TRACE_COMMAND_INPUT_FAIL",String(e)));Promise.resolve(agentInput).then(()=>console.error("TRACE_AGENT_INPUT_DONE"),e=>console.error("TRACE_AGENT_INPUT_FAIL",String(e)));let [T,P] = await Promise.all([commandInput,agentInput]), ee = [];'],
         ['async function Yoo(e, o, n, r, u, p, h, S, y) {','async function Yoo(e, o, n, r, u, p, h, S, y) {console.error("TRACE_YOO_BEGIN");'],
         ['let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {','console.error("TRACE_NA_START");let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {'],
         ['if (!Ke.ok)','console.error("TRACE_NA_DONE",Ke.ok);if (!Ke.ok)'],
