@@ -8,6 +8,19 @@
 
 核心组件是 `111-toolchain-node-latest` 和 `111-toolchain-npm-cache-latest`；完整档额外使用 `111-toolchain-actionlint-latest`。每个组件有 `component.env`、`payload.tar.gz`、`SHA256SUMS`。npm 缓存产物额外绑定 `package-lock.json` 的 SHA256。
 
+## 实际安装入口
+
+联网环境可直接使用 `bash scripts/install.sh`，按 `package-lock.json` 安装依赖后自动执行全部 `npm test`、CLI `--version` 和 `--help`。Node.js 必须满足 Linux x64、22.16.0 或更新。
+
+已经从 GitHub Actions 下载组件时，可使用：
+
+```bash
+export DEV111_ARTIFACTS_DIR=/path/to/artifacts
+bash scripts/install.sh --offline
+```
+
+离线模式复用 `tools/dev/ai-toolchain.sh run` 完成按需安装，不请求 npm registry；缺组件会明确失败并列出待下载产物。CI 还会主动删除 `node_modules` 再次离线安装，以验证安装路径可重复恢复。CLI `--help` 或 `--version` 失败会让安装失败，不能再由 CI 忽略。
+
 ## 使用方式
 
 ```bash
