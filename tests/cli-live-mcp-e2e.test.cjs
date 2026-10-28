@@ -39,7 +39,7 @@ test('实际 MCP stdio 服务完成 initialize 与 tools/list 协议链路',asyn
   const child=spawn(runtime,[executable,'mcp','serve'],{
     cwd:home,env:isolatedEnv(home),stdio:['pipe','pipe','pipe']
   });
-  let stderr='', buffer='',unexpected=[],settled=false;
+  let stderr='', buffer='',unexpected=[];
   const pending=new Map();
   const closed=new Promise(resolve=>child.once('close',(code,signal)=>resolve({code,signal})));
   child.stderr.setEncoding('utf8');
@@ -71,10 +71,13 @@ test('实际 MCP stdio 服务完成 initialize 与 tools/list 协议链路',asyn
     const reply=async promise=>{
       const remaining=end-Date.now();
       assert.ok(remaining>0,'MCP protocol timeout: '+stderr);
-      return await Promise.race([
-        promise,
-        new Promise((_,reject)=>setTimeout(()=>reject(Error('MCP response timeout; stderr: '+stderr.slice(-2000)+' stdout: '+unexpected.join(';'))),remaining))
-      ]);
+      let timer;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('MCP response timeout; stderr: '+stderr.slice(-2000)+' stdout: '+unexpected.join(';'))),remaining)})
+        ]);
+      } finally {clearTimeout(timer)}
     };
     const init=await reply(request(1,'initialize',{
       protocolVersion:'2025-06-18',
