@@ -57,7 +57,7 @@ function categoryPathAllowed(category, p) {
     p==='resources/function-verification-ledger.json' ||
     ['AGENTS.md','README.md','package.json','package-lock.json'].includes(p));
   if (category === '治理配置') return p === 'AGENTS.md' || /^\.github\//.test(p) ||
-    /^(?:scripts\/check-restoration-delivery\.cjs|tests\/restoration-delivery-gate\.test\.cjs)$/.test(p) ||
+    /^(?:scripts\/check-restoration-delivery\.cjs|tests\/(?:governance\/)?restoration-delivery-gate\.test\.cjs)$/.test(p) ||
     docPath(p);
   return true;
 }
@@ -285,11 +285,27 @@ function inspectGit(event) {
     });
   return {diffs,changed,sourceChanges,testChanges,ancestor};
 }
+// 历史真实源码对照用例必须带完整旧版源码与 703 项生成证据；
+// 仅对完全相同的目录搬迁委托给专用的真实历史对照 CI。
+function delegatedHistoricalRename(change, category, workflow) {
+  if(category!=='目录整理' || change.oldPath!=='tests/v44-real-historical-703.test.cjs' ||
+     change.path!=='tests/restoration/v44-real-historical-703.test.cjs' ||
+     !/^R[0-9]*$/.test(change.status)) return false;
+  if(!workflow.includes('pull_request:') ||
+     !workflow.includes('tests/restoration/v44-real-historical-703.test.cjs') ||
+     !workflow.includes('node --test tests/restoration/v44-real-historical-703.test.cjs') ||
+     !workflow.includes('--expected 703') || !workflow.includes('OLD_SOURCE_ROOT'))
+    throw Error('历史 703 项测试必须由完整的专用工作流执行，不得绕过');
+  return true;
+}
 function runChangedTests(report, changes) {
   if(!report.ok) return;
   if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试' && report.category!=='目录整理') return;
-  const paths=changes.testChanges.filter(x=>report.tests.includes(x.path) && x.after!==null)
-    .map(x=>x.path);
+  const specializedWorkflow=fs.readFileSync('.github/workflows/v43-historical-real-compare.yml','utf8');
+  const selected=changes.testChanges.filter(x=>report.tests.includes(x.path) && x.after!==null);
+  const delegated=selected.filter(x=>delegatedHistoricalRename(x,report.category,specializedWorkflow));
+  const paths=selected.filter(x=>!delegated.includes(x)).map(x=>x.path);
+  for(const file of delegated) console.log('专用历史源码工作流验证：'+file.path);
   if(!paths.length) throw Error('没有实际可运行的变更测试');
   console.log('本次增量测试执行：',paths.join(', '));
   const run=cp.spawnSync(process.execPath,
@@ -332,4 +348,4 @@ function main() {
 }
 if(require.main===module)main();
 module.exports={field,businessPath,testPath,docPath,categoryPathAllowed,astShape,
-  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests};
+  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename};
