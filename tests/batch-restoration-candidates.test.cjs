@@ -48,7 +48,7 @@ test('重复结构不擅自定名，已恢复旧符号会被跳过',()=>{
  fs.writeFileSync(path.join(old,'b.ts'),oldFunction.replace('classifyRemoteRequest','classifyOtherRequest'));
  fs.writeFileSync(path.join(src,'chunk-test.js'),newFunction);
  const a=plan({oldRoot:old,newRoot:src,focus:['chunk-test.js']});
- assert.equal(a.counts.high,0);assert.equal(a.counts.ambiguous,0);assert.equal(a.counts.review,0);
+ assert.equal(a.counts.high,0);assert.equal(a.counts.ambiguous,1);assert.equal(a.counts.review,0);
  const aliases=path.join(base,'aliases.json');
  fs.writeFileSync(aliases,JSON.stringify({entries:[{source:'src/chunk-test.js',legacy:'q',readable:'existing'}]}));
  const b=plan({oldRoot:old,newRoot:src,focus:['chunk-test.js'],aliasPath:aliases});
