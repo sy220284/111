@@ -118,7 +118,7 @@ function analyze(sources, ledger = []) {
     function visit(node) {
       const before=current;
       if(functionLike(node)) {
-        let label=ts.isIdentifier(node.name)?node.name.text:null;
+        let label=node.name && ts.isIdentifier(node.name)?node.name.text:null;
         if(!label && ts.isVariableDeclaration(node.parent) &&
            ts.isIdentifier(node.parent.name))label=node.parent.name.text;
         if(!label && ts.isPropertyAssignment(node.parent))label=node.parent.name.getText(ast);
