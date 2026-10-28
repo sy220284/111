@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const modulePath='../src/chunk-y7venc25.js';
+const modulePath='../core/chunk-y7venc25.js';
 test('2.1.310 原命令入口识别 plugin eval 和 plugins eval，但排除无关子命令',async()=>{
  const m=await import(modulePath);
  assert.equal(m.isPluginEvalInvocation(['plugin','eval']),true);

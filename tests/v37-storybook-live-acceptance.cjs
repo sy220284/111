@@ -17,10 +17,10 @@ async function main(){
  put('package.json',JSON.stringify({name:'v37-storybook-real-test',private:true,type:'module',
    dependencies:{'@storybook/react-vite':'9.1.10',react:'18.3.1','react-dom':'18.3.1'}}));
  fs.symlinkSync(path.join(root,'node_modules'),path.join(tmp,'node_modules'),'dir');
- put('.storybook/main.mjs',"export default {stories:['../src/**/*.stories.jsx'],addons:[],framework:{name:'@storybook/react-vite',options:{}}};\n");
+ put('.storybook/main.mjs',"export default {stories:['../**/*.stories.jsx'],addons:[],framework:{name:'@storybook/react-vite',options:{}}};\n");
  put('.storybook/preview.mjs',"export default {parameters:{controls:{expanded:true}}};\n");
- put('src/Card.jsx',"import React from 'react';export const Card=({label='default'})=>React.createElement('button',{id:'storybook-v37-card'},label);\n");
- put('src/Card.stories.jsx',"import {Card} from './Card.jsx';export default {title:'General/Card',component:Card};export const Primary={args:{label:'REAL_V37_STORYBOOK_RENDER'}};\n");
+ put('Card.jsx',"import React from 'react';export const Card=({label='default'})=>React.createElement('button',{id:'storybook-v37-card'},label);\n");
+ put('Card.stories.jsx',"import {Card} from './Card.jsx';export default {title:'General/Card',component:Card};export const Primary={args:{label:'REAL_V37_STORYBOOK_RENDER'}};\n");
  const dst=path.join(tmp,'storybook-static');
  const build=cp.spawnSync(binary,['build','--config-dir',path.join(tmp,'.storybook'),
    '--output-dir',dst,'--disable-telemetry'],{
@@ -33,7 +33,7 @@ async function main(){
    (key.includes('card')||x.title?.includes('Card')));
  assert.ok(story,'actual Storybook Vite build did not emit test story');
  const {serveDir}=await import(pathToFileURL(path.join(root,
-   'resources/tools/design-sync/storybook/http-serve.mjs')).href);
+   'tools/bundled/design-sync/storybook/http-serve.mjs')).href);
  const {srv,port}=await serveDir(dst);
  const {chromium}=require('playwright');
  let browser;try{

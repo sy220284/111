@@ -27,10 +27,10 @@ class BundleTest(unittest.TestCase):
         self.sha = module.git_sha(self.root)
         for p in (self.source, self.native):
             (p / "commit.txt").write_text(self.sha)
-        (self.root / "src").mkdir()
+        (self.root / "core").mkdir()
         self.jelly = []
         for name in ("a.js", "b.js"):
-            relative = "src/" + name
+            relative = "core/" + name
             file = self.root / relative
             file.write_text("export function f() { return 1; }\n")
             self.jelly.append({"entry": relative, "status": "analyzed_static_candidates",
@@ -92,6 +92,17 @@ class BundleTest(unittest.TestCase):
         self.write(self.source / "jelly" / "111-jelly-evidence.json",
                    {"requestedEntries": 2, "successes": 2, "records": self.jelly})
         with self.assertRaisesRegex(ValueError, "Jelly input fingerprint"):
+            module.build(self.root, self.source, self.native, self.output)
+
+
+    def test_rejects_historical_src_directory_even_with_matching_content(self):
+        old = self.root / "src" / "a.js"
+        old.parent.mkdir()
+        old.write_bytes((self.root / "core" / "a.js").read_bytes())
+        self.jelly[0]["entry"] = "src/a.js"
+        self.write(self.source / "jelly" / "111-jelly-evidence.json",
+                   {"requestedEntries": 2, "successes": 2, "records": self.jelly})
+        with self.assertRaisesRegex(ValueError, "unsafe Jelly source path"):
             module.build(self.root, self.source, self.native, self.output)
 
     def test_rejects_missing_runtime_proof(self):

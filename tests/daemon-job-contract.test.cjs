@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-t2adf9g4.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../core/chunk-t2adf9g4.js'),'utf8');
 function between(start,end){
  const a=source.indexOf(start),b=source.indexOf(end,a+start.length);
  assert.ok(a>=0&&b>a,'source anchor missing: '+start);

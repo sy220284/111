@@ -3,7 +3,11 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/**'
+      - 'core/**'
+      - 'plugins/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'scripts/audit-v37-source.cjs'
       - 'resources/research/v37-reviewed.json'
       - 'tests/v37-source-audit.test.cjs'
@@ -12,7 +16,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
+      - 'core/**'
+      - 'plugins/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'scripts/audit-v37-source.cjs'
       - 'resources/research/v37-reviewed.json'
       - 'tests/v37-source-audit.test.cjs'

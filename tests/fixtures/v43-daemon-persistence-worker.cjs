@@ -8,7 +8,7 @@ const vm=require('node:vm');
 async function main(){
   const [mode,dir]=process.argv.slice(2);
   if(!['write','claim'].includes(mode)||!dir)throw Error('mode write|claim and directory required');
-  const file=path.resolve(__dirname,'../../src/chunk-bwt94x0y.js');
+  const file=path.resolve(__dirname,'../../core/chunk-bwt94x0y.js');
   const ast=ts.createSourceFile(file,await fs.readFile(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
   if(ast.parseDiagnostics.length)throw Error('2.1.310 JS parse failed');
   const names=new Set(['writeAdoptJson','readAndConsumeAdoptJson']);

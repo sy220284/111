@@ -6,7 +6,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const ts=require('typescript');
 const legacyMap={yno:'saveUnresumedAdoptTasks',_no:'claimUnresumedAdoptTasksForOwner',egr:'takeUnresumedAdoptTasks',bno:'storeUnresumedFrameEntries',Sno:'claimUnresumedFrameEntriesForOwner',tIn:'takeUnresumedFrameEntries',wno:'appendUnresumedFrameEntries',vno:'removeUnresumedFrameSlug',Eno:'cacheExitRetryFrameEntries',kno:'takeExitRetryFrameEntries'};
-const file=path.resolve(__dirname,'../src/chunk-bwt94x0y.js');
+const file=path.resolve(__dirname,'../core/chunk-bwt94x0y.js');
 const source=fs.readFileSync(file,'utf8');
 const ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 function make(){

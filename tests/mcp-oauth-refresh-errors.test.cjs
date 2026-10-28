@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const path=require('node:path');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-x436erds.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../core/chunk-x436erds.js'),'utf8');
 
 function buildHarness({answers=[],winner,tokenData,metadata=true,client=true,strict=false}={}){
  const start=source.indexOf('async _doRefresh(e){'),end=source.indexOf('const Ben=McpOAuthProvider;',start);

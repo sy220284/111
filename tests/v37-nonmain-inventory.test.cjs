@@ -34,7 +34,7 @@ test('JS AST distinguishes executable tool sources from vendor bundles and nativ
  assert.equal(category('resources/tools/design-sync/package-build.mjs'),'bundled_tool_sources');
  assert.equal(category('resources/tools/evaluation/prefix_diff.py'),'bundled_tool_sources');
  assert.equal(category('resources/bunfs/clipboard-napi.node'),'other_embedded_resources');
- assert.equal(category('src/mermaid.min.js'),'prebuilt_vendor_bundle');
+ assert.equal(category('core/mermaid.min.js'),'prebuilt_vendor_bundle');
  const s=astMetrics("export const a = x=>x; export async function f(x){return import('./adapter.js')}",'example.js');
  assert.equal(s.functions,2);
  assert.equal(s.dynamicImports,1);
@@ -42,7 +42,7 @@ test('JS AST distinguishes executable tool sources from vendor bundles and nativ
  assert.throws(()=>astMetrics('function x( {','broken.js'),/AST parse failed/);
 });
 test('独立浏览器网络围栏：私网及回环识别、代理凭证拒绝、NO_PROXY边界',async()=>{
- const {isNonPublicAddress,plainAddress,upstreamProxySetting,noProxyMatcher}=await import('../resources/tools/claude-test/scripts/lib/fence-proxy.mjs');
+ const {isNonPublicAddress,plainAddress,upstreamProxySetting,noProxyMatcher}=await import('../tools/bundled/claude-test/scripts/lib/fence-proxy.mjs');
  for(const ip of ['127.0.0.1','10.0.0.1','172.16.0.1','192.168.0.1','::1','fc00::1234','fe80::1','::ffff:127.0.0.1'])
   assert.equal(isNonPublicAddress(ip),true,'private IP incorrectly treated as public '+ip);
  assert.equal(isNonPublicAddress('8.8.8.8'),false);
@@ -60,7 +60,7 @@ test('独立浏览器网络围栏：私网及回环识别、代理凭证拒绝�
  assert.equal(valid.proxy.port,8080);
 });
 test('浏览器安全来源与DNS钉住：输入边界必须能解析而不能忽略垃圾规则',async()=>{
- const {bypassOf,resolverPins}=await import('../resources/tools/claude-test/scripts/lib/guard.mjs');
+ const {bypassOf,resolverPins}=await import('../tools/bundled/claude-test/scripts/lib/guard.mjs');
  assert.deepEqual(bypassOf('https://example.com:8443'),['https://example.com:8443','wss://example.com:8443']);
  assert.deepEqual(bypassOf('http://example.com'),['http://example.com:80','ws://example.com:80']);
  assert.deepEqual(bypassOf('not/a/host'),[]);
@@ -70,21 +70,21 @@ test('浏览器安全来源与DNS钉住：输入边界必须能解析而不能�
 });
 test('设计同步与浏览器工具归属固定、保留已知未验证的真实构建条件',()=>{
  for(const [file,expectedMoved,expectedSupporting] of [
-  ['resources/tools/claude-test/source-layout.json',18,6],
-  ['resources/tools/design-sync/source-layout.json',12,6]]){
+  ['resources/layout/claude-test-source-layout.json',18,6],
+  ['resources/layout/design-sync-source-layout.json',12,6]]){
   const m=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
   assert.equal(m.migrated.length,expectedMoved);
   assert.equal(m.supporting.length,expectedSupporting);
-  for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path)));
+  for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path.startsWith('resources/tools/')?'tools/bundled/'+e.path.slice('resources/tools/'.length):e.path.startsWith('embedded/')?'embedded/'+e.path.slice('embedded/'.length):e.path)));
  }
- const design=JSON.parse(fs.readFileSync(path.join(root,'resources/tools/design-sync/source-layout.json'),'utf8'));
+ const design=JSON.parse(fs.readFileSync(path.join(root,'resources/layout/design-sync-source-layout.json'),'utf8'));
  assert.equal(design.runtimeNotYetVerified.length,2);
  assert.deepEqual(design.knownUnresolved,[]);
 });
 
 test('Claude Test独立ctbrowser入口保留原版拒绝门禁，不能绕过受限浏览器宿主',()=>{
  const {spawnSync}=require('node:child_process');
- const script=path.join(root,'resources/tools/claude-test/scripts/ctbrowser.mjs');
+ const script=path.join(root,'tools/bundled/claude-test/scripts/ctbrowser.mjs');
  const actual=spawnSync(process.execPath,[script,'--help'],{cwd:root,encoding:'utf8',timeout:10000});
  assert.equal(actual.status,2,actual.stderr);
  assert.match(actual.stderr,/not available/);

@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname,'..');
 const text = p => fs.readFileSync(path.join(root,p),'utf8');
-const source = text('src/chunk-9da5g4tn.js');
+const source = text('core/chunk-9da5g4tn.js');
 const docs = text('resources/docs/plugin-authoring/plugin-eval.md');
 const quickref = text('resources/docs/plugin-authoring/plugin-eval-quickref.md');
 const begin = source.indexOf('function fe(e){');

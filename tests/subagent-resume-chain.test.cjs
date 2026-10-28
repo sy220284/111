@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-g936x3jq.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../core/chunk-g936x3jq.js'),'utf8');
 
 function originalResumeHarness({storedOrigin,interrupt=false,starting,fail=false}={}){
  const from=source.indexOf('async function resumeSubagentWithInheritedHookOrigin(');

@@ -4,6 +4,7 @@ import argparse, csv, hashlib, json, shutil
 from collections import defaultdict
 from pathlib import Path
 from jelly_evidence import append_evidence
+from jelly_triage import classify_candidates
 
 def read(p): return json.loads(Path(p).read_text(encoding="utf-8"))
 def table(path,head,records):
@@ -114,8 +115,11 @@ def main():
         shutil.copy2(origin,report/name)
     if a.jelly_shards:
         jelly_evidence=append_evidence(root,a.jelly_shards,report,graph)
+        jelly_triage=classify_candidates(report,graph,calls)
+        assert jelly_triage['distinctPreviouslyUnresolvedCallsitesWithCandidates']==jelly_evidence['distinctPreviouslyUnresolvedCallsitesWithJellyCandidates']
+        jelly_evidence['triage']=jelly_triage
     # Keep source separate from reproducibility tooling; no older-version binary bundles.
-    for folder in ("src","runtime","bin","scripts","tests","tools"):
+    for folder in ("core","plugins","embedded","plugin-testing-kit","runtime","bin","scripts","tests","tools"):
         shutil.copytree(root/folder,out/folder,dirs_exist_ok=True)
     shutil.copytree(root/"resources",out/"resources",
         dirs_exist_ok=True,ignore=shutil.ignore_patterns("research"))
@@ -142,7 +146,7 @@ def main():
     (out/"README.md").write_text(
         "# Claude Code 2.1.310 Linux x64 纯净恢复源码和全量静态图谱\n\n"
         "源码来自 111 仓库已恢复模块，未混入旧版候选替换、历史研究包或原 ELF。\n\n"
-        "目录 src、runtime、resources、bin 为可阅读代码和必要运行资源；"
+        "目录 core、plugins、embedded、plugin-testing-kit、runtime、resources、bin 为可阅读代码和必要运行资源；"
         "scripts、tests、tools 为独立的复核和重新构建工具，不是原始 ELF 或 TypeScript。"
         "运行 npm ci 后可执行 npm run check:code-graph、node --test tests/jelly-corpus.test.cjs。\\n\\n"
         "图谱与证据包含模块、函数、调用表达式、候选调用边、测试语义关系的完整 TSV、JSON 和 DOT，"
@@ -153,10 +157,12 @@ def main():
         "调用候选类型分布.tsv 按静态解析规则列出候选边数与调用次数，均不等于实际执行确权。"
         "Jelly跨分析器调用候选.tsv 按源码位置对齐独立 points-to 分析，且核验全仓源码 SHA256；"
         "Jelly原生分片证据包含压缩原生 JSON 及每批的成功/失败状态。"
+        "Jelly未解析调用候选分级.tsv 和 Jelly唯一索引候选待验收.tsv 将唯一静态候选与多目标歧义分别导出。"
+        "即使只有一个候选且命中函数索引，也不等于真实运行目标已验证。\\n\\n"
         "Jelly 只提供静态候选，分批的忽略依赖模式不能证明全程序跨模块调用，亦非运行时确权。\\n\\n"
         "本包不等于原始 TypeScript，也没有验收 ELF 二进制等价、完整 Bun/JSC 兼容或在线业务等价。\n\n"
         "请查阅 图谱与证据/结果核验.json 了解实际覆盖范围和源码指纹。\n",encoding="utf-8")
-    assert len(list((out/"src").glob("*.js")))>=2550
+    assert len(list((out/"core").glob("*.js")))>=2550
     assert len(resolved_assets)+len(resources)==250,(len(resolved_assets),len(resources))
     assert len(m_edges)>0 and len(f_edges)>0
     print(json.dumps(manifest,ensure_ascii=False))

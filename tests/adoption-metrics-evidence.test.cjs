@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),ts=require('typescript'),vm=require('node:vm');
-const p=path.resolve(__dirname,'../src/chunk-bwt94x0y.js'),ast=ts.createSourceFile(p,fs.readFileSync(p,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+const p=path.resolve(__dirname,'../core/chunk-bwt94x0y.js'),ast=ts.createSourceFile(p,fs.readFileSync(p,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const entries={F6:'isFrameLiveAdoptable',xwe:'collectAdoptableFrameSlugs',Vxt:'countAlreadyAdoptedWork',qxt:'countOutstandingAdoptWork',Q:'attachAdoptionErrorCode',ke:'parseAdoptionJsonOrNull',Cno:'formatAdoptionProcessIdentity',je:'resolveAdoptedAgentParent'};
 function fixture(extra={}){
  const required=[...Object.values(entries),'isTaskMarkedAdoptable','isCronAdoptable'];

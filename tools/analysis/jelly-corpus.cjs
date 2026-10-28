@@ -57,7 +57,7 @@ function normalizeGraph(raw,expected){
 }
 function run(params,exec=spawnSync){
   const o=args([...params]),root=path.resolve(o.root),out=path.resolve(o.out);
-  const sources=inputFiles(root).filter(x=>x.startsWith('src/')&&x.endsWith('.js'));
+  const sources=inputFiles(root).filter(x=>x.startsWith('')&&x.endsWith('.js'));
   const chosen=sources.filter((_,i)=>i%o.shards===o.shard);
   fs.mkdirSync(out,{recursive:true});
   fs.mkdirSync(path.join(out,'raw'),{recursive:true});

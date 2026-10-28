@@ -4,11 +4,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
-const src=path.join(root,'src');
+const src=root;
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'resources/function-summary.json'),'utf8'));
-const files=fs.readdirSync(src).filter(n=>n.endsWith('.js') &&
-  !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort();
-files.push('src/plugins/functionHooks/hooks-worker/hooks-worker.js');
+const files=fs.readdirSync(path.join(src,'core')).filter(n=>n.endsWith('.js') &&
+  !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort().map(n=>'core/'+n);
+files.push('plugins/functionHooks/hooks-worker/hooks-worker.js');
 assert.equal(files.length,manifest.modules,'2.1.310 main module count changed');
 const hash=crypto.createHash('sha256');
 for(const name of files){
