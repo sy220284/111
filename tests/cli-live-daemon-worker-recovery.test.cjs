@@ -95,3 +95,55 @@ test('真实 daemon 分发 exec worker、写 roster、supervisor 崩溃后继续
     fs.rmSync(home,{recursive:true,force:true});
   }
 });
+
+
+test('真实 daemon exec worker 正常和异常退出均记录退出码与输出尾部',{timeout:120000},async()=>{
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'111-daemon-worker-exit-'));
+  const env=environment(home);
+  let supervisor;
+  try{
+    supervisor=await start(home,env);
+    const dispatchDir=path.join(home,'.claude/daemon/dispatch');
+    fs.mkdirSync(dispatchDir,{recursive:true});
+    const cases=[
+      {short:'c1d2e3f4',exitCode:0,token:'completed-worker-111'},
+      {short:'d1e2f3a4',exitCode:7,token:'failed-worker-111'}
+    ];
+    for(const job of cases){
+      const fixture=path.join(home,job.short+'.cjs');
+      const marker=path.join(home,job.short+'.started');
+      fs.writeFileSync(fixture,
+        'const fs=require("node:fs");'+
+        'fs.writeFileSync('+JSON.stringify(marker)+',"started");'+
+        'process.stdout.write('+JSON.stringify(job.token+'-stdout\n')+');'+
+        'process.stderr.write('+JSON.stringify(job.token+'-stderr\n')+');'+
+        'process.exit('+job.exitCode+');');
+      const dispatch={proto:1,short:job.short,sessionId:'e2e-exit-'+job.short,
+        createdAt:Date.now(),source:'shell',cwd:home,
+        launch:{mode:'exec',cmd:process.execPath,args:[fixture]},env:{},
+        isolation:'none',respawnFlags:[]};
+      const temp=path.join(dispatchDir,job.short+'.tmp');
+      fs.writeFileSync(temp,JSON.stringify(dispatch));
+      fs.renameSync(temp,path.join(dispatchDir,job.short));
+      await waitFor(()=>fs.existsSync(marker),'actual worker '+job.short+' launched',home,30000);
+      const receipts=()=>{
+        const files=fs.readdirSync(home,{recursive:true})
+          .filter(name=>name.endsWith('.exec-exit'));
+        for(const file of files){
+          let record;
+          try{record=JSON.parse(read(path.join(home,file)))}catch{continue}
+          if(record.tail?.includes(job.token+'-stdout'))return record;
+        }
+        return null;
+      };
+      await waitFor(()=>receipts()!==null,'worker exit receipt '+job.short,home,20000);
+      const receipt=receipts();
+      assert.equal(receipt.code,job.exitCode,'actual child exit code was lost');
+      assert.ok(receipt.tail.includes(job.token+'-stdout'),'stdout tail lost');
+      assert.ok(receipt.tail.includes(job.token+'-stderr'),'stderr tail lost');
+    }
+  }finally{
+    if(supervisor?.exitCode===null)supervisor.kill('SIGKILL');
+    fs.rmSync(home,{recursive:true,force:true});
+  }
+});
