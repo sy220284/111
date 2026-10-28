@@ -84,9 +84,9 @@ function diagnosticModules(){
         ['let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {','console.error("TRACE_NA_START");let Cp = !1, Qr = !1, il = !1, Ke = await na(o, {'],
         ['if (!Ke.ok)','console.error("TRACE_NA_DONE",Ke.ok);if (!Ke.ok)'],
         ['q4t("action_before_mcp_policy_wait"), await VB({','console.error("TRACE_VB_START"),q4t("action_before_mcp_policy_wait"), await VB({'],
-        ['let Me = await oys(e || "", j ?? "text")','console.error("TRACE_OYS_START"), Me = await oys(e || "", j ?? "text")'],
+        ['let Me = await oys(e || "", j ?? "text")','console.error("TRACE_OYS_START");let Me = await oys(e || "", j ?? "text")'],
         ['go("action_after_input_prompt");','console.error("TRACE_OYS_DONE"),go("action_after_input_prompt");'],
-        ['let Nl = Date.now()','console.error("TRACE_SETUP_IMPORT"),let Nl = Date.now()'],
+        ['let Nl = Date.now()','console.error("TRACE_SETUP_IMPORT");let Nl = Date.now()'],
         ['await Bl;','await Bl;console.error("TRACE_SETUP_DONE");']
       ]
     };
