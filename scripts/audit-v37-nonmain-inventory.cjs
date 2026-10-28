@@ -110,7 +110,7 @@ function build({root=ROOT,reference=PIN,verify=true}={}){
  if(rest.length!==652)problem.push('pinned v37 non-main inventory changed: '+rest.length);
  for(const [kind,count] of Object.entries({plugin_testing_kit:294,independent_embedded_source:24,prebuilt_vendor_bundle:3,bundled_tool_sources:56,other_embedded_resources:212,historic_tests:44,historic_build_scripts:8,historic_ci:2,historic_metadata_and_entrypoints:9}))
   if(groups[kind]?.files!==count)problem.push(kind+' expected '+count+' got '+groups[kind]?.files);
- if(code.length!==48)problem.push('bundled JS/MJS/TS code expected 48 got '+code.length);
+ if(code.length!==47)problem.push('bundled executable JS/MJS/CJS expected 47 got '+code.length);
  if(python.length!==3)problem.push('bundled Python code expected 3 got '+python.length);
  let py={};
  try{py=pythonAst(python,root);}catch(e){problem.push('Python AST verification failed: '+e.message);}
