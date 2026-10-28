@@ -164,6 +164,15 @@ function analyze(sources, ledger = []) {
     return name&&(ts.isIdentifier(name)||ts.isStringLiteralLike(name)||
       ts.isNumericLiteral(name))?name.text:null;
   }
+  // obj['method'] and namespace['export'] have the same static member identity
+  // as obj.method; computed or variable keys must remain unresolved.
+  function literalMemberName(node){
+    if(ts.isPropertyAccessExpression(node))return node.name.text;
+    if(ts.isElementAccessExpression(node)&&node.argumentExpression&&
+       (ts.isStringLiteralLike(node.argumentExpression)||
+        ts.isNumericLiteral(node.argumentExpression)))return node.argumentExpression.text;
+    return null;
+  }
   function objectMethods(expr,file,ast){
     const result=new Map();
     if(!expr||!ts.isObjectLiteralExpression(expr))return result;
@@ -282,8 +291,9 @@ function analyze(sources, ledger = []) {
               kind='same_module_candidate';
             }else reason='unknown_identifier';
           }
-        }else if(ts.isPropertyAccessExpression(callee)&&ts.isIdentifier(callee.expression)){
-          const ownerName=callee.expression.text,property=callee.name.text;
+        }else if((ts.isPropertyAccessExpression(callee)||ts.isElementAccessExpression(callee))&&
+                 ts.isIdentifier(callee.expression)&&literalMemberName(callee)!==null){
+          const ownerName=callee.expression.text,property=literalMemberName(callee);
           let masked=false;
           for(let i=activeScopes.length-1;i>=0;i--)
             if(activeScopes[i].has(ownerName)){
