@@ -13,18 +13,29 @@ const output = path.join(root,'.generated','native-linux');
 const source = path.join(root,'native','linux');
 const original = path.join(root,'resources','bunfs');
 const isLinux = process.platform === 'linux' && process.arch === 'x64';
+// The 111 offline Node runtime artifact may not ship Node-API development
+// headers. Dedicated native CI installs headers and requires the full tests;
+// generic source CI must mark this optional backend unverified, not fail the
+// whole runtime validation for a missing build prerequisite.
+const includeCandidates = [
+  process.env.NODE_INCLUDE,
+  path.resolve(path.dirname(process.execPath), '..', 'include', 'node'),
+  '/usr/include/node', '/usr/local/include/node'
+].filter(Boolean);
+const nodeInclude = includeCandidates.find(dir => fs.existsSync(path.join(dir, 'node_api.h')));
+const nativeEnv = nodeInclude ? {...process.env, NODE_INCLUDE: nodeInclude} : process.env;
 function native(name){return require(path.join(output,name+'.node'));}
 function run(argv,opts={}){return cp.spawnSync(argv[0],argv.slice(1),{encoding:'utf8',timeout:15000,...opts});}
-const buildSystem = isLinux ? run(['make','-C',source,'../../.generated/native-linux/bun-ant-linux.node'],{maxBuffer:4*1024*1024}) : null;
+const buildSystem = isLinux && nodeInclude ? run(['make','-C',source,'../../.generated/native-linux/bun-ant-linux.node'],{maxBuffer:4*1024*1024,env:nativeEnv}) : null;
 // The general source CI intentionally has no X11 development headers. Ensure
 // the Linux syscall N-API always compiles; use a dedicated CI job to install
 // ALSA/X11 and prove the *complete* addon build with real graphics tests.
-const x11Header = isLinux && process.env.NATIVE_TEST_NO_X11 !== '1' &&
+const x11Header = isLinux && !!nodeInclude && process.env.NATIVE_TEST_NO_X11 !== '1' &&
   run(['sh','-c',"printf '#include <X11/Xlib.h>\n' | cc -x c -E - >/dev/null 2>&1"]).status===0;
-const build = x11Header ? run(['make','-C',source,'all'],{maxBuffer:4*1024*1024}) : null;
+const build = x11Header ? run(['make','-C',source,'all'],{maxBuffer:4*1024*1024,env:nativeEnv}) : null;
 const haveSystem = isLinux && buildSystem?.status===0;
 const haveFull = haveSystem && x11Header && build?.status===0;
-test('Linux system N-API builds with strict warnings', {skip:!isLinux},()=>{
+test('Linux system N-API builds with strict warnings', {skip:!isLinux || !nodeInclude},()=>{
   assert.equal(buildSystem.status,0, String(buildSystem.stderr||'')+'\n'+String(buildSystem.stdout||''));
   for(const n of ['bun-ant-linux']){
     const fn=path.join(output,n+'.node');
