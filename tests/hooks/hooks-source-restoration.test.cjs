@@ -6,7 +6,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 // Execute the real extracted 2.1.310 hook functions with controlled imports.
 // This does not claim full plugin/worker runtime coverage.
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-y5vkfxm0.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-y5vkfxm0.js'),'utf8');
 const start=source.indexOf('function createHookEventMetadata(');
 const end=source.indexOf('\nexport{',start);
 assert.ok(start>0 && end>start,'real hook function bodies must be present');

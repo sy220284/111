@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-fbc1ty1s.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-fbc1ty1s.js'),'utf8');
 function fixture({original={name:'mcp-a',type:'pending',config:{url:'https://a'}},accountChanged=false,blocked,disable=false,match=true}={}){
  const from=source.indexOf('function applyMcpConnectionSettlement(n, o)');
  const to=source.indexOf('function findRetryableMcpConnections(n, o, e = !0)',from);

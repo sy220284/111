@@ -4,8 +4,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-x436erds.js'),'utf8');
+const {fragmentToModuleExports}=require('../helpers/source-extraction.cjs');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-x436erds.js'),'utf8');
 
 function inFlightFixture({initial={mcpOAuth:{}},preMutation,failMutation=false}={}){
  const start=source.indexOf('function registerActiveMcpOAuthFlow(e,t)');

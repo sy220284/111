@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-x436erds.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-x436erds.js'),'utf8');
 function fixture({serverMode=false,lockFailures=[],stored,now=2000000,refreshFailure=false,maxAttempts=3}={}){
  const first=source.indexOf('async refreshAuthorization(e){');
  const end=source.indexOf('async _doRefresh(e){',first);
