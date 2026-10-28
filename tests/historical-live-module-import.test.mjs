@@ -13,8 +13,7 @@ test('真实ESM权限解析入口：函数别名身份与新增旧版兼容规�
  for(const [short,readable] of [
   [gc,normalizeLegacyToolName],[Cse,getLegacyToolNames],
   [AQo,unescapeRuleContent],
-  [Bn,permissionRuleValueFromString],[dn,permissionRuleValueToString],
-  [findFirstUnescapedChar,findFirstUnescapedChar],[findLastUnescapedChar,findLastUnescapedChar]
+  [Bn,permissionRuleValueFromString],[dn,permissionRuleValueToString]
  ])assert.strictEqual(short,readable);
  assert.equal(gc('Task'),'Agent');
  assert.equal(gc('KillBash'),'TaskStop');
