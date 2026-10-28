@@ -310,13 +310,14 @@ function verifiedStandaloneSourceMoves(changes,head){
  const approved=[];
  for(const change of changes.diffs){
   const old=change.oldPath;
-  const dest=old.replace(/^src\\/embedded\\//,'embedded/').replace(/^src\\/plugin-testing-kit\\//,'plugin-testing-kit/');
+  const dest=old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
+    old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):old;
   if(dest===old||change.path!==dest||change.status!=='R100')continue;
   const row=records.get(old);
   if(!row||row.current!==dest||!['embedded-source','plugin-source'].includes(row.kind))continue;
   const before=gitAt(changes.ancestor,old),after=gitAt(head,change.path);
   if(!before||!after||!before.equals(after))continue;
-  const blob=crypto.createHash('sha1').update('blob '+before.length+'\\0').update(before).digest('hex');
+  const blob=crypto.createHash('sha1').update('blob '+before.length+String.fromCharCode(0)).update(before).digest('hex');
   if(row.originalGitBlob!==blob)continue;
   approved.push({old,current:dest});
  }
