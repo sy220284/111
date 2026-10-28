@@ -1,0 +1,64 @@
+name: 111 v37 固定源码复核
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/audit-v37-source.cjs'
+      - 'resources/research/v37-reviewed.json'
+      - 'tests/v37-source-audit.test.cjs'
+      - 'tests/v37-executable-parity.test.cjs'
+      - '.github/workflows/v37-source-reverification.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/audit-v37-source.cjs'
+      - 'resources/research/v37-reviewed.json'
+      - 'tests/v37-source-audit.test.cjs'
+      - 'tests/v37-executable-parity.test.cjs'
+      - '.github/workflows/v37-source-reverification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 运行 v37 比对工具行为测试
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:v37
+      - name: 执行原 v37 函数与当前恢复函数的真实行为对照
+        run: node --test tests/v37-executable-parity.test.cjs
+      - name: 逐文件对比 v37 固定 Git 源码与当前模块函数体
+        run: |
+          node scripts/audit-v37-source.cjs --output "$RUNNER_TEMP/111-v37-source-parity.json"
+          node - "$RUNNER_TEMP/111-v37-source-parity.json" <<'NODE'
+          const fs=require('node:fs'),r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
+            '## v37 固定版本真实源码核查',
+            '- v37 固定 SHA：'+r.reference.commit,
+            '- 同源模块数量：'+r.metrics.identical,
+            '- 发生变更：'+r.metrics.changed,
+            '- 已有定向测试证据的变更模块：'+r.metrics.reviewed,
+            '- v37 模块缺失：'+r.metrics.missing,
+            '- 原函数体字节改变或不再出现：'+r.metrics.changedOrMissingBodies,
+            '- 原研究包未作字节级校验；不将旧版替换新版'
+          ].join('\n')+'\n');
+          NODE
+      - name: 产出可复核 v37 全量对照报告
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-v37-source-parity-evidence
+          path: ${{ runner.temp }}/111-v37-source-parity.json
+          retention-days: 30
+          if-no-files-found: error
