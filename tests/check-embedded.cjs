@@ -6,7 +6,7 @@ const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const records = JSON.parse(fs.readFileSync(path.join(root, 'resources/embedded-source-layout.json'), 'utf8')).entries;
-const sourceRoot = path.join(root, 'src/embedded');
+const sourceRoot = path.join(root, 'embedded');
 const actual = [];
 function visit(directory) {
  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

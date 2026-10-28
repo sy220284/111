@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const code = file => fs.readFileSync(path.join(root, file), 'utf8');
-const types = code('resources/tools/plugin-api/types/claude-code.d.ts');
+const types = code('tools/bundled/plugin-api/types/claude-code.d.ts');
 const caching = code('resources/docs/claude-api/prompt-caching.md');
 const thinking = code('resources/docs/migration/preserved-thinking-migration.md');
 const modelMigration = code('resources/docs/claude-api/model-migration.md');
