@@ -1,0 +1,48 @@
+{
+  "schema": "historical-source-comparison-v1",
+  "target": {
+    "repository": "sy220284/111",
+    "version": "2.1.310",
+    "module": "src/chunk-wrtp8qz8.js"
+  },
+  "historicalReference": {
+    "version": "2.1.88",
+    "module": "source/src/utils/array.ts",
+    "publicMirror": "Exhen/claude-code-2.1.88",
+    "mirrorCommit": "c8cd253554319f32ff64ff7000636199f720c9bc",
+    "libraryUpload": "claude-code-2.1.88-main(1).zip",
+    "libraryUploadBinaryValidated": false,
+    "note": "Public same-version mirror used for function body mapping. The uploaded archive is materialized but could not be unpacked by the current execution environment; do not equate provenance."
+  },
+  "matches": [
+    {
+      "historical": "intersperse",
+      "sourceSymbol": "Hxe",
+      "recoveredName": "intersperseArray",
+      "comparison": "function-body-expression-equivalent",
+      "test": "tests/historical-array-parity.test.cjs",
+      "certification": "targeted_behavior_test_only"
+    },
+    {
+      "historical": "count",
+      "sourceSymbol": "F",
+      "recoveredName": "countMatching",
+      "comparison": "function-body-expression-equivalent",
+      "test": "tests/historical-array-parity.test.cjs",
+      "certification": "targeted_behavior_test_only"
+    },
+    {
+      "historical": "uniq",
+      "sourceSymbol": "L",
+      "recoveredName": "uniqueIterable",
+      "comparison": "function-body-expression-equivalent",
+      "test": "tests/historical-array-parity.test.cjs",
+      "certification": "targeted_behavior_test_only"
+    }
+  ],
+  "notVerified": [
+    "all 2.1.88 modules",
+    "source-map byte identity",
+    "2.1.310 end-to-end runtime parity"
+  ]
+}
