@@ -9,6 +9,7 @@ on:
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
       - 'package-lock.json'
+      - 'tests/bun-jsc-compat.test.cjs'
   pull_request:
     branches: [main]
     paths:
@@ -16,6 +17,7 @@ on:
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
       - 'package-lock.json'
+      - 'tests/bun-jsc-compat.test.cjs'
 
 permissions:
   contents: read
@@ -169,3 +171,46 @@ jobs:
           else
             echo "CLI --help：未通过，Node 与 Bun/JSC 运行时仍存在独立兼容缺口。" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  bun-compat:
+    name: Bun/JSC 真实 API 参照探针与源码差距报告
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.4'
+      - name: 验证 AST 扫描规则、实际源码调用点与 Bun/JSC 行为
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:bun-jsc
+          node tools/dev/bun-jsc-compat.cjs report --json --bun "$(command -v bun)" --require-bun \
+            --output "$RUNNER_TEMP/111-bun-jsc-compat.json" > /dev/null
+          node - "$RUNNER_TEMP/111-bun-jsc-compat.json" <<'NODE'
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const observed = r.capabilities.filter(x => x.observed);
+          const checks = r.runtimeProbe.checks;
+          const rows = [
+            '## Bun/JSC 实际兼容性诊断',
+            '源码模块: ' + r.scannedModules + '; AST 错误: ' + r.parseErrors.length,
+            '源码观测 API: ' + observed.map(x => x.api + '(' + x.occurrences + ')').join(', '),
+            '参照运行时版本: ' + r.runtimeProbe.bunVersion,
+            '参照探针：' + checks.map(x => x.api + '=' + x.status).join(', '),
+            '**注意**：Bun 参照 API 通过，不代表 111 已实现 Node 兼容层或全部业务行为。'
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, rows.join('\n\n') + '\n');
+          NODE
+      - name: 上传可追溯 Bun/JSC 兼容诊断报告
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-bun-jsc-compat-report
+          path: ${{ runner.temp }}/111-bun-jsc-compat.json
+          retention-days: 30
+          if-no-files-found: warn
