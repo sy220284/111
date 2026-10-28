@@ -1,0 +1,50 @@
+{
+  "baselineCommit": "3c64d1669174e825fb0fbae088c5ec95edaa7339",
+  "source": "v37 actual Git source, not unverified external archive",
+  "changes": {
+    "src/chunk-9xz7emqc.js": {
+      "classification": "stop original keo retained as readable alias",
+      "tests": [
+        "tests/remote-stop-dispatch.test.cjs"
+      ]
+    },
+    "src/chunk-bwt94x0y.js": {
+      "classification": "v43 daemon adoption restore with legacy bindings",
+      "tests": [
+        "tests/v43-daemon-adoption-lifecycle.test.cjs",
+        "tests/v43-daemon-process-persistence.test.cjs"
+      ]
+    },
+    "src/chunk-fnsjs1v2.js": {
+      "classification": "roster NFt/JN/ax/Hne preserved",
+      "tests": [
+        "tests/v40-fleet-roster-semantics.test.cjs"
+      ]
+    },
+    "src/chunk-j0tbz6ra.js": {
+      "classification": "ESM circular-init fix, do not revert v37",
+      "tests": [
+        "tests/check-source.cjs"
+      ]
+    },
+    "src/chunk-t2adf9g4.js": {
+      "classification": "daemon job and beacon newer lifecycle",
+      "tests": [
+        "tests/daemon-job-contract.test.cjs",
+        "tests/v43-daemon-adoption-lifecycle.test.cjs"
+      ]
+    },
+    "src/chunk-vw9e882a.js": {
+      "classification": "Bun original stringWidth path retained, Node fallback added",
+      "tests": [
+        "tests/string-width-runtime.test.mjs"
+      ]
+    },
+    "src/chunk-y93r9xd4.js": {
+      "classification": "Fleet Tat/BZr retained with readable aliases",
+      "tests": [
+        "tests/v40-fleet-roster-semantics.test.cjs"
+      ]
+    }
+  }
+}
