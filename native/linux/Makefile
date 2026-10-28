@@ -1,6 +1,15 @@
 # Optional independently implemented Linux N-API backends. Original binaries remain untouched.
 CC ?= cc
 NODE_INCLUDE ?= $(shell node -p 'require("node:path").resolve(require("node:path").dirname(process.execPath),"../include/node")')
+# Some offline runtime artifacts contain the Node binary without C headers.
+# Allow a separately installed distro development package to supply them.
+ifeq ($(wildcard $(NODE_INCLUDE)/node_api.h),)
+ifneq ($(wildcard /usr/include/node/node_api.h),)
+NODE_INCLUDE := /usr/include/node
+else ifneq ($(wildcard /usr/local/include/node/node_api.h),)
+NODE_INCLUDE := /usr/local/include/node
+endif
+endif
 BUILD ?= ../../.generated/native-linux
 CPPFLAGS += -I$(NODE_INCLUDE)
 CFLAGS ?= -O2 -g -std=c11 -fPIC -Wall -Wextra -Werror
