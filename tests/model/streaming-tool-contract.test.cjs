@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = readFileSync(path.resolve(__dirname, '../../src/chunk-x3dkgs4r.js'), 'utf8');
-const declarations = readFileSync(path.resolve(__dirname, '../../resources/tools/plugin-api/types/claude-code.d.ts'), 'utf8');
+const declarations = readFileSync(path.resolve(__dirname, '../../tools/bundled/plugin-api/types/claude-code.d.ts'), 'utf8');
 const docs = readFileSync(path.resolve(__dirname, '../../resources/docs/claude-api/typescript/streaming.md'), 'utf8');
 const toolDocs = readFileSync(path.resolve(__dirname, '../../resources/docs/claude-api/tool-use-concepts.md'), 'utf8');
 

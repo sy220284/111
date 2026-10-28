@@ -143,7 +143,7 @@ test('功能恢复不得同时弱化主源码工作流',()=>{
     '功能 PR 不得修改验收器');
 });
 test('目录分类匹配 111 的真实结构',()=>{
-  assert.equal(businessPath('src/plugin-testing-kit/collector.js'),true);
+  assert.equal(businessPath('plugin-testing-kit/collector.js'),true);
   assert.equal(businessPath('bin/claude-310.mjs'),true);
   assert.equal(businessPath('runtime/assets.mjs'),true);
   assert.equal(businessPath('resources/bunfs/native.node'),true);

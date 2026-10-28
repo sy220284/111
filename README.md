@@ -74,7 +74,7 @@ npm run verify:runtime
 
 ## v3 源码恢复增量：插件测试源码（2026-10-27）
 
-- 从真实 2.1.310 内嵌 `kit-modules-02f8fcd0.js` 恢复 **294 份独立的 JavaScript 源文件**，写入 `src/plugin-testing-kit/`。这是插件测试工具包，**不计入 2551 个主程序模块**。
+- 从真实 2.1.310 内嵌 `kit-modules-02f8fcd0.js` 恢复 **294 份独立的 JavaScript 源文件**，写入 `plugin-testing-kit/`。这是插件测试工具包，**不计入 2551 个主程序模块**。
 - 原始文件存在 **628 处静态 import/re-export 引用**。已将原构建别名和无后缀引用恢复为实际相对路径，保持导出声明不变；运行测试另发现并修复插件测试收集器的可变参数转发错误。
 - `scripts/restore-plugin-testing-kit.cjs` 可从保留的原始内嵌文档重复生成源码；`--check` 按文件逐字节比对，防止将人工修订误当成原版源码。
 - `npm run check:plugin-kit` 检查 294 份源码语法、628 条依赖并实测结构化比较与插件测试收集器的关键行为。
@@ -88,7 +88,7 @@ npm run verify:runtime
 
 ## v3 新增：2.1.310 插件接口声明与 Hook/流式协议针对性验收
 
-- `resources/tools/plugin-api/types/claude-code.d.ts` 原始声明不改动；从 `HookStream`、`StreamNext`、`PermissionRequestDecision`、`PreToolUseResult`、`ToolCallInput/ToolCallResult` 等定义提取验收契约，防止误用旧版结构。
+- `tools/bundled/plugin-api/types/claude-code.d.ts` 原始声明不改动；从 `HookStream`、`StreamNext`、`PermissionRequestDecision`、`PreToolUseResult`、`ToolCallInput/ToolCallResult` 等定义提取验收契约，防止误用旧版结构。
 - `tests/hooks/function-hook-worker-contract.test.cjs` 直接执行 `hooks-worker.js` 中现有 `B/G/z/J/Q/W` 函数，覆盖 next 消息编号、工具操作回执、未加载环境拒绝、卸载中断与流提前关闭。
 - `tests/model/streaming-tool-contract.test.cjs` 直接执行 `chunk-x3dkgs4r.js` 现有流事件转换/比较函数，覆盖文本、thinking、`input_json_delta`、索引和错误增量；另校验 `chunk-1nnn2mdy.js` 的 Hook 来源和 PreToolUse 规则。
 - `resources/docs/other/permissions_external-*.txt` 属权限策略指导资料，不能作为整个 Claude Code 权限引擎的同一版本可执行规范，未直接复制为权限实现。

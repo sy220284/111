@@ -6,7 +6,7 @@ test('only real 2551 source modules are selected',()=>{
  assert.equal(isModule('src/audio-capture.js'),true);
  assert.equal(isModule('src/src/plugins/functionHooks/hooks-worker/hooks-worker.js'),true);
  assert.equal(isModule('src/mermaid.min.js'),false);
- assert.equal(isModule('src/plugin-testing-kit/collector/index.js'),false);
+ assert.equal(isModule('plugin-testing-kit/collector/index.js'),false);
 });
 test('renamed functions share exact body but changed body is not marked preserved',()=>{
  const old=functionBodies('function a(){return 1}function b(){return 2}','src/a.js');

@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const root=path.resolve(__dirname,'../..');
-const scriptDir=path.join(root,'resources/tools/design-sync');
+const scriptDir=path.join(root,'tools/bundled/design-sync');
 const libDir=path.join(scriptDir,'lib');
 const source=fs.readFileSync(path.join(scriptDir,'package-build.mjs'),'utf8');
 // These are the real constant-name adapters used by package-build, including
