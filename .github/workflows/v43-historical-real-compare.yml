@@ -17,7 +17,7 @@ jobs:
   compare:
     name: 固定版本2.1.88与2.1.310真实函数全仓候选对照
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -44,18 +44,28 @@ jobs:
         run: |
           mkdir -p .generated
           node scripts/batch-restoration-candidates.cjs \
-            --old "$OLD_SOURCE_ROOT" --new src --all --max 300 \
+            --old "$OLD_SOURCE_ROOT" --new src --all --max 5000 \
             --reference '2.1.88 public mirror commit c8cd253554319f32ff64ff7000636199f720c9bc' \
             --out .generated/v43-historical-real-full.json
+          node scripts/review-historical-candidates.cjs \
+            --candidates .generated/v43-historical-real-full.json \
+            --old "$OLD_SOURCE_ROOT" --new src --expected 703 \
+            --out .generated/v44-reviewed-703.json
           node - <<'NODE'
           const fs=require('node:fs');
           const j=JSON.parse(fs.readFileSync('.generated/v43-historical-real-full.json','utf8'));
           if(!j.scanned.oldFiles || j.scanned.newFiles!==2551)throw Error('did not scan full old and new source sets');
+          const audit=JSON.parse(fs.readFileSync('.generated/v44-reviewed-703.json','utf8'));
+          if(audit.summary.sourceLocationsValidated!==703||audit.items.length!==703)throw Error('703-case review incomplete');
           const out=[
             '## 真实跨版本源码匹配统计（候选，非等价证明）',
             '| 指标 | 实测 |','|---|---:|',
             ...Object.entries(j.scanned).map(([k,v])=>`| ${k} | ${v} |`),
             ...Object.entries(j.counts).map(([k,v])=>`| ${k} | ${v} |`),
+            ...Object.entries(audit.summary.classification).map(([k,v])=>`| independent:${k} | ${v} |`),
+            `| 逐条独立结构证据核查 | ${audit.summary.reviewedWithIndependentStaticEvidence} |`,
+            `| 经过行为等价验证 | ${audit.summary.runtimeBehaviorVerified} |`,
+            `| 已证明语义等价 | ${audit.summary.semanticEquivalenceConfirmed} |`,
             '',
             '固定参考：Exhen/claude-code-2.1.88@c8cd253554319f32ff64ff7000636199f720c9bc',
             '原始资料库ZIP未在CI进行字节等价校验；候选不得自动覆盖新版实现。'
@@ -65,5 +75,5 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: 111-v43-real-historical-function-candidates
-          path: .generated/v43-historical-real-full.json
+          path: |\n            .generated/v43-historical-real-full.json\n            .generated/v44-reviewed-703.json
           retention-days: 30
