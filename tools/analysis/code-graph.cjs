@@ -42,6 +42,40 @@ function analyze(sources, ledger = []) {
       message:ts.flattenDiagnosticMessageText(d.messageText,' ')})));
     parsed.set(file,ast);
   }
+  // Recovered minified code often uses var. Follow var/let only when the
+  // identifier and its visible properties have no explicit write anywhere in
+  // the module; file-wide name checking is intentionally conservative.
+  const unsafeByFile=new Map();
+  function assignmentRoot(node){
+    while(node&&(ts.isParenthesizedExpression(node)||
+      ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node)))
+      node=node.expression;
+    return node&&ts.isIdentifier(node)?node.text:null;
+  }
+  for(const file of files){
+    const unsafe=new Set(),ast=parsed.get(file);
+    function mark(node){
+      const name=assignmentRoot(node);
+      if(name)unsafe.add(name);
+    }
+    function findWrites(node){
+      if(ts.isBinaryExpression(node)&&
+         node.operatorToken.kind>=ts.SyntaxKind.FirstAssignment&&
+         node.operatorToken.kind<=ts.SyntaxKind.LastAssignment)
+        mark(node.left);
+      if((ts.isPrefixUnaryExpression(node)||ts.isPostfixUnaryExpression(node))&&
+         (node.operator===ts.SyntaxKind.PlusPlusToken||
+          node.operator===ts.SyntaxKind.MinusMinusToken))
+        mark(node.operand);
+      if(ts.isDeleteExpression(node))mark(node.expression);
+      if((ts.isForOfStatement(node)||ts.isForInStatement(node))&&
+         !ts.isVariableDeclarationList(node.initializer))
+        mark(node.initializer);
+      ts.forEachChild(node,findWrites);
+    }
+    findWrites(ast);
+    unsafeByFile.set(file,unsafe);
+  }
   const modules=new Map(), links=[], external=new Map(), functions=new Map();
   const unresolvedReasons=Object.create(null),unresolvedCallsites=[];
   const stats={calls:0,resolvedCalls:0,unresolvedCalls:0,dynamicImports:0};
@@ -67,8 +101,7 @@ function analyze(sources, ledger = []) {
         if(functionLike(d.initializer)){
           defs.set(d.name.text,{file,symbol:d.name.text});
           if(isExported) exports.set(d.name.text,{file,local:d.name.text});
-        }else if((stmt.declarationList.flags&ts.NodeFlags.Const)!==0 &&
-          ts.isObjectLiteralExpression(d.initializer)){
+        }else if(ts.isObjectLiteralExpression(d.initializer)){
           // An exported object is not itself callable, but can expose callable members.
           if(isExported)exports.set(d.name.text,{file,local:d.name.text});
         }else if((stmt.declarationList.flags&ts.NodeFlags.Const)!==0 &&
@@ -181,6 +214,7 @@ function analyze(sources, ledger = []) {
   // are callable. A spread or unknown computed property can replace any key,
   // so reject the entire object's methods rather than inventing bindings.
   function knownCallable(name,file,localCallables,localNames){
+    if(unsafeByFile.get(file)?.has(name))return null;
     if(localCallables?.has(name))return localCallables.get(name);
     if(localNames?.has(name))return null;
     const m=modules.get(file);
@@ -255,10 +289,10 @@ function analyze(sources, ledger = []) {
     for(const stmt of fn.body.statements){
       if(ts.isFunctionDeclaration(stmt)&&stmt.name)
         callables.set(stmt.name.text,nodeTarget(stmt,file,ast,stmt.name.text));
-      if(!ts.isVariableStatement(stmt)||
-         !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
+      if(!ts.isVariableStatement(stmt))continue;
       for(const d of stmt.declarationList.declarations){
-        if(!ts.isIdentifier(d.name)||!d.initializer)continue;
+        if(!ts.isIdentifier(d.name)||!d.initializer||
+           unsafeByFile.get(file).has(d.name.text))continue;
         if(functionLike(d.initializer))
           callables.set(d.name.text,nodeTarget(d.initializer,file,ast,
             d.initializer.name?.text||d.name.text));
@@ -290,8 +324,7 @@ function analyze(sources, ledger = []) {
     // A destructured function member from a fixed local object can be tracked
     // as a callable binding, but not destructuring from parameters/dynamic data.
     for(const stmt of fn.body.statements){
-      if(!ts.isVariableStatement(stmt)||
-         !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
+      if(!ts.isVariableStatement(stmt))continue;
       for(const d of stmt.declarationList.declarations){
         if(!ts.isObjectBindingPattern(d.name)||!ts.isIdentifier(d.initializer))continue;
         const obj=objects.get(d.initializer.text);
@@ -311,10 +344,10 @@ function analyze(sources, ledger = []) {
   for(const file of files){
     const map=new Map(),keys=new Map(),aliases=[],ast=parsed.get(file);
     for(const stmt of ast.statements){
-      if(!ts.isVariableStatement(stmt)||
-         !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
+      if(!ts.isVariableStatement(stmt))continue;
       for(const d of stmt.declarationList.declarations){
-        if(!ts.isIdentifier(d.name)||!d.initializer)continue;
+        if(!ts.isIdentifier(d.name)||!d.initializer||
+           unsafeByFile.get(file).has(d.name.text))continue;
         if(ts.isObjectLiteralExpression(d.initializer))
           map.set(d.name.text,objectMethods(d.initializer,file,ast));
         else if(ts.isIdentifier(d.initializer))
