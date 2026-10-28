@@ -1,0 +1,36 @@
+name: CLI 与 MCP 真实工具执行闭环
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'package.json'
+      - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+      - 'tests/fixtures/real-mcp-tool-server.cjs'
+      - '.github/workflows/cli-mcp-tool-e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'package.json'
+      - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+      - 'tests/fixtures/real-mcp-tool-server.cjs'
+      - '.github/workflows/cli-mcp-tool-e2e.yml'
+permissions:
+  contents: read
+jobs:
+  tool-roundtrip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 真实 CLI 模型工具调用及 MCP 子进程工具执行
+        run: npm run check:cli-live-mcp-tools
