@@ -22,7 +22,7 @@ test('真实ESM权限解析入口：函数别名身份与新增旧版兼容规�
  assert.equal(gc('unknownCustomTool'),'unknownCustomTool');
  assert.ok(Cse('TaskStop').includes('KillBash'));
  assert.equal(AQo(m('word\\(nested)')),'word\\(nested)');
- assert.equal(R('\\\\(inner)(outer)','('),8);
+ assert.equal(R('\\(inner)(outer)','('),8);
 });
 test('真实ESM数组入口：生产模块导出、计数/唯一化及插入语义',()=>{
  const input=['a','b','c'];
