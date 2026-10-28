@@ -64,7 +64,10 @@ function main(argv,spawn=cp.spawnSync){
           signal:result.signal||null,tracePresent:fs.existsSync(trace)};
         if(result.error||result.status!==0||!fs.existsSync(trace)){
           throw Error(suite.id+'/'+name+' did not finish real subprocess: '+
-            (result.error?.message||String(result.status)));
+            (result.error?.message||String(result.status))+
+            '; trace='+trace+' exists='+fs.existsSync(trace)+
+            '; TAP='+String(result.stdout||'').slice(-2200)+
+            '; stderr='+String(result.stderr||'').slice(-1000));
         }
       }
       const left=JSON.parse(fs.readFileSync(path.join(target,suite.id+'-node.json'),'utf8'));
