@@ -5,11 +5,19 @@ on:
     paths:
       - 'tests/v37-*'
       - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+      - 'tools/bundled/claude-test/**'
+      - 'tools/bundled/design-sync/**'
+      - 'embedded/browser-tools/**'
+      - '.github/workflows/v37-host-real-acceptance.yml'
   push:
     branches: [main]
     paths:
       - 'tests/v37-*'
       - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+      - 'tools/bundled/claude-test/**'
+      - 'tools/bundled/design-sync/**'
+      - 'embedded/browser-tools/**'
+      - '.github/workflows/v37-host-real-acceptance.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,7 +51,7 @@ jobs:
           npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund esbuild@0.25.12 ts-morph@27.0.2 react@18.3.1 react-dom@18.3.1 playwright@1.62.1 storybook@9.1.10 @storybook/react-vite@9.1.10 vite@7.1.10
           npx playwright install chromium
           mkdir -p "$RUNNER_TEMP/v37-mcp-tools"
-          cp resources/tools/claude-test/scripts/lib/tools-lock.json "$RUNNER_TEMP/v37-mcp-tools/package-lock.json"
+          cp tools/bundled/claude-test/scripts/lib/tools-lock.json "$RUNNER_TEMP/v37-mcp-tools/package-lock.json"
           node - "$RUNNER_TEMP/v37-mcp-tools/package.json" <<'NODE'
           const fs=require('node:fs');
           fs.writeFileSync(process.argv[2],JSON.stringify({name:'claude-test-tools',private:true,

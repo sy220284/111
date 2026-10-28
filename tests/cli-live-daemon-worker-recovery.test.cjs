@@ -35,7 +35,22 @@ async function start(home,env){
   child.kill('SIGKILL');
   throw Error('daemon not running; log='+read(log).slice(-3000)+' stdout='+stdout+' stderr='+stderr);
 }
-function read(p){return fs.existsSync(p)?fs.readFileSync(p,'utf8'):''}
+// Receipts may disappear between watcher notification and the read; ENOENT is
+// expected when the daemon atomically consumes/cleans a transient PTY receipt.
+function read(p){
+  try{return fs.readFileSync(p,'utf8')}
+  catch(error){if(error?.code==='ENOENT')return '';throw error}
+}
+function captureExitReceipts(directory, receipts){
+  let entries;
+  try{entries=fs.readdirSync(directory)}
+  catch(error){if(error?.code==='ENOENT')return;throw error}
+  for(const file of entries.filter(name=>name.endsWith('.exec-exit'))){
+    const raw=read(path.join(directory,file));
+    if(!raw)continue;
+    try{receipts.set(file,JSON.parse(raw))}catch{/* partial receipt: retry on next poll */}
+  }
+}
 async function waitFor(fn,description,home,ms=30000){
   const start=Date.now();
   while(Date.now()-start<ms){if(fn())return;await sleep(200)}
@@ -110,12 +125,7 @@ test('真实 daemon exec worker 正常和异常退出均记录退出码与输出
     const ptyDir=path.join(path.dirname(bound[1]),'pty');
     fs.mkdirSync(ptyDir,{recursive:true,mode:0o700});
     const seenReceipts=new Map();
-    const observeReceipts=()=>{
-      for(const file of fs.readdirSync(ptyDir).filter(x=>x.endsWith('.exec-exit'))){
-        const raw=read(path.join(ptyDir,file));
-        try{seenReceipts.set(file,JSON.parse(raw))}catch{}
-      }
-    };
+    const observeReceipts=()=>captureExitReceipts(ptyDir,seenReceipts);
     // 在实际 worker 启动前开始观察：原版 PTY 清理可能在回执写入后快速移走文件。
     watcher=fs.watch(ptyDir,()=>observeReceipts());
     const cases=[
@@ -152,4 +162,22 @@ test('真实 daemon exec worker 正常和异常退出均记录退出码与输出
     if(supervisor?.exitCode===null)supervisor.kill('SIGKILL');
     fs.rmSync(home,{recursive:true,force:true});
   }
+});
+
+// Regression: a transient PTY receipt can be removed after readdir and before read.
+test('PTY exit receipt observer tolerates concurrent cleanup without hiding other I/O errors',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-pty-race-'));
+  const receipts=new Map();
+  try{
+    const file=path.join(dir,'short.sock.exec-exit');
+    fs.writeFileSync(file,JSON.stringify({code:7,tail:'stderr'}));
+    captureExitReceipts(dir,receipts);
+    assert.deepEqual(receipts.get('short.sock.exec-exit'),{code:7,tail:'stderr'});
+    fs.unlinkSync(file);
+    assert.equal(read(file),'');
+    assert.doesNotThrow(()=>captureExitReceipts(dir,receipts));
+    fs.writeFileSync(file,'{"partial"');
+    assert.doesNotThrow(()=>captureExitReceipts(dir,receipts));
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+  assert.doesNotThrow(()=>captureExitReceipts(dir,receipts));
 });
