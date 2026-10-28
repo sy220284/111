@@ -407,3 +407,24 @@ test('资源映射验收同时核对主源码文件和消费者，不允许更�
  assert.equal(exactManifestPaths(old,{entries:{chart:{...changed.entries.chart,sha256:'tampered'}}},
   new Map(),'asset',originals),false);
 });
+
+test('整合验收的703项真实跨版本测试只能交由固定参考源码的专用CI执行',()=>{
+ const workflow=[
+ 'pull_request:',
+ 'ref=c8cd253554319f32ff64ff7000636199f720c9bc',
+ 'OLD_SOURCE_ROOT=$root/source/src',
+ 'node scripts/batch-restoration-candidates.cjs',
+ 'node scripts/review-historical-candidates.cjs',
+ '--expected 703',
+ 'node --test tests/v44-real-historical-703.test.cjs',
+ 'node --test tests/v45-real-business-703.test.cjs'
+ ].join('\n');
+ const changed={path:'tests/v44-real-historical-703.test.cjs',
+  oldPath:'tests/v44-real-historical-703.test.cjs',status:'M'};
+ assert.equal(delegatedHistoricalRename(changed,'整合验收',workflow),true);
+ assert.equal(delegatedHistoricalRename(changed,'功能恢复',workflow),false);
+ assert.equal(delegatedHistoricalRename({...changed,status:'R100'},'整合验收',workflow),false);
+ assert.equal(delegatedHistoricalRename({...changed,path:'tests/mcp-rpc-cancellation.test.cjs'},'整合验收',workflow),false);
+ assert.throws(()=>delegatedHistoricalRename(changed,'整合验收',
+  workflow.replace('node --test tests/v44-real-historical-703.test.cjs','')),/不得省略/);
+});
