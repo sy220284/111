@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {run,parseArgs}=require('../tools/analysis/jelly-runner.cjs');
+const {run,parseArgs}=require('../../tools/analysis/jelly-runner.cjs');
 test('required options and limits are validated',()=>{
  assert.throws(()=>parseArgs(['--jelly','x','--out','out']),/invalid limits|missing/);
  assert.throws(()=>parseArgs(['--jelly','x','--out','out','--entry','src/x.js','--timeout','900']),/invalid limits/);

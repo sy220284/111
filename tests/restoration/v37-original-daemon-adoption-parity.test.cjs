@@ -10,7 +10,7 @@ const crypto=require('node:crypto');
 const vm=require('node:vm');
 const ts=require('typescript');
 
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const PIN='3c64d1669174e825fb0fbae088c5ec95edaa7339';
 const oldCache=new Map(),nowCache=new Map();
 function historical(file) {

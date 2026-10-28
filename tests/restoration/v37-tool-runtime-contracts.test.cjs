@@ -8,9 +8,9 @@ const os=require('node:os');
 const path=require('node:path');
 const {spawnSync}=require('node:child_process');
 const {createHash}=require('node:crypto');
-const root=path.resolve(__dirname,'..');
-const hashSource='../resources/tools/design-sync/lib/sync-hashes.mjs';
-const prefixScript=path.join(root,'resources/tools/evaluation/prefix_diff.py');
+const root=path.resolve(__dirname,'../..');
+const hashSource='../../tools/bundled/design-sync/lib/sync-hashes.mjs';
+const prefixScript=path.join(root,'tools/bundled/evaluation/prefix_diff.py');
 const sha=s=>createHash('sha256').update(s).digest('hex').slice(0,16);
 function fixture(t){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'v37-actual-tool-'));
