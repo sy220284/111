@@ -311,10 +311,12 @@ function verifiedStandaloneSourceMoves(changes,head){
  for(const change of changes.diffs){
   const old=change.oldPath;
   const dest=old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
-    old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):old;
+    old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):
+    old.startsWith('resources/tools/')?'tools/bundled/'+old.slice('resources/tools/'.length):old;
   if(dest===old||change.path!==dest||change.status!=='R100')continue;
   const row=records.get(old);
-  if(!row||row.current!==dest||!['embedded-source','plugin-source'].includes(row.kind))continue;
+  if(!row||row.current!==dest||!(['embedded-source','plugin-source','bundled-tool'].includes(row.kind) &&
+      (old.startsWith('resources/tools/') ? row.kind==='bundled-tool' : row.kind!=='bundled-tool')))continue;
   const before=gitAt(changes.ancestor,old),after=gitAt(head,change.path);
   if(!before||!after||!before.equals(after))continue;
   const blob=crypto.createHash('sha1').update('blob '+before.length+String.fromCharCode(0)).update(before).digest('hex');

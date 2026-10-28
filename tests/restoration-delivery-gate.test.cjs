@@ -326,3 +326,16 @@ test('目录整理资源清单只接受实际文件完整搬迁后的路径变�
  assert.equal(auditDelivery(context).ok,false);
  assert.equal(auditDelivery({...context,verifiedMetadata:['resources/asset-layout.json']}).ok,true);
 });
+
+
+test('目录整理独立工具源码只允许Git R100无损搬迁，不改变内嵌资源的业务语义',()=>{
+ const old='resources/tools/design-sync/lib/common.mjs',current='tools/bundled/design-sync/lib/common.mjs';
+ const context={title:'源码整理',body:'交付类别：目录整理\n不计入功能恢复',
+   changed:[old,current,'docs/architecture/README.md','resources/layout/relocations.json','tests/layout-check.test.cjs'],
+   testChanges:[{path:'tests/layout-check.test.cjs',status:'A',before:null,
+     after:"const {test}=require('node:test');const assert=require('node:assert');test('file',()=>assert.ok(true));"}]};
+ assert.equal(auditDelivery(context).ok,false);
+ const accepted=auditDelivery({...context,verifiedRelocations:[{old,current}]});
+ assert.equal(accepted.ok,true,accepted.errors.join('\n'));
+ assert.equal(auditDelivery({...context,changed:[...context.changed,'resources/bunfs/native.node'],verifiedRelocations:[{old,current}]}).ok,false);
+});
