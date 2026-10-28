@@ -1,0 +1,163 @@
+name: 111 开发工具链
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/dev/**'
+      - '.github/workflows/dev-toolchain.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/dev/**'
+      - '.github/workflows/dev-toolchain.yml'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 111-toolchain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: 构建 Node、npm 离线缓存和 actionlint 组件
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 校验工具链清单和离线校验器
+        run: |
+          set -euo pipefail
+          bash -n tools/dev/ai-toolchain.sh
+          bash tools/dev/ai-toolchain.sh self-test
+          python3 tools/dev/test-toolchain.py
+      - name: 安装锁定依赖并跑源码回归
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund --cache "$RUNNER_TEMP/111-npm-cache"
+          npm test
+      - name: 生成三个独立组件产物并登记校验和
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          out="$RUNNER_TEMP/111-components"
+          mkdir -p "$out"
+          node_root="$(dirname "$(dirname "$(readlink -f "$(command -v node)")")")"
+          mkdir -p "$RUNNER_TEMP/node-stage/node/bin" "$RUNNER_TEMP/node-stage/node/lib/node_modules"
+          cp "$node_root/bin/node" "$RUNNER_TEMP/node-stage/node/bin/node"
+          cp -a "$node_root/lib/node_modules/npm" "$RUNNER_TEMP/node-stage/node/lib/node_modules/"
+          ln -s ../lib/node_modules/npm/bin/npm-cli.js "$RUNNER_TEMP/node-stage/node/bin/npm"
+          ln -s ../lib/node_modules/npm/bin/npx-cli.js "$RUNNER_TEMP/node-stage/node/bin/npx"
+          node_dir="$out/111-toolchain-node-latest"
+          mkdir -p "$node_dir"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=node\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\n' "$NODE_VERSION" > "$node_dir/component.env"
+          tar -czf "$node_dir/payload.tar.gz" -C "$RUNNER_TEMP/node-stage" node
+          (cd "$node_dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
+
+          mkdir -p "$RUNNER_TEMP/cache-stage/npm-cache"
+          cp -a "$RUNNER_TEMP/111-npm-cache/_cacache" "$RUNNER_TEMP/cache-stage/npm-cache/"
+          cache_dir="$out/111-toolchain-npm-cache-latest"
+          mkdir -p "$cache_dir"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=npm-cache\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_LOCK_SHA256=%s\n' \
+            "$NODE_VERSION" "$(sha256sum package-lock.json | awk '{print $1}')" > "$cache_dir/component.env"
+          tar -czf "$cache_dir/payload.tar.gz" -C "$RUNNER_TEMP/cache-stage" npm-cache
+          (cd "$cache_dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
+
+          printf -v archive 'actionlint_%s_linux_amd64.tar.gz' "$ACTIONLINT_VERSION"
+          curl --fail --location --retry 3 \
+            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive" \
+            -o "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$ACTIONLINT_LINUX_X64_SHA256" "$RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/actionlint-stage/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/actionlint-stage/bin" actionlint
+          "$RUNNER_TEMP/actionlint-stage/bin/actionlint" -version
+          lint_dir="$out/111-toolchain-actionlint-latest"
+          mkdir -p "$lint_dir"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=actionlint\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\n' "$NODE_VERSION" > "$lint_dir/component.env"
+          tar -czf "$lint_dir/payload.tar.gz" -C "$RUNNER_TEMP/actionlint-stage" bin
+          (cd "$lint_dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
+      - name: 上传 Node 组件
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-node-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-node-latest/
+          retention-days: 30
+          if-no-files-found: error
+      - name: 上传 npm 离线依赖缓存
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-npm-cache-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-npm-cache-latest/
+          retention-days: 30
+          if-no-files-found: error
+      - name: 上传 actionlint 组件
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-actionlint-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-actionlint-latest/
+          retention-days: 30
+          if-no-files-found: error
+
+  verify-offline:
+    name: 全新环境离线安装、真实测试与重复使用
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-tools
+      DEV111_STATE_DIR: ${{ runner.temp }}/111-status
+      DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
+      DEV111_ARTIFACTS_DIR: ${{ runner.temp }}/111-artifacts
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: 111-toolchain-*-latest
+          path: ${{ runner.temp }}/111-artifacts
+          merge-multiple: false
+      - name: 检查清单、验证产物并按需安装
+        run: |
+          set -euo pipefail
+          bash tools/dev/ai-toolchain.sh plan --profile full
+          for c in node npm-cache actionlint; do
+            bash tools/dev/ai-toolchain.sh verify-artifact "$c" "$DEV111_ARTIFACTS_DIR/111-toolchain-$c-latest"
+          done
+          bash tools/dev/ai-toolchain.sh bootstrap --profile full --artifacts-dir "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile full
+      - name: 真实离线源码测试、CLI 版本与工作流语法
+        run: |
+          set -euo pipefail
+          bash tools/dev/ai-toolchain.sh run -- node --version
+          bash tools/dev/ai-toolchain.sh run -- npm test
+          bash tools/dev/ai-toolchain.sh run -- actionlint .github/workflows/dev-toolchain.yml
+          bash tools/dev/ai-toolchain.sh run -- node bin/claude-310.mjs --version
+      - name: 移除产物后复查并证明无重复下载
+        run: |
+          set -euo pipefail
+          rm -rf "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile full
+          output="$(bash tools/dev/ai-toolchain.sh plan --profile full)"
+          echo "$output"
+          echo "$output" | grep -F '"missing_artifacts":[]'
+      - name: 记录真实 CLI 帮助入口（单独标记 Bun/JSC 兼容）
+        id: cli_runtime
+        continue-on-error: true
+        run: timeout 45s bash tools/dev/ai-toolchain.sh run -- node bin/claude-310.mjs --help
+      - name: 汇总结果
+        if: always()
+        run: |
+          echo "111 Node/npm/TypeScript/ws 离线安装及真实测试结果：以步骤日志为准。" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.cli_runtime.outcome }}" = success ]; then
+            echo "CLI --help：通过；不等同于完整业务会话通过。" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "CLI --help：未通过，Node 与 Bun/JSC 运行时仍存在独立兼容缺口。" >> "$GITHUB_STEP_SUMMARY"
+          fi
