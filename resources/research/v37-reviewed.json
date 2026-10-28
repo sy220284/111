@@ -45,6 +45,18 @@
       "tests": [
         "tests/v40-fleet-roster-semantics.test.cjs"
       ]
+    },
+    "src/chunk-ar74b8kt.js": {
+      "classification": "Node 22 built-in fetch Gaxios runtime selection; previous bundled node-fetch fallback preserved",
+      "tests": [
+        "tests/gaxios-fetch-runtime.test.cjs"
+      ]
+    },
+    "src/chunk-fmf16p94.js": {
+      "classification": "MCP RPC cancellation listener lifecycle, send error cleanup, timeout and abort evidence",
+      "tests": [
+        "tests/mcp-rpc-cancellation.test.cjs"
+      ]
     }
   }
 }
