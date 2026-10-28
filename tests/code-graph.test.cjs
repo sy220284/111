@@ -333,3 +333,14 @@ test('top-level callable initializer reassignment invalidates same-module candid
  assert.equal(g.summary.unresolvedCallExpressions,1);
  assert.equal(g.callEdges[0].to.symbol,'stable');
 });
+
+
+test('local object alias method rewrite invalidates only its enclosing function body',()=>{
+ const g=analyze({'src/local.js':
+   'function damaged(){var origin={go(){}};var b=origin;b.go=()=>0;origin.go();b.go()}'+
+   'function untouched(){var origin={go(){}};origin.go()}'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+ assert.equal(g.callEdges[0].kind,'lexical_object_method_candidate');
+});
