@@ -61,31 +61,31 @@
     "src/chunk-pbffp8rf.js": {
       "classification": "Node module builtin hooks folder path restored using import.meta.dirname when Bun-only directory value is missing; real CLI model HTTP/SSE call verified",
       "tests": [
-        "tests/cli-live-model-turn.test.cjs"
+        "tests/cli/cli-live-model-turn.test.cjs"
       ]
     },
     "src/chunk-9z5ybxhe.js": {
       "classification": "v45 restored eight permission-rule functions with exact original body preservation and legacy bindings",
       "tests": [
-        "tests/historical-permission-rule-parity.test.cjs"
+        "tests/restoration/historical-permission-rule-parity.test.cjs"
       ]
     },
     "src/chunk-wrtp8qz8.js": {
       "classification": "v45 restored three foundational array functions with exact original body preservation and legacy bindings",
       "tests": [
-        "tests/historical-array-parity.test.cjs"
+        "tests/restoration/historical-array-parity.test.cjs"
       ]
     },
     "src/chunk-cpf0ynb1.js": {
       "classification": "Daemon fresh HOME startup must create local daemon lock parent before exclusive file acquisition; original ifAbsent V5 branch preserved",
       "tests": [
-        "tests/cli-live-daemon-supervisor.test.cjs"
+        "tests/daemon/cli-live-daemon-supervisor.test.cjs"
       ]
     },
     "src/chunk-4kxznmzw.js": {
       "classification": "Node daemon status uses native stripVTControlCharacters when Bun.stripANSI unavailable, preserving Bun branch",
       "tests": [
-        "tests/cli-live-daemon-supervisor.test.cjs"
+        "tests/daemon/cli-live-daemon-supervisor.test.cjs"
       ]
     }
   }

@@ -7,7 +7,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '../..');
-const kit = path.join(root, 'src/plugin-testing-kit');
+const kit = path.join(root, 'plugin-testing-kit');
 const scan = dir => readdirSync(dir, { withFileTypes: true }).flatMap(item => {
   const file = path.join(dir, item.name);
   return item.isDirectory() ? scan(file) : [file];

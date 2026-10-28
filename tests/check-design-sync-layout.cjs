@@ -6,7 +6,7 @@ const source=JSON.parse(fs.readFileSync(path.join(root,'tools/bundled/design-syn
 const sha=d=>crypto.createHash('sha1').update('blob '+d.length+String.fromCharCode(0)).update(d).digest('hex');
 assert.equal(source.migrated.length,12,'expected original source modules');
 assert.equal(source.supporting.length,6,'expected source-backed helper modules');
-const currentPath=p=>p.replace(/^resources\/tools\//,'tools/bundled/');
+const currentPath=p=>p.replace(/^resources\/tools\//,'tools/bundled/').replace(/^src\/embedded\//,'embedded/').replace(/^src\/plugin-testing-kit\//,'plugin-testing-kit/');
 const all=new Set();
 let staticImports=0;
 for(const entry of [...source.migrated,...source.supporting]){
