@@ -1,144 +1,252 @@
 'use strict';
-const {test} = require('node:test');
-const assert = require('node:assert/strict');
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const cp=require('node:child_process');
 const {
-  field, businessPath, classifyCodeChange, auditDelivery
-} = require('../scripts/check-restoration-delivery.cjs');
+  field,businessPath,testPath,categoryPathAllowed,classifyCodeChange,registeredTest,
+  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity
+}=require('../scripts/check-restoration-delivery.cjs');
 
-const functionalBody = [
+const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
+const body=[
   '交付类别：功能恢复',
-  '业务问题：实际 CLI 调用失败',
-  '实际代码改动：src/chunk-demo.js 修复请求处理',
-  '调用链：CLI -> 模型传输 -> 响应解析',
+  '业务问题：真实 CLI 模型返回失败',
+  '实际代码改动：src/chunk-demo.js 修复调用流程',
+  '调用链：bin/claude-310.mjs → src/chunk-demo.js → 模型回包',
+  '验收测试：tests/model-transport.test.cjs',
   '验证命令：node --test tests/model-transport.test.cjs',
-  '验证结果：在真实源码实现上通过正常和取消分支',
+  '验证结果：改动后真实逻辑正常及取消分支通过',
   '验收级别：局部行为已验证',
-  '未验收范围：线上 OAuth 尚未验证'
+  '未验收范围：线上 OAuth 未验证'
 ].join('\n');
-
-const runtime = {path:'src/chunk-demo.js',
-  before:'export function run() { return 1; }',
-  after:'export function run() { return 2; }'};
-const tests = ['tests/model-transport.test.cjs'];
-const files = ['src/chunk-demo.js', ...tests];
-
-function review(overrides={}) {
+const src={path:impl,before:'export function run(){return 1}',after:'export function run(){return 2}',status:'M'};
+const changed=[impl,suite];
+const testcase={path:suite,before:"const {test}=require('node:test');",
+  after:"const {test}=require('node:test');const assert=require('node:assert/strict');test('return',()=>assert.equal(2,2));",status:'M'};
+function verify(options={}) {
   return auditDelivery({
-    title:'修复模型请求返回值',
-    body:functionalBody,
-    changed:files,
-    sourceChanges:[runtime],
-    ...overrides
+    title:'修复模型传输调用',body,changed,sourceChanges:[src],testChanges:[testcase],...options
   });
 }
-function hasError(report, part) {
-  assert.equal(report.ok, false);
-  assert.ok(report.errors.some(e => e.includes(part)), report.errors.join('\n'));
+function rejected(report,fragment) {
+  assert.equal(report.ok,false, '应当拒绝但通过：'+JSON.stringify(report));
+  assert.ok(report.errors.some(e=>e.includes(fragment)),report.errors.join('\n'));
 }
 
-test('有效的业务修复必须包含运行态代码、对应测试及完整验收范围',()=>{
-  const r=review();
+test('实际源码修复+有效断言+完整验收说明通过',()=>{
+  const r=verify();assert.equal(r.ok,true,r.errors.join('\n'));
+  assert.deepEqual(r.implementation,[impl]);
+  assert.deepEqual(r.tests,[suite]);
+});
+test('纯文档、证据台账冒充功能恢复必失败',()=>{
+  rejected(verify({changed:['docs/review.md','resources/function-summary.json'],
+    sourceChanges:[],testChanges:[]}), '缺少实际业务源码');
+});
+test('只补测试不能冒充业务恢复',()=>{
+  rejected(verify({changed:[suite],sourceChanges:[]}), '缺少实际业务源码');
+});
+test('有真实源码但没有测试拒绝',()=>{
+  rejected(verify({changed:[impl],testChanges:[]}), '缺少对应测试');
+});
+test('注释排版、分号差异均不能凑源码恢复',()=>{
+  assert.equal(classifyCodeChange({path:impl,before:'function f(){return 1}',after:'/* note */function f() {return 1; }'}),'cosmetic');
+  rejected(verify({sourceChanges:[{path:impl,before:'function f(){return 1}',after:'/* note */ function f(){return 1;}',status:'M'}]}),'只有删除/注释/格式');
+});
+test('纯函数名加可读别名不得当作功能恢复',()=>{
+  const renamed={path:impl,before:'function QMn(){return 1;} QMn();',after:'function readHookOrigin(){return 1;} readHookOrigin();',status:'M'};
+  assert.equal(classifyCodeChange(renamed),'identifier_only');
+  rejected(verify({sourceChanges:[renamed]}),'只有删除/注释/格式');
+});
+test('修复错误调用目标不能被一概判成符号改名',()=>{
+  const actual={path:impl,before:'function f(){return broken();}',after:'function f(){return fixed();}'};
+  assert.equal(classifyCodeChange(actual),'effective');
+});
+test('修改条件变量及函数返回值属于有效源码差异',()=>{
+  assert.equal(classifyCodeChange({path:impl,before:'if(oldState){run()}',after:'if(newState){run()}'}),'effective');
+  assert.equal(classifyCodeChange(src),'effective');
+});
+test('新增文件不自动证明进入真实调用链，仅提供人工复核警告',()=>{
+  const r=verify({sourceChanges:[{path:impl,before:null,after:'export const fixed=1',status:'A'}]});
   assert.equal(r.ok,true,r.errors.join('\n'));
-  assert.equal(r.implementation.length,1);
-  assert.equal(r.tests.length,1);
+  assert.ok(r.warnings.some(x=>x.includes('真实消费者调用链')));
 });
-
-test('仅提交文档、函数台账与静态证据不能算恢复',()=>{
-  const r=review({changed:['docs/research.md','resources/function-verification-ledger.json'],
-    sourceChanges:[]});
-  hasError(r,'缺少实际业务源码');
+test('仅删除业务源码不能冒充修复',()=>{
+  rejected(verify({sourceChanges:[{path:impl,before:'function f(){}',after:null,status:'D'}]}),'只有删除/注释/格式');
+  assert.equal(classifyCodeChange({path:impl,before:'function f(){}',after:null,status:'D'}),'deleted');
 });
-
-test('仅补测试与测试工具不构成业务恢复',()=>{
-  const r=review({changed:['tests/model-transport.test.cjs','tools/analysis/code-graph.cjs'],
-    sourceChanges:[]});
-  hasError(r,'缺少实际业务源码');
+test('资源二进制内容变化可识别，只有删除则不可',()=>{
+  assert.equal(classifyCodeChange({path:'resources/bunfs/native.node',before:Buffer.from([1,2]),after:Buffer.from([1,3]),status:'M'}),'effective');
+  assert.equal(classifyCodeChange({path:'resources/data/asset.bin',before:null,after:Buffer.from([1]),status:'A'}),'added');
 });
-
-test('真实代码没有对应测试的提交被拒绝',()=>{
-  const r=review({changed:['src/chunk-demo.js']});
-  hasError(r,'缺少对应测试');
+test('仅有零断言测试不能通过',()=>{
+  rejected(verify({testChanges:[{path:suite,before:'',after:"const {test}=require('node:test');test('noop',()=>{});",status:'M'}]}),
+    '测试必须真实注册用例并包含断言');
 });
-
-test('注释与格式改动不构成业务修复',()=>{
-  const r=review({sourceChanges:[{path:runtime.path,
-    before:'function f(){return 1;}',
-    after:'/* recovered */ function f() { return 1; }'}]});
-  hasError(r,'只有注释/格式/标识符');
+test('只加注释/重复已有测试不能冒充本次新增行为验证',()=>{
+  const keep="const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.ok(true));";
+  rejected(verify({testChanges:[{path:suite,before:keep,after:'/* 增量 */'+keep,status:'M'}]}),'没有有效新增/修改的可执行断言');
 });
-
-test('纯函数名/短符号改名不能冒充恢复',()=>{
-  const r=review({sourceChanges:[{path:runtime.path,
-    before:'function QMn(){return 1;}',
-    after:'function readHookOrigin(){return 1;}'}]});
-  hasError(r,'没有可识别的实际行为变更');
-  assert.equal(classifyCodeChange({path:runtime.path,before:'let abc=1;',after:'let def=1;'}),'identifier_only');
+test('测试文件删除不等于新增或修复测试',()=>{
+  rejected(verify({testChanges:[{path:suite,before:testcase.before,after:null,status:'D'}]}),'没有有效新增/修改的可执行断言');
 });
-
-test('改变实际执行逻辑与修复业务行为可识别',()=>{
-  assert.equal(classifyCodeChange(runtime),'effective');
-  assert.equal(classifyCodeChange({path:'src/chunk-demo.js',before:'function f(){return 1}',after:'function f(){return 2}'}),'effective');
-  assert.equal(classifyCodeChange({path:'src/chunk-demo.js',before:'function f(){return 1}',after:'function f() { return 1; }'}),'cosmetic');
+test('测试文件未检查实际字节差异不得跳过',()=>{
+  rejected(verify({testChanges:[]}), '测试文件缺少实际前后差异检查');
 });
-
-test('仅修改台账、证据、历史候选仍属非业务文件',()=>{
-  for(const path of ['docs/a.md','resources/function-summary.json',
-    'resources/function-verification-ledger.json',
-    'tools/analysis/code-graph.cjs','.github/workflows/check.yml']) {
-    assert.equal(businessPath(path),false,path);
-  }
-  assert.equal(businessPath('runtime/assets.mjs'),true);
-  assert.equal(businessPath('src/plugin-testing-kit/index.js'),true);
-  assert.equal(businessPath('resources/bunfs/asset.json'),true);
+test('运行源码未检查实际差异不得跳过',()=>{
+  rejected(verify({sourceChanges:[]}), '业务源码或资源缺少实际前后差异检查');
 });
-
-test('伪造的未检视代码差异不得略过',()=>{
-  const r=review({sourceChanges:[]});
-  hasError(r,'未完成实际差异分析');
+test('验证说明不能只是伪造的文件路径',()=>{
+  rejected(verify({body:body.replace('验收测试：tests/model-transport.test.cjs','验收测试：tests/unrelated.test.cjs')}),
+    '“验收测试”必须列出');
+  rejected(verify({body:body.replace('实际代码改动：src/chunk-demo.js','实际代码改动：src/other.js')}),
+    '“实际代码改动”必须指明');
 });
-
-test('缺少必填验收字段被拒绝',()=>{
-  const r=review({body:functionalBody.replace('验证结果：在真实源码实现上通过正常和取消分支','验证结果：待填写')});
-  hasError(r,'验证结果');
-});
-
-test('独立测试可提交，但必须明确不计入功能恢复',()=>{
-  const report=auditDelivery({
-    title:'补齐现有 MCP 业务链的测试',
-    body:'交付类别：独立测试\n不计入功能恢复',
-    changed:['tests/mcp-e2e.test.cjs'],sourceChanges:[]
-  });
-  assert.equal(report.ok,true,report.errors.join('\n'));
-  hasError(auditDelivery({
-    title:'补齐现有 MCP 业务链的测试',
-    body:'交付类别：独立测试',
-    changed:['tests/mcp-e2e.test.cjs'],sourceChanges:[]
-  }),'不计入功能恢复');
-});
-
-test('治理配置可以单独提交，但不能假称完成恢复',()=>{
-  const r=auditDelivery({
-    title:'完善源码恢复提交门禁',
-    body:'交付类别：治理配置\n不计入功能恢复',
-    changed:['AGENTS.md','.github/workflows/restoration-delivery-gate.yml',
-      'scripts/check-restoration-delivery.cjs','tests/restoration-delivery-gate.test.cjs'],
-    sourceChanges:[]
-  });
-  assert.equal(r.ok,true,r.errors.join('\n'));
-});
-
-test('非恢复类别不能偷偷修改业务实现',()=>{
-  const r=review({body:'交付类别：文档维护\n不计入功能恢复'});
-  hasError(r,'实际修改业务源码');
-});
-
-test('字段缺少值或重复声明不视为有效证据',()=>{
+test('验收字段必须有效、明确且唯一',()=>{
+  rejected(verify({body:body.replace('验证结果：改动后真实逻辑正常及取消分支通过','验证结果：待填写')}),'验证结果');
+  rejected(verify({body:body.replace('验收级别：局部行为已验证','验收级别：原版全功能等价')}),'验收级别只能');
+  rejected(verify({body:body+'\n交付类别：功能恢复'}),'必须声明唯一');
   assert.equal(field('业务问题：第一\n业务问题：第二','业务问题'),'');
-  assert.equal(field('业务问题：','业务问题'),'');
-  assert.equal(field('- 业务问题：请求失败','业务问题'),'请求失败');
+});
+test('文档维护不能夹带脚本变更，不仅仅拦截 src/',()=>{
+  const r=auditDelivery({title:'整理文档',body:'交付类别：文档维护\n不计入功能恢复',
+    changed:['docs/plan.md','scripts/verify-function-ledger.cjs']});
+  rejected(r,'交付类别与实际修改范围不符');
+});
+test('测试工作不能谎称纯文档',()=>{
+  rejected(auditDelivery({title:'整理文档',body:'交付类别：文档维护\n不计入功能恢复',
+    changed:['tests/protocol.test.cjs']}),'交付类别与实际修改范围不符');
+});
+test('治理配置仅允许仓库约定治理文件',()=>{
+  const accepted=auditDelivery({title:'修正门禁',body:'交付类别：治理配置\n不计入功能恢复',
+    changed:['AGENTS.md','.github/workflows/restoration-delivery-gate.yml',
+      'scripts/check-restoration-delivery.cjs','tests/restoration-delivery-gate.test.cjs']});
+  assert.equal(accepted.ok,true,accepted.errors.join('\n'));
+  rejected(auditDelivery({title:'治理',body:'交付类别：治理配置\n不计入功能恢复',
+    changed:['scripts/restore-plugin-testing-kit.cjs']}),'交付类别与实际修改范围不符');
+});
+test('独立测试允许提交但不可冒称已恢复功能',()=>{
+  const ok=auditDelivery({title:'补充独立真实测试',body:'交付类别：独立测试\n不计入功能恢复',
+    changed:[suite],testChanges:[testcase]});
+  assert.equal(ok.ok,true,ok.errors.join('\n'));
+  rejected(auditDelivery({title:'新增测试',body:'交付类别：独立测试\n不计入功能恢复',
+    changed:['docs/report.md']}),'独立测试类没有实际修改测试');
+});
+test('非恢复类修改运行资源必须拒绝',()=>{
+  rejected(auditDelivery({title:'文档维护',body:'交付类别：文档维护\n不计入功能恢复',
+    changed:['resources/bunfs/asset.bin']}),'非恢复类不得夹带运行态');
+});
+test('功能恢复不得同时弱化主源码工作流',()=>{
+  rejected(verify({changed:[...changed,'.github/workflows/source-restoration.yml']}),
+    '功能 PR 不得修改验收器');
+});
+test('目录分类匹配 111 的真实结构',()=>{
+  assert.equal(businessPath('src/plugin-testing-kit/collector.js'),true);
+  assert.equal(businessPath('bin/claude-310.mjs'),true);
+  assert.equal(businessPath('runtime/assets.mjs'),true);
+  assert.equal(businessPath('resources/bunfs/native.node'),true);
+  assert.equal(businessPath('resources/function-verification-ledger.json'),false);
+  assert.equal(testPath('tests/query-loop.test.cjs'),true);
+  assert.equal(testPath('scripts/batch-restoration-candidates.cjs'),false);
+  assert.equal(categoryPathAllowed('文档维护','scripts/match.cjs'),false);
+});
+test('重命名源码内容相同仍不能视为业务修复',()=>{
+  assert.equal(classifyCodeChange({path:'src/new.js',status:'R100',
+    before:'export function f(){return 1}',after:'export function f(){return 1}'}),'none');
+});
+test('真实测试注册与断言识别',()=>{
+  assert.equal(registeredTest(testcase.after,suite),true);
+  assert.equal(registeredTest("test('noop',()=>{})",suite),false);
+  assert.equal(registeredTest("const assert=require('node:assert');assert.ok(true)",suite),false);
+});
+test('真实 git rename/delete/create 名称和状态不丢失',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-gate-git-')),cwd=process.cwd();
+  function git(...args){return cp.execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim()}
+  try {
+    git('init','-q');
+    git('config','user.email','gate@example.com');git('config','user.name','Gate Test');
+    fs.writeFileSync(path.join(dir,'a.js'),'export const a=1\n');
+    fs.writeFileSync(path.join(dir,'old.js'),'export const old=1\n');
+    git('add','.');git('commit','-qm','初始');
+    const start=git('rev-parse','HEAD');
+    fs.renameSync(path.join(dir,'a.js'),path.join(dir,'b.js'));
+    fs.rmSync(path.join(dir,'old.js'));
+    fs.writeFileSync(path.join(dir,'added.js'),'export const added=1\n');
+    git('add','-A');git('commit','-qm','变化');
+    const end=git('rev-parse','HEAD');
+    process.chdir(dir);
+    const diffs=gitDiff(start,end);
+    assert.ok(diffs.some(x=>x.status.startsWith('R')&&x.oldPath==='a.js'&&x.path==='b.js'),JSON.stringify(diffs));
+    assert.ok(diffs.some(x=>x.status==='D'&&x.path==='old.js'));
+    assert.ok(diffs.some(x=>x.status==='A'&&x.path==='added.js'));
+  } finally {process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('验收级别不得伪造或用无意义状态替代',()=>{
-  const r=review({body:functionalBody.replace('验收级别：局部行为已验证','验收级别：全功能等价')});
-  hasError(r,'验收级别只能为');
+test('源码重命名到 docs 仍识别为源码删除，不能用文档类别绕过',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-gate-rename-')),cwd=process.cwd();
+  function g(...args){return cp.execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim()}
+  try {
+    g('init','-q');g('config','user.email','gate@example.com');g('config','user.name','Gate Test');
+    fs.mkdirSync(path.join(dir,'src'));fs.mkdirSync(path.join(dir,'docs'));
+    fs.writeFileSync(path.join(dir,'src','active.js'),'export function active(){return 1}\n');
+    g('add','.');g('commit','-qm','初始');const base=g('rev-parse','HEAD');
+    fs.renameSync(path.join(dir,'src','active.js'),path.join(dir,'docs','active.js'));
+    g('add','-A');g('commit','-qm','改名');const head=g('rev-parse','HEAD');
+    process.chdir(dir);
+    const actual=inspectGit({pull_request:{base:{sha:base},head:{sha:head}}});
+    assert.ok(actual.changed.includes('src/active.js'));
+    assert.ok(actual.changed.includes('docs/active.js'));
+    const r=auditDelivery({title:'文档整理',body:'交付类别：文档维护\n不计入功能恢复',
+      changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
+    rejected(r,'非恢复类不得夹带运行态源码');
+  }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('测试文件重命名成文档不得逃避有效测试检查',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-gate-test-rename-')),cwd=process.cwd();
+  function g(...args){return cp.execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim()}
+  try {
+    g('init','-q');g('config','user.email','gate@example.com');g('config','user.name','Gate Test');
+    fs.mkdirSync(path.join(dir,'tests'));fs.mkdirSync(path.join(dir,'docs'));
+    fs.writeFileSync(path.join(dir,'tests','old.test.cjs'),"test('active',()=>assert.ok(true))\n");
+    g('add','.');g('commit','-qm','初始');const base=g('rev-parse','HEAD');
+    fs.renameSync(path.join(dir,'tests','old.test.cjs'),path.join(dir,'docs','old.test.cjs'));
+    g('add','-A');g('commit','-qm','改名');const head=g('rev-parse','HEAD');
+    process.chdir(dir);
+    const actual=inspectGit({pull_request:{base:{sha:base},head:{sha:head}}});
+    assert.ok(actual.changed.includes('tests/old.test.cjs'));
+    const r=auditDelivery({title:'整理文档',body:'交付类别：文档维护\n不计入功能恢复',
+      changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
+    rejected(r,'交付类别与实际修改范围不符');
+  }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('功能提交禁止同时改掉源码指纹、函数证据、调用图校验器',()=>{
+  rejected(verify({changed:[...changed,'scripts/check-source-fingerprint.cjs']}),'不得修改验收器');
+  rejected(verify({changed:[...changed,'scripts/verify-function-ledger.cjs']}),'不得修改验收器');
+  rejected(verify({changed:[...changed,'tools/analysis/code-graph.cjs']}),'不得修改验收器');
+});
+test('不能把 npm test 中的旧回归检查偷偷删掉',()=>{
+  const before=JSON.stringify({scripts:{
+    test:'npm run check:source && npm run check:source-fingerprint && npm run check:closure',
+    'check:source':'node tests/check-source.cjs',
+    'check:source-fingerprint':'node scripts/check-source-fingerprint.cjs --check',
+    'check:function-evidence':'node scripts/verify-function-ledger.cjs',
+    'audit:functions':'node scripts/source-function-index.cjs --check',
+    'check:restored-aliases':'node scripts/check-restored-aliases.cjs'
+  }});
+  const oldScripts=JSON.parse(before).scripts;
+  const base=verify({packageBefore:before,packageAfter:before});
+  assert.equal(base.ok,true,base.errors.join('\n'));
+  const changedTest=JSON.stringify({scripts:{...oldScripts,test:'npm run check:source && npm run check:closure'}});
+  rejected(verify({packageBefore:before,packageAfter:changedTest}),'npm test 删除或修改了既有回归检查');
+  const changedCheck=JSON.stringify({scripts:{...oldScripts,'check:source-fingerprint':'echo passed'}});
+  rejected(verify({packageBefore:before,packageAfter:changedCheck}),'核心校验命令被功能 PR 修改');
+  const added=JSON.stringify({scripts:{...oldScripts,test:oldScripts.test+' && node --test tests/new-feature.test.cjs'}});
+  assert.deepEqual(checkScriptIntegrity(before,added),[]);
+});
+test('恢复类不能同时声明不计入功能恢复',()=>{
+  rejected(verify({body:body+'\n不计入功能恢复'}),'恢复类与');
 });

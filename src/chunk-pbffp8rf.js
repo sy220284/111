@@ -1457,7 +1457,7 @@ function VVo(e, o) { if (!(!o.isBuiltin && e.telemetry?.includes(Xt) === !0))
 function qVo(e) { let o = e.telemetry?.join(", "); return o === "" ? "nothing" : o; }
 var $n = (e, o, r) => ({ module: e, scan: tu(o, r), files: ru(o) });
 var YVo = "agents";
-var P$ = (e, o, r) => qf() ? $n(o, r(), e) : { module: o, folder: e };
+var P$ = (e, o, r) => qf() ? $n(o, r(), e) : { module: o, folder: typeof e === "string" && e.length > 0 ? e : import.meta.dirname };
 import { join as dw } from "path";
 function cw(e, o) { return "folder" in o ? { path: o.folder, modulePath: dw(o.folder, Ne) } : { path: Ns, modulePath: Ar(e) }; }
 import { join as uw } from "path";

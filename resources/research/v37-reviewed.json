@@ -58,6 +58,12 @@
         "tests/mcp-rpc-cancellation.test.cjs"
       ]
     },
+    "src/chunk-pbffp8rf.js": {
+      "classification": "Node module builtin hooks folder path restored using import.meta.dirname when Bun-only directory value is missing; real CLI model HTTP/SSE call verified",
+      "tests": [
+        "tests/cli-live-model-turn.test.cjs"
+      ]
+    },
     "src/chunk-9z5ybxhe.js": {
       "classification": "v45 restored eight permission-rule functions with exact original body preservation and legacy bindings",
       "tests": [
