@@ -52,7 +52,7 @@ test('Fleet 较早条目缓存保持快照、通知和失效加载令牌语义',
 test('Fleet attach/detach 顺序与错误回调完整保留',()=>{
  const f=fleetApi(),joined=[],left=[];
  const make=name=>({attachView:(options)=>{joined.push(name);if(name==='selection') assert.equal(typeof options.onError,'function');return()=>left.push(name)}});
- const attached={selection:make('selection'),view:make('view'),attach:make('attach'),editor:make('editor'),deleteConfirm:make('deleteConfirm')};
+ const attached={selection:make('selection'),view:make('view'),attach:make('attach'),editor:{...make('editor'),setError:()=>{}},deleteConfirm:make('deleteConfirm')};
  assert.equal(f.BZr,f.useAttachFleetOwners);
  f.BZr(attached,{clock:()=>1,groupsEnabled:true});
  assert.equal(joined.join(','),'selection,view,attach,editor,deleteConfirm');
