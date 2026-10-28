@@ -117,7 +117,7 @@ test('真实 daemon exec worker 正常和异常退出均记录退出码与输出
         'fs.writeFileSync('+JSON.stringify(marker)+',"started");'+
         'process.stdout.write('+JSON.stringify(job.token+'-stdout\n')+');'+
         'process.stderr.write('+JSON.stringify(job.token+'-stderr\n')+');'+
-        'process.exit('+job.exitCode+');');
+        'process.exitCode='+job.exitCode+';');
       const dispatch={proto:1,short:job.short,sessionId:'e2e-exit-'+job.short,
         createdAt:Date.now(),source:'shell',cwd:home,
         launch:{mode:'exec',cmd:process.execPath,args:[fixture]},env:{},
