@@ -52,6 +52,40 @@ class TriageTests(unittest.TestCase):
         s=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("jelly_static_points_to\t否","jelly_static_points_to\t是"),encoding="utf8")
         with self.assertRaisesRegex(ValueError,"misclassified"):classify_candidates(self.report,self.graph,self.functions)
+    def test_same_position_nested_ast_calls_are_ambiguous_even_with_one_jelly_target(self):
+        # Nested calls f()() can share the same AST start location.
+        self.graph["unresolvedCallsites"].append({
+            "file":"src/a.js","line":2,"column":3,
+            "reason":"local_binding_or_parameter",
+            "owner":"src/a.js#nested","callee":"f()"})
+        self.graph["summary"]["unresolvedCallExpressions"] += 1
+        result=classify_candidates(self.report,self.graph,self.functions)
+        self.assertEqual(result["distinctPreviouslyUnresolvedCallsitesWithCandidates"],3)
+        self.assertEqual(result["ambiguousASTLocationCallsites"],1)
+        self.assertEqual(result["originalASTPositionsWithMultipleExpressions"],1)
+        self.assertEqual(result["originalASTExpressionsAtAmbiguousPositions"],2)
+        self.assertEqual(result["singleIndexedStaticCandidateCallsites"],0)
+        self.assertEqual(result["runtimeCallsConfirmed"],0)
+        self.assertEqual(result["originalASTDistinctUnresolvedPositions"],4)
+        rows=list(csv.DictReader(
+            (self.report/"Jelly未解析调用候选分级.tsv").open(encoding="utf8"),
+            delimiter="\\t"))
+        self.assertEqual(rows[0]["证据等级"],"ambiguous_ast_callsite_location")
+        self.assertEqual(rows[0]["原AST同位置调用表达式数"],"2")
+        focused=list(csv.DictReader(
+            (self.report/"Jelly唯一索引候选待验收.tsv").open(encoding="utf8"),
+            delimiter="\\t"))
+        self.assertEqual(focused,[])
+
+    def test_mistagged_jelly_unresolved_position_is_rejected(self):
+        contents=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
+        contents=contents.replace(
+            "src/a.js\\t2\\t3\\tsrc/b.js\\t8\\t5\\t111_unresolved_exact_callsite",
+            "src/a.js\\t2\\t3\\tsrc/b.js\\t8\\t5\\tnot_in_111_unresolved")
+        (self.report/"Jelly跨分析器调用候选.tsv").write_text(contents,encoding="utf8")
+        with self.assertRaisesRegex(ValueError,"incorrectly tagged"):
+            classify_candidates(self.report,self.graph,self.functions)
+
     def test_unresolved_source_tag_must_be_present_in_primary_graph(self):
         s=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("src/a.js\t7\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved","src/a.js\t7\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite"),encoding="utf8")
