@@ -1,5 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { CellSegmenter } from '../../runtime/terminal/cell-segmenter.mjs';
+import { test } from 'node:test';
+test('真实终端单元与宽字符/BiDi 行为：_bidi.test', () => {
 // The Unicode Bidi Algorithm is taken from the 2.1.88 source map's bidi-js,
 // while 2.1.310's packed screen/run ABI comes from its actual JS call sites.
 function decode(text, reorder) {
@@ -32,3 +34,5 @@ assert.deepEqual(ltr.records.map(x => x.logical), Array.from({ length: ltr.count
 const notReordered = decode('Hello שלום', false);
 assert.deepEqual(notReordered.records.map(x => x.logical), Array.from({ length: notReordered.count }, (_, i) => i));
 console.log(JSON.stringify({ status: 'pass', scenarios: 4, layout: 'logical runs preserved / visual cells reordered', implementation: '2.1.88 bidi-js + 2.1.310 packed ABI' }));
+
+});
