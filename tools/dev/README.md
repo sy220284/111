@@ -39,3 +39,23 @@ bash tools/dev/ai-toolchain.sh status
 `111` 的 Bun/JSC 私有运行时 API、原生组件、真实在线服务等，不会因为 Node/npm 工具齐备自动获得完整兼容。工作流对 `--help` 单独报告真实结果，不能替代端到端功能验收。
 
 工作流不含定时触发器；只对工具链或依赖清单变更自动执行，或手动执行。原有源码恢复及命名验收工作流继续独立运作。
+
+
+## Bun/JSC 底层兼容诊断工具
+
+工具分两层，以免将静态引用、Bun 参照测试和 Node 兼容性混为一谈：
+
+1. 源码调用点审计：使用 TypeScript AST 遍历 111 的 2,551 个主源码模块（不包含 vendor / README），定位直接 Bun.spawn、Bun.spawnSync、Bun.Terminal、Bun.SQL、Bun.ant.*、bun:sqlite、bun:jsc 等引用，支持字面量方括号及 globalThis.Bun。每项输出实际文件、行号和出现次数。
+2. Bun/JSC 参照运行时探针：在真实 Bun 中隔离执行 spawn/spawnSync 进程退出与 stdout、Terminal PTY 输出、SQL 内存数据库参数绑定、bun:sqlite、bun:jsc 堆信息。私有 Bun.ant 只记录未验证状态，不做敏感调用。
+
+运行命令：
+
+~~~bash
+npm run audit:bun-jsc
+npm run check:bun-jsc
+node tools/dev/bun-jsc-compat.cjs report --json --bun /path/to/bun --require-bun --output /tmp/111-bun-jsc-compat.json
+~~~
+
+仅 report 命令调用真实 Bun 二进制；不存在时明确报告 unavailable，不会伪造通过；--require-bun 让 Bun 探针失败或缺失时返回非零。GitHub Actions 额外使用固定 Bun 1.4.4，生成可下载的诊断 JSON；Bun 仅供参照验证，不会自动替换 111 默认 Node 主程序，也不进入现有离线运行组件清单。
+
+验收边界：扫描到 Bun.spawn 不表示该分支必然运行；没有扫描到 Bun.SQL 也不能断言原版 ELF 永不使用它。参照 Bun 探针通过只代表测试的 API 在该版本下可用，111 在 Node 中的行为兼容仍需另行实现并验证。诊断工具不会往全局作用域注入伪造的 Bun 对象。
