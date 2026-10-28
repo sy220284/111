@@ -9,6 +9,7 @@ on:
       - 'tools/analysis/ghidra-headless.sh'
       - 'tools/analysis/integrated-reverse-evidence.py'
       - 'tests/test_integrated_reverse_evidence.py'
+      - 'tests/cli-live-daemon-worker-recovery.test.cjs'
       - 'tools/analysis/ghidra-scripts/**'
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
