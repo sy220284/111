@@ -252,7 +252,14 @@ case "$COMMAND" in
   run)
     host_check
     [ "$#" -gt 0 ] || die "run -- 后需要命令"
-    check_ready || { emit_plan >&2; die "工具链尚未就绪，请先 bootstrap"; }
+    if ! check_ready; then
+      if [ -d "$ARTIFACTS_DIR" ]; then
+        bootstrap >/dev/null
+      else
+        emit_plan >&2
+        die "工具链尚未就绪；请先下载 plan 所列 Artifact 或执行 bootstrap"
+      fi
+    fi
     export PATH="$TOOLS_ROOT/node/bin:$TOOLS_ROOT/bin:$PATH"
     cd "$REPO_ROOT"
     exec "$@"

@@ -21,7 +21,7 @@ bash tools/dev/ai-toolchain.sh run -- npm test
 bash tools/dev/ai-toolchain.sh status
 ```
 
-本地 `plan/check/run` 均不联网。只有工作流打包阶段会从可信源取得 Node 发行版、npm 包和带固定 SHA256 的 actionlint。解压后执行 `npm ci --offline`，而非使用宿主网络安装。工具链复用已满足版本要求的本机工具与已安装依赖，不重复下载。
+本地 `plan/check/run` 均不联网。配置 `DEV111_ARTIFACTS_DIR` 后，`run` 会在需要时自动使用已下载的 Artifact 补齐依赖。只有工作流打包阶段会从可信源取得 Node 发行版、npm 包和带固定 SHA256 的 actionlint。解压后执行 `npm ci --offline`，而非使用宿主网络安装。工具链复用已满足版本要求的本机工具与已安装依赖，不重复下载。
 
 `111` 的 Bun/JSC 私有运行时 API、原生组件、真实在线服务等，不会因为 Node/npm 工具齐备自动获得完整兼容。工作流对 `--help` 单独报告真实结果，不能替代端到端功能验收。
 
