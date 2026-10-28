@@ -34,7 +34,7 @@ function features(node, ast, file) {
   }
   walk(node.body);
   return {
-    file, name: nameOf(node), line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1,
+    file, name: nameOf(node), line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1, offset: node.getStart(ast),
     params: node.parameters ? node.parameters.length : 0,
     tokens: tokens.length, shape: hash(tokens.join('\x1f')),
     literals: [...new Set(literals)].sort()
@@ -122,7 +122,7 @@ function matchOne(f,idx) {
   ranked.sort((a,b)=>b.score-a.score || a.old.file.localeCompare(b.old.file) || a.old.line-b.old.line);
   if (!ranked.length) return null;
   if (ranked[1] && ranked[0].score-ranked[1].score < 0.08)
-    return {confidence:'歧义',score:ranked[0].score,choices:ranked.slice(0,3).map(x=>({file:x.old.file,name:x.old.name,line:x.old.line,score:+x.score.toFixed(3)}))};
+    return {confidence:'歧义',score:ranked[0].score,choices:ranked.slice(0,3).map(x=>({file:x.old.file,name:x.old.name,line:x.old.line,offset:x.old.offset,score:+x.score.toFixed(3)}))};
   return {...ranked[0],confidence:'待复核',reason:'长字符串证据与函数规模相近'};
 }
 function plan({oldRoot,newRoot,focus=[],max=200,aliasPath,v40Map,reference='2.1.88'}) {
@@ -148,15 +148,15 @@ function plan({oldRoot,newRoot,focus=[],max=200,aliasPath,v40Map,reference='2.1.
     if (done.has(f.file+'::'+f.name)) {skippedRecovered++;continue;}
     const m=matchOne(f,idx);
     if (!m) continue;
-    const next={new:{file:f.file,name:f.name,line:f.line,tokens:f.tokens},confidence:m.confidence,score:+m.score.toFixed(3)};
+    const next={new:{file:f.file,name:f.name,line:f.line,offset:f.offset,tokens:f.tokens},confidence:m.confidence,score:+m.score.toFixed(3)};
     const v40Names=v40BySymbol.get(f.file+'::'+f.name);
     if(v40Names)next.v40LocatedNames=v40Names;
     if (m.confidence==='歧义') {next.choices=m.choices;ambiguous.push(next);continue;}
-    next.old={file:m.old.file,name:m.old.name,line:m.old.line};
+    next.old={file:m.old.file,name:m.old.name,line:m.old.line,offset:m.old.offset};
     next.evidence={reason:m.reason,sharedLiterals:m.shared.slice(0,8)};
     if (m.confidence==='高') matches.push(next); else review.push(next);
   }
-  const sort=(a,b)=>a.new.file.localeCompare(b.new.file)||a.new.line-b.new.line;
+  const sort=(a,b)=>a.new.file.localeCompare(b.new.file)||a.new.line-b.new.line||a.new.offset-b.new.offset;
   matches.sort(sort);review.sort(sort);ambiguous.sort(sort);
   return {
     schema:1,baseline:'2.1.310',reference,mode:'只读候选，未执行源码替换',
