@@ -7,6 +7,8 @@ on:
     paths:
       - 'tools/dev/**'
       - 'tools/analysis/ghidra-headless.sh'
+      - 'tools/analysis/integrated-reverse-evidence.py'
+      - 'tests/integrated-reverse-evidence.test.py'
       - 'tools/analysis/ghidra-scripts/**'
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
@@ -494,5 +496,60 @@ jobs:
         with:
           name: 111-ghidra-elf-decompilation-evidence
           path: ${{ runner.temp }}/111-ghidra-evidence/
+          retention-days: 30
+          if-no-files-found: warn
+
+  integrated-native-source:
+    name: 当前源码图谱和两个真实原生组件反编译联合取证
+    needs: ghidra-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-installed
+      DEV111_STATE_DIR: ${{ runner.temp }}/111-state
+      DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
+      DEV111_ARTIFACTS_DIR: ${{ runner.temp }}/111-artifacts
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: 111-toolchain-*-latest
+          path: ${{ runner.temp }}/111-artifacts
+          merge-multiple: false
+      - name: 验证证据校验器的正反例
+        run: python3 -m unittest discover -s tests -p 'integrated-reverse-evidence.test.py' -v
+      - name: 重建当前提交AST全量调用图
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:code-graph
+          node --max-old-space-size=4096 tools/analysis/code-graph.cjs scan --full --output "$RUNNER_TEMP/current-graph.json" > /dev/null
+      - name: 验证并离线安装Ghidra和JDK
+        run: |
+          set -euo pipefail
+          for c in jdk ghidra; do
+            bash tools/dev/ai-toolchain.sh verify-artifact "$c" "$DEV111_ARTIFACTS_DIR/111-toolchain-$c-latest"
+          done
+          bash tools/dev/ai-toolchain.sh bootstrap --profile reverse --artifacts-dir "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile reverse
+      - name: 真实反编译两个仓库原生组件
+        run: |
+          set -euo pipefail
+          for name in audio-capture.node clipboard-napi.node; do
+            timeout 1100s bash tools/dev/ai-toolchain.sh run --profile reverse -- bash tools/analysis/ghidra-headless.sh --input "resources/bunfs/$name" --output "$RUNNER_TEMP/native/$name"
+          done
+      - name: 对照本次提交的原生字节SHA256和函数明细并输出分级证据
+        run: |
+          set -euo pipefail
+          python3 tools/analysis/integrated-reverse-evidence.py --repo . --graph "$RUNNER_TEMP/current-graph.json" --native-root "$RUNNER_TEMP/native" --commit "$GITHUB_SHA" --toolchain-run "$GITHUB_RUN_ID" --output "$RUNNER_TEMP/native/integrated-evidence.json"
+          cp "$RUNNER_TEMP/current-graph.json" "$RUNNER_TEMP/native/source-graph.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: 111-integrated-native-source-evidence
+          path: ${{ runner.temp }}/native/
           retention-days: 30
           if-no-files-found: warn
