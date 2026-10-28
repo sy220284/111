@@ -32,7 +32,7 @@ function load(source,file,name,context) {
  return vm.runInNewContext('('+findFunction(source,file,name)+')',context,{timeout:1500});
 }
 function ordinary(value) {
- if(value instanceof Map)return [...value.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+ if(Object.prototype.toString.call(value)==='[object Map]')return [...value.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
  if(value===undefined)return {value:'undefined'};
  return JSON.parse(JSON.stringify(value));
 }
@@ -140,7 +140,12 @@ test('v37原始接管资格判断与当前：父子后台任务不可随意提�
   const fn=load(source,adopt,name,ctx);
   const parent={id:'parent',kind:'agent',agentType:'worker',status:'running',isBackgrounded:true,abortController:{}};
   const child={id:'child',parentAgentId:'parent',kind:'agent',agentType:'worker',status:'running',isBackgrounded:true,abortController:{}};
-  return [ordinary(fn({parent,child})),ordinary(fn({parent,child:{...child,isBackgrounded:false}})),ordinary(fn({}))];
+  const permitted=ordinary(fn({parent,child}));
+  const rejected=ordinary(fn({parent,child:{...child,isBackgrounded:false}}));
+  assert.ok(permitted.some(([id,allowed])=>id==='parent'&&allowed===true));
+  assert.ok(permitted.some(([id,allowed])=>id==='child'&&allowed===true));
+  assert.ok(rejected.some(([id,allowed])=>id==='child'&&allowed===false));
+  return [permitted,rejected,ordinary(fn({}))];
  };
  await compare(adopt,'FX','computeAdoptability',run);
 });
