@@ -78,3 +78,57 @@ test('发送失败时清理挂起句柄，后续中止不会通知一个未发�
   assert.equal(instance._responseHandlers.size,0);
   assert.equal(instance._timeoutInfo.size,0);
 });
+test('真实 MCP 关联任务请求：主动取消清除挂起响应与侧信道 resolver',async()=>{
+  const {instance,frames}=makeProtocol();
+  const queued=[];
+  instance._enqueueTaskMessage=async(taskId,entry)=>queued.push({taskId,entry});
+  const controller=new AbortController();
+  const pending=instance.request({method:'tools/call'}, {}, {
+    relatedTask:{taskId:'linked-1'},signal:controller.signal
+  });
+  assert.equal(queued.length,1);
+  assert.equal(queued[0].taskId,'linked-1');
+  assert.equal(queued[0].entry.message.id,1);
+  assert.equal(instance._requestResolvers.size,1,'关联请求需要挂起侧信道处理器');
+  controller.abort('stop-related-task');
+  await assert.rejects(pending,/stop-related-task/);
+  await flush();
+  assert.equal(instance._responseHandlers.size,0);
+  assert.equal(instance._requestResolvers.size,0,'主动取消不得遗留任务关联 resolver');
+  assert.equal(instance._timeoutInfo.size,0);
+  assert.equal(frames.length,1);
+  assert.equal(frames[0].method,'notifications/cancelled');
+  assert.equal(frames[0].params.requestId,1);
+});
+test('真实 MCP 关联任务请求：超时清除侧信道 resolver，不产生二次取消',async()=>{
+  const {instance,frames}=makeProtocol();
+  instance._enqueueTaskMessage=async()=>{};
+  const controller=new AbortController();
+  const pending=instance.request({method:'tools/call'}, {}, {
+    relatedTask:{taskId:'linked-timeout'},signal:controller.signal
+  });
+  assert.equal(instance._requestResolvers.size,1);
+  instance._timeoutInfo.get(1)();
+  await assert.rejects(pending,/Request timed out/);
+  assert.equal(instance._requestResolvers.size,0,'超时不得遗留任务关联 resolver');
+  assert.equal(instance._responseHandlers.size,0);
+  controller.abort('late');
+  await flush();
+  assert.equal(frames.filter(f=>f.method==='notifications/cancelled').length,1);
+});
+test('真实 MCP 关联任务请求：写入队列失败释放所有句柄',async()=>{
+  const {instance,frames}=makeProtocol();
+  instance._enqueueTaskMessage=async()=>{throw Error('queue-unavailable')};
+  const controller=new AbortController();
+  const pending=instance.request({method:'tools/call'}, {}, {
+    relatedTask:{taskId:'linked-rejected'},signal:controller.signal
+  });
+  assert.equal(instance._requestResolvers.size,1);
+  await assert.rejects(pending,/queue-unavailable/);
+  assert.equal(instance._requestResolvers.size,0);
+  assert.equal(instance._responseHandlers.size,0);
+  assert.equal(instance._timeoutInfo.size,0);
+  controller.abort('late');
+  await flush();
+  assert.equal(frames.length,0,'队列拒绝后不应再发送迟到取消帧');
+});
