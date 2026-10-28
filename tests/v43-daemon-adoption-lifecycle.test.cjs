@@ -15,9 +15,13 @@ const specs={
     Zmr:'dedupFrameLiveNewest',FX:'computeAdoptability',
     f6e:'countLiveWorkflowAgents',aUe:'noticeFieldOf',
     xlt:'noticeDescriptionOf',eIn:'serializeAdoptable',
-    Rlt:'writeAdoptJson',hno:'readAndConsumeAdoptJson'
+    Rlt:'writeAdoptJson',hno:'readAndConsumeAdoptJson',
+    Xmr:'detachAndSerializeShell',ZPn:'collectFrameLiveConsent',
+    Ino:'emitAdoptAgentDenied',nIn:'emitAdoptAgentFailed',E8t:'emitAdoptWorkflowFailed',
+    Tno:'linkAdoptedAgentTranscript',Rno:'linkAdoptedWorkflowDir',
+    Ano:'relinkAdoptedAgentSymlinks',xno:'resolveAdoptedScriptPath',Ono:'adoptCron'
   },
-  'chunk-t2adf9g4.js':{yPe:'killJob',wpr:'killOrphanedWorker',Hee:'deleteJob'}
+  'chunk-t2adf9g4.js':{yPe:'killJob',wpr:'killOrphanedWorker',Hee:'deleteJob',Kat:'replyToJob'}
 };
 function sourceFunctions(){
   const fragments=[],aliases=[];
@@ -65,6 +69,12 @@ function makeFixture(){
     zK:async p=>disk.has(p)?{kind:'ok',content:disk.get(p)}:{kind:'missing'},
     N:async p=>{disk.delete(p)},E:e=>e.code,X:async()=>{},Ke:1,Clt:86400000,rgi:60000,vq:new Set(['EBUSY']),b:x=>x,yh:e=>String(e),Ge:()=>{},
     F:(values,p)=>values.filter(p).length,
+    Z:()=>({live:{supervisors:new Map([['s1',{autoReactWiring:{title:'first'}}]]),bootingWiredArms:new Map()}}),
+    sBe:()=>new Set(),xwe:()=>['s1'],
+    ae:()=>({safeParse:p=>p.startsWith('/safe/')?{success:true,data:p}:{success:false,error:{issues:[{message:'path not allowed'}]}}}),
+    Np:()=>{},R:class extends Error{},
+    c:x=>x,ce:x=>x,tw:()=>undefined,vpr:'peer socket missing',
+    lfn:async()=>{},
     jct:10,Bk:100,pCe:50,
     sE:s=>s,pW:s=>s,Et:/[\r\n]/,Wt:s=>s,xq:s=>s.length,_t:/^[\w.\/\- ]+$/,It:200,oe:/^[\w.\/\- ]+$/,Rt:'description omitted',
     Oc:1,bh:async p=>{jobCalls.push(p);return daemonReply},X:async()=>{},
@@ -77,7 +87,7 @@ function makeFixture(){
   return {f,disk,events,removed,aborted,jobCalls,roster,taskPath,
     setReply:v=>daemonReply=v,setStorageEnabled:v=>storageEnabled=v};
 }
-test('13个原短符号保留与实际具名函数严格相同的引用',()=>{
+test('24个原短符号保留与实际具名函数严格相同的引用',()=>{
   const {f}=makeFixture();
   for(const mapping of Object.values(specs))
     for(const [legacy,readable] of Object.entries(mapping))
@@ -151,4 +161,22 @@ test('停止远程/守护协议失败时不把未确认kill伪装为成功',asyn
   const d=makeFixture();d.setReply({ok:false,code:'ENOJOB',error:'no job'});
   const safe=await d.f.killJob('jobX',{state:'finished'},{}); 
   assert.equal(safe.confirmed,true);
+});
+
+test('v40恢复的FrameLive实时同意采集只带真实存在的slug和合法标题',()=>{
+ const c=makeFixture();const a=c.f.collectFrameLiveConsent({});
+ assert.equal(a.length,1);assert.equal(a[0].slug,'s1');assert.equal(a[0].title,'first');
+ assert.equal(typeof a[0].writtenAtMs,'number');
+});
+test('v40恢复的脚本路径解析拒绝非法路径，不吞掉安全拒绝分支',()=>{
+ const c=makeFixture();
+ assert.equal(c.f.resolveAdoptedScriptPath('/safe/task.js'),'/safe/task.js');
+ assert.throws(()=>c.f.resolveAdoptedScriptPath('../invalid'),/path not allowed/);
+});
+test('Daemon回复真实函数处理peer socket缺失和正常peer发送',async()=>{
+ const c=makeFixture();
+ const missing=await c.f.replyToJob('j','hello',{backend:'peer'},undefined,undefined,undefined);
+ assert.equal(missing.err,'peer socket missing');
+ const success=await c.f.replyToJob('j','hello',{backend:'peer',sock:'local-socket'},undefined,undefined,undefined);
+ assert.equal(success,null);
 });
