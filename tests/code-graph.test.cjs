@@ -272,3 +272,22 @@ test('跨文件对象仅允许真正导出的成员，缺失导出不得猜测',
  assert.equal(g.summary.unresolvedCallExpressions,1);
  assert.equal(g.unresolvedCallsites[0].callee,'privateApi.hidden');
 });
+
+test('对象简写函数成员和显式函数引用沿导出绑定定位实现',()=>{
+ const g=analyze({
+  'src/source.js':'export function ping(){};export const api={ping,alt:ping}',
+  'src/use.js':'import{api,ping}from"./source.js";const local={go:ping};'+
+    'api.ping();api.alt();local.go();'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,3);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ assert.ok(g.callEdges.every(e=>e.to.file==='src/source.js'&&e.to.symbol==='ping'));
+});
+test('局部参数变量作为对象简写值不得误连同名模块函数',()=>{
+ const g=analyze({'src/foo.js':
+  'function cb(){};function run(cb){const api={cb,call:cb};api.cb();api.call()}'
+ });
+ assert.equal(g.summary.candidateResolvedCalls,0);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+});
