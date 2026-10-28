@@ -7,8 +7,8 @@ on:
     paths:
       - 'scripts/batch-restoration-candidates.cjs'
       - 'scripts/review-historical-candidates.cjs'
-      - 'tests/review-historical-candidates.test.cjs'
-      - 'tests/v44-real-historical-703.test.cjs'
+      - 'tests/restoration/review-historical-candidates.test.cjs'
+      - 'tests/restoration/v44-real-historical-703.test.cjs'
       - 'src/chunk-bwt94x0y.js'
       - 'src/chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
@@ -54,7 +54,7 @@ jobs:
             --candidates .generated/v43-historical-real-full.json \
             --old "$OLD_SOURCE_ROOT" --new src --expected 703 \
             --out .generated/v44-reviewed-703.json
-          node --test tests/v44-real-historical-703.test.cjs
+          node --test tests/restoration/v44-real-historical-703.test.cjs
           node - <<'NODE'
           const fs=require('node:fs');
           const j=JSON.parse(fs.readFileSync('.generated/v43-historical-real-full.json','utf8'));

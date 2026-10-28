@@ -87,7 +87,7 @@ npm test
 
 ## 8. GitHub PR 自动门禁（阻止空成果）
 
-- 所有面向 `main` 的 PR 必须通过 `.github/workflows/restoration-delivery-gate.yml` 的“恢复交付真实性检查”。检查由 `scripts/check-restoration-delivery.cjs` 实施，回归样例在 `tests/restoration-delivery-gate.test.cjs`。
+- 所有面向 `main` 的 PR 必须通过 `.github/workflows/restoration-delivery-gate.yml` 的“恢复交付真实性检查”。检查由 `scripts/check-restoration-delivery.cjs` 实施，回归样例在 `tests/governance/restoration-delivery-gate.test.cjs`。
 - PR 正文首要声明唯一 **`交付类别：功能恢复` / `缺陷修复` / `独立测试` / `工具维护` / `文档维护` / `治理配置`**。不得通过错误分类将实际恢复任务包装为文档任务。
 - 功能恢复、缺陷修复必须同时提交实际运行的业务代码/资源差异、相应测试变更，并填写 **`业务问题`、`实际代码改动`、`调用链`、`验证命令`、`验证结果`、`验收级别`、`未验收范围`**；缺少则直接拒绝。
 - 自动门禁拒绝源码仅有注释、空白、排版、纯标识符更名的所谓“功能恢复”；拒绝纯文档、函数台账、研究报告、静态图、只增测试或只增工具冒充业务恢复。

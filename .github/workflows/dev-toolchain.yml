@@ -9,7 +9,7 @@ on:
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
       - 'package-lock.json'
-      - 'tests/bun-jsc-compat.test.cjs'
+      - 'tests/runtime/bun-jsc-compat.test.cjs'
   pull_request:
     branches: [main]
     paths:
@@ -17,7 +17,7 @@ on:
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
       - 'package-lock.json'
-      - 'tests/bun-jsc-compat.test.cjs'
+      - 'tests/runtime/bun-jsc-compat.test.cjs'
 
 permissions:
   contents: read

@@ -4,14 +4,14 @@ on:
     branches: [main]
     paths:
       - 'scripts/audit-v37-nonmain-inventory.cjs'
-      - 'tests/v37-nonmain-inventory.test.cjs'
+      - 'tests/restoration/v37-nonmain-inventory.test.cjs'
       - 'resources/research/v37-nonmain-pinned-blobs.json'
       - '.github/workflows/v37-nonmain-comprehensive.yml'
   pull_request:
     branches: [main]
     paths:
       - 'scripts/audit-v37-nonmain-inventory.cjs'
-      - 'tests/v37-nonmain-inventory.test.cjs'
+      - 'tests/restoration/v37-nonmain-inventory.test.cjs'
       - 'resources/research/v37-nonmain-pinned-blobs.json'
       - '.github/workflows/v37-nonmain-comprehensive.yml'
   workflow_dispatch:

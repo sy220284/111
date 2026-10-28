@@ -27,6 +27,6 @@ jobs:
       - name: 按 lockfile 安装 AST 检查依赖
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: 验证门禁自身的正反例
-        run: node --test tests/restoration-delivery-gate.test.cjs
+        run: node --test tests/governance/restoration-delivery-gate.test.cjs
       - name: 检查 PR 实际变更与验收声明
         run: node scripts/check-restoration-delivery.cjs

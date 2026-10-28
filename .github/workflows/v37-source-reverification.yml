@@ -6,8 +6,8 @@ on:
       - 'src/**'
       - 'scripts/audit-v37-source.cjs'
       - 'resources/research/v37-reviewed.json'
-      - 'tests/v37-source-audit.test.cjs'
-      - 'tests/v37-executable-parity.test.cjs'
+      - 'tests/restoration/v37-source-audit.test.cjs'
+      - 'tests/restoration/v37-executable-parity.test.cjs'
       - '.github/workflows/v37-source-reverification.yml'
   push:
     branches: [main]
@@ -15,8 +15,8 @@ on:
       - 'src/**'
       - 'scripts/audit-v37-source.cjs'
       - 'resources/research/v37-reviewed.json'
-      - 'tests/v37-source-audit.test.cjs'
-      - 'tests/v37-executable-parity.test.cjs'
+      - 'tests/restoration/v37-source-audit.test.cjs'
+      - 'tests/restoration/v37-executable-parity.test.cjs'
       - '.github/workflows/v37-source-reverification.yml'
   workflow_dispatch:
 permissions:
@@ -37,7 +37,7 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm run check:v37
       - name: 执行原 v37 函数与当前恢复函数的真实行为对照
-        run: node --test tests/v37-executable-parity.test.cjs
+        run: node --test tests/restoration/v37-executable-parity.test.cjs
       - name: 逐文件对比 v37 固定 Git 源码与当前模块函数体
         run: |
           node scripts/audit-v37-source.cjs --output "$RUNNER_TEMP/111-v37-source-parity.json"

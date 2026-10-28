@@ -67,7 +67,7 @@ npm run verify:runtime
 ## v3 源码恢复增量：Hook 函数与函数级索引（2026-10-27）
 
 - 2.1.310 `chunk-y5vkfxm0.js` 中的 `xxt/e8t/Z5e/zto` 已恢复为可读的 Hook 元数据、事件分组、匹配排序及匹配读取函数，保留原导出别名，未以旧版覆盖新事件或权限逻辑。
-- `tests/hooks-source-restoration.test.cjs` 针对当前源码函数体执行受控行为验证，覆盖新 Hook 事件、工具匹配、插件来源、空匹配，以及异常分支；不需要启动整个 CLI。
+- `tests/hooks/hooks-source-restoration.test.cjs` 针对当前源码函数体执行受控行为验证，覆盖新 Hook 事件、工具匹配、插件来源、空匹配，以及异常分支；不需要启动整个 CLI。
 - `scripts/source-function-index.cjs` 按 TypeScript AST 遍历 2551 模块，枚举实际函数实体、位置、形参数量、调用点、模块导入导出、源码哈希和静态引用，输出可再生的索引。使用已有 TypeScript 5.x 分析器（`node scripts/source-function-index.cjs --full`），不执行源码业务逻辑。
 - `resources/function-summary.json` 保存当次可重复审计的聚合计数和源码指纹。较大的函数/调用点详情仅在 `.generated/` 按需再生，不提交研究中间产物。
 - 这些工作不代表所有函数语义已经确权，亦不代表完整 Hook Worker、插件或 MCP 端到端行为验收完成。
@@ -89,8 +89,8 @@ npm run verify:runtime
 ## v3 新增：2.1.310 插件接口声明与 Hook/流式协议针对性验收
 
 - `resources/tools/plugin-api/types/claude-code.d.ts` 原始声明不改动；从 `HookStream`、`StreamNext`、`PermissionRequestDecision`、`PreToolUseResult`、`ToolCallInput/ToolCallResult` 等定义提取验收契约，防止误用旧版结构。
-- `tests/function-hook-worker-contract.test.cjs` 直接执行 `hooks-worker.js` 中现有 `B/G/z/J/Q/W` 函数，覆盖 next 消息编号、工具操作回执、未加载环境拒绝、卸载中断与流提前关闭。
-- `tests/streaming-tool-contract.test.cjs` 直接执行 `chunk-x3dkgs4r.js` 现有流事件转换/比较函数，覆盖文本、thinking、`input_json_delta`、索引和错误增量；另校验 `chunk-1nnn2mdy.js` 的 Hook 来源和 PreToolUse 规则。
+- `tests/hooks/function-hook-worker-contract.test.cjs` 直接执行 `hooks-worker.js` 中现有 `B/G/z/J/Q/W` 函数，覆盖 next 消息编号、工具操作回执、未加载环境拒绝、卸载中断与流提前关闭。
+- `tests/model/streaming-tool-contract.test.cjs` 直接执行 `chunk-x3dkgs4r.js` 现有流事件转换/比较函数，覆盖文本、thinking、`input_json_delta`、索引和错误增量；另校验 `chunk-1nnn2mdy.js` 的 Hook 来源和 PreToolUse 规则。
 - `resources/docs/other/permissions_external-*.txt` 属权限策略指导资料，不能作为整个 Claude Code 权限引擎的同一版本可执行规范，未直接复制为权限实现。
 - 仅新增 2.1.310 源码的针对性回归，不重复处理已完成的 294 份插件测试源码；这些测试不等于完整 Worker 宿主/线上 SSE/工具执行与权限决策端到端等价。
 
@@ -113,31 +113,31 @@ npm run verify:runtime
 ## 阶段 A/C 主查询循环与会话写入调用链
 
 - 追踪并通过 CI 静态复查 `src/chunk-tqjdehqd.js` 的原版 `pN -> Ou -> Du` 结构，明确外层会话保持 `Da` 的接入位置、内部 `Du` 的 Thinking 续接/工具收尾状态；见 `scripts/trace-query-loop-callchain.cjs`。
-- `tests/query-loop-recovery.test.cjs` 针对原始 `Au/Uf/Nf/qf/Gr/Pu/Qf/vu` 执行 8 组 Thinking、截断、消息队列及失败 tool_result 测试。
-- `tests/session-append-storage.test.cjs` 直接执行 `src/chunk-w9w4r9w1.js` 的 `D/Te/u`，覆盖持久化路径 Hook 变更、异常兜底、fills 与不可追加事件；这是与上层 `Da` 对应的存储端阶段检查。
+- `tests/model/query-loop-recovery.test.cjs` 针对原始 `Au/Uf/Nf/qf/Gr/Pu/Qf/vu` 执行 8 组 Thinking、截断、消息队列及失败 tool_result 测试。
+- `tests/model/session-append-storage.test.cjs` 直接执行 `src/chunk-w9w4r9w1.js` 的 `D/Te/u`，覆盖持久化路径 Hook 变更、异常兜底、fills 与不可追加事件；这是与上层 `Da` 对应的存储端阶段检查。
 - `resources/function-verification-ledger.json` 仅登记有限行为测试，所有登记项不得计作全功能恢复或已构建通过。
 
 ## 阶段 D 权限模板源函数恢复
 
 - `src/chunk-eq8vmbm3.js` 的五个原始导出恢复为具名函数，保留原版空缓存初始化、摘要匹配优先级及 `PreToolUse` 条件；原版恒真函数保留恒真语义，不能推定其已实现完整权限引擎。
-- `tests/permission-template-source.test.cjs` 从实际代码加载注册表逻辑与导出，覆盖空表、同表复用、哈希和 ID 匹配、大小写边界、旧符号一致性。
+- `tests/hooks/permission-template-source.test.cjs` 从实际代码加载注册表逻辑与导出，覆盖空表、同表复用、哈希和 ID 匹配、大小写边界、旧符号一致性。
 
-- 阶段 C：对主代理原版流式模型改写函数 `chunk-x3dkgs4r.js::Sr` 新增 `tests/thinking-model-override.test.cjs`；严格执行原函数，覆盖 Thinking 未完成时保持原模型、安全切换、只提示一次和 Hook effort 更新。仅登记定向行为测试，不把这段测试算作完整恢复。
+- 阶段 C：对主代理原版流式模型改写函数 `chunk-x3dkgs4r.js::Sr` 新增 `tests/model/thinking-model-override.test.cjs`；严格执行原函数，覆盖 Thinking 未完成时保持原模型、安全切换、只提示一次和 Hook effort 更新。仅登记定向行为测试，不把这段测试算作完整恢复。
 
 ## 阶段 D MCP OAuth Issuer 回显校验
 
 - `src/chunk-x436erds.js` 五个 URL/Issuer 校验函数恢复可读名称，保留 `pt/pe/_t/mt/kUn` 全部原短符号调用；不改变默认 observe 模式、严格模式或 RFC 相关规则。
-- `tests/mcp-issuer-echo.test.cjs` 对原函数执行 9 组行为检查，覆盖 HTTP(S)、地址差异、跨源拦截、遥测失败隔离、功能开关失败回退和身份兼容；此为定向验证，完整 MCP OAuth 登录/刷新尚未端到端验收。
+- `tests/mcp/mcp-issuer-echo.test.cjs` 对原函数执行 9 组行为检查，覆盖 HTTP(S)、地址差异、跨源拦截、遥测失败隔离、功能开关失败回退和身份兼容；此为定向验证，完整 MCP OAuth 登录/刷新尚未端到端验收。
 
 ## MCP OAuth 生命周期恢复
 
-- `src/chunk-x436erds.js` 恢复 6 个可读 OAuth 流程与凭据清理函数，并保留 `jAi/WAi/LTr/Le/Dhi/Hhi` 原短符号。执行离线测试 `tests/mcp-oauth-lifecycle.test.cjs`，验证授权 Promise 竞争、没有令牌的持久化占位项清理、`offline_access`、微软 OAuth 发行者域名边界。远端认证仍未验证。
+- `src/chunk-x436erds.js` 恢复 6 个可读 OAuth 流程与凭据清理函数，并保留 `jAi/WAi/LTr/Le/Dhi/Hhi` 原短符号。执行离线测试 `tests/mcp/mcp-oauth-lifecycle.test.cjs`，验证授权 Promise 竞争、没有令牌的持久化占位项清理、`offline_access`、微软 OAuth 发行者域名边界。远端认证仍未验证。
 
-- 阶段 D Token Refresh：新增 `tests/mcp-oauth-refresh-lock.test.cjs` 直接执行 `Ben.refreshAuthorization` 和 `Ben.readConcurrentRefreshWinner` 原类方法，核对锁名、加锁参数、ELOCKED 重试、竞争赢家、刷新口令与异常释放，不涉及真实密钥或网络授权。
+- 阶段 D Token Refresh：新增 `tests/mcp/mcp-oauth-refresh-lock.test.cjs` 直接执行 `Ben.refreshAuthorization` 和 `Ben.readConcurrentRefreshWinner` 原类方法，核对锁名、加锁参数、ELOCKED 重试、竞争赢家、刷新口令与异常释放，不涉及真实密钥或网络授权。
 
 - 阶段 C 主代理 `Du` 周边：恢复取消回合定位、最近用户消息、模型失败回退文案与错误原因截断四个函数的可读命名；保留 `sr/Ff/Gf/Iu` 原短符号。新增源码级状态测试，不把辅助函数验证算作完整 `Du` 执行状态机验收。
 
-- 阶段 D OAuth `_doRefresh`：补充 `tests/mcp-oauth-refresh-errors.test.cjs`，使用真正类方法验证授权元信息、SDK 错误类型、`invalid_grant`/`invalid_client` 的并发赢家保护、指数退避和失败收尾；Provider 可读类名为 `McpOAuthProvider`，保留原版 `Ben` 短符号。
+- 阶段 D OAuth `_doRefresh`：补充 `tests/mcp/mcp-oauth-refresh-errors.test.cjs`，使用真正类方法验证授权元信息、SDK 错误类型、`invalid_grant`/`invalid_client` 的并发赢家保护、指数退避和失败收尾；Provider 可读类名为 `McpOAuthProvider`，保留原版 `Ben` 短符号。
 
 - 阶段 D MCP 连接：`chunk-fbc1ty1s.js` 的结算函数 `hfr` 恢复为 `applyMcpConnectionSettlement`，旧符号兼容。离线测试覆盖配置过期、账户切换、连接禁用、策略拒绝以及成功安装时工具/命令登记，防止迟到连接覆盖已有状态。
 
