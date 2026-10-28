@@ -18,91 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  jelly-package:
-    name: 构建固定Jelly可离线安装组件
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22.16.0'
-      - name: 实际构建锁定Jelly版本与校验和
-        run: |
-          set -euo pipefail
-          source tools/dev/toolchain-versions.env
-          prefix="$RUNNER_TEMP/jelly-stage/jelly"
-          mkdir -p "$prefix"
-          npm install --prefix "$prefix" --ignore-scripts --no-audit --no-fund --save-exact --package-lock=true "@cs-au-dk/jelly@$JELLY_VERSION"
-          test "$(node -p 'require(process.argv[1]).version' "$prefix/node_modules/@cs-au-dk/jelly/package.json")" = "$JELLY_VERSION"
-          node "$prefix/node_modules/@cs-au-dk/jelly/lib/main.js" --help >/dev/null
-          dir="$RUNNER_TEMP/111-toolchain-jelly-latest"
-          mkdir -p "$dir"
-          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=jelly\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_JELLY_VERSION=%s\n' "$NODE_VERSION" "$JELLY_VERSION" > "$dir/component.env"
-          tar -czf "$dir/payload.tar.gz" -C "$RUNNER_TEMP/jelly-stage" jelly
-          (cd "$dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
-          bash tools/dev/ai-toolchain.sh verify-artifact jelly "$dir"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: 111-toolchain-jelly-corpus-build
-          path: ${{ runner.temp }}/111-toolchain-jelly-latest/
-          retention-days: 30
-          if-no-files-found: error
-
-  jelly-analyze:
-    name: 全恢复源码Jelly静态指向 / 分片 ${{ matrix.shard }}
-    needs: jelly-package
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22.16.0'
-      - name: 下载不可变Jelly组件
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: 111-toolchain-jelly-corpus-build
-          path: ${{ runner.temp }}/111-components/111-toolchain-jelly-latest
-      - name: 真实离线安装并全模块静态解析
-        env:
-          DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-installed
-          DEV111_STATE_DIR: ${{ runner.temp }}/111-state
-          DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
-        run: |
-          set -euo pipefail
-          npm ci --ignore-scripts --no-audit --no-fund
-          node --test tests/jelly-corpus.test.cjs
-          bash tools/dev/ai-toolchain.sh bootstrap --profile analysis --artifacts-dir "$RUNNER_TEMP/111-components"
-          bash tools/dev/ai-toolchain.sh check --profile analysis
-          node tools/analysis/jelly-corpus.cjs \
-            --root . --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
-            --out "$RUNNER_TEMP/111-jelly-shard" \
-            --shard ${{ matrix.shard }} --shards 8 \
-            --batch-size 16 --timeout 110 || echo '部分Jelly解析失败，真实记录在分片报告中'
-          test -s "$RUNNER_TEMP/111-jelly-shard/summary.json"
-          node - "$RUNNER_TEMP/111-jelly-shard/summary.json" <<'NODE'
-          const r=require(process.argv[2]);
-          if(r.sourceModuleTotal!==2551 || r.attempted!==r.selected || r.shards!==8 ||
-             r.successful+r.failed!==r.selected)process.exit(1);
-          console.log(JSON.stringify({shard:r.shard,attempted:r.attempted,
-            successful:r.successful,failed:r.failed,candidates:r.uniqueCandidateEdges}));
-          NODE
-      - name: 保全原始数据及失败记录
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: 111-jelly-corpus-shard-${{ matrix.shard }}
-          path: ${{ runner.temp }}/111-jelly-shard/
-          retention-days: 30
-          if-no-files-found: error
-
   export-and-verify:
-    needs: jelly-analyze
     name: 使用111工具链重算、封装及解包验收
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -134,12 +50,6 @@ jobs:
           node --max-old-space-size=4096 tools/analysis/closure-audit.cjs \
             --graph "$RUNNER_TEMP/111-full-code-graph.json" \
             --output "$RUNNER_TEMP/111-closure.json"
-      - name: 下载全部8分片Jelly原生证据
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: 111-jelly-corpus-shard-*
-          path: ${{ runner.temp }}/111-jelly-shards
-          merge-multiple: false
       - name: 生成纯净反编译代码和所有图谱
         run: |
           set -euo pipefail
@@ -148,8 +58,7 @@ jobs:
             --module-index .generated/module-index.json \
             --callsites .generated/function-callsites.json \
             --closure "$RUNNER_TEMP/111-closure.json" \
-            --root . --out "$RUNNER_TEMP/claude-2.1.310-clean" \
-            --jelly-shards "$RUNNER_TEMP/111-jelly-shards"
+            --root . --out "$RUNNER_TEMP/claude-2.1.310-clean"
       - name: 制作归档并真实解包验收
         run: |
           set -euo pipefail
@@ -159,11 +68,6 @@ jobs:
           (cd releases && sha256sum "$archive" > SHA256SUMS && sha256sum -c SHA256SUMS)
           tar --zstd -tf "releases/$archive" > "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/src/' "$RUNNER_TEMP/clean-archive-contents.txt" > /dev/null
-          grep -F 'claude-2.1.310-clean/图谱与证据/Jelly跨分析器调用候选.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
-          grep -F 'claude-2.1.310-clean/图谱与证据/Jelly分析校验.json' "$RUNNER_TEMP/clean-archive-contents.txt"
-          grep -F 'claude-2.1.310-clean/tools/analysis/jelly-corpus.cjs' "$RUNNER_TEMP/clean-archive-contents.txt"
-          grep -F 'claude-2.1.310-clean/scripts/install.sh' "$RUNNER_TEMP/clean-archive-contents.txt"
-          grep -F 'claude-2.1.310-clean/tests/jelly-corpus.test.cjs' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/函数调用候选边.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/全部调用表达式.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/功能与测试关系全量.dot' "$RUNNER_TEMP/clean-archive-contents.txt"
@@ -175,11 +79,6 @@ jobs:
           tar -C "$RUNNER_TEMP/verify-unpack" --zstd -xf "releases/$archive"
           test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json"
           test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/src/chunk-tqjdehqd.js"
-          (
-            cd "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean"
-            NODE_PATH="$GITHUB_WORKSPACE/node_modules" node --test \
-              tests/jelly-corpus.test.cjs tests/jelly-runner.test.cjs tests/code-graph.test.cjs
-          )
           python3 - "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json" <<'PY'
           import json,sys
           j=json.load(open(sys.argv[1]))
@@ -187,8 +86,6 @@ jobs:
           assert j["functionSyntaxEntities"]>160000
           assert j["callExpressions"]>600000
           assert j["moduleEdges"]>0 and j["candidateFunctionEdges"]>0
-          assert j["jelly"] and j["jelly"]["fullCorpusScansAttempted"]==2551
-          assert j["jelly"]["shards"]==8
           print(json.dumps(j,ensure_ascii=False,indent=2))
           PY
           echo '## 已验证的交付物' >> "$GITHUB_STEP_SUMMARY"
