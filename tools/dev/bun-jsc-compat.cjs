@@ -81,7 +81,7 @@ function scan(root = ROOT) {
   const base = path.resolve(root);
   const src = path.join(base, 'src');
   const names = fs.readdirSync(src).filter(x => x.endsWith('.js') && !OMIT.has(x)).sort();
-  const worker = 'src/plugins/functionHooks/hooks-worker/hooks-worker.js';
+  const worker = 'src/src/plugins/functionHooks/hooks-worker/hooks-worker.js';
   const paths = names.map(x => 'src/' + x);
   if (fs.existsSync(path.join(base, worker))) paths.push(worker);
   const entries = [], errors = [];
