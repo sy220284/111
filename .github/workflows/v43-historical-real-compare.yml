@@ -10,6 +10,8 @@ on:
       - 'tests/review-historical-candidates.test.cjs'
       - 'tests/v44-real-historical-703.test.cjs'
       - 'scripts/audit-historical-business-chains.cjs'
+      - 'tools/analysis/code-graph.cjs'
+      - 'tests/code-graph.test.cjs'
       - 'tests/historical-business-chains.test.cjs'
       - 'tests/v45-real-business-703.test.cjs'
       - 'src/chunk-9z5ybxhe.js'
