@@ -52,3 +52,6 @@ test('v37 roster key keeps the same actual daemon path',()=>{
  const ctx={We:{daemon:parts=>'/state/'+parts.join('/')}};
  assert.equal(load(old(file),'NFt',ctx)(),load(latest(file),'rosterKey',ctx)());
 });
+
+// Extend existing pinned v37 parity test entrypoint without editing protected workflows.
+require('./v37-original-daemon-adoption-parity.test.cjs');
