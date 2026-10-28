@@ -2252,19 +2252,22 @@
       "old": "docs/2026-10-28-实际功能落地与未完成矩阵.md",
       "current": "docs/status/2026-10-28-实际功能落地与未完成矩阵.md",
       "originalGitBlob": "3a3389ec75faf8aebdcd52e92626ec6bab288f24",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/v37_内嵌子工程真实函数语义证据.md",
       "current": "docs/research/v37/内嵌子工程真实函数语义证据.md",
       "originalGitBlob": "9f0366d4b76e61b711a5129fd6c23cbaa8b79c4f",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/v37_剩余652文件完整代码与功能深度核实.md",
       "current": "docs/research/v37/剩余652文件完整代码与功能深度核实.md",
       "originalGitBlob": "09390181586beac3d00f6333c1829d5290bc4ad8",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/v37_固定版源码复核.md",
@@ -2288,7 +2291,8 @@
       "old": "docs/v40_50项函数级核查与恢复记录.md",
       "current": "docs/restoration/v40/50项函数级核查与恢复记录.md",
       "originalGitBlob": "4c422dc21a933c3891aff17af5c3729667b8f0f7",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/v41_批量恢复流水线与验证范围.md",
@@ -2300,7 +2304,8 @@
       "old": "docs/v42_Daemon_Beacon源码恢复验证.md",
       "current": "docs/restoration/v42/Daemon_Beacon源码恢复验证.md",
       "originalGitBlob": "565b6908c08db27d70da6b92a0d574d981e5a0eb",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/v43_批量恢复_真实历史匹配_生命周期测试.md",
@@ -2318,7 +2323,8 @@
       "old": "docs/v45_703_调用依赖_真实源码修复与验收.md",
       "current": "docs/restoration/v45/703_调用依赖_真实源码修复与验收.md",
       "originalGitBlob": "1e5ba258e89cb1f9877f5cf72a33e7088a5e81ef",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/命名规范化改动记录.md",
