@@ -9,8 +9,8 @@ const fs=require('node:fs');
 const os=require('node:os');
 const {spawn}=require('node:child_process');
 const readline=require('node:readline');
-const entry=path.resolve(__dirname,'../resources/tools/claude-test/scripts/playwright-mcp.mjs');
-const fence='../resources/tools/claude-test/scripts/lib/fence-proxy.mjs';
+const entry=path.resolve(__dirname,'../../tools/bundled/claude-test/scripts/playwright-mcp.mjs');
+const fence='../../tools/bundled/claude-test/scripts/lib/fence-proxy.mjs';
 function response(port,request) {
  return new Promise((resolve,reject)=>{
   const socket=net.createConnection(port,'127.0.0.1');

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {args,decode,normalizeGraph}=require('../tools/analysis/jelly-corpus.cjs');
+const {args,decode,normalizeGraph}=require('../../tools/analysis/jelly-corpus.cjs');
 const fixture={ignoreDependencies:true,files:['src/a.js','src/b.js'],
   functions:{'0':'0:1:1:1:22','1':'1:1:1:1:24','2':'0:?:?:?:?'},
   calls:{'3':'0:2:3:2:15','4':'1:3:1:3:12'},

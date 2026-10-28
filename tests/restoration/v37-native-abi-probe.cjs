@@ -2,7 +2,7 @@
 // Load actual original native .node modules in separate OS processes; no mocked require.
 // Device/permission success remains unverified without real hardware.
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const out={schema:1,kind:'v37-real-native-ABI-environment',platform:process.platform,arch:process.arch,
  node:process.version,devices:{sound:fs.existsSync('/dev/snd'),video:fs.existsSync('/dev/video0'),
  display:!!process.env.DISPLAY,wayland:!!process.env.WAYLAND_DISPLAY},modules:[],

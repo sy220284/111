@@ -4,12 +4,12 @@
 // No real account, tokens, private prompts or cloud endpoint are involved.
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),cp=require('node:child_process');
 const assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..'),dir=process.env.V37_REPORT_DIR||fs.mkdtempSync(path.join(os.tmpdir(),'111-model-evidence-'));
+const root=path.resolve(__dirname,'../..'),dir=process.env.V37_REPORT_DIR||fs.mkdtempSync(path.join(os.tmpdir(),'111-model-evidence-'));
 const source=path.join(dir,'actual-cli-model-requests.jsonl');
 assert.ok(fs.existsSync(source),'run the actual 111 CLI MCP tool + local model HTTP test before replay');
 const calls=fs.readFileSync(source,'utf8').trim().split('\n').map(x=>JSON.parse(x));
 assert.ok(calls.length>=2,'real CLI must make multiple model requests');
-const analysis=path.join(root,'resources/tools/evaluation/prefix_diff.py');
+const analysis=path.join(root,'tools/bundled/evaluation/prefix_diff.py');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'111-thinking-replay-'));
 function diff(a,b){
  const pa=path.join(temp,'before.json'),pb=path.join(temp,'after.json');

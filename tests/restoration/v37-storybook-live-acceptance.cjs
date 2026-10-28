@@ -6,7 +6,7 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const assert=require('node:assert/strict'),cp=require('node:child_process');
 const {createHash}=require('node:crypto');
 const {pathToFileURL}=require('node:url');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const out=process.env.V37_REPORT_DIR||fs.mkdtempSync(path.join(os.tmpdir(),'111-storybook-evidence-'));
 fs.mkdirSync(out,{recursive:true});
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'111-storybook-live-'));
