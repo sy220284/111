@@ -5,10 +5,10 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const source = readFileSync(path.resolve(__dirname, '../src/chunk-x3dkgs4r.js'), 'utf8');
-const declarations = readFileSync(path.resolve(__dirname, '../resources/tools/plugin-api/types/claude-code.d.ts'), 'utf8');
-const docs = readFileSync(path.resolve(__dirname, '../resources/docs/claude-api/typescript/streaming.md'), 'utf8');
-const toolDocs = readFileSync(path.resolve(__dirname, '../resources/docs/claude-api/tool-use-concepts.md'), 'utf8');
+const source = readFileSync(path.resolve(__dirname, '../../src/chunk-x3dkgs4r.js'), 'utf8');
+const declarations = readFileSync(path.resolve(__dirname, '../../resources/tools/plugin-api/types/claude-code.d.ts'), 'utf8');
+const docs = readFileSync(path.resolve(__dirname, '../../resources/docs/claude-api/typescript/streaming.md'), 'utf8');
+const toolDocs = readFileSync(path.resolve(__dirname, '../../resources/docs/claude-api/tool-use-concepts.md'), 'utf8');
 
 // Execute exact extracted 2.1.310 wire-stream handlers, not recreated equivalents.
 function streamFunctions() {
@@ -67,7 +67,7 @@ test('真实流比较函数拒绝错误索引、错误增量类型及不一致�
 });
 
 test('实际权限/Hook 来源规则保留显式来源和 PreToolUse 匹配边界', async () => {
-  const { QMn, ZMn, jhs, Whs } = await import('../src/chunk-1nnn2mdy.js');
+  const { QMn, ZMn, jhs, Whs } = await import('../../src/chunk-1nnn2mdy.js');
   for (const source of ['settings','plugin','skill','plugin:example','skill:module_1']) {
     assert.equal(QMn(source), source);
   }
@@ -118,7 +118,7 @@ test('真实模型流工具调用块保持 tool_use id、名称及分块参数�
 });
 
 test('真实工具结果映射器保留调用 ID，失败结果显式标记 is_error', () => {
-  const toolSource = readFileSync(path.resolve(__dirname, '../src/chunk-g936x3jq.js'), 'utf8');
+  const toolSource = readFileSync(path.resolve(__dirname, '../../src/chunk-g936x3jq.js'), 'utf8');
   const begin = toolSource.indexOf('mapToolResultToToolResultBlockParam(e, k)');
   const end = toolSource.indexOf(', renderToolUseMessage', begin);
   assert.ok(begin > 0 && end > begin);

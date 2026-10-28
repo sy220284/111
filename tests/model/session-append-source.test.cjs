@@ -6,8 +6,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // Extract and execute the original 2.1.310 functions; do not replace their logic.
-const source = fs.readFileSync(path.resolve(__dirname, '../src/chunk-tqjdehqd.js'), 'utf8');
-const reference = fs.readFileSync(path.resolve(__dirname, '../resources/docs/plugin-authoring/reference.md'), 'utf8');
+const source = fs.readFileSync(path.resolve(__dirname, '../../src/chunk-tqjdehqd.js'), 'utf8');
+const reference = fs.readFileSync(path.resolve(__dirname, '../../resources/docs/plugin-authoring/reference.md'), 'utf8');
 const start = source.indexOf('var fp = new Set(["user", "assistant", "attachment", "system"])');
 const end = source.indexOf('var Fa = "poll-event"', start);
 assert.ok(start > 0 && end > start, 'original session.append and row forwarding implementation located');

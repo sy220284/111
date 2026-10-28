@@ -7,7 +7,7 @@ const cp=require('node:child_process');
 const path=require('node:path');
 const vm=require('node:vm');
 const ts=require('typescript');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const pin='3c64d1669174e825fb0fbae088c5ec95edaa7339';
 function old(file){return cp.execFileSync('git',['show',pin+':src/'+file],
   {cwd:root,encoding:'utf8',maxBuffer:16*1024*1024});}
