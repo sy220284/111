@@ -191,3 +191,17 @@ test('所有未解析调用都有原因与独立源码定位，数量等于汇�
  assert.equal(g.unresolvedCallsites.filter(x=>x.reason==='dynamic_import').length,1);
  assert.ok(g.unresolvedCallsites.every(x=>x.file&&x.owner&&x.callee&&x.reason));
 });
+
+test('方括号字面量成员能解析，计算键不会被猜为目标函数',()=>{
+ const g=analyze({
+  'src/api.js':'export function fire(){}',
+  'src/a.js':'import * as ns from "./api.js";const obj={foo(){}};'+
+    'obj["foo"]();obj[key]();ns["fire"]();ns[key]();'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+ assert.equal(g.summary.unresolvedReasons.dynamic_property,2);
+ assert.ok(g.callEdges.some(e=>e.kind==='module_object_method_candidate'));
+ assert.ok(g.callEdges.some(e=>e.kind==='namespace_import_candidate'));
+});
