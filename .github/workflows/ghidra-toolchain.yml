@@ -1,0 +1,143 @@
+name: 111 Ghidra 原生反编译工具链
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: ['tools/dev/**', 'tools/analysis/ghidra-headless.sh', 'tools/analysis/ghidra-scripts/**', '.github/workflows/ghidra-toolchain.yml']
+  push:
+    branches: [main]
+    paths: ['tools/dev/**', 'tools/analysis/ghidra-headless.sh', 'tools/analysis/ghidra-scripts/**', '.github/workflows/ghidra-toolchain.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: 校验工具链脚本及清单
+        run: |
+          set -euo pipefail
+          bash -n tools/dev/ai-toolchain.sh tools/analysis/ghidra-headless.sh
+          python3 tools/dev/test-toolchain.py
+          bash tools/dev/ai-toolchain.sh plan --profile reverse
+      - name: 下载官方 Ghidra 12.2 并校验源 SHA256
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          archive="ghidra_${GHIDRA_VERSION}_PUBLIC_${GHIDRA_RELEASE_DATE}.zip"
+          curl --fail --location --retry 3 \
+            "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${GHIDRA_VERSION}_build/$archive" \
+            -o "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$GHIDRA_ZIP_SHA256" "$RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/ghidra-extract" "$RUNNER_TEMP/ghidra-stage"
+          unzip -q "$RUNNER_TEMP/$archive" -d "$RUNNER_TEMP/ghidra-extract"
+          folder="$RUNNER_TEMP/ghidra-extract/ghidra_${GHIDRA_VERSION}_PUBLIC"
+          test -x "$folder/support/analyzeHeadless"
+          grep -Eq "^application\.version=${GHIDRA_VERSION}$" "$folder/Ghidra/application.properties"
+          mv "$folder" "$RUNNER_TEMP/ghidra-stage/ghidra"
+          dest="$RUNNER_TEMP/111-components/111-toolchain-ghidra-latest"
+          mkdir -p "$dest"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=ghidra\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_GHIDRA_VERSION=%s\nARTIFACT_GHIDRA_ZIP_SHA256=%s\n' \
+            "$NODE_VERSION" "$GHIDRA_VERSION" "$GHIDRA_ZIP_SHA256" > "$dest/component.env"
+          tar -czf "$dest/payload.tar.gz" -C "$RUNNER_TEMP/ghidra-stage" ghidra
+          (cd "$dest" && sha256sum component.env payload.tar.gz > SHA256SUMS && sha256sum -c SHA256SUMS)
+          bash tools/dev/ai-toolchain.sh verify-artifact ghidra "$dest"
+      - name: 打包 Temurin JDK 25 离线组件
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          "$JAVA_HOME/bin/java" -version 2>&1 | grep -Eq 'version "25([."]|\+)'
+          mkdir -p "$RUNNER_TEMP/jdk-stage"
+          cp -a "$JAVA_HOME" "$RUNNER_TEMP/jdk-stage/jdk"
+          dest="$RUNNER_TEMP/111-components/111-toolchain-jdk-latest"
+          mkdir -p "$dest"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=jdk\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_JDK_MAJOR=%s\n' \
+            "$NODE_VERSION" "$GHIDRA_JDK_MAJOR" > "$dest/component.env"
+          tar -czf "$dest/payload.tar.gz" -C "$RUNNER_TEMP/jdk-stage" jdk
+          (cd "$dest" && sha256sum component.env payload.tar.gz > SHA256SUMS && sha256sum -c SHA256SUMS)
+          bash tools/dev/ai-toolchain.sh verify-artifact jdk "$dest"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-ghidra-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-ghidra-latest/
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-jdk-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-jdk-latest/
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+
+  verify-offline:
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-installed
+      DEV111_STATE_DIR: ${{ runner.temp }}/111-state
+      DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
+      DEV111_ARTIFACTS_DIR: ${{ runner.temp }}/111-artifacts
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: 111-toolchain-*-latest
+          path: ${{ runner.temp }}/111-artifacts
+          merge-multiple: false
+      - name: 离线安装与重复检查
+        run: |
+          set -euo pipefail
+          for c in jdk ghidra; do
+            bash tools/dev/ai-toolchain.sh verify-artifact "$c" "$DEV111_ARTIFACTS_DIR/111-toolchain-$c-latest"
+          done
+          bash tools/dev/ai-toolchain.sh bootstrap --profile reverse --artifacts-dir "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile reverse
+          bash tools/dev/ai-toolchain.sh plan --profile reverse | grep -F '"missing_artifacts":[]'
+      - name: 真实 ELF 函数反编译及结果核验
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/111-fixture.c" <<'C'
+          __attribute__((noinline)) int twice(int x) { return x * 2; }
+          int main(void) { return twice(21) == 42 ? 0 : 1; }
+          C
+          gcc -O0 -o "$RUNNER_TEMP/111-fixture" "$RUNNER_TEMP/111-fixture.c"
+          bash tools/dev/ai-toolchain.sh run --profile reverse -- bash tools/analysis/ghidra-headless.sh \
+            --input "$RUNNER_TEMP/111-fixture" --output "$RUNNER_TEMP/111-ghidra-evidence"
+          python3 - "$RUNNER_TEMP/111-ghidra-evidence" <<'PY'
+          import json, sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          s = json.loads((root / 'summary.json').read_text())
+          assert s['total_functions'] >= 2, s
+          assert s['decompiled_functions'] >= 2, s
+          assert s['total_functions'] == s['decompiled_functions'] + s['failed_functions']
+          source = (root / 'decompiled.c').read_text()
+          assert 'twice' in source and 'main' in source, s
+          assert '\tok\t' in (root / 'functions.tsv').read_text()
+          assert len((root / 'input.sha256').read_text().split()[0]) == 64
+          print(s)
+          PY
+      - name: 删除下载缓存后仍可重复使用
+        run: |
+          set -euo pipefail
+          rm -rf "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile reverse
+          bash tools/dev/ai-toolchain.sh plan --profile reverse | grep -F '"missing_artifacts":[]'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: 111-ghidra-elf-decompilation-evidence
+          path: ${{ runner.temp }}/111-ghidra-evidence/
+          retention-days: 30
+          if-no-files-found: warn
