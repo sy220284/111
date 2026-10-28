@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/batch-restoration-candidates.cjs'
+      - 'scripts/review-historical-candidates.cjs'
+      - 'tests/review-historical-candidates.test.cjs'
       - 'src/chunk-bwt94x0y.js'
       - 'src/chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
