@@ -266,7 +266,7 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
     if(field(body,'验收级别')!=='部分完成')
       errors.push('跨版本整合必须保留部分完成状态，原版ELF等价未验证');
     if(!tests.length)errors.push('整合验收缺少实际变更的行为测试');
-    const approved=new Set(verifiedRootSources.flatMap(x=>[x.old,x.current]));
+    const approved=new Set([...verifiedRootSources,...verifiedRelocations].flatMap(x=>[x.old,x.current]));
     const untrusted=changed.filter(p=>/^(?:src|core|plugins)\//.test(p)&&!approved.has(p));
     if(untrusted.length)errors.push('整合验收出现未经原Git路径与哈希核对的主程序变更：'+untrusted.slice(0,15).join(', '));
     if(!verifiedRootSources.some(x=>x.changedFromBase&&!x.importAdjusted))
@@ -385,69 +385,70 @@ function delegatedHistoricalRename(change, category, workflow) {
 }
 // 目录整理只认可原始模块的逐字节重命名；需要原基线 Git blob、
 // 固定的新路径和搬迁清单三者相互吻合，绝不豁免真实业务代码变更。
+function gitTreeObjects(ref){
+ const result=new Map();
+ for(const item of git(['ls-tree','-r','-z','--full-tree',ref]).toString('utf8').split('\0')){
+  const m=/^(100644|100755) blob ([0-9a-f]{40})\t(.+)$/.exec(item);
+  if(m)result.set(m[3],{mode:m[1],sha:m[2]});
+ }
+ return result;
+}
 function verifiedStandaloneSourceMoves(changes,head){
  const data=gitAt(head,'resources/layout/relocations.json');
  if(!data)return [];
- const manifest=JSON.parse(data.toString('utf8'));
- const records=new Map(manifest.files.map(e=>[e.old,e]));
- const approved=[];
- for(const change of changes.diffs){
-  const old=change.oldPath;
-  const dest=old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
-    old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):old;
-  if(dest===old||change.path!==dest||change.status!=='R100')continue;
-  const row=records.get(old);
-  if(!row||row.current!==dest||!['embedded-source','plugin-source'].includes(row.kind))continue;
-  const before=gitAt(changes.ancestor,old),after=gitAt(head,change.path);
-  if(!before||!after||!before.equals(after))continue;
-  const blob=crypto.createHash('sha1').update('blob '+before.length+String.fromCharCode(0)).update(before).digest('hex');
-  if(row.originalGitBlob!==blob)continue;
+ const before=gitTreeObjects(changes.ancestor),after=gitTreeObjects(head),approved=[];
+ for(const row of JSON.parse(data.toString('utf8')).files){
+  const old=row.old;
+  const dest=old==='resources/tools/claude-test/source-layout.json'?'resources/layout/claude-test-source-layout.json':
+    old==='resources/tools/design-sync/source-layout.json'?'resources/layout/design-sync-source-layout.json':
+    old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
+    old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):
+    old.startsWith('resources/tools/')?'tools/bundled/'+old.slice('resources/tools/'.length):null;
+  const kind=old.endsWith('/source-layout.json')&&old.startsWith('resources/tools/')?'tool-provenance':
+    old.startsWith('src/embedded/')?'embedded-source':
+    old.startsWith('src/plugin-testing-kit/')?'plugin-source':
+    old.startsWith('resources/tools/')?'bundled-tool':null;
+  if(!dest||row.current!==dest||row.kind!==kind)continue;
+  const original=before.get(old),current=after.get(dest);
+  if(!original||!current||after.has(old)||before.has(dest))continue;
+  if(original.mode!==current.mode||original.sha!==current.sha||
+     row.originalGitBlob!==original.sha)continue;
   approved.push({old,current:dest});
  }
  return approved;
 }
 // 只接受经原文件与 Git R100 重命名逐字节验证的磁盘路径变更，其他字段原样保留。
-function exactManifestPaths(before,after,relocations,type){
+function exactManifestPaths(before,after,relocations,type,sourceRelocations=new Map()){
  const expected=JSON.parse(JSON.stringify(before));
  let altered=0;
  const upgrade=old=>{
   const dest=type==='asset'&&old.startsWith('resources/tools/')?'tools/bundled/'+old.slice('resources/tools/'.length):
-    type==='embedded'&&old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):null;
+    type==='embedded'&&old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
+    type==='asset'&&old.startsWith('src/')?sourceRelocations.get(old):null;
   if(!dest)return null;
-  const move=relocations.get(old);
+  const move=old.startsWith('src/')&&type==='asset'?sourceRelocations.get(old):relocations.get(old);
   if(!move || move!==dest)return null;
   altered++;
   return dest;
  };
  if(type==='asset')for(const item of Object.values(expected.entries)){
   const next=upgrade(item.path);if(next)item.path=next;
+  if(Array.isArray(item.literalConsumers))item.literalConsumers=item.literalConsumers.map(name=>upgrade(name)||name);
  }else if(type==='embedded')for(const item of expected.entries){
   const next=upgrade(item.path);if(next)item.path=next;
  }else return false;
  return altered>0 && JSON.stringify(expected)===JSON.stringify(after);
 }
 function verifiedManifestRelocations(changes,head){
- const manifestBytes=gitAt(head,'resources/layout/relocations.json');
- if(!manifestBytes)return [];
- const rows=JSON.parse(manifestBytes.toString('utf8')).files;
- const moved=new Map();
- for(const item of changes.diffs){
-  if(item.status!=='R100'||item.oldPath===item.path)continue;
-  const row=rows.find(x=>x.old===item.oldPath && x.current===item.path);
-  if(!row)continue;
-  const bytes=gitAt(changes.ancestor,item.oldPath),after=gitAt(head,item.path);
-  if(!bytes||!after||!bytes.equals(after))continue;
-  const sha=crypto.createHash('sha1').update('blob '+bytes.length+String.fromCharCode(0)).update(bytes).digest('hex');
-  if(row.originalGitBlob!==sha)continue;
-  moved.set(item.oldPath,item.path);
- }
+ const moved=new Map(verifiedStandaloneSourceMoves(changes,head).map(x=>[x.old,x.current]));
+ const sourceRelocations=new Map(verifiedRootSourceMoves(changes,head).map(x=>[x.old,x.current]));
  const checked=[];
  for(const [file,type]of [['resources/asset-layout.json','asset'],['resources/embedded-source-layout.json','embedded']]){
   const change=changes.diffs.find(x=>x.path===file && x.oldPath===file);
   if(!change)continue;
   const rawBefore=gitAt(changes.ancestor,file),rawAfter=gitAt(head,file);
   if(!rawBefore||!rawAfter)continue;
-  if(exactManifestPaths(JSON.parse(rawBefore),JSON.parse(rawAfter),moved,type))checked.push(file);
+  if(exactManifestPaths(JSON.parse(rawBefore),JSON.parse(rawAfter),moved,type,sourceRelocations))checked.push(file);
  }
  return checked;
 }
