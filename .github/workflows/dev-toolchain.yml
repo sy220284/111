@@ -10,6 +10,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tests/bun-jsc-compat.test.cjs'
+      - 'tools/analysis/jelly-runner.cjs'
+      - 'tests/jelly-runner.test.cjs'
   pull_request:
     branches: [main]
     paths:
@@ -18,6 +20,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tests/bun-jsc-compat.test.cjs'
+      - 'tools/analysis/jelly-runner.cjs'
+      - 'tests/jelly-runner.test.cjs'
 
 permissions:
   contents: read
@@ -257,5 +261,102 @@ jobs:
         with:
           name: 111-bun-jsc-compat-report
           path: ${{ runner.temp }}/111-bun-jsc-compat.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  jelly-package:
+    name: 固定Jelly版本构建可离线安装组件
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 真实构建Jelly静态分析器与带锁依赖
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          prefix="$RUNNER_TEMP/jelly-stage/jelly"
+          mkdir -p "$prefix"
+          npm install --prefix "$prefix" --ignore-scripts --no-audit --no-fund --save-exact --package-lock=true "@cs-au-dk/jelly@$JELLY_VERSION"
+          test "$(node -p 'require(process.argv[1]).version' "$prefix/node_modules/@cs-au-dk/jelly/package.json")" = "$JELLY_VERSION"
+          test -s "$prefix/package-lock.json"
+          test -s "$prefix/node_modules/@cs-au-dk/jelly/lib/main.js"
+          node "$prefix/node_modules/@cs-au-dk/jelly/lib/main.js" --help >/dev/null
+          dir="$RUNNER_TEMP/111-components/111-toolchain-jelly-latest"
+          mkdir -p "$dir"
+          printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=jelly\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_JELLY_VERSION=%s\n' "$NODE_VERSION" "$JELLY_VERSION" > "$dir/component.env"
+          tar -czf "$dir/payload.tar.gz" -C "$RUNNER_TEMP/jelly-stage" jelly
+          (cd "$dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
+          bash tools/dev/ai-toolchain.sh verify-artifact jelly "$dir"
+      - name: 上传真实Jelly离线组件
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-toolchain-jelly-latest
+          path: ${{ runner.temp }}/111-components/111-toolchain-jelly-latest/
+          retention-days: 30
+          if-no-files-found: error
+
+  jelly-offline-analyze:
+    name: 下载离线产物、安装Jelly并分析真实恢复模块
+    needs: jelly-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 下载同一工作流构建的不可变Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: 111-toolchain-jelly-latest
+          path: ${{ runner.temp }}/111-artifacts/111-toolchain-jelly-latest
+      - name: 验证checksum，离线安装并验收正式工具链
+        env:
+          DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-installed
+          DEV111_STATE_DIR: ${{ runner.temp }}/111-state
+          DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --test tests/jelly-runner.test.cjs
+          bash -n tools/dev/ai-toolchain.sh
+          python3 tools/dev/test-toolchain.py
+          bash tools/dev/ai-toolchain.sh bootstrap --profile analysis --artifacts-dir "$RUNNER_TEMP/111-artifacts"
+          bash tools/dev/ai-toolchain.sh check --profile analysis
+          bash tools/dev/ai-toolchain.sh plan --profile analysis | tee "$RUNNER_TEMP/111-jelly-plan.json"
+          grep -F '"missing_artifacts":[]' "$RUNNER_TEMP/111-jelly-plan.json"
+          "$DEV111_TOOLS_ROOT/bin/jelly" --help >/dev/null
+          timeout 160s node tools/analysis/jelly-runner.cjs \
+            --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
+            --out "$RUNNER_TEMP/111-jelly-analysis" \
+            --timeout 110 \
+            --entry src/chunk-sdz0xp27.js \
+            --entry src/chunk-01qhvw6m.js
+          node - "$RUNNER_TEMP/111-jelly-analysis/111-jelly-evidence.json" <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          assert.equal(report.successes,2);
+          assert.equal(report.requestedEntries,2);
+          assert.ok(report.records.every(r=>r.sourceSHA256.length===64 && r.jellyJsonBytes>0));
+          assert.ok(report.records.every(r=>r.runtimeCallsConfirmed===0));
+          console.log(JSON.stringify({status:'analyzed',records:report.records.map(({entry,jellyJsonBytes,topLevelKeys,graphCollectionCounts})=>({entry,jellyJsonBytes,topLevelKeys,graphCollectionCounts}))}));
+          NODE
+          # Large recovered modules are explored separately and remain honest
+          # partial/failed evidence if Jelly runs out of its bounded budget.
+          timeout 300s node tools/analysis/jelly-runner.cjs \
+            --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
+            --out "$RUNNER_TEMP/111-jelly-analysis/large-modules" \
+            --timeout 110 \
+            --entry src/chunk-tqjdehqd.js \
+            --entry src/chunk-6d8swme1.js || echo '大型模块存在独立Jelly分析缺口，保留failed_or_partial报告用于复核'
+      - name: 上传可复核Jelly真实分析及运行记录
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-jelly-points-to-real-source-report
+          path: ${{ runner.temp }}/111-jelly-analysis/
           retention-days: 30
           if-no-files-found: warn

@@ -40,6 +40,35 @@ class ToolchainTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(json.loads(proc.stdout)["profile"], "compat")
 
+    def test_analysis_profile_includes_missing_jelly(self):
+        p = self.call("plan", "--profile", "analysis")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        data = json.loads(p.stdout)
+        self.assertEqual(data["profile"], "analysis")
+        self.assertIn("111-toolchain-jelly-latest", data["missing_artifacts"])
+
+    def test_jelly_artifact_requires_exact_version(self):
+        folder = self.root / "111-toolchain-jelly-latest"
+        folder.mkdir()
+        values = dict(line.split("=", 1) for line in
+                      (REPO / "tools/dev/toolchain-versions.env").read_text().splitlines()
+                      if "=" in line and not line.startswith("#"))
+        (folder / "component.env").write_text(
+            "ARTIFACT_SCHEMA=1\\nARTIFACT_COMPONENT=jelly\\nARTIFACT_ARCH=x64\\n"
+            f"ARTIFACT_NODE_VERSION={values['NODE_VERSION']}\\n"
+            "ARTIFACT_JELLY_VERSION=0.0.0\\n"
+        )
+        with tarfile.open(folder / "payload.tar.gz", "w:gz") as tar:
+            data = b"fake"
+            info = tarfile.TarInfo("jelly/node_modules/@cs-au-dk/jelly/lib/main.js")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+        (folder / "SHA256SUMS").write_text("".join(
+            f"{hashlib.sha256((folder / p).read_bytes()).hexdigest()}  {p}\\n"
+            for p in ["component.env", "payload.tar.gz"]
+        ))
+        self.assertNotEqual(self.call("verify-artifact", "jelly", str(folder)).returncode, 0)
+
     def test_optional_bun_manifest_version_is_required(self):
         folder = self.root / "111-toolchain-bun-latest"
         folder.mkdir()
