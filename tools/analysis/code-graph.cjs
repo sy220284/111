@@ -81,7 +81,7 @@ function analyze(sources, ledger = []) {
     const neighbors=new Map();
     for(const stmt of ast.statements)if(ts.isVariableStatement(stmt))
       for(const d of stmt.declarationList.declarations)
-        if(ts.isIdentifier(d.name)&&ts.isIdentifier(d.initializer)){
+        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isIdentifier(d.initializer)){
           const a=d.name.text,b=d.initializer.text;
           if(!neighbors.has(a))neighbors.set(a,new Set());
           if(!neighbors.has(b))neighbors.set(b,new Set());
@@ -310,7 +310,7 @@ function analyze(sources, ledger = []) {
     const pairs=[];
     for(const stmt of fn.body.statements)if(ts.isVariableStatement(stmt))
       for(const d of stmt.declarationList.declarations)
-        if(ts.isIdentifier(d.name)&&ts.isIdentifier(d.initializer))
+        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isIdentifier(d.initializer))
           pairs.push([d.name.text,d.initializer.text]);
     for(let pass=0;pass<pairs.length;pass++){
       let changed=false;
