@@ -48,7 +48,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
 test('core 的运行时相对导入恢复为 ../runtime 并能定位到真实文件',()=>{
  const modules=manifest.files.filter(x=>x.current.startsWith('core/'));
  const runtime=modules.filter(x=>fs.readFileSync(path.join(ROOT,x.current),'utf8').includes('../runtime/'));
- assert.equal(runtime.length,38);
+ assert.equal(runtime.length,51,'真实引用 runtime 的模块必须完整保留');
  for(const item of runtime){
   const code=fs.readFileSync(path.join(ROOT,item.current),'utf8');
   assert.ok(!code.includes("from './runtime/"),item.current+' 存在错误的平级适配导入');
