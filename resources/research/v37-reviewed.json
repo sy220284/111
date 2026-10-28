@@ -5,20 +5,20 @@
     "src/chunk-9xz7emqc.js": {
       "classification": "stop original keo retained as readable alias",
       "tests": [
-        "tests/remote-stop-dispatch.test.cjs"
+        "tests/daemon/remote-stop-dispatch.test.cjs"
       ]
     },
     "src/chunk-bwt94x0y.js": {
       "classification": "v43 daemon adoption restore with legacy bindings",
       "tests": [
-        "tests/v43-daemon-adoption-lifecycle.test.cjs",
-        "tests/v43-daemon-process-persistence.test.cjs"
+        "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
+        "tests/daemon/v43-daemon-process-persistence.test.cjs"
       ]
     },
     "src/chunk-fnsjs1v2.js": {
       "classification": "roster NFt/JN/ax/Hne preserved",
       "tests": [
-        "tests/v40-fleet-roster-semantics.test.cjs"
+        "tests/restoration/v40-fleet-roster-semantics.test.cjs"
       ]
     },
     "src/chunk-j0tbz6ra.js": {
@@ -30,32 +30,32 @@
     "src/chunk-t2adf9g4.js": {
       "classification": "daemon job and beacon newer lifecycle",
       "tests": [
-        "tests/daemon-job-contract.test.cjs",
-        "tests/v43-daemon-adoption-lifecycle.test.cjs"
+        "tests/daemon/daemon-job-contract.test.cjs",
+        "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs"
       ]
     },
     "src/chunk-vw9e882a.js": {
       "classification": "Bun original stringWidth path retained, Node fallback added",
       "tests": [
-        "tests/string-width-runtime.test.mjs"
+        "tests/runtime/string-width-runtime.test.mjs"
       ]
     },
     "src/chunk-y93r9xd4.js": {
       "classification": "Fleet Tat/BZr retained with readable aliases",
       "tests": [
-        "tests/v40-fleet-roster-semantics.test.cjs"
+        "tests/restoration/v40-fleet-roster-semantics.test.cjs"
       ]
     },
     "src/chunk-ar74b8kt.js": {
       "classification": "Node 22 built-in fetch Gaxios runtime selection; previous bundled node-fetch fallback preserved",
       "tests": [
-        "tests/gaxios-fetch-runtime.test.cjs"
+        "tests/runtime/gaxios-fetch-runtime.test.cjs"
       ]
     },
     "src/chunk-fmf16p94.js": {
       "classification": "MCP RPC cancellation listener lifecycle, send error cleanup, timeout and abort evidence",
       "tests": [
-        "tests/mcp-rpc-cancellation.test.cjs"
+        "tests/mcp/mcp-rpc-cancellation.test.cjs"
       ]
     }
   }

@@ -9,7 +9,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "gp",
       "anchor": "gp = (e) =>",
-      "test": "tests/session-append-source.test.cjs",
+      "test": "tests/model/session-append-source.test.cjs",
       "role": "session-row-filter",
       "status": "targeted_behavior_test_only"
     },
@@ -17,7 +17,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Da",
       "anchor": "function Da(e, o)",
-      "test": "tests/session-append-source.test.cjs",
+      "test": "tests/model/session-append-source.test.cjs",
       "role": "session-append-proxy",
       "status": "targeted_behavior_test_only"
     },
@@ -25,7 +25,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "ed",
       "anchor": "function ed(e, o)",
-      "test": "tests/model-request-source.test.cjs",
+      "test": "tests/model/model-request-source.test.cjs",
       "role": "refusal-retry-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -33,7 +33,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "nr",
       "anchor": "function nr(e)",
-      "test": "tests/model-request-source.test.cjs",
+      "test": "tests/model/model-request-source.test.cjs",
       "role": "refusal-detection",
       "status": "targeted_behavior_test_only"
     },
@@ -41,7 +41,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "td",
       "anchor": "function td({ refused: e",
-      "test": "tests/model-refusal-recovery.test.cjs",
+      "test": "tests/model/model-refusal-recovery.test.cjs",
       "role": "refusal-tool-closure",
       "status": "targeted_behavior_test_only"
     },
@@ -49,7 +49,7 @@
       "source": "src/chunk-3827ysmv.js",
       "symbol": "Ss",
       "anchor": "function Ss()",
-      "test": "tests/model-request-source.test.cjs",
+      "test": "tests/model/model-request-source.test.cjs",
       "role": "usage-aggregation",
       "status": "targeted_behavior_test_only"
     },
@@ -57,7 +57,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "lr",
       "anchor": "function lr(e, n)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "stream-delta-comparison",
       "status": "targeted_behavior_test_only"
     },
@@ -65,7 +65,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "dr",
       "anchor": "function dr(e, n)",
-      "test": "tests/model-request-source.test.cjs",
+      "test": "tests/model/model-request-source.test.cjs",
       "role": "stream-stop-comparison",
       "status": "targeted_behavior_test_only"
     },
@@ -73,7 +73,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "Da",
       "anchor": "var Da = (e) =>",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "tool-input-delta",
       "status": "targeted_behavior_test_only"
     },
@@ -81,7 +81,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "pr",
       "anchor": "var pr = (e) =>",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "text-delta",
       "status": "targeted_behavior_test_only"
     },
@@ -89,7 +89,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "Na",
       "anchor": "var Na = (e) =>",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "thinking-delta",
       "status": "targeted_behavior_test_only"
     },
@@ -97,7 +97,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "Fa",
       "anchor": "function Fa(e)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "delta-encoder",
       "status": "targeted_behavior_test_only"
     },
@@ -105,7 +105,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "_r",
       "anchor": "function _r(e, n, s)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "delta-decoder",
       "status": "targeted_behavior_test_only"
     },
@@ -113,7 +113,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "Tr",
       "anchor": "function Tr(e)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "tool-input-lifecycle",
       "status": "targeted_behavior_test_only"
     },
@@ -121,7 +121,7 @@
       "source": "src/chunk-9da5g4tn.js",
       "symbol": "fe",
       "anchor": "function fe(e)",
-      "test": "tests/plugin-eval-report-source.test.cjs",
+      "test": "tests/plugins/plugin-eval-report-source.test.cjs",
       "role": "eval-aggregate-check",
       "status": "targeted_behavior_test_only"
     },
@@ -129,7 +129,7 @@
       "source": "src/chunk-pbffp8rf.js",
       "symbol": "e0e",
       "anchor": "var e0e = (e) =>",
-      "test": "tests/plugin-event-registry.test.cjs",
+      "test": "tests/plugins/plugin-event-registry.test.cjs",
       "role": "hook-event-membership",
       "status": "targeted_behavior_test_only"
     },
@@ -137,7 +137,7 @@
       "source": "src/chunk-pbffp8rf.js",
       "symbol": "BVo",
       "anchor": "var BVo = (e) =>",
-      "test": "tests/plugin-event-registry.test.cjs",
+      "test": "tests/plugins/plugin-event-registry.test.cjs",
       "role": "hook-core-operation",
       "status": "targeted_behavior_test_only"
     },
@@ -145,7 +145,7 @@
       "source": "src/chunk-pbffp8rf.js",
       "symbol": "xyn",
       "anchor": "var xyn = (e) =>",
-      "test": "tests/plugin-event-registry.test.cjs",
+      "test": "tests/plugins/plugin-event-registry.test.cjs",
       "role": "hook-stream-op",
       "status": "targeted_behavior_test_only"
     },
@@ -153,7 +153,7 @@
       "source": "src/chunk-pbffp8rf.js",
       "symbol": "Xzt",
       "anchor": "var Xzt = (e) =>",
-      "test": "tests/plugin-event-registry.test.cjs",
+      "test": "tests/plugins/plugin-event-registry.test.cjs",
       "role": "plugin-event-namespace",
       "status": "targeted_behavior_test_only"
     },
@@ -161,7 +161,7 @@
       "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "symbol": "B",
       "anchor": "var B=(o)=>",
-      "test": "tests/function-hook-worker-contract.test.cjs",
+      "test": "tests/hooks/function-hook-worker-contract.test.cjs",
       "role": "worker-session-state",
       "status": "targeted_behavior_test_only"
     },
@@ -169,7 +169,7 @@
       "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "symbol": "G",
       "anchor": "var G=(o,n)=>",
-      "test": "tests/function-hook-worker-contract.test.cjs",
+      "test": "tests/hooks/function-hook-worker-contract.test.cjs",
       "role": "worker-next",
       "status": "targeted_behavior_test_only"
     },
@@ -177,7 +177,7 @@
       "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "symbol": "z",
       "anchor": "function z(o,",
-      "test": "tests/function-hook-worker-contract.test.cjs",
+      "test": "tests/hooks/function-hook-worker-contract.test.cjs",
       "role": "worker-host-operation",
       "status": "targeted_behavior_test_only"
     },
@@ -185,7 +185,7 @@
       "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "symbol": "J",
       "anchor": "var J=(o,n)=>",
-      "test": "tests/function-hook-worker-contract.test.cjs",
+      "test": "tests/hooks/function-hook-worker-contract.test.cjs",
       "role": "worker-next-stream",
       "status": "targeted_behavior_test_only"
     },
@@ -193,7 +193,7 @@
       "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "symbol": "Q",
       "anchor": "var Q=(o,",
-      "test": "tests/function-hook-worker-contract.test.cjs",
+      "test": "tests/hooks/function-hook-worker-contract.test.cjs",
       "role": "worker-host-stream",
       "status": "targeted_behavior_test_only"
     },
@@ -201,7 +201,7 @@
       "source": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "symbol": "W",
       "anchor": "function W(o)",
-      "test": "tests/function-hook-worker-contract.test.cjs",
+      "test": "tests/hooks/function-hook-worker-contract.test.cjs",
       "role": "worker-unload-pending",
       "status": "targeted_behavior_test_only"
     },
@@ -209,7 +209,7 @@
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "QMn",
       "anchor": "function parseHookSourceDescriptor(value)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "hook-origin-id",
       "status": "targeted_behavior_test_only"
     },
@@ -217,7 +217,7 @@
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "ZMn",
       "anchor": "function parsePluginHookIdentity(value)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "hook-plugin-id",
       "status": "targeted_behavior_test_only"
     },
@@ -225,7 +225,7 @@
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "jhs",
       "anchor": "function resolvePreToolUseRegistration(registration, toolName)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "hook-tool-match",
       "status": "targeted_behavior_test_only"
     },
@@ -233,7 +233,7 @@
       "source": "src/chunk-1nnn2mdy.js",
       "symbol": "Whs",
       "anchor": "function parseToolPermissionEvent(event)",
-      "test": "tests/streaming-tool-contract.test.cjs",
+      "test": "tests/model/streaming-tool-contract.test.cjs",
       "role": "hook-tool-event",
       "status": "targeted_behavior_test_only"
     },
@@ -241,7 +241,7 @@
       "source": "src/chunk-q85nvv4x.js",
       "symbol": "uun",
       "anchor": "function isReservedPolicyHookModule(candidate)",
-      "test": "tests/hook-dispatch-source.test.cjs",
+      "test": "tests/hooks/hook-dispatch-source.test.cjs",
       "role": "managed-hook-policy-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -249,7 +249,7 @@
       "source": "src/chunk-q85nvv4x.js",
       "symbol": "HE",
       "anchor": "function listModulesForHookDispatch(eventName)",
-      "test": "tests/hook-dispatch-source.test.cjs",
+      "test": "tests/hooks/hook-dispatch-source.test.cjs",
       "role": "hook-dispatch-filter",
       "status": "targeted_behavior_test_only"
     },
@@ -257,7 +257,7 @@
       "source": "src/chunk-y7venc25.js",
       "symbol": "isProjectVerbInvocation",
       "anchor": "function isProjectVerbInvocation(argv)",
-      "test": "tests/cli-command-dispatch-source.test.cjs",
+      "test": "tests/cli/cli-command-dispatch-source.test.cjs",
       "role": "project-verb-route",
       "status": "targeted_behavior_test_only"
     },
@@ -265,7 +265,7 @@
       "source": "src/chunk-y7venc25.js",
       "symbol": "isMcpServeInvocation",
       "anchor": "function isMcpServeInvocation(argv)",
-      "test": "tests/cli-command-dispatch-source.test.cjs",
+      "test": "tests/cli/cli-command-dispatch-source.test.cjs",
       "role": "mcp-server-command-route",
       "status": "targeted_behavior_test_only"
     },
@@ -273,7 +273,7 @@
       "source": "src/chunk-y7venc25.js",
       "symbol": "isAgentsJsonInvocation",
       "anchor": "function isAgentsJsonInvocation(argv)",
-      "test": "tests/cli-command-dispatch-source.test.cjs",
+      "test": "tests/cli/cli-command-dispatch-source.test.cjs",
       "role": "agent-json-command-route",
       "status": "targeted_behavior_test_only"
     },
@@ -281,7 +281,7 @@
       "source": "src/chunk-y7venc25.js",
       "symbol": "isPluginEvalInvocation",
       "anchor": "function isPluginEvalInvocation(argv)",
-      "test": "tests/cli-command-dispatch-source.test.cjs",
+      "test": "tests/cli/cli-command-dispatch-source.test.cjs",
       "role": "plugin-eval-command-route",
       "status": "targeted_behavior_test_only"
     },
@@ -289,7 +289,7 @@
       "source": "src/chunk-y7venc25.js",
       "symbol": "isRemoteControlInvocation",
       "anchor": "function isRemoteControlInvocation(argv)",
-      "test": "tests/cli-command-dispatch-source.test.cjs",
+      "test": "tests/cli/cli-command-dispatch-source.test.cjs",
       "role": "remote-control-command-route",
       "status": "targeted_behavior_test_only"
     },
@@ -297,7 +297,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "vu",
       "anchor": "function* vu(e, o, n, r)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-unanswered-tool-result-synthesis",
       "status": "targeted_behavior_test_only"
     },
@@ -305,7 +305,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Au",
       "anchor": "function Au(e)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-max-output-error",
       "status": "targeted_behavior_test_only"
     },
@@ -313,7 +313,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Uf",
       "anchor": "function Uf(e, o, n)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-truncated-output-recovery-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -321,7 +321,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Nf",
       "anchor": "function Nf(e, o)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-thinking-resumption-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -329,7 +329,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "qf",
       "anchor": "function qf(e, o)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-recovery-prompt-merge",
       "status": "targeted_behavior_test_only"
     },
@@ -337,7 +337,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Gr",
       "anchor": "function Gr(e)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-last-interactive-user",
       "status": "targeted_behavior_test_only"
     },
@@ -345,7 +345,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Pu",
       "anchor": "function Pu(e)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-prompt-queue-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -353,7 +353,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Qf",
       "anchor": "function Qf(e, o)",
-      "test": "tests/query-loop-recovery.test.cjs",
+      "test": "tests/model/query-loop-recovery.test.cjs",
       "role": "query-command-queue-suppression",
       "status": "targeted_behavior_test_only"
     },
@@ -361,7 +361,7 @@
       "source": "src/chunk-w9w4r9w1.js",
       "symbol": "D",
       "anchor": "async function dispatchStoredSessionRow(e,o,r)",
-      "test": "tests/session-append-storage.test.cjs",
+      "test": "tests/model/session-append-storage.test.cjs",
       "role": "session-append-dispatch-fallback",
       "status": "targeted_behavior_test_only"
     },
@@ -369,7 +369,7 @@
       "source": "src/chunk-w9w4r9w1.js",
       "symbol": "Te",
       "anchor": "async function appendSessionRows(e,o,r)",
-      "test": "tests/session-append-storage.test.cjs",
+      "test": "tests/model/session-append-storage.test.cjs",
       "role": "session-append-batch-store",
       "status": "targeted_behavior_test_only"
     },
@@ -377,7 +377,7 @@
       "source": "src/chunk-w9w4r9w1.js",
       "symbol": "u",
       "anchor": "function isSessionRowEligibleForAppend(e)",
-      "test": "tests/session-append-storage.test.cjs",
+      "test": "tests/model/session-append-storage.test.cjs",
       "role": "session-append-eligible-row",
       "status": "targeted_behavior_test_only"
     },
@@ -385,7 +385,7 @@
       "source": "src/chunk-eq8vmbm3.js",
       "symbol": "Vds",
       "anchor": "function listExternalTemplateIds()",
-      "test": "tests/permission-template-source.test.cjs",
+      "test": "tests/hooks/permission-template-source.test.cjs",
       "role": "external-template-identifiers",
       "status": "targeted_behavior_test_only"
     },
@@ -393,7 +393,7 @@
       "source": "src/chunk-eq8vmbm3.js",
       "symbol": "qds",
       "anchor": "function findExternalTemplateByDigest(sha256)",
-      "test": "tests/permission-template-source.test.cjs",
+      "test": "tests/hooks/permission-template-source.test.cjs",
       "role": "external-template-digest-lookup",
       "status": "targeted_behavior_test_only"
     },
@@ -401,7 +401,7 @@
       "source": "src/chunk-eq8vmbm3.js",
       "symbol": "Oat",
       "anchor": "function findExternalTemplateById(id)",
-      "test": "tests/permission-template-source.test.cjs",
+      "test": "tests/hooks/permission-template-source.test.cjs",
       "role": "external-template-id-lookup",
       "status": "targeted_behavior_test_only"
     },
@@ -409,7 +409,7 @@
       "source": "src/chunk-eq8vmbm3.js",
       "symbol": "Nxn",
       "anchor": "function isPreToolUseTemplateEvent(event)",
-      "test": "tests/permission-template-source.test.cjs",
+      "test": "tests/hooks/permission-template-source.test.cjs",
       "role": "external-template-hook-event",
       "status": "targeted_behavior_test_only"
     },
@@ -417,7 +417,7 @@
       "source": "src/chunk-eq8vmbm3.js",
       "symbol": "$xn",
       "anchor": "function externalTemplateConstantFlag()",
-      "test": "tests/permission-template-source.test.cjs",
+      "test": "tests/hooks/permission-template-source.test.cjs",
       "role": "external-template-constant-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -425,7 +425,7 @@
       "source": "src/chunk-x3dkgs4r.js",
       "symbol": "Sr",
       "anchor": "function Sr(e, n)",
-      "test": "tests/thinking-model-override.test.cjs",
+      "test": "tests/model/thinking-model-override.test.cjs",
       "role": "model-switch-preserve-incomplete-thinking",
       "status": "targeted_behavior_test_only"
     },
@@ -433,7 +433,7 @@
       "source": "src/chunk-23vy5pjb.js",
       "symbol": "de",
       "anchor": "function safeTaskFileId(r)",
-      "test": "tests/task-upload-lifecycle.test.cjs",
+      "test": "tests/agents/task-upload-lifecycle.test.cjs",
       "role": "remote-file-id-validation",
       "status": "targeted_behavior_test_only"
     },
@@ -441,7 +441,7 @@
       "source": "src/chunk-23vy5pjb.js",
       "symbol": "tTi",
       "anchor": "async function removeTaskUploadReferences(r,e,n)",
-      "test": "tests/task-upload-lifecycle.test.cjs",
+      "test": "tests/agents/task-upload-lifecycle.test.cjs",
       "role": "remote-file-reference-cleanup",
       "status": "targeted_behavior_test_only"
     },
@@ -449,7 +449,7 @@
       "source": "src/chunk-23vy5pjb.js",
       "symbol": "nTi",
       "anchor": "function diagnosePreparedTaskUpload(r,e)",
-      "test": "tests/task-upload-lifecycle.test.cjs",
+      "test": "tests/agents/task-upload-lifecycle.test.cjs",
       "role": "remote-task-upload-expiry",
       "status": "targeted_behavior_test_only"
     },
@@ -457,7 +457,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "pt",
       "anchor": "function isEquivalentMcpIssuerEcho(e,t)",
-      "test": "tests/mcp-issuer-echo.test.cjs",
+      "test": "tests/mcp/mcp-issuer-echo.test.cjs",
       "role": "mcp-oauth-issuer-echo-equivalence",
       "status": "targeted_behavior_test_only"
     },
@@ -465,7 +465,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "pe",
       "anchor": "function parseMcpIssuerHttpUrl(e)",
-      "test": "tests/mcp-issuer-echo.test.cjs",
+      "test": "tests/mcp/mcp-issuer-echo.test.cjs",
       "role": "mcp-oauth-issuer-url-parse",
       "status": "targeted_behavior_test_only"
     },
@@ -473,7 +473,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "_t",
       "anchor": "function classifyMcpIssuerOrigin(e,t)",
-      "test": "tests/mcp-issuer-echo.test.cjs",
+      "test": "tests/mcp/mcp-issuer-echo.test.cjs",
       "role": "mcp-oauth-issuer-origin-classification",
       "status": "targeted_behavior_test_only"
     },
@@ -481,7 +481,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "mt",
       "anchor": "function listMcpIssuerDifferenceFacets(e,t)",
-      "test": "tests/mcp-issuer-echo.test.cjs",
+      "test": "tests/mcp/mcp-issuer-echo.test.cjs",
       "role": "mcp-oauth-issuer-difference-facets",
       "status": "targeted_behavior_test_only"
     },
@@ -489,7 +489,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "kUn",
       "anchor": "function verifyMcpOAuthIssuerEcho({serverName:e",
-      "test": "tests/mcp-issuer-echo.test.cjs",
+      "test": "tests/mcp/mcp-issuer-echo.test.cjs",
       "role": "mcp-oauth-issuer-strict-or-observe",
       "status": "targeted_behavior_test_only"
     },
@@ -497,7 +497,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "jAi",
       "anchor": "function registerActiveMcpOAuthFlow(e,t)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
+      "test": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-active-flow-race-safe-cleanup",
       "status": "targeted_behavior_test_only"
     },
@@ -505,7 +505,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "WAi",
       "anchor": "function getActiveMcpOAuthFlow(e)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
+      "test": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-active-flow-lookup",
       "status": "targeted_behavior_test_only"
     },
@@ -513,7 +513,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "LTr",
       "anchor": "async function clearTokenlessMcpOAuthPlaceholder(e,t)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
+      "test": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-empty-credential-stub-guard",
       "status": "targeted_behavior_test_only"
     },
@@ -521,7 +521,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "Le",
       "anchor": "function selectMcpOAuthMetadataScope(e)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
+      "test": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-scope-extraction",
       "status": "targeted_behavior_test_only"
     },
@@ -529,7 +529,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "Dhi",
       "anchor": "function includeSupportedOfflineAccessScope(e,t)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
+      "test": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-offline-access-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -537,7 +537,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "Hhi",
       "anchor": "function isMicrosoftMcpOAuthIssuer(e)",
-      "test": "tests/mcp-oauth-lifecycle.test.cjs",
+      "test": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
       "role": "oauth-ms-issuer-host-classification",
       "status": "targeted_behavior_test_only"
     },
@@ -545,7 +545,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "Ben.refreshAuthorization",
       "anchor": "async refreshAuthorization(e){",
-      "test": "tests/mcp-oauth-refresh-lock.test.cjs",
+      "test": "tests/mcp/mcp-oauth-refresh-lock.test.cjs",
       "role": "oauth-cross-process-lock-refresh",
       "status": "targeted_behavior_test_only"
     },
@@ -553,7 +553,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "Ben.readConcurrentRefreshWinner",
       "anchor": "async readConcurrentRefreshWinner(){",
-      "test": "tests/mcp-oauth-refresh-lock.test.cjs",
+      "test": "tests/mcp/mcp-oauth-refresh-lock.test.cjs",
       "role": "oauth-concurrent-token-winner",
       "status": "targeted_behavior_test_only"
     },
@@ -561,7 +561,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "sr",
       "anchor": "function getCancelledMainTurnMessageId(e)",
-      "test": "tests/query-state-helpers.test.cjs",
+      "test": "tests/model/query-state-helpers.test.cjs",
       "role": "query-main-cancel-reason",
       "status": "targeted_behavior_test_only"
     },
@@ -569,7 +569,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Ff",
       "anchor": "function findLatestTrailingUserMessageUuid(e)",
-      "test": "tests/query-state-helpers.test.cjs",
+      "test": "tests/model/query-state-helpers.test.cjs",
       "role": "query-last-trailing-user",
       "status": "targeted_behavior_test_only"
     },
@@ -577,7 +577,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Gf",
       "anchor": "function describeQueryModelFallback(e, o, n, r)",
-      "test": "tests/query-state-helpers.test.cjs",
+      "test": "tests/model/query-state-helpers.test.cjs",
       "role": "query-model-fallback-explanation",
       "status": "targeted_behavior_test_only"
     },
@@ -585,7 +585,7 @@
       "source": "src/chunk-tqjdehqd.js",
       "symbol": "Iu",
       "anchor": "function abbreviateModelFallbackReason(e)",
-      "test": "tests/query-state-helpers.test.cjs",
+      "test": "tests/model/query-state-helpers.test.cjs",
       "role": "query-model-fallback-reason-truncation",
       "status": "targeted_behavior_test_only"
     },
@@ -593,7 +593,7 @@
       "source": "src/chunk-x436erds.js",
       "symbol": "McpOAuthProvider._doRefresh",
       "anchor": "async _doRefresh(e){",
-      "test": "tests/mcp-oauth-refresh-errors.test.cjs",
+      "test": "tests/mcp/mcp-oauth-refresh-errors.test.cjs",
       "role": "oauth-refresh-retry-and-invalid-grant-recovery",
       "status": "targeted_behavior_test_only"
     },
@@ -601,7 +601,7 @@
       "source": "src/chunk-fbc1ty1s.js",
       "symbol": "hfr",
       "anchor": "function applyMcpConnectionSettlement(n, o)",
-      "test": "tests/mcp-connection-settlement.test.cjs",
+      "test": "tests/mcp/mcp-connection-settlement.test.cjs",
       "role": "mcp-connection-config-and-identity-epoch-guard",
       "status": "targeted_behavior_test_only"
     },
@@ -609,7 +609,7 @@
       "source": "src/chunk-2af27mew.js",
       "symbol": "_gi",
       "anchor": "function parseDaemonAttemptCount(e)",
-      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "test": "tests/daemon/daemon-recovery-helpers.test.cjs",
       "role": "daemon-retry-counter-normalization",
       "status": "targeted_behavior_test_only"
     },
@@ -617,7 +617,7 @@
       "source": "src/chunk-2af27mew.js",
       "symbol": "xyr",
       "anchor": "function classifyDaemonWorkerFailure(e)",
-      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "test": "tests/daemon/daemon-recovery-helpers.test.cjs",
       "role": "daemon-transient-failure-classification",
       "status": "targeted_behavior_test_only"
     },
@@ -625,7 +625,7 @@
       "source": "src/chunk-2af27mew.js",
       "symbol": "bgi",
       "anchor": "function chooseDaemonWorkerExit(e,n)",
-      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "test": "tests/daemon/daemon-recovery-helpers.test.cjs",
       "role": "daemon-retry-ceiling-and-exit-decision",
       "status": "targeted_behavior_test_only"
     },
@@ -633,7 +633,7 @@
       "source": "src/chunk-yhfqc2mr.js",
       "symbol": "aD",
       "anchor": "function getDaemonStateFilePath()",
-      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "test": "tests/daemon/daemon-recovery-helpers.test.cjs",
       "role": "daemon-state-file-path",
       "status": "targeted_behavior_test_only"
     },
@@ -641,7 +641,7 @@
       "source": "src/chunk-yhfqc2mr.js",
       "symbol": "Xpe",
       "anchor": "function getDaemonLogFilePath()",
-      "test": "tests/daemon-recovery-helpers.test.cjs",
+      "test": "tests/daemon/daemon-recovery-helpers.test.cjs",
       "role": "daemon-log-file-path",
       "status": "targeted_behavior_test_only"
     },
@@ -649,7 +649,7 @@
       "source": "src/chunk-fbc1ty1s.js",
       "symbol": "QRn",
       "anchor": "function findRetryableMcpConnections(n, o, e = !0)",
-      "test": "tests/mcp-retry-state.test.cjs",
+      "test": "tests/mcp/mcp-retry-state.test.cjs",
       "role": "mcp-retry-failed-connecting-config-guard",
       "status": "targeted_behavior_test_only"
     },
@@ -657,7 +657,7 @@
       "source": "src/chunk-fbc1ty1s.js",
       "symbol": "aZr",
       "anchor": "function trackTransientMcpRetries(n)",
-      "test": "tests/mcp-retry-state.test.cjs",
+      "test": "tests/mcp/mcp-retry-state.test.cjs",
       "role": "mcp-transient-retry-reference-count",
       "status": "targeted_behavior_test_only"
     },
@@ -665,7 +665,7 @@
       "source": "src/chunk-fbc1ty1s.js",
       "symbol": "R6t",
       "anchor": "async function retryFailedMcpConnections(n, o, e, u = (s) => hfr(o, s), d)",
-      "test": "tests/mcp-retry-executor.test.cjs",
+      "test": "tests/mcp/mcp-retry-executor.test.cjs",
       "role": "mcp-retry-executor-account-epoch-backoff-and-disposal",
       "status": "targeted_behavior_test_only"
     },
@@ -673,7 +673,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "mfo",
       "anchor": "function isSubagentDispatchToolUse(e)",
-      "test": "tests/subagent-shutdown-recovery.test.cjs",
+      "test": "tests/agents/subagent-shutdown-recovery.test.cjs",
       "role": "agent-dispatch-valid-type-gate",
       "status": "targeted_behavior_test_only"
     },
@@ -681,7 +681,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "en",
       "anchor": "function hasMatchedSubagentResult(e, k)",
-      "test": "tests/subagent-shutdown-recovery.test.cjs",
+      "test": "tests/agents/subagent-shutdown-recovery.test.cjs",
       "role": "agent-correlation-tool-use-and-result",
       "status": "targeted_behavior_test_only"
     },
@@ -689,7 +689,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "Un",
       "anchor": "function normalizeShutdownInterruptedAgentResult(e, k)",
-      "test": "tests/subagent-shutdown-recovery.test.cjs",
+      "test": "tests/agents/subagent-shutdown-recovery.test.cjs",
       "role": "agent-shutdown-tool-result-normalization",
       "status": "targeted_behavior_test_only"
     },
@@ -697,7 +697,7 @@
       "source": "src/chunk-wapyem7a.js",
       "symbol": "Zt",
       "anchor": "async function pruneExpiredLegacyDaemonLogDirs(e, r = $e())",
-      "test": "tests/daemon-orphan-cleanup.test.cjs",
+      "test": "tests/daemon/daemon-orphan-cleanup.test.cjs",
       "role": "daemon-orphan-stderr-inode-checked-pruning",
       "status": "targeted_behavior_test_only"
     },
@@ -705,7 +705,7 @@
       "source": "src/chunk-r4g83g7p.js",
       "symbol": "Vg",
       "anchor": "function fetchUncachedMcpToolList(e, n)",
-      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "test": "tests/mcp/mcp-tool-forwarding.test.cjs",
       "role": "mcp-tools-list-force-bypass",
       "status": "targeted_behavior_test_only"
     },
@@ -713,7 +713,7 @@
       "source": "src/chunk-r4g83g7p.js",
       "symbol": "Wg",
       "anchor": "function readUncachedMcpResource(e, n, r)",
-      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "test": "tests/mcp/mcp-tool-forwarding.test.cjs",
       "role": "mcp-resource-bypass",
       "status": "targeted_behavior_test_only"
     },
@@ -721,7 +721,7 @@
       "source": "src/chunk-r4g83g7p.js",
       "symbol": "Gg",
       "anchor": "function callMcpToolWithTaskContext(e, n, r)",
-      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "test": "tests/mcp/mcp-tool-forwarding.test.cjs",
       "role": "mcp-tools-call-modern-task-context",
       "status": "targeted_behavior_test_only"
     },
@@ -729,7 +729,7 @@
       "source": "src/chunk-r4g83g7p.js",
       "symbol": "Gd",
       "anchor": "function attachDeclaredMcpTaskContext(e, n)",
-      "test": "tests/mcp-tool-forwarding.test.cjs",
+      "test": "tests/mcp/mcp-tool-forwarding.test.cjs",
       "role": "mcp-task-pre-discovery-context",
       "status": "targeted_behavior_test_only"
     },
@@ -737,7 +737,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "dwr",
       "anchor": "async function resumeSubagentWithInheritedHookOrigin(e, { origin: k, ...h })",
-      "test": "tests/subagent-resume-chain.test.cjs",
+      "test": "tests/agents/subagent-resume-chain.test.cjs",
       "role": "agent-resume-inherited-origin-and-interruption",
       "status": "targeted_behavior_test_only"
     },
@@ -745,7 +745,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "cwr",
       "anchor": "function formatPluginResumeDenial(e)",
-      "test": "tests/subagent-resume-chain.test.cjs",
+      "test": "tests/agents/subagent-resume-chain.test.cjs",
       "role": "agent-resume-plugin-denial-message",
       "status": "targeted_behavior_test_only"
     },
@@ -753,7 +753,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "sn",
       "anchor": "function hasCoherentResumedSubagentTranscript(e, k)",
-      "test": "tests/subagent-resume-chain.test.cjs",
+      "test": "tests/agents/subagent-resume-chain.test.cjs",
       "role": "agent-resume-transcript-ancestry-and-compaction",
       "status": "targeted_behavior_test_only"
     },
@@ -761,7 +761,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "nJ",
       "anchor": "function resumeSubagentForNotification(e)",
-      "test": "tests/subagent-resume-lock.test.cjs",
+      "test": "tests/agents/subagent-resume-lock.test.cjs",
       "role": "agent-resume-notification-mode",
       "status": "targeted_behavior_test_only"
     },
@@ -769,7 +769,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "gfo",
       "anchor": "function resumeSubagentInline(e)",
-      "test": "tests/subagent-resume-lock.test.cjs",
+      "test": "tests/agents/subagent-resume-lock.test.cjs",
       "role": "agent-resume-inline-mode",
       "status": "targeted_behavior_test_only"
     },
@@ -777,7 +777,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "fwr",
       "anchor": "function resumeSubagentForReply(e)",
-      "test": "tests/subagent-resume-lock.test.cjs",
+      "test": "tests/agents/subagent-resume-lock.test.cjs",
       "role": "agent-resume-reply-mode",
       "status": "targeted_behavior_test_only"
     },
@@ -785,7 +785,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "it",
       "anchor": "async function runSubagentResumeExclusively(e, k)",
-      "test": "tests/subagent-resume-lock.test.cjs",
+      "test": "tests/agents/subagent-resume-lock.test.cjs",
       "role": "agent-resume-single-flight-finalizer",
       "status": "targeted_behavior_test_only"
     },
@@ -793,7 +793,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "Yn",
       "anchor": "function addJoinedAgentNoticeMetadata(e, k, h, b)",
-      "test": "tests/subagent-resume-lock.test.cjs",
+      "test": "tests/agents/subagent-resume-lock.test.cjs",
       "role": "agent-resume-joined-notification-metadata",
       "status": "targeted_behavior_test_only"
     },
@@ -801,7 +801,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "Jgi",
       "anchor": "function normalizeAgentResumeError(e)",
-      "test": "tests/agent-resume-errors.test.cjs",
+      "test": "tests/agents/agent-resume-errors.test.cjs",
       "role": "agent-resume-transient-vs-lasting-error-classification",
       "status": "targeted_behavior_test_only"
     },
@@ -809,7 +809,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "CF",
       "anchor": "function isAgentResumePluginDenial(e)",
-      "test": "tests/agent-resume-errors.test.cjs",
+      "test": "tests/agents/agent-resume-errors.test.cjs",
       "role": "agent-resume-plugin-denial-structural-type",
       "status": "targeted_behavior_test_only"
     },
@@ -817,7 +817,7 @@
       "source": "src/chunk-g936x3jq.js",
       "symbol": "uwr",
       "anchor": "function isInlineResumedAgentError(e)",
-      "test": "tests/agent-resume-errors.test.cjs",
+      "test": "tests/agents/agent-resume-errors.test.cjs",
       "role": "agent-resume-inline-error-marker",
       "status": "targeted_behavior_test_only"
     },
@@ -825,7 +825,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "tgr",
       "anchor": "function mcpSettledForAdopt(e)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "mcp-adoption-readiness",
       "status": "targeted_behavior_test_only"
     },
@@ -833,7 +833,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Pno",
       "anchor": "function classifyAdoptReconciliationNotice(e)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "forked-skill-reconcile-notice",
       "status": "targeted_behavior_test_only"
     },
@@ -841,7 +841,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Yxn",
       "anchor": "async function probeDaemonJob(e,n)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "daemon-has-and-pid-fallback",
       "status": "targeted_behavior_test_only"
     },
@@ -849,7 +849,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "b3t",
       "anchor": "async function listAliveDaemonJobs(e)",
-      "test": "tests/daemon-job-contract.test.cjs",
+      "test": "tests/daemon/daemon-job-contract.test.cjs",
       "role": "daemon-list-and-liveness-fallback",
       "status": "targeted_behavior_test_only"
     },
@@ -857,7 +857,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Meo",
       "anchor": "async function isDaemonJobPresent(e)",
-      "test": "tests/daemon-job-contract.test.cjs",
+      "test": "tests/daemon/daemon-job-contract.test.cjs",
       "role": "daemon-present-flag",
       "status": "targeted_behavior_test_only"
     },
@@ -865,7 +865,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Bn",
       "anchor": "function matchesBackgroundJobReference(e,n)",
-      "test": "tests/daemon-job-contract.test.cjs",
+      "test": "tests/daemon/daemon-job-contract.test.cjs",
       "role": "daemon-background-session-match",
       "status": "targeted_behavior_test_only"
     },
@@ -873,7 +873,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "zat",
       "anchor": "function refreshDaemonJobRecord(e,n)",
-      "test": "tests/daemon-job-contract.test.cjs",
+      "test": "tests/daemon/daemon-job-contract.test.cjs",
       "role": "daemon-job-refresh",
       "status": "targeted_behavior_test_only"
     },
@@ -881,7 +881,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "ngr",
       "anchor": "function isShellAdoptable(e,n)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "adopt-eligibility-ngr",
       "status": "targeted_behavior_test_only"
     },
@@ -889,7 +889,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "lUe",
       "anchor": "function isCronAdoptable(e,n)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "adopt-eligibility-lUe",
       "status": "targeted_behavior_test_only"
     },
@@ -897,7 +897,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "rgr",
       "anchor": "function isAgentAdoptable(e,n)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "adopt-eligibility-rgr",
       "status": "targeted_behavior_test_only"
     },
@@ -905,7 +905,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "rIn",
       "anchor": "function isWorkflowAdoptable(e,n)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "adopt-eligibility-rIn",
       "status": "targeted_behavior_test_only"
     },
@@ -913,7 +913,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "u6e",
       "anchor": "function isTaskMarkedAdoptable(e,n)",
-      "test": "tests/daemon-adoption-contract.test.cjs",
+      "test": "tests/daemon/daemon-adoption-contract.test.cjs",
       "role": "adopt-eligibility-u6e",
       "status": "targeted_behavior_test_only"
     },
@@ -921,7 +921,7 @@
       "source": "src/chunk-9xz7emqc.js",
       "symbol": "keo",
       "anchor": "async function stopCurrentSession(e,a)",
-      "test": "tests/remote-stop-dispatch.test.cjs",
+      "test": "tests/daemon/remote-stop-dispatch.test.cjs",
       "role": "remote-stop-command-dispatch",
       "status": "targeted_behavior_test_only"
     },
@@ -929,7 +929,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Vxn",
       "anchor": "async function isDaemonJobConfirmedAbsent(e)",
-      "test": "tests/daemon-job-evidence.test.cjs",
+      "test": "tests/daemon/daemon-job-evidence.test.cjs",
       "role": "daemon-confirmed-absent",
       "status": "targeted_behavior_test_only"
     },
@@ -937,7 +937,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Oeo",
       "anchor": "function formatUnpushedCommitCount(e)",
-      "test": "tests/daemon-job-evidence.test.cjs",
+      "test": "tests/daemon/daemon-job-evidence.test.cjs",
       "role": "git-unpushed-count",
       "status": "targeted_behavior_test_only"
     },
@@ -945,7 +945,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "_cs",
       "anchor": "function formatUnpushedCommitSummary(e)",
-      "test": "tests/daemon-job-evidence.test.cjs",
+      "test": "tests/daemon/daemon-job-evidence.test.cjs",
       "role": "git-unpushed-summary",
       "status": "targeted_behavior_test_only"
     },
@@ -953,7 +953,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Deo",
       "anchor": "function isDaemonConnectionFailureMessage(e)",
-      "test": "tests/daemon-job-evidence.test.cjs",
+      "test": "tests/daemon/daemon-job-evidence.test.cjs",
       "role": "daemon-disconnect-error-prefix",
       "status": "targeted_behavior_test_only"
     },
@@ -961,7 +961,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Mno",
       "anchor": "function hasPendingAdoptableWork(e,n=FX(e))",
-      "test": "tests/adoption-summary.test.cjs",
+      "test": "tests/daemon/adoption-summary.test.cjs",
       "role": "adopt-pending-work",
       "status": "targeted_behavior_test_only"
     },
@@ -969,7 +969,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Yxt",
       "anchor": "function countUnadoptedFrames(e,n)",
-      "test": "tests/adoption-summary.test.cjs",
+      "test": "tests/daemon/adoption-summary.test.cjs",
       "role": "adopt-frame-unclaimed-count",
       "status": "targeted_behavior_test_only"
     },
@@ -977,7 +977,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Dno",
       "anchor": "function hasAdoptionPayloadTasks(e)",
-      "test": "tests/adoption-summary.test.cjs",
+      "test": "tests/daemon/adoption-summary.test.cjs",
       "role": "adopt-payload-nonempty",
       "status": "targeted_behavior_test_only"
     },
@@ -985,7 +985,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "oIn",
       "anchor": "function summarizeAdoptedPayloadCounts(e)",
-      "test": "tests/adoption-summary.test.cjs",
+      "test": "tests/daemon/adoption-summary.test.cjs",
       "role": "adopt-payload-counters",
       "status": "targeted_behavior_test_only"
     },
@@ -993,7 +993,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "yno",
       "anchor": "function saveUnresumedAdoptTasks(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-yno",
       "status": "targeted_behavior_test_only"
     },
@@ -1001,7 +1001,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "_no",
       "anchor": "function claimUnresumedAdoptTasksForOwner(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-_no",
       "status": "targeted_behavior_test_only"
     },
@@ -1009,7 +1009,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "egr",
       "anchor": "function takeUnresumedAdoptTasks(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-egr",
       "status": "targeted_behavior_test_only"
     },
@@ -1017,7 +1017,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "bno",
       "anchor": "function storeUnresumedFrameEntries(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-bno",
       "status": "targeted_behavior_test_only"
     },
@@ -1025,7 +1025,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Sno",
       "anchor": "function claimUnresumedFrameEntriesForOwner(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-Sno",
       "status": "targeted_behavior_test_only"
     },
@@ -1033,7 +1033,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "tIn",
       "anchor": "function takeUnresumedFrameEntries(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-tIn",
       "status": "targeted_behavior_test_only"
     },
@@ -1041,7 +1041,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "wno",
       "anchor": "function appendUnresumedFrameEntries(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-wno",
       "status": "targeted_behavior_test_only"
     },
@@ -1049,7 +1049,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "vno",
       "anchor": "function removeUnresumedFrameSlug(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-vno",
       "status": "targeted_behavior_test_only"
     },
@@ -1057,7 +1057,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Eno",
       "anchor": "function cacheExitRetryFrameEntries(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-Eno",
       "status": "targeted_behavior_test_only"
     },
@@ -1065,7 +1065,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "kno",
       "anchor": "function takeExitRetryFrameEntries(",
-      "test": "tests/adoption-state-ownership.test.cjs",
+      "test": "tests/daemon/adoption-state-ownership.test.cjs",
       "role": "adopt-state-ownership-kno",
       "status": "targeted_behavior_test_only"
     },
@@ -1073,7 +1073,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "at",
       "anchor": "function daemonLocalRecordPath(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-at",
       "status": "targeted_behavior_test_only"
     },
@@ -1081,7 +1081,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Ue",
       "anchor": "function daemonStorageRecordKey(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-Ue",
       "status": "targeted_behavior_test_only"
     },
@@ -1089,7 +1089,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "yt",
       "anchor": "function daemonStorageJsonKey(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-yt",
       "status": "targeted_behavior_test_only"
     },
@@ -1097,7 +1097,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Ee",
       "anchor": "function isDaemonRegistryDirectoryAvailable(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-Ee",
       "status": "targeted_behavior_test_only"
     },
@@ -1105,7 +1105,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Gn",
       "anchor": "function readDaemonGestureRecord(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-Gn",
       "status": "targeted_behavior_test_only"
     },
@@ -1113,7 +1113,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "nn",
       "anchor": "function parseDaemonGestureRecord(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-nn",
       "status": "targeted_behavior_test_only"
     },
@@ -1121,7 +1121,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "rn",
       "anchor": "function isDaemonProcessGoneOrReused(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-rn",
       "status": "targeted_behavior_test_only"
     },
@@ -1129,7 +1129,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "qn",
       "anchor": "function isDaemonRosterRecordStale(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-qn",
       "status": "targeted_behavior_test_only"
     },
@@ -1137,7 +1137,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "tr",
       "anchor": "function mapDaemonErrorCode(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-tr",
       "status": "targeted_behavior_test_only"
     },
@@ -1145,7 +1145,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Te",
       "anchor": "function bufferMatchesAtOffset(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-Te",
       "status": "targeted_behavior_test_only"
     },
@@ -1153,7 +1153,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Ie",
       "anchor": "function countBufferPrefixOverlap(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-Ie",
       "status": "targeted_behavior_test_only"
     },
@@ -1161,7 +1161,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "y3t",
       "anchor": "function classifyDaemonSessionTarget(",
-      "test": "tests/daemon-protocol-evidence.test.cjs",
+      "test": "tests/daemon/daemon-protocol-evidence.test.cjs",
       "role": "daemon-original-protocol-y3t",
       "status": "targeted_behavior_test_only"
     },
@@ -1169,7 +1169,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "st",
       "anchor": "function runDaemonGroupExclusively(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-st",
       "status": "targeted_behavior_test_only"
     },
@@ -1177,7 +1177,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Vn",
       "anchor": "function scheduleDaemonReconciliation(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-Vn",
       "status": "targeted_behavior_test_only"
     },
@@ -1185,7 +1185,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Rt",
       "anchor": "function isExpectedGitHead(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-Rt",
       "status": "targeted_behavior_test_only"
     },
@@ -1193,7 +1193,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "vt",
       "anchor": "function runGitWorktreeCommand(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-vt",
       "status": "targeted_behavior_test_only"
     },
@@ -1201,7 +1201,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "wn",
       "anchor": "function formatCommitCountOverflow(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-wn",
       "status": "targeted_behavior_test_only"
     },
@@ -1209,7 +1209,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "jr",
       "anchor": "function shortenWorktreePathLabel(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-jr",
       "status": "targeted_behavior_test_only"
     },
@@ -1217,7 +1217,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Tn",
       "anchor": "function classifyWorktreeOwnership(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-Tn",
       "status": "targeted_behavior_test_only"
     },
@@ -1225,7 +1225,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "xe",
       "anchor": "function hasSameCanonicalPath(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-xe",
       "status": "targeted_behavior_test_only"
     },
@@ -1233,7 +1233,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "ft",
       "anchor": "function normalizeWorktreePath(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-ft",
       "status": "targeted_behavior_test_only"
     },
@@ -1241,7 +1241,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "En",
       "anchor": "function isPathWithinWorktreeRoot(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-En",
       "status": "targeted_behavior_test_only"
     },
@@ -1249,7 +1249,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "On",
       "anchor": "function checkJobStateFilePresence(",
-      "test": "tests/worktree-daemon-guards.test.cjs",
+      "test": "tests/daemon/worktree-daemon-guards.test.cjs",
       "role": "daemon-worktree-guard-On",
       "status": "targeted_behavior_test_only"
     },
@@ -1257,7 +1257,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "F6",
       "anchor": "function isFrameLiveAdoptable(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-F6",
       "status": "targeted_behavior_test_only"
     },
@@ -1265,7 +1265,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "xwe",
       "anchor": "function collectAdoptableFrameSlugs(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-xwe",
       "status": "targeted_behavior_test_only"
     },
@@ -1273,7 +1273,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Vxt",
       "anchor": "function countAlreadyAdoptedWork(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-Vxt",
       "status": "targeted_behavior_test_only"
     },
@@ -1281,7 +1281,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "qxt",
       "anchor": "function countOutstandingAdoptWork(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-qxt",
       "status": "targeted_behavior_test_only"
     },
@@ -1289,7 +1289,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Q",
       "anchor": "function attachAdoptionErrorCode(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-Q",
       "status": "targeted_behavior_test_only"
     },
@@ -1297,7 +1297,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "ke",
       "anchor": "function parseAdoptionJsonOrNull(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-ke",
       "status": "targeted_behavior_test_only"
     },
@@ -1305,7 +1305,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Cno",
       "anchor": "function formatAdoptionProcessIdentity(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-Cno",
       "status": "targeted_behavior_test_only"
     },
@@ -1313,7 +1313,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "je",
       "anchor": "function resolveAdoptedAgentParent(",
-      "test": "tests/adoption-metrics-evidence.test.cjs",
+      "test": "tests/daemon/adoption-metrics-evidence.test.cjs",
       "role": "v40-verified-domain-je",
       "status": "targeted_behavior_test_only"
     },
@@ -1321,7 +1321,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "kt",
       "anchor": "function persistOwnedDaemonBeacon(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-kt",
       "status": "targeted_behavior_test_only"
     },
@@ -1329,7 +1329,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Kn",
       "anchor": "function readDaemonGestureFromStorage(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-Kn",
       "status": "targeted_behavior_test_only"
     },
@@ -1337,7 +1337,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "He",
       "anchor": "function parseTerminalKittyKeyEscape(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-He",
       "status": "targeted_behavior_test_only"
     },
@@ -1345,7 +1345,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "pn",
       "anchor": "function scanTerminalInterruptSequence(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-pn",
       "status": "targeted_behavior_test_only"
     },
@@ -1353,7 +1353,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "qxn",
       "anchor": "function hasTerminalInterruptSequence(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-qxn",
       "status": "targeted_behavior_test_only"
     },
@@ -1361,7 +1361,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "kn",
       "anchor": "function verifyDaemonJobOwnership(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-kn",
       "status": "targeted_behavior_test_only"
     },
@@ -1369,7 +1369,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Heo",
       "anchor": "function retryDaemonJobUpdate(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-Heo",
       "status": "targeted_behavior_test_only"
     },
@@ -1377,7 +1377,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "vn",
       "anchor": "function formatDaemonConnectionRetryPrompt(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "v40-verified-domain-vn",
       "status": "targeted_behavior_test_only"
     },
@@ -1385,7 +1385,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Ge",
       "anchor": "function invokeDaemonInteractiveRunner(",
-      "test": "tests/daemon-control-evidence.test.cjs",
+      "test": "tests/daemon/daemon-control-evidence.test.cjs",
       "role": "daemon-interactive-runner-bridge",
       "status": "targeted_behavior_test_only"
     },
@@ -1393,7 +1393,7 @@
       "source": "src/chunk-y93r9xd4.js",
       "symbol": "Tat",
       "anchor": "function createFleetViewHost(",
-      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "test": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-createFleetViewHost",
       "status": "targeted_behavior_test_only"
     },
@@ -1401,7 +1401,7 @@
       "source": "src/chunk-y93r9xd4.js",
       "symbol": "BZr",
       "anchor": "function useAttachFleetOwners(",
-      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "test": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-useAttachFleetOwners",
       "status": "targeted_behavior_test_only"
     },
@@ -1409,7 +1409,7 @@
       "source": "src/chunk-fnsjs1v2.js",
       "symbol": "NFt",
       "anchor": "function rosterKey(",
-      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "test": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-rosterKey",
       "status": "targeted_behavior_test_only"
     },
@@ -1417,7 +1417,7 @@
       "source": "src/chunk-fnsjs1v2.js",
       "symbol": "JN",
       "anchor": "function readRoster(",
-      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "test": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-readRoster",
       "status": "targeted_behavior_test_only"
     },
@@ -1425,7 +1425,7 @@
       "source": "src/chunk-fnsjs1v2.js",
       "symbol": "ax",
       "anchor": "function bgShort(",
-      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "test": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-bgShort",
       "status": "targeted_behavior_test_only"
     },
@@ -1433,7 +1433,7 @@
       "source": "src/chunk-fnsjs1v2.js",
       "symbol": "Hne",
       "anchor": "function updateRoster(",
-      "test": "tests/v40-fleet-roster-semantics.test.cjs",
+      "test": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-updateRoster",
       "status": "targeted_behavior_test_only"
     },
@@ -1441,7 +1441,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "$e",
       "anchor": "function isDaemonRecordExpired(",
-      "test": "tests/daemon-beacon-source-restoration.test.cjs",
+      "test": "tests/daemon/daemon-beacon-source-restoration.test.cjs",
       "role": "beacon-expiration-clock-24h-and-future-skew",
       "status": "targeted_behavior_test_only"
     },
@@ -1449,7 +1449,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "tn",
       "anchor": "function updateOwnedDaemonBeaconAttempt(",
-      "test": "tests/daemon-beacon-source-restoration.test.cjs",
+      "test": "tests/daemon/daemon-beacon-source-restoration.test.cjs",
       "role": "monotonic-attempt-and-ownership-guard",
       "status": "targeted_behavior_test_only"
     },
@@ -1457,7 +1457,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "oxt",
       "anchor": "function mergeOwnedDaemonBeaconProgress(",
-      "test": "tests/daemon-beacon-source-restoration.test.cjs",
+      "test": "tests/daemon/daemon-beacon-source-restoration.test.cjs",
       "role": "sticky-beacon-progress-and-storage-routing",
       "status": "targeted_behavior_test_only"
     },
@@ -1465,7 +1465,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Jmr",
       "anchor": "function serializeAdoptAgent(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-serializeAdoptAgent",
       "status": "targeted_behavior_test_only"
     },
@@ -1473,7 +1473,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Qmr",
       "anchor": "function serializeAdoptWorkflow(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-serializeAdoptWorkflow",
       "status": "targeted_behavior_test_only"
     },
@@ -1481,7 +1481,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Zmr",
       "anchor": "function dedupFrameLiveNewest(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-dedupFrameLiveNewest",
       "status": "targeted_behavior_test_only"
     },
@@ -1489,7 +1489,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "FX",
       "anchor": "function computeAdoptability(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-computeAdoptability",
       "status": "targeted_behavior_test_only"
     },
@@ -1497,7 +1497,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "f6e",
       "anchor": "function countLiveWorkflowAgents(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-countLiveWorkflowAgents",
       "status": "targeted_behavior_test_only"
     },
@@ -1505,7 +1505,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "aUe",
       "anchor": "function noticeFieldOf(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-noticeFieldOf",
       "status": "targeted_behavior_test_only"
     },
@@ -1513,7 +1513,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "xlt",
       "anchor": "function noticeDescriptionOf(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-noticeDescriptionOf",
       "status": "targeted_behavior_test_only"
     },
@@ -1521,7 +1521,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "eIn",
       "anchor": "function serializeAdoptable(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-serializeAdoptable",
       "status": "targeted_behavior_test_only"
     },
@@ -1529,7 +1529,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Rlt",
       "anchor": "function writeAdoptJson(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-writeAdoptJson",
       "status": "targeted_behavior_test_only"
     },
@@ -1537,7 +1537,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "hno",
       "anchor": "function readAndConsumeAdoptJson(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-readAndConsumeAdoptJson",
       "status": "targeted_behavior_test_only"
     },
@@ -1545,7 +1545,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "yPe",
       "anchor": "function killJob(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-killJob",
       "status": "targeted_behavior_test_only"
     },
@@ -1553,7 +1553,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "wpr",
       "anchor": "function killOrphanedWorker(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-killOrphanedWorker",
       "status": "targeted_behavior_test_only"
     },
@@ -1561,7 +1561,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Hee",
       "anchor": "function deleteJob(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-provenance-deleteJob",
       "status": "targeted_behavior_test_only"
     },
@@ -1569,7 +1569,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Xmr",
       "anchor": "function detachAndSerializeShell(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-detachAndSerializeShell",
       "status": "targeted_behavior_test_only"
     },
@@ -1577,7 +1577,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "ZPn",
       "anchor": "function collectFrameLiveConsent(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-collectFrameLiveConsent",
       "status": "targeted_behavior_test_only"
     },
@@ -1585,7 +1585,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Ino",
       "anchor": "function emitAdoptAgentDenied(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-emitAdoptAgentDenied",
       "status": "targeted_behavior_test_only"
     },
@@ -1593,7 +1593,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "nIn",
       "anchor": "function emitAdoptAgentFailed(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-emitAdoptAgentFailed",
       "status": "targeted_behavior_test_only"
     },
@@ -1601,7 +1601,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "E8t",
       "anchor": "function emitAdoptWorkflowFailed(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-emitAdoptWorkflowFailed",
       "status": "targeted_behavior_test_only"
     },
@@ -1609,7 +1609,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Tno",
       "anchor": "function linkAdoptedAgentTranscript(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-linkAdoptedAgentTranscript",
       "status": "targeted_behavior_test_only"
     },
@@ -1617,7 +1617,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Rno",
       "anchor": "function linkAdoptedWorkflowDir(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-linkAdoptedWorkflowDir",
       "status": "targeted_behavior_test_only"
     },
@@ -1625,7 +1625,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Ano",
       "anchor": "function relinkAdoptedAgentSymlinks(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-relinkAdoptedAgentSymlinks",
       "status": "targeted_behavior_test_only"
     },
@@ -1633,7 +1633,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "xno",
       "anchor": "function resolveAdoptedScriptPath(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-resolveAdoptedScriptPath",
       "status": "targeted_behavior_test_only"
     },
@@ -1641,7 +1641,7 @@
       "source": "src/chunk-bwt94x0y.js",
       "symbol": "Ono",
       "anchor": "function adoptCron(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-adoptCron",
       "status": "targeted_behavior_test_only"
     },
@@ -1649,7 +1649,7 @@
       "source": "src/chunk-t2adf9g4.js",
       "symbol": "Kat",
       "anchor": "function replyToJob(",
-      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "test": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
       "role": "v40-verified-definition-replyToJob",
       "status": "targeted_behavior_test_only"
     }
