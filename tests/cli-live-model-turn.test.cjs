@@ -79,6 +79,8 @@ test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {time
     assert.equal(exit.code,0,'real CLI failed; stdout='+stdout.slice(-3000)+' stderr='+stderr.slice(-3500)+' requests='+JSON.stringify(requests.map(x=>x.url)));
     assert.ok(requests.some(r=>new URL(r.url,'http://localhost').pathname.endsWith('/messages')&&r.method==='POST'),'actual model messages HTTP request missing; stdout='+stdout.slice(-4000)+' stderr='+stderr.slice(-4000)+' requests='+JSON.stringify(requests.map(x=>x.url)));
     assert.ok(requests.some(r=>r.body?.stream===true),'real model call must use SSE streaming');
+    assert.ok(requests.some(r=>Array.isArray(r.body?.messages)&&JSON.stringify(r.body.messages).includes(marker)),
+      'real model request must contain original user prompt');
     assert.ok(stdout.includes(marker),'model SSE text absent from CLI result: '+stdout.slice(-3000));
   }finally{
     if(timeout)clearTimeout(timeout);
