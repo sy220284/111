@@ -161,6 +161,9 @@ jobs:
           grep -F 'claude-2.1.310-clean/src/' "$RUNNER_TEMP/clean-archive-contents.txt" > /dev/null
           grep -F 'claude-2.1.310-clean/图谱与证据/Jelly跨分析器调用候选.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/Jelly分析校验.json' "$RUNNER_TEMP/clean-archive-contents.txt"
+          grep -F 'claude-2.1.310-clean/tools/analysis/jelly-corpus.cjs' "$RUNNER_TEMP/clean-archive-contents.txt"
+          grep -F 'claude-2.1.310-clean/scripts/install.sh' "$RUNNER_TEMP/clean-archive-contents.txt"
+          grep -F 'claude-2.1.310-clean/tests/jelly-corpus.test.cjs' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/函数调用候选边.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/全部调用表达式.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/功能与测试关系全量.dot' "$RUNNER_TEMP/clean-archive-contents.txt"
@@ -172,6 +175,11 @@ jobs:
           tar -C "$RUNNER_TEMP/verify-unpack" --zstd -xf "releases/$archive"
           test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json"
           test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/src/chunk-tqjdehqd.js"
+          (
+            cd "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean"
+            NODE_PATH="$GITHUB_WORKSPACE/node_modules" node --test \
+              tests/jelly-corpus.test.cjs tests/jelly-runner.test.cjs tests/code-graph.test.cjs
+          )
           python3 - "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json" <<'PY'
           import json,sys
           j=json.load(open(sys.argv[1]))
