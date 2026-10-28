@@ -250,3 +250,25 @@ test('不能把 npm test 中的旧回归检查偷偷删掉',()=>{
 test('恢复类不能同时声明不计入功能恢复',()=>{
   rejected(verify({body:body+'\n不计入功能恢复'}),'恢复类与');
 });
+
+
+test('目录整理允许文件与测试的真实归档，但必须保留来源及可运行校验',()=>{
+ const body='交付类别：目录整理\n不计入功能恢复';
+ const files=['docs/conventions/规范.md','tests/mcp/transport.test.cjs','resources/layout/relocations.json','resources/research/v37-supplemental-semantics.json','scripts/audit-v37-nonmain-inventory.cjs','.github/workflows/restoration-delivery-gate.yml','AGENTS.md','package.json','resources/function-verification-ledger.json'];
+ const r=auditDelivery({title:'按业务整理目录',body,changed:files,
+   testChanges:[{path:'tests/mcp/transport.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.equal(1,1));",status:'A'}]});
+ assert.equal(r.ok,true,r.errors.join('\n'));
+ assert.equal(categoryPathAllowed('目录整理','src/chunk-abc.js'),false);
+ assert.equal(categoryPathAllowed('目录整理','resources/bunfs/raw.node'),false);
+ assert.equal(categoryPathAllowed('目录整理','scripts/check-restoration-delivery.cjs'),false);
+});
+test('目录整理拒绝没有迁移证据、测试或混入运行时文件',()=>{
+ const body='交付类别：目录整理\n不计入功能恢复';
+ for(const changed of [
+  ['docs/name.md','tests/model/m.test.cjs'],
+  ['docs/name.md','resources/layout/relocations.json'],
+  ['docs/name.md','tests/model/m.test.cjs','resources/layout/relocations.json','src/chunk-x.js']]){
+  const result=auditDelivery({title:'整理',body,changed});
+  assert.equal(result.ok,false);
+ }
+});
