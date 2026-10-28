@@ -1,3 +1,4 @@
+import{stripVTControlCharacters as __cc310StripVTControlCharacters}from"node:util";
 // @bun @bytecode
 // Claude Code is a Beta product per Anthropic's Commercial Terms of Service.
 // By using Claude Code, you agree that all code acceptance or rejection decisions you make,
@@ -164,7 +165,7 @@ function yc(e) { return e.replace(Sr, (n) => `&#${n.charCodeAt(0)};`); }
 function gW(e) { return e.replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
 function gf(e) { return yc(gW(String(e ?? ""))); }
 function k9r(e) { return gf(e).replaceAll('"', "&quot;"); }
-function yn(e) { return Bun.stripANSI(e); }
+function yn(e) { return typeof Bun!=="undefined"&&typeof Bun.stripANSI==="function"?Bun.stripANSI(e):__cc310StripVTControlCharacters(e); }
 function J$e(e) { return Nb(yn(Nb(String(e)))); }
 function lP(e) { return e.replace(/[^\n\r\v\f\x85\u2028\u2029]+/g, (n) => yn(n)); }
 var Bt = "\\p{Default_Ignorable_Code_Point}\\u2800", Hb = `\\p{Cc}\\p{Cf}\\p{Cs}\\p{Co}\\p{Cn}\\u2028\\u2029${Bt}`, Q$e = String.raw `\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180b-\u180f\u200b-\u200f\u202a-\u202e\u2060-\u206f\u2800\u3164\ufe00-\ufe0f\uffa0\ufff0-\ufffb\uDC00-\uDFFF\uDB40-\uDB43`, Mt = String.raw `\u0600-\u0605\u06dd\u070f\u0890\u0891\u08e2`, sit = `[${Q$e}${Mt}\\ufeff]*`, Cpi = new RegExp(`[${Q$e}${Mt}\\ufeff]`);
