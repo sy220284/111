@@ -2,7 +2,7 @@
   "schema": 1,
   "baseCommit": "101fa81e4e792e39d519e51edbbf14d3aa3a828f",
   "rootFiles": 2554,
-  "importAdjusted": 0,
+  "importAdjusted": 130,
   "files": [
     {
       "old": "src/audio-capture.js",
@@ -17879,10 +17879,10 @@
       "old": "src/src/plugins/functionHooks/hooks-worker/hooks-worker.js",
       "current": "plugins/functionHooks/hooks-worker/hooks-worker.js",
       "originalGitBlob": "b18e58213f45c38cbcb815a29d9ba9febff2cb4a",
-      "currentGitBlob": "b18e58213f45c38cbcb815a29d9ba9febff2cb4a",
-      "importAdjusted": false
+      "currentGitBlob": "cacc45c8ba8e3decadcafd7801bd15c6813239bf",
+      "importAdjusted": true
     }
   ],
   "coreDirectory": "core/",
-  "contentPreserved": 2554
+  "contentPreserved": false
 }

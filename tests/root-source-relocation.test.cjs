@@ -8,10 +8,10 @@ const cp=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const manifest=JSON.parse(fs.readFileSync(path.join(ROOT,'resources/layout/root-source-relocations.json'),'utf8'));
 const blob=b=>crypto.createHash('sha1').update('blob '+b.length+'\0').update(b).digest('hex');
-test('src 原有 2554 个文件归类，2553 个放入 core，独立插件继续在 plugins',()=>{
+test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆，原件字节可还原',()=>{
  assert.equal(manifest.rootFiles,2554);
  assert.equal(manifest.files.length,2554);
- assert.equal(manifest.importAdjusted,0);
+ assert.equal(manifest.importAdjusted,130);
  assert.equal(fs.existsSync(path.join(ROOT,'src')),false,'src 旧目录仍存在');
  assert.equal(fs.readdirSync(ROOT).filter(x=>x.endsWith('.js')).length,0,'根目录散落 JavaScript');
  const actual=fs.readdirSync(path.join(ROOT,'core')).filter(x=>x.endsWith('.js')).sort();
@@ -25,8 +25,18 @@ test('src 原有 2554 个文件归类，2553 个放入 core，独立插件继续
   assert.equal(fs.existsSync(path.join(ROOT,item.old)),false,'旧文件残留 '+item.old);
   const target=path.join(ROOT,item.current);
   assert.ok(fs.existsSync(target),'目标缺失 '+item.current);
-  assert.equal(blob(fs.readFileSync(target)),item.originalGitBlob,'原件字节被更改 '+item.current);
-  assert.equal(item.currentGitBlob,item.originalGitBlob,'迁移清单字节不一致 '+item.current);
+  const bytes=fs.readFileSync(target);
+  assert.equal(blob(bytes),item.currentGitBlob,'迁移清单实际字节不一致 '+item.current);
+  if(item.importAdjusted){
+    assert.equal(item.current,'plugins/functionHooks/hooks-worker/hooks-worker.js');
+    const current=bytes.toString('utf8');
+    const matches=current.match(/\.\.\/\.\.\/\.\.\/core\/chunk-/g)||[];
+    assert.equal(matches.length,130,'Hook Worker 应恰好修复 130 条相对导入');
+    const original=current.replaceAll('../../../core/chunk-','../../../../chunk-');
+    assert.equal(blob(Buffer.from(original)),item.originalGitBlob,'Hook Worker 反向还原后与原 Git Blob 不一致');
+  }else{
+    assert.equal(blob(bytes),item.originalGitBlob,'未调整源码字节被更改 '+item.current);
+  }
  }
  assert.equal([...seen].filter(x=>x.startsWith('core/')).length,2553);
 });
