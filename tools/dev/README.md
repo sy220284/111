@@ -77,7 +77,7 @@ compat 档包含 build + full + Bun；支持检测已有组件及复用，无组
 
 `reverse` 是独立档位，采用官方 Ghidra 12.2 + JDK 25；不改变 build/full/compat/analysis 档位。Ghidra 用于 ELF、SO 等原生机器码的 C 伪代码恢复，不能直接反编译 JSC 字节码，也不等于恢复原版源代码。
 
-工作流 `.github/workflows/ghidra-toolchain.yml` 从 NSA 官方 release 下载 `ghidra_12.2_PUBLIC_20261016.zip`，按官方 SHA256 校验；另使用 Temurin JDK 25，打包两个可离线安装的 GitHub Actions Artifact：`111-toolchain-jdk-latest`、`111-toolchain-ghidra-latest`。独立 CI 使用已校验产物安装，编译 ELF 并实际导出逐函数 C 伪代码。
+工作流 `.github/workflows/dev-toolchain.yml` 从 NSA 官方 release 下载 `ghidra_12.2_PUBLIC_20261016.zip`，按官方 SHA256 校验；另使用 Temurin JDK 25，打包两个可离线安装的 GitHub Actions Artifact：`111-toolchain-jdk-latest`、`111-toolchain-ghidra-latest`。独立 CI 使用已校验产物安装，编译 ELF 并实际导出逐函数 C 伪代码。
 
 ```bash
 bash tools/dev/ai-toolchain.sh plan --profile reverse
