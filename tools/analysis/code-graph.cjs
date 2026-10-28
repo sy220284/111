@@ -306,7 +306,7 @@ function analyze(sources, ledger = []) {
     }
     for(let pass=0;pass<aliases.length;pass++){
       let changed=false;
-      for(const [alias,original] of aliases)
+      for(const [alias,original] of aliases){
         if(!map.has(alias)&&map.has(original)){
           map.set(alias,map.get(original));changed=true;
         }
