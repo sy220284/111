@@ -65,7 +65,7 @@ function sourceFiles(root, {old = false, focus = []} = {}) {
       if (e.isDirectory()) { if (old) visit(full); continue; }
       if (!e.isFile()) continue;
       if (old ? /\.(ts|tsx|js|jsx)$/.test(e.name) && !/\.d\.ts$/.test(e.name)
-              : /^chunk-.*\.js$|^cli\.js$/.test(e.name)) {
+              : /^chunk-.*\.js$|^cli\.js$|^audio-capture\.js$|^clipboard-napi\.js$/.test(e.name)) {
         const relative = path.relative(root, full).replaceAll(path.sep, '/');
         if (!old && focus.length && !focus.some(f => relative === f || relative.startsWith(f + '/'))) continue;
         all.push({full, relative});
@@ -73,6 +73,14 @@ function sourceFiles(root, {old = false, focus = []} = {}) {
     }
   }
   visit(root);
+  if (!old) {
+    // The 2.1.310 inventory counts the Hook Worker and both native wrappers.
+    // Avoid scanning unrelated plugin-testing-kit/vendor children here.
+    const worker='src/plugins/functionHooks/hooks-worker/hooks-worker.js';
+    const full=path.join(root,worker);
+    if (fs.existsSync(full) && (!focus.length || focus.some(f => worker === f || worker.startsWith(f + '/'))))
+      all.push({full,relative:worker});
+  }
   return all;
 }
 function indexOld(functions) {
