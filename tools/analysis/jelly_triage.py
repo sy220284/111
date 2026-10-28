@@ -23,13 +23,11 @@ def classify_candidates(report, graph, callsites):
     indexed = {}
     index_normalized = 0
     for file, functions in callsites.items():
-        # scripts/source-function-index.cjs indexes root src files as
-        # "chunk-abc.js", whereas Jelly / code-graph use "chunk-abc.js".
-        # A nested worker already has its "" prefix.
-        normalized_file = file if file.startswith("") else "" + file
-        if (not normalized_file.startswith("") or
+        # Current AST index and graph use real paths; historical labels are explicit.
+        normalized_file = "core/" + file[4:] if file.startswith("src/") else file
+        if (normalized_file.startswith("/") or
                 ".." in normalized_file.split("/") or
-                "\\\\" in normalized_file or
+                "\\" in normalized_file or
                 not normalized_file.endswith(".js")):
             raise ValueError("Invalid recovered function index file: " + file)
         if normalized_file != file:

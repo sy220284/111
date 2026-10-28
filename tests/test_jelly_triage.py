@@ -52,13 +52,13 @@ class TriageTests(unittest.TestCase):
         s=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("jelly_static_points_to\t否","jelly_static_points_to\t是"),encoding="utf8")
         with self.assertRaisesRegex(ValueError,"misclassified"):classify_candidates(self.report,self.graph,self.functions)
-    def test_111_function_index_filename_has_no_src_prefix(self):
+    def test_current_function_index_and_jelly_use_the_same_module_path(self):
         # The real recovered function-index file stores top-level source keys
         # as "chunk-...js", while Jelly locations include "".
         self.functions={"b.js":[{"name":"realFn","line":8,"column":5}]}
         result=classify_candidates(self.report,self.graph,self.functions)
         self.assertEqual(result["singleIndexedStaticCandidateCallsites"],1)
-        self.assertEqual(result["functionIndexMainModulePathsNormalized"],1)
+        self.assertEqual(result["functionIndexMainModulePathsNormalized"],0)
         self.assertEqual(result["runtimeCallsConfirmed"],0)
 
     def test_same_position_nested_ast_calls_are_ambiguous_even_with_one_jelly_target(self):
@@ -89,15 +89,15 @@ class TriageTests(unittest.TestCase):
     def test_mistagged_jelly_unresolved_position_is_rejected(self):
         contents=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         contents=contents.replace(
-            "a.js\t2\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite",
-            "a.js\t2\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved")
+            "a.js\t2\t3\tb.js\t8\t5\t111_unresolved_exact_callsite",
+            "a.js\t2\t3\tb.js\t8\t5\tnot_in_111_unresolved")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(contents,encoding="utf8")
         with self.assertRaisesRegex(ValueError,"incorrectly tagged"):
             classify_candidates(self.report,self.graph,self.functions)
 
     def test_unresolved_source_tag_must_be_present_in_primary_graph(self):
         s=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
-        (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("a.js\t7\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved","a.js\t7\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite"),encoding="utf8")
+        (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("a.js\t7\t3\tb.js\t8\t5\tnot_in_111_unresolved","a.js\t7\t3\tb.js\t8\t5\t111_unresolved_exact_callsite"),encoding="utf8")
         with self.assertRaisesRegex(ValueError,"Invalid unresolved"):classify_candidates(self.report,self.graph,self.functions)
 
 if __name__=="__main__":unittest.main()

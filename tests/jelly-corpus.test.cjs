@@ -15,7 +15,7 @@ test('Jelly v0.13.0 call graph location decoder validates paths and 1-based coor
 });
 test('candidate rows deduplicate within graph and ignore unresolved module pseudo-targets',()=>{
  const a=normalizeGraph(fixture,['a.js','b.js']);
- assert.deepEqual(a.rows,['a.js\t2\t3\t2\t15\tsrc/b.js\t1\t1\t1\t24']);
+ assert.deepEqual(a.rows,['a.js\t2\t3\t2\t15\tb.js\t1\t1\t1\t24']);
  assert.equal(a.call2fun,3);
  assert.equal(a.malformed,1);
  assert.equal(a.calls,2);
