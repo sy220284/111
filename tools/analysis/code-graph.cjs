@@ -303,13 +303,31 @@ function analyze(sources, ledger = []) {
   function scopedBindings(fn,file,ast,localNames){
     const callables=new Map(),objects=new Map(),keys=new Map(),aliases=[];
     if(!fn.body||!ts.isBlock(fn.body))return {callables,objects,keys};
+    // A mutation through any direct lexical alias invalidates all aliases
+    // of the same local object. Unlike module-scoped names, process only
+    // this function body to avoid conflating minified names across functions.
+    const localPoison=new Set(unsafeByFile.get(file)||[]);
+    const pairs=[];
+    for(const stmt of fn.body.statements)if(ts.isVariableStatement(stmt))
+      for(const d of stmt.declarationList.declarations)
+        if(ts.isIdentifier(d.name)&&ts.isIdentifier(d.initializer))
+          pairs.push([d.name.text,d.initializer.text]);
+    for(let pass=0;pass<pairs.length;pass++){
+      let changed=false;
+      for(const [alias,original] of pairs)
+        if(localPoison.has(alias)||localPoison.has(original)){
+          if(!localPoison.has(alias)){localPoison.add(alias);changed=true;}
+          if(!localPoison.has(original)){localPoison.add(original);changed=true;}
+        }
+      if(!changed)break;
+    }
     for(const stmt of fn.body.statements){
       if(ts.isFunctionDeclaration(stmt)&&stmt.name)
         callables.set(stmt.name.text,nodeTarget(stmt,file,ast,stmt.name.text));
       if(!ts.isVariableStatement(stmt))continue;
       for(const d of stmt.declarationList.declarations){
         if(!ts.isIdentifier(d.name)||!d.initializer||
-           unsafeByFile.get(file).has(d.name.text))continue;
+           localPoison.has(d.name.text))continue;
         if(functionLike(d.initializer))
           callables.set(d.name.text,nodeTarget(d.initializer,file,ast,
             d.initializer.name?.text||d.name.text));
@@ -326,6 +344,7 @@ function analyze(sources, ledger = []) {
     for(let pass=0;pass<aliases.length;pass++){
       let changed=false;
       for(const [alias,original] of aliases){
+        if(localPoison.has(alias)||localPoison.has(original))continue;
         if(!callables.has(alias)&&callables.has(original)){
           callables.set(alias,callables.get(original));changed=true;
         }
