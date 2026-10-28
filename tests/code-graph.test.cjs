@@ -367,3 +367,13 @@ test('reassigned exported function has no stale ESM live-binding candidate',()=>
  assert.equal(g.callEdges[0].to.symbol,'stable');
  assert.equal(g.unresolvedCallsites[0].reason,'import_without_proven_export');
 });
+
+
+test('Jelly triage Python contract executes with real unittest assertions',()=>{
+ const cp=require('node:child_process');
+ const r=cp.spawnSync('python3',['-m','unittest','discover','-s','tests',
+   '-p','test_jelly_triage.py','-v'],{cwd:path.resolve(__dirname,'..'),
+   encoding:'utf8',timeout:15000,maxBuffer:1024*1024});
+ assert.equal(r.status,0,(r.error?.message||'')+'\n'+r.stdout+'\n'+r.stderr);
+ assert.match(r.stderr,/Ran [3-9] tests?/);
+});
