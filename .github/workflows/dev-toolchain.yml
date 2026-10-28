@@ -342,8 +342,16 @@ jobs:
           assert.equal(report.requestedEntries,2);
           assert.ok(report.records.every(r=>r.sourceSHA256.length===64 && r.jellyJsonBytes>0));
           assert.ok(report.records.every(r=>r.runtimeCallsConfirmed===0));
-          console.log(JSON.stringify({status:'analyzed',records:report.records.map(({entry,jellyJsonBytes,topLevelKeys})=>({entry,jellyJsonBytes,topLevelKeys}))}));
+          console.log(JSON.stringify({status:'analyzed',records:report.records.map(({entry,jellyJsonBytes,topLevelKeys,graphCollectionCounts})=>({entry,jellyJsonBytes,topLevelKeys,graphCollectionCounts}))}));
           NODE
+          # Large recovered modules are explored separately and remain honest
+          # partial/failed evidence if Jelly runs out of its bounded budget.
+          timeout 300s node tools/analysis/jelly-runner.cjs \
+            --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
+            --out "$RUNNER_TEMP/111-jelly-analysis/large-modules" \
+            --timeout 110 \
+            --entry src/chunk-tqjdehqd.js \
+            --entry src/chunk-6d8swme1.js || echo '大型模块存在独立Jelly分析缺口，保留failed_or_partial报告用于复核'
       - name: 上传可复核Jelly真实分析及运行记录
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
