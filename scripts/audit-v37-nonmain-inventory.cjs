@@ -85,9 +85,10 @@ function build({root=ROOT,reference=PIN,verify=true}={}){
   if(real.length!==index.files.length)problem.push('historical Git tree mismatch with pinned nonmain index');
   for(const [file,sha] of real)if(orig.get(file)!==sha)problem.push('pinned file provenance mismatch: '+file);
  }
+ const relocations=new Map(JSON.parse(fs.readFileSync(path.join(root,'resources/layout/relocations.json'),'utf8')).files.map(x=>[x.old,x.current]));
  const rest=[...orig].sort(([a],[b])=>a.localeCompare(b));
  for(const [name,sha] of rest){
-  const file=path.join(root,name);
+  const file=path.join(root,relocations.get(name)||name);
   let b=null;try{b=fs.readFileSync(file);}catch(e){problem.push('missing original file '+name+': '+e.code);continue;}
   const type=category(name),actual=blobHash(b),same=actual===sha;
   if(!groups[type])groups[type]={files:0,bytes:0,unchangedFromV37:0,modifiedFromV37:0};
@@ -113,7 +114,7 @@ function build({root=ROOT,reference=PIN,verify=true}={}){
  if(code.length!==47)problem.push('bundled executable JS/MJS/CJS expected 47 got '+code.length);
  if(python.length!==3)problem.push('bundled Python code expected 3 got '+python.length);
  let py={};
- try{py=pythonAst(python,root);}catch(e){problem.push('Python AST verification failed: '+e.message);}
+ try{py=pythonAst(python.map(p=>relocations.get(p)||p),root);}catch(e){problem.push('Python AST verification failed: '+e.message);}
  const native=entries.filter(x=>x.file.endsWith('.node'));
  if(native.length!==2||native.some(x=>x.nativeFormat!=='ELF'))problem.push('two original ELF .node modules not found');
  const metrics={

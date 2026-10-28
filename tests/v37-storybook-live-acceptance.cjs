@@ -33,7 +33,7 @@ async function main(){
    (key.includes('card')||x.title?.includes('Card')));
  assert.ok(story,'actual Storybook Vite build did not emit test story');
  const {serveDir}=await import(pathToFileURL(path.join(root,
-   'resources/tools/design-sync/storybook/http-serve.mjs')).href);
+   'tools/bundled/design-sync/storybook/http-serve.mjs')).href);
  const {srv,port}=await serveDir(dst);
  const {chromium}=require('playwright');
  let browser;try{

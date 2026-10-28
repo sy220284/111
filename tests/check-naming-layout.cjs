@@ -42,16 +42,16 @@ const normalizedBatchTwo = {
   "artifact-workshop.html-a79fa64e.txt.zst": "resources/templates/artifact/artifact-workshop.html",
   "component.css-02637b0d.txt.zst": "resources/templates/artifact/component.css",
   "decisions-script.html-e58174c4.txt.zst": "resources/templates/artifact/decisions-script.html",
-  "drop_block_probe-bcdfaa4d.py.zst": "resources/tools/evaluation/drop_block_probe.py",
+  "drop_block_probe-bcdfaa4d.py.zst": "tools/bundled/evaluation/drop_block_probe.py",
   "permissions_external-df98b90a.txt.zst": "resources/docs/other/permissions-external.txt",
-  "prefix_diff-69deb9d3.py.zst": "resources/tools/evaluation/prefix_diff.py",
+  "prefix_diff-69deb9d3.py.zst": "tools/bundled/evaluation/prefix_diff.py",
   "psl-data.json-ffeefa5c.txt.zst": "resources/data/psl-data.json",
   "template.html-101715f9.txt.zst": "resources/templates/artifact/document-editor.html",
   "template.html-268183fd.txt.zst": "resources/templates/artifact/report.html",
   "template.html-cad26093.txt.zst": "resources/templates/artifact/data-table.html",
   "tokens.css-6f9090cf.txt.zst": "resources/templates/artifact/tokens.css",
   "tools-snapshot.json-517c5f68.txt.zst": "resources/data/tools-snapshot.json",
-  "validate_palette.py-f97163c4.txt.zst": "resources/tools/design/scripts/validate_palette.py",
+  "validate_palette.py-f97163c4.txt.zst": "tools/bundled/design/scripts/validate_palette.py",
   "workshop-page.html-22624ec4.txt.zst": "resources/templates/artifact/workshop-page.html"
 };
 for (const [key, destination] of Object.entries(normalizedBatchTwo)) {
@@ -61,8 +61,8 @@ for (const [key, destination] of Object.entries(normalizedBatchTwo)) {
 
 // 插件 API 及测试工具包的规范路径；原始 BunFS 键与字节哈希继续保留。
 const pluginApiCanonical = {
-  "claude-code.d.ts-bf9d954c.txt.zst": "resources/tools/plugin-api/types/claude-code.d.ts",
-  "kit-modules.js-02f8fcd0.txt.zst": "resources/tools/plugin-api/scripts/kit-modules.js"
+  "claude-code.d.ts-bf9d954c.txt.zst": "tools/bundled/plugin-api/types/claude-code.d.ts",
+  "kit-modules.js-02f8fcd0.txt.zst": "tools/bundled/plugin-api/scripts/kit-modules.js"
 };
 for (const [key, target] of Object.entries(pluginApiCanonical)) {
   assert.equal(layout.entries[key]?.path, target, '插件接口与工具包实际目录失配：'+key);
@@ -70,19 +70,19 @@ for (const [key, target] of Object.entries(pluginApiCanonical)) {
 
 
 const dependencyAwareToolBatch = {
-  "appifact_sdk.js-852e8bcb.txt.zst": "resources/tools/artifact/scripts/appifact_sdk.js",
-  "validate_palette.js-f945bc6a.txt.zst": "resources/tools/design/scripts/validate_palette.js",
-  "common.mjs-21a45017.txt.zst": "resources/tools/design-sync/lib/common.mjs",
-  "bundle.mjs-c7466167.txt.zst": "resources/tools/design-sync/lib/bundle.mjs",
-  "css.mjs-0d869c37.txt.zst": "resources/tools/design-sync/lib/css.mjs",
-  "previews.mjs-8fcda441.txt.zst": "resources/tools/design-sync/lib/previews.mjs",
-  "sync-hashes.mjs-a0844915.txt.zst": "resources/tools/design-sync/lib/sync-hashes.mjs"
+  "appifact_sdk.js-852e8bcb.txt.zst": "tools/bundled/artifact/scripts/appifact_sdk.js",
+  "validate_palette.js-f945bc6a.txt.zst": "tools/bundled/design/scripts/validate_palette.js",
+  "common.mjs-21a45017.txt.zst": "tools/bundled/design-sync/lib/common.mjs",
+  "bundle.mjs-c7466167.txt.zst": "tools/bundled/design-sync/lib/bundle.mjs",
+  "css.mjs-0d869c37.txt.zst": "tools/bundled/design-sync/lib/css.mjs",
+  "previews.mjs-8fcda441.txt.zst": "tools/bundled/design-sync/lib/previews.mjs",
+  "sync-hashes.mjs-a0844915.txt.zst": "tools/bundled/design-sync/lib/sync-hashes.mjs"
 };
 for (const [key, target] of Object.entries(dependencyAwareToolBatch)) {
   assert.equal(layout.entries[key]?.path, target, '工具资源规范路径失配：'+key);
 }
 for (const name of ['bundle.mjs', 'css.mjs', 'previews.mjs']) {
-  const dep = path.join(root, 'resources/tools/design-sync/lib', name);
+  const dep = path.join(root, 'tools/bundled/design-sync/lib', name);
   assert.ok(fs.readFileSync(dep, 'utf8').includes('./common.mjs'), '缺少原版公共库依赖：'+name);
   assert.ok(fs.existsSync(path.join(path.dirname(dep),'common.mjs')), '无法解析公共库依赖：'+name);
 }

@@ -84,15 +84,16 @@ function parse(p,data){
 function build({root=ROOT,baseline=PIN,semantics,verify=true}={}){
  root=path.resolve(root);
  const refObjects=verify?gitObjects(root,baseline):null;
- const kit=walk(path.join(root,'src/plugin-testing-kit'));
- const embedded=walk(path.join(root,'src/embedded'));
+ const kit=walk(path.join(root,'plugin-testing-kit')).map(p=>'src/'+p);
+ const embedded=walk(path.join(root,'embedded')).map(p=>'src/'+p);
  const files=[...kit,...embedded].sort();
+ const relocated=new Map(JSON.parse(fs.readFileSync(path.join(root,'resources/layout/relocations.json'),'utf8')).files.map(e=>[e.old,e.current]));
  const problems=[];
  const entries=[];
  const graphSources={};
  let functionEntities=0,exportSymbols=0;
  for(const file of files){
-  const bytes=fs.readFileSync(path.join(root,file));
+  const bytes=fs.readFileSync(path.join(root,relocated.get(file)||file));
   const hash=shaBlob(bytes),reference=refObjects?.get(file)||null;
   const classification=kind(file);
   if(verify&&reference!==hash)problems.push(file+': v37 Git blob differs or unavailable');

@@ -54,14 +54,14 @@ test('294 个插件测试模块完整链接，所有导入名称都由对应模�
 });
 
 test('插件测试包根入口可实际加载公开导出', async () => {
-  const api = await import('../src/plugin-testing-kit/index.js');
+  const api = await import('../plugin-testing-kit/index.js');
   assert.equal(typeof api.createCollector, 'function');
   assert.equal(typeof api.equals, 'function');
   assert.equal(typeof api.run, 'function');
 });
 
 test('插件测试包公开 test 入口正确转发单回调与带选项回调', async () => {
-  const { test: register, collector } = await import('../src/plugin-testing-kit/index.js');
+  const { test: register, collector } = await import('../plugin-testing-kit/index.js');
   const count = collector.cases().length;
   register('public single callback', () => true);
   register('public options callback', { timeoutMs: 35 }, () => true);
@@ -72,7 +72,7 @@ test('插件测试包公开 test 入口正确转发单回调与带选项回调',
 });
 
 test('实际恢复的结构化相等函数处理对象、循环引用与不等值', async () => {
-  const { equals } = await import('../src/plugin-testing-kit/equality/equals/equals.js');
+  const { equals } = await import('../plugin-testing-kit/equality/equals/equals.js');
   assert.equal(equals({ x: [1, 2] }, { x: [1, 2] }, 'strict'), true);
   assert.equal(equals({ x: [1, 2] }, { x: [1, 3] }, 'strict'), false);
   const left = { name: 'a' }; left.self = left;
@@ -81,7 +81,7 @@ test('实际恢复的结构化相等函数处理对象、循环引用与不等�
 });
 
 test('实际恢复的插件测试收集器执行分组、用例注册和关闭状态机', async () => {
-  const { createCollector } = await import('../src/plugin-testing-kit/collector/create-collector/create-collector.js');
+  const { createCollector } = await import('../plugin-testing-kit/collector/create-collector/create-collector.js');
   const collector = createCollector();
   assert.equal(collector.fileTier(), 'user');
   collector.describe('hook', () => collector.test('works', () => true));
@@ -94,7 +94,7 @@ test('实际恢复的插件测试收集器执行分组、用例注册和关闭�
 });
 
 test('插件测试入口到运行器：注册、宿主初始化、执行及失败回收', async () => {
-  const { install, test: register, run } = await import('../src/plugin-testing-kit/index.js');
+  const { install, test: register, run } = await import('../plugin-testing-kit/index.js');
   const opened = [];
   const closed = [];
   const host = {

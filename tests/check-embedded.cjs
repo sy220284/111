@@ -21,7 +21,7 @@ assert.deepEqual(actual.sort(), records.map(x=>x.path).sort(), '内嵌源码路�
 let checkedJavaScript=0, checkedJSON=0;
 for (const entry of records) {
  assert.ok(entry.old.startsWith('src/embedded/'), '无效原始路径');
- assert.ok(entry.path.startsWith('src/embedded/'), '无效新路径');
+ assert.ok(entry.path.startsWith('embedded/'), '无效新路径');
  assert.ok(entry.old!==entry.path && !fs.existsSync(path.join(root,entry.old)), '原始路径未清除：'+entry.old);
  const absolute=path.join(root,entry.path), data=fs.readFileSync(absolute);
  assert.ok(data.length>0 && !data.includes(0), '空文件或非法字节：'+entry.path);
