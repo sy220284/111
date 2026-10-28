@@ -215,20 +215,24 @@ function analyze(sources, ledger = []) {
   // Only a literal key or fixed syntactic property can be followed.
   // Computed identifiers, optional chains, indexing by data, and expressions
   // whose root is not an identifier stay unresolved.
-  function staticMemberChain(exp){
+  function staticMemberChain(exp,keyLookup){
     const members=[];
     let cur=exp;
     while(ts.isPropertyAccessExpression(cur)||ts.isElementAccessExpression(cur)){
-      const part=literalMemberName(cur);
-      if(part===null)return null;
+      if(cur.questionDotToken)return null;
+      let part=literalMemberName(cur);
+      if(part===null&&ts.isElementAccessExpression(cur)&&
+         ts.isIdentifier(cur.argumentExpression))
+        part=keyLookup(cur.argumentExpression.text);
+      if(part===null||part===undefined)return null;
       members.unshift(part);
       cur=cur.expression;
     }
     return ts.isIdentifier(cur)&&members.length?{root:cur.text,members}:null;
   }
   function scopedBindings(fn,file,ast){
-    const callables=new Map(),objects=new Map(),aliases=[];
-    if(!fn.body||!ts.isBlock(fn.body))return {callables,objects};
+    const callables=new Map(),objects=new Map(),keys=new Map(),aliases=[];
+    if(!fn.body||!ts.isBlock(fn.body))return {callables,objects,keys};
     for(const stmt of fn.body.statements){
       if(ts.isFunctionDeclaration(stmt)&&stmt.name)
         callables.set(stmt.name.text,nodeTarget(stmt,file,ast,stmt.name.text));
@@ -243,6 +247,8 @@ function analyze(sources, ledger = []) {
           aliases.push([d.name.text,d.initializer.text]);
         else if(ts.isObjectLiteralExpression(d.initializer))
           objects.set(d.name.text,objectMethods(d.initializer,file,ast));
+        else if(ts.isStringLiteralLike(d.initializer)||ts.isNumericLiteral(d.initializer))
+          keys.set(d.name.text,d.initializer.text);
       }
     }
     // Immutable aliases inside this same function body. Never follow parameters,
@@ -255,6 +261,9 @@ function analyze(sources, ledger = []) {
         }
         if(!objects.has(alias)&&objects.has(original)){
           objects.set(alias,objects.get(original));changed=true;
+        }
+        if(!keys.has(alias)&&keys.has(original)){
+          keys.set(alias,keys.get(original));changed=true;
         }
       }
       if(!changed)break;
@@ -277,11 +286,11 @@ function analyze(sources, ledger = []) {
         }
       }
     }
-    return {callables,objects};
+    return {callables,objects,keys};
   }
-  const moduleObjects=new Map();
+  const moduleObjects=new Map(),moduleKeys=new Map();
   for(const file of files){
-    const map=new Map(),aliases=[],ast=parsed.get(file);
+    const map=new Map(),keys=new Map(),aliases=[],ast=parsed.get(file);
     for(const stmt of ast.statements){
       if(!ts.isVariableStatement(stmt)||
          !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
@@ -291,6 +300,8 @@ function analyze(sources, ledger = []) {
           map.set(d.name.text,objectMethods(d.initializer,file,ast));
         else if(ts.isIdentifier(d.initializer))
           aliases.push([d.name.text,d.initializer.text]);
+        else if(ts.isStringLiteralLike(d.initializer)||ts.isNumericLiteral(d.initializer))
+          keys.set(d.name.text,d.initializer.text);
       }
     }
     for(let pass=0;pass<aliases.length;pass++){
@@ -299,27 +310,35 @@ function analyze(sources, ledger = []) {
         if(!map.has(alias)&&map.has(original)){
           map.set(alias,map.get(original));changed=true;
         }
+        if(!keys.has(alias)&&keys.has(original)){
+          keys.set(alias,keys.get(original));changed=true;
+        }
+      }
       if(!changed)break;
     }
     moduleObjects.set(file,map);
+    moduleKeys.set(file,keys);
   }
+  const objectExportCache=new Map();
   function exportObject(file,symbol,seen=new Set()){
     if(!file||seen.has(file+'#'+symbol))return null;
-    seen.add(file+'#'+symbol);
+    const key=file+'#'+symbol;
+    if(objectExportCache.has(key))return objectExportCache.get(key);
+    seen.add(key);
     const m=modules.get(file);
     if(!m)return null;
     const out=m.exports.get(symbol);
     if(out){
       if(out.file!==file)return exportObject(out.file,out.local,seen);
       const obj=moduleObjects.get(file)?.get(out.local);
-      if(obj)return obj;
+      if(obj){objectExportCache.set(key,obj);return obj;}
       const binding=m.imports.get(out.local);
       if(binding?.target&&!binding.namespace)
         return exportObject(binding.target,binding.export,seen);
     }
     for(const other of m.exportAll){
       const obj=exportObject(other,symbol,new Set(seen));
-      if(obj)return obj;
+      if(obj){objectExportCache.set(key,obj);return obj;}
     }
     return null;
   }
@@ -383,8 +402,15 @@ function analyze(sources, ledger = []) {
               kind='same_module_candidate';
             }else reason='unknown_identifier';
           }
-        }else if(staticMemberChain(callee)){
-          const {root:ownerName,members}=staticMemberChain(callee);
+        }else if(ts.isPropertyAccessExpression(callee)||ts.isElementAccessExpression(callee)){
+          const candidateChain=staticMemberChain(callee,name=>{
+            for(let i=activeScopes.length-1;i>=0;i--)
+              if(activeScopes[i].has(name))
+                return activeDefinitions[i].keys.get(name)||null;
+            return moduleKeys.get(file)?.get(name)||null;
+          });
+          if(candidateChain){
+          const {root:ownerName,members}=candidateChain;
           let masked=false;
           for(let i=activeScopes.length-1;i>=0;i--)
             if(activeScopes[i].has(ownerName)){
@@ -413,8 +439,7 @@ function analyze(sources, ledger = []) {
             }
           }
           if(!target)reason='property_or_namespace_unresolved';
-        }else if(ts.isPropertyAccessExpression(callee)||ts.isElementAccessExpression(callee)){
-          reason='dynamic_property';
+          }else reason='dynamic_property';
         }else if(ts.isFunctionExpression(callee)||ts.isArrowFunction(callee)){
           target=nodeTarget(callee,file,ast,callee.name?.text||null);
           kind='immediate_function_candidate';
