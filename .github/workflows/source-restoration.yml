@@ -39,6 +39,12 @@ jobs:
           node-version: '22.16.0'
       - name: 按锁定版本安装运行依赖与 TypeScript 语法分析器
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: v45临时重算11项源码改名后指纹供校准
+        run: |
+          node scripts/source-function-index.cjs
+          echo V45_INDEX_START
+          cat resources/function-summary.json
+          echo V45_INDEX_END
       - name: 先检查函数证据与源码指纹，防止改名后索引/账本陈旧
         run: |
           npm run check:source-fingerprint
