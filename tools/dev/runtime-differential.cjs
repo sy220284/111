@@ -54,9 +54,14 @@ function main(argv,spawn=cp.spawnSync){
       for(const [name,runtime] of [['node',node],['bun',bun]]){
         const trace=path.join(target,suite.id+'-'+name+'.json');
         const args=['--test',path.join(ROOT,suite.file)];
-        const result=spawn(node,args,{cwd:ROOT,encoding:'utf8',
-          env:{...process.env,CLAUDE_E2E_RUNTIME:runtime,CLAUDE_E2E_TRACE_FILE:trace,
-            CI:'true',NO_COLOR:'1',TERM:'dumb',DISABLE_TELEMETRY:'1'},
+        // Node's test runner injects NODE_TEST_CONTEXT into test-file
+        // children. Remove it for this *independent nested runner*, otherwise
+        // it can exit 0 without running a real test or writing a trace.
+        const env={...process.env,CLAUDE_E2E_RUNTIME:runtime,
+          CLAUDE_E2E_TRACE_FILE:trace,CI:'true',NO_COLOR:'1',
+          TERM:'dumb',DISABLE_TELEMETRY:'1'};
+        delete env.NODE_TEST_CONTEXT;
+        const result=spawn(node,args,{cwd:ROOT,encoding:'utf8',env,
           timeout:95000,maxBuffer:1024*1024*5});
         fs.writeFileSync(path.join(target,suite.id+'-'+name+'.tap.log'),
           (result.stdout||'')+'\n--- stderr ---\n'+(result.stderr||''));
