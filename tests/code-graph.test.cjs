@@ -252,7 +252,7 @@ test('不信任对象动态键、展开覆盖、参数遮蔽和非 const 别名'
    'const obj={run(){}};const key="run";obj[key]();'+
    'function shadow(key){obj[key]()}'+
    'const extended={run(){},...unknown};extended.run();'+
-   'let variable=obj;variable.run();'+
+   'let variable=obj;variable=unknown;variable.run();'+
    'const computed={run(){},[unknown](){}};computed.run()'
  });
  assert.deepEqual(g.errors,[]);
@@ -288,6 +288,27 @@ test('局部参数变量作为对象简写值不得误连同名模块函数',()=
  const g=analyze({'src/foo.js':
   'function cb(){};function run(cb){const api={cb,call:cb};api.cb();api.call()}'
  });
+ assert.equal(g.summary.candidateResolvedCalls,0);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+});
+
+test('真实压缩源常见 var/let 单写对象及别名可解析，属性写入必须失效',()=>{
+ const g=analyze({'src/minified.js':
+  'var a={send(){}};var b=a;let c={recv(){}};'+
+  'a.send();b.send();c.recv();'+
+  'var mutated={run(){}};mutated.run=()=>0;mutated.run();'+
+  'var overwritten={go(){}};overwritten={};overwritten.go();'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,3);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+ assert.ok(g.callEdges.some(e=>e.kind==='module_object_method_candidate'));
+ assert.equal(g.unresolvedCallsites.length,2);
+});
+test('函数内未重赋值 var 对象可解析，重赋值的同名 minified 变量不猜测',()=>{
+ const g=analyze({'src/minified.js':
+  'function f(){var obj={go(){}};obj.go()}'+
+  'function g(){var obj={go(){}};obj={};obj.go()}'});
+ // File-wide same-name conservative invalidation: both stay unresolved.
  assert.equal(g.summary.candidateResolvedCalls,0);
  assert.equal(g.summary.unresolvedCallExpressions,2);
 });
