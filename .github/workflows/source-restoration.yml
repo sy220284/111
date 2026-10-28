@@ -7,6 +7,7 @@ on:
       - 'resources/**'
       - 'runtime/**'
       - 'scripts/**'
+      - 'tools/analysis/**'
       - 'tests/**'
       - 'package.json'
       - 'package-lock.json'
@@ -18,6 +19,7 @@ on:
       - 'resources/**'
       - 'runtime/**'
       - 'scripts/**'
+      - 'tools/analysis/**'
       - 'tests/**'
       - 'package.json'
       - 'package-lock.json'
@@ -60,3 +62,50 @@ jobs:
           else
             echo "CLI --help：真实 Node 入口未通过，需按本次日志修复运行时兼容；静态测试结果不能替代运行验收。" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  code-graph:
+    name: 全量依赖和函数候选调用图分析
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装锁定版本依赖并执行调用图边界回归
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:code-graph
+      - name: 生成完整依赖/函数调用候选图及带证据语义清单
+        run: |
+          set -euo pipefail
+          node --max-old-space-size=4096 tools/analysis/code-graph.cjs scan --full --output "$RUNNER_TEMP/111-code-graph.json" > /dev/null
+          node - "$RUNNER_TEMP/111-code-graph.json" <<'NODE'
+          const fs=require('node:fs');
+          const graph=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(graph.errors.length)throw Error('Graph parser or relative dependency errors: '+JSON.stringify(graph.errors.slice(0,5)));
+          if(graph.summary.modules!==2553)throw Error('2551 main modules + 2 runtime adapter modules were not scanned');
+          const text=[
+            '## 111 依赖与函数候选调用图',
+            '- 已扫描模块：'+graph.summary.modules,
+            '- 静态模块依赖：'+graph.summary.moduleDependencies,
+            '- 调用表达式：'+graph.summary.callExpressions,
+            '- 候选函数调用：'+graph.summary.candidateResolvedCalls,
+            '- 无法可靠解析的调用表达式：'+graph.summary.unresolvedCallExpressions,
+            '- 已有定向测试语义证据：'+graph.summary.recordedSemantics,
+            '**注意：候选调用边不等于已在运行时实际执行，也不是完整的语义恢复。**'
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, text+'\n');
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/111-code-graph-summary.json', JSON.stringify(graph.summary,null,2)+'\n');
+          NODE
+      - name: 上传可重复审计的依赖图谱与汇总
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-code-graph-evidence
+          path: |
+            ${{ runner.temp }}/111-code-graph.json
+            ${{ runner.temp }}/111-code-graph-summary.json
+          retention-days: 30
+          if-no-files-found: error
