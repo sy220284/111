@@ -52,6 +52,15 @@ class TriageTests(unittest.TestCase):
         s=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("jelly_static_points_to\t否","jelly_static_points_to\t是"),encoding="utf8")
         with self.assertRaisesRegex(ValueError,"misclassified"):classify_candidates(self.report,self.graph,self.functions)
+    def test_111_function_index_filename_has_no_src_prefix(self):
+        # The real recovered function-index file stores top-level source keys
+        # as "chunk-...js", while Jelly locations include "src/".
+        self.functions={"b.js":[{"name":"realFn","line":8,"column":5}]}
+        result=classify_candidates(self.report,self.graph,self.functions)
+        self.assertEqual(result["singleIndexedStaticCandidateCallsites"],1)
+        self.assertEqual(result["functionIndexMainModulePathsNormalized"],1)
+        self.assertEqual(result["runtimeCallsConfirmed"],0)
+
     def test_same_position_nested_ast_calls_are_ambiguous_even_with_one_jelly_target(self):
         # Nested calls f()() can share the same AST start location.
         self.graph["unresolvedCallsites"].append({
