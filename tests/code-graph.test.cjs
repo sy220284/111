@@ -354,3 +354,16 @@ test('uninitialized var declarations remain valid while alias safety analysis sc
  assert.equal(g.summary.candidateResolvedCalls,2);
  assert.equal(g.summary.unresolvedCallExpressions,0);
 });
+
+
+test('reassigned exported function has no stale ESM live-binding candidate',()=>{
+ const g=analyze({
+  'src/api.js':'export function changed(){return 1};changed=()=>2;export function stable(){return 3}',
+  'src/client.js':'import {changed,stable} from "./api.js";changed();stable()'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,1);
+ assert.equal(g.callEdges[0].to.symbol,'stable');
+ assert.equal(g.unresolvedCallsites[0].reason,'import_without_proven_export');
+});
