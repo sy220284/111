@@ -1,0 +1,180 @@
+name: 同源源码与真实原生反编译联合证据
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/analysis/recovery-bundle.py'
+      - 'tests/test_recovery_bundle.py'
+      - '.github/workflows/recovery-evidence.yml'
+      - 'tools/analysis/ghidra-headless.sh'
+      - 'tools/analysis/ghidra-scripts/**'
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'resources/bunfs/*.node'
+      - 'tools/analysis/code-graph.cjs'
+      - 'tools/analysis/jelly-runner.cjs'
+      - 'tools/dev/toolchain-versions.env'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/analysis/recovery-bundle.py'
+      - 'tests/test_recovery_bundle.py'
+      - '.github/workflows/recovery-evidence.yml'
+      - 'tools/analysis/ghidra-headless.sh'
+      - 'tools/analysis/ghidra-scripts/**'
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'resources/bunfs/*.node'
+      - 'tools/analysis/code-graph.cjs'
+      - 'tools/analysis/jelly-runner.cjs'
+      - 'tools/dev/toolchain-versions.env'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: 同一源码提交的 AST、Jelly 与真实本地业务证据
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 独立验证器单元测试与锁定依赖
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_recovery_bundle.py' -v
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:code-graph
+          npm run check:source-fingerprint
+      - name: 重算同提交源码函数索引与完整静态图谱
+        run: |
+          set -euo pipefail
+          mkdir -p .recovery-ci/source
+          git rev-parse HEAD > .recovery-ci/source/commit.txt
+          node scripts/source-function-index.cjs --full
+          cp resources/function-summary.json .recovery-ci/source/function-summary.json
+          node --max-old-space-size=4096 tools/analysis/code-graph.cjs scan --full \
+            --output .recovery-ci/source/code-graph.json > /dev/null
+          node tools/analysis/closure-audit.cjs \
+            --graph .recovery-ci/source/code-graph.json \
+            --output .recovery-ci/source/closure.json > .recovery-ci/source/closure.log
+      - name: 用锁定 Jelly 分析真实同提交模块
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          npm install --prefix "$RUNNER_TEMP/jelly" --ignore-scripts --no-audit --no-fund \
+            --save-exact "@cs-au-dk/jelly@$JELLY_VERSION"
+          node -e "if (require(process.argv[1]).version !== process.argv[2]) process.exit(1)" \
+            "$RUNNER_TEMP/jelly/node_modules/@cs-au-dk/jelly/package.json" "$JELLY_VERSION"
+          printf '#!/usr/bin/env bash\nexec node "%s" "$@"\n' \
+            "$RUNNER_TEMP/jelly/node_modules/@cs-au-dk/jelly/lib/main.js" > "$RUNNER_TEMP/jelly-cli"
+          chmod +x "$RUNNER_TEMP/jelly-cli"
+          node tools/analysis/jelly-runner.cjs \
+            --jelly "$RUNNER_TEMP/jelly-cli" --out .recovery-ci/source/jelly \
+            --timeout 110 --entry src/chunk-sdz0xp27.js --entry src/chunk-01qhvw6m.js
+      - name: 真实 Node CLI 的本地模型 SSE 与 MCP 工具往返
+        run: |
+          set -euo pipefail
+          npm run check:cli-live-model-turn
+          npm run check:cli-live-mcp-tools
+          git rev-parse HEAD > .recovery-ci/source/node-runtime-tests.ok
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: 111-recovery-stage-source
+          path: .recovery-ci/source/
+          retention-days: 30
+          if-no-files-found: warn
+
+  native:
+    name: Ghidra 对两份仓库真实原生模块导出函数级 C 伪代码
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: 按111版本清单校验官方 Ghidra 发行归档
+        run: |
+          set -euo pipefail
+          source tools/dev/toolchain-versions.env
+          archive="ghidra_$GHIDRA_VERSION""_PUBLIC_$GHIDRA_RELEASE_DATE.zip"
+          curl --fail --location --retry 3 \
+            "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_$GHIDRA_VERSION""_build/$archive" \
+            -o "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$GHIDRA_ZIP_SHA256" "$RUNNER_TEMP/$archive" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/$archive" -d "$RUNNER_TEMP"
+          export GHIDRA_HOME="$RUNNER_TEMP/ghidra_$GHIDRA_VERSION""_PUBLIC"
+          test -x "$GHIDRA_HOME/support/analyzeHeadless"
+          echo "$GHIDRA_HOME" > "$RUNNER_TEMP/ghidra-home.txt"
+      - name: 对真实 audio/clipboard N-API 二进制实际反编译并记录失败函数
+        run: |
+          set -euo pipefail
+          mkdir -p .recovery-ci/native
+          git rev-parse HEAD > .recovery-ci/native/commit.txt
+          export GHIDRA_HOME
+          GHIDRA_HOME="$(cat "$RUNNER_TEMP/ghidra-home.txt")"
+          export GHIDRA_ANALYSIS_TIMEOUT_SECONDS=600
+          for name in audio-capture clipboard-napi; do
+            bash tools/analysis/ghidra-headless.sh \
+              --input "resources/bunfs/$name.node" \
+              --output ".recovery-ci/native/$name"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: 111-recovery-stage-native
+          path: .recovery-ci/native/
+          retention-days: 30
+          if-no-files-found: warn
+
+  integrate:
+    name: 跨阶段 SHA/函数证据校验并生成同源可追溯交付包
+    needs: [source, native]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: 111-recovery-stage-*
+          path: .recovery-ci/input
+          merge-multiple: false
+      - name: 重新核验两个独立作业的源码指纹、真实二进制与全部函数计数
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_recovery_bundle.py' -v
+          python3 tools/analysis/recovery-bundle.py \
+            --root . \
+            --source .recovery-ci/input/111-recovery-stage-source \
+            --native .recovery-ci/input/111-recovery-stage-native \
+            --output .recovery-ci/bundle
+          (cd .recovery-ci/bundle && sha256sum -c SHA256SUMS)
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('.recovery-ci/bundle/SUMMARY.json').read_text())
+          assert len(r['native']) == 2
+          assert r['originalMainELFDecompiled'] is False
+          assert r['originalJSCBytecodeRecovered'] is False
+          print(json.dumps(r,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-same-commit-source-native-recovery-evidence
+          path: .recovery-ci/bundle/
+          retention-days: 90
+          compression-level: 6
+          if-no-files-found: error
