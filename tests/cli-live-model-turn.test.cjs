@@ -48,11 +48,60 @@ function serve(req,res,received){
     res.end();
   });
 }
+
+function diagnosticModules(){
+  const d=[
+    {original:'cli.js',copy:'.e2e-cli-debug.js'},
+    {original:'chunk-kfdf5pq3.js',copy:'.e2e-main-debug.js'},
+    {original:'chunk-mh7sh27p.js',copy:'.e2e-commander-debug.js'}
+  ];
+  const files=[];
+  try {
+    const edits={
+      'cli.js':[
+        ['async function Ye(){','async function Ye(){console.error("TRACE_CLI_ENTRY");'],
+        ['import("./chunk-kfdf5pq3.js")','import("./.e2e-main-debug.js")'],
+        ['await Pe(s),P("cli_after_main_complete")','console.error("TRACE_MAIN_CALL"),await Pe(s),console.error("TRACE_MAIN_RETURN"),P("cli_after_main_complete")']
+      ],
+      'chunk-kfdf5pq3.js':[
+        ['from"./chunk-mh7sh27p.js"','from"./.e2e-commander-debug.js"'],
+        ['async function xu(n){','async function xu(n){console.error("TRACE_XU");'],
+        ['async function rr(n,e,C){','async function rr(n,e,C){console.error("TRACE_RR");'],
+        ['if(D&&!H)return go("run_before_parse"),await s.parseAsync(process.argv),go("run_after_parse"),s;',
+          'if(D&&!H)return console.error("TRACE_PARSE_IN"),go("run_before_parse"),await s.parseAsync(process.argv),console.error("TRACE_PARSE_OUT"),go("run_after_parse"),s;']
+      ],
+      'chunk-mh7sh27p.js':[
+        ['function iis(e){','function iis(e){console.error("TRACE_IIS");'],
+        ['r.hook("preAction",async(h,y)=>{','r.hook("preAction",async(h,y)=>{console.error("TRACE_PRE_ACTION");'],
+        ['await Promise.all([ONe(),pwn()])','console.error("TRACE_AWAIT_INIT"),await Promise.all([ONe(),pwn()]),console.error("TRACE_INIT_DONE")'],
+        ['n=await Jio(','console.error("TRACE_JIO"),n=await Jio('],
+        ['B.action(async(h,y)=>{','B.action(async(h,y)=>{console.error("TRACE_ACTION");']
+      ]
+    };
+    for(const {original,copy} of d){
+      const input=fs.readFileSync(path.join(root,'src',original),'utf8');
+      let output=input;
+      for(const [needle,replacement] of edits[original]){
+        assert.ok(output.includes(needle),'instrumentation anchor missing '+original+': '+needle);
+        output=output.replace(needle,replacement);
+      }
+      const target=path.join(root,'src',copy);
+      fs.writeFileSync(target,output);
+      files.push(target);
+    }
+    return {bin:files[0],cleanup:()=>{for(const p of files)fs.rmSync(p,{force:true})}};
+  }catch(e){
+    for(const p of files)fs.rmSync(p,{force:true});
+    throw e;
+  }
+}
+
 test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {timeout:75000},async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-model-e2e-'));
   const requests=[];
   const server=http.createServer((req,res)=>serve(req,res,requests));
   let child,timeout;
+  const trace=diagnosticModules();
   try{
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const port=server.address().port;
@@ -64,7 +113,7 @@ test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {time
       ANTHROPIC_AUTH_TOKEN:'',ANTHROPIC_BASE_URL:'http://127.0.0.1:'+port,
       HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'
     };
-    const args=[bin,'--bare','--print','Say '+marker+' exactly',
+    const args=[trace.bin,'--bare','--print','Say '+marker+' exactly',
       '--model','claude-sonnet-4-5','--output-format','json',
       '--no-session-persistence','--max-turns','1'];
     child=spawn(runtime,args,{cwd:dir,env,stdio:['ignore','pipe','pipe']});
@@ -84,5 +133,6 @@ test('真实 CLI --print 从本地模型 SSE 响应流生成最终结果', {time
     if(child&&child.exitCode===null)child.kill('SIGKILL');
     await new Promise(resolve=>server.close(resolve));
     fs.rmSync(dir,{recursive:true,force:true});
+    trace.cleanup();
   }
 });
