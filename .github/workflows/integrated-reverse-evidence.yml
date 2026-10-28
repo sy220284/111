@@ -1,0 +1,89 @@
+name: 111 原生与源码统一证据验证
+on:
+  workflow_dispatch:
+    inputs:
+      toolchain_run:
+        description: '已通过验证且含 Ghidra/JDK 组件的 Actions run ID'
+        required: true
+        default: '40678086652'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/analysis/integrated-reverse-evidence.py'
+      - 'tests/integrated-reverse-evidence.test.py'
+      - '.github/workflows/integrated-reverse-evidence.yml'
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  integrated-evidence:
+    name: 同提交AST图谱及真实原生组件Ghidra反编译
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-installed
+      DEV111_STATE_DIR: ${{ runner.temp }}/111-state
+      DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
+      DEV111_ARTIFACTS_DIR: ${{ runner.temp }}/111-artifacts
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 验证原生证据的完整性与拒绝错误声明
+        run: python3 -m unittest discover -s tests -p 'integrated-reverse-evidence.test.py' -v
+      - name: 安装固定AST依赖并重建当前提交完整调用图
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:code-graph
+          node --max-old-space-size=4096 tools/analysis/code-graph.cjs scan --full --output "$RUNNER_TEMP/111-current-graph.json" > /dev/null
+      - name: 取得已验收 Ghidra 12.2 和 JDK 25 独立组件
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOOLCHAIN_RUN: ${{ inputs.toolchain_run || '40678086652' }}
+        run: |
+          set -euo pipefail
+          case "$TOOLCHAIN_RUN" in *[!0-9]*|'') echo '无效Actions运行号' >&2; exit 1;; esac
+          for component in jdk ghidra; do
+            name="111-toolchain-$component-latest"
+            mkdir -p "$DEV111_ARTIFACTS_DIR/$name"
+            gh run download "$TOOLCHAIN_RUN" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$DEV111_ARTIFACTS_DIR/$name"
+            bash tools/dev/ai-toolchain.sh verify-artifact "$component" "$DEV111_ARTIFACTS_DIR/$name"
+          done
+          echo "TOOLCHAIN_PROVENANCE_RUN=$TOOLCHAIN_RUN" >> "$GITHUB_ENV"
+      - name: 真实离线安装并反编译仓库的两个原生N-API组件
+        run: |
+          set -euo pipefail
+          bash tools/dev/ai-toolchain.sh bootstrap --profile reverse --artifacts-dir "$DEV111_ARTIFACTS_DIR"
+          bash tools/dev/ai-toolchain.sh check --profile reverse
+          for name in audio-capture.node clipboard-napi.node; do
+            timeout 1100s bash tools/dev/ai-toolchain.sh run --profile reverse --               bash tools/analysis/ghidra-headless.sh               --input "resources/bunfs/$name" --output "$RUNNER_TEMP/111-native/$name"
+          done
+      - name: 合并原生和JS图谱的独立证据，严禁冒充等价恢复
+        run: |
+          set -euo pipefail
+          python3 tools/analysis/integrated-reverse-evidence.py             --repo . --graph "$RUNNER_TEMP/111-current-graph.json"             --native-root "$RUNNER_TEMP/111-native"             --commit "$GITHUB_SHA" --toolchain-run "$TOOLCHAIN_PROVENANCE_RUN"             --output "$RUNNER_TEMP/111-native/integrated-evidence.json"
+          cp "$RUNNER_TEMP/111-current-graph.json" "$RUNNER_TEMP/111-native/source-graph.json"
+          python3 - "$RUNNER_TEMP/111-native/integrated-evidence.json" <<'PY'
+          import json,sys
+          j=json.load(open(sys.argv[1]))
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('## 111 原生/JS统一证据（非原版等价）\n')
+              f.write('源码模块: %s；原生组件: %s。\n' %
+                      (j['source']['modules'],len(j['native'])))
+              for n in j['native']:
+                  f.write('- %s: %s/%s 函数反编译；失败 %s\n' %
+                          (n['name'], n['functions']['decompiled'],
+                           n['functions']['total'],n['functions']['failed']))
+              f.write('JSC字节码恢复、跨语言调用边、原版ELF等价均未验证。\n')
+          PY
+      - name: 上传同一提交的分析产物及明确未完成项
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-integrated-native-source-evidence
+          path: ${{ runner.temp }}/111-native/
+          retention-days: 30
+          if-no-files-found: warn
