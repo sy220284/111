@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'tests/cli-live-model-turn.test.cjs'
+      - 'tests/cli/cli-live-model-turn.test.cjs'
       - 'src/**'
       - 'bin/**'
       - 'runtime/**'
@@ -13,7 +13,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tests/cli-live-model-turn.test.cjs'
+      - 'tests/cli/cli-live-model-turn.test.cjs'
       - 'src/**'
       - 'bin/**'
       - 'runtime/**'

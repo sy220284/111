@@ -102,13 +102,13 @@
     "check:mcp-rpc-cancellation": "node --test tests/mcp/mcp-rpc-cancellation.test.cjs",
     "check:v37-nonmain": "node --test tests/restoration/v37-nonmain-inventory.test.cjs",
     "audit:v37-nonmain": "node scripts/audit-v37-nonmain-inventory.cjs",
-    "check:cli-live-model-turn": "node --test tests/cli-live-model-turn.test.cjs",
-    "check:historical-business-chains": "node --test tests/historical-business-chains.test.cjs",
-    "check:historical-permissions": "node --test tests/historical-permission-rule-parity.test.cjs",
-    "check:historical-array-parity": "node --test tests/historical-array-parity.test.cjs",
-    "check:historical-live-import": "node --test tests/historical-live-module-import.test.mjs",
-    "check:cli-live-mcp-tools": "node --test tests/cli-live-mcp-tool-model-e2e.test.cjs",
-    "check:daemon-live-supervisor": "node --test tests/cli-live-daemon-supervisor.test.cjs"
+    "check:cli-live-model-turn": "node --test tests/cli/cli-live-model-turn.test.cjs",
+    "check:historical-business-chains": "node --test tests/restoration/historical-business-chains.test.cjs",
+    "check:historical-permissions": "node --test tests/restoration/historical-permission-rule-parity.test.cjs",
+    "check:historical-array-parity": "node --test tests/restoration/historical-array-parity.test.cjs",
+    "check:historical-live-import": "node --test tests/restoration/historical-live-module-import.test.mjs",
+    "check:cli-live-mcp-tools": "node --test tests/cli/cli-live-mcp-tool-model-e2e.test.cjs",
+    "check:daemon-live-supervisor": "node --test tests/daemon/cli-live-daemon-supervisor.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"

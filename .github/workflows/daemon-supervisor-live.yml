@@ -6,7 +6,7 @@ on:
       - 'src/**'
       - 'runtime/**'
       - 'bin/**'
-      - 'tests/cli-live-daemon-supervisor.test.cjs'
+      - 'tests/daemon/cli-live-daemon-supervisor.test.cjs'
       - '.github/workflows/daemon-supervisor-live.yml'
       - 'package.json'
   push:
@@ -15,7 +15,7 @@ on:
       - 'src/**'
       - 'runtime/**'
       - 'bin/**'
-      - 'tests/cli-live-daemon-supervisor.test.cjs'
+      - 'tests/daemon/cli-live-daemon-supervisor.test.cjs'
       - '.github/workflows/daemon-supervisor-live.yml'
       - 'package.json'
 permissions:

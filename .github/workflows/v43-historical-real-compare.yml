@@ -12,8 +12,8 @@ on:
       - 'scripts/audit-historical-business-chains.cjs'
       - 'tools/analysis/code-graph.cjs'
       - 'tests/restoration/code-graph.test.cjs'
-      - 'tests/historical-business-chains.test.cjs'
-      - 'tests/v45-real-business-703.test.cjs'
+      - 'tests/restoration/historical-business-chains.test.cjs'
+      - 'tests/restoration/v45-real-business-703.test.cjs'
       - 'src/chunk-9z5ybxhe.js'
       - 'src/chunk-wrtp8qz8.js'
       - 'src/chunk-bwt94x0y.js'
@@ -67,7 +67,7 @@ jobs:
             --audited .generated/v44-reviewed-703.json \
             --graph .generated/v45-full-code-graph.json \
             --src src --out .generated/v45-703-business-chains.json
-          node --test tests/v45-real-business-703.test.cjs
+          node --test tests/restoration/v45-real-business-703.test.cjs
 
           node - <<'NODE'
           const fs=require('node:fs');
