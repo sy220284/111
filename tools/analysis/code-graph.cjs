@@ -217,7 +217,7 @@ function analyze(sources, ledger = []) {
       if(!ts.isVariableStatement(stmt)||
          !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
       for(const d of stmt.declarationList.declarations)
-        if(ts.isIdentifier(d.name)&&ts.isObjectLiteralExpression(d.initializer))
+        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isObjectLiteralExpression(d.initializer))
           map.set(d.name.text,objectMethods(d.initializer,file,ast));
     }
     moduleObjects.set(file,map);
