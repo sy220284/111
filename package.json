@@ -38,7 +38,7 @@
     "check:restored-hook-identifiers": "node --test tests/hooks/hook-identifier-restored.test.cjs",
     "check:hook-dispatch": "node --no-warnings --experimental-vm-modules --test tests/hooks/hook-dispatch-source.test.cjs",
     "check:cli-routing": "node --test tests/cli/cli-command-dispatch-source.test.cjs",
-    "check:naming-layout": "node tests/check-naming-layout.cjs",
+    "check:naming-layout": "node tests/check-naming-layout.cjs && node tests/check-repository-layout.cjs",
     "check:query-loop-recovery": "node --test tests/model/query-loop-recovery.test.cjs",
     "check:query-loop-callchain": "node scripts/trace-query-loop-callchain.cjs",
     "check:session-append-storage": "node --test tests/model/session-append-storage.test.cjs",

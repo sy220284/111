@@ -85,10 +85,12 @@ function build({root=ROOT,reference=PIN,verify=true}={}){
   if(real.length!==index.files.length)problem.push('historical Git tree mismatch with pinned nonmain index');
   for(const [file,sha] of real)if(orig.get(file)!==sha)problem.push('pinned file provenance mismatch: '+file);
  }
+ const relocations=new Map(JSON.parse(fs.readFileSync(path.join(root,'resources/layout/relocations.json'),'utf8')).files.map(e=>[e.old,e.current]));
  const rest=[...orig].sort(([a],[b])=>a.localeCompare(b));
  for(const [name,sha] of rest){
-  const file=path.join(root,name);
-  let b=null;try{b=fs.readFileSync(file);}catch(e){problem.push('missing original file '+name+': '+e.code);continue;}
+  const original=path.join(root,name);
+  const current=relocations.has(name)?path.join(root,relocations.get(name)):original;
+  let b=null;try{b=fs.readFileSync(current);}catch(e){problem.push('missing classified file '+name+' => '+path.relative(root,current)+': '+e.code);continue;}
   const type=category(name),actual=blobHash(b),same=actual===sha;
   if(!groups[type])groups[type]={files:0,bytes:0,unchangedFromV37:0,modifiedFromV37:0};
   groups[type].files++;groups[type].bytes+=b.length;

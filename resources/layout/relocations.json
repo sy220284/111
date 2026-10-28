@@ -1,0 +1,485 @@
+{
+  "schema": 1,
+  "baseCommit": "cd36d5df94b496efbc12d826891268eb64cee869",
+  "description": "Source path to categorized current path, preserving pinned historical references",
+  "counts": {
+    "tests": 68,
+    "documents": 11
+  },
+  "files": [
+    {
+      "old": "docs/2026-10-28-全仓审计与语义恢复执行路线.md",
+      "current": "docs/architecture/2026-10-28-全仓审计与语义恢复执行路线.md",
+      "originalGitBlob": "f2e1ba5af48135f82c6bf376b866382976d46ec5",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_内嵌子工程真实函数语义证据.md",
+      "current": "docs/research/v37/内嵌子工程真实函数语义证据.md",
+      "originalGitBlob": "9f0366d4b76e61b711a5129fd6c23cbaa8b79c4f",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_剩余652文件完整代码与功能深度核实.md",
+      "current": "docs/research/v37/剩余652文件完整代码与功能深度核实.md",
+      "originalGitBlob": "09390181586beac3d00f6333c1829d5290bc4ad8",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_固定版源码复核.md",
+      "current": "docs/research/v37/固定版源码复核.md",
+      "originalGitBlob": "3122e750da9c7d3a550b475572665a29f6ce9617",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v40_50项函数级核查与恢复记录.md",
+      "current": "docs/restoration/v40/50项函数级核查与恢复记录.md",
+      "originalGitBlob": "4c422dc21a933c3891aff17af5c3729667b8f0f7",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v41_批量恢复流水线与验证范围.md",
+      "current": "docs/restoration/v41/批量恢复流水线与验证范围.md",
+      "originalGitBlob": "740a8bfb33ba36a4c3c9d2599f526641598f6904",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v42_Daemon_Beacon源码恢复验证.md",
+      "current": "docs/restoration/v42/Daemon_Beacon源码恢复验证.md",
+      "originalGitBlob": "565b6908c08db27d70da6b92a0d574d981e5a0eb",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v43_批量恢复_真实历史匹配_生命周期测试.md",
+      "current": "docs/restoration/v43/批量恢复_真实历史匹配_生命周期测试.md",
+      "originalGitBlob": "a47ea2658157e274df7b830e018b25ec9daf74be",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v44_703项真实历史候选逐条独立复核.md",
+      "current": "docs/research/v44/703项真实历史候选逐条独立复核.md",
+      "originalGitBlob": "be9da2858ddcf6b934cf9e1d2515d3e51eddb8f6",
+      "kind": "document"
+    },
+    {
+      "old": "docs/命名规范化改动记录.md",
+      "current": "docs/conventions/命名规范化改动记录.md",
+      "originalGitBlob": "488f65469d45c135210cac9e2a9c2e3c22add79c",
+      "kind": "document"
+    },
+    {
+      "old": "docs/源码与资源统一命名规范.md",
+      "current": "docs/conventions/源码与资源统一命名规范.md",
+      "originalGitBlob": "419dc7a8d9e0a3bb7cbf0cb96e129fcf274e88f2",
+      "kind": "document"
+    },
+    {
+      "old": "tests/adoption-metrics-evidence.test.cjs",
+      "current": "tests/daemon/adoption-metrics-evidence.test.cjs",
+      "originalGitBlob": "56e6b13abda3c67c698e7a85cc1669b01a140a81",
+      "kind": "test"
+    },
+    {
+      "old": "tests/adoption-state-ownership.test.cjs",
+      "current": "tests/daemon/adoption-state-ownership.test.cjs",
+      "originalGitBlob": "9ef81f899432d9ccb0de18ee7691c7c1c7c8d701",
+      "kind": "test"
+    },
+    {
+      "old": "tests/adoption-summary.test.cjs",
+      "current": "tests/daemon/adoption-summary.test.cjs",
+      "originalGitBlob": "aee5806b95cfd9c0ed23b0406192b760c802b124",
+      "kind": "test"
+    },
+    {
+      "old": "tests/agent-resume-errors.test.cjs",
+      "current": "tests/agents/agent-resume-errors.test.cjs",
+      "originalGitBlob": "cee08cecb4d340e982f81be5bf1459b5b4dc7ee5",
+      "kind": "test"
+    },
+    {
+      "old": "tests/batch-restoration-candidates.test.cjs",
+      "current": "tests/restoration/batch-restoration-candidates.test.cjs",
+      "originalGitBlob": "3aeb4ddaf5f2aceb078d8929230528b9c42b1a9a",
+      "kind": "test"
+    },
+    {
+      "old": "tests/bun-jsc-compat.test.cjs",
+      "current": "tests/runtime/bun-jsc-compat.test.cjs",
+      "originalGitBlob": "6588afcc5c13369afce036d0edfcb5cc691c02bb",
+      "kind": "test"
+    },
+    {
+      "old": "tests/cli-command-dispatch-source.test.cjs",
+      "current": "tests/cli/cli-command-dispatch-source.test.cjs",
+      "originalGitBlob": "694096df8ecaf0b441c4e4a0d5df490330fea9aa",
+      "kind": "test"
+    },
+    {
+      "old": "tests/cli-live-mcp-e2e.test.cjs",
+      "current": "tests/cli/cli-live-mcp-e2e.test.cjs",
+      "originalGitBlob": "cdb4ec3f08aabf7e5b9231af714c4ffdba59ee3e",
+      "kind": "test"
+    },
+    {
+      "old": "tests/closure-audit.test.cjs",
+      "current": "tests/restoration/closure-audit.test.cjs",
+      "originalGitBlob": "2801d46af7c1763595f3d685d2fce9666f6a7261",
+      "kind": "test"
+    },
+    {
+      "old": "tests/code-graph.test.cjs",
+      "current": "tests/restoration/code-graph.test.cjs",
+      "originalGitBlob": "0c431284a4da2c2e7113c821b6d262e5403360ac",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-adoption-contract.test.cjs",
+      "current": "tests/daemon/daemon-adoption-contract.test.cjs",
+      "originalGitBlob": "91033e8ba3cf39572cb949960ca85b52e3f62937",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-beacon-source-restoration.test.cjs",
+      "current": "tests/daemon/daemon-beacon-source-restoration.test.cjs",
+      "originalGitBlob": "5dd37515ca83fc28a0c6b243c4b954557b9ac9e3",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-control-evidence.test.cjs",
+      "current": "tests/daemon/daemon-control-evidence.test.cjs",
+      "originalGitBlob": "933a9306e30fb586f3ad331a1a95d63c66d67b37",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-job-contract.test.cjs",
+      "current": "tests/daemon/daemon-job-contract.test.cjs",
+      "originalGitBlob": "59b94a5d6ba0c2cbc34d77cdb08c265658626fb1",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-job-evidence.test.cjs",
+      "current": "tests/daemon/daemon-job-evidence.test.cjs",
+      "originalGitBlob": "237038c27d25cd738b6fefb97ed58ba8cd8d8edd",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-orphan-cleanup.test.cjs",
+      "current": "tests/daemon/daemon-orphan-cleanup.test.cjs",
+      "originalGitBlob": "6986ac45dbff2767fd0d68b4dc2be843206931d4",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-protocol-evidence.test.cjs",
+      "current": "tests/daemon/daemon-protocol-evidence.test.cjs",
+      "originalGitBlob": "11c347c131f7c6929cdc86d1cdcadbf9635af6f4",
+      "kind": "test"
+    },
+    {
+      "old": "tests/daemon-recovery-helpers.test.cjs",
+      "current": "tests/daemon/daemon-recovery-helpers.test.cjs",
+      "originalGitBlob": "712d58cf3b1b0a797a74fcc05f60f792965fe15a",
+      "kind": "test"
+    },
+    {
+      "old": "tests/design-sync-adapter-contract.test.cjs",
+      "current": "tests/plugins/design-sync-adapter-contract.test.cjs",
+      "originalGitBlob": "a4a8e890cbc8e686fcfbb3c1803a0b025068d799",
+      "kind": "test"
+    },
+    {
+      "old": "tests/function-hook-worker-contract.test.cjs",
+      "current": "tests/hooks/function-hook-worker-contract.test.cjs",
+      "originalGitBlob": "746b2f70435add098b98cc890aa836f39f8167ea",
+      "kind": "test"
+    },
+    {
+      "old": "tests/gaxios-fetch-runtime.test.cjs",
+      "current": "tests/runtime/gaxios-fetch-runtime.test.cjs",
+      "originalGitBlob": "01b4fd279ea18040a1ecce88ce1fef54c3aa40e9",
+      "kind": "test"
+    },
+    {
+      "old": "tests/hook-dispatch-source.test.cjs",
+      "current": "tests/hooks/hook-dispatch-source.test.cjs",
+      "originalGitBlob": "0eb6c367dc06a2ee11f7c3a23fb63aa0270c0d23",
+      "kind": "test"
+    },
+    {
+      "old": "tests/hook-identifier-restored.test.cjs",
+      "current": "tests/hooks/hook-identifier-restored.test.cjs",
+      "originalGitBlob": "5c2e29feaaa1dabed2d043aa5c362d4020976e4c",
+      "kind": "test"
+    },
+    {
+      "old": "tests/hooks-source-restoration.test.cjs",
+      "current": "tests/hooks/hooks-source-restoration.test.cjs",
+      "originalGitBlob": "8337a66a9704cfad482468bcacd7729f29d90558",
+      "kind": "test"
+    },
+    {
+      "old": "tests/js-resource-loader.test.mjs",
+      "current": "tests/runtime/js-resource-loader.test.mjs",
+      "originalGitBlob": "8870853da9cbfd728d9c17ba2ca56e8461471d68",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-connection-settlement.test.cjs",
+      "current": "tests/mcp/mcp-connection-settlement.test.cjs",
+      "originalGitBlob": "fc2eb951b1721d1bcfd346718bddefe840afe012",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-issuer-echo.test.cjs",
+      "current": "tests/mcp/mcp-issuer-echo.test.cjs",
+      "originalGitBlob": "bdb07fa376aceb011620e9dabb6300359d3614bc",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-oauth-lifecycle.test.cjs",
+      "current": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
+      "originalGitBlob": "678dc67292cda805d06c752d18af1b0c38f62acb",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-oauth-refresh-errors.test.cjs",
+      "current": "tests/mcp/mcp-oauth-refresh-errors.test.cjs",
+      "originalGitBlob": "f6ddc8ce73523cb400379a8ddc157bbc5bc844bc",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-oauth-refresh-lock.test.cjs",
+      "current": "tests/mcp/mcp-oauth-refresh-lock.test.cjs",
+      "originalGitBlob": "db95e0366ab4b088c893f58558eea7ffc815b1f0",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-retry-executor.test.cjs",
+      "current": "tests/mcp/mcp-retry-executor.test.cjs",
+      "originalGitBlob": "1913d86c0b41d0b6894b3873589899880cf0f0ee",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-retry-state.test.cjs",
+      "current": "tests/mcp/mcp-retry-state.test.cjs",
+      "originalGitBlob": "304c4bb2a650a83ba40653f3041132612da8f6f2",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-rpc-cancellation.test.cjs",
+      "current": "tests/mcp/mcp-rpc-cancellation.test.cjs",
+      "originalGitBlob": "e798860c3e9e3502aa2917996d752a257fbcda40",
+      "kind": "test"
+    },
+    {
+      "old": "tests/mcp-tool-forwarding.test.cjs",
+      "current": "tests/mcp/mcp-tool-forwarding.test.cjs",
+      "originalGitBlob": "75dd3a55b00b94ed81e415d7ebe9e392234e0772",
+      "kind": "test"
+    },
+    {
+      "old": "tests/model-refusal-recovery.test.cjs",
+      "current": "tests/model/model-refusal-recovery.test.cjs",
+      "originalGitBlob": "d95f553d077f7c9e9f630a48126a320c621049bc",
+      "kind": "test"
+    },
+    {
+      "old": "tests/model-request-source.test.cjs",
+      "current": "tests/model/model-request-source.test.cjs",
+      "originalGitBlob": "132415449a034e2083bbb48826092f69253b9f4f",
+      "kind": "test"
+    },
+    {
+      "old": "tests/native-audio-source.test.cjs",
+      "current": "tests/runtime/native-audio-source.test.cjs",
+      "originalGitBlob": "156456749dfd0fc6c408f03b3735c7796c2802b5",
+      "kind": "test"
+    },
+    {
+      "old": "tests/permission-template-source.test.cjs",
+      "current": "tests/hooks/permission-template-source.test.cjs",
+      "originalGitBlob": "5f884f91a8f4574f51d8182eb0a7f07ad8562829",
+      "kind": "test"
+    },
+    {
+      "old": "tests/plugin-eval-report-source.test.cjs",
+      "current": "tests/plugins/plugin-eval-report-source.test.cjs",
+      "originalGitBlob": "68642c3cc822786cc12b9dc18ced1a620a237677",
+      "kind": "test"
+    },
+    {
+      "old": "tests/plugin-event-registry.test.cjs",
+      "current": "tests/plugins/plugin-event-registry.test.cjs",
+      "originalGitBlob": "e356645e466280d79304b32930b7a2e678acd660",
+      "kind": "test"
+    },
+    {
+      "old": "tests/plugin-kit-source.test.cjs",
+      "current": "tests/plugins/plugin-kit-source.test.cjs",
+      "originalGitBlob": "97451ec409817f7cea0641db72f98f11218cb417",
+      "kind": "test"
+    },
+    {
+      "old": "tests/query-loop-recovery.test.cjs",
+      "current": "tests/model/query-loop-recovery.test.cjs",
+      "originalGitBlob": "db84ba946f8b777d02cc58a11418d1a461157bed",
+      "kind": "test"
+    },
+    {
+      "old": "tests/query-state-helpers.test.cjs",
+      "current": "tests/model/query-state-helpers.test.cjs",
+      "originalGitBlob": "f53ab25d3f2b59a5aca7c8cdd158a1880bf6702a",
+      "kind": "test"
+    },
+    {
+      "old": "tests/remote-stop-dispatch.test.cjs",
+      "current": "tests/daemon/remote-stop-dispatch.test.cjs",
+      "originalGitBlob": "0113eaf929d4ea6d856017540ac1390cec2115c8",
+      "kind": "test"
+    },
+    {
+      "old": "tests/restoration-delivery-gate.test.cjs",
+      "current": "tests/governance/restoration-delivery-gate.test.cjs",
+      "originalGitBlob": "92667059b5ffe9b9a6f882983710fcc503a6d09c",
+      "kind": "test"
+    },
+    {
+      "old": "tests/review-historical-candidates.test.cjs",
+      "current": "tests/restoration/review-historical-candidates.test.cjs",
+      "originalGitBlob": "88cbd7cac997b9e4c007c4fea044d336321501e3",
+      "kind": "test"
+    },
+    {
+      "old": "tests/runtime-assets.test.mjs",
+      "current": "tests/runtime/runtime-assets.test.mjs",
+      "originalGitBlob": "5ad829844341d178a2f9a492eaf8617a60a987f7",
+      "kind": "test"
+    },
+    {
+      "old": "tests/session-append-source.test.cjs",
+      "current": "tests/model/session-append-source.test.cjs",
+      "originalGitBlob": "fc13ecc299e93ee05726661721f5a6bab66ed199",
+      "kind": "test"
+    },
+    {
+      "old": "tests/session-append-storage.test.cjs",
+      "current": "tests/model/session-append-storage.test.cjs",
+      "originalGitBlob": "4754a690578bae4d2f7119aa51b7868d2a656b0a",
+      "kind": "test"
+    },
+    {
+      "old": "tests/source-extraction.test.cjs",
+      "current": "tests/restoration/source-extraction.test.cjs",
+      "originalGitBlob": "c25f38e3545d2b02629edfdd78f645677beb889b",
+      "kind": "test"
+    },
+    {
+      "old": "tests/streaming-tool-contract.test.cjs",
+      "current": "tests/model/streaming-tool-contract.test.cjs",
+      "originalGitBlob": "9e8b08ea002e3068997fe2b0029d2f9304df88f7",
+      "kind": "test"
+    },
+    {
+      "old": "tests/string-width-runtime.test.mjs",
+      "current": "tests/runtime/string-width-runtime.test.mjs",
+      "originalGitBlob": "1ad9ed01b3d141a6cc0e28054975b7d87d1872ad",
+      "kind": "test"
+    },
+    {
+      "old": "tests/subagent-resume-chain.test.cjs",
+      "current": "tests/agents/subagent-resume-chain.test.cjs",
+      "originalGitBlob": "d825fff1c29fb9474a76bf4a7ebb5689cdbd6027",
+      "kind": "test"
+    },
+    {
+      "old": "tests/subagent-resume-lock.test.cjs",
+      "current": "tests/agents/subagent-resume-lock.test.cjs",
+      "originalGitBlob": "88bf31dc4295014f2a2a8166dda044585cb37fdb",
+      "kind": "test"
+    },
+    {
+      "old": "tests/subagent-shutdown-recovery.test.cjs",
+      "current": "tests/agents/subagent-shutdown-recovery.test.cjs",
+      "originalGitBlob": "4b3af9aa5c3a8c702f125a74d82f5d21cc4f42ea",
+      "kind": "test"
+    },
+    {
+      "old": "tests/task-upload-lifecycle.test.cjs",
+      "current": "tests/agents/task-upload-lifecycle.test.cjs",
+      "originalGitBlob": "c20362dbab4b7272548c6767f0482e70f7326852",
+      "kind": "test"
+    },
+    {
+      "old": "tests/thinking-model-override.test.cjs",
+      "current": "tests/model/thinking-model-override.test.cjs",
+      "originalGitBlob": "32d1c28107e39d0f85dbcd6f031f590d92afb359",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-executable-parity.test.cjs",
+      "current": "tests/restoration/v37-executable-parity.test.cjs",
+      "originalGitBlob": "297982d85ce0f59a47ff535d30f6cce6a3705ea6",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-nonmain-inventory.test.cjs",
+      "current": "tests/restoration/v37-nonmain-inventory.test.cjs",
+      "originalGitBlob": "5b302d0fe127aa2b5953d673cf1fb9dcca67d441",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-source-audit.test.cjs",
+      "current": "tests/restoration/v37-source-audit.test.cjs",
+      "originalGitBlob": "ad1f2820056d72d4e581936561b57a0b18b19b58",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-supplemental-analysis.test.cjs",
+      "current": "tests/restoration/v37-supplemental-analysis.test.cjs",
+      "originalGitBlob": "4f4258d0112d10ff82cf59ab1ba6653eadc6e647",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-supplemental-runtime.test.cjs",
+      "current": "tests/restoration/v37-supplemental-runtime.test.cjs",
+      "originalGitBlob": "15833bb1a8ac08c51d25257fb9f072909e7c157e",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v40-fleet-roster-semantics.test.cjs",
+      "current": "tests/restoration/v40-fleet-roster-semantics.test.cjs",
+      "originalGitBlob": "27ce5a688c281ad732345388104eec543b8766a5",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v40-symbol-locations.test.cjs",
+      "current": "tests/restoration/v40-symbol-locations.test.cjs",
+      "originalGitBlob": "99f61db31f6e994b9b1157700395a266a1dc3d0e",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "current": "tests/daemon/v43-daemon-adoption-lifecycle.test.cjs",
+      "originalGitBlob": "1bc33371994fdd240274e47dd0768bf56ea5dc2a",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v43-daemon-process-persistence.test.cjs",
+      "current": "tests/daemon/v43-daemon-process-persistence.test.cjs",
+      "originalGitBlob": "e52948268ab2353a0cbdf8aa2d77577358b501b7",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v44-real-historical-703.test.cjs",
+      "current": "tests/restoration/v44-real-historical-703.test.cjs",
+      "originalGitBlob": "938ad969ec1a32bbe054b374a1ed30ec10ab4410",
+      "kind": "test"
+    },
+    {
+      "old": "tests/worktree-daemon-guards.test.cjs",
+      "current": "tests/daemon/worktree-daemon-guards.test.cjs",
+      "originalGitBlob": "5f8ee0b2d10594d1288552d917be42e411ef7e47",
+      "kind": "test"
+    }
+  ]
+}
