@@ -114,7 +114,8 @@ def main():
         shutil.copy2(origin,report/name)
     if a.jelly_shards:
         jelly_evidence=append_evidence(root,a.jelly_shards,report,graph)
-    # Keep source separate from reproducibility tooling; no older-version binary bundles.\n    for folder in ("src","runtime","bin","scripts","tests","tools"):
+    # Keep source separate from reproducibility tooling; no older-version binary bundles.
+    for folder in ("src","runtime","bin","scripts","tests","tools"):
         shutil.copytree(root/folder,out/folder,dirs_exist_ok=True)
     shutil.copytree(root/"resources",out/"resources",
         dirs_exist_ok=True,ignore=shutil.ignore_patterns("research"))
