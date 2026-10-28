@@ -1,0 +1,42 @@
+name: Linux N-API 替代实现完整验证
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'native/linux/**'
+      - 'runtime/native-linux.mjs'
+      - 'tests/native-linux-reconstruction.test.cjs'
+      - '.github/workflows/native-linux-reconstruction.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-linux:
+    name: 真实 ALSA / X11 / Linux 系统调用验证
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装原生编译依赖和隔离 X11
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential libx11-dev libasound2-dev xvfb xauth
+      - name: 严格编译三份真实 C 源码，禁止跳过图形依赖
+        run: |
+          set -euo pipefail
+          make -C native/linux clean all
+          test -s .generated/native-linux/bun-ant-linux.node
+          test -s .generated/native-linux/clipboard-napi.node
+          test -s .generated/native-linux/audio-capture.node
+      - name: 运行所有 Linux ABI、跨进程、Xvfb 与音频基本测试
+        run: |
+          set -euo pipefail
+          node --test tests/native-linux-reconstruction.test.cjs | tee /tmp/native-linux-test.log
+          if grep -E '# (SKIP|TODO)' /tmp/native-linux-test.log; then
+            echo '专用 CI 严禁把环境缺失标记为通过' >&2
+            exit 1
+          fi
