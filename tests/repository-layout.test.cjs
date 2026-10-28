@@ -24,8 +24,10 @@ test('所有原件归位后仍有唯一目标、无旧路径、原 Git Blob 与�
   const file=path.join(ROOT,x.current);
   assert.ok(fs.existsSync(file),'missing: '+x.current);
   const bytes=fs.readFileSync(file);
-  if(x.kind==='document')assert.ok(x.current.endsWith('.md'));
-  else assert.equal(blob(bytes),x.originalGitBlob,'original Git blob changed: '+x.current);
+  if(x.kind==='document'){
+   assert.ok(x.current.endsWith('.md'));
+   if(!x.pathReferencesUpdated)assert.equal(blob(bytes),x.originalGitBlob,'unmodified document drift: '+x.current);
+  }else assert.equal(blob(bytes),x.originalGitBlob,'original Git blob changed: '+x.current);
  }
 });
 test('原始 BunFS 键、新源码及资源路径和证据清单一致',()=>{

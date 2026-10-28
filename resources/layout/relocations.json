@@ -2331,7 +2331,8 @@
       "old": "docs/源码与资源统一命名规范.md",
       "current": "docs/conventions/源码与资源统一命名规范.md",
       "originalGitBlob": "419dc7a8d9e0a3bb7cbf0cb96e129fcf274e88f2",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "resources/tools/claude-test/source-layout.json",
