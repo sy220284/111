@@ -45,7 +45,7 @@ function analyze(sources, ledger = []) {
   // Recovered minified code often uses var. Follow var/let only when the
   // identifier and its visible properties have no explicit write anywhere in
   // the module; file-wide name checking is intentionally conservative.
-  const unsafeByFile=new Map();
+  const unsafeByFile=new Map(),propertyMutationsByFile=new Map();
   function assignmentRoot(node){
     while(node&&(ts.isParenthesizedExpression(node)||
       ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node)))
@@ -53,10 +53,18 @@ function analyze(sources, ledger = []) {
     return node&&ts.isIdentifier(node)?node.text:null;
   }
   for(const file of files){
-    const unsafe=new Set(),ast=parsed.get(file);
+    const unsafe=new Set(),propertyMutations=new Set(),ast=parsed.get(file);
     function mark(node){
       const name=assignmentRoot(node);
-      if(name)unsafe.add(name);
+      if(name){
+        unsafe.add(name);
+        // Rebinding `alias=other` does not mutate the object held by an
+        // independent alias. Only `alias.member=...`, delete and updates
+        // propagate invalidation through the object identity group.
+        while(ts.isParenthesizedExpression(node))node=node.expression;
+        if(ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node))
+          propertyMutations.add(name);
+      }
     }
     function findWrites(node){
       if(ts.isBinaryExpression(node)&&
@@ -74,10 +82,9 @@ function analyze(sources, ledger = []) {
       ts.forEachChild(node,findWrites);
     }
     findWrites(ast);
-    // At the module top level, a=object; b=a shares object identity.
-    // If either alias or the original is written (including b.method=...),
-    // the whole identity group becomes unsafe. Do not join aliases across
-    // nested lexical scopes: minified short names are heavily reused.
+    // Propagate *property mutations*, not standalone binding reassignments.
+    // Module-local aliases can share object identity, but `b=unknown` does
+    // not mutate `a`. Nested lexical scopes remain separate below.
     const neighbors=new Map();
     for(const stmt of ast.statements)if(ts.isVariableStatement(stmt))
       for(const d of stmt.declarationList.declarations)
@@ -87,11 +94,15 @@ function analyze(sources, ledger = []) {
           if(!neighbors.has(b))neighbors.set(b,new Set());
           neighbors.get(a).add(b);neighbors.get(b).add(a);
         }
-    const queue=[...unsafe];
+    const queue=[...propertyMutations];
     for(let i=0;i<queue.length;i++)
       for(const other of neighbors.get(queue[i])||[])
-        if(!unsafe.has(other)){unsafe.add(other);queue.push(other);}
+        if(!propertyMutations.has(other)){
+          propertyMutations.add(other);queue.push(other);
+        }
+    for(const name of propertyMutations)unsafe.add(name);
     unsafeByFile.set(file,unsafe);
+    propertyMutationsByFile.set(file,propertyMutations);
   }
   const modules=new Map(), links=[], external=new Map(), functions=new Map();
   const unresolvedReasons=Object.create(null),unresolvedCallsites=[];
@@ -310,6 +321,7 @@ function analyze(sources, ledger = []) {
     // of the same local object. Unlike module-scoped names, process only
     // this function body to avoid conflating minified names across functions.
     const localPoison=new Set(unsafeByFile.get(file)||[]);
+    const contagious=new Set(propertyMutationsByFile.get(file)||[]);
     const pairs=[];
     for(const stmt of fn.body.statements)if(ts.isVariableStatement(stmt))
       for(const d of stmt.declarationList.declarations)
@@ -318,9 +330,10 @@ function analyze(sources, ledger = []) {
     for(let pass=0;pass<pairs.length;pass++){
       let changed=false;
       for(const [alias,original] of pairs)
-        if(localPoison.has(alias)||localPoison.has(original)){
-          if(!localPoison.has(alias)){localPoison.add(alias);changed=true;}
-          if(!localPoison.has(original)){localPoison.add(original);changed=true;}
+        if(contagious.has(alias)||contagious.has(original)){
+          if(!contagious.has(alias)){contagious.add(alias);changed=true;}
+          if(!contagious.has(original)){contagious.add(original);changed=true;}
+          localPoison.add(alias);localPoison.add(original);
         }
       if(!changed)break;
     }
