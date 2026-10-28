@@ -6,7 +6,7 @@ const cp = require('node:child_process');
 const path = require('node:path');
 const ts = require('typescript');
 
-const CATEGORIES = new Set(['功能恢复','缺陷修复','独立测试','工具维护','文档维护','治理配置']);
+const CATEGORIES = new Set(['功能恢复','缺陷修复','独立测试','工具维护','文档维护','治理配置','目录整理']);
 const FUNCTIONAL = new Set(['功能恢复','缺陷修复']);
 const REQUIRED = ['业务问题','实际代码改动','调用链','验收测试','验证命令','验证结果','验收级别','未验收范围'];
 const LEVELS = new Set(['局部行为已验证','业务链已验证','部分完成']);
@@ -49,6 +49,13 @@ function categoryPathAllowed(category, p) {
   if (category === '工具维护') return /^(?:scripts|tools|tests)\//.test(p) ||
     docPath(p) || ['package.json','package-lock.json'].includes(p) ||
     p === '.github/workflows/dev-toolchain.yml';
+  if (category === '目录整理') return !/^(?:src|runtime|bin)\//.test(p) &&
+    !/^resources\/(?:bunfs|data)\//.test(p) &&
+    !PROTECTED_CHECKS.has(p.replace(/^\.github\/workflows\/restoration-delivery-gate\.yml$/,'__allowed_workflow_path__')) &&
+    (/^(?:docs|tests|scripts|tools)\//.test(p) || /^\.github\/workflows\//.test(p) ||
+    /^resources\/(?:layout|research)\//.test(p) ||
+    p==='resources/function-verification-ledger.json' ||
+    ['AGENTS.md','README.md','package.json','package-lock.json'].includes(p));
   if (category === '治理配置') return p === 'AGENTS.md' || /^\.github\//.test(p) ||
     /^(?:scripts\/check-restoration-delivery\.cjs|tests\/restoration-delivery-gate\.test\.cjs)$/.test(p) ||
     docPath(p);
@@ -198,10 +205,15 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
     const unexpected=changed.filter(p=>!categoryPathAllowed(category,p));
     if (unexpected.length) errors.push('交付类别与实际修改范围不符：'+unexpected.join(', '));
     if (category==='独立测试' && !tests.length) errors.push('独立测试类没有实际修改测试');
+    if(category==='目录整理'){
+      if(!changed.includes('resources/layout/relocations.json')) errors.push('目录整理必须提交实际旧新路径迁移清单');
+      if(!tests.length) errors.push('目录整理必须包含实际迁移的回归测试');
+      if(!changed.some(p=>p.startsWith('docs/'))) errors.push('目录整理必须包含实际归档文档');
+    }
     if (/(?:完成|实现|修复|恢复).*(?:完整业务|全部功能|真实业务恢复|功能等价)/.test(title))
       errors.push('非恢复类标题不得宣称已完成业务恢复或功能等价');
   }
-  if (isFunction || category==='独立测试') {
+  if (isFunction || category==='独立测试' || category==='目录整理') {
     if(tests.some(p=>!testChanges.some(s=>s.path===p)))
       errors.push('测试文件缺少实际前后差异检查');
     let valid=0;
@@ -275,7 +287,7 @@ function inspectGit(event) {
 }
 function runChangedTests(report, changes) {
   if(!report.ok) return;
-  if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试') return;
+  if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试' && report.category!=='目录整理') return;
   const paths=changes.testChanges.filter(x=>report.tests.includes(x.path) && x.after!==null)
     .map(x=>x.path);
   if(!paths.length) throw Error('没有实际可运行的变更测试');
