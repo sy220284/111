@@ -74,6 +74,23 @@ function analyze(sources, ledger = []) {
       ts.forEachChild(node,findWrites);
     }
     findWrites(ast);
+    // At the module top level, a=object; b=a shares object identity.
+    // If either alias or the original is written (including b.method=...),
+    // the whole identity group becomes unsafe. Do not join aliases across
+    // nested lexical scopes: minified short names are heavily reused.
+    const neighbors=new Map();
+    for(const stmt of ast.statements)if(ts.isVariableStatement(stmt))
+      for(const d of stmt.declarationList.declarations)
+        if(ts.isIdentifier(d.name)&&ts.isIdentifier(d.initializer)){
+          const a=d.name.text,b=d.initializer.text;
+          if(!neighbors.has(a))neighbors.set(a,new Set());
+          if(!neighbors.has(b))neighbors.set(b,new Set());
+          neighbors.get(a).add(b);neighbors.get(b).add(a);
+        }
+    const queue=[...unsafe];
+    for(let i=0;i<queue.length;i++)
+      for(const other of neighbors.get(queue[i])||[])
+        if(!unsafe.has(other)){unsafe.add(other);queue.push(other);}
     unsafeByFile.set(file,unsafe);
   }
   const modules=new Map(), links=[], external=new Map(), functions=new Map();
@@ -450,7 +467,7 @@ function analyze(sources, ledger = []) {
               target=exportTarget(binding.target,binding.export);
               if(target)kind='import_binding_candidate';
               else reason='import_without_proven_export';
-            }else if(m.defs.has(callee.text)){
+            }else if(m.defs.has(callee.text) && !unsafeByFile.get(file).has(callee.text)){
               target=m.defs.get(callee.text);
               kind='same_module_candidate';
             }else reason='unknown_identifier';
