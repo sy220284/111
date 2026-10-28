@@ -109,7 +109,7 @@
     "check:historical-live-import": "node --test tests/restoration/historical-live-module-import.test.mjs",
     "check:cli-live-mcp-tools": "node --test tests/cli/cli-live-mcp-tool-model-e2e.test.cjs",
     "check:daemon-live-supervisor": "node --test tests/daemon/cli-live-daemon-supervisor.test.cjs",
-    "check:v37-tool-contracts": "node --test tests/v37-tool-runtime-contracts.test.cjs"
+    "check:v37-tool-contracts": "node --test tests/restoration/v37-tool-runtime-contracts.test.cjs"
   },
   "dependencies": {
     "ws": "8.22.0"

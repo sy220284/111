@@ -11,7 +11,7 @@ on:
       - 'package-lock.json'
       - 'tests/runtime/bun-jsc-compat.test.cjs'
       - 'tools/analysis/jelly-runner.cjs'
-      - 'tests/jelly-runner.test.cjs'
+      - 'tests/restoration/jelly-runner.test.cjs'
   pull_request:
     branches: [main]
     paths:
@@ -21,7 +21,7 @@ on:
       - 'package-lock.json'
       - 'tests/runtime/bun-jsc-compat.test.cjs'
       - 'tools/analysis/jelly-runner.cjs'
-      - 'tests/jelly-runner.test.cjs'
+      - 'tests/restoration/jelly-runner.test.cjs'
 
 permissions:
   contents: read
@@ -321,7 +321,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --ignore-scripts --no-audit --no-fund
-          node --test tests/jelly-runner.test.cjs
+          node --test tests/restoration/jelly-runner.test.cjs
           bash -n tools/dev/ai-toolchain.sh
           python3 tools/dev/test-toolchain.py
           bash tools/dev/ai-toolchain.sh bootstrap --profile analysis --artifacts-dir "$RUNNER_TEMP/111-artifacts"
