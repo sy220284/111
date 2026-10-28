@@ -132,3 +132,62 @@ test('immutable aliases may chain forward but reassigned let/var must not fabric
  assert.equal(old.inbound[0].kind,'same_module_candidate');
  assert.equal(g.summary.candidateResolvedCalls,1);
 });
+
+test('函数局部作用域的声明、箭头实现及不可变别名可被精确定位',()=>{
+ const g=analyze({'src/lex.js':
+  'function a(){function inner(){};const alias=inner;const cb=()=>{};inner();alias();cb()}'+
+  'function b(){function inner(){};inner()}'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,4);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ const targets=g.callEdges.filter(x=>x.kind==='lexical_function_candidate');
+ assert.equal(targets.reduce((n,e)=>n+e.count,0),4);
+ assert.equal(new Set(targets.filter(e=>e.to.symbol==='inner').map(e=>e.to.id)).size,2);
+ assert.ok(targets.every(e=>e.to.id.includes('src/lex.js#')));
+});
+
+test('函数参数与块级同名声明不能穿透去错误绑定外层函数',()=>{
+ const g=analyze({'src/shadow.js':
+  'function known(){};function outer(known){known()}'+
+  'function mixed(){if(true){const known=()=>1}known()}'
+ });
+ assert.equal(g.summary.candidateResolvedCalls,0);
+ assert.equal(g.summary.unresolvedReasons.local_binding_or_parameter,2);
+ assert.equal(g.unresolvedCallsites.length,2);
+ assert.ok(g.unresolvedCallsites.every(x=>x.line>0 && x.column>0 && x.callee==='known'));
+});
+
+test('const 对象字面量的函数成员可建立静态候选关系，参数覆盖仍然不解析',()=>{
+ const g=analyze({'src/obj.js':
+  'const api={run(){}, stop:()=>{}};function run(){api.run();api.stop()}'+
+  'function shadow(api){api.run()}'+
+  'function local(){const worker={execute(){}};worker.execute()}'
+ });
+ assert.equal(g.summary.candidateResolvedCalls,3);
+ assert.equal(g.summary.unresolvedCallExpressions,1);
+ assert.equal(g.summary.unresolvedReasons.property_or_namespace_unresolved,1);
+ assert.ok(g.callEdges.some(e=>e.kind==='module_object_method_candidate'));
+ assert.ok(g.callEdges.some(e=>e.kind==='lexical_object_method_candidate'));
+ assert.equal(g.unresolvedCallsites[0].callee,'api.run');
+});
+
+test('立即执行的箭头函数和函数表达式指向实际AST函数位置',()=>{
+ const g=analyze({'src/iife.js':
+  '(()=>42)();(function named(){return 1})();'});
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ assert.ok(g.callEdges.every(e=>e.kind==='immediate_function_candidate'));
+ assert.ok(g.callEdges.every(e=>e.to.id.endsWith('@'+e.to.line+':'+e.to.column)));
+});
+
+test('所有未解析调用都有原因与独立源码定位，数量等于汇总',()=>{
+ const g=analyze({'src/u.js':
+  'function run(x){x.foo(); unknown(); globalThis[x](); import("./dep.js")} ',
+  'src/dep.js':'export const x=1;'});
+ assert.equal(g.unresolvedCallsites.length,g.summary.unresolvedCallExpressions);
+ assert.equal(Object.values(g.summary.unresolvedReasons).reduce((a,b)=>a+b,0),
+   g.summary.unresolvedCallExpressions);
+ assert.equal(g.unresolvedCallsites.filter(x=>x.reason==='dynamic_import').length,1);
+ assert.ok(g.unresolvedCallsites.every(x=>x.file&&x.owner&&x.callee&&x.reason));
+});
