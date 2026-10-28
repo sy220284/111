@@ -43,7 +43,7 @@ function analyze(sources, ledger = []) {
     parsed.set(file,ast);
   }
   const modules=new Map(), links=[], external=new Map(), functions=new Map();
-  const unresolvedReasons=Object.create(null);
+  const unresolvedReasons=Object.create(null),unresolvedCallsites=[];
   const stats={calls:0,resolvedCalls:0,unresolvedCalls:0,dynamicImports:0};
   for(const file of files) {
     const ast=parsed.get(file), importBindings=new Map(), deps=new Set(), exports=new Map(),
@@ -151,9 +151,89 @@ function analyze(sources, ledger = []) {
     if(fn.body)walk(fn.body);
     return names;
   }
+  // Resolve only directly declared lexical callables. Parameter/catch/branch bindings
+  // still mask outer names; a same-named top-level function cannot leak past them.
+  // Targets keep AST identity so same-name nested functions are distinguishable.
+  function nodeTarget(node,file,ast,symbol){
+    const p=ast.getLineAndCharacterOfPosition(node.getStart(ast));
+    const name=symbol||'<anonymous>@'+(p.line+1)+':'+(p.character+1);
+    return {file,symbol:name,line:p.line+1,column:p.character+1,
+      id:file+'#'+name+'@'+(p.line+1)+':'+(p.character+1)};
+  }
+  function staticPropertyName(name){
+    return name&&(ts.isIdentifier(name)||ts.isStringLiteralLike(name)||
+      ts.isNumericLiteral(name))?name.text:null;
+  }
+  // obj['method'] and namespace['export'] have the same static member identity
+  // as obj.method; computed or variable keys must remain unresolved.
+  function literalMemberName(node){
+    if(ts.isPropertyAccessExpression(node))return node.name.text;
+    if(ts.isElementAccessExpression(node)&&node.argumentExpression&&
+       (ts.isStringLiteralLike(node.argumentExpression)||
+        ts.isNumericLiteral(node.argumentExpression)))return node.argumentExpression.text;
+    return null;
+  }
+  function objectMethods(expr,file,ast){
+    const result=new Map();
+    if(!expr||!ts.isObjectLiteralExpression(expr))return result;
+    for(const property of expr.properties){
+      const name=staticPropertyName(property.name);
+      if(!name)continue;
+      if(ts.isMethodDeclaration(property)){
+        result.set(name,nodeTarget(property,file,ast,name));
+      }else if(ts.isPropertyAssignment(property)&&functionLike(property.initializer)){
+        const fn=property.initializer;
+        result.set(name,nodeTarget(fn,file,ast,fn.name?.text||name));
+      }
+    }
+    return result;
+  }
+  function scopedBindings(fn,file,ast){
+    const callables=new Map(),objects=new Map(),aliases=[];
+    if(!fn.body||!ts.isBlock(fn.body))return {callables,objects};
+    for(const stmt of fn.body.statements){
+      if(ts.isFunctionDeclaration(stmt)&&stmt.name)
+        callables.set(stmt.name.text,nodeTarget(stmt,file,ast,stmt.name.text));
+      if(!ts.isVariableStatement(stmt)||
+         !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
+      for(const d of stmt.declarationList.declarations){
+        if(!ts.isIdentifier(d.name)||!d.initializer)continue;
+        if(functionLike(d.initializer))
+          callables.set(d.name.text,nodeTarget(d.initializer,file,ast,
+            d.initializer.name?.text||d.name.text));
+        else if(ts.isIdentifier(d.initializer))
+          aliases.push([d.name.text,d.initializer.text]);
+        else if(ts.isObjectLiteralExpression(d.initializer))
+          objects.set(d.name.text,objectMethods(d.initializer,file,ast));
+      }
+    }
+    // Immutable aliases inside this same function body. Never follow parameters,
+    // let/var reassignment, a property access, or an unknown cross-scope symbol.
+    for(let pass=0;pass<aliases.length;pass++){
+      let changed=false;
+      for(const [alias,original] of aliases)
+        if(!callables.has(alias)&&callables.has(original)){
+          callables.set(alias,callables.get(original));changed=true;
+        }
+      if(!changed)break;
+    }
+    return {callables,objects};
+  }
+  const moduleObjects=new Map();
+  for(const file of files){
+    const map=new Map(),ast=parsed.get(file);
+    for(const stmt of ast.statements){
+      if(!ts.isVariableStatement(stmt)||
+         !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
+      for(const d of stmt.declarationList.declarations)
+        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isObjectLiteralExpression(d.initializer))
+          map.set(d.name.text,objectMethods(d.initializer,file,ast));
+    }
+    moduleObjects.set(file,map);
+  }
   const edges=new Map();
   function addEdge(from,to,kind,file,ast,node){
-    const targetKey=to?to.file+'#'+to.symbol:'<unknown>';
+    const targetKey=to?(to.id||to.file+'#'+to.symbol):'<unknown>';
     const key=from+' -> '+targetKey+' ['+kind+']';
     const p=ast.getLineAndCharacterOfPosition(node.getStart(ast));
     let e=edges.get(key);
@@ -164,12 +244,13 @@ function analyze(sources, ledger = []) {
   for(const file of files){
     const ast=parsed.get(file), m=modules.get(file);
     let current=null;
-    const activeScopes=[];
+    const activeScopes=[],activeDefinitions=[];
     function visit(node) {
       const before=current;
       const isFunction=functionLike(node);
       if(isFunction) {
         activeScopes.push(localBindings(node));
+        activeDefinitions.push(scopedBindings(node,file,ast));
         let label=node.name && ts.isIdentifier(node.name)?node.name.text:null;
         if(!label && ts.isVariableDeclaration(node.parent) &&
            ts.isIdentifier(node.parent.name))label=node.parent.name.text;
@@ -184,30 +265,60 @@ function analyze(sources, ledger = []) {
       if(ts.isCallExpression(node)||ts.isNewExpression(node)) {
         stats.calls++;
         const exp=node.expression, owner=current ? current.id :file+'#<module>';
+        let callee=exp;
+        while(ts.isParenthesizedExpression(callee))callee=callee.expression;
         let target=null,kind='dynamic_or_property',reason='complex_callable_expression';
-        if(ts.isIdentifier(exp)){
-          const shadowed=activeScopes.some(s=>s.has(exp.text));
-          if(shadowed)reason='local_binding_or_parameter';
-          else {
-            const binding=m.imports.get(exp.text);
+        if(ts.isIdentifier(callee)){
+          // Walk lexical scopes inside-out; an unproved inner binding blocks
+          // a same-named outer or imported implementation.
+          let masked=false;
+          for(let i=activeScopes.length-1;i>=0;i--)
+            if(activeScopes[i].has(callee.text)){
+              masked=true;
+              target=activeDefinitions[i].callables.get(callee.text)||null;
+              if(target)kind='lexical_function_candidate';
+              else reason='local_binding_or_parameter';
+              break;
+            }
+          if(!masked){
+            const binding=m.imports.get(callee.text);
             if(binding?.target && !binding.namespace) {
               target=exportTarget(binding.target,binding.export);
               if(target)kind='import_binding_candidate';
               else reason='import_without_proven_export';
-            }else if(m.defs.has(exp.text)){
-              target=m.defs.get(exp.text);
+            }else if(m.defs.has(callee.text)){
+              target=m.defs.get(callee.text);
               kind='same_module_candidate';
             }else reason='unknown_identifier';
           }
-        }else if(ts.isPropertyAccessExpression(exp)&&ts.isIdentifier(exp.expression)){
-          const ns=m.imports.get(exp.expression.text);
-          if(ns?.target && ns.namespace && !activeScopes.some(s=>s.has(exp.expression.text))){
-            target=exportTarget(ns.target,exp.name.text);
-            if(target)kind='namespace_import_candidate';
+        }else if((ts.isPropertyAccessExpression(callee)||ts.isElementAccessExpression(callee))&&
+                 ts.isIdentifier(callee.expression)&&literalMemberName(callee)!==null){
+          const ownerName=callee.expression.text,property=literalMemberName(callee);
+          let masked=false;
+          for(let i=activeScopes.length-1;i>=0;i--)
+            if(activeScopes[i].has(ownerName)){
+              masked=true;
+              target=activeDefinitions[i].objects.get(ownerName)?.get(property)||null;
+              if(target)kind='lexical_object_method_candidate';
+              break;
+            }
+          if(!masked){
+            const ns=m.imports.get(ownerName);
+            if(ns?.target && ns.namespace){
+              target=exportTarget(ns.target,property);
+              if(target)kind='namespace_import_candidate';
+            }
+            if(!target&&moduleObjects.get(file).has(ownerName)){
+              target=moduleObjects.get(file).get(ownerName).get(property)||null;
+              if(target)kind='module_object_method_candidate';
+            }
           }
           if(!target)reason='property_or_namespace_unresolved';
-        }else if(ts.isPropertyAccessExpression(exp)||ts.isElementAccessExpression(exp)){
+        }else if(ts.isPropertyAccessExpression(callee)||ts.isElementAccessExpression(callee)){
           reason='dynamic_property';
+        }else if(ts.isFunctionExpression(callee)||ts.isArrowFunction(callee)){
+          target=nodeTarget(callee,file,ast,callee.name?.text||null);
+          kind='immediate_function_candidate';
         }
         if(ts.isCallExpression(node) && exp.kind===ts.SyntaxKind.ImportKeyword){
           stats.dynamicImports++;
@@ -221,12 +332,18 @@ function analyze(sources, ledger = []) {
           }
         }
         if(target)stats.resolvedCalls++;
-        else { stats.unresolvedCalls++;unresolvedReasons[reason]=(unresolvedReasons[reason]||0)+1; }
+        else {
+          stats.unresolvedCalls++;
+          unresolvedReasons[reason]=(unresolvedReasons[reason]||0)+1;
+          const p=ast.getLineAndCharacterOfPosition(node.getStart(ast));
+          unresolvedCallsites.push({file,owner,line:p.line+1,column:p.character+1,
+            reason,callee:exp.getText(ast).slice(0,240)});
+        }
         // Never fabricate dynamic call targets or treat a candidate as executed.
         if(target)addEdge(owner,target,kind,file,ast,node);
       }
       ts.forEachChild(node,visit);
-      if(isFunction)activeScopes.pop();
+      if(isFunction){activeScopes.pop();activeDefinitions.pop();}
       current=before;
     }
     visit(ast);
@@ -264,10 +381,11 @@ function analyze(sources, ledger = []) {
       functionEntities:functions.size,callExpressions:stats.calls,
       candidateResolvedCalls:stats.resolvedCalls,unresolvedCallExpressions:stats.unresolvedCalls,
       uniqueCandidateEdges:uniqueEdges.length,recordedSemantics:semantics.length,
+      unresolvedCallsiteInventory:unresolvedCallsites.length,
       unresolvedReasons:Object.fromEntries(Object.entries(unresolvedReasons).sort()),
       functionIdentity:'file+lexical-symbol+AST start line/column; no same-line collisions',
       warning:'Calls are syntax/lexical/import candidates, NOT proven runtime call targets. Ledger roles are targeted-test evidence, NOT full semantic restoration.'},
-    modules:moduleDeps, cycles, callEdges:uniqueEdges, semantics
+    modules:moduleDeps, cycles, callEdges:uniqueEdges, unresolvedCallsites, semantics
   };
 }
 function impact(graph,file){

@@ -40,7 +40,11 @@ for(const [i,row] of graph.items.entries()){
   if(d.hookModuleImportRoute)
    assert.equal(d.hookModuleImportRoute.at(-1),l.file);
   for(const caller of d.candidateCallers){
-   assert.ok(['same_module_candidate','import_binding_candidate','namespace_import_candidate'].includes(caller.kind));
+   assert.ok([
+    'same_module_candidate','import_binding_candidate','namespace_import_candidate',
+    'lexical_function_candidate','lexical_object_method_candidate',
+    'module_object_method_candidate','immediate_function_candidate'
+   ].includes(caller.kind),'候选必须由已定义的静态解析规则产生，不能伪造实际执行');
    assert.ok(caller.evidence.every(x=>x.file&&x.line>0&&x.column>0));
   }
  });
