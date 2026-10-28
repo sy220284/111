@@ -3,8 +3,8 @@
   "baseCommit": "cd36d5df94b496efbc12d826891268eb64cee869",
   "description": "Source path to categorized current path, preserving pinned historical references",
   "counts": {
-    "tests": 79,
-    "documents": 14,
+    "tests": 87,
+    "documents": 15,
     "embeddedSources": 24,
     "pluginSources": 294,
     "bundledToolSources": 56
@@ -2810,6 +2810,60 @@
       "old": "docs/v37_未完成工具真实语义测试.md",
       "current": "docs/research/v37/v37_未完成工具真实语义测试.md",
       "originalGitBlob": "8d3727cc32fb80934cad7a131499fc346087c6f2",
+      "kind": "document"
+    },
+    {
+      "old": "tests/jelly-corpus.test.cjs",
+      "current": "tests/restoration/jelly-corpus.test.cjs",
+      "originalGitBlob": "b78af22fb64bd96efc8ca5a96ad4d1ded62cd694",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-artifact-fd-host.test.py",
+      "current": "tests/restoration/v37-artifact-fd-host.test.py",
+      "originalGitBlob": "0a98a6a62df162880a48e18a841c69e771fc7d2c",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-browser-network-host.test.cjs",
+      "current": "tests/restoration/v37-browser-network-host.test.cjs",
+      "originalGitBlob": "6a4176316f869a5feff14df485611a6a62eb18ec",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-design-live-acceptance.cjs",
+      "current": "tests/restoration/v37-design-live-acceptance.cjs",
+      "originalGitBlob": "e8947065cdc4d67e86931f34c53b6661e93a6489",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-native-abi-probe.cjs",
+      "current": "tests/restoration/v37-native-abi-probe.cjs",
+      "originalGitBlob": "ae9d1754d8d716a40d877e442cff5836c41c4368",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-playwright-mcp-live.test.cjs",
+      "current": "tests/restoration/v37-playwright-mcp-live.test.cjs",
+      "originalGitBlob": "b68e20a91416e9daa17185a3a87f548ce8189379",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-storybook-live-acceptance.cjs",
+      "current": "tests/restoration/v37-storybook-live-acceptance.cjs",
+      "originalGitBlob": "711fd74bae8077b828d5eed877c056faeb3c5308",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-thinking-compaction-acceptance.cjs",
+      "current": "tests/restoration/v37-thinking-compaction-acceptance.cjs",
+      "originalGitBlob": "70bc5dd7c3575473ec16d4ae883b8c8fc6148d72",
+      "kind": "test"
+    },
+    {
+      "old": "docs/v37_真实宿主和浏览器验收.md",
+      "current": "docs/research/v37/v37_真实宿主和浏览器验收.md",
+      "originalGitBlob": "67524ebcc81e2f6009366c3ca7255d42cddac8e6",
       "kind": "document"
     }
   ]

@@ -3,13 +3,13 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'tests/v37-*'
-      - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+      - 'tests/restoration/v37-*'
+      - 'tests/cli/cli-live-mcp-tool-model-e2e.test.cjs'
   push:
     branches: [main]
     paths:
-      - 'tests/v37-*'
-      - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+      - 'tests/restoration/v37-*'
+      - 'tests/cli/cli-live-mcp-tool-model-e2e.test.cjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,8 +25,8 @@ jobs:
           node-version: '22.16.0'
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: |
-          python3 tests/v37-artifact-fd-host.test.py
-          node --test tests/v37-browser-network-host.test.cjs
+          python3 tests/restoration/v37-artifact-fd-host.test.py
+          node --test tests/restoration/v37-browser-network-host.test.cjs
   real-design-browser:
     name: Design Sync真实构建与Chromium截图和上传差异协议
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
           npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund esbuild@0.25.12 ts-morph@27.0.2 react@18.3.1 react-dom@18.3.1 playwright@1.62.1 storybook@9.1.10 @storybook/react-vite@9.1.10 vite@7.1.10
           npx playwright install chromium
           mkdir -p "$RUNNER_TEMP/v37-mcp-tools"
-          cp resources/tools/claude-test/scripts/lib/tools-lock.json "$RUNNER_TEMP/v37-mcp-tools/package-lock.json"
+          cp tools/bundled/claude-test/scripts/lib/tools-lock.json "$RUNNER_TEMP/v37-mcp-tools/package-lock.json"
           node - "$RUNNER_TEMP/v37-mcp-tools/package.json" <<'NODE'
           const fs=require('node:fs');
           fs.writeFileSync(process.argv[2],JSON.stringify({name:'claude-test-tools',private:true,
@@ -55,9 +55,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p v37-host-acceptance
-          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" node tests/v37-design-live-acceptance.cjs
-          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" node tests/v37-storybook-live-acceptance.cjs
-          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" V37_PLAYWRIGHT_MCP_CLI="$RUNNER_TEMP/v37-mcp-tools/node_modules/@playwright/mcp/cli.js" node --test tests/v37-playwright-mcp-live.test.cjs
+          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" node tests/restoration/v37-design-live-acceptance.cjs
+          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" node tests/restoration/v37-storybook-live-acceptance.cjs
+          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" V37_PLAYWRIGHT_MCP_CLI="$RUNNER_TEMP/v37-mcp-tools/node_modules/@playwright/mcp/cli.js" node --test tests/restoration/v37-playwright-mcp-live.test.cjs
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -80,9 +80,9 @@ jobs:
           set -euo pipefail
           mkdir -p v37-host-acceptance
           export V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance"
-          node tests/v37-native-abi-probe.cjs
+          node tests/restoration/v37-native-abi-probe.cjs
           node --test tests/cli-live-mcp-tool-model-e2e.test.cjs
-          node tests/v37-thinking-compaction-acceptance.cjs
+          node tests/restoration/v37-thinking-compaction-acceptance.cjs
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
