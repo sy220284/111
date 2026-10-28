@@ -87,7 +87,15 @@ function diagnosticModules(){
         ['let Me = await oys(e || "", j ?? "text")','console.error("TRACE_OYS_START");let Me = await oys(e || "", j ?? "text")'],
         ['go("action_after_input_prompt");','console.error("TRACE_OYS_DONE"),go("action_after_input_prompt");'],
         ['let Nl = Date.now()','console.error("TRACE_SETUP_IMPORT");let Nl = Date.now()'],
-        ['await Bl;','await Bl;console.error("TRACE_SETUP_DONE");']
+        ['await Bl;','await Bl;console.error("TRACE_SETUP_DONE");'],
+        ['go("action_after_setup"), await Zn();','go("action_after_setup"),console.error("TRACE_ZN1_BEGIN"),await Zn(),console.error("TRACE_ZN1_DONE");'],
+        ['Ls = await Joo(() => tM(y))','Ls = (console.error("TRACE_JOO_BEGIN"),await Joo(() => tM(y)))'],
+        ['let Vo = await Oi({','console.error("TRACE_TOOLS_BEGIN");let Vo = await Oi({'],
+        ['Dr("tools_commands_load_ms"','console.error("TRACE_TOOLS_DONE");Dr("tools_commands_load_ms"'],
+        ['await tMn({ headless: Q0() }), Dr(','console.error("TRACE_TMN_BEGIN"),await tMn({ headless: Q0() }),console.error("TRACE_TMN_DONE"),Dr('],
+        ['let zs = await cPs({','console.error("TRACE_CPS_BEGIN");let zs = await cPs({'],
+        ['if (zs !== void 0)','console.error("TRACE_CPS_DONE");if (zs !== void 0)'],
+        ['let { effectiveModel: Xs','console.error("TRACE_MODEL_SELECT_BEGIN");let { effectiveModel: Xs']
       ]
     };
     for(const {original,copy} of d){
