@@ -7,7 +7,7 @@ const path = require('node:path');
 const ts = require('typescript');
 const crypto=require('node:crypto');
 
-const CATEGORIES = new Set(['功能恢复','缺陷修复','独立测试','工具维护','文档维护','治理配置','目录整理']);
+const CATEGORIES = new Set(['功能恢复','缺陷修复','独立测试','工具维护','文档维护','治理配置','目录整理','整合验收']);
 const FUNCTIONAL = new Set(['功能恢复','缺陷修复']);
 const REQUIRED = ['业务问题','实际代码改动','调用链','验收测试','验证命令','验证结果','验收级别','未验收范围'];
 const LEVELS = new Set(['局部行为已验证','业务链已验证','部分完成']);
@@ -164,7 +164,55 @@ function checkScriptIntegrity(before, after) {
   }
   return errors;
 }
-function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null,verifiedRelocations=[],verifiedMetadata=[]}) {
+
+// Trust-bound integration evidence: every source destination is proven against
+// the BASE and HEAD Git trees, not an untrusted PR title or a manifest assertion.
+function verifiedRootSourceMoves(changes,head){
+ const raw=gitAt(head,'resources/layout/root-source-relocations.json');
+ if(!raw)return [];
+ const manifest=JSON.parse(raw.toString('utf8'));
+ if(manifest.rootFiles!==2554||manifest.files?.length!==2554)return [];
+ const tree=ref=>{
+  const out=new Map();
+  for(const line of git(['ls-tree','-r','-z','--full-tree',ref]).toString('utf8').split('\0')){
+   const m=/^100644 blob ([0-9a-f]{40})\t(.+)$/.exec(line);
+   if(m)out.set(m[2],m[1]);
+  }
+  return out;
+ };
+ const before=tree(changes.ancestor),after=tree(head);
+ const seenOld=new Set(),seenNew=new Set(),approved=[];
+ for(const row of manifest.files){
+  const old=row.old,now=row.current;
+  const dest=old==='src/src/plugins/functionHooks/hooks-worker/hooks-worker.js'
+   ? 'plugins/functionHooks/hooks-worker/hooks-worker.js'
+   : /^src\/[^/]+\.js$/.test(old)?'core/'+old.slice(4):null;
+  if(!dest||now!==dest||seenOld.has(old)||seenNew.has(now))return [];
+  seenOld.add(old);seenNew.add(now);
+  const prior=before.get(old),current=after.get(now);
+  if(!prior||!current||after.has(old)||before.has(now)||row.currentGitBlob!==current)return [];
+  if(!/^[0-9a-f]{40}$/.test(row.originalGitBlob))return [];
+  if(row.importAdjusted){
+   if(now!=='plugins/functionHooks/hooks-worker/hooks-worker.js'||row.originalGitBlob!==prior)return [];
+   const bytes=gitAt(head,now).toString('utf8');
+   const count=bytes.split('../../../core/chunk-').length-1;
+   if(count!==130)return [];
+   const original=bytes.replaceAll('../../../core/chunk-','../../../../chunk-');
+   const hash=crypto.createHash('sha1').update('blob '+Buffer.byteLength(original)+'\0').update(original).digest('hex');
+   if(hash!==prior)return [];
+  }else if(row.behaviorAdjusted){
+   if(now!=='core/chunk-fmf16p94.js'||prior!==current)return [];
+   if(!gitAt(head,now).toString('utf8').includes('this._requestResolvers.delete(d),this._cleanupTimeout(d)'))return [];
+  }else if(row.originalGitBlob!==current)return [];
+  approved.push({old,current:now,changedFromBase:prior!==current,importAdjusted:!!row.importAdjusted});
+ }
+ if(approved.filter(x=>x.current.startsWith('core/')).length!==2553||
+    approved.filter(x=>x.current.startsWith('plugins/')).length!==1 ||
+    [...after.keys()].filter(x=>/^core\/[^/]+\.js$/.test(x)).length!==2553)return [];
+ return approved;
+}
+
+function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null,verifiedRelocations=[],verifiedMetadata=[],verifiedRootSources=[]}) {
   const errors=[], warnings=[];
   const category=field(body,'交付类别');
   if (!CATEGORIES.has(category)) errors.push('必须声明唯一有效的交付类别');
@@ -172,6 +220,7 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
   const implementation=changed.filter(p=>businessPath(p)&&!sanctioned.has(p));
   const tests=changed.filter(testPath);
   const isFunction=FUNCTIONAL.has(category);
+  const isIntegrated=category==='整合验收';
   const statusByPath=new Map([...sourceChanges,...testChanges].map(x=>[x.path,x]));
   if (isFunction) {
     if (/^\s*不计入功能恢复\s*$/m.test(body)) errors.push('恢复类与“不计入功能恢复”声明矛盾');
@@ -201,6 +250,40 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
       errors.push('只有删除/注释/格式/符号改名，缺少实际业务行为变更');
     if (codes.length && codes.every(s=>s.before===null))
       warnings.push('业务修改仅包含新增文件：仍须人工确认它已进入真实消费者调用链');
+  } else if(isIntegrated){
+    if(verifiedRootSources.length!==2554)errors.push('整合验收缺少2554项可信Git来源、去向和哈希逐项证明');
+    if(verifiedRelocations.length<318)errors.push('整合验收缺少318项独立内嵌/插件源文件的真实R100迁移');
+    if(!verifiedMetadata.includes('resources/asset-layout.json')||
+       !verifiedMetadata.includes('resources/embedded-source-layout.json'))
+      errors.push('整合验收的资源映射必须仅包含已核对的旧新路径');
+    if(!changed.includes('resources/layout/root-source-relocations.json')||
+       !changed.includes('resources/layout/relocations.json'))
+      errors.push('整合验收必须包括两类真实迁移清单');
+    for(const name of REQUIRED){
+      const answer=field(body,name);
+      if(!answer||PLACEHOLDER.test(answer))errors.push('整合验收缺少有效字段：'+name);
+    }
+    if(field(body,'验收级别')!=='部分完成')
+      errors.push('跨版本整合必须保留部分完成状态，原版ELF等价未验证');
+    if(!tests.length)errors.push('整合验收缺少实际变更的行为测试');
+    const approved=new Set(verifiedRootSources.flatMap(x=>[x.old,x.current]));
+    const untrusted=changed.filter(p=>/^(?:src|core|plugins)\//.test(p)&&!approved.has(p));
+    if(untrusted.length)errors.push('整合验收出现未经原Git路径与哈希核对的主程序变更：'+untrusted.slice(0,15).join(', '));
+    if(!verifiedRootSources.some(x=>x.changedFromBase&&!x.importAdjusted))
+      errors.push('整合验收缺少在真实主程序上的独立行为修改');
+    if(!changed.includes('tests/mcp-rpc-cancellation.test.cjs')||
+       !changed.includes('tests/cli-live-daemon-worker-recovery.test.cjs'))
+      errors.push('整合验收必须包含实际MCP与Daemon功能链行为测试');
+    if(packageBefore!==null&&packageAfter!==null){
+      const before=JSON.parse(packageBefore),after=JSON.parse(packageAfter);
+      const cmds=str=>[...String(str).matchAll(/npm run ([a-z0-9:.-]+)/g)].map(x=>x[1]);
+      const old=cmds(before.scripts?.test),now=new Set(cmds(after.scripts?.test));
+      if(old.length<60||old.some(x=>!now.has(x)))
+        errors.push('整合验收不得移除任何原有npm test功能回归');
+      for(const key of REQUIRED_SCRIPT_KEYS)
+        if(!after.scripts?.[key]||/^(?:echo|true|:)\b/.test(after.scripts[key]))
+          errors.push('整合验收不得将有效测试替换为占位命令：'+key);
+    }
   } else if (CATEGORIES.has(category)) {
     if (!/^\s*不计入功能恢复\s*$/m.test(body)) errors.push('非恢复类必须独立声明“不计入功能恢复”');
     if (implementation.length) errors.push('非恢复类不得夹带运行态源码或资源变更');
@@ -215,7 +298,7 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
     if (/(?:完成|实现|修复|恢复).*(?:完整业务|全部功能|真实业务恢复|功能等价)/.test(title))
       errors.push('非恢复类标题不得宣称已完成业务恢复或功能等价');
   }
-  if (isFunction || category==='独立测试' || category==='目录整理') {
+  if (isFunction || isIntegrated || category==='独立测试' || category==='目录整理') {
     if(tests.some(p=>!testChanges.some(s=>s.path===p)))
       errors.push('测试文件缺少实际前后差异检查');
     let valid=0;
@@ -377,7 +460,7 @@ function verifiedManifestRelocations(changes,head){
 }
 function runChangedTests(report, changes) {
   if(!report.ok) return;
-  if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试' && report.category!=='目录整理') return;
+  if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试' && report.category!=='目录整理' && report.category!=='整合验收') return;
   const specializedWorkflow=fs.readFileSync('.github/workflows/v43-historical-real-compare.yml','utf8');
   const selected=changes.testChanges.filter(x=>report.tests.includes(x.path) && x.after!==null);
   const delegated=selected.filter(x=>delegatedHistoricalRename(x,report.category,specializedWorkflow));
@@ -403,6 +486,7 @@ function main() {
     sourceChanges:changes.sourceChanges,testChanges:changes.testChanges,
     verifiedRelocations:verifiedStandaloneSourceMoves(changes,event.pull_request.head.sha),
     verifiedMetadata:verifiedManifestRelocations(changes,event.pull_request.head.sha),
+    verifiedRootSources:field(event.pull_request.body,'交付类别')==='整合验收'?verifiedRootSourceMoves(changes,event.pull_request.head.sha):[],
     packageBefore:gitAt(changes.ancestor,'package.json'),
     packageAfter:gitAt(event.pull_request.head.sha,'package.json')
   });
@@ -427,4 +511,4 @@ function main() {
 }
 if(require.main===module)main();
 module.exports={field,businessPath,testPath,docPath,categoryPathAllowed,astShape,
-  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename,verifiedStandaloneSourceMoves,verifiedManifestRelocations,exactManifestPaths};
+  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename,verifiedStandaloneSourceMoves,verifiedManifestRelocations,exactManifestPaths,verifiedRootSourceMoves};

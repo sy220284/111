@@ -357,3 +357,48 @@ test('core 中的实际业务源码不得绕开源码变更门禁',()=>{
  assert.equal(businessPath('core/chunk-1234abcd.js'),true);
  assert.equal(categoryPathAllowed('目录整理','core/chunk-1234abcd.js'),false);
 });
+
+test('整合验收必须同时核实真实来源映射、业务修改和全部原有测试入口',()=>{
+  const body=[
+    '交付类别：整合验收',
+    '业务问题：统一源码位置并保留主程序功能完整性',
+    '实际代码改动：core/chunk-kj2kfe1q.js 与MCP等当前源码',
+    '调用链：bin/claude-310.mjs → core/cli.js → 真实MCP/Daemon子流程',
+    '验收测试：tests/mcp-rpc-cancellation.test.cjs 与 tests/cli-live-daemon-worker-recovery.test.cjs',
+    '验证命令：npm test与真实Node/Bun进程级差分',
+    '验证结果：已执行定向行为回归并保存运行结果',
+    '验收级别：部分完成',
+    '未验收范围：原版ELF与线上凭据协议的完整等价'
+  ].join('\n');
+  const testFile='tests/mcp-rpc-cancellation.test.cjs';
+  const before=JSON.stringify({scripts:{
+    test:Array.from({length:65},(_,i)=>'npm run check:step-'+i).join(' && '),
+    'check:source':'node src-check.js','check:source-fingerprint':'node hash.js',
+    'check:function-evidence':'node evidence.js','audit:functions':'node ast.js',
+    'check:restored-aliases':'node aliases.js'
+  }});
+  const actual={changed:['src/chunk-1.js','core/chunk-1.js','resources/layout/root-source-relocations.json',
+      'resources/layout/relocations.json','resources/asset-layout.json','resources/embedded-source-layout.json',
+      testFile,'tests/cli-live-daemon-worker-recovery.test.cjs','docs/integration.md'],
+    body,
+    testChanges:[{path:testFile,status:'A',before:null,
+      after:"const {test}=require('node:test');const assert=require('node:assert/strict');test('real',()=>assert.equal(1,1))"},
+     {path:'tests/cli-live-daemon-worker-recovery.test.cjs',status:'A',before:null,
+      after:"const {test}=require('node:test');const assert=require('node:assert/strict');test('daemon',()=>assert.equal(2,2))"}],
+    verifiedRootSources:Array.from({length:2554},(_,i)=>({old:'src/chunk-'+i+'.js',current:'core/chunk-'+i+'.js',changedFromBase:i===0,importAdjusted:false})),
+    verifiedRelocations:Array.from({length:318},(_,i)=>({old:'src/embedded/file'+i,current:'embedded/file'+i})),
+    verifiedMetadata:['resources/asset-layout.json','resources/embedded-source-layout.json'],
+    packageBefore:before,packageAfter:before};
+  const accepted=auditDelivery(actual);
+  assert.equal(accepted.ok,true,accepted.errors.join('\n'));
+  const noProof=auditDelivery({...actual,verifiedRootSources:[]});
+  assert.equal(noProof.ok,false);
+  assert.ok(noProof.errors.some(x=>x.includes('2554项可信Git')));
+  const dropped=auditDelivery({...actual,packageAfter:JSON.stringify({scripts:{
+    ...JSON.parse(before).scripts,test:'npm run check:step-0'
+  }})});
+  assert.equal(dropped.ok,false);
+  assert.ok(dropped.errors.some(x=>x.includes('移除任何原有npm test')));
+  const fakeLevel=auditDelivery({...actual,body:body.replace('验收级别：部分完成','验收级别：业务链已验证')});
+  assert.equal(fakeLevel.ok,false);
+});
