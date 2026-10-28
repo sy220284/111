@@ -99,6 +99,14 @@
       "tests": [
         "tests/cli-live-daemon-worker-recovery.test.cjs"
       ]
+    },
+    "plugins/functionHooks/hooks-worker/hooks-worker.js": {
+      "classification": "Hook Worker 因源码平移修复 130 项真实 ESM 导入，原始文件可逆还原并逐字节比对；业务行为仍以当前定向测试和真实 CLI 为限",
+      "tests": [
+        "tests/root-source-relocation.test.cjs",
+        "tests/function-hook-worker-contract.test.cjs",
+        "tests/check-source.cjs"
+      ]
     }
   }
 }
