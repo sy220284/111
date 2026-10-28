@@ -7,7 +7,24 @@ const {spawn,spawnSync}=require('node:child_process');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
-const bin=path.resolve(__dirname,'../bin/claude-310.mjs');
+const root=path.resolve(__dirname,'..');
+const originalBin=path.join(root,'bin/claude-310.mjs');
+const patchedCli=path.join(root,'src','.daemon-e2e-cli.js');
+const patchedDaemon=path.join(root,'src','.daemon-e2e-runtime.js');
+function installTrace(){
+  const cli=fs.readFileSync(path.join(root,'src','cli.js'),'utf8');
+  const daemon=fs.readFileSync(path.join(root,'src','chunk-7vavdsaz.js'),'utf8');
+  const cliAnchor='import("./chunk-7vavdsaz.js")';
+  const catchAnchor='catch(J){return l(J),m("daemon_start","daemon_start_crash")';
+  assert.ok(cli.includes(cliAnchor)&&daemon.includes(catchAnchor),'daemon instrumentation anchor missing');
+  fs.writeFileSync(patchedCli,cli.replace(cliAnchor,'import("./.daemon-e2e-runtime.js")'));
+  fs.writeFileSync(patchedDaemon,daemon.replace(catchAnchor,
+    'catch(J){console.error("DAEMON_TRACE",J?.stack||J);return l(J),m("daemon_start","daemon_start_crash")'));
+}
+function removeTrace(){
+  for(const f of [patchedCli,patchedDaemon])fs.rmSync(f,{force:true});
+}
+const bin=patchedCli;
 const runtime=process.env.CLAUDE_E2E_RUNTIME||process.execPath;
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function envFor(home){
@@ -60,6 +77,7 @@ test('真实 Daemon supervisor 启动、status PID、一致性退出及跨进程
   const home=fs.mkdtempSync(path.join(os.tmpdir(),'111-daemon-live-'));
   const env=envFor(home);
   let first,second;
+  installTrace();
   try{
     first=await startAndAssert(home,env);
     assert.equal(first.child.exitCode,null,'daemon unexpectedly exited');
@@ -83,5 +101,6 @@ test('真实 Daemon supervisor 启动、status PID、一致性退出及跨进程
     if(second)await stop(second.child);
     if(first&&first.child.exitCode===null)first.child.kill('SIGKILL');
     fs.rmSync(home,{recursive:true,force:true});
+    removeTrace();
   }
 });
