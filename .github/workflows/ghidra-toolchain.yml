@@ -56,7 +56,10 @@ jobs:
           source tools/dev/toolchain-versions.env
           "$JAVA_HOME/bin/java" -version 2>&1 | grep -Eq 'version "25([."]|\+)'
           mkdir -p "$RUNNER_TEMP/jdk-stage"
-          cp -a "$JAVA_HOME" "$RUNNER_TEMP/jdk-stage/jdk"
+          mkdir -p "$RUNNER_TEMP/jdk-stage/jdk"
+          cp -a "$(readlink -f "$JAVA_HOME")/." "$RUNNER_TEMP/jdk-stage/jdk/"
+          test -x "$RUNNER_TEMP/jdk-stage/jdk/bin/java"
+          test "$(du -sm "$RUNNER_TEMP/jdk-stage/jdk" | cut -f1)" -gt 30
           dest="$RUNNER_TEMP/111-components/111-toolchain-jdk-latest"
           mkdir -p "$dest"
           printf 'ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=jdk\nARTIFACT_ARCH=x64\nARTIFACT_NODE_VERSION=%s\nARTIFACT_JDK_MAJOR=%s\n' \
@@ -93,7 +96,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: 111-toolchain-*-latest
-          path: ${{ runner.temp }}/111-artifacts
+          path: ${{ github.workspace }}/.111-artifacts
           merge-multiple: false
       - name: 离线安装与重复检查
         run: |
