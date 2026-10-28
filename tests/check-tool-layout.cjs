@@ -6,7 +6,7 @@ const assets=JSON.parse(fs.readFileSync(path.join(root,'resources/asset-layout.j
 assert.equal(manifest.migrated.length,18);
 assert.equal(manifest.supporting.length,6);
 const sha=data=>crypto.createHash('sha1').update('blob '+data.length+String.fromCharCode(0)).update(data).digest('hex');
-const currentPath=p=>p.replace(/^resources\/tools\//,'tools/bundled/');
+const currentPath=p=>p.replace(/^resources\/tools\//,'tools/bundled/').replace(/^src\/embedded\//,'embedded/').replace(/^src\/plugin-testing-kit\//,'plugin-testing-kit/');
 const positions=new Set();
 for(const r of [...manifest.migrated,...manifest.supporting]){
  assert.ok(!positions.has(r.path),'duplicate path '+r.path);positions.add(r.path);
