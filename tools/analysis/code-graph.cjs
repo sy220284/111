@@ -168,7 +168,10 @@ function analyze(sources, ledger = []) {
     const out=m.exports.get(symbol);
     if(out) {
       if(out.file!==file) return exportTarget(out.file,out.local,seen);
-      if(m.defs.has(out.local))return m.defs.get(out.local);
+      // ESM exports are live bindings. Reassigning an exported function
+      // invalidates the old implementation as a static callee candidate.
+      if(m.defs.has(out.local) && !unsafeByFile.get(file)?.has(out.local))
+        return m.defs.get(out.local);
       const binding=m.imports.get(out.local);
       if(binding?.target) return exportTarget(binding.target,binding.export,seen);
     }
