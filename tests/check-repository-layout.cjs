@@ -5,9 +5,9 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..');
 const r=JSON.parse(fs.readFileSync(path.join(root,'resources/layout/relocations.json'),'utf8'));
-assert.equal(r.files.length,462,'迁移文件总数必须保持');
-assert.equal(r.files.filter(x=>x.kind==='test').length,76);
-assert.equal(r.files.filter(x=>x.kind==='document').length,12);
+assert.equal(r.files.length,467,'迁移文件总数必须保持');
+assert.equal(r.files.filter(x=>x.kind==='test').length,79);
+assert.equal(r.files.filter(x=>x.kind==='document').length,14);
 for(const [kind,count] of Object.entries({'embedded-source':24,'plugin-source':294,'bundled-tool-source':56})) assert.equal(r.files.filter(x=>x.kind===kind).length,count);
 const seen=new Set();
 for(const x of r.files){
@@ -33,4 +33,4 @@ const scripts=Object.values(pkg.scripts).join('\n');
 for(const x of r.files.filter(x=>x.kind==='test')){
  assert.ok(!scripts.includes(x.old),'npm仍引用旧测试 '+x.old);
 }
-console.log('按用途归档校验通过：76 个业务测试、12 份工程文档、374 份独立源码；全部目标存在，旧路径及文档内部链接已核实');
+console.log('按用途归档校验通过：79 个业务测试、14 份工程文档、374 份独立源码；全部目标存在，旧路径及文档内部链接已核实');

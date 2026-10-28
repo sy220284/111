@@ -3,8 +3,8 @@
   "baseCommit": "cd36d5df94b496efbc12d826891268eb64cee869",
   "description": "Source path to categorized current path, preserving pinned historical references",
   "counts": {
-    "tests": 76,
-    "documents": 12,
+    "tests": 79,
+    "documents": 14,
     "embeddedSources": 24,
     "pluginSources": 294,
     "bundledToolSources": 56
@@ -2780,6 +2780,36 @@
       "old": "docs/v45_703_调用依赖_真实源码修复与验收.md",
       "current": "docs/restoration/v45/v45_703_调用依赖_真实源码修复与验收.md",
       "originalGitBlob": "1e5ba258e89cb1f9877f5cf72a33e7088a5e81ef",
+      "kind": "document"
+    },
+    {
+      "old": "tests/jelly-runner.test.cjs",
+      "current": "tests/restoration/jelly-runner.test.cjs",
+      "originalGitBlob": "dc834c7a93450e9ce786c305bdcc46985879fe0d",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-original-daemon-adoption-parity.test.cjs",
+      "current": "tests/restoration/v37-original-daemon-adoption-parity.test.cjs",
+      "originalGitBlob": "8796a87393edf604622f04f0454eccb6b3406ca5",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v37-tool-runtime-contracts.test.cjs",
+      "current": "tests/restoration/v37-tool-runtime-contracts.test.cjs",
+      "originalGitBlob": "ee587d7176188521f0927fd6481df1a692c5e139",
+      "kind": "test"
+    },
+    {
+      "old": "docs/2026-10-28-实际功能落地与未完成矩阵.md",
+      "current": "docs/architecture/2026-10-28-实际功能落地与未完成矩阵.md",
+      "originalGitBlob": "3a3389ec75faf8aebdcd52e92626ec6bab288f24",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_未完成工具真实语义测试.md",
+      "current": "docs/research/v37/v37_未完成工具真实语义测试.md",
+      "originalGitBlob": "8d3727cc32fb80934cad7a131499fc346087c6f2",
       "kind": "document"
     }
   ]
