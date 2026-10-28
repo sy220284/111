@@ -351,3 +351,9 @@ test('原始工具来源JSON只能R100归入 resources/layout，不允许修改�
  assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}]}).ok,true);
  assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}],changed:[...base.changed,'chunk-1234.js']}).ok,false);
 });
+
+
+test('core 中的实际业务源码不得绕开源码变更门禁',()=>{
+ assert.equal(businessPath('core/chunk-1234abcd.js'),true);
+ assert.equal(categoryPathAllowed('目录整理','core/chunk-1234abcd.js'),false);
+});

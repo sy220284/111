@@ -197,6 +197,8 @@ npm run verify:runtime
 - 本节是本批修复的内容和可复测入口；具体是否通过以对应最新 GitHub Actions 日志为准，所有未授权联网/云端功能仍留在待验收范围内。
 
 
-## 源码根目录展平（2026-10-28）
+## 主程序源码归类（2026-10-28）
 
-主程序 `cli.js`、`chunk-*.js`、vendor JS 已从 `src/` 平移到仓库根目录，Hook Worker 归入 `plugins/functionHooks/`。对应的完整迁移原件清单位于 `resources/layout/root-source-relocations.json`；38 项运行时导入需修改为 `./runtime/` 才能从根目录加载。`npm run check:root-source-relocation` 检查源文件 Git Blob、旧路径零残留和导入改动范围。功能真实验收以最新 GitHub Actions 与独立 E2E 的真实作业记录为准。
+原 `src/` 的 2,553 个 JavaScript 文件现集中在仓库根目录的 `core/`，包括 `core/cli.js`、`core/chunk-*.js`、原生包装及 vendor bundle。Hook Worker 保留独立子树 `plugins/functionHooks/`，其他根目录按 `embedded/`、`runtime/`、`tests/`、`tools/` 等用途分类。仓库根目录不再散落 JavaScript 源文件。
+
+文件原件保真由 `resources/layout/root-source-relocations.json` 和 `npm run check:root-source-relocation` 核对；`bin/claude-310.mjs` 指向 `core/cli.js`。主程序的 `../runtime/` 适配导入恢复原字节；用户请求的目录归集不宣称完成整合 PR 的业务验收。函数索引仍需从此版本真实重算，最新整合 CI 尚未通过。

@@ -9,23 +9,23 @@
   },
   "sourceBundles": {
     "chart.umd.min.js": {
-      "source": "chart.umd.min.js",
+      "source": "core/chart.umd.min.js",
       "loaders": [
-        "chunk-nxfv8sbm.js"
+        "core/chunk-nxfv8sbm.js"
       ],
       "sha256": "48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a"
     },
     "hljsBundle.generated.min.js": {
-      "source": "hljsBundle.generated.min.js",
+      "source": "core/hljsBundle.generated.min.js",
       "loaders": [
-        "chunk-crqz6t7m.js"
+        "core/chunk-crqz6t7m.js"
       ],
       "sha256": "ae4a713108fb2d92e1be0156d49821df6c4df5c88e885c490e55b2a66df48973"
     },
     "mermaid.min.js": {
-      "source": "mermaid.min.js",
+      "source": "core/mermaid.min.js",
       "loaders": [
-        "chunk-axeech6e.js"
+        "core/chunk-axeech6e.js"
       ],
       "sha256": "18327bef70d96fb505fe7287d9f6a7362ebf07ff6576ddfaffb1a06f3e1a2954"
     }

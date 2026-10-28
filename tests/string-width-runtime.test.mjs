@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nodeTerminalStringWidth } from '../runtime/string-width.mjs';
-import { le as getTerminalWidth } from '../chunk-vw9e882a.js';
+import { le as getTerminalWidth } from '../core/chunk-vw9e882a.js';
 
 test('Node 终端文本宽度：英文、中日韩、组合字符及双宽符号', () => {
   for (const [text, width] of [

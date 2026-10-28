@@ -37,7 +37,7 @@ function field(body, name) {
   return matches.length === 1 ? matches[0][1].trim() : '';
 }
 function businessPath(p) {
-  return /^(?:src|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
+  return /^(?:src|core|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
 }
 function testPath(p) { return /^tests\/.+/.test(p) && TEST_EXT.test(p); }
 function docPath(p) {
@@ -50,7 +50,7 @@ function categoryPathAllowed(category, p) {
   if (category === '工具维护') return /^(?:scripts|tools|tests)\//.test(p) ||
     docPath(p) || ['package.json','package-lock.json'].includes(p) ||
     p === '.github/workflows/dev-toolchain.yml';
-  if (category === '目录整理') return p!=='scripts/check-restoration-delivery.cjs' && !/^(?:src|runtime|bin)\//.test(p) &&
+  if (category === '目录整理') return p!=='scripts/check-restoration-delivery.cjs' && !/^(?:src|core|runtime|bin)\//.test(p) &&
     !/^resources\/(?:bunfs|data)\//.test(p) &&
     !PROTECTED_CHECKS.has(p.replace(/^\.github\/workflows\/restoration-delivery-gate\.yml$/,'__allowed_workflow_path__')) &&
     (/^(?:docs|tests|scripts|tools)\//.test(p) || /^\.github\/workflows\//.test(p) ||

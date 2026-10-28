@@ -41,7 +41,7 @@ async function compare(file,legacy,readable,execute) {
  const second=await execute(current(file),readable);
  assert.deepEqual(ordinary(second),ordinary(first),file+': '+legacy+' -> '+readable);
 }
-const beacon='chunk-t2adf9g4.js',adopt='chunk-bwt94x0y.js';
+const beacon='core/chunk-t2adf9g4.js',adopt='core/chunk-bwt94x0y.js';
 
 test('v37原始过期计算与现行具名函数：24h临界和未来时钟漂移',async()=>{
  const run=(source,name)=>{

@@ -12,9 +12,9 @@ const functionLike = n => ts.isFunctionDeclaration(n)||ts.isFunctionExpression(n
   ts.isGetAccessorDeclaration(n)||ts.isSetAccessorDeclaration(n);
 const normalize = x => x.split(path.sep).join('/');
 function inputFiles(root) {
-  const src = root;
+  const src = path.join(root,'core');
   const names = fs.readdirSync(src).filter(x=>x.endsWith('.js')&&!EXCLUDE.has(x)).sort();
-  const files = names.map(x=>''+x);
+  const files = names.map(x=>'core/'+x);
   if (fs.existsSync(path.join(root, WORKER))) files.push(WORKER);
   for (const runtime of ['runtime/assets.mjs', 'runtime/string-width.mjs'])
     if (fs.existsSync(path.join(root, runtime))) files.push(runtime);
@@ -645,7 +645,7 @@ function repoGraph(root) {
 }
 function main(argv) {
   let command=argv.shift()||'scan',file=null,symbol=null,output=null,detail=false;
-  if(!['scan','trace','impact'].includes(command))throw Error('Usage: code-graph.cjs scan|trace|impact [--file src/path.js] [--symbol fn] [--output path] [--full]');
+  if(!['scan','trace','impact'].includes(command))throw Error('Usage: code-graph.cjs scan|trace|impact [--file core/path.js] [--symbol fn] [--output path] [--full]');
   while(argv.length){
     let x=argv.shift();
     if(x==='--file')file=argv.shift();

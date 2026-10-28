@@ -4,1051 +4,1051 @@
   "completionClaim": "source-link integrity, not entire semantic or end-to-end parity",
   "entries": [
     {
-      "source": "chunk-1nnn2mdy.js",
+      "source": "core/chunk-1nnn2mdy.js",
       "legacy": "QMn",
       "readable": "parseHookSourceDescriptor",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-1nnn2mdy.js",
+      "source": "core/chunk-1nnn2mdy.js",
       "legacy": "ZMn",
       "readable": "parsePluginHookIdentity",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-1nnn2mdy.js",
+      "source": "core/chunk-1nnn2mdy.js",
       "legacy": "jhs",
       "readable": "resolvePreToolUseRegistration",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-1nnn2mdy.js",
+      "source": "core/chunk-1nnn2mdy.js",
       "legacy": "Whs",
       "readable": "parseToolPermissionEvent",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-q85nvv4x.js",
+      "source": "core/chunk-q85nvv4x.js",
       "legacy": "uun",
       "readable": "isReservedPolicyHookModule",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-q85nvv4x.js",
+      "source": "core/chunk-q85nvv4x.js",
       "legacy": "HE",
       "readable": "listModulesForHookDispatch",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-eq8vmbm3.js",
+      "source": "core/chunk-eq8vmbm3.js",
       "legacy": "Vds",
       "readable": "listExternalTemplateIds",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-eq8vmbm3.js",
+      "source": "core/chunk-eq8vmbm3.js",
       "legacy": "qds",
       "readable": "findExternalTemplateByDigest",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-eq8vmbm3.js",
+      "source": "core/chunk-eq8vmbm3.js",
       "legacy": "Oat",
       "readable": "findExternalTemplateById",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-eq8vmbm3.js",
+      "source": "core/chunk-eq8vmbm3.js",
       "legacy": "Nxn",
       "readable": "isPreToolUseTemplateEvent",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-eq8vmbm3.js",
+      "source": "core/chunk-eq8vmbm3.js",
       "legacy": "$xn",
       "readable": "externalTemplateConstantFlag",
       "style": "exportAlias"
     },
     {
-      "source": "chunk-23vy5pjb.js",
+      "source": "core/chunk-23vy5pjb.js",
       "legacy": "de",
       "readable": "safeTaskFileId",
       "style": "constAlias"
     },
     {
-      "source": "chunk-23vy5pjb.js",
+      "source": "core/chunk-23vy5pjb.js",
       "legacy": "tTi",
       "readable": "removeTaskUploadReferences",
       "style": "constAlias"
     },
     {
-      "source": "chunk-23vy5pjb.js",
+      "source": "core/chunk-23vy5pjb.js",
       "legacy": "nTi",
       "readable": "diagnosePreparedTaskUpload",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "pt",
       "readable": "isEquivalentMcpIssuerEcho",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "pe",
       "readable": "parseMcpIssuerHttpUrl",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "_t",
       "readable": "classifyMcpIssuerOrigin",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "mt",
       "readable": "listMcpIssuerDifferenceFacets",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "kUn",
       "readable": "verifyMcpOAuthIssuerEcho",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "jAi",
       "readable": "registerActiveMcpOAuthFlow",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "WAi",
       "readable": "getActiveMcpOAuthFlow",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "LTr",
       "readable": "clearTokenlessMcpOAuthPlaceholder",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "Le",
       "readable": "selectMcpOAuthMetadataScope",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "Dhi",
       "readable": "includeSupportedOfflineAccessScope",
       "style": "constAlias"
     },
     {
-      "source": "chunk-x436erds.js",
+      "source": "core/chunk-x436erds.js",
       "legacy": "Hhi",
       "readable": "isMicrosoftMcpOAuthIssuer",
       "style": "constAlias"
     },
     {
-      "source": "chunk-tqjdehqd.js",
+      "source": "core/chunk-tqjdehqd.js",
       "legacy": "sr",
       "readable": "getCancelledMainTurnMessageId",
       "style": "constAlias"
     },
     {
-      "source": "chunk-tqjdehqd.js",
+      "source": "core/chunk-tqjdehqd.js",
       "legacy": "Ff",
       "readable": "findLatestTrailingUserMessageUuid",
       "style": "constAlias"
     },
     {
-      "source": "chunk-tqjdehqd.js",
+      "source": "core/chunk-tqjdehqd.js",
       "legacy": "Gf",
       "readable": "describeQueryModelFallback",
       "style": "constAlias"
     },
     {
-      "source": "chunk-tqjdehqd.js",
+      "source": "core/chunk-tqjdehqd.js",
       "legacy": "Iu",
       "readable": "abbreviateModelFallbackReason",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fbc1ty1s.js",
+      "source": "core/chunk-fbc1ty1s.js",
       "legacy": "hfr",
       "readable": "applyMcpConnectionSettlement",
       "style": "constAlias"
     },
     {
-      "source": "chunk-2af27mew.js",
+      "source": "core/chunk-2af27mew.js",
       "legacy": "_gi",
       "readable": "parseDaemonAttemptCount",
       "style": "constAlias"
     },
     {
-      "source": "chunk-2af27mew.js",
+      "source": "core/chunk-2af27mew.js",
       "legacy": "xyr",
       "readable": "classifyDaemonWorkerFailure",
       "style": "constAlias"
     },
     {
-      "source": "chunk-2af27mew.js",
+      "source": "core/chunk-2af27mew.js",
       "legacy": "bgi",
       "readable": "chooseDaemonWorkerExit",
       "style": "constAlias"
     },
     {
-      "source": "chunk-yhfqc2mr.js",
+      "source": "core/chunk-yhfqc2mr.js",
       "legacy": "aD",
       "readable": "getDaemonStateFilePath",
       "style": "constAlias"
     },
     {
-      "source": "chunk-yhfqc2mr.js",
+      "source": "core/chunk-yhfqc2mr.js",
       "legacy": "Xpe",
       "readable": "getDaemonLogFilePath",
       "style": "constAlias"
     },
     {
-      "source": "chunk-w9w4r9w1.js",
+      "source": "core/chunk-w9w4r9w1.js",
       "legacy": "D",
       "readable": "dispatchStoredSessionRow",
       "style": "constAlias"
     },
     {
-      "source": "chunk-w9w4r9w1.js",
+      "source": "core/chunk-w9w4r9w1.js",
       "legacy": "Te",
       "readable": "appendSessionRows",
       "style": "constAlias"
     },
     {
-      "source": "chunk-w9w4r9w1.js",
+      "source": "core/chunk-w9w4r9w1.js",
       "legacy": "u",
       "readable": "isSessionRowEligibleForAppend",
       "style": "inlineVar"
     },
     {
-      "source": "chunk-fbc1ty1s.js",
+      "source": "core/chunk-fbc1ty1s.js",
       "legacy": "QRn",
       "readable": "findRetryableMcpConnections",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fbc1ty1s.js",
+      "source": "core/chunk-fbc1ty1s.js",
       "legacy": "aZr",
       "readable": "trackTransientMcpRetries",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fbc1ty1s.js",
+      "source": "core/chunk-fbc1ty1s.js",
       "legacy": "R6t",
       "readable": "retryFailedMcpConnections",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "mfo",
       "readable": "isSubagentDispatchToolUse",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "en",
       "readable": "hasMatchedSubagentResult",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "Un",
       "readable": "normalizeShutdownInterruptedAgentResult",
       "style": "constAlias"
     },
     {
-      "source": "chunk-wapyem7a.js",
+      "source": "core/chunk-wapyem7a.js",
       "legacy": "Zt",
       "readable": "pruneExpiredLegacyDaemonLogDirs",
       "style": "constAlias"
     },
     {
-      "source": "chunk-r4g83g7p.js",
+      "source": "core/chunk-r4g83g7p.js",
       "legacy": "Vg",
       "readable": "fetchUncachedMcpToolList",
       "style": "constAlias"
     },
     {
-      "source": "chunk-r4g83g7p.js",
+      "source": "core/chunk-r4g83g7p.js",
       "legacy": "Wg",
       "readable": "readUncachedMcpResource",
       "style": "constAlias"
     },
     {
-      "source": "chunk-r4g83g7p.js",
+      "source": "core/chunk-r4g83g7p.js",
       "legacy": "Gg",
       "readable": "callMcpToolWithTaskContext",
       "style": "constAlias"
     },
     {
-      "source": "chunk-r4g83g7p.js",
+      "source": "core/chunk-r4g83g7p.js",
       "legacy": "Gd",
       "readable": "attachDeclaredMcpTaskContext",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "dwr",
       "readable": "resumeSubagentWithInheritedHookOrigin",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "cwr",
       "readable": "formatPluginResumeDenial",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "sn",
       "readable": "hasCoherentResumedSubagentTranscript",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "nJ",
       "readable": "resumeSubagentForNotification",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "gfo",
       "readable": "resumeSubagentInline",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "fwr",
       "readable": "resumeSubagentForReply",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "it",
       "readable": "runSubagentResumeExclusively",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "Yn",
       "readable": "addJoinedAgentNoticeMetadata",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "Jgi",
       "readable": "normalizeAgentResumeError",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "CF",
       "readable": "isAgentResumePluginDenial",
       "style": "constAlias"
     },
     {
-      "source": "chunk-g936x3jq.js",
+      "source": "core/chunk-g936x3jq.js",
       "legacy": "uwr",
       "readable": "isInlineResumedAgentError",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "tgr",
       "readable": "mcpSettledForAdopt",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Pno",
       "readable": "classifyAdoptReconciliationNotice",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Yxn",
       "readable": "probeDaemonJob",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "b3t",
       "readable": "listAliveDaemonJobs",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Meo",
       "readable": "isDaemonJobPresent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Bn",
       "readable": "matchesBackgroundJobReference",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "zat",
       "readable": "refreshDaemonJobRecord",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "ngr",
       "readable": "isShellAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "lUe",
       "readable": "isCronAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "rgr",
       "readable": "isAgentAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "rIn",
       "readable": "isWorkflowAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "u6e",
       "readable": "isTaskMarkedAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9xz7emqc.js",
+      "source": "core/chunk-9xz7emqc.js",
       "legacy": "keo",
       "readable": "stopCurrentSession",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Vxn",
       "readable": "isDaemonJobConfirmedAbsent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Oeo",
       "readable": "formatUnpushedCommitCount",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "_cs",
       "readable": "formatUnpushedCommitSummary",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Deo",
       "readable": "isDaemonConnectionFailureMessage",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Mno",
       "readable": "hasPendingAdoptableWork",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Yxt",
       "readable": "countUnadoptedFrames",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Dno",
       "readable": "hasAdoptionPayloadTasks",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "oIn",
       "readable": "summarizeAdoptedPayloadCounts",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "yno",
       "readable": "saveUnresumedAdoptTasks",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "_no",
       "readable": "claimUnresumedAdoptTasksForOwner",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "egr",
       "readable": "takeUnresumedAdoptTasks",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "bno",
       "readable": "storeUnresumedFrameEntries",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Sno",
       "readable": "claimUnresumedFrameEntriesForOwner",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "tIn",
       "readable": "takeUnresumedFrameEntries",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "wno",
       "readable": "appendUnresumedFrameEntries",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "vno",
       "readable": "removeUnresumedFrameSlug",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Eno",
       "readable": "cacheExitRetryFrameEntries",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "kno",
       "readable": "takeExitRetryFrameEntries",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "at",
       "readable": "daemonLocalRecordPath",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Ue",
       "readable": "daemonStorageRecordKey",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "yt",
       "readable": "daemonStorageJsonKey",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Ee",
       "readable": "isDaemonRegistryDirectoryAvailable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Gn",
       "readable": "readDaemonGestureRecord",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "nn",
       "readable": "parseDaemonGestureRecord",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "rn",
       "readable": "isDaemonProcessGoneOrReused",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "qn",
       "readable": "isDaemonRosterRecordStale",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "tr",
       "readable": "mapDaemonErrorCode",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Te",
       "readable": "bufferMatchesAtOffset",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Ie",
       "readable": "countBufferPrefixOverlap",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "y3t",
       "readable": "classifyDaemonSessionTarget",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "st",
       "readable": "runDaemonGroupExclusively",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Vn",
       "readable": "scheduleDaemonReconciliation",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Rt",
       "readable": "isExpectedGitHead",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "vt",
       "readable": "runGitWorktreeCommand",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "wn",
       "readable": "formatCommitCountOverflow",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "jr",
       "readable": "shortenWorktreePathLabel",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Tn",
       "readable": "classifyWorktreeOwnership",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "xe",
       "readable": "hasSameCanonicalPath",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "ft",
       "readable": "normalizeWorktreePath",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "En",
       "readable": "isPathWithinWorktreeRoot",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "On",
       "readable": "checkJobStateFilePresence",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "F6",
       "readable": "isFrameLiveAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "xwe",
       "readable": "collectAdoptableFrameSlugs",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Vxt",
       "readable": "countAlreadyAdoptedWork",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "qxt",
       "readable": "countOutstandingAdoptWork",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Q",
       "readable": "attachAdoptionErrorCode",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "ke",
       "readable": "parseAdoptionJsonOrNull",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Cno",
       "readable": "formatAdoptionProcessIdentity",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "je",
       "readable": "resolveAdoptedAgentParent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "kt",
       "readable": "persistOwnedDaemonBeacon",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Kn",
       "readable": "readDaemonGestureFromStorage",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "He",
       "readable": "parseTerminalKittyKeyEscape",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "pn",
       "readable": "scanTerminalInterruptSequence",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "qxn",
       "readable": "hasTerminalInterruptSequence",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "kn",
       "readable": "verifyDaemonJobOwnership",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Heo",
       "readable": "retryDaemonJobUpdate",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "vn",
       "readable": "formatDaemonConnectionRetryPrompt",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Ge",
       "readable": "invokeDaemonInteractiveRunner",
       "style": "constAlias"
     },
     {
-      "source": "chunk-y93r9xd4.js",
+      "source": "core/chunk-y93r9xd4.js",
       "legacy": "Tat",
       "readable": "createFleetViewHost",
       "style": "constAlias"
     },
     {
-      "source": "chunk-y93r9xd4.js",
+      "source": "core/chunk-y93r9xd4.js",
       "legacy": "BZr",
       "readable": "useAttachFleetOwners",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fnsjs1v2.js",
+      "source": "core/chunk-fnsjs1v2.js",
       "legacy": "NFt",
       "readable": "rosterKey",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fnsjs1v2.js",
+      "source": "core/chunk-fnsjs1v2.js",
       "legacy": "JN",
       "readable": "readRoster",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fnsjs1v2.js",
+      "source": "core/chunk-fnsjs1v2.js",
       "legacy": "ax",
       "readable": "bgShort",
       "style": "constAlias"
     },
     {
-      "source": "chunk-fnsjs1v2.js",
+      "source": "core/chunk-fnsjs1v2.js",
       "legacy": "Hne",
       "readable": "updateRoster",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "$e",
       "readable": "isDaemonRecordExpired",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "tn",
       "readable": "updateOwnedDaemonBeaconAttempt",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "oxt",
       "readable": "mergeOwnedDaemonBeaconProgress",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Jmr",
       "readable": "serializeAdoptAgent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Qmr",
       "readable": "serializeAdoptWorkflow",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Zmr",
       "readable": "dedupFrameLiveNewest",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "FX",
       "readable": "computeAdoptability",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "f6e",
       "readable": "countLiveWorkflowAgents",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "aUe",
       "readable": "noticeFieldOf",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "xlt",
       "readable": "noticeDescriptionOf",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "eIn",
       "readable": "serializeAdoptable",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Rlt",
       "readable": "writeAdoptJson",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "hno",
       "readable": "readAndConsumeAdoptJson",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "yPe",
       "readable": "killJob",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "wpr",
       "readable": "killOrphanedWorker",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Hee",
       "readable": "deleteJob",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Xmr",
       "readable": "detachAndSerializeShell",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "ZPn",
       "readable": "collectFrameLiveConsent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Ino",
       "readable": "emitAdoptAgentDenied",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "nIn",
       "readable": "emitAdoptAgentFailed",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "E8t",
       "readable": "emitAdoptWorkflowFailed",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Tno",
       "readable": "linkAdoptedAgentTranscript",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Rno",
       "readable": "linkAdoptedWorkflowDir",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Ano",
       "readable": "relinkAdoptedAgentSymlinks",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "xno",
       "readable": "resolveAdoptedScriptPath",
       "style": "constAlias"
     },
     {
-      "source": "chunk-bwt94x0y.js",
+      "source": "core/chunk-bwt94x0y.js",
       "legacy": "Ono",
       "readable": "adoptCron",
       "style": "constAlias"
     },
     {
-      "source": "chunk-t2adf9g4.js",
+      "source": "core/chunk-t2adf9g4.js",
       "legacy": "Kat",
       "readable": "replyToJob",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "gc",
       "readable": "normalizeLegacyToolName",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "Cse",
       "readable": "getLegacyToolNames",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "m",
       "readable": "escapeRuleContent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "AQo",
       "readable": "unescapeRuleContent",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "Bn",
       "readable": "permissionRuleValueFromString",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "dn",
       "readable": "permissionRuleValueToString",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "R",
       "readable": "findFirstUnescapedChar",
       "style": "constAlias"
     },
     {
-      "source": "chunk-9z5ybxhe.js",
+      "source": "core/chunk-9z5ybxhe.js",
       "legacy": "E",
       "readable": "findLastUnescapedChar",
       "style": "constAlias"
     },
     {
-      "source": "chunk-wrtp8qz8.js",
+      "source": "core/chunk-wrtp8qz8.js",
       "legacy": "Hxe",
       "readable": "intersperseArray",
       "style": "constAlias"
     },
     {
-      "source": "chunk-wrtp8qz8.js",
+      "source": "core/chunk-wrtp8qz8.js",
       "legacy": "F",
       "readable": "countMatching",
       "style": "constAlias"
     },
     {
-      "source": "chunk-wrtp8qz8.js",
+      "source": "core/chunk-wrtp8qz8.js",
       "legacy": "L",
       "readable": "uniqueIterable",
       "style": "constAlias"

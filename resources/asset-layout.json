@@ -11,7 +11,7 @@
       "compressedBytes": 4994,
       "decodedBytes": 16713,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -24,7 +24,7 @@
       "compressedBytes": 5381,
       "decodedBytes": 15802,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -37,7 +37,7 @@
       "compressedBytes": 3309,
       "decodedBytes": 8463,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -50,7 +50,7 @@
       "compressedBytes": 4764,
       "decodedBytes": 15028,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -63,7 +63,7 @@
       "compressedBytes": 4315,
       "decodedBytes": 11947,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -76,7 +76,7 @@
       "compressedBytes": 5165,
       "decodedBytes": 22623,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -89,7 +89,7 @@
       "compressedBytes": 6896,
       "decodedBytes": 20572,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -102,7 +102,7 @@
       "compressedBytes": 6865,
       "decodedBytes": 18917,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -115,7 +115,7 @@
       "compressedBytes": 4661,
       "decodedBytes": 14217,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -128,7 +128,7 @@
       "compressedBytes": 4260,
       "decodedBytes": 12362,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -141,7 +141,7 @@
       "compressedBytes": 5120,
       "decodedBytes": 20626,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -154,7 +154,7 @@
       "compressedBytes": 6348,
       "decodedBytes": 16121,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -167,7 +167,7 @@
       "compressedBytes": 8938,
       "decodedBytes": 22082,
       "literalConsumers": [
-        "chunk-nhwqp72d.js"
+        "core/chunk-nhwqp72d.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -180,7 +180,7 @@
       "compressedBytes": 33896,
       "decodedBytes": 106554,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -193,7 +193,7 @@
       "compressedBytes": 7881,
       "decodedBytes": 22588,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -206,7 +206,7 @@
       "compressedBytes": 21233,
       "decodedBytes": 64752,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -219,7 +219,7 @@
       "compressedBytes": 24466,
       "decodedBytes": 69242,
       "literalConsumers": [
-        "chunk-5e8e2f77.js"
+        "core/chunk-5e8e2f77.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -232,7 +232,7 @@
       "compressedBytes": 7396,
       "decodedBytes": 19818,
       "literalConsumers": [
-        "chunk-7pz78vfw.js"
+        "core/chunk-7pz78vfw.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -245,7 +245,7 @@
       "compressedBytes": 21709,
       "decodedBytes": 59213,
       "literalConsumers": [
-        "chunk-5e8e2f77.js"
+        "core/chunk-5e8e2f77.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -258,7 +258,7 @@
       "compressedBytes": 3646,
       "decodedBytes": 8606,
       "literalConsumers": [
-        "chunk-7hdrsgvw.js"
+        "core/chunk-7hdrsgvw.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -271,7 +271,7 @@
       "compressedBytes": 4877,
       "decodedBytes": 11626,
       "literalConsumers": [
-        "chunk-7kj5etk8.js"
+        "core/chunk-7kj5etk8.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -284,7 +284,7 @@
       "compressedBytes": 10751,
       "decodedBytes": 28225,
       "literalConsumers": [
-        "chunk-5e8e2f77.js"
+        "core/chunk-5e8e2f77.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -297,7 +297,7 @@
       "compressedBytes": 34058,
       "decodedBytes": 112658,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -310,7 +310,7 @@
       "compressedBytes": 5499,
       "decodedBytes": 12308,
       "literalConsumers": [
-        "chunk-xjqvd3xg.js"
+        "core/chunk-xjqvd3xg.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -323,7 +323,7 @@
       "compressedBytes": 6814,
       "decodedBytes": 16553,
       "literalConsumers": [
-        "chunk-mdm3gerg.js"
+        "core/chunk-mdm3gerg.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -336,7 +336,7 @@
       "compressedBytes": 14930,
       "decodedBytes": 40528,
       "literalConsumers": [
-        "chunk-yayv0m3f.js"
+        "core/chunk-yayv0m3f.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -349,7 +349,7 @@
       "compressedBytes": 4480,
       "decodedBytes": 12657,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -362,7 +362,7 @@
       "compressedBytes": 3625,
       "decodedBytes": 8736,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -375,7 +375,7 @@
       "compressedBytes": 24642,
       "decodedBytes": 99611,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -388,7 +388,7 @@
       "compressedBytes": 9782,
       "decodedBytes": 25754,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -401,7 +401,7 @@
       "compressedBytes": 12182,
       "decodedBytes": 36829,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -414,7 +414,7 @@
       "compressedBytes": 8030,
       "decodedBytes": 25159,
       "literalConsumers": [
-        "chunk-6qvf795m.js"
+        "core/chunk-6qvf795m.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -427,7 +427,7 @@
       "compressedBytes": 9738,
       "decodedBytes": 38063,
       "literalConsumers": [
-        "chunk-8jkwk4df.js"
+        "core/chunk-8jkwk4df.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -440,7 +440,7 @@
       "compressedBytes": 31835,
       "decodedBytes": 117582,
       "literalConsumers": [
-        "chunk-yayv0m3f.js"
+        "core/chunk-yayv0m3f.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -453,7 +453,7 @@
       "compressedBytes": 20311,
       "decodedBytes": 55207,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -466,7 +466,7 @@
       "compressedBytes": 6001,
       "decodedBytes": 15686,
       "literalConsumers": [
-        "chunk-07sc0v3e.js"
+        "core/chunk-07sc0v3e.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -479,7 +479,7 @@
       "compressedBytes": 5996,
       "decodedBytes": 15723,
       "literalConsumers": [
-        "chunk-6f0sv657.js"
+        "core/chunk-6f0sv657.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -492,12 +492,12 @@
       "compressedBytes": 14086,
       "decodedBytes": 45303,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
     "chart.umd.min.js": {
-      "path": "chart.umd.min.js",
+      "path": "core/chart.umd.min.js",
       "kind": "bundled-runtime-library",
       "purpose": "runtime chart/highlight/diagram JS library, already present in src",
       "compressedSha256": "bd2f410be835f42c3001faa320f78673904613b4f8ba5017b98024c8cc3c7ddf",
@@ -516,7 +516,7 @@
       "compressedBytes": 148293,
       "decodedBytes": 664173,
       "literalConsumers": [
-        "chunk-2yktpxwc.js"
+        "core/chunk-2yktpxwc.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -529,7 +529,7 @@
       "compressedBytes": 3963,
       "decodedBytes": 8509,
       "literalConsumers": [
-        "chunk-819m691z.js"
+        "core/chunk-819m691z.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -542,7 +542,7 @@
       "compressedBytes": 5366,
       "decodedBytes": 12029,
       "literalConsumers": [
-        "chunk-4tzyj603.js"
+        "core/chunk-4tzyj603.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -555,7 +555,7 @@
       "compressedBytes": 15598,
       "decodedBytes": 46110,
       "literalConsumers": [
-        "chunk-vveb39dm.js"
+        "core/chunk-vveb39dm.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -568,7 +568,7 @@
       "compressedBytes": 4407,
       "decodedBytes": 11602,
       "literalConsumers": [
-        "chunk-7pz78vfw.js"
+        "core/chunk-7pz78vfw.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -581,7 +581,7 @@
       "compressedBytes": 3536,
       "decodedBytes": 11779,
       "literalConsumers": [
-        "chunk-rpkaxt7x.js"
+        "core/chunk-rpkaxt7x.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -594,7 +594,7 @@
       "compressedBytes": 27735,
       "decodedBytes": 99118,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -607,7 +607,7 @@
       "compressedBytes": 12192,
       "decodedBytes": 31711,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -620,7 +620,7 @@
       "compressedBytes": 20128,
       "decodedBytes": 58662,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -633,7 +633,7 @@
       "compressedBytes": 3497,
       "decodedBytes": 8432,
       "literalConsumers": [
-        "chunk-gp8b3zne.js"
+        "core/chunk-gp8b3zne.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -646,7 +646,7 @@
       "compressedBytes": 6336,
       "decodedBytes": 20148,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -659,7 +659,7 @@
       "compressedBytes": 35815,
       "decodedBytes": 139817,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -672,7 +672,7 @@
       "compressedBytes": 4766,
       "decodedBytes": 14621,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -685,7 +685,7 @@
       "compressedBytes": 19326,
       "decodedBytes": 65648,
       "literalConsumers": [
-        "chunk-rpkaxt7x.js"
+        "core/chunk-rpkaxt7x.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -698,7 +698,7 @@
       "compressedBytes": 13283,
       "decodedBytes": 43842,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -711,7 +711,7 @@
       "compressedBytes": 5278,
       "decodedBytes": 13432,
       "literalConsumers": [
-        "chunk-cd76yxc1.js"
+        "core/chunk-cd76yxc1.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -724,7 +724,7 @@
       "compressedBytes": 18893,
       "decodedBytes": 67677,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -737,7 +737,7 @@
       "compressedBytes": 10697,
       "decodedBytes": 30120,
       "literalConsumers": [
-        "chunk-xpbcjz0x.js"
+        "core/chunk-xpbcjz0x.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -750,7 +750,7 @@
       "compressedBytes": 5620,
       "decodedBytes": 14341,
       "literalConsumers": [
-        "chunk-bz2yw77z.js"
+        "core/chunk-bz2yw77z.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -763,7 +763,7 @@
       "compressedBytes": 13557,
       "decodedBytes": 37817,
       "literalConsumers": [
-        "chunk-rn52fjvs.js"
+        "core/chunk-rn52fjvs.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -776,7 +776,7 @@
       "compressedBytes": 9443,
       "decodedBytes": 28619,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -789,7 +789,7 @@
       "compressedBytes": 6813,
       "decodedBytes": 21146,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -802,7 +802,7 @@
       "compressedBytes": 11072,
       "decodedBytes": 27892,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -815,7 +815,7 @@
       "compressedBytes": 24732,
       "decodedBytes": 69160,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -828,7 +828,7 @@
       "compressedBytes": 3068,
       "decodedBytes": 9696,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -841,7 +841,7 @@
       "compressedBytes": 3973,
       "decodedBytes": 12123,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -854,7 +854,7 @@
       "compressedBytes": 3796,
       "decodedBytes": 9560,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -867,12 +867,12 @@
       "compressedBytes": 4800,
       "decodedBytes": 14332,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
     "hljsBundle.generated.min.js": {
-      "path": "hljsBundle.generated.min.js",
+      "path": "core/hljsBundle.generated.min.js",
       "kind": "bundled-runtime-library",
       "purpose": "runtime chart/highlight/diagram JS library, already present in src",
       "compressedSha256": "d7749ea32a9646d5dfa844a610851c6d10d1c31059426a4d7de3e1f0f420afaa",
@@ -891,7 +891,7 @@
       "compressedBytes": 14172,
       "decodedBytes": 82755,
       "literalConsumers": [
-        "chunk-wwcnjtfb.js"
+        "core/chunk-wwcnjtfb.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -904,7 +904,7 @@
       "compressedBytes": 12713,
       "decodedBytes": 40317,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -917,7 +917,7 @@
       "compressedBytes": 5327,
       "decodedBytes": 19209,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -930,7 +930,7 @@
       "compressedBytes": 9311,
       "decodedBytes": 35292,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -943,7 +943,7 @@
       "compressedBytes": 4705,
       "decodedBytes": 12478,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -956,7 +956,7 @@
       "compressedBytes": 11073,
       "decodedBytes": 33700,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -969,7 +969,7 @@
       "compressedBytes": 5078,
       "decodedBytes": 14325,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -982,7 +982,7 @@
       "compressedBytes": 9229,
       "decodedBytes": 26030,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -995,7 +995,7 @@
       "compressedBytes": 3058,
       "decodedBytes": 10992,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1008,7 +1008,7 @@
       "compressedBytes": 4335,
       "decodedBytes": 11412,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1021,7 +1021,7 @@
       "compressedBytes": 20421,
       "decodedBytes": 72037,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1034,7 +1034,7 @@
       "compressedBytes": 7045,
       "decodedBytes": 17278,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1047,7 +1047,7 @@
       "compressedBytes": 7611,
       "decodedBytes": 19841,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1060,7 +1060,7 @@
       "compressedBytes": 12703,
       "decodedBytes": 35235,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1073,7 +1073,7 @@
       "compressedBytes": 3697,
       "decodedBytes": 8957,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1086,7 +1086,7 @@
       "compressedBytes": 5492,
       "decodedBytes": 14700,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1099,7 +1099,7 @@
       "compressedBytes": 3890,
       "decodedBytes": 9561,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1112,7 +1112,7 @@
       "compressedBytes": 9084,
       "decodedBytes": 28140,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1125,7 +1125,7 @@
       "compressedBytes": 10033,
       "decodedBytes": 29331,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1138,7 +1138,7 @@
       "compressedBytes": 12743,
       "decodedBytes": 37896,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1151,12 +1151,12 @@
       "compressedBytes": 4203,
       "decodedBytes": 11321,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
     "mermaid.min.js": {
-      "path": "mermaid.min.js",
+      "path": "core/mermaid.min.js",
       "kind": "bundled-runtime-library",
       "purpose": "runtime chart/highlight/diagram JS library, already present in src",
       "compressedSha256": "d98ea41d54f7d3253f244c7834baf3f322f2aaa9e09fa9205db627e58ebd84cf",
@@ -1175,7 +1175,7 @@
       "compressedBytes": 89856,
       "decodedBytes": 348741,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1188,7 +1188,7 @@
       "compressedBytes": 5160,
       "decodedBytes": 17576,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1201,7 +1201,7 @@
       "compressedBytes": 16753,
       "decodedBytes": 47946,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1214,7 +1214,7 @@
       "compressedBytes": 15920,
       "decodedBytes": 51622,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1227,7 +1227,7 @@
       "compressedBytes": 18694,
       "decodedBytes": 55699,
       "literalConsumers": [
-        "chunk-ytp0th9g.js"
+        "core/chunk-ytp0th9g.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1240,7 +1240,7 @@
       "compressedBytes": 17379,
       "decodedBytes": 51938,
       "literalConsumers": [
-        "chunk-ccks6f1g.js"
+        "core/chunk-ccks6f1g.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1253,7 +1253,7 @@
       "compressedBytes": 4323,
       "decodedBytes": 9523,
       "literalConsumers": [
-        "chunk-819m691z.js"
+        "core/chunk-819m691z.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1266,7 +1266,7 @@
       "compressedBytes": 4088,
       "decodedBytes": 11390,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1279,7 +1279,7 @@
       "compressedBytes": 31683,
       "decodedBytes": 96102,
       "literalConsumers": [
-        "chunk-fkxpd7gr.js"
+        "core/chunk-fkxpd7gr.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1292,7 +1292,7 @@
       "compressedBytes": 5289,
       "decodedBytes": 16546,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1305,7 +1305,7 @@
       "compressedBytes": 27138,
       "decodedBytes": 106115,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1318,7 +1318,7 @@
       "compressedBytes": 28506,
       "decodedBytes": 83457,
       "literalConsumers": [
-        "chunk-cp434xjt.js"
+        "core/chunk-cp434xjt.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1331,7 +1331,7 @@
       "compressedBytes": 4688,
       "decodedBytes": 10378,
       "literalConsumers": [
-        "chunk-tnvvabe7.js"
+        "core/chunk-tnvvabe7.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1344,7 +1344,7 @@
       "compressedBytes": 24379,
       "decodedBytes": 94008,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1357,7 +1357,7 @@
       "compressedBytes": 20853,
       "decodedBytes": 64039,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1370,7 +1370,7 @@
       "compressedBytes": 5898,
       "decodedBytes": 16294,
       "literalConsumers": [
-        "chunk-y08b5b6y.js"
+        "core/chunk-y08b5b6y.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1383,7 +1383,7 @@
       "compressedBytes": 3696,
       "decodedBytes": 9596,
       "literalConsumers": [
-        "chunk-ftm2kfxw.js"
+        "core/chunk-ftm2kfxw.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1396,7 +1396,7 @@
       "compressedBytes": 18150,
       "decodedBytes": 49350,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1409,7 +1409,7 @@
       "compressedBytes": 11429,
       "decodedBytes": 33274,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1422,7 +1422,7 @@
       "compressedBytes": 41172,
       "decodedBytes": 167048,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1435,7 +1435,7 @@
       "compressedBytes": 25744,
       "decodedBytes": 77613,
       "literalConsumers": [
-        "chunk-7hdrsgvw.js"
+        "core/chunk-7hdrsgvw.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1448,7 +1448,7 @@
       "compressedBytes": 4728,
       "decodedBytes": 13764,
       "literalConsumers": [
-        "chunk-k5ae3q9b.js"
+        "core/chunk-k5ae3q9b.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1461,7 +1461,7 @@
       "compressedBytes": 8343,
       "decodedBytes": 23240,
       "literalConsumers": [
-        "chunk-81gxtw6q.js"
+        "core/chunk-81gxtw6q.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1474,7 +1474,7 @@
       "compressedBytes": 17464,
       "decodedBytes": 68536,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1487,7 +1487,7 @@
       "compressedBytes": 3511,
       "decodedBytes": 11351,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1500,7 +1500,7 @@
       "compressedBytes": 10845,
       "decodedBytes": 30047,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1513,7 +1513,7 @@
       "compressedBytes": 4600,
       "decodedBytes": 11857,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1526,7 +1526,7 @@
       "compressedBytes": 9774,
       "decodedBytes": 33603,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1539,7 +1539,7 @@
       "compressedBytes": 7028,
       "decodedBytes": 18429,
       "literalConsumers": [
-        "chunk-rfe9reh2.js"
+        "core/chunk-rfe9reh2.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1552,7 +1552,7 @@
       "compressedBytes": 2490,
       "decodedBytes": 8197,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1565,7 +1565,7 @@
       "compressedBytes": 6196,
       "decodedBytes": 15829,
       "literalConsumers": [
-        "chunk-5xrhrmrz.js"
+        "core/chunk-5xrhrmrz.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1578,7 +1578,7 @@
       "compressedBytes": 3397,
       "decodedBytes": 9607,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1591,7 +1591,7 @@
       "compressedBytes": 3858,
       "decodedBytes": 11922,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1604,7 +1604,7 @@
       "compressedBytes": 4162,
       "decodedBytes": 10800,
       "literalConsumers": [
-        "chunk-q2qs27jq.js"
+        "core/chunk-q2qs27jq.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1617,7 +1617,7 @@
       "compressedBytes": 27705,
       "decodedBytes": 96539,
       "literalConsumers": [
-        "chunk-k81jgez0.js"
+        "core/chunk-k81jgez0.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1630,7 +1630,7 @@
       "compressedBytes": 3696,
       "decodedBytes": 10559,
       "literalConsumers": [
-        "chunk-c15fbtea.js"
+        "core/chunk-c15fbtea.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1643,7 +1643,7 @@
       "compressedBytes": 4134,
       "decodedBytes": 10892,
       "literalConsumers": [
-        "chunk-c15fbtea.js"
+        "core/chunk-c15fbtea.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1656,7 +1656,7 @@
       "compressedBytes": 6109,
       "decodedBytes": 28236,
       "literalConsumers": [
-        "chunk-rpkaxt7x.js"
+        "core/chunk-rpkaxt7x.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1669,7 +1669,7 @@
       "compressedBytes": 3762,
       "decodedBytes": 11110,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1682,7 +1682,7 @@
       "compressedBytes": 6119,
       "decodedBytes": 21322,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1695,7 +1695,7 @@
       "compressedBytes": 7503,
       "decodedBytes": 24218,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1708,7 +1708,7 @@
       "compressedBytes": 3411,
       "decodedBytes": 9686,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1721,7 +1721,7 @@
       "compressedBytes": 3691,
       "decodedBytes": 9998,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1734,7 +1734,7 @@
       "compressedBytes": 15507,
       "decodedBytes": 44784,
       "literalConsumers": [
-        "chunk-7kf9j3c4.js"
+        "core/chunk-7kf9j3c4.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1747,7 +1747,7 @@
       "compressedBytes": 3337,
       "decodedBytes": 16387,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1760,7 +1760,7 @@
       "compressedBytes": 15154,
       "decodedBytes": 54985,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1773,7 +1773,7 @@
       "compressedBytes": 7789,
       "decodedBytes": 19958,
       "literalConsumers": [
-        "chunk-18qhshaa.js"
+        "core/chunk-18qhshaa.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1786,7 +1786,7 @@
       "compressedBytes": 6991,
       "decodedBytes": 17684,
       "literalConsumers": [
-        "chunk-e9gz66xn.js"
+        "core/chunk-e9gz66xn.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1799,7 +1799,7 @@
       "compressedBytes": 5020,
       "decodedBytes": 14874,
       "literalConsumers": [
-        "chunk-phhdc0aj.js"
+        "core/chunk-phhdc0aj.js"
       ],
       "source": "2.1.310 embedded BunFS"
     },
@@ -1812,7 +1812,7 @@
       "compressedBytes": 34497,
       "decodedBytes": 127858,
       "literalConsumers": [
-        "chunk-yayv0m3f.js"
+        "core/chunk-yayv0m3f.js"
       ],
       "source": "2.1.310 embedded BunFS"
     }

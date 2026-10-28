@@ -12,7 +12,7 @@ const root = path.resolve(__dirname,'..');
 const src = root;
 const generated = path.join(root,'.generated');
 const summaryPath = path.join(root,'resources/function-summary.json');
-const files = fs.readdirSync(src).filter(n=>n.endsWith('.js') && !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort();
+const files = fs.readdirSync(path.join(src,'core')).filter(n=>n.endsWith('.js') && !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort().map(n=>'core/'+n);
 files.push('plugins/functionHooks/hooks-worker/hooks-worker.js');
 assert.equal(files.length,2551);
 const index = {}, detailed = {};

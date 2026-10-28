@@ -34,7 +34,7 @@ test('JS AST distinguishes executable tool sources from vendor bundles and nativ
  assert.equal(category('resources/tools/design-sync/package-build.mjs'),'bundled_tool_sources');
  assert.equal(category('resources/tools/evaluation/prefix_diff.py'),'bundled_tool_sources');
  assert.equal(category('resources/bunfs/clipboard-napi.node'),'other_embedded_resources');
- assert.equal(category('mermaid.min.js'),'prebuilt_vendor_bundle');
+ assert.equal(category('core/mermaid.min.js'),'prebuilt_vendor_bundle');
  const s=astMetrics("export const a = x=>x; export async function f(x){return import('./adapter.js')}",'example.js');
  assert.equal(s.functions,2);
  assert.equal(s.dynamicImports,1);

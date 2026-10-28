@@ -334,8 +334,8 @@ jobs:
             --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
             --out "$RUNNER_TEMP/111-jelly-analysis" \
             --timeout 110 \
-            --entry src/chunk-sdz0xp27.js \
-            --entry src/chunk-01qhvw6m.js
+            --entry core/chunk-sdz0xp27.js \
+            --entry core/chunk-01qhvw6m.js
           node - "$RUNNER_TEMP/111-jelly-analysis/111-jelly-evidence.json" <<'NODE'
           const fs=require('node:fs'),assert=require('node:assert/strict');
           const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
@@ -351,8 +351,8 @@ jobs:
             --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
             --out "$RUNNER_TEMP/111-jelly-analysis/large-modules" \
             --timeout 110 \
-            --entry src/chunk-tqjdehqd.js \
-            --entry src/chunk-6d8swme1.js || echo '大型模块存在独立Jelly分析缺口，保留failed_or_partial报告用于复核'
+            --entry core/chunk-tqjdehqd.js \
+            --entry core/chunk-6d8swme1.js || echo '大型模块存在独立Jelly分析缺口，保留failed_or_partial报告用于复核'
       - name: 上传可复核Jelly真实分析及运行记录
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

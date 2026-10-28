@@ -88,7 +88,7 @@ function build({root=ROOT,reference=PIN,verify=true}={}){
  const relocations=new Map(JSON.parse(fs.readFileSync(path.join(root,'resources/layout/relocations.json'),'utf8')).files.map(x=>[x.old,x.current]));
  const rest=[...orig].sort(([a],[b])=>a.localeCompare(b));
  for(const [name,sha] of rest){
-  const file=path.join(root,relocations.get(name)||(name.startsWith('src/')?name.slice(4):name));
+  const file=path.join(root,relocations.get(name)||(name.startsWith('src/')?'core/'+name.slice(4):name));
   let b=null;try{b=fs.readFileSync(file);}catch(e){problem.push('missing original file '+name+': '+e.code);continue;}
   const type=category(name),actual=blobHash(b),same=actual===sha;
   if(!groups[type])groups[type]={files:0,bytes:0,unchangedFromV37:0,modifiedFromV37:0};

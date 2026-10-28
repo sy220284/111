@@ -27,14 +27,14 @@ for(const [i,row] of graph.items.entries()){
   assert.equal(row.verification.validatedBusinessChain,false);
   assert.equal(row.crossVersion.runtimeBehaviorVerified,false);
   assert.equal(row.crossVersion.semanticEquivalenceConfirmed,false);
-  assert.ok(l.file.startsWith(''));
+  assert.ok(l.file.startsWith('core/'));
   assert.ok(Number.isInteger(l.offset)&&l.offset>=0);
   assert.ok(l.definitionNameCollisions>=1);
   assert.ok(Number.isInteger(d.lexicalIdentifierReferencesOutsideDefinition));
   assert.ok(Number.isInteger(d.candidateCallSiteCount));
   if(l.definitionNameCollisions>1)assert.equal(d.candidateCallSiteCount,0);
   if(d.cliModuleImportRoute){
-   assert.equal(d.cliModuleImportRoute[0],'cli.js');
+   assert.equal(d.cliModuleImportRoute[0],'core/cli.js');
    assert.equal(d.cliModuleImportRoute.at(-1),l.file);
   }
   if(d.hookModuleImportRoute)

@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '*.js'
+      - 'core/**'
       - 'plugins/**'
       - 'embedded/**'
       - 'plugin-testing-kit/**'
@@ -17,7 +17,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '*.js'
+      - 'core/**'
       - 'plugins/**'
       - 'embedded/**'
       - 'plugin-testing-kit/**'

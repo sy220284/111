@@ -20,7 +20,7 @@ function fn(source,name){
 }
 function load(source,name,context){return vm.runInNewContext('('+fn(source,name)+')',context);}
 test('v37 stop command and current readable stop implementation have matching branch behavior',async()=>{
- const file='chunk-9xz7emqc.js';
+ const file='core/chunk-9xz7emqc.js';
  for(const active of [true,false]){
   async function run(src,name){
    let closed=0,cleanup=0;
@@ -37,7 +37,7 @@ test('v37 stop command and current readable stop implementation have matching br
  }
 });
 test('v37 Bun.stringWidth route preserved when real Bun API is available',()=>{
- const file='chunk-vw9e882a.js';
+ const file='core/chunk-vw9e882a.js';
  function run(src){
   let called=0,options;
   const ctx={Bun:{stringWidth:(s,o)=>{called++;options={...o};assert.equal(s,'全角');return 2}},
@@ -48,7 +48,7 @@ test('v37 Bun.stringWidth route preserved when real Bun API is available',()=>{
  assert.deepEqual(run(old(file)),run(latest(file)));
 });
 test('v37 roster key keeps the same actual daemon path',()=>{
- const file='chunk-fnsjs1v2.js';
+ const file='core/chunk-fnsjs1v2.js';
  const ctx={We:{daemon:parts=>'/state/'+parts.join('/')}};
  assert.equal(load(old(file),'NFt',ctx)(),load(latest(file),'rosterKey',ctx)());
 });

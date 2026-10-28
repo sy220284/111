@@ -10,9 +10,9 @@ const types = code('tools/bundled/plugin-api/types/claude-code.d.ts');
 const caching = code('resources/docs/claude-api/prompt-caching.md');
 const thinking = code('resources/docs/migration/preserved-thinking-migration.md');
 const modelMigration = code('resources/docs/claude-api/model-migration.md');
-const main = code('chunk-3827ysmv.js');
-const stream = code('chunk-x3dkgs4r.js');
-const query = code('chunk-tqjdehqd.js');
+const main = code('core/chunk-3827ysmv.js');
+const stream = code('core/chunk-x3dkgs4r.js');
+const query = code('core/chunk-tqjdehqd.js');
 
 function extract(s, from, to) {
   const start = s.indexOf(from), end = s.indexOf(to, start);

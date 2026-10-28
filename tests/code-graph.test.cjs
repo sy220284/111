@@ -55,7 +55,7 @@ test('relative missing and syntax errors are not silently accepted',()=>{
 test('repository source selection includes embedded worker and both runtime adapters',()=>{
   const root=path.resolve(__dirname,'..');
   const files=inputFiles(root);
-  assert.equal(files.filter(x=>x.startsWith('')).length,2551);
+  assert.equal(files.filter(x=>x.startsWith('core/')||x.startsWith('plugins/')).length,2551);
   assert.ok(files.includes('runtime/assets.mjs'));
   assert.ok(files.includes('runtime/string-width.mjs'));
 });

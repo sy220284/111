@@ -6,8 +6,8 @@ const assert = require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const src=root;
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'resources/function-summary.json'),'utf8'));
-const files=fs.readdirSync(src).filter(n=>n.endsWith('.js') &&
-  !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort();
+const files=fs.readdirSync(path.join(src,'core')).filter(n=>n.endsWith('.js') &&
+  !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort().map(n=>'core/'+n);
 files.push('plugins/functionHooks/hooks-worker/hooks-worker.js');
 assert.equal(files.length,manifest.modules,'2.1.310 main module count changed');
 const hash=crypto.createHash('sha256');

@@ -5,7 +5,7 @@ const excluded=new Set(['mermaid.min.js','chart.umd.min.js','hljsBundle.generate
 const worker='plugins/functionHooks/hooks-worker/hooks-worker.js';
 const digest=s=>crypto.createHash('sha256').update(s).digest('hex');
 const git=(cwd,...args)=>cp.execFileSync('git',args,{cwd,encoding:'utf8',maxBuffer:64*1024*1024});
-const isModule=p=>(/^(?:src\/)?[^/]+\.js$/.test(p)&&!excluded.has(path.posix.basename(p)))||p===worker||p==='src/src/plugins/functionHooks/hooks-worker/hooks-worker.js';
+const isModule=p=>(/^(?:src\/|core\/)?[^/]+\.js$/.test(p)&&!excluded.has(path.posix.basename(p)))||p===worker||p==='src/src/plugins/functionHooks/hooks-worker/hooks-worker.js';
 function blobs(root,ref){
  const out=new Map();
  for(const row of git(root,'ls-tree','-r','-z','--full-tree',ref).split('\0')){
@@ -45,7 +45,7 @@ function audit({root=process.cwd(),base=PIN,head='HEAD',review={},expected=2551}
  root=path.resolve(root);
  const baseSha=git(root,'rev-parse',base).trim(),headSha=git(root,'rev-parse',head).trim();
  const normalize=p=>p.startsWith('src/src/plugins/')?p.slice(8):
-    p.startsWith('src/')?p.slice(4):p;
+    p.startsWith('src/')?'core/'+p.slice(4):p;
  const legacy=blobs(root,baseSha),modern=blobs(root,headSha);
  const oldPaths=new Map([...legacy.keys()].map(p=>[normalize(p),p]));
  const currentPaths=new Map([...modern.keys()].map(p=>[normalize(p),p]));

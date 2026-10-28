@@ -22,14 +22,14 @@ test('调用依赖闭环：跨模块消费者、真实函数AST、CLI导入路�
   fs.writeFileSync(path.join(src,'chunk-a.js'),program);
   const def=sourceDefinitions(program,'chunk-a.js').defs[0];
   const graph=analyze({
-   'cli.js':'import{core}from"./chunk-a.js";function start(){return core(1)}',
-   'chunk-a.js':program,'disconnected.js':'function f(){return 1}'
+   'core/cli.js':'import{core}from"./chunk-a.js";function start(){return core(1)}',
+   'core/chunk-a.js':program,'disconnected.js':'function f(){return 1}'
   });
   const result=evaluate(makeAudit('chunk-a.js',def),graph,src);
   assert.equal(result.summary.examined,1);
   assert.equal(result.summary.directStaticCallerWitnesses,1);
   assert.equal(result.summary.moduleRouteFromCLI,1);
-  assert.deepEqual(result.items[0].dependencies.cliModuleImportRoute,['cli.js','chunk-a.js']);
+  assert.deepEqual(result.items[0].dependencies.cliModuleImportRoute,['core/cli.js','core/chunk-a.js']);
   assert.equal(result.items[0].dependencies.candidateCallSiteCount,1);
   assert.equal(result.items[0].verification.validatedBusinessChain,false);
   assert.equal(result.summary.semanticallyConfirmed,0);
@@ -42,8 +42,8 @@ test('同名定义在一行上时不能把候选调用边错误绑定到某一�
   const program='function f(a){return a+1};function f(a){return a+2}';
   fs.writeFileSync(path.join(src,'chunk-a.js'),program);
   const target=sourceDefinitions(program,'chunk-a.js').defs[0];
-  const graph=analyze({'cli.js':'import "./chunk-a.js";',
-   'chunk-a.js':program+';f(1)'});
+  const graph=analyze({'core/cli.js':'import "./chunk-a.js";',
+   'core/chunk-a.js':program+';f(1)'});
   const result=evaluate(makeAudit('chunk-a.js',target),graph,src);
   assert.equal(result.summary.duplicateNameAmbiguous,1);
   assert.equal(result.items[0].dependencies.candidateCallSiteCount,0);
@@ -58,11 +58,11 @@ test('候选偏移与源码不一致或者缺失模块时拒绝出具通过报�
   const content='function g(x){return x}';
   fs.writeFileSync(path.join(src,'chunk-a.js'),content);
   const ast=sourceDefinitions(content,'chunk-a.js').defs[0];
-  const graph=analyze({'cli.js':'','chunk-a.js':content});
+  const graph=analyze({'core/cli.js':'','core/chunk-a.js':content});
   const audited=makeAudit('chunk-a.js',ast);
   audited.items[0].new.offset++;
   assert.throws(()=>evaluate(audited,graph,src),/source function drift/);
   assert.throws(()=>evaluate(makeAudit('chunk-a.js',ast),
-    analyze({'cli.js':''}),src),/not in source dependency graph/);
+    analyze({'core/cli.js':''}),src),/not in source dependency graph/);
  }finally{fs.rmSync(home,{recursive:true,force:true})}
 });

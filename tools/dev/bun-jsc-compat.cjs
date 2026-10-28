@@ -79,10 +79,10 @@ function scanText(code, filename) {
 }
 function scan(root = ROOT) {
   const base = path.resolve(root);
-  const src = base;
+  const src = path.join(base,'core');
   const names = fs.readdirSync(src).filter(x => x.endsWith('.js') && !OMIT.has(x)).sort();
   const worker = 'plugins/functionHooks/hooks-worker/hooks-worker.js';
-  const paths = names.map(x => '' + x);
+  const paths = names.map(x => 'core/' + x);
   if (fs.existsSync(path.join(base, worker))) paths.push(worker);
   const entries = [], errors = [];
   for (const filename of paths) {

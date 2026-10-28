@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const src = path.resolve(__dirname, '..');
 const embeddedWorker = 'plugins/functionHooks/hooks-worker/hooks-worker.js';
 const nonModules = new Set(['mermaid.min.js', 'chart.umd.min.js', 'hljsBundle.generated.min.js']);
-const files = fs.readdirSync(src).filter(n => n.endsWith('.js') && !nonModules.has(n));
+const files = fs.readdirSync(path.join(src,'core')).filter(n => n.endsWith('.js') && !nonModules.has(n)).map(n=>'core/'+n);
 const names = [...files, embeddedWorker];
 assert.equal(names.length, 2551, 'embedded JS source module count');
 
@@ -43,7 +43,7 @@ for (const filename of runtimeFiles) {
       `runtime: missing ${specifier}`);
   }
 }
-const requireFromProject = createRequire(path.join(src, 'cli.js'));
+const requireFromProject = createRequire(path.join(src, 'core/cli.js'));
 for (const specifier of externalRequests) {
   if (specifier === 'ws') {
     // Verifies own ESM names without installing an unrelated runtime package.
@@ -72,6 +72,6 @@ function resolveDependency(request, referencingModule) {
   for (const module of modules.values()) if (module.status === 'unlinked') await module.link(resolveDependency);
   const unlinked = [...modules.values()].filter(m => m.status !== 'linked');
   assert.deepEqual(unlinked.map(m => m.identifier), []);
-  assert.match(fs.readFileSync(path.join(src, 'cli.js'), 'utf8'), /Version: 2\.1\.310/);
+  assert.match(fs.readFileSync(path.join(src, 'core/cli.js'), 'utf8'), /Version: 2\.1\.310/);
   console.log(JSON.stringify({version:'2.1.310', checkedModules: names.length, checkedImports: refs, missingStaticImports: 0, missingNamedExports: 0, externalRuntimeDependencies: [...externalRequests].filter(n => n==='ws'), result:'PASS'}));
 })().catch(error => {console.error(error.stack || String(error));process.exitCode=1});

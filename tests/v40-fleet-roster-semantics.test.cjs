@@ -6,8 +6,8 @@ const path=require('node:path');
 const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,'src',name),'utf8');
-const fleet=read('chunk-y93r9xd4.js');
-const roster=read('chunk-fnsjs1v2.js');
+const fleet=read('core/chunk-y93r9xd4.js');
+const roster=read('core/chunk-fnsjs1v2.js');
 function fragment(src,begin,end){
  const i=src.indexOf(begin),j=src.indexOf(end,i+begin.length);
  assert.ok(i>=0&&j>i,'missing actual function fragment '+begin);

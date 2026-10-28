@@ -2,10 +2,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),cp=require('node:child_process');
 const {isModule,functionBodies,preserve,audit}=require('../scripts/audit-v37-source.cjs');
 test('only real 2551 source modules are selected',()=>{
- assert.equal(isModule('chunk-abc.js'),true);
- assert.equal(isModule('audio-capture.js'),true);
+ assert.equal(isModule('src/chunk-abc.js'),true);
+ assert.equal(isModule('core/chunk-abc.js'),true);
+ assert.equal(isModule('core/audio-capture.js'),true);
  assert.equal(isModule('plugins/functionHooks/hooks-worker/hooks-worker.js'),true);
- assert.equal(isModule('mermaid.min.js'),false);
+ assert.equal(isModule('core/mermaid.min.js'),false);
  assert.equal(isModule('plugin-testing-kit/collector/index.js'),false);
 });
 test('renamed functions share exact body but changed body is not marked preserved',()=>{

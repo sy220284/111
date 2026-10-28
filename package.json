@@ -133,8 +133,8 @@
     "claude-310-source": "./bin/claude-310.mjs"
   },
   "files": [
+    "core/",
     "bin/",
-    "*.js",
     "runtime/",
     "resources/",
     "tests/",

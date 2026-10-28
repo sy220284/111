@@ -77,7 +77,7 @@ function sourceFiles(root, {old = false, focus = []} = {}) {
     // The 2.1.310 inventory counts the Hook Worker and both native wrappers.
     // Avoid scanning unrelated plugin-testing-kit/vendor children here.
     const worker='plugins/functionHooks/hooks-worker/hooks-worker.js';
-    const full=path.join(root,worker);
+    const full=path.join(root,'..',worker);
     if (fs.existsSync(full) && (!focus.length || focus.some(f => worker === f || worker.startsWith(f + '/'))))
       all.push({full,relative:worker});
   }
@@ -168,7 +168,7 @@ function plan({oldRoot,newRoot,focus=[],max=200,aliasPath,v40Map,reference='2.1.
 }
 function main(argv) {
   const option=k=>{const i=argv.indexOf(k);return i<0?null:argv[i+1]};
-  const oldRoot=option('--old'),newRoot=option('--new')||path.resolve(__dirname,'..');
+  const oldRoot=option('--old'),newRoot=option('--new')||path.resolve(__dirname,'../core');
   if(!oldRoot) throw Error('必须指定 --old <2.1.88/source/src 路径>');
   const focus=argv.includes('--all')?[]:(option('--focus')||'chunk-tqjdehqd.js,chunk-r4g83g7p.js,chunk-w9w4r9w1.js').split(',').filter(Boolean);
   const max=Number(option('--max')||200);

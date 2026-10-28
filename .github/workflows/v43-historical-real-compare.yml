@@ -14,10 +14,10 @@ on:
       - 'tests/code-graph.test.cjs'
       - 'tests/historical-business-chains.test.cjs'
       - 'tests/v45-real-business-703.test.cjs'
-      - 'chunk-9z5ybxhe.js'
-      - 'chunk-wrtp8qz8.js'
-      - 'chunk-bwt94x0y.js'
-      - 'chunk-t2adf9g4.js'
+      - 'core/chunk-9z5ybxhe.js'
+      - 'core/chunk-wrtp8qz8.js'
+      - 'core/chunk-bwt94x0y.js'
+      - 'core/chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
 
 permissions:
@@ -66,7 +66,7 @@ jobs:
           node scripts/audit-historical-business-chains.cjs \
             --audited .generated/v44-reviewed-703.json \
             --graph .generated/v45-full-code-graph.json \
-            --src src --out .generated/v45-703-business-chains.json
+            --src core --out .generated/v45-703-business-chains.json
           node --test tests/v45-real-business-703.test.cjs
 
           node - <<'NODE'

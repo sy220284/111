@@ -38,8 +38,8 @@ function resolveRelative(file,target){
     path.join(direct,'index.js'),path.join(direct,'package.json')].some(p=>fs.existsSync(p));
 }
 function audit(){
-  const names=fs.readdirSync(src).filter(n=>n.endsWith('.js')&&
-    !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort();
+  const names=fs.readdirSync(path.join(src,'core')).filter(n=>n.endsWith('.js')&&
+    !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort().map(n=>'core/'+n);
   names.push('plugins/functionHooks/hooks-worker/hooks-worker.js');
   assert.equal(names.length,2551,'main source inventory changed');
   const kinds={import:0,require:0,'import.meta.require':0};

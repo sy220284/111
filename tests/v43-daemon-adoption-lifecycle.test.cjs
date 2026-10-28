@@ -10,7 +10,7 @@ const crypto=require('node:crypto');
 const ts=require('typescript');
 
 const specs={
-  'chunk-bwt94x0y.js':{
+  'core/chunk-bwt94x0y.js':{
     Jmr:'serializeAdoptAgent',Qmr:'serializeAdoptWorkflow',
     Zmr:'dedupFrameLiveNewest',FX:'computeAdoptability',
     f6e:'countLiveWorkflowAgents',aUe:'noticeFieldOf',
@@ -21,7 +21,7 @@ const specs={
     Tno:'linkAdoptedAgentTranscript',Rno:'linkAdoptedWorkflowDir',
     Ano:'relinkAdoptedAgentSymlinks',xno:'resolveAdoptedScriptPath',Ono:'adoptCron'
   },
-  'chunk-t2adf9g4.js':{yPe:'killJob',wpr:'killOrphanedWorker',Hee:'deleteJob',Kat:'replyToJob'}
+  'core/chunk-t2adf9g4.js':{yPe:'killJob',wpr:'killOrphanedWorker',Hee:'deleteJob',Kat:'replyToJob'}
 };
 function sourceFunctions(){
   const fragments=[],aliases=[];

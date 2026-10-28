@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 
-const filename = path.resolve(__dirname, '../chunk-t2adf9g4.js');
+const filename = path.resolve(__dirname, '../core/chunk-t2adf9g4.js');
 const source = fs.readFileSync(filename,'utf8');
 const ast = ts.createSourceFile(filename,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const mapping = [

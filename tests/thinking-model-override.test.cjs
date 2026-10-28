@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../chunk-x3dkgs4r.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../core/chunk-x3dkgs4r.js'),'utf8');
 const reference=fs.readFileSync(path.resolve(__dirname,'../resources/docs/migration/preserved-thinking-migration.md'),'utf8');
 function fixture({allowSwitch=false}={}){
   const start=source.indexOf('function Sr(e, n)');
