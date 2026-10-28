@@ -20,15 +20,16 @@ PROFILE=build
 usage() {
   cat <<'EOF'
 111 开发工具链（Linux x64；使用 777 的按需 Artifact 工作方式）
-  bash tools/dev/ai-toolchain.sh plan [--profile build|full]
-  bash tools/dev/ai-toolchain.sh bootstrap --artifacts-dir PATH [--profile build|full]
-  bash tools/dev/ai-toolchain.sh check [--profile build|full]
+  bash tools/dev/ai-toolchain.sh plan [--profile build|full|compat]
+  bash tools/dev/ai-toolchain.sh bootstrap --artifacts-dir PATH [--profile build|full|compat]
+  bash tools/dev/ai-toolchain.sh check [--profile build|full|compat]
   bash tools/dev/ai-toolchain.sh status
   bash tools/dev/ai-toolchain.sh run -- npm test
   bash tools/dev/ai-toolchain.sh verify-artifact COMPONENT DIRECTORY
   bash tools/dev/ai-toolchain.sh self-test
 build：Node 22.16.0 + npm 10.9.2 + 离线 npm 依赖（TypeScript/ws）
 full：追加 actionlint 1.7.12
+compat：追加 Bun/JSC 1.4.4 参照运行时（不替代 Node 主程序）
 plan 不联网；bootstrap 仅接受 GitHub Actions 产出的已校验 Artifact；
 run 仅使用已就绪环境，不进行网络安装。无 Android/Gradle/JDK 工具。
 EOF
@@ -42,7 +43,7 @@ while [ "$#" -gt 0 ]; do
     *) break ;;
   esac
 done
-case "$PROFILE" in build|full) ;; *) die "未知档位 $PROFILE" ;; esac
+case "$PROFILE" in build|full|compat) ;; *) die "未知档位 $PROFILE" ;; esac
 
 host_check() {
   [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] ||
@@ -89,6 +90,14 @@ component_ready() {
   case "$1" in
     node) node_ready ;;
     npm-cache) deps_ready ;;
+    bun)
+      if [ -x "$TOOLS_ROOT/bin/bun" ]; then
+        [ "$("$TOOLS_ROOT/bin/bun" --version 2>/dev/null)" = "$BUN_VERSION" ]
+      else
+        command -v bun >/dev/null 2>&1 &&
+          [ "$(bun --version 2>/dev/null)" = "$BUN_VERSION" ]
+      fi
+      ;;
     actionlint)
       if [ -x "$TOOLS_ROOT/bin/actionlint" ]; then
         "$TOOLS_ROOT/bin/actionlint" -version 2>/dev/null | grep -Fq "$ACTIONLINT_VERSION"
@@ -102,7 +111,8 @@ component_ready() {
 }
 required_components() {
   printf '%s\n' $BUILD_COMPONENTS
-  if [ "$PROFILE" = full ]; then printf '%s\n' $FULL_EXTRA_COMPONENTS; fi
+  if [ "$PROFILE" = full ] || [ "$PROFILE" = compat ]; then printf '%s\n' $FULL_EXTRA_COMPONENTS; fi
+  if [ "$PROFILE" = compat ]; then printf '%s\n' $COMPAT_EXTRA_COMPONENTS; fi
 }
 missing_components() {
   local component
@@ -129,6 +139,9 @@ verify_artifact() {
   grep -Fxq "ARTIFACT_COMPONENT=$component" "$dir/component.env" || die "组件身份不匹配"
   grep -Fxq 'ARTIFACT_ARCH=x64' "$dir/component.env" || die "架构不匹配"
   grep -Fxq "ARTIFACT_NODE_VERSION=$NODE_VERSION" "$dir/component.env" || die "Node 版本不匹配"
+  if [ "$component" = bun ]; then
+    grep -Fxq "ARTIFACT_BUN_VERSION=$BUN_VERSION" "$dir/component.env" || die "Bun/JSC 版本不匹配"
+  fi
   if [ "$component" = npm-cache ]; then
     grep -Fxq "ARTIFACT_LOCK_SHA256=$(lock_hash)" "$dir/component.env" ||
       die "npm 锁文件哈希不匹配，必须重建依赖产物"
@@ -137,7 +150,7 @@ verify_artifact() {
   case "$component" in
     node) top=node ;;
     npm-cache) top=npm-cache ;;
-    actionlint) top=bin ;;
+    actionlint|bun) top=bin ;;
     *) die "未知组件：$component" ;;
   esac
   tar -tzf "$dir/payload.tar.gz" | awk -v top="$top" '
@@ -176,6 +189,12 @@ install_component() {
       (cd "$REPO_ROOT" && run_npm ci --offline --ignore-scripts --no-audit --no-fund --cache "$TOOLS_ROOT/npm-cache") ||
         die "npm ci --offline 失败"
       deps_ready || die "npm 离线依赖版本验收失败"
+      ;;
+    bun)
+      [ -x "$tmp/bin/bun" ] || die "Bun/JSC 载荷缺失"
+      [ "$("$tmp/bin/bun" --version)" = "$BUN_VERSION" ] || die "Bun/JSC 版本不匹配"
+      mkdir -p "$TOOLS_ROOT/bin"
+      mv "$tmp/bin/bun" "$TOOLS_ROOT/bin/bun"
       ;;
     actionlint)
       [ -x "$tmp/bin/actionlint" ] || die "actionlint 载荷缺失"

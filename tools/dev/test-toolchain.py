@@ -35,6 +35,35 @@ class ToolchainTests(unittest.TestCase):
         self.assertEqual(result["profile"], "full")
         self.assertIn("missing_artifacts", result)
 
+    def test_compat_profile_is_recognized(self):
+        proc = self.call("plan", "--profile", "compat")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout)["profile"], "compat")
+
+    def test_optional_bun_manifest_version_is_required(self):
+        folder = self.root / "111-toolchain-bun-latest"
+        folder.mkdir()
+        versions = (REPO / "tools/dev/toolchain-versions.env").read_text()
+        values = dict(line.split("=", 1) for line in versions.splitlines()
+                      if "=" in line and not line.startswith("#"))
+        meta = (
+            "ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=bun\nARTIFACT_ARCH=x64\n"
+            f"ARTIFACT_NODE_VERSION={values['NODE_VERSION']}\n"
+            "ARTIFACT_BUN_VERSION=0.0.0\n"
+        )
+        (folder / "component.env").write_text(meta)
+        with tarfile.open(folder / "payload.tar.gz", "w:gz") as tar:
+            data = b"dummy bun binary"
+            info = tarfile.TarInfo("bin/bun")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+        checks = "".join(
+            f"{hashlib.sha256((folder / f).read_bytes()).hexdigest()}  {f}\n"
+            for f in ["component.env", "payload.tar.gz"]
+        )
+        (folder / "SHA256SUMS").write_text(checks)
+        self.assertNotEqual(self.call("verify-artifact", "bun", str(folder)).returncode, 0)
+
     def test_unknown_profile_fails(self):
         self.assertNotEqual(self.call("plan", "--profile", "other").returncode, 0)
 
