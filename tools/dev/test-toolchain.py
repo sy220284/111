@@ -93,6 +93,37 @@ class ToolchainTests(unittest.TestCase):
         (folder / "SHA256SUMS").write_text(checks)
         self.assertNotEqual(self.call("verify-artifact", "bun", str(folder)).returncode, 0)
 
+    def test_reverse_profile_needs_ghidra_and_jdk_only(self):
+        proc = self.call("plan", "--profile", "reverse")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        values = json.loads(proc.stdout)["missing_artifacts"]
+        self.assertIn("111-toolchain-jdk-latest", values)
+        self.assertIn("111-toolchain-ghidra-latest", values)
+        self.assertNotIn("111-toolchain-npm-cache-latest", values)
+
+    def test_wrong_ghidra_version_is_rejected(self):
+        folder = self.root / "111-toolchain-ghidra-latest"
+        folder.mkdir()
+        versions = dict(line.split("=", 1) for line in
+                        (REPO / "tools/dev/toolchain-versions.env").read_text().splitlines()
+                        if "=" in line and not line.startswith("#"))
+        (folder / "component.env").write_text(
+            "ARTIFACT_SCHEMA=1\nARTIFACT_COMPONENT=ghidra\nARTIFACT_ARCH=x64\n"
+            f"ARTIFACT_NODE_VERSION={versions['NODE_VERSION']}\n"
+            "ARTIFACT_GHIDRA_VERSION=0.0\n"
+            f"ARTIFACT_GHIDRA_ZIP_SHA256={versions['GHIDRA_ZIP_SHA256']}\n"
+        )
+        with tarfile.open(folder / "payload.tar.gz", "w:gz") as tar:
+            content = b"fake"
+            member = tarfile.TarInfo("ghidra/support/analyzeHeadless")
+            member.size = len(content)
+            tar.addfile(member, io.BytesIO(content))
+        (folder / "SHA256SUMS").write_text("".join(
+            f"{hashlib.sha256((folder / f).read_bytes()).hexdigest()}  {f}\n"
+            for f in ("component.env", "payload.tar.gz")
+        ))
+        self.assertNotEqual(self.call("verify-artifact", "ghidra", str(folder)).returncode, 0)
+
     def test_unknown_profile_fails(self):
         self.assertNotEqual(self.call("plan", "--profile", "other").returncode, 0)
 

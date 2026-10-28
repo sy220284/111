@@ -20,9 +20,9 @@ PROFILE=build
 usage() {
   cat <<'EOF'
 111 开发工具链（Linux x64；使用 777 的按需 Artifact 工作方式）
-  bash tools/dev/ai-toolchain.sh plan [--profile build|full|compat|analysis|analysis|analysis]
-  bash tools/dev/ai-toolchain.sh bootstrap --artifacts-dir PATH [--profile build|full|compat]
-  bash tools/dev/ai-toolchain.sh check [--profile build|full|compat]
+  bash tools/dev/ai-toolchain.sh plan [--profile build|full|compat|analysis|reverse]
+  bash tools/dev/ai-toolchain.sh bootstrap --artifacts-dir PATH [--profile build|full|compat|analysis|reverse]
+  bash tools/dev/ai-toolchain.sh check [--profile build|full|compat|analysis|reverse]
   bash tools/dev/ai-toolchain.sh status
   bash tools/dev/ai-toolchain.sh run -- npm test
   bash tools/dev/ai-toolchain.sh verify-artifact COMPONENT DIRECTORY
@@ -31,6 +31,7 @@ build：Node 22.16.0 + npm 10.9.2 + 离线 npm 依赖（TypeScript/ws）
 full：追加 actionlint 1.7.12
 compat：追加 Bun/JSC 1.4.4 参照运行时（不替代 Node 主程序）
 analysis：在 build 基础上追加 Jelly 0.13.0 Points-to 调用图分析组件
+reverse：独立原生反编译档：JDK 25 + Ghidra 12.2（无 Node/npm 依赖）
 plan 不联网；bootstrap 仅接受 GitHub Actions 产出的已校验 Artifact；
 run 仅使用已就绪环境，不进行网络安装。无 Android/Gradle/JDK 工具。
 EOF
@@ -44,7 +45,7 @@ while [ "$#" -gt 0 ]; do
     *) break ;;
   esac
 done
-case "$PROFILE" in build|full|compat|analysis) ;; *) die "未知档位 $PROFILE" ;; esac
+case "$PROFILE" in build|full|compat|analysis|reverse) ;; *) die "未知档位 $PROFILE" ;; esac
 
 host_check() {
   [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] ||
@@ -107,6 +108,15 @@ component_ready() {
         if(JSON.parse(fs.readFileSync(p,"utf8")).version!==process.argv[2])process.exit(1)
       ' "$TOOLS_ROOT/jelly/node_modules/@cs-au-dk/jelly/package.json" "$JELLY_VERSION" 2>/dev/null
       ;;
+    jdk)
+      [ -x "$TOOLS_ROOT/jdk/bin/java" ] &&
+      "$TOOLS_ROOT/jdk/bin/java" -version 2>&1 | grep -Eq 'version "25([."]|\+)'
+      ;;
+    ghidra)
+      [ -x "$TOOLS_ROOT/ghidra/support/analyzeHeadless" ] &&
+      [ -f "$TOOLS_ROOT/ghidra/Ghidra/application.properties" ] &&
+      grep -Eq "^application\.version=$GHIDRA_VERSION$" "$TOOLS_ROOT/ghidra/Ghidra/application.properties"
+      ;;
     actionlint)
       if [ -x "$TOOLS_ROOT/bin/actionlint" ]; then
         "$TOOLS_ROOT/bin/actionlint" -version 2>/dev/null | grep -Fq "$ACTIONLINT_VERSION"
@@ -119,10 +129,11 @@ component_ready() {
   esac
 }
 required_components() {
-  printf '%s\n' $BUILD_COMPONENTS
+  if [ "$PROFILE" != reverse ]; then printf '%s\n' $BUILD_COMPONENTS; fi
   if [ "$PROFILE" = full ] || [ "$PROFILE" = compat ]; then printf '%s\n' $FULL_EXTRA_COMPONENTS; fi
   if [ "$PROFILE" = compat ]; then printf '%s\n' $COMPAT_EXTRA_COMPONENTS; fi
   if [ "$PROFILE" = analysis ]; then printf '%s\n' $ANALYSIS_EXTRA_COMPONENTS; fi
+  if [ "$PROFILE" = reverse ]; then printf '%s\n' $REVERSE_COMPONENTS; fi
 }
 missing_components() {
   local component
@@ -156,6 +167,16 @@ verify_artifact() {
     grep -Fxq "ARTIFACT_JELLY_VERSION=$JELLY_VERSION" "$dir/component.env" ||
       die "Jelly 组件版本不匹配"
   fi
+  if [ "$component" = jdk ]; then
+    grep -Fxq "ARTIFACT_JDK_MAJOR=$GHIDRA_JDK_MAJOR" "$dir/component.env" ||
+      die "JDK 主版本不匹配"
+  fi
+  if [ "$component" = ghidra ]; then
+    grep -Fxq "ARTIFACT_GHIDRA_VERSION=$GHIDRA_VERSION" "$dir/component.env" ||
+      die "Ghidra 版本不匹配"
+    grep -Fxq "ARTIFACT_GHIDRA_ZIP_SHA256=$GHIDRA_ZIP_SHA256" "$dir/component.env" ||
+      die "Ghidra 官方归档哈希不匹配"
+  fi
   if [ "$component" = npm-cache ]; then
     grep -Fxq "ARTIFACT_LOCK_SHA256=$(lock_hash)" "$dir/component.env" ||
       die "npm 锁文件哈希不匹配，必须重建依赖产物"
@@ -166,6 +187,8 @@ verify_artifact() {
     npm-cache) top=npm-cache ;;
     actionlint|bun) top=bin ;;
     jelly) top=jelly ;;
+    jdk) top=jdk ;;
+    ghidra) top=ghidra ;;
     *) die "未知组件：$component" ;;
   esac
   tar -tzf "$dir/payload.tar.gz" | awk -v top="$top" '
@@ -222,6 +245,20 @@ exec "$node" "$tool_root/jelly/node_modules/@cs-au-dk/jelly/lib/main.js" "$@"
 JELLY_LAUNCHER
       chmod 755 "$TOOLS_ROOT/bin/jelly"
       "$TOOLS_ROOT/bin/jelly" --help >/dev/null || die "Jelly CLI 无法启动"
+      ;;
+    jdk)
+      [ -x "$tmp/jdk/bin/java" ] || die "JDK 载荷缺失"
+      "$tmp/jdk/bin/java" -version 2>&1 | grep -Eq 'version "25([."]|\+)' ||
+        die "JDK 25 运行验收失败"
+      rm -rf "$TOOLS_ROOT/jdk"
+      mv "$tmp/jdk" "$TOOLS_ROOT/jdk"
+      ;;
+    ghidra)
+      [ -x "$tmp/ghidra/support/analyzeHeadless" ] || die "Ghidra Headless 载荷缺失"
+      grep -Eq "^application\.version=$GHIDRA_VERSION$" "$tmp/ghidra/Ghidra/application.properties" ||
+        die "Ghidra 版本验收失败"
+      rm -rf "$TOOLS_ROOT/ghidra"
+      mv "$tmp/ghidra" "$TOOLS_ROOT/ghidra"
       ;;
     bun)
       [ -x "$tmp/bin/bun" ] || die "Bun/JSC 载荷缺失"
@@ -311,6 +348,10 @@ case "$COMMAND" in
         emit_plan >&2
         die "工具链尚未就绪；请先下载 plan 所列 Artifact 或执行 bootstrap"
       fi
+    fi
+    if [ -x "$TOOLS_ROOT/jdk/bin/java" ]; then
+      export JAVA_HOME="$TOOLS_ROOT/jdk"
+      export GHIDRA_HOME="$TOOLS_ROOT/ghidra"
     fi
     export PATH="$TOOLS_ROOT/node/bin:$TOOLS_ROOT/bin:$PATH"
     cd "$REPO_ROOT"
