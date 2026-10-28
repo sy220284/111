@@ -1,5 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { CellSegmenter } from '../../runtime/terminal/cell-segmenter.mjs';
+import { test } from 'node:test';
+test('真实终端单元与宽字符/BiDi 行为：.test', () => {
 const screen = { widthMask: 3, narrow: 0, wide: 1, spacerTail: 2, spacerHead: 3, emptyCharIndex: 0, spacerCharIndex: 1, emptyWord: 0, tabWidth: 8 };
 const s = new CellSegmenter({ ambiguousIsNarrow: true, screen });
 const cells = new Int32Array(64);
@@ -27,3 +29,5 @@ assert.equal(single[4], 1);
 const small = new Int32Array(2), smallruns = new Int32Array(2);
 assert.equal(s.segment('abc', small, smallruns, false), -3);
 console.log(JSON.stringify({ status: 'pass', tests: 11, coverage: 'segment,Unicode,SGR,tab,width,paint,setCell,resize' }));
+
+});
