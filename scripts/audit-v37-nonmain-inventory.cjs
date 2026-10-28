@@ -75,9 +75,17 @@ print(json.dumps(out))
 }
 function build({root=ROOT,reference=PIN,verify=true}={}){
  root=path.resolve(root);
- const orig=verify?checksum(root,reference):checksum(root,'HEAD');
- const rest=[...orig].filter(([p])=>!isModule(p)).sort(([a],[b])=>a.localeCompare(b));
+ const index=JSON.parse(fs.readFileSync(path.join(root,'resources/research/v37-nonmain-pinned-blobs.json'),'utf8'));
+ if(index.commit!==reference||index.files.length!==652)throw Error('pinned v37 nonmain manifest mismatch');
+ const orig=new Map(index.files.map(x=>[x.path,x.blob]));
  const problem=[],groups={},entries=[],code=[],python=[];
+ if(verify){
+  const gitReference=checksum(root,reference);
+  const real=[...gitReference].filter(([p])=>!isModule(p));
+  if(real.length!==index.files.length)problem.push('historical Git tree mismatch with pinned nonmain index');
+  for(const [file,sha] of real)if(orig.get(file)!==sha)problem.push('pinned file provenance mismatch: '+file);
+ }
+ const rest=[...orig].sort(([a],[b])=>a.localeCompare(b));
  for(const [name,sha] of rest){
   const file=path.join(root,name);
   let b=null;try{b=fs.readFileSync(file);}catch(e){problem.push('missing original file '+name+': '+e.code);continue;}
