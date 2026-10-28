@@ -71,3 +71,21 @@ bash tools/dev/ai-toolchain.sh run -- node tools/dev/bun-jsc-compat.cjs report -
 ~~~
 
 compat 档包含 build + full + Bun；支持检测已有组件及复用，无组件时只输出需要下载的 Artifact，且本地不联网。Bun 适配和 Bun 的参考行为仍是两件事。
+
+
+## Ghidra 12.2 原生反编译档（reverse）
+
+`reverse` 是独立档位，采用官方 Ghidra 12.2 + JDK 25；不改变 build/full/compat/analysis 档位。Ghidra 用于 ELF、SO 等原生机器码的 C 伪代码恢复，不能直接反编译 JSC 字节码，也不等于恢复原版源代码。
+
+工作流 `.github/workflows/ghidra-toolchain.yml` 从 NSA 官方 release 下载 `ghidra_12.2_PUBLIC_20261016.zip`，按官方 SHA256 校验；另使用 Temurin JDK 25，打包两个可离线安装的 GitHub Actions Artifact：`111-toolchain-jdk-latest`、`111-toolchain-ghidra-latest`。独立 CI 使用已校验产物安装，编译 ELF 并实际导出逐函数 C 伪代码。
+
+```bash
+bash tools/dev/ai-toolchain.sh plan --profile reverse
+# 将同一次 Actions 运行的两个组件解压到 /path/to/artifacts/<组件名>/
+bash tools/dev/ai-toolchain.sh bootstrap --profile reverse --artifacts-dir /path/to/artifacts
+bash tools/dev/ai-toolchain.sh check --profile reverse
+bash tools/dev/ai-toolchain.sh run -- bash tools/analysis/ghidra-headless.sh \
+  --input /path/to/native-binary --output /path/to/evidence
+```
+
+输出 `decompiled.c`、`functions.tsv`（每函数成功/失败）、`summary.json`（实际成功数）、`ghidra.log` 和 `input.sha256`。工作流仅按需运行，不新增定时任务。逐函数成功数仅代表针对指定机器码的反编译完成数，不等同原版实现或运行时等价验证。
