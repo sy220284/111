@@ -824,6 +824,24 @@
       "legacy": "Hne",
       "readable": "updateRoster",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "$e",
+      "readable": "isDaemonRecordExpired",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "tn",
+      "readable": "updateOwnedDaemonBeaconAttempt",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "oxt",
+      "readable": "mergeOwnedDaemonBeaconProgress",
+      "style": "constAlias"
     }
   ]
 }
