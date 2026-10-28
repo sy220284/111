@@ -10,6 +10,7 @@ on:
       - 'runtime/**'
       - 'bin/**'
       - 'tests/cli-live-daemon-supervisor.test.cjs'
+      - 'tests/cli-live-daemon-worker-recovery.test.cjs'
       - '.github/workflows/daemon-supervisor-live.yml'
       - 'package.json'
   push:
@@ -22,6 +23,7 @@ on:
       - 'runtime/**'
       - 'bin/**'
       - 'tests/cli-live-daemon-supervisor.test.cjs'
+      - 'tests/cli-live-daemon-worker-recovery.test.cjs'
       - '.github/workflows/daemon-supervisor-live.yml'
       - 'package.json'
 permissions:
@@ -37,4 +39,6 @@ jobs:
           node-version: '22.16.0'
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: 真实 supervisor 启停锁生命周期和跨进程重启
-        run: npm run check:daemon-live-supervisor
+        run: |
+          npm run check:daemon-live-supervisor
+          npm run check:daemon-worker-recovery

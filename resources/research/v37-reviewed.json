@@ -87,6 +87,18 @@
       "tests": [
         "tests/cli-live-daemon-supervisor.test.cjs"
       ]
+    },
+    "src/chunk-kj2kfe1q.js": {
+      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior",
+      "tests": [
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
+      ]
+    },
+    "src/chunk-7aasgh0z.js": {
+      "classification": "Node noninteractive exec background PTY host uses real node:child_process stream lifecycle; original Bun.Terminal interactive branch untouched",
+      "tests": [
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
+      ]
     }
   }
 }

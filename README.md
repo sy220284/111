@@ -187,3 +187,11 @@ npm run verify:runtime
 - CI 已实测锁定依赖安装；CLI `--help` 真实启动为阻断性验收，曾暴露 `ERR_REQUIRE_CYCLE_MODULE` 和 `Bun.stringWidth` 缺失等运行时问题，需以最新 CI 结果判定。真实会话、取消及在线协议仍需另行验收。
 
 - 针对原版终端帮助信息的 `Bun.stringWidth(..., {ambiguousIsNarrow:true})`，在 Node 环境增加 Unicode 字素簇、CJK 与表情双宽、ANSI 控制码识别；原生 Bun 调用保持原样。CLI 宽度测试独立加入 `npm test`。
+
+## v37 深度复查：真实查询链、动态加载与 MCP 取消（2026-10-27）
+
+- 对照研究资料中“静态链接不代表完整状态流”问题，把原来的文本锚点核查升级为 AST 精确调用链：`pN → Da` 建立会话写入桥，`pN → Ou → Fu → Du` 负责引擎、错误结果记录和单轮生成。原先的“Ou 直接调用 Du”描述不准确，已按实际源码修正。
+- `scripts/audit-dynamic-loaders.cjs` 逐模块检查直接 `import()`、`import.meta.require()` 和 `require()` 调用，分类实际字面量路径、计算表达式和外部依赖；`npm test` 针对可确定的相对路径执行存在性校验。首次实际统计为 2,004 处直接加载调用，其中 1 处 `@withfig/autocomplete/build/${e}.js` 目标需要继续通过调用方运行条件及取值验证；不能据此认定所有动态加载可执行。
+- 为 Node 22 下嵌入的 Gaxios 客户端补充原生 `fetch` 入口，避免尝试加载未安装的 `node-fetch`；Bun 原有加载路径不变，已添加直接执行函数片段的回归测试。
+- 直接修复 MCP RPC 请求结束后未解除的 `AbortSignal` 监听，检查完成后迟到取消、正常进行中取消、超时与发送失败四类边界。该项属于客户端 RPC 生命周期，不等于原版打印模式 SIGINT 或外部 MCP 服务器已通过端到端验收。
+- 本节是本批修复的内容和可复测入口；具体是否通过以对应最新 GitHub Actions 日志为准，所有未授权联网/云端功能仍留在待验收范围内。
