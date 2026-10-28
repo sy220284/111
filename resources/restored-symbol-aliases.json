@@ -986,6 +986,72 @@
       "legacy": "Kat",
       "readable": "replyToJob",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "gc",
+      "readable": "normalizeLegacyToolName",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "Cse",
+      "readable": "getLegacyToolNames",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "m",
+      "readable": "escapeRuleContent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "AQo",
+      "readable": "unescapeRuleContent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "Bn",
+      "readable": "permissionRuleValueFromString",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "dn",
+      "readable": "permissionRuleValueToString",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "R",
+      "readable": "findFirstUnescapedChar",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "E",
+      "readable": "findLastUnescapedChar",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-wrtp8qz8.js",
+      "legacy": "Hxe",
+      "readable": "intersperseArray",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-wrtp8qz8.js",
+      "legacy": "F",
+      "readable": "countMatching",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-wrtp8qz8.js",
+      "legacy": "L",
+      "readable": "uniqueIterable",
+      "style": "constAlias"
     }
   ]
 }
