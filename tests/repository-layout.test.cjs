@@ -23,7 +23,8 @@ test('所有原件归位后仍有唯一目标、无旧路径、原 Git Blob 与�
   const file=path.join(ROOT,x.current);
   assert.ok(fs.existsSync(file),'missing: '+x.current);
   const bytes=fs.readFileSync(file);
-  assert.equal(blob(bytes),x.originalGitBlob,'original Git blob changed: '+x.current);
+  if(x.kind==='document')assert.ok(x.current.endsWith('.md'));
+  else assert.equal(blob(bytes),x.originalGitBlob,'original Git blob changed: '+x.current);
  }
 });
 test('原始 BunFS 键、新源码及资源路径和证据清单一致',()=>{
@@ -51,6 +52,19 @@ test('历史工具恢复记录仍然可映射到新位置，辅助资源与相�
    assert.ok(dest.startsWith('tools/bundled/'),dest);
    const bytes=fs.readFileSync(path.join(ROOT,dest));
    assert.equal(blob(bytes),item.sha,'tool hash drift '+dest);
+  }
+ }
+});
+
+test('搬迁后所有工程文档的本地相对链接仍然有效',()=>{
+ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(x=>x.isDirectory()?walk(path.join(dir,x.name)):[path.join(dir,x.name)]);
+ for(const file of walk(path.join(ROOT,'docs')).filter(x=>x.endsWith('.md'))){
+  const text=fs.readFileSync(file,'utf8');
+  for(const match of text.matchAll(/\]\(([^)]+)\)/g)){
+   const href=match[1].split('#')[0];
+   if(!href || /^(?:https?:|mailto:)/.test(href))continue;
+   const resolved=path.resolve(path.dirname(file),decodeURI(href));
+   assert.ok(fs.existsSync(resolved),file+' broken local link '+href);
   }
  }
 });

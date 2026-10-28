@@ -2245,7 +2245,8 @@
       "old": "docs/2026-10-28-全仓审计与语义恢复执行路线.md",
       "current": "docs/architecture/2026-10-28-全仓审计与语义恢复执行路线.md",
       "originalGitBlob": "84a90486953e1461d5394fd49c79ae92d8586dca",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/2026-10-28-实际功能落地与未完成矩阵.md",
@@ -2323,7 +2324,8 @@
       "old": "docs/命名规范化改动记录.md",
       "current": "docs/conventions/命名规范化改动记录.md",
       "originalGitBlob": "488f65469d45c135210cac9e2a9c2e3c22add79c",
-      "kind": "document"
+      "kind": "document",
+      "pathReferencesUpdated": true
     },
     {
       "old": "docs/源码与资源统一命名规范.md",
