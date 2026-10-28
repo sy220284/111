@@ -5,6 +5,9 @@ on:
     paths:
       - 'resources/**'
       - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
+      - 'resources/layout/**'
       - 'tests/check-embedded.cjs'
       - 'runtime/assets.mjs'
       - 'tests/check-naming-layout.cjs'
@@ -16,6 +19,9 @@ on:
     paths:
       - 'resources/**'
       - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
+      - 'resources/layout/**'
       - 'tests/check-embedded.cjs'
       - 'runtime/assets.mjs'
       - 'tests/check-naming-layout.cjs'
@@ -37,6 +43,8 @@ jobs:
           node-version: '22.16.0'
       - name: 校验命名、全部解压资源及哈希
         run: npm run check:naming-layout
+      - name: 验证390项源码与文档归位及历史字节
+        run: npm run check:repository-layout
       - name: 校验 250 项 BunFS 资源及消费者
         run: npm run check:resource-map
       - name: 验证资源加载行为
