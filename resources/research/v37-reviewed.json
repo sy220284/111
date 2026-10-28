@@ -57,6 +57,18 @@
       "tests": [
         "tests/mcp-rpc-cancellation.test.cjs"
       ]
+    },
+    "src/chunk-9z5ybxhe.js": {
+      "classification": "v45 restored eight permission-rule functions with exact original body preservation and legacy bindings",
+      "tests": [
+        "tests/historical-permission-rule-parity.test.cjs"
+      ]
+    },
+    "src/chunk-wrtp8qz8.js": {
+      "classification": "v45 restored three foundational array functions with exact original body preservation and legacy bindings",
+      "tests": [
+        "tests/historical-array-parity.test.cjs"
+      ]
     }
   }
 }
