@@ -21,9 +21,21 @@ def classify_candidates(report, graph, callsites):
         key = (entry["file"], int(entry["line"]), int(entry["column"]))
         unresolved[key].append(entry)
     indexed = {}
+    index_normalized = 0
     for file, functions in callsites.items():
+        # scripts/source-function-index.cjs indexes root src files as
+        # "chunk-abc.js", whereas Jelly / code-graph use "src/chunk-abc.js".
+        # A nested worker already has its "src/" prefix.
+        normalized_file = file if file.startswith("src/") else "src/" + file
+        if (not normalized_file.startswith("src/") or
+                ".." in normalized_file.split("/") or
+                "\\\\" in normalized_file or
+                not normalized_file.endswith(".js")):
+            raise ValueError("Invalid recovered function index file: " + file)
+        if normalized_file != file:
+            index_normalized += 1
         for fn in functions:
-            location = (file, int(fn["line"]), int(fn["column"]))
+            location = (normalized_file, int(fn["line"]), int(fn["column"]))
             indexed.setdefault(location, set()).add(fn["name"])
     candidate_file = report / "Jelly跨分析器调用候选.tsv"
     groups = defaultdict(set)
@@ -119,6 +131,7 @@ def classify_candidates(report, graph, callsites):
         "originalASTPositionsWithMultipleExpressions": duplicate_positions,
         "originalASTExpressionsAtAmbiguousPositions": ambiguous_expressions,
         "indexedTargetAppearancesIncludingAmbiguous": match_targets,
+        "functionIndexMainModulePathsNormalized": index_normalized,
         "notYetHavingJellyCandidates": unresolved_count - len(groups),
         "originalASTDistinctUnresolvedPositions": len(unresolved),
         "positionsWithoutJellyCandidates": len(unresolved) - len(groups),
