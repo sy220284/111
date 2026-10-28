@@ -8961,8 +8961,9 @@
       "old": "src/chunk-fmf16p94.js",
       "current": "core/chunk-fmf16p94.js",
       "originalGitBlob": "52e831a92732c9615e876e1e8ff3765c5ae2e1a1",
-      "currentGitBlob": "52e831a92732c9615e876e1e8ff3765c5ae2e1a1",
-      "importAdjusted": false
+      "currentGitBlob": "78f0fd359e4df812d4bbba9cf0ebc019a6d15585",
+      "importAdjusted": false,
+      "behaviorAdjusted": true
     },
     {
       "old": "src/chunk-fmtkn1kz.js",

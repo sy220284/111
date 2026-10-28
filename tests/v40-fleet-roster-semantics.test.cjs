@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
-const read=name=>fs.readFileSync(path.join(root,'src',name),'utf8');
+const read=name=>fs.readFileSync(path.join(root,name),'utf8');
 const fleet=read('core/chunk-y93r9xd4.js');
 const roster=read('core/chunk-fnsjs1v2.js');
 function fragment(src,begin,end){

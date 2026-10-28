@@ -26,7 +26,7 @@ const specs={
 function sourceFunctions(){
   const fragments=[],aliases=[];
   for(const [file,mapping] of Object.entries(specs)){
-    const filepath=path.join(__dirname,'../src',file);
+    const filepath=path.join(__dirname,'..',file);
     const ast=ts.createSourceFile(filepath,fs.readFileSync(filepath,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
     assert.equal(ast.parseDiagnostics.length,0,'must parse '+file);
     const found=new Set();

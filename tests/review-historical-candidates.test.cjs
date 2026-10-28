@@ -28,7 +28,7 @@ test('参数变更、方法形态和一旧多新必须留下反证',()=>{
 test('完整候选清单逐项复核、维护独立SHA和可追溯定位',()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'111-history-review-'));
  const old=path.join(root,'old'),newRoot=root;
- fs.mkdirSync(old);fs.mkdirSync(newRoot);
+ fs.mkdirSync(old);
  try{
   const oldCode='export function classify(message: string) { if (message.startsWith("persistent-record-key")) return message.includes("background-session-failure"); return false; }';
   const newCode='function q(e) { if (e.startsWith("persistent-record-key")) return e.includes("background-session-failure"); return false; }';
@@ -55,7 +55,7 @@ test('完整候选清单逐项复核、维护独立SHA和可追溯定位',()=>{
 test('同行同名函数必须以AST起始偏移区分，不能只用行号冒充唯一索引',()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'111-history-same-line-'));
  const old=path.join(root,'old'),next=root;
- fs.mkdirSync(old);fs.mkdirSync(next);
+ fs.mkdirSync(old);
  try{
   const decl1='function f(a) { return a.startsWith("persistent-record-key")&&a.includes("background-session-failure") }';
   const decl2='function f(a) { return a.endsWith("persistent-record-key")&&a.includes("background-session-failure") }';
