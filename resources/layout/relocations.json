@@ -2234,6 +2234,102 @@
       "current": "plugin-testing-kit/types/test/test-options/plugin/index.js",
       "originalGitBlob": "e14e95a2271ce38bfb1a8e928f287e13ba8a0522",
       "kind": "plugin-source"
+    },
+    {
+      "old": "docs/2026-10-28-PR交付分类与未闭环业务清单.md",
+      "current": "docs/governance/2026-10-28-PR交付分类与未闭环业务清单.md",
+      "originalGitBlob": "25db40f36d06f4670036cb1fe794dbcb4e8dca58",
+      "kind": "document"
+    },
+    {
+      "old": "docs/2026-10-28-全仓审计与语义恢复执行路线.md",
+      "current": "docs/architecture/2026-10-28-全仓审计与语义恢复执行路线.md",
+      "originalGitBlob": "84a90486953e1461d5394fd49c79ae92d8586dca",
+      "kind": "document"
+    },
+    {
+      "old": "docs/2026-10-28-实际功能落地与未完成矩阵.md",
+      "current": "docs/status/2026-10-28-实际功能落地与未完成矩阵.md",
+      "originalGitBlob": "3a3389ec75faf8aebdcd52e92626ec6bab288f24",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_内嵌子工程真实函数语义证据.md",
+      "current": "docs/research/v37/内嵌子工程真实函数语义证据.md",
+      "originalGitBlob": "9f0366d4b76e61b711a5129fd6c23cbaa8b79c4f",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_剩余652文件完整代码与功能深度核实.md",
+      "current": "docs/research/v37/剩余652文件完整代码与功能深度核实.md",
+      "originalGitBlob": "09390181586beac3d00f6333c1829d5290bc4ad8",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_固定版源码复核.md",
+      "current": "docs/research/v37/固定版源码复核.md",
+      "originalGitBlob": "3122e750da9c7d3a550b475572665a29f6ce9617",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_未完成工具真实语义测试.md",
+      "current": "docs/verification/v37/未完成工具真实语义测试.md",
+      "originalGitBlob": "8d3727cc32fb80934cad7a131499fc346087c6f2",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_真实宿主和浏览器验收.md",
+      "current": "docs/verification/v37/真实宿主和浏览器验收.md",
+      "originalGitBlob": "67524ebcc81e2f6009366c3ca7255d42cddac8e6",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v40_50项函数级核查与恢复记录.md",
+      "current": "docs/restoration/v40/50项函数级核查与恢复记录.md",
+      "originalGitBlob": "4c422dc21a933c3891aff17af5c3729667b8f0f7",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v41_批量恢复流水线与验证范围.md",
+      "current": "docs/restoration/v41/批量恢复流水线与验证范围.md",
+      "originalGitBlob": "740a8bfb33ba36a4c3c9d2599f526641598f6904",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v42_Daemon_Beacon源码恢复验证.md",
+      "current": "docs/restoration/v42/Daemon_Beacon源码恢复验证.md",
+      "originalGitBlob": "565b6908c08db27d70da6b92a0d574d981e5a0eb",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v43_批量恢复_真实历史匹配_生命周期测试.md",
+      "current": "docs/restoration/v43/批量恢复_真实历史匹配_生命周期测试.md",
+      "originalGitBlob": "a47ea2658157e274df7b830e018b25ec9daf74be",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v44_703项真实历史候选逐条独立复核.md",
+      "current": "docs/research/v44/703项真实历史候选逐条独立复核.md",
+      "originalGitBlob": "be9da2858ddcf6b934cf9e1d2515d3e51eddb8f6",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v45_703_调用依赖_真实源码修复与验收.md",
+      "current": "docs/restoration/v45/703_调用依赖_真实源码修复与验收.md",
+      "originalGitBlob": "1e5ba258e89cb1f9877f5cf72a33e7088a5e81ef",
+      "kind": "document"
+    },
+    {
+      "old": "docs/命名规范化改动记录.md",
+      "current": "docs/conventions/命名规范化改动记录.md",
+      "originalGitBlob": "488f65469d45c135210cac9e2a9c2e3c22add79c",
+      "kind": "document"
+    },
+    {
+      "old": "docs/源码与资源统一命名规范.md",
+      "current": "docs/conventions/源码与资源统一命名规范.md",
+      "originalGitBlob": "419dc7a8d9e0a3bb7cbf0cb96e129fcf274e88f2",
+      "kind": "document"
     }
   ]
 }
