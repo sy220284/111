@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const root = path.resolve(__dirname,'..');
+const root = path.resolve(__dirname,'../..');
 const code = p => fs.readFileSync(path.join(root,p),'utf8');
 const query=code('src/chunk-tqjdehqd.js');
 const refs=code('resources/docs/claude-api/error-codes.md');

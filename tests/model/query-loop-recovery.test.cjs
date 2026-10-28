@@ -4,11 +4,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
+const {fragmentToModuleExports}=require('../helpers/source-extraction.cjs');
 
-const source = fs.readFileSync(path.resolve(__dirname,'../src/chunk-tqjdehqd.js'),'utf8');
-const migration = fs.readFileSync(path.resolve(__dirname,'../resources/docs/claude-api/model-migration.md'),'utf8');
-const thinking = fs.readFileSync(path.resolve(__dirname,'../resources/docs/migration/preserved-thinking-migration.md'),'utf8');
+const source = fs.readFileSync(path.resolve(__dirname,'../../src/chunk-tqjdehqd.js'),'utf8');
+const migration = fs.readFileSync(path.resolve(__dirname,'../../resources/docs/claude-api/model-migration.md'),'utf8');
+const thinking = fs.readFileSync(path.resolve(__dirname,'../../resources/docs/migration/preserved-thinking-migration.md'),'utf8');
 function fragment(start, end) {
   const a = source.indexOf(start), b = source.indexOf(end,a);
   assert.ok(a >= 0 && b > a, 'missing actual source fragment ' + start);

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
-const {inspectPair,audit}=require('../scripts/review-historical-candidates.cjs');
+const {inspectPair,audit}=require('../../scripts/review-historical-candidates.cjs');
 const mock=(control,methods,params=1,tokens=80,literals=['persistent-record-key','background-session-failure'])=>({
   features:{params,tokens,literals},
   stats:{control:{if:0,switch:0,case:0,for:0,while:0,try:0,catch:0,throw:0,return:1,await:0,yield:0,conditional:0,call:2,new:0,assignment:0,...control},methods,safety:[]}

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const code = file => fs.readFileSync(path.join(root, file), 'utf8');
 const types = code('resources/tools/plugin-api/types/claude-code.d.ts');
 const caching = code('resources/docs/claude-api/prompt-caching.md');

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-2ctyt5p9.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-2ctyt5p9.js'),'utf8');
 const start=source.indexOf('let nativeAudioAddon = null;');
 const end=source.indexOf('export {',start);
 assert.ok(start>0&&end>start,'the real recovered audio adapter must exist');
@@ -39,7 +39,7 @@ test('原生音频：原始平台回退搜索顺序',()=>{
  assert.equal(audio.isNativeRecordingActive(),false);
  assert.deepEqual(attempts,[
  './vendor/audio-capture/x64-linux/audio-capture.node',
- '../audio-capture/x64-linux/audio-capture.node',
+ '../../audio-capture/x64-linux/audio-capture.node',
  './vendor/audio-capture/x64-linux-musl/audio-capture.node',
  ]);
 });
