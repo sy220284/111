@@ -131,6 +131,10 @@ jobs:
           for c in node npm-cache actionlint; do
             bash tools/dev/ai-toolchain.sh verify-artifact "$c" "$DEV111_ARTIFACTS_DIR/111-toolchain-$c-latest"
           done
+          # 直接调用 run，检验仅凭已下载 Artifact 自动完成 build 档依赖安装。
+          bash tools/dev/ai-toolchain.sh run -- node --version
+          bash tools/dev/ai-toolchain.sh plan --profile build | grep -F '"missing_artifacts":[]'
+          # full 档在复用上述组件基础上只补 actionlint。
           bash tools/dev/ai-toolchain.sh bootstrap --profile full --artifacts-dir "$DEV111_ARTIFACTS_DIR"
           bash tools/dev/ai-toolchain.sh check --profile full
       - name: 真实离线源码测试、CLI 版本与工作流语法
