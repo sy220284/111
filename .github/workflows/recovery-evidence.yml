@@ -9,6 +9,15 @@ on:
       - '.github/workflows/recovery-evidence.yml'
       - 'tools/analysis/ghidra-headless.sh'
       - 'tools/analysis/ghidra-scripts/**'
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'resources/bunfs/*.node'
+      - 'tools/analysis/code-graph.cjs'
+      - 'tools/analysis/jelly-runner.cjs'
+      - 'tools/dev/toolchain-versions.env'
+      - 'package.json'
+      - 'package-lock.json'
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +26,15 @@ on:
       - '.github/workflows/recovery-evidence.yml'
       - 'tools/analysis/ghidra-headless.sh'
       - 'tools/analysis/ghidra-scripts/**'
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'resources/bunfs/*.node'
+      - 'tools/analysis/code-graph.cjs'
+      - 'tools/analysis/jelly-runner.cjs'
+      - 'tools/dev/toolchain-versions.env'
+      - 'package.json'
+      - 'package-lock.json'
 
 permissions:
   contents: read
