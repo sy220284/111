@@ -14,10 +14,10 @@ on:
       - 'tests/code-graph.test.cjs'
       - 'tests/historical-business-chains.test.cjs'
       - 'tests/v45-real-business-703.test.cjs'
-      - 'src/chunk-9z5ybxhe.js'
-      - 'src/chunk-wrtp8qz8.js'
-      - 'src/chunk-bwt94x0y.js'
-      - 'src/chunk-t2adf9g4.js'
+      - 'core/chunk-9z5ybxhe.js'
+      - 'core/chunk-wrtp8qz8.js'
+      - 'core/chunk-bwt94x0y.js'
+      - 'core/chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
 
 permissions:
@@ -54,19 +54,19 @@ jobs:
         run: |
           mkdir -p .generated
           node scripts/batch-restoration-candidates.cjs \
-            --old "$OLD_SOURCE_ROOT" --new src --all --max 5000 \
+            --old "$OLD_SOURCE_ROOT" --new core --all --max 5000 \
             --reference '2.1.88 public mirror commit c8cd253554319f32ff64ff7000636199f720c9bc' \
             --out .generated/v43-historical-real-full.json
           node scripts/review-historical-candidates.cjs \
             --candidates .generated/v43-historical-real-full.json \
-            --old "$OLD_SOURCE_ROOT" --new src --expected 703 \
+            --old "$OLD_SOURCE_ROOT" --new core --expected 703 \
             --out .generated/v44-reviewed-703.json
           node --test tests/v44-real-historical-703.test.cjs
           node tools/analysis/code-graph.cjs scan --full --output .generated/v45-full-code-graph.json > /dev/null
           node scripts/audit-historical-business-chains.cjs \
             --audited .generated/v44-reviewed-703.json \
             --graph .generated/v45-full-code-graph.json \
-            --src src --out .generated/v45-703-business-chains.json
+            --src core --out .generated/v45-703-business-chains.json
           node --test tests/v45-real-business-703.test.cjs
 
           node - <<'NODE'

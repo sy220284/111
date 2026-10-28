@@ -1,0 +1,2356 @@
+{
+  "schema": 1,
+  "baseCommit": "0d9e70401c2a607f18b39058998a424bea7c4cf8",
+  "summary": "Git原始Blob无损归档；旧路径兼容依赖清单及运行验证",
+  "files": [
+    {
+      "old": "resources/tools/artifact/scripts/appifact_sdk.js",
+      "current": "tools/bundled/artifact/scripts/appifact_sdk.js",
+      "originalGitBlob": "5e9dcb99f0d0a5f76558f16484bbb5c99300e5e6",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/ct-auth.mjs",
+      "current": "tools/bundled/claude-test/scripts/ct-auth.mjs",
+      "originalGitBlob": "35f4f18f11312392236cf2355389ed558f8a2f63",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/ct.mjs",
+      "current": "tools/bundled/claude-test/scripts/ct.mjs",
+      "originalGitBlob": "7a79ebb54fc6001af721e07d15e4ea7e0d19d4d9",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/ctbrowser.mjs",
+      "current": "tools/bundled/claude-test/scripts/ctbrowser.mjs",
+      "originalGitBlob": "af776d7405da27ff28dcc0657f6c382f7672da2b",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/install-tools.mjs",
+      "current": "tools/bundled/claude-test/scripts/install-tools.mjs",
+      "originalGitBlob": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/allow-tool.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/allow-tool.mjs",
+      "originalGitBlob": "b97427c16c223e1e419d47ae150762530d21c4f4",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/config.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/config.mjs",
+      "originalGitBlob": "399e61c65124cf6ba64ad5b4e8530027d7fadf01",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/discover.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/discover.mjs",
+      "originalGitBlob": "7875e735c41f99c83e0b38244751a2946c3b5d5d",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/envreport.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/envreport.mjs",
+      "originalGitBlob": "84e3c09d103a96f335c213875ac0b7aaa8325454",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/fence-proxy.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/fence-proxy.mjs",
+      "originalGitBlob": "cbd1281e78d35913c5140d5f21240b00d97c0e5a",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/guard.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/guard.mjs",
+      "originalGitBlob": "8b43c67b4897054cd632c6837c3f91c4c811b4e2",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/hosts.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/hosts.mjs",
+      "originalGitBlob": "87e746e091f5af7f308bfee7382023b15abd7f08",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/live-page.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/live-page.mjs",
+      "originalGitBlob": "6d4547d1dfbf8e506cf01b65da76b0b2ce1695e5",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/open-page.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/open-page.mjs",
+      "originalGitBlob": "b1f38cce8c914ce24f1d979489a99272606069ef",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/psl-data.json",
+      "current": "tools/bundled/claude-test/scripts/lib/psl-data.json",
+      "originalGitBlob": "1fdb1de5e9206c6fc46b38bca3d1bd89d7791d25",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/run-tools.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/run-tools.mjs",
+      "originalGitBlob": "1cef27aed5d4016f65820df8b824f384300954ca",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/runs.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/runs.mjs",
+      "originalGitBlob": "e0ca31c5ba389d677d824c09e504a40444d55537",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/signin.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/signin.mjs",
+      "originalGitBlob": "d93f403093ded8aced25bf85b0d1bb7c5269432f",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/tools-lock.json",
+      "current": "tools/bundled/claude-test/scripts/lib/tools-lock.json",
+      "originalGitBlob": "682cff7d1c29c81de536661ac3837e06b6f5b6ae",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/tools.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/tools.mjs",
+      "originalGitBlob": "3f1ca62a495958d0456b39bca9d6ca134365415d",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/lib/vet.mjs",
+      "current": "tools/bundled/claude-test/scripts/lib/vet.mjs",
+      "originalGitBlob": "7d2159d8bbe92037da471f0bf70c779d11b93533",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/playwright-mcp.mjs",
+      "current": "tools/bundled/claude-test/scripts/playwright-mcp.mjs",
+      "originalGitBlob": "4726f3c53ddba60fea76cb47eb2a4d56f90d1e8a",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/sign-in.mjs",
+      "current": "tools/bundled/claude-test/scripts/sign-in.mjs",
+      "originalGitBlob": "6fe1cf168e19dd64b7c3e38632d54dca32d940b1",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/stop-on-exit.mjs",
+      "current": "tools/bundled/claude-test/scripts/stop-on-exit.mjs",
+      "originalGitBlob": "888d2f64512880478668c530d971b01a35354b48",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/claude-test/scripts/tools-snapshot.json",
+      "current": "tools/bundled/claude-test/scripts/tools-snapshot.json",
+      "originalGitBlob": "d17b7fe09a040f02883d36ccc938597dc55d2461",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/bundle.mjs",
+      "current": "tools/bundled/design-sync/lib/bundle.mjs",
+      "originalGitBlob": "577637caf6db3e6b78345fc16793c1ab149e8be8",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/common.mjs",
+      "current": "tools/bundled/design-sync/lib/common.mjs",
+      "originalGitBlob": "e6cd1a70b433d8333811ef3bfc341cf625db82c2",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/css-fallback.mjs",
+      "current": "tools/bundled/design-sync/lib/css-fallback.mjs",
+      "originalGitBlob": "1460b41bc3545121b19d070b2141b08a50d5fb08",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/css.mjs",
+      "current": "tools/bundled/design-sync/lib/css.mjs",
+      "originalGitBlob": "982fde0a02969eb03d0ec437930ebf022ffb62b3",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/detect.mjs",
+      "current": "tools/bundled/design-sync/lib/detect.mjs",
+      "originalGitBlob": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/docs.mjs",
+      "current": "tools/bundled/design-sync/lib/docs.mjs",
+      "originalGitBlob": "69dcb3fc8ba9c06f78f00bb74618cbe083e14f1c",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/dts.mjs",
+      "current": "tools/bundled/design-sync/lib/dts.mjs",
+      "originalGitBlob": "4a600b717ec30554104a32ca683597ad66dda59a",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/emit.mjs",
+      "current": "tools/bundled/design-sync/lib/emit.mjs",
+      "originalGitBlob": "c46517acf16fa6743ca963578edbbb9bcb6a8d2b",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/preview-gen-storybook.mjs",
+      "current": "tools/bundled/design-sync/lib/preview-gen-storybook.mjs",
+      "originalGitBlob": "0b224d7a270de4629445dd8e6656d7e9db381fa6",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/preview-rebuild.mjs",
+      "current": "tools/bundled/design-sync/lib/preview-rebuild.mjs",
+      "originalGitBlob": "b9c30825961e7bff1622ac794cf3d39a5bbc8bdb",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/previews.mjs",
+      "current": "tools/bundled/design-sync/lib/previews.mjs",
+      "originalGitBlob": "b9af10b5cc24c296fc7af7904b478c9bc6a78c92",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/remote-diff.mjs",
+      "current": "tools/bundled/design-sync/lib/remote-diff.mjs",
+      "originalGitBlob": "04307628611370cdc4748b94e9ea1e605f47843c",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/source-kit.mjs",
+      "current": "tools/bundled/design-sync/lib/source-kit.mjs",
+      "originalGitBlob": "56da936d52f0de5de47eb88605d798764ed791f2",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/source-storybook.mjs",
+      "current": "tools/bundled/design-sync/lib/source-storybook.mjs",
+      "originalGitBlob": "cebb31dbbd70a862aea4ddad255098138599b3ac",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/story-imports.mjs",
+      "current": "tools/bundled/design-sync/lib/story-imports.mjs",
+      "originalGitBlob": "ec275864eecf19bc8d402dcd9b2bbd98e4278a9d",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/lib/sync-hashes.mjs",
+      "current": "tools/bundled/design-sync/lib/sync-hashes.mjs",
+      "originalGitBlob": "fe0164230e9fe0a9dd8fb80cf5a0230540638158",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/package-build.mjs",
+      "current": "tools/bundled/design-sync/package-build.mjs",
+      "originalGitBlob": "029faaaa5c7773bfea10f12841b75b4c9da49052",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/package-capture.mjs",
+      "current": "tools/bundled/design-sync/package-capture.mjs",
+      "originalGitBlob": "c10344f12030efa260093335e54a036fc724cef5",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/package-validate.mjs",
+      "current": "tools/bundled/design-sync/package-validate.mjs",
+      "originalGitBlob": "9a0f277d2882764a518f16cc0301e0e8c102c699",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/resync.mjs",
+      "current": "tools/bundled/design-sync/resync.mjs",
+      "originalGitBlob": "d91879ff03bf9024c667bc41f75782adf0428228",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/storybook/compare.mjs",
+      "current": "tools/bundled/design-sync/storybook/compare.mjs",
+      "originalGitBlob": "bda88455d84d40bcebf5ef474ac197d76b003031",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/storybook/http-serve.mjs",
+      "current": "tools/bundled/design-sync/storybook/http-serve.mjs",
+      "originalGitBlob": "a268825307998a6a1111b0370d72bede9f15c99a",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design-sync/storybook/probe.mjs",
+      "current": "tools/bundled/design-sync/storybook/probe.mjs",
+      "originalGitBlob": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design/scripts/validate_palette.js",
+      "current": "tools/bundled/design/scripts/validate_palette.js",
+      "originalGitBlob": "0529c4f9c3bdb689bfe8ee30327b78e99c94976a",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/design/scripts/validate_palette.py",
+      "current": "tools/bundled/design/scripts/validate_palette.py",
+      "originalGitBlob": "c5cd012f445f8b7a8c26106dcafded4326958abe",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/evaluation/drop_block_probe.py",
+      "current": "tools/bundled/evaluation/drop_block_probe.py",
+      "originalGitBlob": "b39d47dbe57bfebf53534f4a15788a3be7000829",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/evaluation/prefix_diff.py",
+      "current": "tools/bundled/evaluation/prefix_diff.py",
+      "originalGitBlob": "cfa88044b45b4acb8b82044f51872f4f7e306c2f",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/plugin-api/scripts/kit-modules.js",
+      "current": "tools/bundled/plugin-api/scripts/kit-modules.js",
+      "originalGitBlob": "86d013751295b67aadd5ca8190f2227e003f5f3b",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "resources/tools/plugin-api/types/claude-code.d.ts",
+      "current": "tools/bundled/plugin-api/types/claude-code.d.ts",
+      "originalGitBlob": "0e6a0d375bf4f1f3a2eb8f4a43f6e4cf99a11d93",
+      "kind": "bundled-tool"
+    },
+    {
+      "old": "src/embedded/agent-guides/build-report-lite.mjs",
+      "current": "embedded/agent-guides/build-report-lite.mjs",
+      "originalGitBlob": "ba1c1ba05eadd9b121a1a1cc07cf59443e70754a",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/agent-guides/runner-scaffold.mjs",
+      "current": "embedded/agent-guides/runner-scaffold.mjs",
+      "originalGitBlob": "2f0220b41b4b30eb12606aa7ff95a9fee2f6e924",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/browser-tools/hosts.mjs",
+      "current": "embedded/browser-tools/hosts.mjs",
+      "originalGitBlob": "87e746e091f5af7f308bfee7382023b15abd7f08",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/browser-tools/install-tools.mjs",
+      "current": "embedded/browser-tools/install-tools.mjs",
+      "originalGitBlob": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/browser-tools/open-page.mjs",
+      "current": "embedded/browser-tools/open-page.mjs",
+      "originalGitBlob": "b1f38cce8c914ce24f1d979489a99272606069ef",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/browser-tools/plugin.json",
+      "current": "embedded/browser-tools/plugin.json",
+      "originalGitBlob": "874ef91b284243d0d34e8746cc2a10ced6848052",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/browser-tools/tools-lock.json",
+      "current": "embedded/browser-tools/tools-lock.json",
+      "originalGitBlob": "682cff7d1c29c81de536661ac3837e06b6f5b6ae",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/component-build/css-fallback.mjs",
+      "current": "embedded/component-build/css-fallback.mjs",
+      "originalGitBlob": "1460b41bc3545121b19d070b2141b08a50d5fb08",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/component-build/detect.mjs",
+      "current": "embedded/component-build/detect.mjs",
+      "originalGitBlob": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/component-build/http-serve.mjs",
+      "current": "embedded/component-build/http-serve.mjs",
+      "originalGitBlob": "a268825307998a6a1111b0370d72bede9f15c99a",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/component-build/preview-gen-storybook.mjs",
+      "current": "embedded/component-build/preview-gen-storybook.mjs",
+      "originalGitBlob": "0b224d7a270de4629445dd8e6656d7e9db381fa6",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/component-build/probe.mjs",
+      "current": "embedded/component-build/probe.mjs",
+      "originalGitBlob": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/component-build/source-kit.mjs",
+      "current": "embedded/component-build/source-kit.mjs",
+      "originalGitBlob": "56da936d52f0de5de47eb88605d798764ed791f2",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/components/band-state.d.ts",
+      "current": "embedded/components/band-state.d.ts",
+      "originalGitBlob": "c528ee59e8eaf52e3f7e7e6b7e5a4992cb84acaf",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/components/band.tsx",
+      "current": "embedded/components/band.tsx",
+      "originalGitBlob": "99b4a69925fe45767aedbfa307681e131d6368c6",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/components/pane-state.d.ts",
+      "current": "embedded/components/pane-state.d.ts",
+      "originalGitBlob": "564757b16f0953f6c6ac8677e33c9f46792e13de",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/components/pane.test.tsx",
+      "current": "embedded/components/pane.test.tsx",
+      "originalGitBlob": "69179f91f78c36c3c3f7df0d35656a9403a12a9b",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/components/pane.tsx",
+      "current": "embedded/components/pane.tsx",
+      "originalGitBlob": "72bb1fbd239d409f1736c0c46feff1d9ab5d8df4",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/components/tool-call.ts",
+      "current": "embedded/components/tool-call.ts",
+      "originalGitBlob": "782e76163a4a4e0ecae260d970eea9fd65acaf0e",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/design-templates/check.mjs",
+      "current": "embedded/design-templates/check.mjs",
+      "originalGitBlob": "7f1e1c1e5e3cd797a2aa9bef165b8a59679059d7",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/design-templates/skeleton.html",
+      "current": "embedded/design-templates/skeleton.html",
+      "originalGitBlob": "9048ab216ff81d4e63be27713e9d7ecca06f7713",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/design-templates/template.html",
+      "current": "embedded/design-templates/template.html",
+      "originalGitBlob": "1afa2f047176fd0ab06724d830742d0095c3c099",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/design-templates/theme-script.html",
+      "current": "embedded/design-templates/theme-script.html",
+      "originalGitBlob": "adfc4d22a6b151507338a4e561574517bc85f0f4",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/embedded/runtime/state-library.js",
+      "current": "embedded/runtime/state-library.js",
+      "originalGitBlob": "e44dd5cd3825ab8855d4dff7c10c53b76edc22b0",
+      "kind": "embedded-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/collector.js",
+      "current": "plugin-testing-kit/collector/collector.js",
+      "originalGitBlob": "56d3db5e842728f2eb8805f6a8912758b2026edc",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/create-collector.js",
+      "current": "plugin-testing-kit/collector/create-collector/create-collector.js",
+      "originalGitBlob": "4bc2ada3a3105300528bb5500ff9637f4980c8cb",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/index.js",
+      "current": "plugin-testing-kit/collector/create-collector/index.js",
+      "originalGitBlob": "19f2fbfdbe569737c0da23c43089a2dececfcd05",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/test-case-of/index.js",
+      "current": "plugin-testing-kit/collector/create-collector/test-case-of/index.js",
+      "originalGitBlob": "c2665ef4cc50f5b3489b7abd0e896a8f464bc475",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/test-case-of/test-case-of.js",
+      "current": "plugin-testing-kit/collector/create-collector/test-case-of/test-case-of.js",
+      "originalGitBlob": "3957fca03f06475783b716499c8955dd46a03b86",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/test-case-of/timeout-ms/index.js",
+      "current": "plugin-testing-kit/collector/create-collector/test-case-of/timeout-ms/index.js",
+      "originalGitBlob": "26f730e9b3369ee0f3501b3c76dd3d3e106da86f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/test-case-of/timeout-ms/timeout-ms.js",
+      "current": "plugin-testing-kit/collector/create-collector/test-case-of/timeout-ms/timeout-ms.js",
+      "originalGitBlob": "3f79c560354f1850fc2f36fb0d69cf4cead7e4eb",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/title-of/index.js",
+      "current": "plugin-testing-kit/collector/create-collector/title-of/index.js",
+      "originalGitBlob": "03faf3bd04020b568ed68003e46623833d2db3a3",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/create-collector/title-of/title-of.js",
+      "current": "plugin-testing-kit/collector/create-collector/title-of/title-of.js",
+      "originalGitBlob": "81ac33be6d9301881eefb0467058e16ca59a0fce",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/collector/index.js",
+      "current": "plugin-testing-kit/collector/index.js",
+      "originalGitBlob": "6ef275994496cd054b2c4ec28384a8044515db1b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/delay-max-ms/delay-max-ms.js",
+      "current": "plugin-testing-kit/delay-max-ms/delay-max-ms.js",
+      "originalGitBlob": "78b84f0f0f94d0435998b644d67d3c26e030d191",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/delay-max-ms/index.js",
+      "current": "plugin-testing-kit/delay-max-ms/index.js",
+      "originalGitBlob": "9bdc001139c2164f10687d1786b7cff7dbd7f314",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/describe/describe.js",
+      "current": "plugin-testing-kit/describe/describe.js",
+      "originalGitBlob": "a18fee19c3c2c95ea4d6a61192f84584dfdb3ce5",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/describe/index.js",
+      "current": "plugin-testing-kit/describe/index.js",
+      "originalGitBlob": "3a8a36bb1ed83e97392c7f206629d8005ed64728",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/asymmetry/asymmetry.js",
+      "current": "plugin-testing-kit/equality/asymmetry/asymmetry.js",
+      "originalGitBlob": "656459fe0b9b7c014d9f447ecf5fed7191f40b01",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/asymmetry/create-asymmetry/create-asymmetry.js",
+      "current": "plugin-testing-kit/equality/asymmetry/create-asymmetry/create-asymmetry.js",
+      "originalGitBlob": "fa5f95c7e6325d2b24e7a943146c7c5e2015b06a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/asymmetry/create-asymmetry/index.js",
+      "current": "plugin-testing-kit/equality/asymmetry/create-asymmetry/index.js",
+      "originalGitBlob": "00c66be0034008fe0c90e37fb199a004b4f80a6f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/asymmetry/index.js",
+      "current": "plugin-testing-kit/equality/asymmetry/index.js",
+      "originalGitBlob": "5d64a4ca1454731048228ae150e74124001b668e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/equals-under.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/equals-under.js",
+      "originalGitBlob": "da041dbd5f9cc96e497ccb1ce1e520fed9f46ddf",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/index.js",
+      "originalGitBlob": "2dc8aaabf88c787f2765cd2e7a8e5f98645d3015",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/arrays-equal/arrays-equal.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/arrays-equal/arrays-equal.js",
+      "originalGitBlob": "787863c5b99b7a5d0964e99c1c86e31c574676d9",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/arrays-equal/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/arrays-equal/index.js",
+      "originalGitBlob": "e18e7855456a1f37a30aac6146f00ed68006e4a9",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/index.js",
+      "originalGitBlob": "36c65b0ab73bbe75f4eeb9ec54f27382f216164e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/index.js",
+      "originalGitBlob": "cfa142acb2f92b24048f87f0fabfe2f90d86fb7c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/maps-equal.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/maps-equal.js",
+      "originalGitBlob": "69a36fbbb69b857397e08c74d46cc5643a7391b3",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/index.js",
+      "originalGitBlob": "2ca34c5cf35ba955b7f1351d566a12ae6d77834e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/keys-of/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/keys-of/index.js",
+      "originalGitBlob": "1f2c3f1973f0eeb9c16bd348114bca47f71f580b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/keys-of/keys-of.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/keys-of/keys-of.js",
+      "originalGitBlob": "cc343eb84eddc8e5cec48e58fdfe27cc7989fb35",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/properties-equal.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/properties-equal.js",
+      "originalGitBlob": "31bcbe0f69433c29c3750f1f9585eeac87b3967d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/index.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/index.js",
+      "originalGitBlob": "e58d83d1ad453b322c5e2d2982a62afa44928e68",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/sets-equal.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/sets-equal.js",
+      "originalGitBlob": "df8362507872bb505cfddc15a686ce2f7f948b33",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/structurally-equal.js",
+      "current": "plugin-testing-kit/equality/equals/equals-under/structurally-equal/structurally-equal.js",
+      "originalGitBlob": "6e11b1bdf3101ac1159d1eac7c9b690ed7a34e67",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/equals.js",
+      "current": "plugin-testing-kit/equality/equals/equals.js",
+      "originalGitBlob": "14d3c2bdd1c6bad4aacb2537f573001f98ab798f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/equals/index.js",
+      "current": "plugin-testing-kit/equality/equals/index.js",
+      "originalGitBlob": "d8a84563e034a842118ce50b5bceab2f2a235fb5",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/brackets-of/brackets-of.js",
+      "current": "plugin-testing-kit/equality/format/container-text/brackets-of/brackets-of.js",
+      "originalGitBlob": "e9751d9505775d0c8378f88dc7bb6528fc450c0c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/brackets-of/index.js",
+      "current": "plugin-testing-kit/equality/format/container-text/brackets-of/index.js",
+      "originalGitBlob": "6e514d06240a1ddffe56140b99075c49943e18ce",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/container-text.js",
+      "current": "plugin-testing-kit/equality/format/container-text/container-text.js",
+      "originalGitBlob": "c21848b75ffbc59db757157efa8c29df68ce95f7",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/format-width/format-width.js",
+      "current": "plugin-testing-kit/equality/format/container-text/format-width/format-width.js",
+      "originalGitBlob": "26bf3a6594bf3fccf6930510ec804a1278b5439e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/format-width/index.js",
+      "current": "plugin-testing-kit/equality/format/container-text/format-width/index.js",
+      "originalGitBlob": "cd1c8693bb5b66a96ee033c81f74839dbbc7574a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/index.js",
+      "current": "plugin-testing-kit/equality/format/container-text/index.js",
+      "originalGitBlob": "88ca8e7e2fe51701fbe50890d35ee2e860e0e72c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/parts-of/index.js",
+      "current": "plugin-testing-kit/equality/format/container-text/parts-of/index.js",
+      "originalGitBlob": "ede818c380b972736d6b737ae21164e5a0dcca16",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/parts-of/key-text/index.js",
+      "current": "plugin-testing-kit/equality/format/container-text/parts-of/key-text/index.js",
+      "originalGitBlob": "e1a95fe63483527531fd698bbb7d65e05cd78d3b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/parts-of/key-text/key-text.js",
+      "current": "plugin-testing-kit/equality/format/container-text/parts-of/key-text/key-text.js",
+      "originalGitBlob": "c8e852deee964acf13a79c4915342deff30d16ce",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/container-text/parts-of/parts-of.js",
+      "current": "plugin-testing-kit/equality/format/container-text/parts-of/parts-of.js",
+      "originalGitBlob": "224a76582d2e65db1fa83d960ec2c444bd2cf26f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/date-text/date-text.js",
+      "current": "plugin-testing-kit/equality/format/date-text/date-text.js",
+      "originalGitBlob": "c1412546b07a1b91e50424e6e779fa74fa124009",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/date-text/index.js",
+      "current": "plugin-testing-kit/equality/format/date-text/index.js",
+      "originalGitBlob": "6a95e20cd57d216e6ce91caf444921c62ecf8f8d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/format.js",
+      "current": "plugin-testing-kit/equality/format/format.js",
+      "originalGitBlob": "3e5120d12ecb9c62881e1af585082eb6d5b156d5",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/format/index.js",
+      "current": "plugin-testing-kit/equality/format/index.js",
+      "originalGitBlob": "723d64993fe4d6d5e31f31c80008fdb9d8769ada",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/equality/index.js",
+      "current": "plugin-testing-kit/equality/index.js",
+      "originalGitBlob": "76a8712ed029a3b8643a04c12bc7d61baace8ea8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/assertion-error-of/assertion-error-name/assertion-error-name.js",
+      "current": "plugin-testing-kit/expect/assertion-error-of/assertion-error-name/assertion-error-name.js",
+      "originalGitBlob": "aaff9f86fb2e70cb54faf4b723066c2bce44b367",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/assertion-error-of/assertion-error-name/index.js",
+      "current": "plugin-testing-kit/expect/assertion-error-of/assertion-error-name/index.js",
+      "originalGitBlob": "f1d20b0a99ab89269b7688252f38d298d28d6da0",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/assertion-error-of/assertion-error-of.js",
+      "current": "plugin-testing-kit/expect/assertion-error-of/assertion-error-of.js",
+      "originalGitBlob": "54ae9906afd7e72a9abffb1a5db72bf4b3ecf076",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/assertion-error-of/index.js",
+      "current": "plugin-testing-kit/expect/assertion-error-of/index.js",
+      "originalGitBlob": "d1919fae71b8d8092d2e881c4c1d0e98c9353c0a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/by-matcher/by-matcher.js",
+      "current": "plugin-testing-kit/expect/by-matcher/by-matcher.js",
+      "originalGitBlob": "f7d3a5e4969e07c1ea4197587b5f731459de7eab",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/by-matcher/index.js",
+      "current": "plugin-testing-kit/expect/by-matcher/index.js",
+      "originalGitBlob": "a0e2fff037082c469cd21a87206c7f0adf77f68f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/check/check.js",
+      "current": "plugin-testing-kit/expect/check/check.js",
+      "originalGitBlob": "0349b47661915807fd461bbafd1ab464255937a7",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/check/index.js",
+      "current": "plugin-testing-kit/expect/check/index.js",
+      "originalGitBlob": "d6407703df8bccb856a2bb86afa14cbb2766eb33",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expect.js",
+      "current": "plugin-testing-kit/expect/expect.js",
+      "originalGitBlob": "12e3f726aabc46eceaf3e6bd0e105b230f114150",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/checks-of/checks-of.js",
+      "current": "plugin-testing-kit/expect/expectation-of/checks-of/checks-of.js",
+      "originalGitBlob": "f72d8ede33a71aa4a1c942e790d70638e804bb3a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/checks-of/index.js",
+      "current": "plugin-testing-kit/expect/expectation-of/checks-of/index.js",
+      "originalGitBlob": "4319272cbf4802e475dfa97dbaaadcdaae88437f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/expectation-of.js",
+      "current": "plugin-testing-kit/expect/expectation-of/expectation-of.js",
+      "originalGitBlob": "a1cffbac3d77397ad65ec159861a918fd0d29f87",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/index.js",
+      "current": "plugin-testing-kit/expect/expectation-of/index.js",
+      "originalGitBlob": "4f76418d95643dcc1d00539a73d61cfeb8983828",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/negatable-of/index.js",
+      "current": "plugin-testing-kit/expect/expectation-of/negatable-of/index.js",
+      "originalGitBlob": "ae990f266f9b3ef64f1d0cc09a9c0a34463f772c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/negatable-of/negatable-of.js",
+      "current": "plugin-testing-kit/expect/expectation-of/negatable-of/negatable-of.js",
+      "originalGitBlob": "15f9066a44994686a303f3b7ed1487fc5806bb08",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/plain-context-of/index.js",
+      "current": "plugin-testing-kit/expect/expectation-of/plain-context-of/index.js",
+      "originalGitBlob": "40aca5e7b4189dae41103f3e694afc7e0ada08f8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/plain-context-of/plain-context-of.js",
+      "current": "plugin-testing-kit/expect/expectation-of/plain-context-of/plain-context-of.js",
+      "originalGitBlob": "623f919c32e8d5b430cd46438191f4a5c85a19a6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/index.js",
+      "current": "plugin-testing-kit/expect/expectation-of/settled-checks-of/index.js",
+      "originalGitBlob": "3e868415b971d4b7c4258153970f0e495b81ac08",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/outcome-of/index.js",
+      "current": "plugin-testing-kit/expect/expectation-of/settled-checks-of/outcome-of/index.js",
+      "originalGitBlob": "cf6ce0d9e238a0d3c624342bf9879ae4d78651cf",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/outcome-of/outcome-of.js",
+      "current": "plugin-testing-kit/expect/expectation-of/settled-checks-of/outcome-of/outcome-of.js",
+      "originalGitBlob": "2486bd6c06a31240df574bd85efc140fd602eb16",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/settled-checks-of.js",
+      "current": "plugin-testing-kit/expect/expectation-of/settled-checks-of/settled-checks-of.js",
+      "originalGitBlob": "2b323a4b375124fb6491ace12b8b2a8e2da8cb8f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/index.js",
+      "current": "plugin-testing-kit/expect/index.js",
+      "originalGitBlob": "7169eecdc5c196265eebff3fe6955c0b909473d1",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/lead-of/index.js",
+      "current": "plugin-testing-kit/expect/lead-of/index.js",
+      "originalGitBlob": "56cbfb7d42c500ef16662aaa83cb6468a2f7e9e8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/lead-of/lead-of.js",
+      "current": "plugin-testing-kit/expect/lead-of/lead-of.js",
+      "originalGitBlob": "7b0d22928ca8bfea862b1e15961736e90646a859",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-names/index.js",
+      "current": "plugin-testing-kit/expect/matcher-names/index.js",
+      "originalGitBlob": "70d8ec10a6bb8f8b3ceaf7d7d553c8f93e867d5b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-names/matcher-names.js",
+      "current": "plugin-testing-kit/expect/matcher-names/matcher-names.js",
+      "originalGitBlob": "5d722a860416b230f66ff8e2ffab40ff8f5679eb",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/index.js",
+      "originalGitBlob": "395e6dce995ef7049cddb43c6c0c78bf409d59df",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/is-affixed/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/is-affixed/index.js",
+      "originalGitBlob": "4d265e2b0a14a45920308608ff05b1e7c53b1ab2",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/is-affixed/is-affixed.js",
+      "current": "plugin-testing-kit/expect/matcher-table/is-affixed/is-affixed.js",
+      "originalGitBlob": "18a8f3b5b32f28d82e50254b639fbacb7a224d88",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/is-matched/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/is-matched/index.js",
+      "originalGitBlob": "98993dc09d7fe4608e67adfb252e9925e5d3cd92",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/is-matched/is-matched.js",
+      "current": "plugin-testing-kit/expect/matcher-table/is-matched/is-matched.js",
+      "originalGitBlob": "6d19dcc92e4c1e05b3de9890a9b8d8ac27e9db0f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/is-thrown-as/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/is-thrown-as/index.js",
+      "originalGitBlob": "a4a5a59f92d1a8a47be66c04d00b95dc33f5a47d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/is-thrown-as/is-thrown-as.js",
+      "current": "plugin-testing-kit/expect/matcher-table/is-thrown-as/is-thrown-as.js",
+      "originalGitBlob": "1733186b6d4ab8fd0b9c6a4872842135068ae3af",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/length-of/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/length-of/index.js",
+      "originalGitBlob": "2da9bb9b10d715d539cf07200e8dab9fa465f479",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/length-of/length-of.js",
+      "current": "plugin-testing-kit/expect/matcher-table/length-of/length-of.js",
+      "originalGitBlob": "ddfd2c924fdd8dc27866d74bb9ecc7af6e8661a0",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/matcher-table.js",
+      "current": "plugin-testing-kit/expect/matcher-table/matcher-table.js",
+      "originalGitBlob": "059a5703ecb8666feff58cbe77ffa9ac7d387a9c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/ordered-of/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/ordered-of/index.js",
+      "originalGitBlob": "e9b64a08b9680d181bed99282b638dd3d99ba0b7",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/ordered-of/ordered-of.js",
+      "current": "plugin-testing-kit/expect/matcher-table/ordered-of/ordered-of.js",
+      "originalGitBlob": "9b3c629502d81bf8fa6faa67a21d65f3cae65483",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/property-at/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/property-at/index.js",
+      "originalGitBlob": "a6e5f8b80bffaaefd3f2d65b85158bab3a7a00c6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/property-at/property-at.js",
+      "current": "plugin-testing-kit/expect/matcher-table/property-at/property-at.js",
+      "originalGitBlob": "505dcdc1f29c45ec3c8cac8496605bdd550b0bf6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/thrown-by/index.js",
+      "current": "plugin-testing-kit/expect/matcher-table/thrown-by/index.js",
+      "originalGitBlob": "3b87fa5ab47be7920a1bc0e919bf2429a17e652b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matcher-table/thrown-by/thrown-by.js",
+      "current": "plugin-testing-kit/expect/matcher-table/thrown-by/thrown-by.js",
+      "originalGitBlob": "f943d78be5ecf72566c7d6659deca5799f2eb0de",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matching/index.js",
+      "current": "plugin-testing-kit/expect/matching/index.js",
+      "originalGitBlob": "a902155fe2cc68c1fe947e6292b24c419ba1252e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/expect/matching/matching.js",
+      "current": "plugin-testing-kit/expect/matching/matching.js",
+      "originalGitBlob": "695c54c413db75e6b46319d817f35f7037f1cfc4",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/index.js",
+      "current": "plugin-testing-kit/index.js",
+      "originalGitBlob": "bb358b97746aa09e76e2aaac8e4c6e451447d132",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/install/index.js",
+      "current": "plugin-testing-kit/install/index.js",
+      "originalGitBlob": "443bd897be32d9ca2aeb6aa30b75fb5828976500",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/install/install.js",
+      "current": "plugin-testing-kit/install/install.js",
+      "originalGitBlob": "172bd8655a984f6ce464a146576c8c73fcae2a3f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/installed/create-installed/create-installed.js",
+      "current": "plugin-testing-kit/installed/create-installed/create-installed.js",
+      "originalGitBlob": "b0a0a7f348e380f1c85a755884f77122645bf34f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/installed/create-installed/index.js",
+      "current": "plugin-testing-kit/installed/create-installed/index.js",
+      "originalGitBlob": "377cb9e7f6006211a4246aaa25f137e2ce1b2335",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/installed/index.js",
+      "current": "plugin-testing-kit/installed/index.js",
+      "originalGitBlob": "58a241750cd61364fb3a3684996a9067defd0a0d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/installed/installed.js",
+      "current": "plugin-testing-kit/installed/installed.js",
+      "originalGitBlob": "db03cf78c271c97cffece9002c543dad881023ae",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-duration/index.js",
+      "current": "plugin-testing-kit/is-duration/index.js",
+      "originalGitBlob": "f1bbcf8604afa8cd10eb047dfb7041351bb8b41a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-duration/is-duration.js",
+      "current": "plugin-testing-kit/is-duration/is-duration.js",
+      "originalGitBlob": "2506a4b710b1402e06dd9ca18105f431bcd88c06",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-iterable/index.js",
+      "current": "plugin-testing-kit/is-iterable/index.js",
+      "originalGitBlob": "39c9c60b2d64d5a2d0eef3c99c265de7c7f0af86",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-iterable/is-iterable.js",
+      "current": "plugin-testing-kit/is-iterable/is-iterable.js",
+      "originalGitBlob": "fc835af4720a25822e9dd94c5fbe0774846538e8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-object/index.js",
+      "current": "plugin-testing-kit/is-object/index.js",
+      "originalGitBlob": "c501384d4d52a60664434a7d20be13444473314d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-object/is-object.js",
+      "current": "plugin-testing-kit/is-object/is-object.js",
+      "originalGitBlob": "607ecc7fd071589330a9d5a149fea807297a0028",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-plugin-tier/index.js",
+      "current": "plugin-testing-kit/is-plugin-tier/index.js",
+      "originalGitBlob": "195c711d58c1f1455a18730984147dd9075d1d43",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/is-plugin-tier/is-plugin-tier.js",
+      "current": "plugin-testing-kit/is-plugin-tier/is-plugin-tier.js",
+      "originalGitBlob": "7e2a14e97409ce9c0d316cbbf630631bbc0d4029",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/index.js",
+      "current": "plugin-testing-kit/mock/index.js",
+      "originalGitBlob": "1e47a0a103565e0f2f27f86038e56895b94c7e17",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/advance-clock/advance-clock.js",
+      "current": "plugin-testing-kit/mock/mock-clock/advance-clock/advance-clock.js",
+      "originalGitBlob": "c794199ef0777fbd9ebff2ad8ebcd021daa3ce1e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/advance-clock/fires-per-advance-max/fires-per-advance-max.js",
+      "current": "plugin-testing-kit/mock/mock-clock/advance-clock/fires-per-advance-max/fires-per-advance-max.js",
+      "originalGitBlob": "4bba8a46d112144fee73e71098dec4b31c745e51",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/advance-clock/fires-per-advance-max/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/advance-clock/fires-per-advance-max/index.js",
+      "originalGitBlob": "4dc63283f9efefda29ffd1847d7b2fdee0313820",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/advance-clock/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/advance-clock/index.js",
+      "originalGitBlob": "12b0e4513504994cd98f5324ef4452a797693e84",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/create-pending-clock.js",
+      "current": "plugin-testing-kit/mock/mock-clock/create-pending-clock/create-pending-clock.js",
+      "originalGitBlob": "682aff19f396f31062412de3cefc61b5cbcbbc63",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/due-of/due-of.js",
+      "current": "plugin-testing-kit/mock/mock-clock/create-pending-clock/due-of/due-of.js",
+      "originalGitBlob": "6dc470f27e77179eae2ede23b12486daeff212e4",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/due-of/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/create-pending-clock/due-of/index.js",
+      "originalGitBlob": "f2108684743e7ebfe7dd09198e58ac1c9abf1043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/create-pending-clock/index.js",
+      "originalGitBlob": "b2e9dd7f85446ecaa263433ea8b41b65bbcb6d39",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/pending-wait-of/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/create-pending-clock/pending-wait-of/index.js",
+      "originalGitBlob": "1d992cadb76d86629cf7521d53d44700e52b5144",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/pending-wait-of/pending-wait-of.js",
+      "current": "plugin-testing-kit/mock/mock-clock/create-pending-clock/pending-wait-of/pending-wait-of.js",
+      "originalGitBlob": "778e09a2e70869e045b3ab595adb060bea89c708",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/hold-of/hold-of.js",
+      "current": "plugin-testing-kit/mock/mock-clock/hold-of/hold-of.js",
+      "originalGitBlob": "75b375583759bbbd6e309b35e7eb1cccbb63fe59",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/hold-of/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/hold-of/index.js",
+      "originalGitBlob": "2058ab0386c6bec8257f996cccbc1d275e084e31",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/index.js",
+      "originalGitBlob": "89f99b6ae6d31984250d007702fe98456ea2549b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/mock-clock.js",
+      "current": "plugin-testing-kit/mock/mock-clock/mock-clock.js",
+      "originalGitBlob": "cb1c7fc6050c76102a8ad76fa2c14603e309b585",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/set-clock/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/set-clock/index.js",
+      "originalGitBlob": "5bed16c9655fbad8d3e7222f263e72123f3bab89",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/set-clock/set-clock.js",
+      "current": "plugin-testing-kit/mock/mock-clock/set-clock/set-clock.js",
+      "originalGitBlob": "f5e11cbe7fa9ee18141ee233bd4adc1b26daef6b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/sleep-on/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/sleep-on/index.js",
+      "originalGitBlob": "e7d6dfbb70294fac87b3399753e807c8f7f4a44b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/sleep-on/sleep-on.js",
+      "current": "plugin-testing-kit/mock/mock-clock/sleep-on/sleep-on.js",
+      "originalGitBlob": "d61559b75238b5e38cce93970ed0b9369c0eca03",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/start-of/index.js",
+      "current": "plugin-testing-kit/mock/mock-clock/start-of/index.js",
+      "originalGitBlob": "6ccf0224053a5a4385fc89c1b6f20db278e60503",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-clock/start-of/start-of.js",
+      "current": "plugin-testing-kit/mock/mock-clock/start-of/start-of.js",
+      "originalGitBlob": "0d90184a3c79cc8651be143a9435cfc4f70d8697",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-env/index.js",
+      "current": "plugin-testing-kit/mock/mock-env/index.js",
+      "originalGitBlob": "dfa4e39f827be6822cf391a37825a6df21dcc260",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-env/mock-env.js",
+      "current": "plugin-testing-kit/mock/mock-env/mock-env.js",
+      "originalGitBlob": "ba1648548d6237e12c0a91d57a902b75030bc942",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-session/index.js",
+      "current": "plugin-testing-kit/mock/mock-session/index.js",
+      "originalGitBlob": "4766d59387295642e5c547aaabfa4c9a99bc189e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-session/mock-session.js",
+      "current": "plugin-testing-kit/mock/mock-session/mock-session.js",
+      "originalGitBlob": "322f9dcda826f5349917ac517d3e8871b1011f03",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-store/index.js",
+      "current": "plugin-testing-kit/mock/mock-store/index.js",
+      "originalGitBlob": "934a68394fd9966b5fb81ade8c3953749712c8e9",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock-store/mock-store.js",
+      "current": "plugin-testing-kit/mock/mock-store/mock-store.js",
+      "originalGitBlob": "fef487589f20e54bd55d707be49d46db9f36034a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/mock/mock.js",
+      "current": "plugin-testing-kit/mock/mock.js",
+      "originalGitBlob": "943bb11c1ac0b675fb8bcfbe5e84b9191864c3be",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/checked-hook-of/checked-hook-of.js",
+      "current": "plugin-testing-kit/open-seat/checked-hook-of/checked-hook-of.js",
+      "originalGitBlob": "7c2c826a468c6aa024561d26f2bca36194c9effe",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/checked-hook-of/index.js",
+      "current": "plugin-testing-kit/open-seat/checked-hook-of/index.js",
+      "originalGitBlob": "a829156d372ea3021628317374b33e7cb1f46121",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/clause-of/clause-of.js",
+      "current": "plugin-testing-kit/open-seat/clause-of/clause-of.js",
+      "originalGitBlob": "d789474741ec86955f086bae0d5804e9f48421ce",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/clause-of/index.js",
+      "current": "plugin-testing-kit/open-seat/clause-of/index.js",
+      "originalGitBlob": "f380a494c29e69ec111e017db51ea0ab53e3b64d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/create-checks/create-checks.js",
+      "current": "plugin-testing-kit/open-seat/create-checks/create-checks.js",
+      "originalGitBlob": "f65f3dd2f3158d8bc7995ec4ac77e9031d1a667c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/create-checks/index.js",
+      "current": "plugin-testing-kit/open-seat/create-checks/index.js",
+      "originalGitBlob": "5f2ae26215e8660217976e2bacec0f9885fb1db3",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/create-holds/create-holds.js",
+      "current": "plugin-testing-kit/open-seat/create-holds/create-holds.js",
+      "originalGitBlob": "e7d705c0d27121c1b1695bc3e5a2b463a00a460b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/create-holds/index.js",
+      "current": "plugin-testing-kit/open-seat/create-holds/index.js",
+      "originalGitBlob": "de123dfc53b25c93415586f11f3f9fade22868ed",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/engine-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/engine-of.js",
+      "originalGitBlob": "23f531a36f10a3050821ab0f75f5197c9dd1ab55",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/index.js",
+      "originalGitBlob": "ec27ecf8e065d90d3198727b6989152601fac2fb",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/call-of/call-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/call-of/call-of.js",
+      "originalGitBlob": "30821d8f30281e3e18f20e75ec0b7b3e121bcd32",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/call-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/call-of/index.js",
+      "originalGitBlob": "9e18ae3bbf88c2bcd2c4444482bcf7b3885f70f9",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/index.js",
+      "originalGitBlob": "040d0f6a2d31a6990ed892bbe9584f30ba25c12f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/input-call-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/input-call-of/index.js",
+      "originalGitBlob": "641db6554ee234216c4417d19ede669fca737964",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/input-call-of/input-call-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/input-call-of/input-call-of.js",
+      "originalGitBlob": "aa9eab9ed81170366272e7d5583e1107d6b8bdb0",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/index.js",
+      "originalGitBlob": "6f4546df6aa282bd158e36c68131e522336623c0",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/is-viewport/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/is-viewport/index.js",
+      "originalGitBlob": "29753cdcdfb2626b566ab56291ecf5091fa12e33",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/is-viewport/is-viewport.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/is-viewport/is-viewport.js",
+      "originalGitBlob": "6a565df542ae43dc20d66a2d743f3494e31feb2b",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mount-call-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mount-call-of.js",
+      "originalGitBlob": "a5058691d7397c01069f88235f09ab0a04431f36",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mounted-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mounted-of/index.js",
+      "originalGitBlob": "9690bbe1e6278b575d0cce0840ae3ae57e7749e0",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mounted-of/mounted-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mounted-of/mounted-of.js",
+      "originalGitBlob": "8c2046c895be65f05af08c35b5a3812d1a26f378",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/query-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/query-of/index.js",
+      "originalGitBlob": "53c33ecddf20d98c15245fb3528081133eddd958",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/query-of/query-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/query-of/query-of.js",
+      "originalGitBlob": "ebf38aaee36d963afb78ee43e3303b9adf10e1cb",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/noun-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/noun-of.js",
+      "originalGitBlob": "c55be1aeaafa87764f48e2200d2cb71a1217d1f6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/press-call-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/press-call-of/index.js",
+      "originalGitBlob": "994249421cf7e7cdcead894e52e4eda6cf6b609f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/press-call-of/press-call-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/press-call-of/press-call-of.js",
+      "originalGitBlob": "241be50b5990051c69d2250bc24c65731c6bcccb",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/select-call-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/select-call-of/index.js",
+      "originalGitBlob": "1ff673cb32eff35d3d6027558713134e78a6ff13",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/select-call-of/select-call-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/select-call-of/select-call-of.js",
+      "originalGitBlob": "59c7f33dc231401222bb70268e51a3e2f218c4b6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/stream-of/index.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/stream-of/index.js",
+      "originalGitBlob": "aec41b190f75b5641fb200c278372255c9755e12",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/engine-of/noun-of/stream-of/stream-of.js",
+      "current": "plugin-testing-kit/open-seat/engine-of/noun-of/stream-of/stream-of.js",
+      "originalGitBlob": "74750b4dfdbf00d66d45dc9b8f7e5eff17b9ba52",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/helper-spec-of/helper-spec-of.js",
+      "current": "plugin-testing-kit/open-seat/helper-spec-of/helper-spec-of.js",
+      "originalGitBlob": "2094e44be297b3df66840a89ad2a2e1fcd4a1b39",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/helper-spec-of/index.js",
+      "current": "plugin-testing-kit/open-seat/helper-spec-of/index.js",
+      "originalGitBlob": "d8a6672a6d4d3d9425beecfa89c9a9f128c3c0c3",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/index.js",
+      "current": "plugin-testing-kit/open-seat/index.js",
+      "originalGitBlob": "9414c3f889c5a78027986b33c94de3b8c87deadc",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/is-plain-hook/index.js",
+      "current": "plugin-testing-kit/open-seat/is-plain-hook/index.js",
+      "originalGitBlob": "2e2a4f515c01156f0ebcc124ce7d3a822b38c257",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/is-plain-hook/is-plain-hook.js",
+      "current": "plugin-testing-kit/open-seat/is-plain-hook/is-plain-hook.js",
+      "originalGitBlob": "4ea333840db091fa7280419f35d501d9cdbe86fd",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/open-seat.js",
+      "current": "plugin-testing-kit/open-seat/open-seat.js",
+      "originalGitBlob": "8c3a16519d54d08b6e2d56ed7245c55ba877a76a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counted-next-of.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counted-next-of.js",
+      "originalGitBlob": "4520914c40f9c9211c18b2a1410a6690e16e5ed2",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counting-of/counting-of.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counting-of/counting-of.js",
+      "originalGitBlob": "0a58c6ac5435a458d64012920a706acc906f3d33",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counting-of/index.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counting-of/index.js",
+      "originalGitBlob": "4fd55643253437bb7e345b95db9e387adbeadaee",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/index.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/index.js",
+      "originalGitBlob": "0eb7141c2d07b1ce84b5c4d29da2c9a8d5fd6d3c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/held-hook-of.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/held-hook-of/held-hook-of.js",
+      "originalGitBlob": "9f84623ad91f7cd1a1ef94c902af0a7f5397a625",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/index.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/held-hook-of/index.js",
+      "originalGitBlob": "77d890ca66bfa9b8076941175bb357aa22821fc6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/index.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/index.js",
+      "originalGitBlob": "4ff6decccbb745e90b9bf177868fc1b08ce4b195",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/open-seat/replay-on/replay-on.js",
+      "current": "plugin-testing-kit/open-seat/replay-on/replay-on.js",
+      "originalGitBlob": "b1c11c5fe091aff26b6d02d4f2b216fa1c3e1a85",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/plugin-tiers/index.js",
+      "current": "plugin-testing-kit/plugin-tiers/index.js",
+      "originalGitBlob": "f961facb234161b724b7d10f920601d58760c952",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/plugin-tiers/plugin-tiers-text/index.js",
+      "current": "plugin-testing-kit/plugin-tiers/plugin-tiers-text/index.js",
+      "originalGitBlob": "d1b7237044ad5c07052b217a3c28de50e504b592",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/plugin-tiers/plugin-tiers-text/plugin-tiers-text.js",
+      "current": "plugin-testing-kit/plugin-tiers/plugin-tiers-text/plugin-tiers-text.js",
+      "originalGitBlob": "edc4da46bfa0b95dda64c44286e01c36fcfb86a2",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/plugin-tiers/plugin-tiers.js",
+      "current": "plugin-testing-kit/plugin-tiers/plugin-tiers.js",
+      "originalGitBlob": "dc44ddec323b0661027108868eb0e91633f9b82f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/render-surface-names/index.js",
+      "current": "plugin-testing-kit/render-surface-names/index.js",
+      "originalGitBlob": "528e65742752d938d3c7f75a8d988c001802bc14",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/render-surface-names/render-surface-names.js",
+      "current": "plugin-testing-kit/render-surface-names/render-surface-names.js",
+      "originalGitBlob": "a8a9319a2969826c78bd10875d029be2a344f37d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/index.js",
+      "current": "plugin-testing-kit/run/index.js",
+      "originalGitBlob": "5740fd9f23c509ff235324702874ca0288a06696",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/error-text-of/error-text-of.js",
+      "current": "plugin-testing-kit/run/run-case/error-text-of/error-text-of.js",
+      "originalGitBlob": "b830acf8a0c4ae96aa5ef8d522d7adb613e6df99",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/error-text-of/index.js",
+      "current": "plugin-testing-kit/run/run-case/error-text-of/index.js",
+      "originalGitBlob": "c93ffe217769accb6d34ee1c7515ef178b7c25b8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/error-text-of/read-of/index.js",
+      "current": "plugin-testing-kit/run/run-case/error-text-of/read-of/index.js",
+      "originalGitBlob": "06d5b71d8cfce4342079d8e6b395d45c7680cd22",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/error-text-of/read-of/read-of.js",
+      "current": "plugin-testing-kit/run/run-case/error-text-of/read-of/read-of.js",
+      "originalGitBlob": "ec9732078a64676b1796c675c17ca6e22f505586",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/failure-of/failure-of.js",
+      "current": "plugin-testing-kit/run/run-case/failure-of/failure-of.js",
+      "originalGitBlob": "ea930b51445dcb6433a52e945331deea25f3c0fe",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/failure-of/hint-of/hint-of.js",
+      "current": "plugin-testing-kit/run/run-case/failure-of/hint-of/hint-of.js",
+      "originalGitBlob": "6908ca20499aa007face797f1ee820f1368d17b8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/failure-of/hint-of/index.js",
+      "current": "plugin-testing-kit/run/run-case/failure-of/hint-of/index.js",
+      "originalGitBlob": "ff0279873ffc02c64fceeda9dadab82989530790",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/failure-of/index.js",
+      "current": "plugin-testing-kit/run/run-case/failure-of/index.js",
+      "originalGitBlob": "7177d3cb36c985e0ca32e9f8d668b641bf878b32",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/hook-notes-of/hook-notes-of.js",
+      "current": "plugin-testing-kit/run/run-case/hook-notes-of/hook-notes-of.js",
+      "originalGitBlob": "5ad6562a44bf5a3c2cb87b6435e9352bbacefb2d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/hook-notes-of/index.js",
+      "current": "plugin-testing-kit/run/run-case/hook-notes-of/index.js",
+      "originalGitBlob": "088f42019a265133a3d0182eda1b70d5c57f6aff",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/index.js",
+      "current": "plugin-testing-kit/run/run-case/index.js",
+      "originalGitBlob": "4edb70227296ea3bf63496066c796a30c8274b84",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/run-case.js",
+      "current": "plugin-testing-kit/run/run-case/run-case.js",
+      "originalGitBlob": "5637c139b02ba97a8a5d9fef7dfa3e1d939efb93",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/timed/index.js",
+      "current": "plugin-testing-kit/run/run-case/timed/index.js",
+      "originalGitBlob": "c9bd53cb747efa825eb56e543de6982a7b770aa5",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/timed/overran-error/index.js",
+      "current": "plugin-testing-kit/run/run-case/timed/overran-error/index.js",
+      "originalGitBlob": "dc368958046698b2d091674eab38de268029c131",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/timed/overran-error/overran-error.js",
+      "current": "plugin-testing-kit/run/run-case/timed/overran-error/overran-error.js",
+      "originalGitBlob": "9d10f6171f942371fbf8ab8f90628136522f1ed2",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/timed/reject-overran/index.js",
+      "current": "plugin-testing-kit/run/run-case/timed/reject-overran/index.js",
+      "originalGitBlob": "baf4740cc64d6c66511387288aadb377c3ef2201",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/timed/reject-overran/reject-overran.js",
+      "current": "plugin-testing-kit/run/run-case/timed/reject-overran/reject-overran.js",
+      "originalGitBlob": "1593b3abac30c8c57c3f1132f97642e43d3c0ba8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run-case/timed/timed.js",
+      "current": "plugin-testing-kit/run/run-case/timed/timed.js",
+      "originalGitBlob": "533780eb8fe6726d7dcbab2f75947017d0b13f93",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/run/run.js",
+      "current": "plugin-testing-kit/run/run.js",
+      "originalGitBlob": "6a7dc891a699e604431a393383ead3a81235b930",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/test/index.js",
+      "current": "plugin-testing-kit/test/index.js",
+      "originalGitBlob": "c5ec748033e5b056af7481f442ca5831d719d987",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/test/test.js",
+      "current": "plugin-testing-kit/test/test.js",
+      "originalGitBlob": "1c32b91f432977bf132455ae23ad8dcb0635447c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/tier/index.js",
+      "current": "plugin-testing-kit/tier/index.js",
+      "originalGitBlob": "a759a16b53f73fa788a461878b824d31d46aff82",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/tier/tier.js",
+      "current": "plugin-testing-kit/tier/tier.js",
+      "originalGitBlob": "f9cccc5200effff016ce09facbe4290353cd6288",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/by-matcher/index.js",
+      "current": "plugin-testing-kit/types/checking/by-matcher/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/expectation-context/index.js",
+      "current": "plugin-testing-kit/types/checking/expectation-context/index.js",
+      "originalGitBlob": "bb27f7576861fdc8b1f8d8b14227501236c1b5f7",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/expectation-context/polarity/index.js",
+      "current": "plugin-testing-kit/types/checking/expectation-context/polarity/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/index.js",
+      "current": "plugin-testing-kit/types/checking/index.js",
+      "originalGitBlob": "535acae0632d198f17a09208b0577fdef8cdc4b8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/matcher-check/index.js",
+      "current": "plugin-testing-kit/types/checking/matcher-check/index.js",
+      "originalGitBlob": "43ad7e6c2a0769a72cdede4ff59d87d23a1bb006",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/matcher-check/verdict/index.js",
+      "current": "plugin-testing-kit/types/checking/matcher-check/verdict/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/matcher-name/index.js",
+      "current": "plugin-testing-kit/types/checking/matcher-name/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/outcome/index.js",
+      "current": "plugin-testing-kit/types/checking/outcome/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/property-lookup/index.js",
+      "current": "plugin-testing-kit/types/checking/property-lookup/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/settlement/index.js",
+      "current": "plugin-testing-kit/types/checking/settlement/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/throw-mode/index.js",
+      "current": "plugin-testing-kit/types/checking/throw-mode/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/checking/thrown/index.js",
+      "current": "plugin-testing-kit/types/checking/thrown/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/collecting/index.js",
+      "current": "plugin-testing-kit/types/collecting/index.js",
+      "originalGitBlob": "bc7d36b2cd3be19f04167d193452b532dc617f8c",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/collecting/test-case/index.js",
+      "current": "plugin-testing-kit/types/collecting/test-case/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-classic/classic-event/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-classic/classic-event/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-classic/classic-fields/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-classic/classic-fields/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-classic/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-classic/index.js",
+      "originalGitBlob": "fd55e2328af2104de2526e12a9cd59ed3c2e30be",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-input/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-input/index.js",
+      "originalGitBlob": "9643eb6f1e4279f55915dfb87309359bc00a6c00",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-input/input-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-input/input-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/element-query/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/element-query/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/found-element/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/found-element/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/index.js",
+      "originalGitBlob": "0de9b3c0f5b9eac57fade8445ecb2653b7b93af8",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mount-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mount-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/element-of-act/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/element-of-act/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/index.js",
+      "originalGitBlob": "2a9bb5301775fcc0db83249d02925b53cc564ca9",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/client-scope/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/client-scope/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/index.js",
+      "originalGitBlob": "274b999195efec819d0700fc8e21d35fef04e272",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-input-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-input-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-key-event/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-key-event/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-pointer-event/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-pointer-event/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-press-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-press-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-resize-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-resize-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-select-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-select-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-noun/engine-call/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-noun/engine-call/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-noun/engine-noun-event/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-noun/engine-noun-event/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-noun/engine-tool-call/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-noun/engine-tool-call/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-noun/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-noun/index.js",
+      "originalGitBlob": "88b7fe096bf7dc85d882671a257e6a22a4b1bbc4",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-press/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-press/index.js",
+      "originalGitBlob": "41461a5d61d9d92df45e6ab8946b8af40ab57a76",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-press/press-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-press/press-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-select/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-select/index.js",
+      "originalGitBlob": "ad3ef83edf3cdd1df5be1b3bb40639ed82f2496a",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/engine-select/select-target/index.js",
+      "current": "plugin-testing-kit/types/engine/engine-select/select-target/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/engine/index.js",
+      "current": "plugin-testing-kit/types/engine/index.js",
+      "originalGitBlob": "d3c14e4e789ffbd9e5a094f290b64698bfde2f65",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/equality/equality-mode/index.js",
+      "current": "plugin-testing-kit/types/equality/equality-mode/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/equality/index.js",
+      "current": "plugin-testing-kit/types/equality/index.js",
+      "originalGitBlob": "0cc0e5fd8ce6a4e7e13e059f705d565d280f9ad6",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/equality/matcher-probe/index.js",
+      "current": "plugin-testing-kit/types/equality/matcher-probe/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/equality/seen-pair/index.js",
+      "current": "plugin-testing-kit/types/equality/seen-pair/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/expect/expecting/expectation/async-matchers/index.js",
+      "current": "plugin-testing-kit/types/expect/expecting/expectation/async-matchers/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/expect/expecting/expectation/index.js",
+      "current": "plugin-testing-kit/types/expect/expecting/expectation/index.js",
+      "originalGitBlob": "a207a85d9110576dae703a1cc290b24bad954c0e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/expect/expecting/expectation/negatable/index.js",
+      "current": "plugin-testing-kit/types/expect/expecting/expectation/negatable/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/expect/expecting/index.js",
+      "current": "plugin-testing-kit/types/expect/expecting/index.js",
+      "originalGitBlob": "3e694ab11d4d6a8715032d20b4a5adb773ecff5f",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/expect/index.js",
+      "current": "plugin-testing-kit/types/expect/index.js",
+      "originalGitBlob": "812a6cb29ea1f76934e6aba08dd370878a89b86d",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/expect/matching/index.js",
+      "current": "plugin-testing-kit/types/expect/matching/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/handover/engine-events/engine-noun-events/event-entry/index.js",
+      "current": "plugin-testing-kit/types/host/handover/engine-events/engine-noun-events/event-entry/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/handover/engine-events/engine-noun-events/index.js",
+      "current": "plugin-testing-kit/types/host/handover/engine-events/engine-noun-events/index.js",
+      "originalGitBlob": "4f57280e01371db0130d3e14afde918e3533d016",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/handover/engine-events/index.js",
+      "current": "plugin-testing-kit/types/host/handover/engine-events/index.js",
+      "originalGitBlob": "9461dbb9a95dbd86d2e4be96b380a92410790971",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/handover/host-calls/index.js",
+      "current": "plugin-testing-kit/types/host/handover/host-calls/index.js",
+      "originalGitBlob": "bdb2dac45d482161986f980a56ec1f0d73b64758",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/handover/host-calls/seat-module/index.js",
+      "current": "plugin-testing-kit/types/host/handover/host-calls/seat-module/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/handover/index.js",
+      "current": "plugin-testing-kit/types/host/handover/index.js",
+      "originalGitBlob": "b129c346849799d43e659c6697144863f7d2a7ef",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/host/index.js",
+      "current": "plugin-testing-kit/types/host/index.js",
+      "originalGitBlob": "bf088ebc43b3e72f0b970714ad3cdded012eeb17",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/index.js",
+      "current": "plugin-testing-kit/types/index.js",
+      "originalGitBlob": "3da9c14da6cace7fdfd4306e5e3423519c008264",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/matchers/asymmetric-matcher/index.js",
+      "current": "plugin-testing-kit/types/matchers/asymmetric-matcher/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/matchers/constructor/index.js",
+      "current": "plugin-testing-kit/types/matchers/constructor/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/matchers/index.js",
+      "current": "plugin-testing-kit/types/matchers/index.js",
+      "originalGitBlob": "6480db6123a94df8a54f75663196034cb7b069e2",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/matchers/throw-expectation/index.js",
+      "current": "plugin-testing-kit/types/matchers/throw-expectation/index.js",
+      "originalGitBlob": "c94494a72e7da7befba8be516b86374873f82d13",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/matchers/throw-expectation/with-message/index.js",
+      "current": "plugin-testing-kit/types/matchers/throw-expectation/with-message/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/index.js",
+      "current": "plugin-testing-kit/types/mock/index.js",
+      "originalGitBlob": "482866561138e246e34724c2b183950a1a8b1cc0",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/mock-clock-options/index.js",
+      "current": "plugin-testing-kit/types/mock/mock-clock-options/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/mock-clock/index.js",
+      "current": "plugin-testing-kit/types/mock/mock-clock/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/mock-session/index.js",
+      "current": "plugin-testing-kit/types/mock/mock-session/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/op-void/index.js",
+      "current": "plugin-testing-kit/types/mock/op-void/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/pending-wait/index.js",
+      "current": "plugin-testing-kit/types/mock/pending-wait/index.js",
+      "originalGitBlob": "1c30f1ebe7ded50aa83361d32c69bc5aad69c480",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/pending-wait/settling/index.js",
+      "current": "plugin-testing-kit/types/mock/pending-wait/settling/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/mock/signalled/index.js",
+      "current": "plugin-testing-kit/types/mock/signalled/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/plugin-tier/index.js",
+      "current": "plugin-testing-kit/types/plugin-tier/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/seat/checks/index.js",
+      "current": "plugin-testing-kit/types/seat/checks/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/seat/holds/index.js",
+      "current": "plugin-testing-kit/types/seat/holds/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/seat/hook-failure/index.js",
+      "current": "plugin-testing-kit/types/seat/hook-failure/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/seat/index.js",
+      "current": "plugin-testing-kit/types/seat/index.js",
+      "originalGitBlob": "c73e34940b5088f68c58fbf001e56a99e030565e",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/seat/registration-handle/index.js",
+      "current": "plugin-testing-kit/types/seat/registration-handle/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/seat/seat-end/index.js",
+      "current": "plugin-testing-kit/types/seat/seat-end/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/test/index.js",
+      "current": "plugin-testing-kit/types/test/index.js",
+      "originalGitBlob": "ec8cc70a423776cf325d3302854d7e04b3b841fd",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/test/test-body/index.js",
+      "current": "plugin-testing-kit/types/test/test-body/index.js",
+      "originalGitBlob": "9d3c8531f990949777b3e24ee86e68eaa18a6043",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/test/test-options/index.js",
+      "current": "plugin-testing-kit/types/test/test-options/index.js",
+      "originalGitBlob": "5cb417ec6019b7e6407ac4d7bcac0ccc99e79fea",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "src/plugin-testing-kit/types/test/test-options/plugin/index.js",
+      "current": "plugin-testing-kit/types/test/test-options/plugin/index.js",
+      "originalGitBlob": "e14e95a2271ce38bfb1a8e928f287e13ba8a0522",
+      "kind": "plugin-source"
+    },
+    {
+      "old": "docs/2026-10-28-PR交付分类与未闭环业务清单.md",
+      "current": "docs/governance/2026-10-28-PR交付分类与未闭环业务清单.md",
+      "originalGitBlob": "25db40f36d06f4670036cb1fe794dbcb4e8dca58",
+      "kind": "document"
+    },
+    {
+      "old": "docs/2026-10-28-全仓审计与语义恢复执行路线.md",
+      "current": "docs/architecture/2026-10-28-全仓审计与语义恢复执行路线.md",
+      "originalGitBlob": "84a90486953e1461d5394fd49c79ae92d8586dca",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/2026-10-28-实际功能落地与未完成矩阵.md",
+      "current": "docs/status/2026-10-28-实际功能落地与未完成矩阵.md",
+      "originalGitBlob": "3a3389ec75faf8aebdcd52e92626ec6bab288f24",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/v37_内嵌子工程真实函数语义证据.md",
+      "current": "docs/research/v37/内嵌子工程真实函数语义证据.md",
+      "originalGitBlob": "9f0366d4b76e61b711a5129fd6c23cbaa8b79c4f",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/v37_剩余652文件完整代码与功能深度核实.md",
+      "current": "docs/research/v37/剩余652文件完整代码与功能深度核实.md",
+      "originalGitBlob": "09390181586beac3d00f6333c1829d5290bc4ad8",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/v37_固定版源码复核.md",
+      "current": "docs/research/v37/固定版源码复核.md",
+      "originalGitBlob": "3122e750da9c7d3a550b475572665a29f6ce9617",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_未完成工具真实语义测试.md",
+      "current": "docs/verification/v37/未完成工具真实语义测试.md",
+      "originalGitBlob": "8d3727cc32fb80934cad7a131499fc346087c6f2",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v37_真实宿主和浏览器验收.md",
+      "current": "docs/verification/v37/真实宿主和浏览器验收.md",
+      "originalGitBlob": "67524ebcc81e2f6009366c3ca7255d42cddac8e6",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v40_50项函数级核查与恢复记录.md",
+      "current": "docs/restoration/v40/50项函数级核查与恢复记录.md",
+      "originalGitBlob": "4c422dc21a933c3891aff17af5c3729667b8f0f7",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/v41_批量恢复流水线与验证范围.md",
+      "current": "docs/restoration/v41/批量恢复流水线与验证范围.md",
+      "originalGitBlob": "740a8bfb33ba36a4c3c9d2599f526641598f6904",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v42_Daemon_Beacon源码恢复验证.md",
+      "current": "docs/restoration/v42/Daemon_Beacon源码恢复验证.md",
+      "originalGitBlob": "565b6908c08db27d70da6b92a0d574d981e5a0eb",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/v43_批量恢复_真实历史匹配_生命周期测试.md",
+      "current": "docs/restoration/v43/批量恢复_真实历史匹配_生命周期测试.md",
+      "originalGitBlob": "a47ea2658157e274df7b830e018b25ec9daf74be",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v44_703项真实历史候选逐条独立复核.md",
+      "current": "docs/research/v44/703项真实历史候选逐条独立复核.md",
+      "originalGitBlob": "be9da2858ddcf6b934cf9e1d2515d3e51eddb8f6",
+      "kind": "document"
+    },
+    {
+      "old": "docs/v45_703_调用依赖_真实源码修复与验收.md",
+      "current": "docs/restoration/v45/703_调用依赖_真实源码修复与验收.md",
+      "originalGitBlob": "1e5ba258e89cb1f9877f5cf72a33e7088a5e81ef",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/命名规范化改动记录.md",
+      "current": "docs/conventions/命名规范化改动记录.md",
+      "originalGitBlob": "488f65469d45c135210cac9e2a9c2e3c22add79c",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "docs/源码与资源统一命名规范.md",
+      "current": "docs/conventions/源码与资源统一命名规范.md",
+      "originalGitBlob": "419dc7a8d9e0a3bb7cbf0cb96e129fcf274e88f2",
+      "kind": "document",
+      "pathReferencesUpdated": true
+    },
+    {
+      "old": "resources/tools/claude-test/source-layout.json",
+      "current": "resources/layout/claude-test-source-layout.json",
+      "originalGitBlob": "be8c5198aa76e8aa09827c31fb0e26dd48003348",
+      "kind": "tool-provenance"
+    },
+    {
+      "old": "resources/tools/design-sync/source-layout.json",
+      "current": "resources/layout/design-sync-source-layout.json",
+      "originalGitBlob": "4a2bf45b197ad48353839e4facd6335cfaea5a9f",
+      "kind": "tool-provenance"
+    }
+  ]
+}

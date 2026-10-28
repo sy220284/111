@@ -123,6 +123,7 @@ jobs:
           npm run check:cli-live-model-turn
           npm run check:cli-live-mcp-tools
           npm run check:daemon-live-supervisor
+          npm run check:daemon-worker-recovery
       - name: 上传 Node 组件
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -238,6 +239,8 @@ jobs:
         with:
           bun-version: '1.4.4'
       - name: 验证 AST 扫描规则、实际源码调用点与 Bun/JSC 行为
+        env:
+          DEV111_RUNTIME_DIFF_OUT: ${{ runner.temp }}/111-node-bun-live-differential
         run: |
           set -euo pipefail
           npm ci --ignore-scripts --no-audit --no-fund
@@ -265,6 +268,34 @@ jobs:
         with:
           name: 111-bun-jsc-compat-report
           path: ${{ runner.temp }}/111-bun-jsc-compat.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: 验证真实Node/Bun业务链观测归档的范围与完备性
+        run: |
+          set -euo pipefail
+          node - "$RUNNER_TEMP/111-node-bun-live-differential/summary.json" <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const path=process.argv[2];
+          const r=JSON.parse(fs.readFileSync(path,'utf8'));
+          assert.equal(r.kind,'111-node-bun-live-differential');
+          assert.equal(r.status,'local_fixture_parity_passed');
+          assert.equal(r.originalELFCompared,false);
+          assert.equal(r.cloudParity,false);
+          assert.deepEqual(r.cases.map(x=>x.name),['model-sse','mcp-tool-loop']);
+          assert.ok(r.cases.every(x=>x.passed&&
+            x.variants.node.status===0&&x.variants.bun.status===0&&
+            x.variants.node.tracePresent===true&&x.variants.bun.tracePresent===true));
+          console.log(JSON.stringify({status:r.status,
+            scenarios:r.cases.map(x=>x.name),
+            originalELFCompared:r.originalELFCompared,cloudParity:r.cloudParity}));
+          NODE
+      - name: 上传真正执行的Node/Bun CLI与MCP差分证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-node-bun-live-differential-evidence
+          path: ${{ runner.temp }}/111-node-bun-live-differential/
           retention-days: 30
           if-no-files-found: warn
 
@@ -337,8 +368,8 @@ jobs:
             --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
             --out "$RUNNER_TEMP/111-jelly-analysis" \
             --timeout 110 \
-            --entry src/chunk-sdz0xp27.js \
-            --entry src/chunk-01qhvw6m.js
+            --entry core/chunk-sdz0xp27.js \
+            --entry core/chunk-01qhvw6m.js
           node - "$RUNNER_TEMP/111-jelly-analysis/111-jelly-evidence.json" <<'NODE'
           const fs=require('node:fs'),assert=require('node:assert/strict');
           const report=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
@@ -354,8 +385,8 @@ jobs:
             --jelly "$DEV111_TOOLS_ROOT/bin/jelly" \
             --out "$RUNNER_TEMP/111-jelly-analysis/large-modules" \
             --timeout 110 \
-            --entry src/chunk-tqjdehqd.js \
-            --entry src/chunk-6d8swme1.js || echo '大型模块存在独立Jelly分析缺口，保留failed_or_partial报告用于复核'
+            --entry core/chunk-tqjdehqd.js \
+            --entry core/chunk-6d8swme1.js || echo '大型模块存在独立Jelly分析缺口，保留failed_or_partial报告用于复核'
       - name: 上传可复核Jelly真实分析及运行记录
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

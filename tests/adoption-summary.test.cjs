@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-bwt94x0y.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../core/chunk-bwt94x0y.js'),'utf8');
 function api(){
  const start=source.indexOf('function hasPendingAdoptableWork(e,n=FX(e))'),end=source.indexOf('function k8t(e)',start);
  assert.ok(start>=0&&end>start);

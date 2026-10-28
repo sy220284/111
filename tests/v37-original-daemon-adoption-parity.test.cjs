@@ -14,11 +14,11 @@ const root=path.resolve(__dirname,'..');
 const PIN='3c64d1669174e825fb0fbae088c5ec95edaa7339';
 const oldCache=new Map(),nowCache=new Map();
 function historical(file) {
- if(!oldCache.has(file))oldCache.set(file,childProcess.execFileSync('git',['show',PIN+':src/'+file],{cwd:root,encoding:'utf8',maxBuffer:25*1024*1024}));
+ if(!oldCache.has(file))oldCache.set(file,childProcess.execFileSync('git',['show',PIN+':src/'+file.replace(/^core\//,'')],{cwd:root,encoding:'utf8',maxBuffer:25*1024*1024}));
  return oldCache.get(file);
 }
 function current(file) {
- if(!nowCache.has(file))nowCache.set(file,fs.readFileSync(path.join(root,'src',file),'utf8'));
+ if(!nowCache.has(file))nowCache.set(file,fs.readFileSync(path.join(root,file),'utf8'));
  return nowCache.get(file);
 }
 function findFunction(source,location,name) {
@@ -41,7 +41,7 @@ async function compare(file,legacy,readable,execute) {
  const second=await execute(current(file),readable);
  assert.deepEqual(ordinary(second),ordinary(first),file+': '+legacy+' -> '+readable);
 }
-const beacon='chunk-t2adf9g4.js',adopt='chunk-bwt94x0y.js';
+const beacon='core/chunk-t2adf9g4.js',adopt='core/chunk-bwt94x0y.js';
 
 test('v37原始过期计算与现行具名函数：24h临界和未来时钟漂移',async()=>{
  const run=(source,name)=>{

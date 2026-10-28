@@ -56,8 +56,8 @@ function buildReport({graph,bun,v40,ledger,aliases,fnSummary,referenceArchive=nu
   const historical=v40.items.map(entry=>({
     symbolName:entry.symbolName,source:'v40-p0-export-location-map',
     status:'definition_or_export_location_only_not_semantic_equivalence',
-    definitions:(entry.definitions||[]).map(d=>({file:'src/'+d.module,symbol:d.symbol,
-      observedModule:graph.modules.some(m=>m.file==='src/'+d.module)}))
+    definitions:(entry.definitions||[]).map(d=>({file:''+d.module,symbol:d.symbol,
+      observedModule:graph.modules.some(m=>m.file===''+d.module)}))
   }));
   const status={
     codeGraph:'static_candidates_only',

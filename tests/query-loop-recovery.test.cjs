@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
 
-const source = fs.readFileSync(path.resolve(__dirname,'../src/chunk-tqjdehqd.js'),'utf8');
+const source = fs.readFileSync(path.resolve(__dirname,'../core/chunk-tqjdehqd.js'),'utf8');
 const migration = fs.readFileSync(path.resolve(__dirname,'../resources/docs/claude-api/model-migration.md'),'utf8');
 const thinking = fs.readFileSync(path.resolve(__dirname,'../resources/docs/migration/preserved-thinking-migration.md'),'utf8');
 function fragment(start, end) {

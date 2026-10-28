@@ -17,8 +17,8 @@ test('丢失被测函数或尾部导出时必须失败，不能产生虚假绿�
 });
 test('实际主代理与 OAuth 模块的已恢复函数片段不受导出排序影响',()=>{
  const root=path.resolve(__dirname,'..');
- const query=fs.readFileSync(path.join(root,'src/chunk-tqjdehqd.js'),'utf8');
- const oauth=fs.readFileSync(path.join(root,'src/chunk-x436erds.js'),'utf8');
+ const query=fs.readFileSync(path.join(root,'core/chunk-tqjdehqd.js'),'utf8');
+ const oauth=fs.readFileSync(path.join(root,'core/chunk-x436erds.js'),'utf8');
  const q=fragmentToModuleExports(query,'function Gr(e)');
  const o=fragmentToModuleExports(oauth,'function selectMcpOAuthMetadataScope(e)');
  for(const s of ['function Gr(e)','function Pu(e)','function Qf(e'])assert.ok(q.includes(s),s);
@@ -30,10 +30,10 @@ test('实际主代理与 OAuth 模块的已恢复函数片段不受导出排序�
 test('Daemon 真实源码提取容忍出口名单调整，保留原函数别名',()=>{
  const root=path.resolve(__dirname,'..');
  for(const [file,start,names] of [
-  ['src/chunk-2af27mew.js','function parseDaemonAttemptCount(e)',[
+  ['core/chunk-2af27mew.js','function parseDaemonAttemptCount(e)',[
     'function parseDaemonAttemptCount(e)','function classifyDaemonWorkerFailure(e)','function chooseDaemonWorkerExit(e,n)'
   ]],
-  ['src/chunk-yhfqc2mr.js','function getDaemonStateFilePath()',[
+  ['core/chunk-yhfqc2mr.js','function getDaemonStateFilePath()',[
     'function getDaemonStateFilePath()','function getDaemonLogFilePath()'
   ]]
  ]){

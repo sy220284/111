@@ -57,7 +57,7 @@ function evaluate(items,graph,newRoot){
  const sourceCache=new Map();
  const targetMap=new Map();
  for(const row of items.items){
-  const file='src/'+row.new.file;
+  const file='core/'+row.new.file;
   if(!modules.has(file))throw Error('not in source dependency graph '+file);
   if(!sourceCache.has(file)){
    const full=path.resolve(newRoot,row.new.file);
@@ -68,8 +68,8 @@ function evaluate(items,graph,newRoot){
   if(!found||found.line!==row.new.line)throw Error('current source function drift: '+file+':'+row.new.offset);
   targetMap.set(row.id,{file,def:found});
  }
- const fromCLI=shortestModulePath(graph,'src/cli.js');
- const fromWorker=shortestModulePath(graph,'src/src/plugins/functionHooks/hooks-worker/hooks-worker.js');
+ const fromCLI=shortestModulePath(graph,'core/cli.js');
+ const fromWorker=shortestModulePath(graph,'plugins/functionHooks/hooks-worker/hooks-worker.js');
  const moduleReverse=new Map();
  for(const m of graph.modules)for(const dep of m.dependsOn){
   if(!moduleReverse.has(dep))moduleReverse.set(dep,new Set());
@@ -137,7 +137,7 @@ function evaluate(items,graph,newRoot){
 }
 function main(argv){
  const arg=k=>{const at=argv.indexOf(k);return at<0?null:argv[at+1]};
- const audited=arg('--audited'),graphPath=arg('--graph'),root=arg('--src')||path.resolve(__dirname,'../src'),
+ const audited=arg('--audited'),graphPath=arg('--graph'),root=arg('--src')||path.resolve(__dirname,'../core'),
  out=arg('--out')||'.generated/v45-703-business-chains.json';
  if(!audited||!graphPath)throw Error('required --audited <703 manifest> --graph <full graph JSON>');
  const result=evaluate(JSON.parse(fs.readFileSync(audited,'utf8')),

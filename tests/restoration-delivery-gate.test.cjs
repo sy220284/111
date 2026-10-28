@@ -10,12 +10,12 @@ const {
   auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename,exactManifestPaths,verifiedStandaloneSourceMoves
 }=require('../scripts/check-restoration-delivery.cjs');
 
-const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
+const impl='core/chunk-demo.js', suite='tests/model-transport.test.cjs';
 const body=[
   '交付类别：功能恢复',
   '业务问题：真实 CLI 模型返回失败',
-  '实际代码改动：src/chunk-demo.js 修复调用流程',
-  '调用链：bin/claude-310.mjs → src/chunk-demo.js → 模型回包',
+  '实际代码改动：core/chunk-demo.js 修复调用流程',
+  '调用链：bin/claude-310.mjs → core/chunk-demo.js → 模型回包',
   '验收测试：tests/model-transport.test.cjs',
   '验证命令：node --test tests/model-transport.test.cjs',
   '验证结果：改动后真实逻辑正常及取消分支通过',
@@ -101,7 +101,7 @@ test('运行源码未检查实际差异不得跳过',()=>{
 test('验证说明不能只是伪造的文件路径',()=>{
   rejected(verify({body:body.replace('验收测试：tests/model-transport.test.cjs','验收测试：tests/unrelated.test.cjs')}),
     '“验收测试”必须列出');
-  rejected(verify({body:body.replace('实际代码改动：src/chunk-demo.js','实际代码改动：src/other.js')}),
+  rejected(verify({body:body.replace('实际代码改动：core/chunk-demo.js','实际代码改动：core/other.js')}),
     '“实际代码改动”必须指明');
 });
 test('验收字段必须有效、明确且唯一',()=>{
@@ -143,7 +143,7 @@ test('功能恢复不得同时弱化主源码工作流',()=>{
     '功能 PR 不得修改验收器');
 });
 test('目录分类匹配 111 的真实结构',()=>{
-  assert.equal(businessPath('src/plugin-testing-kit/collector.js'),true);
+  assert.equal(businessPath('plugin-testing-kit/collector.js'),true);
   assert.equal(businessPath('bin/claude-310.mjs'),true);
   assert.equal(businessPath('runtime/assets.mjs'),true);
   assert.equal(businessPath('resources/bunfs/native.node'),true);
@@ -153,7 +153,7 @@ test('目录分类匹配 111 的真实结构',()=>{
   assert.equal(categoryPathAllowed('文档维护','scripts/match.cjs'),false);
 });
 test('重命名源码内容相同仍不能视为业务修复',()=>{
-  assert.equal(classifyCodeChange({path:'src/new.js',status:'R100',
+  assert.equal(classifyCodeChange({path:'new.js',status:'R100',
     before:'export function f(){return 1}',after:'export function f(){return 1}'}),'none');
 });
 test('真实测试注册与断言识别',()=>{
@@ -258,7 +258,7 @@ test('目录整理允许文件与测试的真实归档，但必须保留来源�
  const r=auditDelivery({title:'按业务整理目录',body,changed:files,
    testChanges:[{path:'tests/mcp/transport.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.equal(1,1));",status:'A'}]});
  assert.equal(r.ok,true,r.errors.join('\n'));
- assert.equal(categoryPathAllowed('目录整理','src/chunk-abc.js'),false);
+ assert.equal(categoryPathAllowed('目录整理','chunk-abc.js'),false);
  assert.equal(categoryPathAllowed('目录整理','resources/bunfs/raw.node'),false);
  assert.equal(categoryPathAllowed('目录整理','scripts/check-restoration-delivery.cjs'),false);
 });
@@ -267,7 +267,7 @@ test('目录整理拒绝没有迁移证据、测试或混入运行时文件',()=
  for(const changed of [
   ['docs/name.md','tests/model/m.test.cjs'],
   ['docs/name.md','resources/layout/relocations.json'],
-  ['docs/name.md','tests/model/m.test.cjs','resources/layout/relocations.json','src/chunk-x.js']]){
+  ['docs/name.md','tests/model/m.test.cjs','resources/layout/relocations.json','chunk-x.js']]){
   const result=auditDelivery({title:'整理',body,changed});
   assert.equal(result.ok,false);
  }
@@ -303,7 +303,7 @@ test('目录整理对经过Git原始字节及清单验证的独立源码重命�
  assert.ok(before.errors.some(x=>x.includes('运行态源码')));
  const accepted=auditDelivery({...base,verifiedRelocations:[{old,current}]});
  assert.equal(accepted.ok,true,accepted.errors.join('\\n'));
- const modified=auditDelivery({...base,changed:[...base.changed,'src/chunk-target.js'],verifiedRelocations:[{old,current}]});
+ const modified=auditDelivery({...base,changed:[...base.changed,'core/chunk-target.js'],verifiedRelocations:[{old,current}]});
  assert.equal(modified.ok,false);
  assert.ok(modified.errors.some(x=>x.includes('运行态源码')));
 });
@@ -327,6 +327,36 @@ test('目录整理资源清单只接受实际文件完整搬迁后的路径变�
  assert.equal(auditDelivery({...context,verifiedMetadata:['resources/asset-layout.json']}).ok,true);
 });
 
+
+test('目录整理独立工具源码只允许Git R100无损搬迁，不改变内嵌资源的业务语义',()=>{
+ const old='resources/tools/design-sync/lib/common.mjs',current='tools/bundled/design-sync/lib/common.mjs';
+ const context={title:'源码整理',body:'交付类别：目录整理\n不计入功能恢复',
+   changed:[old,current,'docs/architecture/README.md','resources/layout/relocations.json','tests/layout-check.test.cjs'],
+   testChanges:[{path:'tests/layout-check.test.cjs',status:'A',before:null,
+     after:"const {test}=require('node:test');const assert=require('node:assert');test('file',()=>assert.ok(true));"}]};
+ assert.equal(auditDelivery(context).ok,false);
+ const accepted=auditDelivery({...context,verifiedRelocations:[{old,current}]});
+ assert.equal(accepted.ok,true,accepted.errors.join('\n'));
+ assert.equal(auditDelivery({...context,changed:[...context.changed,'resources/bunfs/native.node'],verifiedRelocations:[{old,current}]}).ok,false);
+});
+
+test('原始工具来源JSON只能R100归入 resources/layout，不允许修改字节或借机放行业务源码',()=>{
+ const old='resources/tools/claude-test/source-layout.json';
+ const current='resources/layout/claude-test-source-layout.json';
+ const base={title:'工具来源布局归档',body:['交付类别：目录整理','不计入功能恢复'].join(String.fromCharCode(10)),
+ changed:[old,current,'docs/README.md','resources/layout/relocations.json','tests/repository-layout.test.cjs'],
+ testChanges:[{path:'tests/repository-layout.test.cjs',status:'A',before:null,
+ after:"const {test}=require('node:test');const assert=require('node:assert');test('check',()=>assert.ok(true));"}]};
+ assert.equal(auditDelivery(base).ok,false);
+ assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}]}).ok,true);
+ assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}],changed:[...base.changed,'chunk-1234.js']}).ok,false);
+});
+
+
+test('core 中的实际业务源码不得绕开源码变更门禁',()=>{
+ assert.equal(businessPath('core/chunk-1234abcd.js'),true);
+ assert.equal(categoryPathAllowed('目录整理','core/chunk-1234abcd.js'),false);
+});
 
 test('整合验收必须同时核实真实来源映射、业务修改和全部原有测试入口',()=>{
   const body=[
@@ -406,4 +436,25 @@ test('资源映射验收同时核对主源码文件和消费者，不允许更�
  assert.equal(exactManifestPaths(old,changed,new Map(),'asset',originals),true);
  assert.equal(exactManifestPaths(old,{entries:{chart:{...changed.entries.chart,sha256:'tampered'}}},
   new Map(),'asset',originals),false);
+});
+
+test('整合验收的703项真实跨版本测试只能交由固定参考源码的专用CI执行',()=>{
+ const workflow=[
+ 'pull_request:',
+ 'ref=c8cd253554319f32ff64ff7000636199f720c9bc',
+ 'OLD_SOURCE_ROOT=$root/source/src',
+ 'node scripts/batch-restoration-candidates.cjs',
+ 'node scripts/review-historical-candidates.cjs',
+ '--expected 703',
+ 'node --test tests/v44-real-historical-703.test.cjs',
+ 'node --test tests/v45-real-business-703.test.cjs'
+ ].join('\n');
+ const changed={path:'tests/v44-real-historical-703.test.cjs',
+  oldPath:'tests/v44-real-historical-703.test.cjs',status:'M'};
+ assert.equal(delegatedHistoricalRename(changed,'整合验收',workflow),true);
+ assert.equal(delegatedHistoricalRename(changed,'功能恢复',workflow),false);
+ assert.equal(delegatedHistoricalRename({...changed,status:'R100'},'整合验收',workflow),false);
+ assert.equal(delegatedHistoricalRename({...changed,path:'tests/mcp-rpc-cancellation.test.cjs'},'整合验收',workflow),false);
+ assert.throws(()=>delegatedHistoricalRename(changed,'整合验收',
+  workflow.replace('node --test tests/v44-real-historical-703.test.cjs','')),/不得省略/);
 });

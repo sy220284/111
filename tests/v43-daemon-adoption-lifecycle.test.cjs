@@ -10,7 +10,7 @@ const crypto=require('node:crypto');
 const ts=require('typescript');
 
 const specs={
-  'chunk-bwt94x0y.js':{
+  'core/chunk-bwt94x0y.js':{
     Jmr:'serializeAdoptAgent',Qmr:'serializeAdoptWorkflow',
     Zmr:'dedupFrameLiveNewest',FX:'computeAdoptability',
     f6e:'countLiveWorkflowAgents',aUe:'noticeFieldOf',
@@ -21,12 +21,12 @@ const specs={
     Tno:'linkAdoptedAgentTranscript',Rno:'linkAdoptedWorkflowDir',
     Ano:'relinkAdoptedAgentSymlinks',xno:'resolveAdoptedScriptPath',Ono:'adoptCron'
   },
-  'chunk-t2adf9g4.js':{yPe:'killJob',wpr:'killOrphanedWorker',Hee:'deleteJob',Kat:'replyToJob'}
+  'core/chunk-t2adf9g4.js':{yPe:'killJob',wpr:'killOrphanedWorker',Hee:'deleteJob',Kat:'replyToJob'}
 };
 function sourceFunctions(){
   const fragments=[],aliases=[];
   for(const [file,mapping] of Object.entries(specs)){
-    const filepath=path.join(__dirname,'../src',file);
+    const filepath=path.join(__dirname,'..',file);
     const ast=ts.createSourceFile(filepath,fs.readFileSync(filepath,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
     assert.equal(ast.parseDiagnostics.length,0,'must parse '+file);
     const found=new Set();

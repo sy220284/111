@@ -158,7 +158,7 @@ jobs:
           tar -C "$RUNNER_TEMP" --zstd -cf "releases/$archive" claude-2.1.310-clean
           (cd releases && sha256sum "$archive" > SHA256SUMS && sha256sum -c SHA256SUMS)
           tar --zstd -tf "releases/$archive" > "$RUNNER_TEMP/clean-archive-contents.txt"
-          grep -F 'claude-2.1.310-clean/src/' "$RUNNER_TEMP/clean-archive-contents.txt" > /dev/null
+          grep -F 'claude-2.1.310-clean/core/' "$RUNNER_TEMP/clean-archive-contents.txt" > /dev/null
           grep -F 'claude-2.1.310-clean/图谱与证据/Jelly跨分析器调用候选.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/图谱与证据/Jelly分析校验.json' "$RUNNER_TEMP/clean-archive-contents.txt"
           grep -F 'claude-2.1.310-clean/tools/analysis/jelly-corpus.cjs' "$RUNNER_TEMP/clean-archive-contents.txt"
@@ -174,7 +174,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/verify-unpack"
           tar -C "$RUNNER_TEMP/verify-unpack" --zstd -xf "releases/$archive"
           test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json"
-          test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/src/chunk-tqjdehqd.js"
+          test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/core/chunk-tqjdehqd.js"
           (
             cd "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean"
             NODE_PATH="$GITHUB_WORKSPACE/node_modules" node --test \

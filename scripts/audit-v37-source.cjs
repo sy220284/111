@@ -2,10 +2,10 @@
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto'),ts=require('typescript');
 const PIN='3c64d1669174e825fb0fbae088c5ec95edaa7339';
 const excluded=new Set(['mermaid.min.js','chart.umd.min.js','hljsBundle.generated.min.js']);
-const worker='src/src/plugins/functionHooks/hooks-worker/hooks-worker.js';
+const worker='plugins/functionHooks/hooks-worker/hooks-worker.js';
 const digest=s=>crypto.createHash('sha256').update(s).digest('hex');
 const git=(cwd,...args)=>cp.execFileSync('git',args,{cwd,encoding:'utf8',maxBuffer:64*1024*1024});
-const isModule=p=>(/^src\/[^/]+\.js$/.test(p)&&!excluded.has(path.posix.basename(p)))||p===worker;
+const isModule=p=>(/^(?:src\/|core\/)?[^/]+\.js$/.test(p)&&!excluded.has(path.posix.basename(p)))||p===worker||p==='src/src/plugins/functionHooks/hooks-worker/hooks-worker.js';
 function blobs(root,ref){
  const out=new Map();
  for(const row of git(root,'ls-tree','-r','-z','--full-tree',ref).split('\0')){
@@ -44,17 +44,24 @@ function preserve(old,now){
 function audit({root=process.cwd(),base=PIN,head='HEAD',review={},expected=2551}={}){
  root=path.resolve(root);
  const baseSha=git(root,'rev-parse',base).trim(),headSha=git(root,'rev-parse',head).trim();
- const old=blobs(root,baseSha),current=blobs(root,headSha);
+ const normalize=p=>p.startsWith('src/src/plugins/')?p.slice(8):
+    p.startsWith('src/')?'core/'+p.slice(4):p;
+ const legacy=blobs(root,baseSha),modern=blobs(root,headSha);
+ const oldPaths=new Map([...legacy.keys()].map(p=>[normalize(p),p]));
+ const currentPaths=new Map([...modern.keys()].map(p=>[normalize(p),p]));
+ const old=new Map([...legacy].map(([p,sha])=>[normalize(p),sha]));
+ const current=new Map([...modern].map(([p,sha])=>[normalize(p),sha]));
  const names=[...new Set([...old.keys(),...current.keys()])].sort();
  const missing=names.filter(n=>!current.has(n)),added=names.filter(n=>!old.has(n));
  const changed=names.filter(n=>old.has(n)&&current.has(n)&&old.get(n)!==current.get(n));
  const changes=changed.map(file=>{
-  const before=functionBodies(git(root,'show',baseSha+':'+file),file);
-  const after=functionBodies(git(root,'show',headSha+':'+file),file);
-  const tests=review[file]?.tests||[];
+  const before=functionBodies(git(root,'show',baseSha+':'+oldPaths.get(file)),file);
+  const after=functionBodies(git(root,'show',headSha+':'+currentPaths.get(file)),file);
+  const policy=review[oldPaths.get(file)]||review[file]||{};
+   const tests=policy.tests||[];
   const evidence=tests.map(t=>({test:t,exists:fs.existsSync(path.join(root,t))}));
   return {file,baselineBlob:old.get(file),currentBlob:current.get(file),
-    ...preserve(before,after),classification:review[file]?.classification||'unreviewed',
+    ...preserve(before,after),classification:policy.classification||'unreviewed',
     tests:evidence,status:tests.length&&evidence.every(e=>e.exists)?
      'targeted_tests_linked_not_full_equivalence':'unreviewed'};
  });

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const map = require('../resources/research/v40-p0-symbol-locations.json');
-const root = path.resolve(__dirname, '../src');
+const root = path.resolve(__dirname, '..');
 test('v40的92条标识符属于已定位证据，不按缺失函数计数',()=>{
   assert.equal(map.version,'2.1.310');
   assert.equal(map.record_count,92);
@@ -21,7 +21,7 @@ test('v40全部已定位模块在111当前主程序中真实存在，源表保�
     for(const d of row.definitions){
       assert.match(d.module,/^chunk-[\w]+\.js$/);
       assert.ok(d.symbol);
-      assert.ok(fs.existsSync(path.join(root,d.module)),'缺少v40真实模块 '+d.module);
+      assert.ok(fs.existsSync(path.join(root,'core',d.module)),'缺少v40真实模块 '+d.module);
       histogram.set(d.module,(histogram.get(d.module)||0)+1);
     }
   }

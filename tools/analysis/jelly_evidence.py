@@ -24,7 +24,7 @@ def append_evidence(root, evidence_root, report, graph):
     root, evidence_root, report = map(Path, (root, evidence_root, report))
     unresolved = {(e["file"], int(e["line"]), int(e["column"])): e
                   for e in graph["unresolvedCallsites"]}
-    modules = {m["file"] for m in graph["modules"] if m["file"].startswith("src/")
+    modules = {m["file"] for m in graph["modules"] if m["file"].startswith("")
                and m["file"].endswith(".js")}
     manifests = sorted(evidence_root.glob("111-jelly-corpus-shard-*/summary.json"))
     if not manifests:

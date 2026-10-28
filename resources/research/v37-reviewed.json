@@ -87,6 +87,26 @@
       "tests": [
         "tests/cli-live-daemon-supervisor.test.cjs"
       ]
+    },
+    "src/chunk-kj2kfe1q.js": {
+      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior",
+      "tests": [
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
+      ]
+    },
+    "src/chunk-7aasgh0z.js": {
+      "classification": "Node noninteractive exec background PTY host uses real node:child_process stream lifecycle; original Bun.Terminal interactive branch untouched",
+      "tests": [
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
+      ]
+    },
+    "plugins/functionHooks/hooks-worker/hooks-worker.js": {
+      "classification": "Hook Worker 因源码平移修复 130 项真实 ESM 导入，原始文件可逆还原并逐字节比对；业务行为仍以当前定向测试和真实 CLI 为限",
+      "tests": [
+        "tests/root-source-relocation.test.cjs",
+        "tests/function-hook-worker-contract.test.cjs",
+        "tests/check-source.cjs"
+      ]
     }
   }
 }

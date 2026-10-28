@@ -46,7 +46,7 @@ for(const [i,row] of audited.items.entries()){
   assert.equal(row.proof.runtimeBehaviorVerified,false);
   assert.equal(row.proof.semanticEquivalenceConfirmed,false);
   assert.equal(row.provenance.historicalFileSha256,digest(oldRoot,row.old.file));
-  assert.equal(row.provenance.restoredFileSha256,digest(path.join(root,'src'),row.new.file));
+  assert.equal(row.provenance.restoredFileSha256,digest(path.join(root,'core'),row.new.file));
   assert.ok(row.independent.corroboration>=0&&row.independent.corroboration<=1);
   assert.ok(row.independent.controlSimilarity>=0&&row.independent.controlSimilarity<=1);
   assert.ok(row.independent.paramsEqual===true||row.independent.conflicts.includes('parameter-count-changed'));

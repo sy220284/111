@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const a=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),ts=require('typescript');
-const file=path.resolve(__dirname,'../src/chunk-t2adf9g4.js');
+const file=path.resolve(__dirname,'../core/chunk-t2adf9g4.js');
 const ast=ts.createSourceFile(file,fs.readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const names={st:'runDaemonGroupExclusively',Vn:'scheduleDaemonReconciliation',Rt:'isExpectedGitHead',vt:'runGitWorktreeCommand',wn:'formatCommitCountOverflow',jr:'shortenWorktreePathLabel',Tn:'classifyWorktreeOwnership',xe:'hasSameCanonicalPath',ft:'normalizeWorktreePath',En:'isPathWithinWorktreeRoot',On:'checkJobStateFilePresence'};
 function make(other={}){

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-2ctyt5p9.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../core/chunk-2ctyt5p9.js'),'utf8');
 const start=source.indexOf('let nativeAudioAddon = null;');
 const end=source.indexOf('export {',start);
 assert.ok(start>0&&end>start,'the real recovered audio adapter must exist');

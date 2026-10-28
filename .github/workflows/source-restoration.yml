@@ -3,7 +3,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
+      - 'core/**'
+      - 'plugins/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'resources/**'
       - 'runtime/**'
       - 'scripts/**'
@@ -15,7 +19,11 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/**'
+      - 'core/**'
+      - 'plugins/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'resources/**'
       - 'runtime/**'
       - 'scripts/**'
@@ -41,9 +49,9 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: 先检查函数证据与源码指纹，防止改名后索引/账本陈旧
         run: |
+          npm run audit:functions
           npm run check:source-fingerprint
           npm run check:function-evidence
-          npm run audit:functions
       - name: 执行源码与功能级离线验证（含跨版本只读匹配器）
         run: npm test
       - name: 实测 CLI 帮助入口（独立标记运行兼容状态）

@@ -37,7 +37,7 @@ function field(body, name) {
   return matches.length === 1 ? matches[0][1].trim() : '';
 }
 function businessPath(p) {
-  return /^(?:src|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
+  return /^(?:src|core|embedded|plugins|plugin-testing-kit|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
 }
 function testPath(p) { return /^tests\/.+/.test(p) && TEST_EXT.test(p); }
 function docPath(p) {
@@ -50,7 +50,7 @@ function categoryPathAllowed(category, p) {
   if (category === '工具维护') return /^(?:scripts|tools|tests)\//.test(p) ||
     docPath(p) || ['package.json','package-lock.json'].includes(p) ||
     p === '.github/workflows/dev-toolchain.yml';
-  if (category === '目录整理') return p!=='scripts/check-restoration-delivery.cjs' && !/^(?:src|runtime|bin)\//.test(p) &&
+  if (category === '目录整理') return p!=='scripts/check-restoration-delivery.cjs' && !/^(?:src|core|runtime|bin)\//.test(p) &&
     !/^resources\/(?:bunfs|data)\//.test(p) &&
     !PROTECTED_CHECKS.has(p.replace(/^\.github\/workflows\/restoration-delivery-gate\.yml$/,'__allowed_workflow_path__')) &&
     (/^(?:docs|tests|scripts|tools)\//.test(p) || /^\.github\/workflows\//.test(p) ||
@@ -373,6 +373,27 @@ function inspectGit(event) {
 // 历史真实源码对照用例必须带完整旧版源码与 703 项生成证据；
 // 仅对完全相同的目录搬迁委托给专用的真实历史对照 CI。
 function delegatedHistoricalRename(change, category, workflow) {
+  // The 703-case test requires the fixed external 2.1.88 source checkout.
+  // Do not execute it without its real fixtures in a generic test matrix.
+  // Its dedicated PR workflow must run the exact test and both source audits.
+  if(category==='整合验收' &&
+     change.oldPath==='tests/v44-real-historical-703.test.cjs' &&
+     change.path==='tests/v44-real-historical-703.test.cjs' &&
+     change.status==='M'){
+    const required=[
+      'pull_request:',
+      "ref=c8cd253554319f32ff64ff7000636199f720c9bc",
+      'OLD_SOURCE_ROOT=$root/source/src',
+      'node scripts/batch-restoration-candidates.cjs',
+      'node scripts/review-historical-candidates.cjs',
+      '--expected 703',
+      'node --test tests/v44-real-historical-703.test.cjs',
+      'node --test tests/v45-real-business-703.test.cjs'
+    ];
+    if(required.some(x=>!workflow.includes(x)))
+      throw Error('整合PR的703项历史候选必须在固定真实参考源码的完整专用CI执行，不得省略');
+    return true;
+  }
   if(category!=='目录整理' || change.oldPath!=='tests/v44-real-historical-703.test.cjs' ||
      change.path!=='tests/restoration/v44-real-historical-703.test.cjs' ||
      !/^R[0-9]*$/.test(change.status)) return false;

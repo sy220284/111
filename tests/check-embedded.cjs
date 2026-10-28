@@ -6,7 +6,7 @@ const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const records = JSON.parse(fs.readFileSync(path.join(root, 'resources/embedded-source-layout.json'), 'utf8')).entries;
-const sourceRoot = path.join(root, 'src/embedded');
+const sourceRoot = path.join(root, 'embedded');
 const actual = [];
 function visit(directory) {
  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -21,7 +21,7 @@ assert.deepEqual(actual.sort(), records.map(x=>x.path).sort(), '内嵌源码路�
 let checkedJavaScript=0, checkedJSON=0;
 for (const entry of records) {
  assert.ok(entry.old.startsWith('src/embedded/'), '无效原始路径');
- assert.ok(entry.path.startsWith('src/embedded/'), '无效新路径');
+ assert.ok(entry.path.startsWith('embedded/'), '无效新路径');
  assert.ok(entry.old!==entry.path && !fs.existsSync(path.join(root,entry.old)), '原始路径未清除：'+entry.old);
  const absolute=path.join(root,entry.path), data=fs.readFileSync(absolute);
  assert.ok(data.length>0 && !data.includes(0), '空文件或非法字节：'+entry.path);

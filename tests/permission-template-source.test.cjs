@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.resolve(__dirname, '../src/chunk-eq8vmbm3.js'), 'utf8');
+const source = fs.readFileSync(path.resolve(__dirname, '../core/chunk-eq8vmbm3.js'), 'utf8');
 const reference = fs.readFileSync(path.resolve(__dirname, '../resources/docs/other/permissions-external.txt'), 'utf8');
 
 function registryFixture() {
@@ -45,7 +45,7 @@ test('PreToolUse 大小写和其他 Hook 不混淆，原版恒真分支保持原
   assert.equal(api.externalTemplateConstantFlag(),true);
 });
 test('新增可读函数与旧短符号导出保持引用同一性',async()=>{
-  const api=await import('../src/chunk-eq8vmbm3.js');
+  const api=await import('../core/chunk-eq8vmbm3.js');
   for(const [oldName,newName] of [
     ['Vds','listExternalTemplateIds'],
     ['qds','findExternalTemplateByDigest'],
