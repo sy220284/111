@@ -57,6 +57,12 @@
       "tests": [
         "tests/mcp-rpc-cancellation.test.cjs"
       ]
+    },
+    "src/chunk-pbffp8rf.js": {
+      "classification": "Node module builtin hooks folder path restored using import.meta.dirname when Bun-only directory value is missing; real CLI model HTTP/SSE call verified",
+      "tests": [
+        "tests/cli-live-model-turn.test.cjs"
+      ]
     }
   }
 }
