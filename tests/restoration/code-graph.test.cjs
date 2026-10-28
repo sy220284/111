@@ -107,3 +107,28 @@ test('lazy dynamic import does not count as an eager/static cycle',()=>{
  assert.equal(g.summary.cyclicGroups,0);
  assert.equal(g.summary.cyclesScope,'static-import-export-only');
 });
+
+test('真实恢复函数的const短符号别名在原模块和跨模块调用追踪中指向同一实现',()=>{
+ const g=analyze({
+  'src/helper.js':'function restoredPermission(x){return x}; const old=restoredPermission; export{old}',
+  'src/client.js':'import{old as invoke}from"../helper.js"; function run(){return invoke("Bash")}',
+  'src/cli.js':'import{old}from"../helper.js"; old("Task");'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ const evidence=trace(g,'src/helper.js','restoredPermission');
+ assert.equal(evidence.inbound.length,2);
+ assert.ok(evidence.inbound.every(x=>x.to.symbol==='restoredPermission'));
+ assert.ok(evidence.inbound.every(x=>x.kind==='import_binding_candidate'));
+});
+test('immutable aliases may chain forward but reassigned let/var must not fabricate callable links',()=>{
+ const g=analyze({
+  'src/a.js':'const old=intermediate;const intermediate=impl;function impl(){return 1};old();',
+  'src/b.js':'function impl(){return 1};let old=impl;old();',
+  'src/c.js':'const mutable=()=>1;var rebind=mutable;rebind();'
+ });
+ const old=trace(g,'src/a.js','impl');
+ assert.equal(old.inbound.length,1);
+ assert.equal(old.inbound[0].kind,'same_module_candidate');
+ assert.equal(g.summary.candidateResolvedCalls,1);
+});

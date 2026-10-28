@@ -1,0 +1,101 @@
+name: 纯净反编译源码与全量关系图交付
+
+on:
+  push:
+    branches:
+      - deliver/clean-decompile-graphs-20261028
+    paths:
+      - tools/analysis/export-clean-decompile.py
+      - .github/workflows/clean-decompile-delivery.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - tools/analysis/export-clean-decompile.py
+      - .github/workflows/clean-decompile-delivery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-and-verify:
+    name: 使用111工具链重算、封装及解包验收
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: 读取固定版本恢复源码
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: 安装 Node.js 22.16
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装111锁定工具链及真实源码测试
+        run: |
+          set -euo pipefail
+          bash scripts/install.sh
+          npm run check:code-graph
+          node --version
+          npm --version
+      - name: 重建每个模块及全部函数调用位置
+        run: |
+          set -euo pipefail
+          node --max-old-space-size=4096 scripts/source-function-index.cjs --full
+          test -s .generated/module-index.json
+          test -s .generated/function-callsites.json
+      - name: 重建全模块依赖、全函数候选图及静态闭环
+        run: |
+          set -euo pipefail
+          node --max-old-space-size=4096 tools/analysis/code-graph.cjs scan --full \
+            --output "$RUNNER_TEMP/111-full-code-graph.json" > /dev/null
+          node --max-old-space-size=4096 tools/analysis/closure-audit.cjs \
+            --graph "$RUNNER_TEMP/111-full-code-graph.json" \
+            --output "$RUNNER_TEMP/111-closure.json"
+      - name: 生成纯净反编译代码和所有图谱
+        run: |
+          set -euo pipefail
+          python3 tools/analysis/export-clean-decompile.py \
+            --graph "$RUNNER_TEMP/111-full-code-graph.json" \
+            --module-index .generated/module-index.json \
+            --callsites .generated/function-callsites.json \
+            --closure "$RUNNER_TEMP/111-closure.json" \
+            --root . --out "$RUNNER_TEMP/claude-2.1.310-clean"
+      - name: 制作归档并真实解包验收
+        run: |
+          set -euo pipefail
+          mkdir -p releases
+          archive="111-Claude-Code-2.1.310-x64-clean-decompiled-source-graphs.tar.zst"
+          tar -C "$RUNNER_TEMP" --zstd -cf "releases/$archive" claude-2.1.310-clean
+          (cd releases && sha256sum "$archive" > SHA256SUMS && sha256sum -c SHA256SUMS)
+          tar --zstd -tf "releases/$archive" > "$RUNNER_TEMP/clean-archive-contents.txt"
+          grep -F 'claude-2.1.310-clean/src/' "$RUNNER_TEMP/clean-archive-contents.txt" > /dev/null
+          grep -F 'claude-2.1.310-clean/图谱与证据/函数调用候选边.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
+          grep -F 'claude-2.1.310-clean/图谱与证据/全部调用表达式.tsv' "$RUNNER_TEMP/clean-archive-contents.txt"
+          grep -F 'claude-2.1.310-clean/图谱与证据/功能与测试关系全量.dot' "$RUNNER_TEMP/clean-archive-contents.txt"
+          if grep -E '/(v37|v39|v40|历史源码)/' "$RUNNER_TEMP/clean-archive-contents.txt"; then
+            echo '错误：纯净包混入了历史研究目录' >&2
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/verify-unpack"
+          tar -C "$RUNNER_TEMP/verify-unpack" --zstd -xf "releases/$archive"
+          test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json"
+          test -s "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/src/chunk-tqjdehqd.js"
+          python3 - "$RUNNER_TEMP/verify-unpack/claude-2.1.310-clean/图谱与证据/结果核验.json" <<'PY'
+          import json,sys
+          j=json.load(open(sys.argv[1]))
+          assert j["mainModules"]==2551 and j["allGraphModules"]==2553
+          assert j["functionSyntaxEntities"]>160000
+          assert j["callExpressions"]>600000
+          assert j["moduleEdges"]>0 and j["candidateFunctionEdges"]>0
+          print(json.dumps(j,ensure_ascii=False,indent=2))
+          PY
+          echo '## 已验证的交付物' >> "$GITHUB_STEP_SUMMARY"
+          echo "- 归档：$archive" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA256: $(cut -d ' ' -f1 releases/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"
+          echo '- 原版 ELF 与源码等价性：未验证，包内明确标记' >> "$GITHUB_STEP_SUMMARY"
+      - name: 上传纯净反编译代码、完整图谱及校验和
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-clean-decompile-2.1.310-x64-full-graphs
+          path: releases/*
+          retention-days: 30
+          if-no-files-found: error
