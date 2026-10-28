@@ -63,8 +63,16 @@ def main():
            for e in graph["callEdges"] if e["to"]))
     table(report/"功能职责与测试.tsv",["模块","函数符号","职责","测试文件","状态"],
           ((e["source"],e["symbol"],e["role"],e["test"],e["status"]) for e in ledger))
+    layout=read(root/"resources/asset-layout.json")["entries"]
     resources=sorted(x for x in (root/"resources/bunfs").rglob("*") if x.is_file())
-    table(report/"嵌入资源清单.tsv",["路径","大小","sha256"],
+    resolved_assets=[]
+    for original_key,entry in sorted(layout.items()):
+        target=root/entry["path"]
+        assert target.is_file(),("missing embedded resource",original_key,entry["path"])
+        resolved_assets.append((original_key,str(target.relative_to(root)),target.stat().st_size,sha(target)))
+    assert len(resolved_assets)>=240,len(resolved_assets)
+    table(report/"嵌入资源清单.tsv",["原始BunFS键","真实资源路径","大小","sha256"],resolved_assets)
+    table(report/"原始BunFS实体.tsv",["路径","大小","sha256"],
           ((str(f.relative_to(root)),f.stat().st_size,sha(f)) for f in resources))
     rolemap={}
     for e in ledger:rolemap.setdefault(e["role"].split("-")[0],set()).add(e["source"])
@@ -80,8 +88,10 @@ def main():
                         (a.callsites,"完整函数及调用点.json"),
                         (a.closure,"静态闭环审计.json")]:
         shutil.copy2(origin,report/name)
-    for folder in ("src","runtime","resources","bin"):
+    for folder in ("src","runtime","bin"):
         shutil.copytree(root/folder,out/folder,dirs_exist_ok=True)
+    shutil.copytree(root/"resources",out/"resources",
+        dirs_exist_ok=True,ignore=shutil.ignore_patterns("research"))
     for name in ("package.json","package-lock.json","LICENSE"):
         shutil.copy2(root/name,out/name)
     manifest={
@@ -92,7 +102,7 @@ def main():
         "moduleEdges":len(m_edges),"candidateFunctionEdges":len(f_edges),
         "unresolvedCallExpressions":s["unresolvedCallExpressions"],
         "targetedSemanticEvidence":len(ledger),"sourceFingerprint":summary["sourceFingerprint"],
-        "embeddedResourceCount":len(resources),
+        "embeddedResourceCount":len(resolved_assets), "originalBunfsFileCount":len(resources),
         "note":"All syntax calls are indexed; candidate edges are not proven executed. Dynamic dispatch unresolved."
     }
     (report/"结果核验.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
@@ -106,7 +116,7 @@ def main():
         "本包不等于原始 TypeScript，也没有验收 ELF 二进制等价、完整 Bun/JSC 兼容或在线业务等价。\n\n"
         "请查阅 图谱与证据/结果核验.json 了解实际覆盖范围和源码指纹。\n",encoding="utf-8")
     assert len(list((out/"src").glob("*.js")))>=2550
-    assert len(resources)>=250,len(resources)
+    assert len(resolved_assets)>=240,len(resolved_assets)
     assert len(m_edges)>0 and len(f_edges)>0
     print(json.dumps(manifest,ensure_ascii=False))
 if __name__=="__main__":main()
