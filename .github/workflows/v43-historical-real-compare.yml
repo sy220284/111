@@ -9,6 +9,13 @@ on:
       - 'scripts/review-historical-candidates.cjs'
       - 'tests/restoration/review-historical-candidates.test.cjs'
       - 'tests/restoration/v44-real-historical-703.test.cjs'
+      - 'scripts/audit-historical-business-chains.cjs'
+      - 'tools/analysis/code-graph.cjs'
+      - 'tests/restoration/code-graph.test.cjs'
+      - 'tests/historical-business-chains.test.cjs'
+      - 'tests/v45-real-business-703.test.cjs'
+      - 'src/chunk-9z5ybxhe.js'
+      - 'src/chunk-wrtp8qz8.js'
       - 'src/chunk-bwt94x0y.js'
       - 'src/chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
@@ -20,7 +27,7 @@ jobs:
   compare:
     name: 固定版本2.1.88与2.1.310真实函数全仓候选对照
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -55,18 +62,28 @@ jobs:
             --old "$OLD_SOURCE_ROOT" --new src --expected 703 \
             --out .generated/v44-reviewed-703.json
           node --test tests/restoration/v44-real-historical-703.test.cjs
+          node tools/analysis/code-graph.cjs scan --full --output .generated/v45-full-code-graph.json > /dev/null
+          node scripts/audit-historical-business-chains.cjs \
+            --audited .generated/v44-reviewed-703.json \
+            --graph .generated/v45-full-code-graph.json \
+            --src src --out .generated/v45-703-business-chains.json
+          node --test tests/v45-real-business-703.test.cjs
+
           node - <<'NODE'
           const fs=require('node:fs');
           const j=JSON.parse(fs.readFileSync('.generated/v43-historical-real-full.json','utf8'));
           if(!j.scanned.oldFiles || j.scanned.newFiles!==2551)throw Error('did not scan full old and new source sets');
           const audit=JSON.parse(fs.readFileSync('.generated/v44-reviewed-703.json','utf8'));
           if(audit.summary.sourceLocationsValidated!==703||audit.items.length!==703)throw Error('703-case review incomplete');
+          const chains=JSON.parse(fs.readFileSync('.generated/v45-703-business-chains.json','utf8'));
+          if(chains.summary.examined!==703||chains.summary.sourceDefinitionsLocated!==703)throw Error('703 function-chain reconciliation incomplete');
           const out=[
             '## 真实跨版本源码匹配统计（候选，非等价证明）',
             '| 指标 | 实测 |','|---|---:|',
             ...Object.entries(j.scanned).map(([k,v])=>`| ${k} | ${v} |`),
             ...Object.entries(j.counts).map(([k,v])=>`| ${k} | ${v} |`),
             ...Object.entries(audit.summary.classification).map(([k,v])=>`| independent:${k} | ${v} |`),
+            ...Object.entries(chains.summary).filter(([k,v])=>typeof v==='number').map(([k,v])=>`| chain:${k} | ${v} |`),
             `| 逐条独立结构证据核查 | ${audit.summary.reviewedWithIndependentStaticEvidence} |`,
             `| 经过行为等价验证 | ${audit.summary.runtimeBehaviorVerified} |`,
             `| 已证明语义等价 | ${audit.summary.semanticEquivalenceConfirmed} |`,
@@ -82,4 +99,5 @@ jobs:
           path: |
             .generated/v43-historical-real-full.json
             .generated/v44-reviewed-703.json
+            .generated/v45-703-business-chains.json
           retention-days: 30

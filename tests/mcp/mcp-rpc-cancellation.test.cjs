@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-fmf16p94.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-fmf16p94.js'),'utf8');
 function makeProtocol({rejectSend=false}={}){
   const start=source.indexOf('request(e,t,r){');
   const end=source.indexOf('async getTask(e,t){',start);
@@ -77,4 +77,37 @@ test('发送失败时清理挂起句柄，后续中止不会通知一个未发�
   assert.equal(frames.length,1);
   assert.equal(instance._responseHandlers.size,0);
   assert.equal(instance._timeoutInfo.size,0);
+});
+test('真实MCP relatedTask队列入列失败后必须释放侧信道请求解析器，禁止孤儿请求',async()=>{
+  const {instance,frames}=makeProtocol();
+  instance._enqueueTaskMessage=()=>Promise.reject(Error('queue-offline'));
+  const controller=new AbortController();
+  await assert.rejects(
+    instance.request({method:'tools/call',params:{name:'demo'}},{},{signal:controller.signal,relatedTask:{taskId:'task-a'}}),
+    /queue-offline/
+  );
+  assert.equal(instance._requestResolvers.size,0);
+  assert.equal(instance._responseHandlers.size,0);
+  assert.equal(instance._timeoutInfo.size,0);
+  controller.abort('too-late');
+  await flush();
+  assert.equal(frames.length,0,'enqueue failure must not send a phantom network request');
+});
+test('真实MCP relatedTask取消或超时后侧信道回调必须删除，避免内存泄漏',async()=>{
+  for(const ending of ['abort','timeout']){
+    const {instance,frames}=makeProtocol();
+    instance._enqueueTaskMessage=async()=>{};
+    const controller=new AbortController();
+    const pending=instance.request({method:'tools/call',params:{name:'demo'}},{},{
+      signal:controller.signal,relatedTask:{taskId:'task-b'}
+    });
+    assert.equal(instance._requestResolvers.size,1);
+    if(ending==='abort')controller.abort('user-stop');
+    else instance._timeoutInfo.get(1)();
+    await assert.rejects(pending,ending==='abort'?/user-stop/:/Request timed out/);
+    assert.equal(instance._requestResolvers.size,0);
+    assert.equal(instance._responseHandlers.size,0);
+    assert.equal(instance._timeoutInfo.size,0);
+    assert.equal(frames.filter(x=>x.method==='notifications/cancelled').length,1);
+  }
 });
