@@ -295,7 +295,7 @@ test('真实历史703用例仅迁移时委托专用完整工作流，其他场�
 
 test('目录整理对经过Git原始字节及清单验证的独立源码重命名单独认可',()=>{
  const old='src/embedded/runtime/state-library.js',current='embedded/runtime/state-library.js';
- const base={title:'独立源码归档',body:'交付类别：目录整理\\n不计入功能恢复',
+ const base={title:'独立源码归档',body:'交付类别：目录整理\n不计入功能恢复',
   changed:[old,current,'resources/layout/relocations.json','docs/architecture/structure.md','tests/runtime/a.test.cjs'],
   testChanges:[{path:'tests/runtime/a.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.ok(true));",status:'A'}]};
  const before=auditDelivery(base);
