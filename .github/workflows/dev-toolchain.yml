@@ -40,11 +40,10 @@ jobs:
           bash -n tools/dev/ai-toolchain.sh
           bash tools/dev/ai-toolchain.sh self-test
           python3 tools/dev/test-toolchain.py
-      - name: 安装锁定依赖并跑源码回归
+      - name: 执行真实联网安装入口和完整源码、CLI 验收
         run: |
           set -euo pipefail
-          npm ci --ignore-scripts --no-audit --no-fund --cache "$RUNNER_TEMP/111-npm-cache"
-          npm test
+          npm_config_cache="$RUNNER_TEMP/111-npm-cache" bash scripts/install.sh
       - name: 生成三个独立组件产物并登记校验和
         run: |
           set -euo pipefail
@@ -144,6 +143,12 @@ jobs:
           bash tools/dev/ai-toolchain.sh run -- npm test
           bash tools/dev/ai-toolchain.sh run -- actionlint .github/workflows/dev-toolchain.yml
           bash tools/dev/ai-toolchain.sh run -- node bin/claude-310.mjs --version
+      - name: 清空 node_modules 后执行离线安装入口
+        run: |
+          set -euo pipefail
+          rm -rf node_modules
+          bash scripts/install.sh --offline
+          bash tools/dev/ai-toolchain.sh check --profile full
       - name: 移除产物后复查并证明无重复下载
         run: |
           set -euo pipefail
@@ -152,9 +157,8 @@ jobs:
           output="$(bash tools/dev/ai-toolchain.sh plan --profile full)"
           echo "$output"
           echo "$output" | grep -F '"missing_artifacts":[]'
-      - name: 记录真实 CLI 帮助入口（单独标记 Bun/JSC 兼容）
+      - name: 再次启动真实 CLI 帮助入口（失败直接阻断）
         id: cli_runtime
-        continue-on-error: true
         run: timeout 45s bash tools/dev/ai-toolchain.sh run -- node bin/claude-310.mjs --help
       - name: 汇总结果
         if: always()
