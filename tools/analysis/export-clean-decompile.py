@@ -114,7 +114,7 @@ def main():
         shutil.copy2(origin,report/name)
     if a.jelly_shards:
         jelly_evidence=append_evidence(root,a.jelly_shards,report,graph)
-    for folder in ("src","runtime","bin"):
+    # Keep source separate from reproducibility tooling; no older-version binary bundles.\n    for folder in ("src","runtime","bin","scripts","tests","tools"):
         shutil.copytree(root/folder,out/folder,dirs_exist_ok=True)
     shutil.copytree(root/"resources",out/"resources",
         dirs_exist_ok=True,ignore=shutil.ignore_patterns("research"))
@@ -132,6 +132,7 @@ def main():
         "candidateKinds":{k:{"uniqueEdges":v[0],"callOccurrences":v[1]}
                           for k,v in sorted(kinds.items())},
         "jelly":jelly_evidence,
+        "reproducibilitySources":["scripts","tests","tools/analysis","tools/dev"],
         "targetedSemanticEvidence":len(ledger),"sourceFingerprint":summary["sourceFingerprint"],
         "embeddedResourceCount":len(resolved_assets)+len(resources), "mappedResourceCount":len(resolved_assets), "originalBunfsFileCount":len(resources),
         "note":"All syntax calls are indexed; candidate edges are not proven executed. Dynamic dispatch unresolved."
@@ -141,6 +142,8 @@ def main():
         "# Claude Code 2.1.310 Linux x64 纯净恢复源码和全量静态图谱\n\n"
         "源码来自 111 仓库已恢复模块，未混入旧版候选替换、历史研究包或原 ELF。\n\n"
         "目录 src、runtime、resources、bin 为可阅读代码和必要运行资源；"
+        "scripts、tests、tools 为独立的复核和重新构建工具，不是原始 ELF 或 TypeScript。"
+        "运行 npm ci 后可执行 npm run check:code-graph、node --test tests/jelly-corpus.test.cjs。\\n\\n"
         "图谱与证据包含模块、函数、调用表达式、候选调用边、测试语义关系的完整 TSV、JSON 和 DOT，"
         "另有 Mermaid 功能概览。全量 DOT 可用 Graphviz 打开。\n\n"
         "静态函数候选调用不能证明动态实际调用；间接调用不会编造被调用者。"
