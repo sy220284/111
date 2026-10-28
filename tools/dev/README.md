@@ -4,9 +4,9 @@
 
 ## 与 777 的区别
 
-111 是 **Linux x64 / Node.js 22.16.0** 源码恢复工程，不使用 777 的 Android SDK、Gradle、JDK、模拟器与 Kotlin 编译器。111 的生产依赖为 `ws@8.22.0`，测试/AST 索引依赖为 `typescript@5.9.3`；Node 内置 npm 固定为 10.9.2。完整档追加 `actionlint@1.7.12` 校验 GitHub Actions 配置。
+111 是 **Linux x64 / Node.js 22.16.0** 源码恢复工程，不使用 777 的 Android SDK、Gradle、JDK、模拟器与 Kotlin 编译器。111 的生产依赖为 `ws@8.22.0`，测试/AST 索引依赖为 `typescript@5.9.3`；Node 内置 npm 固定为 10.9.2。完整档追加 `actionlint@1.7.12` 校验 GitHub Actions 配置；可选 compat 档再追加官方 Bun 1.4.4/JSC 参照运行时（Linux x64 baseline）。
 
-核心组件是 `111-toolchain-node-latest` 和 `111-toolchain-npm-cache-latest`；完整档额外使用 `111-toolchain-actionlint-latest`。每个组件有 `component.env`、`payload.tar.gz`、`SHA256SUMS`。npm 缓存产物额外绑定 `package-lock.json` 的 SHA256。
+核心组件是 `111-toolchain-node-latest` 和 `111-toolchain-npm-cache-latest`；完整档额外使用 `111-toolchain-actionlint-latest`；compat 档额外使用 `111-toolchain-bun-latest`。每个组件有 `component.env`、`payload.tar.gz`、`SHA256SUMS`。Bun 归档在 CI 下载时使用官方发布的固定 SHA256 校验。npm 缓存产物额外绑定 `package-lock.json` 的 SHA256。
 
 ## 实际安装入口
 
@@ -56,6 +56,18 @@ npm run check:bun-jsc
 node tools/dev/bun-jsc-compat.cjs report --json --bun /path/to/bun --require-bun --output /tmp/111-bun-jsc-compat.json
 ~~~
 
-仅 report 命令调用真实 Bun 二进制；不存在时明确报告 unavailable，不会伪造通过；--require-bun 让 Bun 探针失败或缺失时返回非零。GitHub Actions 额外使用固定 Bun 1.4.4，生成可下载的诊断 JSON；Bun 仅供参照验证，不会自动替换 111 默认 Node 主程序，也不进入现有离线运行组件清单。
+仅 report 命令调用真实 Bun 二进制；不存在时明确报告 unavailable，不会伪造通过；--require-bun 让 Bun 探针失败或缺失时返回非零。GitHub Actions 额外使用固定 Bun 1.4.4，生成可下载的诊断 JSON；Bun 仅供参照验证，不会替换 111 默认 Node 主程序；可通过 `bash tools/dev/ai-toolchain.sh bootstrap --profile compat --artifacts-dir /path/to/artifacts` 按需离线安装，其余档位不受影响。
 
 验收边界：扫描到 Bun.spawn 不表示该分支必然运行；没有扫描到 Bun.SQL 也不能断言原版 ELF 永不使用它。参照 Bun 探针通过只代表测试的 API 在该版本下可用，111 在 Node 中的行为兼容仍需另行实现并验证。诊断工具不会往全局作用域注入伪造的 Bun 对象。
+
+
+可选 Bun/JSC 一体化复查：
+
+~~~bash
+bash tools/dev/ai-toolchain.sh plan --profile compat
+bash tools/dev/ai-toolchain.sh bootstrap --profile compat --artifacts-dir /path/to/artifacts
+bash tools/dev/ai-toolchain.sh check --profile compat
+bash tools/dev/ai-toolchain.sh run -- node tools/dev/bun-jsc-compat.cjs report --bun "$HOME/.local/share/111-dev/bin/bun" --require-bun
+~~~
+
+compat 档包含 build + full + Bun；支持检测已有组件及复用，无组件时只输出需要下载的 Artifact，且本地不联网。Bun 适配和 Bun 的参考行为仍是两件事。
