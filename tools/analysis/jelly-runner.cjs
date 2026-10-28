@@ -52,6 +52,11 @@ function run(args,root=path.resolve(__dirname,'../..')){
       exitCode:result.status,elapsedMs:Date.now()-started,
       jellyJson:id+'.jelly.json',jellyJsonBytes:fs.existsSync(output)?fs.statSync(output).size:0,
       topLevelKeys:raw&&typeof raw==='object'?Object.keys(raw).slice(0,30):[],
+      graphCollectionCounts:raw&&typeof raw==='object'?
+        Object.fromEntries(['files','functions','calls','fun2fun','call2fun'].map(k=>{
+          const v=raw[k];return [k,Array.isArray(v)?v.length:
+            (v&&typeof v==='object'?Object.keys(v).length:null)];
+        })):null,
       stderrTail:(result.stderr||'').slice(-1200),
       runtimeCallsConfirmed:0,elfEquivalenceVerified:false});
   }
