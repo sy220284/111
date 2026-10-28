@@ -1460,6 +1460,198 @@
       "test": "tests/daemon-beacon-source-restoration.test.cjs",
       "role": "sticky-beacon-progress-and-storage-routing",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Jmr",
+      "anchor": "function serializeAdoptAgent(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-serializeAdoptAgent",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Qmr",
+      "anchor": "function serializeAdoptWorkflow(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-serializeAdoptWorkflow",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Zmr",
+      "anchor": "function dedupFrameLiveNewest(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-dedupFrameLiveNewest",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "FX",
+      "anchor": "function computeAdoptability(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-computeAdoptability",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "f6e",
+      "anchor": "function countLiveWorkflowAgents(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-countLiveWorkflowAgents",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "aUe",
+      "anchor": "function noticeFieldOf(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-noticeFieldOf",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "xlt",
+      "anchor": "function noticeDescriptionOf(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-noticeDescriptionOf",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "eIn",
+      "anchor": "function serializeAdoptable(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-serializeAdoptable",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Rlt",
+      "anchor": "function writeAdoptJson(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-writeAdoptJson",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "hno",
+      "anchor": "function readAndConsumeAdoptJson(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-readAndConsumeAdoptJson",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "yPe",
+      "anchor": "function killJob(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-killJob",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "wpr",
+      "anchor": "function killOrphanedWorker(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-killOrphanedWorker",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Hee",
+      "anchor": "function deleteJob(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-provenance-deleteJob",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Xmr",
+      "anchor": "function detachAndSerializeShell(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-detachAndSerializeShell",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "ZPn",
+      "anchor": "function collectFrameLiveConsent(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-collectFrameLiveConsent",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Ino",
+      "anchor": "function emitAdoptAgentDenied(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-emitAdoptAgentDenied",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "nIn",
+      "anchor": "function emitAdoptAgentFailed(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-emitAdoptAgentFailed",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "E8t",
+      "anchor": "function emitAdoptWorkflowFailed(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-emitAdoptWorkflowFailed",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Tno",
+      "anchor": "function linkAdoptedAgentTranscript(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-linkAdoptedAgentTranscript",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Rno",
+      "anchor": "function linkAdoptedWorkflowDir(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-linkAdoptedWorkflowDir",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Ano",
+      "anchor": "function relinkAdoptedAgentSymlinks(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-relinkAdoptedAgentSymlinks",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "xno",
+      "anchor": "function resolveAdoptedScriptPath(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-resolveAdoptedScriptPath",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "symbol": "Ono",
+      "anchor": "function adoptCron(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-adoptCron",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "Kat",
+      "anchor": "function replyToJob(",
+      "test": "tests/v43-daemon-adoption-lifecycle.test.cjs",
+      "role": "v40-verified-definition-replyToJob",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

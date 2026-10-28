@@ -17,7 +17,7 @@ function originalFragment(source, begin, end) {
 }
 
 function adoptionFixture(featureEnabled=true) {
-  const source = originalFragment(adoptionSource, 'function mcpSettledForAdopt(e)', 'function nIn(e')
+  const source = originalFragment(adoptionSource, 'function mcpSettledForAdopt(e)', 'function emitAdoptAgentFailed(e')
     + '\n' + originalFragment(adoptionSource, 'function isShellAdoptable(e,n)', 'function countAlreadyAdoptedWork(e,n');
   return vm.runInNewContext(source + '\n({tgr,mcpSettledForAdopt,Pno,classifyAdoptReconciliationNotice,ngr,lUe,rgr,rIn,u6e,isShellAdoptable,isCronAdoptable,isAgentAdoptable,isWorkflowAdoptable,isTaskMarkedAdoptable})', {
     pp: row => row.kind === 'shell',
