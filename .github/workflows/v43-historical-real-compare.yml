@@ -5,6 +5,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'scripts/batch-restoration-candidates.cjs'
       - 'scripts/review-historical-candidates.cjs'
       - 'tests/review-historical-candidates.test.cjs'
@@ -20,6 +21,10 @@ on:
       - 'core/chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
 
+  push:
+    branches: [main]
+    paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
 permissions:
   contents: read
 

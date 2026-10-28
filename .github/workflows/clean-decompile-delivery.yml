@@ -3,13 +3,16 @@ name: 纯净反编译源码与全量关系图交付
 on:
   push:
     branches:
+      - main
       - deliver/clean-decompile-graphs-20261028
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - tools/analysis/export-clean-decompile.py
       - .github/workflows/clean-decompile-delivery.yml
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - tools/analysis/export-clean-decompile.py
       - .github/workflows/clean-decompile-delivery.yml
   workflow_dispatch:

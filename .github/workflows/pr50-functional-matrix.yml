@@ -3,6 +3,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'core/**'
       - 'plugins/**'
       - 'runtime/**'
@@ -13,6 +14,10 @@ on:
       - 'package.json'
       - '.github/workflows/pr50-functional-matrix.yml'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
 permissions:
   contents: read
 jobs:

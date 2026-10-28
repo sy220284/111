@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'core/**'
       - 'plugins/**'
       - 'embedded/**'
@@ -11,6 +12,10 @@ on:
       - 'tools/bundled/**'
       - 'scripts/source-function-index.cjs'
       - '.github/workflows/source-index-evidence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
 permissions:
   contents: read
 jobs:

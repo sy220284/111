@@ -3,6 +3,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'tests/v37-*'
       - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
       - 'tools/bundled/claude-test/**'
@@ -12,6 +13,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'tests/v37-*'
       - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
       - 'tools/bundled/claude-test/**'

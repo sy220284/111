@@ -3,9 +3,13 @@ name: 111 增强反编译与初始提取快照合包
 on:
   pull_request:
     branches: [main]
-    paths: [.github/workflows/initial-decompile-supplement.yml]
+    paths: [.github/workflows/initial-decompile-supplement.yml, 'docs/verification/2026-10-28-全仓联合验收触发.md']
   workflow_dispatch:
 
+  push:
+    branches: [main]
+    paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
 permissions:
   contents: read
   actions: read

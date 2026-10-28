@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'tools/analysis/recovery-bundle.py'
       - '.github/workflows/full-reverse-archive.yml'
       - 'tests/test_recovery_bundle.py'
@@ -22,6 +23,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'docs/verification/2026-10-28-全仓联合验收触发.md'
       - 'tools/analysis/recovery-bundle.py'
       - 'tests/test_recovery_bundle.py'
       - '.github/workflows/recovery-evidence.yml'
