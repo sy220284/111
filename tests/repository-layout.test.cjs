@@ -49,7 +49,7 @@ test('原始 BunFS 键、新源码及资源路径和证据清单一致',()=>{
 });
 test('历史工具恢复记录仍然可映射到新位置，辅助资源与相对导入结构保持完整',()=>{
  for(const tool of ['claude-test','design-sync']){
-  const index=JSON.parse(fs.readFileSync(path.join(ROOT,'resources/tools',tool,'source-layout.json'),'utf8'));
+  const index=JSON.parse(fs.readFileSync(path.join(ROOT,'resources/layout',tool+'-source-layout.json'),'utf8'));
   for(const item of [...index.migrated,...index.supporting]){
    const dest=current(item.path);
    assert.ok(dest.startsWith('tools/bundled/'),dest);
@@ -70,4 +70,14 @@ test('搬迁后所有工程文档的本地相对链接仍然有效',()=>{
    assert.ok(fs.existsSync(resolved),file+' broken local link '+href);
   }
  }
+});
+
+
+test('根目录源码归位及工程目录归属',()=>{
+ const dirs=['src','embedded','plugin-testing-kit','tools','runtime','bin','resources','docs','tests','scripts','.github'];
+ for(const dir of dirs)assert.ok(fs.statSync(path.join(ROOT,dir)).isDirectory(),'missing root category '+dir);
+ for(const legacy of ['src/embedded','src/plugin-testing-kit','resources/tools'])assert.equal(fs.existsSync(path.join(ROOT,legacy)),false,'uncleared legacy source '+legacy);
+ for(const current of ['tools/bundled/claude-test','tools/bundled/design-sync','embedded/browser-tools','plugin-testing-kit/collector','resources/layout/claude-test-source-layout.json','resources/layout/design-sync-source-layout.json'])assert.ok(fs.existsSync(path.join(ROOT,current)),'missing classified item '+current);
+ // 主程序内的 Hook Worker 维持原版路径，防止改写冻结模块身份及运行期引用。
+ assert.ok(fs.existsSync(path.join(ROOT,'src/src/plugins/functionHooks/hooks-worker/hooks-worker.js')));
 });
