@@ -18,7 +18,10 @@ test('real pinned Playwright MCP launches Chromium, navigates and snapshots test
  t.after(()=>server.close());
  const home=fs.mkdtempSync(path.join(os.tmpdir(),'111-v37-real-mcp-'));
  t.after(()=>fs.rmSync(home,{recursive:true,force:true}));
- const child=spawn(process.execPath,[cli,'--headless','--browser','chromium','--isolated'],{
+ const chrome=require('playwright').chromium.executablePath();
+ assert.ok(fs.existsSync(chrome),'actual pinned Playwright Chromium executable missing');
+ const child=spawn(process.execPath,[cli,'--headless','--browser','chromium',
+  '--isolated','--executable-path',chrome],{
   cwd:home,env:{...process.env,HOME:home,NO_COLOR:'1',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'},
   stdio:['pipe','pipe','pipe']
