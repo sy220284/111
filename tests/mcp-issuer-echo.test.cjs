@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-x436erds.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../chunk-x436erds.js'),'utf8');
 function fromOriginal({strict=false,reportThrows=false,flagThrows=false}={}){
   const start=source.indexOf('function le(){'),end=source.indexOf('class KCs extends nO',start);
   assert.ok(start>0&&end>start,'2.1.310 MCP issuer-echo functions must be present');

@@ -24,10 +24,10 @@ def classify_candidates(report, graph, callsites):
     index_normalized = 0
     for file, functions in callsites.items():
         # scripts/source-function-index.cjs indexes root src files as
-        # "chunk-abc.js", whereas Jelly / code-graph use "src/chunk-abc.js".
-        # A nested worker already has its "src/" prefix.
-        normalized_file = file if file.startswith("src/") else "src/" + file
-        if (not normalized_file.startswith("src/") or
+        # "chunk-abc.js", whereas Jelly / code-graph use "chunk-abc.js".
+        # A nested worker already has its "" prefix.
+        normalized_file = file if file.startswith("") else "" + file
+        if (not normalized_file.startswith("") or
                 ".." in normalized_file.split("/") or
                 "\\\\" in normalized_file or
                 not normalized_file.endswith(".js")):

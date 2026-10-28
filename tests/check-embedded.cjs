@@ -20,7 +20,7 @@ assert.equal(new Set(records.map(x => x.path)).size, 24, '迁移目标重名');
 assert.deepEqual(actual.sort(), records.map(x=>x.path).sort(), '内嵌源码路径与清单一致');
 let checkedJavaScript=0, checkedJSON=0;
 for (const entry of records) {
- assert.ok(entry.old.startsWith('src/embedded/'), '无效原始路径');
+ assert.ok(entry.old.startsWith('embedded/'), '无效原始路径');
  assert.ok(entry.path.startsWith('embedded/'), '无效新路径');
  assert.ok(entry.old!==entry.path && !fs.existsSync(path.join(root,entry.old)), '原始路径未清除：'+entry.old);
  const absolute=path.join(root,entry.path), data=fs.readFileSync(absolute);

@@ -6,8 +6,8 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {fragmentToModuleExports}=require('./helpers/source-extraction.cjs');
 const root=path.resolve(__dirname,'..');
-const policy=fs.readFileSync(path.join(root,'src/chunk-2af27mew.js'),'utf8');
-const paths=fs.readFileSync(path.join(root,'src/chunk-yhfqc2mr.js'),'utf8');
+const policy=fs.readFileSync(path.join(root,'chunk-2af27mew.js'),'utf8');
+const paths=fs.readFileSync(path.join(root,'chunk-yhfqc2mr.js'),'utf8');
 
 function policyFixture(){
  const from=policy.indexOf('function parseDaemonAttemptCount(e)');

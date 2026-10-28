@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const root=path.resolve(__dirname,'..');
-const source=fs.readFileSync(path.join(root,'src/chunk-w9w4r9w1.js'),'utf8');
+const source=fs.readFileSync(path.join(root,'chunk-w9w4r9w1.js'),'utf8');
 const reference=fs.readFileSync(path.join(root,'resources/docs/plugin-authoring/reference.md'),'utf8');
 const begin=source.indexOf('async function dispatchStoredSessionRow(e,o,r)');
 const middle=source.indexOf('var xe=(e)',begin);

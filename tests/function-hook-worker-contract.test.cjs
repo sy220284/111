@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
-const worker = readFileSync(path.join(root, 'src/src/plugins/functionHooks/hooks-worker/hooks-worker.js'), 'utf8');
+const worker = readFileSync(path.join(root, 'plugins/functionHooks/hooks-worker/hooks-worker.js'), 'utf8');
 const declarations = readFileSync(path.join(root, 'tools/bundled/plugin-api/types/claude-code.d.ts'), 'utf8');
 const source = worker.slice(worker.indexOf('var B='), worker.indexOf('function I(o){'));
 assert.ok(source.startsWith('var B=') && source.includes('function W(o)') && source.length > 1500,

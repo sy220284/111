@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const path=require('node:path');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-g936x3jq.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../chunk-g936x3jq.js'),'utf8');
 function dispatch(){
  const start=source.indexOf('function isSubagentDispatchToolUse(e)');
  const end=source.indexOf('async function resumeSubagentWithInheritedHookOrigin(',start);

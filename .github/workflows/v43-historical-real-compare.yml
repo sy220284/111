@@ -14,10 +14,10 @@ on:
       - 'tests/code-graph.test.cjs'
       - 'tests/historical-business-chains.test.cjs'
       - 'tests/v45-real-business-703.test.cjs'
-      - 'src/chunk-9z5ybxhe.js'
-      - 'src/chunk-wrtp8qz8.js'
-      - 'src/chunk-bwt94x0y.js'
-      - 'src/chunk-t2adf9g4.js'
+      - 'chunk-9z5ybxhe.js'
+      - 'chunk-wrtp8qz8.js'
+      - 'chunk-bwt94x0y.js'
+      - 'chunk-t2adf9g4.js'
       - '.github/workflows/v43-historical-real-compare.yml'
 
 permissions:

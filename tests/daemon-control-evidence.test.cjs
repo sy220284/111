@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
-const p=path.resolve(__dirname,'../src/chunk-t2adf9g4.js'),ast=ts.createSourceFile(p,fs.readFileSync(p,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+const p=path.resolve(__dirname,'../chunk-t2adf9g4.js'),ast=ts.createSourceFile(p,fs.readFileSync(p,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const entries={kt:'persistOwnedDaemonBeacon',Kn:'readDaemonGestureFromStorage',He:'parseTerminalKittyKeyEscape',pn:'scanTerminalInterruptSequence',qxn:'hasTerminalInterruptSequence',kn:'verifyDaemonJobOwnership',Heo:'retryDaemonJobUpdate',vn:'formatDaemonConnectionRetryPrompt',Ge:'invokeDaemonInteractiveRunner'};
 function fixture(other={}){
  const src=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&Object.values(entries).includes(n.name?.text)).map(n=>n.getText(ast));

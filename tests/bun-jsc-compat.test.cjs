@@ -43,7 +43,7 @@ test('repository audit scans main recovered modules, not README or vendor files'
   assert.deepEqual(report.parseErrors, []);
   const spawn = report.capabilities.find(x => x.api === 'Bun.spawn');
   const ant = report.capabilities.find(x => x.api === 'Bun.ant.setDumpable');
-  assert.ok(spawn && spawn.observed && spawn.locations.some(x => x.file.startsWith('src/')));
+  assert.ok(spawn && spawn.observed && spawn.locations.some(x => x.file.startsWith('')));
   assert.ok(ant && ant.observed && ant.locations.length > 0);
   const sql = report.capabilities.find(x => x.api === 'Bun.SQL');
   assert.ok(sql && Array.isArray(sql.locations));

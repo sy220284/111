@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 const ts=require('typescript');
-const sourcePath=path.resolve(__dirname,'../src/chunk-tqjdehqd.js');
+const sourcePath=path.resolve(__dirname,'../chunk-tqjdehqd.js');
 
 function analyzeQueryCallgraph(source){
   const ast=ts.createSourceFile('chunk-tqjdehqd.js',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
@@ -74,7 +74,7 @@ function analyzeQueryCallgraph(source){
   // The recording wrapper, previously omitted from the source-callchain report,
   // deliberately records project errors and then the engine repeats Fu().
   assert.ok(hasIdentifier(Fu,'recordProjectsReplyTurnError'),'Fu must record project reply outcomes');
-  return {version:'2.1.310',module:'src/chunk-tqjdehqd.js',
+  return {version:'2.1.310',module:'chunk-tqjdehqd.js',
     evidence:'static-AST-callsites-not-end-to-end-execution',
     scopes:{Da:line(Da),pN:line(pN),Ou:line(Ou),Du:line(Du),Fu:line(Fu)},
     links,conditionalBranchesStillRequireExecution:true,semanticOrEndToEndParity:false};

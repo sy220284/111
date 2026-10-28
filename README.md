@@ -21,8 +21,8 @@
 
 ## v3 源码恢复增量：资源函数及消费者（2026-10-27）
 
-- 将 `src/chunk-6gaf2snv.js` 中 2.1.310 实际使用的 Zstandard 识别、二进制/文本同步读取、异步读取恢复为具名函数；保留 `Nwo`、`dt`、`Xft` 的原始导出别名及原有异常契约。
-- 为 `src/chunk-a2y39866.js` 的 `Fe` 添加可读别名 `loadEmbeddedModule`，已有消费者无需修改。
+- 将 `chunk-6gaf2snv.js` 中 2.1.310 实际使用的 Zstandard 识别、二进制/文本同步读取、异步读取恢复为具名函数；保留 `Nwo`、`dt`、`Xft` 的原始导出别名及原有异常契约。
+- 为 `chunk-a2y39866.js` 的 `Fe` 添加可读别名 `loadEmbeddedModule`，已有消费者无需修改。
 - 新增 `scripts/build-resource-consumers.cjs`，基于 2.1.310 实际 `__cc310AssetPath` 字面量调用位置，核对全部 250 份资源的 SHA256、来源、类型、压缩方式和引用模块；其中 247 份有直接字面量调用位置，其余 3 份是独立附带 JS 文件。
 - `npm test` 增加资源调用索引的即时检查，以及新旧函数导出、Zstandard 解压、文件缺失异常契约测试。
 
@@ -114,36 +114,36 @@ npm run verify:runtime
 - `scripts/verify-function-ledger.cjs` 对登记项的源函数位置、测试文件和原 AST 全量函数摘要进行复查，`npm test` 每次执行，防止源代码或测试移除后还虚报覆盖。
 - 2551 个主模块的既有 AST 索引涵盖 **168102 个函数语法实体**，仅说明索引规模，不代表其已全部恢复语义。原版源码中没有证据的功能不要从通用 API 文档直接移植为“2.1.310 官方行为”。
 
-- 阶段 A/C 实际源码整理：将 `src/chunk-1nnn2mdy.js` 内的 4 个 Hook 来源、插件身份与工具匹配函数恢复为有业务命名、输入输出契约的可维护函数，旧 `QMn/ZMn/jhs/Whs` 导出保留为相同函数的别名；不改变 2.1.310 的识别规则。新增独立边界测试。
+- 阶段 A/C 实际源码整理：将 `chunk-1nnn2mdy.js` 内的 4 个 Hook 来源、插件身份与工具匹配函数恢复为有业务命名、输入输出契约的可维护函数，旧 `QMn/ZMn/jhs/Whs` 导出保留为相同函数的别名；不改变 2.1.310 的识别规则。新增独立边界测试。
 - 源码指纹校验已在 `npm test` 执行：源码改变后应同步更新 `resources/function-summary.json` 的完整代码哈希，防止把旧 AST 索引标为当前源码。
 
-- 阶段 A/D 新增对 `src/chunk-q85nvv4x.js` 的 Hook 事件消费者过滤函数语义恢复：从原短符号 `uun/HE` 恢复可读的托管策略模块识别与敏感 Hook 事件过滤实现，保持旧导出和按事件区别处理的权限边界，新增原模块导入实际链接与运行测试。未增加对其他权限规则的无证据猜测。
+- 阶段 A/D 新增对 `chunk-q85nvv4x.js` 的 Hook 事件消费者过滤函数语义恢复：从原短符号 `uun/HE` 恢复可读的托管策略模块识别与敏感 Hook 事件过滤实现，保持旧导出和按事件区别处理的权限边界，新增原模块导入实际链接与运行测试。未增加对其他权限规则的无证据猜测。
 
 - 阶段 A/D/E：原版 `chunk-y7venc25.js` 的 Plugin Eval、MCP serve、Agent JSON、Remote Control 与 Project Verb 五个命令识别函数恢复为具名、独立可读源码，保留全部已有公共导出及细节边界。运行回归测试验证命令识别；这只验收 CLI 分流函数，并不声称这些后台功能均可运行。
 
 
 ## 阶段 A/C 主查询循环与会话写入调用链
 
-- 追踪并通过 CI 静态复查 `src/chunk-tqjdehqd.js` 的原版 `pN -> Ou -> Du` 结构，明确外层会话保持 `Da` 的接入位置、内部 `Du` 的 Thinking 续接/工具收尾状态；见 `scripts/trace-query-loop-callchain.cjs`。
+- 追踪并通过 CI 静态复查 `chunk-tqjdehqd.js` 的原版 `pN -> Ou -> Du` 结构，明确外层会话保持 `Da` 的接入位置、内部 `Du` 的 Thinking 续接/工具收尾状态；见 `scripts/trace-query-loop-callchain.cjs`。
 - `tests/query-loop-recovery.test.cjs` 针对原始 `Au/Uf/Nf/qf/Gr/Pu/Qf/vu` 执行 8 组 Thinking、截断、消息队列及失败 tool_result 测试。
-- `tests/session-append-storage.test.cjs` 直接执行 `src/chunk-w9w4r9w1.js` 的 `D/Te/u`，覆盖持久化路径 Hook 变更、异常兜底、fills 与不可追加事件；这是与上层 `Da` 对应的存储端阶段检查。
+- `tests/session-append-storage.test.cjs` 直接执行 `chunk-w9w4r9w1.js` 的 `D/Te/u`，覆盖持久化路径 Hook 变更、异常兜底、fills 与不可追加事件；这是与上层 `Da` 对应的存储端阶段检查。
 - `resources/function-verification-ledger.json` 仅登记有限行为测试，所有登记项不得计作全功能恢复或已构建通过。
 
 ## 阶段 D 权限模板源函数恢复
 
-- `src/chunk-eq8vmbm3.js` 的五个原始导出恢复为具名函数，保留原版空缓存初始化、摘要匹配优先级及 `PreToolUse` 条件；原版恒真函数保留恒真语义，不能推定其已实现完整权限引擎。
+- `chunk-eq8vmbm3.js` 的五个原始导出恢复为具名函数，保留原版空缓存初始化、摘要匹配优先级及 `PreToolUse` 条件；原版恒真函数保留恒真语义，不能推定其已实现完整权限引擎。
 - `tests/permission-template-source.test.cjs` 从实际代码加载注册表逻辑与导出，覆盖空表、同表复用、哈希和 ID 匹配、大小写边界、旧符号一致性。
 
 - 阶段 C：对主代理原版流式模型改写函数 `chunk-x3dkgs4r.js::Sr` 新增 `tests/thinking-model-override.test.cjs`；严格执行原函数，覆盖 Thinking 未完成时保持原模型、安全切换、只提示一次和 Hook effort 更新。仅登记定向行为测试，不把这段测试算作完整恢复。
 
 ## 阶段 D MCP OAuth Issuer 回显校验
 
-- `src/chunk-x436erds.js` 五个 URL/Issuer 校验函数恢复可读名称，保留 `pt/pe/_t/mt/kUn` 全部原短符号调用；不改变默认 observe 模式、严格模式或 RFC 相关规则。
+- `chunk-x436erds.js` 五个 URL/Issuer 校验函数恢复可读名称，保留 `pt/pe/_t/mt/kUn` 全部原短符号调用；不改变默认 observe 模式、严格模式或 RFC 相关规则。
 - `tests/mcp-issuer-echo.test.cjs` 对原函数执行 9 组行为检查，覆盖 HTTP(S)、地址差异、跨源拦截、遥测失败隔离、功能开关失败回退和身份兼容；此为定向验证，完整 MCP OAuth 登录/刷新尚未端到端验收。
 
 ## MCP OAuth 生命周期恢复
 
-- `src/chunk-x436erds.js` 恢复 6 个可读 OAuth 流程与凭据清理函数，并保留 `jAi/WAi/LTr/Le/Dhi/Hhi` 原短符号。执行离线测试 `tests/mcp-oauth-lifecycle.test.cjs`，验证授权 Promise 竞争、没有令牌的持久化占位项清理、`offline_access`、微软 OAuth 发行者域名边界。远端认证仍未验证。
+- `chunk-x436erds.js` 恢复 6 个可读 OAuth 流程与凭据清理函数，并保留 `jAi/WAi/LTr/Le/Dhi/Hhi` 原短符号。执行离线测试 `tests/mcp-oauth-lifecycle.test.cjs`，验证授权 Promise 竞争、没有令牌的持久化占位项清理、`offline_access`、微软 OAuth 发行者域名边界。远端认证仍未验证。
 
 - 阶段 D Token Refresh：新增 `tests/mcp-oauth-refresh-lock.test.cjs` 直接执行 `Ben.refreshAuthorization` 和 `Ben.readConcurrentRefreshWinner` 原类方法，核对锁名、加锁参数、ELOCKED 重试、竞争赢家、刷新口令与异常释放，不涉及真实密钥或网络授权。
 
@@ -160,17 +160,17 @@ npm run verify:runtime
 - `resources/restored-symbol-aliases.json` 记录 10 个主模块中 38 个已改造成可读声明的原短符号接口，排除只增加测试、没有改源码的函数。
 - `scripts/check-restored-aliases.cjs` 校验可读声明、旧符号链接、已有定向行为测试三者同时存在，并由 `npm test` 持续执行。防止并行提交无声覆盖恢复实现；不因此宣称整个 Claude Code 语义或线上环境等价。
 
-- 阶段 D/E MCP 故障恢复：`src/chunk-fbc1ty1s.js` 的 `QRn/aZr` 已恢复可维护业务命名，原短名保留；测试验证失败/连接中状态筛选、当前配置一致性和可嵌套的重试引用计数。两项纳入函数证据与防回退清单，防止账户/配置漂移导致错误重试。
+- 阶段 D/E MCP 故障恢复：`chunk-fbc1ty1s.js` 的 `QRn/aZr` 已恢复可维护业务命名，原短名保留；测试验证失败/连接中状态筛选、当前配置一致性和可嵌套的重试引用计数。两项纳入函数证据与防回退清单，防止账户/配置漂移导致错误重试。
 
 - MCP 重试执行器闭环：`R6t` 恢复为 `retryFailedMcpConnections` 并保留旧引用，离线执行原逻辑验证退避延迟、身份换号、Abort、配置漂移、策略拒绝、成功发布与异常资源释放；此仅为模拟宿主执行，并未实现真实联网 MCP 端到端测试。
 
-- Agent/Worker 恢复分支：`src/chunk-g936x3jq.js` 的 `mfo/en/Un` 恢复可读命名并保留原短符号，直接执行原函数检查子代理 `tool_use_id` 关联、Agent ID 隔离、关机中断后的工具结果映射及文本回退；新增 7 项离线回归，尚不代表真实 Worker/OS 恢复流程已完整验收。
+- Agent/Worker 恢复分支：`chunk-g936x3jq.js` 的 `mfo/en/Un` 恢复可读命名并保留原短符号，直接执行原函数检查子代理 `tool_use_id` 关联、Agent ID 隔离、关机中断后的工具结果映射及文本回退；新增 7 项离线回归，尚不代表真实 Worker/OS 恢复流程已完整验收。
 
-- Daemon 安全恢复：`src/chunk-wapyem7a.js` 中旧式 `cc-daemon-*` 过期目录清理函数 `Zt` 恢复为 `pruneExpiredLegacyDaemonLogDirs`。添加真实源函数测试验证仍在使用的 UID/PID/哈希命名跳过、单 stderr.log 限制、截止时间、目录 inode 防竞态重验和失败不删除。此处仅为清理安全链，不含运行中 Daemon 进程复活。
+- Daemon 安全恢复：`chunk-wapyem7a.js` 中旧式 `cc-daemon-*` 过期目录清理函数 `Zt` 恢复为 `pruneExpiredLegacyDaemonLogDirs`。添加真实源函数测试验证仍在使用的 UID/PID/哈希命名跳过、单 stderr.log 限制、截止时间、目录 inode 防竞态重验和失败不删除。此处仅为清理安全链，不含运行中 Daemon 进程复活。
 
-- 阶段 D MCP 工具执行层：恢复 `src/chunk-r4g83g7p.js` 的 `Vg/Wg/Gg/Gd` 四个可读函数，保留原符号和协议分支。新增真实执行测试，覆盖 tools/list、resources/read 禁用缓存、tools/call 现代协议任务上下文、声明的任务引用以及旧协议不注入任务元信息；真实 MCP 远端服务仍未验收。
+- 阶段 D MCP 工具执行层：恢复 `chunk-r4g83g7p.js` 的 `Vg/Wg/Gg/Gd` 四个可读函数，保留原符号和协议分支。新增真实执行测试，覆盖 tools/list、resources/read 禁用缓存、tools/call 现代协议任务上下文、声明的任务引用以及旧协议不注入任务元信息；真实 MCP 远端服务仍未验收。
 
-- 阶段 E Agent 恢复链：`src/chunk-g936x3jq.js` 的 `dwr/cwr/sn` 已恢复具名代码，原短符号兼容。执行级检查覆盖冻结的恢复 agentId、Hook 来源继承、启动中断句柄释放、插件拒绝、历史消息 UUID 父链及压缩 UUID 一致性。未声称所有后台 Agent OS 进程恢复已完成。
+- 阶段 E Agent 恢复链：`chunk-g936x3jq.js` 的 `dwr/cwr/sn` 已恢复具名代码，原短符号兼容。执行级检查覆盖冻结的恢复 agentId、Hook 来源继承、启动中断句柄释放、插件拒绝、历史消息 UUID 父链及压缩 UUID 一致性。未声称所有后台 Agent OS 进程恢复已完成。
 
 - 阶段 E 子代理恢复链：恢复三条 notification/inline/reply 入口、恢复单飞锁 `it` 与 Agent 通知关联结果 `Yn` 的 5 个具名源码，保留原短符号。新增直接执行原函数的子代理并发隔离、正常/异常释放及元数据回填测试；此处并不宣称网络或进程恢复完整验收。
 
@@ -195,3 +195,8 @@ npm run verify:runtime
 - 为 Node 22 下嵌入的 Gaxios 客户端补充原生 `fetch` 入口，避免尝试加载未安装的 `node-fetch`；Bun 原有加载路径不变，已添加直接执行函数片段的回归测试。
 - 直接修复 MCP RPC 请求结束后未解除的 `AbortSignal` 监听，检查完成后迟到取消、正常进行中取消、超时与发送失败四类边界。该项属于客户端 RPC 生命周期，不等于原版打印模式 SIGINT 或外部 MCP 服务器已通过端到端验收。
 - 本节是本批修复的内容和可复测入口；具体是否通过以对应最新 GitHub Actions 日志为准，所有未授权联网/云端功能仍留在待验收范围内。
+
+
+## 源码根目录展平（2026-10-28）
+
+主程序 `cli.js`、`chunk-*.js`、vendor JS 已从 `src/` 平移到仓库根目录，Hook Worker 归入 `plugins/functionHooks/`。对应的完整迁移原件清单位于 `resources/layout/root-source-relocations.json`；38 项运行时导入需修改为 `./runtime/` 才能从根目录加载。`npm run check:root-source-relocation` 检查源文件 Git Blob、旧路径零残留和导入改动范围。功能真实验收以最新 GitHub Actions 与独立 E2E 的真实作业记录为准。

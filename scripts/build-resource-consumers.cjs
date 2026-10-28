@@ -6,7 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
-const src = path.join(root, 'src');
+const src = root;
 const bunfs = path.join(root, 'resources/bunfs');
 const provenance = JSON.parse(fs.readFileSync(path.join(root,'resources/manifest.json'),'utf8'));
 const layout = JSON.parse(fs.readFileSync(path.join(root,'resources/asset-layout.json'),'utf8'));
@@ -21,7 +21,7 @@ for(const file of sources){
  const code=fs.readFileSync(path.join(src,file),'utf8');
  for(const m of code.matchAll(pattern)){
   const consumers=seen.get(m[2]) || new Set();
-  consumers.add('src/'+file);
+  consumers.add(''+file);
   seen.set(m[2],consumers);
  }
 }
@@ -46,7 +46,7 @@ for(const name of activeNames){
  }
  const direct=[...(seen.get(name)||[])].sort();
  const loaders=entry?.kind==='bundled-runtime-library'
-   ?sources.filter(s=>fs.readFileSync(path.join(src,s),'utf8').includes('./'+name)).map(s=>'src/'+s).sort():[];
+   ?sources.filter(s=>fs.readFileSync(path.join(src,s),'utf8').includes('./'+name)).map(s=>''+s).sort():[];
  assert.ok(direct.length||loaders.length,'missing functional source consumer: '+name);
  results[name]={path:entry?.path??'resources/bunfs/'+name,kind:entry?.kind??'raw-original-resource',sha256:currentSha,literalConsumers:direct,sourceLoaderConsumers:loaders};
 }

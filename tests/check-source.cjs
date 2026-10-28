@@ -5,8 +5,8 @@ const vm = require('node:vm');
 const { createRequire } = require('node:module');
 const assert = require('node:assert/strict');
 
-const src = path.resolve(__dirname, '../src');
-const embeddedWorker = 'src/plugins/functionHooks/hooks-worker/hooks-worker.js';
+const src = path.resolve(__dirname, '..');
+const embeddedWorker = 'plugins/functionHooks/hooks-worker/hooks-worker.js';
 const nonModules = new Set(['mermaid.min.js', 'chart.umd.min.js', 'hljsBundle.generated.min.js']);
 const files = fs.readdirSync(src).filter(n => n.endsWith('.js') && !nonModules.has(n));
 const names = [...files, embeddedWorker];
@@ -32,7 +32,7 @@ for (const name of names) {
 // source module may import these files directly; check real named ESM exports.
 const runtimeFiles = ['assets.mjs', 'string-width.mjs'];
 for (const filename of runtimeFiles) {
-  const runtimeId = '../runtime/' + filename;
+  const runtimeId = 'runtime/' + filename;
   const runtimeText = fs.readFileSync(path.resolve(src, runtimeId), 'utf8');
   const runtimeModule = new vm.SourceTextModule(runtimeText, { identifier: runtimeId });
   modules.set(runtimeId, runtimeModule);

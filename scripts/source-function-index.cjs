@@ -9,11 +9,11 @@ let ts;
 try { ts = require('typescript'); }
 catch { ts = require(path.join(path.dirname(path.dirname(process.execPath)), 'lib/node_modules/typescript')); }
 const root = path.resolve(__dirname,'..');
-const src = path.join(root,'src');
+const src = root;
 const generated = path.join(root,'.generated');
 const summaryPath = path.join(root,'resources/function-summary.json');
 const files = fs.readdirSync(src).filter(n=>n.endsWith('.js') && !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort();
-files.push('src/plugins/functionHooks/hooks-worker/hooks-worker.js');
+files.push('plugins/functionHooks/hooks-worker/hooks-worker.js');
 assert.equal(files.length,2551);
 const index = {}, detailed = {};
 const summary = {version:'2.1.310',modules:files.length,functions:0,callExpressions:0,dynamicLiteralImports:0,missingRelativeImports:0,parseFailed:0};

@@ -6,15 +6,15 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const ts = require('typescript');
 const EXCLUDE = new Set(['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js']);
-const WORKER = 'src/src/plugins/functionHooks/hooks-worker/hooks-worker.js';
+const WORKER = 'plugins/functionHooks/hooks-worker/hooks-worker.js';
 const functionLike = n => ts.isFunctionDeclaration(n)||ts.isFunctionExpression(n)||
   ts.isArrowFunction(n)||ts.isMethodDeclaration(n)||ts.isConstructorDeclaration(n)||
   ts.isGetAccessorDeclaration(n)||ts.isSetAccessorDeclaration(n);
 const normalize = x => x.split(path.sep).join('/');
 function inputFiles(root) {
-  const src = path.join(root,'src');
+  const src = root;
   const names = fs.readdirSync(src).filter(x=>x.endsWith('.js')&&!EXCLUDE.has(x)).sort();
-  const files = names.map(x=>'src/'+x);
+  const files = names.map(x=>''+x);
   if (fs.existsSync(path.join(root, WORKER))) files.push(WORKER);
   for (const runtime of ['runtime/assets.mjs', 'runtime/string-width.mjs'])
     if (fs.existsSync(path.join(root, runtime))) files.push(runtime);

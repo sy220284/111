@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-tqjdehqd.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../chunk-tqjdehqd.js'),'utf8');
 
 function fallbackFixture({reasonHasHint=false}={}){
  const from=source.indexOf('function describeQueryModelFallback(e, o, n, r)');

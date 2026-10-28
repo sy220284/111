@@ -10,7 +10,7 @@ const {
   auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename,exactManifestPaths
 }=require('../scripts/check-restoration-delivery.cjs');
 
-const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
+const impl='chunk-demo.js', suite='tests/model-transport.test.cjs';
 const body=[
   '交付类别：功能恢复',
   '业务问题：真实 CLI 模型返回失败',
@@ -143,7 +143,7 @@ test('功能恢复不得同时弱化主源码工作流',()=>{
     '功能 PR 不得修改验收器');
 });
 test('目录分类匹配 111 的真实结构',()=>{
-  assert.equal(businessPath('src/plugin-testing-kit/collector.js'),true);
+  assert.equal(businessPath('plugin-testing-kit/collector.js'),true);
   assert.equal(businessPath('bin/claude-310.mjs'),true);
   assert.equal(businessPath('runtime/assets.mjs'),true);
   assert.equal(businessPath('resources/bunfs/native.node'),true);
@@ -153,7 +153,7 @@ test('目录分类匹配 111 的真实结构',()=>{
   assert.equal(categoryPathAllowed('文档维护','scripts/match.cjs'),false);
 });
 test('重命名源码内容相同仍不能视为业务修复',()=>{
-  assert.equal(classifyCodeChange({path:'src/new.js',status:'R100',
+  assert.equal(classifyCodeChange({path:'new.js',status:'R100',
     before:'export function f(){return 1}',after:'export function f(){return 1}'}),'none');
 });
 test('真实测试注册与断言识别',()=>{
@@ -196,7 +196,7 @@ test('源码重命名到 docs 仍识别为源码删除，不能用文档类别�
     g('add','-A');g('commit','-qm','改名');const head=g('rev-parse','HEAD');
     process.chdir(dir);
     const actual=inspectGit({pull_request:{base:{sha:base},head:{sha:head}}});
-    assert.ok(actual.changed.includes('src/active.js'));
+    assert.ok(actual.changed.includes('active.js'));
     assert.ok(actual.changed.includes('docs/active.js'));
     const r=auditDelivery({title:'文档整理',body:'交付类别：文档维护\n不计入功能恢复',
       changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
@@ -258,7 +258,7 @@ test('目录整理允许文件与测试的真实归档，但必须保留来源�
  const r=auditDelivery({title:'按业务整理目录',body,changed:files,
    testChanges:[{path:'tests/mcp/transport.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.equal(1,1));",status:'A'}]});
  assert.equal(r.ok,true,r.errors.join('\n'));
- assert.equal(categoryPathAllowed('目录整理','src/chunk-abc.js'),false);
+ assert.equal(categoryPathAllowed('目录整理','chunk-abc.js'),false);
  assert.equal(categoryPathAllowed('目录整理','resources/bunfs/raw.node'),false);
  assert.equal(categoryPathAllowed('目录整理','scripts/check-restoration-delivery.cjs'),false);
 });
@@ -267,7 +267,7 @@ test('目录整理拒绝没有迁移证据、测试或混入运行时文件',()=
  for(const changed of [
   ['docs/name.md','tests/model/m.test.cjs'],
   ['docs/name.md','resources/layout/relocations.json'],
-  ['docs/name.md','tests/model/m.test.cjs','resources/layout/relocations.json','src/chunk-x.js']]){
+  ['docs/name.md','tests/model/m.test.cjs','resources/layout/relocations.json','chunk-x.js']]){
   const result=auditDelivery({title:'整理',body,changed});
   assert.equal(result.ok,false);
  }
@@ -294,7 +294,7 @@ test('真实历史703用例仅迁移时委托专用完整工作流，其他场�
 
 
 test('目录整理对经过Git原始字节及清单验证的独立源码重命名单独认可',()=>{
- const old='src/embedded/runtime/state-library.js',current='embedded/runtime/state-library.js';
+ const old='embedded/runtime/state-library.js',current='embedded/runtime/state-library.js';
  const base={title:'独立源码归档',body:'交付类别：目录整理\n不计入功能恢复',
   changed:[old,current,'resources/layout/relocations.json','docs/architecture/structure.md','tests/runtime/a.test.cjs'],
   testChanges:[{path:'tests/runtime/a.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('ok',()=>assert.ok(true));",status:'A'}]};
@@ -303,20 +303,20 @@ test('目录整理对经过Git原始字节及清单验证的独立源码重命�
  assert.ok(before.errors.some(x=>x.includes('运行态源码')));
  const accepted=auditDelivery({...base,verifiedRelocations:[{old,current}]});
  assert.equal(accepted.ok,true,accepted.errors.join('\\n'));
- const modified=auditDelivery({...base,changed:[...base.changed,'src/chunk-target.js'],verifiedRelocations:[{old,current}]});
+ const modified=auditDelivery({...base,changed:[...base.changed,'chunk-target.js'],verifiedRelocations:[{old,current}]});
  assert.equal(modified.ok,false);
  assert.ok(modified.errors.some(x=>x.includes('运行态源码')));
 });
 
 
 test('目录整理资源清单只接受实际文件完整搬迁后的路径变更',()=>{
- const records=new Map([['resources/tools/design-sync/a.mjs','tools/bundled/design-sync/a.mjs'],['src/embedded/runtime/state-library.js','embedded/runtime/state-library.js']]);
+ const records=new Map([['resources/tools/design-sync/a.mjs','tools/bundled/design-sync/a.mjs'],['embedded/runtime/state-library.js','embedded/runtime/state-library.js']]);
  const asset={version:'1',entries:{a:{path:'resources/tools/design-sync/a.mjs',decodedSha256:'stable'}}};
  const assetNew={version:'1',entries:{a:{path:'tools/bundled/design-sync/a.mjs',decodedSha256:'stable'}}};
  assert.equal(exactManifestPaths(asset,assetNew,records,'asset'),true);
  assert.equal(exactManifestPaths(asset,{...assetNew,entries:{a:{...assetNew.entries.a,decodedSha256:'mutated'}}},records,'asset'),false);
  assert.equal(exactManifestPaths(asset,assetNew,new Map(),'asset'),false);
- const embedded={version:'1',entries:[{old:'original.mjs',path:'src/embedded/runtime/state-library.js',gitBlobSha1:'unchanged'}]};
+ const embedded={version:'1',entries:[{old:'original.mjs',path:'embedded/runtime/state-library.js',gitBlobSha1:'unchanged'}]};
  const embeddedNew={version:'1',entries:[{...embedded.entries[0],path:'embedded/runtime/state-library.js'}]};
  assert.equal(exactManifestPaths(embedded,embeddedNew,records,'embedded'),true);
  assert.equal(exactManifestPaths(embedded,{...embeddedNew,entries:[{...embeddedNew.entries[0],gitBlobSha1:'changed'}]},records,'embedded'),false);
@@ -349,5 +349,5 @@ test('原始工具来源JSON只能R100归入 resources/layout，不允许修改�
  after:"const {test}=require('node:test');const assert=require('node:assert');test('check',()=>assert.ok(true));"}]};
  assert.equal(auditDelivery(base).ok,false);
  assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}]}).ok,true);
- assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}],changed:[...base.changed,'src/chunk-1234.js']}).ok,false);
+ assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}],changed:[...base.changed,'chunk-1234.js']}).ok,false);
 });

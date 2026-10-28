@@ -10,11 +10,11 @@ from jelly_triage import classify_candidates
 FIELDS=("调用模块","调用行","调用列","候选目标模块","候选目标行",
         "候选目标列","与原有111索引关系","静态来源","已运行确权")
 CANDIDATES = [
- ("src/a.js","2","3","src/b.js","8","5","111_unresolved_exact_callsite","jelly_static_points_to","否"),
- ("src/a.js","3","3","src/b.js","8","5","111_unresolved_exact_callsite","jelly_static_points_to","否"),
- ("src/a.js","3","3","src/a.js","4","1","111_unresolved_exact_callsite","jelly_static_points_to","否"),
- ("src/a.js","4","3","src/b.js","9","5","111_unresolved_exact_callsite","jelly_static_points_to","否"),
- ("src/a.js","7","3","src/b.js","8","5","not_in_111_unresolved","jelly_static_points_to","否"),
+ ("a.js","2","3","b.js","8","5","111_unresolved_exact_callsite","jelly_static_points_to","否"),
+ ("a.js","3","3","b.js","8","5","111_unresolved_exact_callsite","jelly_static_points_to","否"),
+ ("a.js","3","3","a.js","4","1","111_unresolved_exact_callsite","jelly_static_points_to","否"),
+ ("a.js","4","3","b.js","9","5","111_unresolved_exact_callsite","jelly_static_points_to","否"),
+ ("a.js","7","3","b.js","8","5","not_in_111_unresolved","jelly_static_points_to","否"),
 ]
 
 class TriageTests(unittest.TestCase):
@@ -24,11 +24,11 @@ class TriageTests(unittest.TestCase):
         self.graph = {
           "summary":{"unresolvedCallExpressions":4},
           "unresolvedCallsites":[
-            {"file":"src/a.js","line":i,"column":3,"reason":"property_or_namespace_unresolved",
-             "owner":"src/a.js#f","callee":"obj.call"}
+            {"file":"a.js","line":i,"column":3,"reason":"property_or_namespace_unresolved",
+             "owner":"a.js#f","callee":"obj.call"}
             for i in (2,3,4,5)]
         }
-        self.functions={"src/b.js":[{"name":"realFn","line":8,"column":5}]}
+        self.functions={"b.js":[{"name":"realFn","line":8,"column":5}]}
         with (self.report / "Jelly跨分析器调用候选.tsv").open("w",encoding="utf8",newline="") as f:
             w=csv.writer(f,delimiter="\t")
             w.writerow(FIELDS)
@@ -54,7 +54,7 @@ class TriageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"misclassified"):classify_candidates(self.report,self.graph,self.functions)
     def test_111_function_index_filename_has_no_src_prefix(self):
         # The real recovered function-index file stores top-level source keys
-        # as "chunk-...js", while Jelly locations include "src/".
+        # as "chunk-...js", while Jelly locations include "".
         self.functions={"b.js":[{"name":"realFn","line":8,"column":5}]}
         result=classify_candidates(self.report,self.graph,self.functions)
         self.assertEqual(result["singleIndexedStaticCandidateCallsites"],1)
@@ -64,9 +64,9 @@ class TriageTests(unittest.TestCase):
     def test_same_position_nested_ast_calls_are_ambiguous_even_with_one_jelly_target(self):
         # Nested calls f()() can share the same AST start location.
         self.graph["unresolvedCallsites"].append({
-            "file":"src/a.js","line":2,"column":3,
+            "file":"a.js","line":2,"column":3,
             "reason":"local_binding_or_parameter",
-            "owner":"src/a.js#nested","callee":"f()"})
+            "owner":"a.js#nested","callee":"f()"})
         self.graph["summary"]["unresolvedCallExpressions"] += 1
         result=classify_candidates(self.report,self.graph,self.functions)
         self.assertEqual(result["distinctPreviouslyUnresolvedCallsitesWithCandidates"],3)
@@ -89,15 +89,15 @@ class TriageTests(unittest.TestCase):
     def test_mistagged_jelly_unresolved_position_is_rejected(self):
         contents=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         contents=contents.replace(
-            "src/a.js\t2\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite",
-            "src/a.js\t2\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved")
+            "a.js\t2\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite",
+            "a.js\t2\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(contents,encoding="utf8")
         with self.assertRaisesRegex(ValueError,"incorrectly tagged"):
             classify_candidates(self.report,self.graph,self.functions)
 
     def test_unresolved_source_tag_must_be_present_in_primary_graph(self):
         s=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
-        (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("src/a.js\t7\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved","src/a.js\t7\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite"),encoding="utf8")
+        (self.report/"Jelly跨分析器调用候选.tsv").write_text(s.replace("a.js\t7\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved","a.js\t7\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite"),encoding="utf8")
         with self.assertRaisesRegex(ValueError,"Invalid unresolved"):classify_candidates(self.report,self.graph,self.functions)
 
 if __name__=="__main__":unittest.main()

@@ -6,8 +6,8 @@ import { join, dirname, sep } from 'node:path';
 import { createHash as hashForLayout } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { resolveEmbeddedPath, isEmbeddedPath, embeddedRoot, loadEmbeddedRequire } from '../runtime/assets.mjs';
-import { Nwo, Xft, dt, readEmbeddedAssetBytes, readEmbeddedAssetText, readEmbeddedAssetTextAsync } from '../src/chunk-6gaf2snv.js';
-import { Fe, loadEmbeddedModule } from '../src/chunk-a2y39866.js';
+import { Nwo, Xft, dt, readEmbeddedAssetBytes, readEmbeddedAssetText, readEmbeddedAssetTextAsync } from '../chunk-6gaf2snv.js';
+import { Fe, loadEmbeddedModule } from '../chunk-a2y39866.js';
 
 const require = createRequire(import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('../resources/manifest.json', import.meta.url), 'utf8'));
@@ -66,7 +66,7 @@ test('从源码加载 2.1.310 的原生插件（仅验证导出，不触碰硬�
 // In v2 these 11 real content files were absent, causing eager skill-module imports
 // to fail. Loading the exact 2.1.310 resource-bearing module is a functional test.
 test('恢复的 11 份原版内嵌资源实际参与技能加载，105 份技能文档齐全', async () => {
-  const { SKILL_FILES } = await import('../src/chunk-7kf9j3c4.js');
+  const { SKILL_FILES } = await import('../chunk-7kf9j3c4.js');
   assert.equal(Object.keys(SKILL_FILES).length, 105);
   for (const [path, source] of Object.entries(SKILL_FILES)) {
     assert.equal(typeof source, 'string', path);

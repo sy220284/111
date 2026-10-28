@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const path=require('node:path');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-23vy5pjb.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../chunk-23vy5pjb.js'),'utf8');
 function fixture({allowed=true,blocked,policyPending=false,now=7200000}={}){
  const start=source.indexOf('function safeTaskFileId(r)');
  const end=source.indexOf('function rTi(r,e,n)',start);

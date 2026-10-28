@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - 'tests/cli-live-model-turn.test.cjs'
-      - 'src/**'
+      - '*.js'
+      - 'plugins/**'
       - 'embedded/**'
       - 'plugin-testing-kit/**'
       - 'tools/bundled/**'
@@ -17,7 +18,8 @@ on:
     branches: [main]
     paths:
       - 'tests/cli-live-model-turn.test.cjs'
-      - 'src/**'
+      - '*.js'
+      - 'plugins/**'
       - 'embedded/**'
       - 'plugin-testing-kit/**'
       - 'tools/bundled/**'

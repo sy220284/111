@@ -6,7 +6,7 @@ const path=require('node:path');
 const assert=require('node:assert/strict');
 const ts=require('typescript');
 const root=path.resolve(__dirname,'..');
-const src=path.join(root,'src');
+const src=root;
 
 function extractLoaderSites(code,file){
   const ast=ts.createSourceFile(file,code,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
@@ -40,7 +40,7 @@ function resolveRelative(file,target){
 function audit(){
   const names=fs.readdirSync(src).filter(n=>n.endsWith('.js')&&
     !['chart.umd.min.js','hljsBundle.generated.min.js','mermaid.min.js'].includes(n)).sort();
-  names.push('src/plugins/functionHooks/hooks-worker/hooks-worker.js');
+  names.push('plugins/functionHooks/hooks-worker/hooks-worker.js');
   assert.equal(names.length,2551,'main source inventory changed');
   const kinds={import:0,require:0,'import.meta.require':0};
   const computed=[],unresolved=[],nonRelative=[];

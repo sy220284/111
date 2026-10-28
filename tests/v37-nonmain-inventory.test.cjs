@@ -34,7 +34,7 @@ test('JS AST distinguishes executable tool sources from vendor bundles and nativ
  assert.equal(category('resources/tools/design-sync/package-build.mjs'),'bundled_tool_sources');
  assert.equal(category('resources/tools/evaluation/prefix_diff.py'),'bundled_tool_sources');
  assert.equal(category('resources/bunfs/clipboard-napi.node'),'other_embedded_resources');
- assert.equal(category('src/mermaid.min.js'),'prebuilt_vendor_bundle');
+ assert.equal(category('mermaid.min.js'),'prebuilt_vendor_bundle');
  const s=astMetrics("export const a = x=>x; export async function f(x){return import('./adapter.js')}",'example.js');
  assert.equal(s.functions,2);
  assert.equal(s.dynamicImports,1);
@@ -75,7 +75,7 @@ test('设计同步与浏览器工具归属固定、保留已知未验证的真�
   const m=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
   assert.equal(m.migrated.length,expectedMoved);
   assert.equal(m.supporting.length,expectedSupporting);
-  for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path.startsWith('resources/tools/')?'tools/bundled/'+e.path.slice('resources/tools/'.length):e.path.startsWith('src/embedded/')?'embedded/'+e.path.slice('src/embedded/'.length):e.path)));
+  for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path.startsWith('resources/tools/')?'tools/bundled/'+e.path.slice('resources/tools/'.length):e.path.startsWith('embedded/')?'embedded/'+e.path.slice('embedded/'.length):e.path)));
  }
  const design=JSON.parse(fs.readFileSync(path.join(root,'resources/layout/design-sync-source-layout.json'),'utf8'));
  assert.equal(design.runtimeNotYetVerified.length,2);

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-fbc1ty1s.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../chunk-fbc1ty1s.js'),'utf8');
 
 function harness({clientType='failed',abortOnWait=false,changeAccountOnWait=false,blocked=false,
   dialFailure=false,eligibleConfig={url:'https://mcp.example'}}={}){

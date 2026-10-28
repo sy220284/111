@@ -8,7 +8,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const ts=require('typescript');
 
-const file=path.resolve(__dirname,'../src/chunk-wrtp8qz8.js');
+const file=path.resolve(__dirname,'../chunk-wrtp8qz8.js');
 const ast=ts.createSourceFile(file,fs.readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const names=['intersperseArray','countMatching','uniqueIterable'];
 const legacy=['Hxe','F','L'];

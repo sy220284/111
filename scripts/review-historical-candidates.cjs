@@ -156,7 +156,7 @@ function audit(plan,oldRoot,newRoot){
 }
 function main(argv){
  const arg=k=>{const i=argv.indexOf(k);return i<0?null:argv[i+1]};
- const input=arg('--candidates'),old=arg('--old'),newRoot=arg('--new')||path.resolve(__dirname,'../src'),
+ const input=arg('--candidates'),old=arg('--old'),newRoot=arg('--new')||path.resolve(__dirname,'..'),
   output=arg('--out')||'.generated/historical-703-reviewed.json';
  if(!input||!old)throw Error('need --candidates <full-manifest> --old <2.1.88/src>');
  const manifest=JSON.parse(fs.readFileSync(input,'utf8'));

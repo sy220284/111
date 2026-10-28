@@ -77,7 +77,7 @@ function verifyLedger() {
   const seen = new Set();
   for (const row of ledger.entries) {
     assert.equal(row.status, 'targeted_behavior_test_only');
-    assert.ok(row.source.startsWith('src/') && row.test.startsWith('tests/'));
+    assert.ok(!row.source.startsWith('src/') && row.test.startsWith('tests/'));
     const key = row.source + '::' + row.symbol;
     assert.ok(!seen.has(key), 'duplicate evidence: ' + key);
     seen.add(key);

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-fbc1ty1s.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../chunk-fbc1ty1s.js'),'utf8');
 
 function fixture({clients=[],transient=new Map()}={}){
  const start=source.indexOf('function findRetryableMcpConnections(n, o, e = !0)');
