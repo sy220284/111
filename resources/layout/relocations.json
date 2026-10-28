@@ -3,8 +3,8 @@
   "baseCommit": "cd36d5df94b496efbc12d826891268eb64cee869",
   "description": "Source path to categorized current path, preserving pinned historical references",
   "counts": {
-    "tests": 68,
-    "documents": 11,
+    "tests": 76,
+    "documents": 12,
     "embeddedSources": 24,
     "pluginSources": 294,
     "bundledToolSources": 56
@@ -2727,6 +2727,60 @@
       "current": "plugin-testing-kit/types/test/test-options/plugin/index.js",
       "originalGitBlob": "e14e95a2271ce38bfb1a8e928f287e13ba8a0522",
       "kind": "plugin-source"
+    },
+    {
+      "old": "tests/cli-live-daemon-supervisor.test.cjs",
+      "current": "tests/daemon/cli-live-daemon-supervisor.test.cjs",
+      "originalGitBlob": "818efe21b5dddb376034d54448492b765c247d3d",
+      "kind": "test"
+    },
+    {
+      "old": "tests/cli-live-mcp-tool-model-e2e.test.cjs",
+      "current": "tests/cli/cli-live-mcp-tool-model-e2e.test.cjs",
+      "originalGitBlob": "4659c94329eee74b8c582d43665d72968a13ef36",
+      "kind": "test"
+    },
+    {
+      "old": "tests/cli-live-model-turn.test.cjs",
+      "current": "tests/cli/cli-live-model-turn.test.cjs",
+      "originalGitBlob": "11cd53f9c1a4b2a34c0434cd0f4d145d750f3898",
+      "kind": "test"
+    },
+    {
+      "old": "tests/historical-array-parity.test.cjs",
+      "current": "tests/restoration/historical-array-parity.test.cjs",
+      "originalGitBlob": "27dde212089914773ee9e276f90a2dd857362cd4",
+      "kind": "test"
+    },
+    {
+      "old": "tests/historical-business-chains.test.cjs",
+      "current": "tests/restoration/historical-business-chains.test.cjs",
+      "originalGitBlob": "2e2ce8934d48b7c2c49a5a69c94d1c9493164484",
+      "kind": "test"
+    },
+    {
+      "old": "tests/historical-live-module-import.test.mjs",
+      "current": "tests/restoration/historical-live-module-import.test.mjs",
+      "originalGitBlob": "b238e5ce171a9a3ac5f9c4232d7eeeff89b6382d",
+      "kind": "test"
+    },
+    {
+      "old": "tests/historical-permission-rule-parity.test.cjs",
+      "current": "tests/restoration/historical-permission-rule-parity.test.cjs",
+      "originalGitBlob": "03663c0eac4790555cb37aa966967f456e8d0e6b",
+      "kind": "test"
+    },
+    {
+      "old": "tests/v45-real-business-703.test.cjs",
+      "current": "tests/restoration/v45-real-business-703.test.cjs",
+      "originalGitBlob": "954c22fa465c569f93e8408654cbf35410f10a03",
+      "kind": "test"
+    },
+    {
+      "old": "docs/v45_703_调用依赖_真实源码修复与验收.md",
+      "current": "docs/restoration/v45/v45_703_调用依赖_真实源码修复与验收.md",
+      "originalGitBlob": "1e5ba258e89cb1f9877f5cf72a33e7088a5e81ef",
+      "kind": "document"
     }
   ]
 }
