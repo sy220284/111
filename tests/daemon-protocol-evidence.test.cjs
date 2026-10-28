@@ -9,10 +9,11 @@ const file=path.resolve(__dirname,'../src/chunk-t2adf9g4.js');
 const ast=ts.createSourceFile(file,fs.readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const entries={at:'daemonLocalRecordPath',Ue:'daemonStorageRecordKey',yt:'daemonStorageJsonKey',Ee:'isDaemonRegistryDirectoryAvailable',Gn:'readDaemonGestureRecord',nn:'parseDaemonGestureRecord',rn:'isDaemonProcessGoneOrReused',qn:'isDaemonRosterRecordStale',tr:'mapDaemonErrorCode',Te:'bufferMatchesAtOffset',Ie:'countBufferPrefixOverlap',y3t:'classifyDaemonSessionTarget'};
 function fixture(other={}){
- const needed=new Set([...Object.values(entries),'$e']);
+ const needed=new Set([...Object.values(entries),'isDaemonRecordExpired']);
  const parts=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&needed.has(n.name?.text)).map(n=>n.getText(ast));
  assert.equal(parts.length,needed.size);
  for(const [oldName,newName] of Object.entries(entries))parts.push('const '+oldName+'='+newName+';');
+ parts.push('const $e=isDaemonRecordExpired;');
  const dependencies={pe:(a,b)=>a+'/'+b,iye:()=>'/daemon',E3n:'beacon',We:{daemon:p=>p.join('|')},rt:async()=>({isDirectory:()=>true,mtimeMs:100}),E:e=>e.code,bl:async()=>null,ot:999,te:JSON.parse,Xa:()=>true,kd:async()=>123,wt:1000,an:{EAGAIN:'temporary'},Sht:/^cloud:/,...other};
  const names=[...Object.keys(entries),...Object.values(entries)].join(',');
  return vm.runInNewContext(parts.join('\n')+';({'+names+'})',dependencies);
