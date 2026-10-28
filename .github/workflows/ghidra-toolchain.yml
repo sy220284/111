@@ -84,10 +84,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      DEV111_TOOLS_ROOT: ${{ runner.temp }}/111-installed
-      DEV111_STATE_DIR: ${{ runner.temp }}/111-state
-      DEV111_TOOLCHAIN_ENV_FILE: ${{ runner.temp }}/111-env
-      DEV111_ARTIFACTS_DIR: ${{ runner.temp }}/111-artifacts
+      DEV111_TOOLS_ROOT: ${{ github.workspace }}/.111-installed
+      DEV111_STATE_DIR: ${{ github.workspace }}/.111-state
+      DEV111_TOOLCHAIN_ENV_FILE: ${{ github.workspace }}/.111-env
+      DEV111_ARTIFACTS_DIR: ${{ github.workspace }}/.111-artifacts
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
