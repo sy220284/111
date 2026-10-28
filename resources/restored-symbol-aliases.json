@@ -920,6 +920,72 @@
       "legacy": "Hee",
       "readable": "deleteJob",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Xmr",
+      "readable": "detachAndSerializeShell",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "ZPn",
+      "readable": "collectFrameLiveConsent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Ino",
+      "readable": "emitAdoptAgentDenied",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "nIn",
+      "readable": "emitAdoptAgentFailed",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "E8t",
+      "readable": "emitAdoptWorkflowFailed",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Tno",
+      "readable": "linkAdoptedAgentTranscript",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Rno",
+      "readable": "linkAdoptedWorkflowDir",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Ano",
+      "readable": "relinkAdoptedAgentSymlinks",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "xno",
+      "readable": "resolveAdoptedScriptPath",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-bwt94x0y.js",
+      "legacy": "Ono",
+      "readable": "adoptCron",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "legacy": "Kat",
+      "readable": "replyToJob",
+      "style": "constAlias"
     }
   ]
 }
