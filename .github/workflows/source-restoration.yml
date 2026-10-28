@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'resources/**'
       - 'runtime/**'
       - 'scripts/**'
@@ -16,6 +19,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'resources/**'
       - 'runtime/**'
       - 'scripts/**'

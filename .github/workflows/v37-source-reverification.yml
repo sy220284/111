@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'scripts/audit-v37-source.cjs'
       - 'resources/research/v37-reviewed.json'
       - 'tests/v37-source-audit.test.cjs'
@@ -13,6 +16,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'scripts/audit-v37-source.cjs'
       - 'resources/research/v37-reviewed.json'
       - 'tests/v37-source-audit.test.cjs'

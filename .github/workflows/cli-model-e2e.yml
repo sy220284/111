@@ -6,6 +6,9 @@ on:
     paths:
       - 'tests/cli-live-model-turn.test.cjs'
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'bin/**'
       - 'runtime/**'
       - 'package.json'
@@ -15,6 +18,9 @@ on:
     paths:
       - 'tests/cli-live-model-turn.test.cjs'
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'bin/**'
       - 'runtime/**'
       - 'package.json'

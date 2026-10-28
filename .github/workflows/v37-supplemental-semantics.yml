@@ -3,8 +3,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/plugin-testing-kit/**'
-      - 'src/embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'embedded/**'
       - 'scripts/audit-v37-supplemental.cjs'
       - 'resources/research/v37-supplemental-semantics.json'
       - 'tests/v37-supplemental-*.test.cjs'
@@ -12,8 +12,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/plugin-testing-kit/**'
-      - 'src/embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'embedded/**'
       - 'scripts/audit-v37-supplemental.cjs'
       - 'resources/research/v37-supplemental-semantics.json'
       - 'tests/v37-supplemental-*.test.cjs'

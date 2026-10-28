@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'runtime/**'
       - 'bin/**'
       - 'tests/cli-live-daemon-supervisor.test.cjs'
@@ -13,6 +16,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'runtime/**'
       - 'bin/**'
       - 'tests/cli-live-daemon-supervisor.test.cjs'

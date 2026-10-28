@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'embedded/**'
+      - 'plugin-testing-kit/**'
+      - 'tools/bundled/**'
       - 'scripts/source-function-index.cjs'
       - '.github/workflows/source-index-evidence.yml'
 permissions:
