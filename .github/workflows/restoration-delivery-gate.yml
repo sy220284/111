@@ -24,20 +24,30 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22.16.0'
-      - name: 按 lockfile 安装 AST 检查依赖（禁止安装脚本）
+      - name: 安装 PR 的测试依赖，禁用安装脚本
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: 使用 PR base 原版门禁审查，禁止 PR 自改验证器自放行
+      - name: 按 PR base 锁文件隔离安装可信检查器依赖
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          NODE_PATH: ${{ github.workspace }}/node_modules
         run: |
           set -euo pipefail
-          git show "$BASE_SHA:scripts/check-restoration-delivery.cjs" > "$RUNNER_TEMP/trusted-restoration-gate.cjs"
-          node "$RUNNER_TEMP/trusted-restoration-gate.cjs"
-      - name: 测试候选门禁的正反例
+          trusted="$RUNNER_TEMP/111-gate-trusted"
+          mkdir -p "$trusted"
+          git show "$BASE_SHA:package.json" > "$trusted/package.json"
+          git show "$BASE_SHA:package-lock.json" > "$trusted/package-lock.json"
+          git show "$BASE_SHA:scripts/check-restoration-delivery.cjs" > "$trusted/trusted-gate.cjs"
+          npm ci --prefix "$trusted" --ignore-scripts --no-audit --no-fund
+      - name: 使用可信基线验证器检查真实 PR，并运行所改动的测试
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/111-gate-trusted/node_modules
+        run: |
+          set -euo pipefail
+          node "$RUNNER_TEMP/111-gate-trusted/trusted-gate.cjs"
+      - name: 验证门禁提案自己的正反例
         run: node --test tests/restoration-delivery-gate.test.cjs
-      - name: 门禁源码变更时也执行提案自身的验证与增量测试
+      - name: 门禁源码变更时也执行提案自身验证
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
