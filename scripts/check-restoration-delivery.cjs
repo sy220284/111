@@ -164,7 +164,7 @@ function checkScriptIntegrity(before, after) {
   }
   return errors;
 }
-function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null,verifiedRelocations=[]}) {
+function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[],packageBefore=null,packageAfter=null,verifiedRelocations=[],verifiedMetadata=[]}) {
   const errors=[], warnings=[];
   const category=field(body,'交付类别');
   if (!CATEGORIES.has(category)) errors.push('必须声明唯一有效的交付类别');
@@ -204,7 +204,7 @@ function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges
   } else if (CATEGORIES.has(category)) {
     if (!/^\s*不计入功能恢复\s*$/m.test(body)) errors.push('非恢复类必须独立声明“不计入功能恢复”');
     if (implementation.length) errors.push('非恢复类不得夹带运行态源码或资源变更');
-    const unexpected=changed.filter(p=>!categoryPathAllowed(category,p)&&!sanctioned.has(p));
+    const unexpected=changed.filter(p=>!categoryPathAllowed(category,p)&&!sanctioned.has(p)&&!(category==='目录整理'&&verifiedMetadata.includes(p)));
     if (unexpected.length) errors.push('交付类别与实际修改范围不符：'+unexpected.join(', '));
     if (category==='独立测试' && !tests.length) errors.push('独立测试类没有实际修改测试');
     if(category==='目录整理'){
@@ -323,6 +323,51 @@ function verifiedStandaloneSourceMoves(changes,head){
  }
  return approved;
 }
+// 只接受经原文件与 Git R100 重命名逐字节验证的磁盘路径变更，其他字段原样保留。
+function exactManifestPaths(before,after,relocations,type){
+ const expected=JSON.parse(JSON.stringify(before));
+ let altered=0;
+ const upgrade=old=>{
+  const dest=type==='asset'&&old.startsWith('resources/tools/')?'tools/bundled/'+old.slice('resources/tools/'.length):
+    type==='embedded'&&old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):null;
+  if(!dest)return null;
+  const move=relocations.get(old);
+  if(!move || move!==dest)return null;
+  altered++;
+  return dest;
+ };
+ if(type==='asset')for(const item of Object.values(expected.entries)){
+  const next=upgrade(item.path);if(next)item.path=next;
+ }else if(type==='embedded')for(const item of expected.entries){
+  const next=upgrade(item.path);if(next)item.path=next;
+ }else return false;
+ return altered>0 && JSON.stringify(expected)===JSON.stringify(after);
+}
+function verifiedManifestRelocations(changes,head){
+ const manifestBytes=gitAt(head,'resources/layout/relocations.json');
+ if(!manifestBytes)return [];
+ const rows=JSON.parse(manifestBytes.toString('utf8')).files;
+ const moved=new Map();
+ for(const item of changes.diffs){
+  if(item.status!=='R100'||item.oldPath===item.path)continue;
+  const row=rows.find(x=>x.old===item.oldPath && x.current===item.path);
+  if(!row)continue;
+  const bytes=gitAt(changes.ancestor,item.oldPath),after=gitAt(head,item.path);
+  if(!bytes||!after||!bytes.equals(after))continue;
+  const sha=crypto.createHash('sha1').update('blob '+bytes.length+String.fromCharCode(0)).update(bytes).digest('hex');
+  if(row.originalGitBlob!==sha)continue;
+  moved.set(item.oldPath,item.path);
+ }
+ const checked=[];
+ for(const [file,type]of [['resources/asset-layout.json','asset'],['resources/embedded-source-layout.json','embedded']]){
+  const change=changes.diffs.find(x=>x.path===file && x.oldPath===file);
+  if(!change)continue;
+  const rawBefore=gitAt(changes.ancestor,file),rawAfter=gitAt(head,file);
+  if(!rawBefore||!rawAfter)continue;
+  if(exactManifestPaths(JSON.parse(rawBefore),JSON.parse(rawAfter),moved,type))checked.push(file);
+ }
+ return checked;
+}
 function runChangedTests(report, changes) {
   if(!report.ok) return;
   if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试' && report.category!=='目录整理') return;
@@ -350,6 +395,7 @@ function main() {
     changed:changes.changed,
     sourceChanges:changes.sourceChanges,testChanges:changes.testChanges,
     verifiedRelocations:verifiedStandaloneSourceMoves(changes,event.pull_request.head.sha),
+    verifiedMetadata:verifiedManifestRelocations(changes,event.pull_request.head.sha),
     packageBefore:gitAt(changes.ancestor,'package.json'),
     packageAfter:gitAt(event.pull_request.head.sha,'package.json')
   });
@@ -374,4 +420,4 @@ function main() {
 }
 if(require.main===module)main();
 module.exports={field,businessPath,testPath,docPath,categoryPathAllowed,astShape,
-  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename,verifiedStandaloneSourceMoves};
+  classifyCodeChange,registeredTest,checkScriptIntegrity,auditDelivery,gitDiff,inspectGit,runChangedTests,delegatedHistoricalRename,verifiedStandaloneSourceMoves,verifiedManifestRelocations,exactManifestPaths};

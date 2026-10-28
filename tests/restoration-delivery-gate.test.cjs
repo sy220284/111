@@ -7,7 +7,7 @@ const path=require('node:path');
 const cp=require('node:child_process');
 const {
   field,businessPath,testPath,categoryPathAllowed,classifyCodeChange,registeredTest,
-  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename
+  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename,exactManifestPaths
 }=require('../scripts/check-restoration-delivery.cjs');
 
 const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
@@ -306,4 +306,23 @@ test('目录整理对经过Git原始字节及清单验证的独立源码重命�
  const modified=auditDelivery({...base,changed:[...base.changed,'src/chunk-target.js'],verifiedRelocations:[{old,current}]});
  assert.equal(modified.ok,false);
  assert.ok(modified.errors.some(x=>x.includes('运行态源码')));
+});
+
+
+test('目录整理资源清单只接受实际文件完整搬迁后的路径变更',()=>{
+ const records=new Map([['resources/tools/design-sync/a.mjs','tools/bundled/design-sync/a.mjs'],['src/embedded/runtime/state-library.js','embedded/runtime/state-library.js']]);
+ const asset={version:'1',entries:{a:{path:'resources/tools/design-sync/a.mjs',decodedSha256:'stable'}}};
+ const assetNew={version:'1',entries:{a:{path:'tools/bundled/design-sync/a.mjs',decodedSha256:'stable'}}};
+ assert.equal(exactManifestPaths(asset,assetNew,records,'asset'),true);
+ assert.equal(exactManifestPaths(asset,{...assetNew,entries:{a:{...assetNew.entries.a,decodedSha256:'mutated'}}},records,'asset'),false);
+ assert.equal(exactManifestPaths(asset,assetNew,new Map(),'asset'),false);
+ const embedded={version:'1',entries:[{old:'original.mjs',path:'src/embedded/runtime/state-library.js',gitBlobSha1:'unchanged'}]};
+ const embeddedNew={version:'1',entries:[{...embedded.entries[0],path:'embedded/runtime/state-library.js'}]};
+ assert.equal(exactManifestPaths(embedded,embeddedNew,records,'embedded'),true);
+ assert.equal(exactManifestPaths(embedded,{...embeddedNew,entries:[{...embeddedNew.entries[0],gitBlobSha1:'changed'}]},records,'embedded'),false);
+ const context={title:'目录整理',body:['交付类别：目录整理','不计入功能恢复'].join(String.fromCharCode(10)),
+  changed:['docs/architecture/name.md','tests/mcp/m.test.cjs','resources/layout/relocations.json','resources/asset-layout.json'],
+  testChanges:[{path:'tests/mcp/m.test.cjs',before:null,after:"const {test}=require('node:test');const assert=require('node:assert');test('works',()=>assert.ok(1));",status:'A'}]};
+ assert.equal(auditDelivery(context).ok,false);
+ assert.equal(auditDelivery({...context,verifiedMetadata:['resources/asset-layout.json']}).ok,true);
 });
