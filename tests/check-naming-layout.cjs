@@ -11,7 +11,7 @@ let markdown = 0;
 let skills = 0;
 assert.equal(Object.keys(layout.entries).length, 140, '已解压重定位的资源总数');
 for (const [bunfsName, entry] of Object.entries(layout.entries)) {
-  assert.ok(entry.path.startsWith('resources/') || entry.path.startsWith('src/'), `无效的目标路径：${bunfsName}`);
+  assert.ok(entry.path.startsWith('resources/') || entry.path.startsWith('src/') || entry.path.startsWith('tools/bundled/') || entry.path.startsWith('embedded/'), `无效的目标路径：${bunfsName}`);
   assert.ok(!targetPaths.has(entry.path), `目标路径冲突：${entry.path}`);
   targetPaths.add(entry.path);
   const absolute = path.resolve(root, entry.path);

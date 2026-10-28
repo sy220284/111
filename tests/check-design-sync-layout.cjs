@@ -64,7 +64,7 @@ const expectedHashedPaths=[
   'storybook/compare.mjs','storybook/http-serve.mjs','storybook/probe.mjs'
 ];
 for(const item of expectedHashedPaths)
- assert.ok(fs.existsSync(path.join(root,'resources/tools/design-sync',item)),'recipe input file missing: '+item);
+ assert.ok(fs.existsSync(path.join(root,'tools/bundled/design-sync',item)),'recipe input file missing: '+item);
 const hashProbe=spawnSync(process.execPath,['--input-type=module','--eval',
   "import {scriptsShaFor} from './tools/bundled/design-sync/lib/sync-hashes.mjs'; process.stdout.write(scriptsShaFor());"
 ],{cwd:root,encoding:'utf8',timeout:12000});
