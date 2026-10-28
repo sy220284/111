@@ -7,7 +7,7 @@ const path=require('node:path');
 const cp=require('node:child_process');
 const {
   field,businessPath,testPath,categoryPathAllowed,classifyCodeChange,registeredTest,
-  auditDelivery,gitDiff,inspectGit
+  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity
 }=require('../scripts/check-restoration-delivery.cjs');
 
 const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
@@ -140,7 +140,7 @@ test('非恢复类修改运行资源必须拒绝',()=>{
 });
 test('功能恢复不得同时弱化主源码工作流',()=>{
   rejected(verify({changed:[...changed,'.github/workflows/source-restoration.yml']}),
-    '不得同时修改主源码回归工作流');
+    '功能 PR 不得修改验收器');
 });
 test('目录分类匹配 111 的真实结构',()=>{
   assert.equal(businessPath('src/plugin-testing-kit/collector.js'),true);
@@ -221,4 +221,32 @@ test('测试文件重命名成文档不得逃避有效测试检查',()=>{
       changed:actual.changed,sourceChanges:actual.sourceChanges,testChanges:actual.testChanges});
     rejected(r,'交付类别与实际修改范围不符');
   }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('功能提交禁止同时改掉源码指纹、函数证据、调用图校验器',()=>{
+  rejected(verify({changed:[...changed,'scripts/check-source-fingerprint.cjs']}),'不得修改验收器');
+  rejected(verify({changed:[...changed,'scripts/verify-function-ledger.cjs']}),'不得修改验收器');
+  rejected(verify({changed:[...changed,'tools/analysis/code-graph.cjs']}),'不得修改验收器');
+});
+test('不能把 npm test 中的旧回归检查偷偷删掉',()=>{
+  const before=JSON.stringify({scripts:{
+    test:'npm run check:source && npm run check:source-fingerprint && npm run check:closure',
+    'check:source':'node tests/check-source.cjs',
+    'check:source-fingerprint':'node scripts/check-source-fingerprint.cjs --check',
+    'check:function-evidence':'node scripts/verify-function-ledger.cjs',
+    'audit:functions':'node scripts/source-function-index.cjs --check',
+    'check:restored-aliases':'node scripts/check-restored-aliases.cjs'
+  }});
+  const oldScripts=JSON.parse(before).scripts;
+  const base=verify({packageBefore:before,packageAfter:before});
+  assert.equal(base.ok,true,base.errors.join('\n'));
+  const changedTest=JSON.stringify({scripts:{...oldScripts,test:'npm run check:source && npm run check:closure'}});
+  rejected(verify({packageBefore:before,packageAfter:changedTest}),'npm test 删除或修改了既有回归检查');
+  const changedCheck=JSON.stringify({scripts:{...oldScripts,'check:source-fingerprint':'echo passed'}});
+  rejected(verify({packageBefore:before,packageAfter:changedCheck}),'核心校验命令被功能 PR 修改');
+  const added=JSON.stringify({scripts:{...oldScripts,test:oldScripts.test+' && node --test tests/new-feature.test.cjs'}});
+  assert.deepEqual(checkScriptIntegrity(before,added),[]);
+});
+test('恢复类不能同时声明不计入功能恢复',()=>{
+  rejected(verify({body:body+'\n不计入功能恢复'}),'恢复类与');
 });
