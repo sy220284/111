@@ -132,7 +132,7 @@ function plan({oldRoot,newRoot,focus=[],max=200,aliasPath,v40Map,reference='2.1.
   const idx=indexOld(old);
   let aliases=[];
   if (aliasPath && fs.existsSync(aliasPath)) aliases=JSON.parse(fs.readFileSync(aliasPath,'utf8')).entries||[];
-  const done = new Set(aliases.map(x => x.source.replace(/^src\//,'') + '::' + x.legacy));
+  const done = new Set(aliases.map(x => x.source.replace(/^(?:src|core)\//,'') + '::' + x.legacy));
   let v40Items=[];
   if (v40Map && fs.existsSync(v40Map)) v40Items=JSON.parse(fs.readFileSync(v40Map,'utf8')).items||[];
   const v40BySymbol=new Map();

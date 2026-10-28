@@ -9,9 +9,9 @@ const vm=require('node:vm');
 const ts=require('typescript');
 const root=path.resolve(__dirname,'..');
 const pin='3c64d1669174e825fb0fbae088c5ec95edaa7339';
-function old(file){return cp.execFileSync('git',['show',pin+':src/'+file],
+function old(file){return cp.execFileSync('git',['show',pin+':src/'+file.replace(/^core\//,'')],
   {cwd:root,encoding:'utf8',maxBuffer:16*1024*1024});}
-function latest(file){return require('node:fs').readFileSync(path.join(root,'src',file),'utf8');}
+function latest(file){return require('node:fs').readFileSync(path.join(root,file),'utf8');}
 function fn(source,name){
  const ast=ts.createSourceFile(name+'.js',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
  const node=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text===name);

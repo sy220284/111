@@ -14,11 +14,11 @@ const root=path.resolve(__dirname,'..');
 const PIN='3c64d1669174e825fb0fbae088c5ec95edaa7339';
 const oldCache=new Map(),nowCache=new Map();
 function historical(file) {
- if(!oldCache.has(file))oldCache.set(file,childProcess.execFileSync('git',['show',PIN+':src/'+file],{cwd:root,encoding:'utf8',maxBuffer:25*1024*1024}));
+ if(!oldCache.has(file))oldCache.set(file,childProcess.execFileSync('git',['show',PIN+':src/'+file.replace(/^core\//,'')],{cwd:root,encoding:'utf8',maxBuffer:25*1024*1024}));
  return oldCache.get(file);
 }
 function current(file) {
- if(!nowCache.has(file))nowCache.set(file,fs.readFileSync(path.join(root,'src',file),'utf8'));
+ if(!nowCache.has(file))nowCache.set(file,fs.readFileSync(path.join(root,file),'utf8'));
  return nowCache.get(file);
 }
 function findFunction(source,location,name) {

@@ -24,7 +24,7 @@ const checksum=(root,ref)=>{
 function category(file){
  if(file.startsWith('src/plugin-testing-kit/'))return 'plugin_testing_kit';
  if(file.startsWith('src/embedded/'))return 'independent_embedded_source';
- if(vendor.has(file))return 'prebuilt_vendor_bundle';
+ if(vendor.has(file)||vendor.has(file.replace(/^core\//,'src/')))return 'prebuilt_vendor_bundle';
  if(file.startsWith('resources/tools/'))return 'bundled_tool_sources';
  if(file.startsWith('resources/'))return 'other_embedded_resources';
  if(file.startsWith('tests/'))return 'historic_tests';
