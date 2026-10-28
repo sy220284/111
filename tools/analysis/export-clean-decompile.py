@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Make a clean source release and full evidence-backed static graphs."""
 import argparse, csv, hashlib, json, shutil
+from collections import defaultdict
 from pathlib import Path
 
 def read(p): return json.loads(Path(p).read_text(encoding="utf-8"))
@@ -70,6 +71,17 @@ def main():
           ((e["from"],e["to"]["file"],e["to"]["symbol"],e["to"].get("id", ""),e["kind"],e["count"],
             "|".join(x["file"]+":"+str(x["line"])+":"+str(x["column"]) for x in e["evidence"]))
            for e in graph["callEdges"] if e["to"]))
+    kinds=defaultdict(lambda:[0,0])
+    for e in graph["callEdges"]:
+        if e["to"]:
+            kinds[e["kind"]][0]+=1
+            kinds[e["kind"]][1]+=e["count"]
+    assert sum(v[1] for v in kinds.values())==s["candidateResolvedCalls"]
+    assert sum(v[0] for v in kinds.values())==s["uniqueCandidateEdges"]
+    table(report/"调用候选类型分布.tsv",
+          ["静态候选类型","去重关系边","调用次数","实际运行已确权"],
+          ((kind,v[0],v[1],"否") for kind,v in sorted(kinds.items(),
+           key=lambda x:(-x[1][1],x[0]))))
     table(report/"功能职责与测试.tsv",["模块","函数符号","职责","测试文件","状态"],
           ((e["source"],e["symbol"],e["role"],e["test"],e["status"]) for e in ledger))
     layout=read(root/"resources/asset-layout.json")["entries"]
@@ -112,6 +124,8 @@ def main():
         "unresolvedCallExpressions":s["unresolvedCallExpressions"],
         "unresolvedCallsiteInventory":len(unresolved),
         "unresolvedReasons":s["unresolvedReasons"],
+        "candidateKinds":{k:{"uniqueEdges":v[0],"callOccurrences":v[1]}
+                          for k,v in sorted(kinds.items())},
         "targetedSemanticEvidence":len(ledger),"sourceFingerprint":summary["sourceFingerprint"],
         "embeddedResourceCount":len(resolved_assets)+len(resources), "mappedResourceCount":len(resolved_assets), "originalBunfsFileCount":len(resources),
         "note":"All syntax calls are indexed; candidate edges are not proven executed. Dynamic dispatch unresolved."
@@ -126,6 +140,7 @@ def main():
         "静态函数候选调用不能证明动态实际调用；间接调用不会编造被调用者。"
         "未解析调用逐点清单.tsv 列出全部剩余调用的函数位置、表达式、归类原因；"
         "未解析原因汇总.tsv 用于识别最值得进一步恢复的调用模式。"
+        "调用候选类型分布.tsv 按静态解析规则列出候选边数与调用次数，均不等于实际执行确权。"
         "本包不等于原始 TypeScript，也没有验收 ELF 二进制等价、完整 Bun/JSC 兼容或在线业务等价。\n\n"
         "请查阅 图谱与证据/结果核验.json 了解实际覆盖范围和源码指纹。\n",encoding="utf-8")
     assert len(list((out/"src").glob("*.js")))>=2550
