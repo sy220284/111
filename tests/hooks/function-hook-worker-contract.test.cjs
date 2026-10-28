@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const worker = readFileSync(path.join(root, 'src/src/plugins/functionHooks/hooks-worker/hooks-worker.js'), 'utf8');
 const declarations = readFileSync(path.join(root, 'resources/tools/plugin-api/types/claude-code.d.ts'), 'utf8');
 const source = worker.slice(worker.indexOf('var B='), worker.indexOf('function I(o){'));

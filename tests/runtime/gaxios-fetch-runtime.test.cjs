@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-ar74b8kt.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-ar74b8kt.js'),'utf8');
 function selector({Bun,nativeFetch}){
  const start=source.indexOf('static async#c(){');
  const end=source.indexOf('static mergeHeaders(',start);

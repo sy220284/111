@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const code=fs.readFileSync(path.resolve(__dirname,'../src/chunk-q85nvv4x.js'),'utf8');
+const code=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-q85nvv4x.js'),'utf8');
 
 async function load(modules) {
  const context=vm.createContext({});

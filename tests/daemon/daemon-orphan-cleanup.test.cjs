@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-wapyem7a.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-wapyem7a.js'),'utf8');
 
 function fixture({entries,swap=false,unlinkError,readError}={}){
   const start=source.indexOf('async function pruneExpiredLegacyDaemonLogDirs(e, r = $e())');

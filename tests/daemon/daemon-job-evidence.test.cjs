@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const source=fs.readFileSync(path.resolve(__dirname,'../src/chunk-t2adf9g4.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../src/chunk-t2adf9g4.js'),'utf8');
 function fragment(start,end){const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert.ok(a>=0&&b>a);return source.slice(a,b)}
 function absent(reply){const code=fragment('async function isDaemonJobConfirmedAbsent(e)','var Et=');return vm.runInNewContext(code+';({Vxn,isDaemonJobConfirmedAbsent})',{bh:async()=>reply,Oc:7})}
 function format(){const code=fragment('function formatUnpushedCommitCount(e)','async function isExpectedGitHead(e,n)');return vm.runInNewContext(code+';({Oeo,_cs,formatUnpushedCommitCount,formatUnpushedCommitSummary})',{wn:()=>'',I:(n,w)=>n===1?w:w+'s'})}

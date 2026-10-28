@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const read = name => fs.readFileSync(path.join(__dirname, '..', 'src', name), 'utf8');
+const read = name => fs.readFileSync(path.join(__dirname, '../..', 'src', name), 'utf8');
 const adoptionSource = read('chunk-bwt94x0y.js');
 const daemonSource = read('chunk-t2adf9g4.js');
 
