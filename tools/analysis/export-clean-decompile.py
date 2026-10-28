@@ -39,8 +39,17 @@ def main():
     assert summary["parseFailed"]==summary["missingRelativeImports"]==0
     assert s["recordedSemantics"]==len(ledger)
     m_edges=[(m["file"],d,"静态依赖") for m in graph["modules"] for d in m["dependsOn"]]
-    f_edges=[(e["from"],e["to"]["file"]+"#"+e["to"]["symbol"],e["kind"])
+    f_edges=[(e["from"],e["to"].get("id",e["to"]["file"]+"#"+e["to"]["symbol"]),e["kind"])
              for e in graph["callEdges"] if e["to"]]
+    unresolved=graph.get("unresolvedCallsites",[])
+    assert len(unresolved)==s["unresolvedCallExpressions"],("未解析调用索引缺失",len(unresolved))
+    assert sum(s["unresolvedReasons"].values())==len(unresolved)
+    table(report/"未解析调用逐点清单.tsv",
+          ["模块","所属函数ID","行","列","未解析原因","调用表达式"],
+          ((e["file"],e["owner"],e["line"],e["column"],e["reason"],e["callee"])
+           for e in unresolved))
+    table(report/"未解析原因汇总.tsv",["原因","数量"],
+          sorted(s["unresolvedReasons"].items(),key=lambda x:(-x[1],x[0])))
     sem_edges=[(e["role"],e["source"]+"#"+e["symbol"],"职责定位") for e in ledger]
     sem_edges += [(e["source"]+"#"+e["symbol"],e["test"],"定向测试") for e in ledger]
     dot(report/"模块依赖全量.dot",m_edges)
@@ -57,8 +66,8 @@ def main():
     table(report/"全部调用表达式.tsv",["模块","所在函数","调用目标原始语法","行"],
           ((file,f["name"],c["name"],c["line"])
            for file,fs in sorted(calls.items()) for f in fs for c in f["calls"]))
-    table(report/"函数调用候选边.tsv",["调用者","候选模块","候选函数","解析种类","次数","源码证据"],
-          ((e["from"],e["to"]["file"],e["to"]["symbol"],e["kind"],e["count"],
+    table(report/"函数调用候选边.tsv",["调用者","候选模块","候选函数","目标定位ID","解析种类","次数","源码证据"],
+          ((e["from"],e["to"]["file"],e["to"]["symbol"],e["to"].get("id", ""),e["kind"],e["count"],
             "|".join(x["file"]+":"+str(x["line"])+":"+str(x["column"]) for x in e["evidence"]))
            for e in graph["callEdges"] if e["to"]))
     table(report/"功能职责与测试.tsv",["模块","函数符号","职责","测试文件","状态"],
@@ -101,6 +110,8 @@ def main():
         "functionSyntaxEntities":summary["functions"],"callExpressions":summary["callExpressions"],
         "moduleEdges":len(m_edges),"candidateFunctionEdges":len(f_edges),
         "unresolvedCallExpressions":s["unresolvedCallExpressions"],
+        "unresolvedCallsiteInventory":len(unresolved),
+        "unresolvedReasons":s["unresolvedReasons"],
         "targetedSemanticEvidence":len(ledger),"sourceFingerprint":summary["sourceFingerprint"],
         "embeddedResourceCount":len(resolved_assets)+len(resources), "mappedResourceCount":len(resolved_assets), "originalBunfsFileCount":len(resources),
         "note":"All syntax calls are indexed; candidate edges are not proven executed. Dynamic dispatch unresolved."
@@ -113,6 +124,8 @@ def main():
         "图谱与证据包含模块、函数、调用表达式、候选调用边、测试语义关系的完整 TSV、JSON 和 DOT，"
         "另有 Mermaid 功能概览。全量 DOT 可用 Graphviz 打开。\n\n"
         "静态函数候选调用不能证明动态实际调用；间接调用不会编造被调用者。"
+        "未解析调用逐点清单.tsv 列出全部剩余调用的函数位置、表达式、归类原因；"
+        "未解析原因汇总.tsv 用于识别最值得进一步恢复的调用模式。"
         "本包不等于原始 TypeScript，也没有验收 ELF 二进制等价、完整 Bun/JSC 兼容或在线业务等价。\n\n"
         "请查阅 图谱与证据/结果核验.json 了解实际覆盖范围和源码指纹。\n",encoding="utf-8")
     assert len(list((out/"src").glob("*.js")))>=2550
