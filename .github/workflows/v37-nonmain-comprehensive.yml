@@ -42,7 +42,7 @@ jobs:
           if(j.metrics.nonMainFiles!==652||j.metrics.bundledJsFiles!==48||j.metrics.bundledPythonFiles!==3)
             throw Error('original v37 non-main inventory drift');
           const out=[
-            '## v37 非主代码653? 以实测652为准',
+            '## v37非主模块652份文件：独立可执行工具与原件审计',
             '| 项目 | 文件数 |','|---|---:|',
             ...Object.entries(j.groups).map(([k,v])=>`| ${k} | ${v.files} |`),
             '| 其他源码及资源总计 | '+j.metrics.nonMainFiles+' |',
