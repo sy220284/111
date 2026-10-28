@@ -63,7 +63,7 @@ test('Bun 探针返回非零状态时仍保留具体失败 API 和错误详情',
   const executable=path.join(dir,'mock-bun');
   try{
     fs.writeFileSync(executable, '#!/usr/bin/env node\n'+
-      'process.stdout.write(JSON.stringify({schema:1,kind:"bun-runtime-probe",status:"failed",checks:[{api:"Bun.Terminal",status:"failed",error:"PTY mismatch"}]})+"\n");process.exitCode=1;\n');
+      'process.stdout.write(JSON.stringify({schema:1,kind:"bun-runtime-probe",status:"failed",checks:[{api:"Bun.Terminal",status:"failed",error:"PTY mismatch"}]})+"\\n");process.exitCode=1;\n');
     fs.chmodSync(executable,0o755);
     const result=probe(executable);
     assert.equal(result.status,'failed');
