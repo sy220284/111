@@ -39,7 +39,6 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: 先检查函数证据与源码指纹，防止改名后索引/账本陈旧
         run: |
-          npm run audit:functions
           npm run check:source-fingerprint
           npm run check:function-evidence
           npm run audit:functions
