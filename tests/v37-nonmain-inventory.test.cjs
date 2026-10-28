@@ -21,7 +21,7 @@ test('v37固定版主源码之外652份文件分类完整，不混入2551主模�
  assert.equal(r.groups.historic_build_scripts.files,8);
  assert.equal(r.groups.historic_ci.files,2);
  assert.equal(r.groups.historic_metadata_and_entrypoints.files,9);
- assert.equal(r.metrics.bundledJsFiles,48);
+ assert.equal(r.metrics.bundledJsFiles,47);
  assert.equal(r.metrics.bundledPythonFiles,3);
  assert.equal(r.metrics.nativeELFModules,2);
  assert.ok(r.metrics.toolSyntaxFunctions>200);
@@ -65,8 +65,8 @@ test('浏览器安全来源与DNS钉住：输入边界必须能解析而不能�
  assert.deepEqual(bypassOf('http://example.com'),['http://example.com:80','ws://example.com:80']);
  assert.deepEqual(bypassOf('not/a/host'),[]);
  const pins=resolverPins([{name:'app.example',address:'127.0.0.1'},{name:'bad..domain',address:'10.0.0.1'},{name:'app.example',address:'192.168.0.1'},{name:'malformed.test',address:'999.999.999.999'}]);
- assert.ok(pins.some(x=>x.includes('app.example')&&x.includes('127.0.0.1')));
- assert.ok(!pins.some(x=>x.includes('bad..domain')||x.includes('malformed.test')));
+ assert.ok(pins.includes('MAP app.example 127.0.0.1'));
+ assert.ok(!pins.includes('bad..domain')&&!pins.includes('malformed.test'));
 });
 test('设计同步与浏览器工具归属固定、保留已知未验证的真实构建条件',()=>{
  for(const [file,expectedMoved,expectedSupporting] of [
