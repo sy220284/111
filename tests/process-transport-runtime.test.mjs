@@ -47,3 +47,10 @@ test('remains usable after a timed-out process', async () => {
   const result = await runBoundedProcess(node, ['-e', 'process.stdout.write("ok")']);
   assert.equal(result.stdout.toString(), 'ok');
 });
+
+test('passes shell metacharacters as literal argv, not commands', async () => {
+  const literal = '$(printf unexpected); & | >';
+  const result = await runBoundedProcess(node, ['-e', 'process.stdout.write(process.argv[1])', literal]);
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout.toString(), literal);
+});
