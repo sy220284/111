@@ -1,0 +1,2617 @@
+{
+  "schema": 1,
+  "commit": "3c64d1669174e825fb0fbae088c5ec95edaa7339",
+  "baselineMainModules": 2551,
+  "baselineRemainder": 652,
+  "description": "Pinned original v37 Git tree blob index for nonmain source; code identity not proof of behavior",
+  "files": [
+    {
+      "path": ".github/workflows/naming-layout-validation.yml",
+      "blob": "e96144198d9a8ba2636eac3829335894de493614"
+    },
+    {
+      "path": ".github/workflows/source-restoration.yml",
+      "blob": "59fcb43995477987c5ddc10b55136b701ef1f2f7"
+    },
+    {
+      "path": ".gitignore",
+      "blob": "4b1fadd454995b8f5c50cc192e0e72fd95659710"
+    },
+    {
+      "path": "LICENSE",
+      "blob": "003ae16578ba05a6df2464cff05234bfa48358bb"
+    },
+    {
+      "path": "README.md",
+      "blob": "ed3aa1a26951728419deb3b3c27c4fddc3c3742a"
+    },
+    {
+      "path": "bin/claude-310.mjs",
+      "blob": "9db762bfaa2ec7deccee3fee3922f4671b029bd9"
+    },
+    {
+      "path": "docs/命名规范化改动记录.md",
+      "blob": "1a5918c01b8029c3f867d1d650642e45557bb0a7"
+    },
+    {
+      "path": "docs/源码与资源统一命名规范.md",
+      "blob": "419dc7a8d9e0a3bb7cbf0cb96e129fcf274e88f2"
+    },
+    {
+      "path": "package-lock.json",
+      "blob": "e7b35d163075e58d427814d8cf30793746d0d4c9"
+    },
+    {
+      "path": "package.json",
+      "blob": "b7f8aa66bc24ae055c3e164d41d822d4654efcf1"
+    },
+    {
+      "path": "resources/asset-layout.json",
+      "blob": "ff6c088472dcd0ff4b11e174d279652a8b08e225"
+    },
+    {
+      "path": "resources/bunfs/NOTICE-chm3rwx9.txt",
+      "blob": "0e20d90b0da0c61d9c6c74588251d5c03b6253a5"
+    },
+    {
+      "path": "resources/bunfs/README-ed5aeh0k.md",
+      "blob": "0842864a7f0fc6bdd8584bdf9a6c0dc2e34d3796"
+    },
+    {
+      "path": "resources/bunfs/README-qjqxhy5f.md",
+      "blob": "3437f0bf72e904411ed9c1286cab32677b0b6504"
+    },
+    {
+      "path": "resources/bunfs/SKILL-0vb5xk0r.md",
+      "blob": "650105f1e0df453d5fa99616d00fcba954625d8b"
+    },
+    {
+      "path": "resources/bunfs/SKILL-5vqnvygj.md",
+      "blob": "21b049c75641d0082cbb4d6a31f936576991b88a"
+    },
+    {
+      "path": "resources/bunfs/SKILL-8zd8x5rj.md",
+      "blob": "25f4499d178f69a52ad10e1dbf4c04e8241cc6e0"
+    },
+    {
+      "path": "resources/bunfs/SKILL-9ddmsnpa.md",
+      "blob": "4bb5e4ac8f525504ae8620538e6ff5d7bae57ea7"
+    },
+    {
+      "path": "resources/bunfs/SKILL-ecyx4ya1.md",
+      "blob": "b1b7a7bc5e83c2aa2bd87d6a423b7b3f71c292a7"
+    },
+    {
+      "path": "resources/bunfs/SKILL-fjp06kkf.md",
+      "blob": "88f89cacec59fac9049146d1f5b1bdecb04a758f"
+    },
+    {
+      "path": "resources/bunfs/SKILL-h8rn0xak.md",
+      "blob": "b9d2d637beedc3f786848f1aa1408fd927db3c00"
+    },
+    {
+      "path": "resources/bunfs/SKILL-kyber1ah.md",
+      "blob": "735bc8119b36c7cadac7c44c6401ac735ac0ff68"
+    },
+    {
+      "path": "resources/bunfs/SKILL-sq87gt02.md",
+      "blob": "581f8fb6b0b00f4ec78061221a1876e5c0bf74dd"
+    },
+    {
+      "path": "resources/bunfs/SKILL-z3x847gz.md",
+      "blob": "cc70ed0953574cb3da472ab66d574512de21b540"
+    },
+    {
+      "path": "resources/bunfs/anthropicSans400.woff2.asset",
+      "blob": "9a78e751789e2be60adfcaf257201cbe87a2939c"
+    },
+    {
+      "path": "resources/bunfs/anthropicSerif400.woff2.asset",
+      "blob": "dc7ae1f906c612f3102313d638716c01286b88a0"
+    },
+    {
+      "path": "resources/bunfs/anti-patterns-c1rmzbdk.md",
+      "blob": "6e9fc759548628919a37d6b0ffb46072854956cd"
+    },
+    {
+      "path": "resources/bunfs/audio-capture.node",
+      "blob": "25a228ac86b2e7d3f0671462a96747debee8467a"
+    },
+    {
+      "path": "resources/bunfs/band-state.d.ts-jt01vrsc.txt",
+      "blob": "c528ee59e8eaf52e3f7e7e6b7e5a4992cb84acaf"
+    },
+    {
+      "path": "resources/bunfs/band.tsx-1v7nt0yx.txt",
+      "blob": "99b4a69925fe45767aedbfa307681e131d6368c6"
+    },
+    {
+      "path": "resources/bunfs/batches-azab338a.md",
+      "blob": "2746fb4a3dcd75c127b88ca6393c29b208bc6203"
+    },
+    {
+      "path": "resources/bunfs/batches-fqqffaw8.md",
+      "blob": "11e16132e90f17b8fb36e9e9943f31d2fabc7d32"
+    },
+    {
+      "path": "resources/bunfs/batches-s5ra532b.md",
+      "blob": "6136966ac2914b00849c7403521682b754fe475f"
+    },
+    {
+      "path": "resources/bunfs/batches-tmdzz8fs.md",
+      "blob": "9584fa988ec7060a15534c48fe256cfdc3a28bd6"
+    },
+    {
+      "path": "resources/bunfs/bug-hunter-t77r14b6.md",
+      "blob": "e056a8b747ff9ee16a378ae1d8d6f32cf3c78dc3"
+    },
+    {
+      "path": "resources/bunfs/build-report-lite-jwtbvm49.mjs",
+      "blob": "ba1c1ba05eadd9b121a1a1cc07cf59443e70754a"
+    },
+    {
+      "path": "resources/bunfs/check.mjs-9esx2ea6.txt",
+      "blob": "c580dd0060850deb09c650477011d125c6f9b361"
+    },
+    {
+      "path": "resources/bunfs/choosing-a-form-0b6fjqkn.md",
+      "blob": "819ceb6df534d924ce015bfa2c106acb1b83fc8f"
+    },
+    {
+      "path": "resources/bunfs/claude-platform-on-aws-qejnkpky.md",
+      "blob": "a9343dee51d551d456ebf6c097abb8168fea4afc"
+    },
+    {
+      "path": "resources/bunfs/claude-tag-dht2qzjm.md",
+      "blob": "5c53c38af8c8ab8d8d90076eaf58edb82e143520"
+    },
+    {
+      "path": "resources/bunfs/cli-40vh1c3p.md",
+      "blob": "f0f29a7778b4393f9e35b9af8cbe731925455113"
+    },
+    {
+      "path": "resources/bunfs/cli-f091jpwx.md",
+      "blob": "cee3bb517d47e4565beb57e4b293cc55611be4d4"
+    },
+    {
+      "path": "resources/bunfs/clipboard-napi.node",
+      "blob": "89afc712b877ba20a36436cd96a493d29b216e49"
+    },
+    {
+      "path": "resources/bunfs/components-vtwwx2hf.md",
+      "blob": "22f80b72703ee6372872a2e501896c11d08200c0"
+    },
+    {
+      "path": "resources/bunfs/contract-tracker-56hvtgvv.md",
+      "blob": "252844c696d39ba92f2d515dd26855bfbfce6e52"
+    },
+    {
+      "path": "resources/bunfs/css-fallback.mjs-75zwvs8w.txt",
+      "blob": "1460b41bc3545121b19d070b2141b08a50d5fb08"
+    },
+    {
+      "path": "resources/bunfs/data-analyst-mftdhs5h.md",
+      "blob": "44da9578133d662030281c742489ee3da53f6214"
+    },
+    {
+      "path": "resources/bunfs/deep-researcher-kr59y5yh.md",
+      "blob": "63cacc91ffb13f7f2632780f402458ae94878418"
+    },
+    {
+      "path": "resources/bunfs/design-6m4nsdef.md",
+      "blob": "055bb2a0c382cbaeef14ba474ffed79d32e320b1"
+    },
+    {
+      "path": "resources/bunfs/designHowTo-p8zjfw0e.md",
+      "blob": "5d0b6ae41f3ca5771d717f3c2b1b9372a45c5f56"
+    },
+    {
+      "path": "resources/bunfs/designTwoSteps-g0bev2xr.md",
+      "blob": "91f65f93c4615bc48152214d1b759a1bc2a4f276"
+    },
+    {
+      "path": "resources/bunfs/detect.mjs-4ep12q1p.txt",
+      "blob": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9"
+    },
+    {
+      "path": "resources/bunfs/example-plugins-9n8v6pe1.md",
+      "blob": "e6b97369678273aec776f766df87bd0060a88593"
+    },
+    {
+      "path": "resources/bunfs/explainer-video-maker-sm29032a.md",
+      "blob": "050e40f5556690897b3ee1e0b31cb4a14483f285"
+    },
+    {
+      "path": "resources/bunfs/field-monitor-g66mv9dp.md",
+      "blob": "c66bbcb45fdc43cdc342931c315cde2586c72585"
+    },
+    {
+      "path": "resources/bunfs/files-api-0t33d0q1.md",
+      "blob": "c22ab3fe605dc765dc171618cf7d880cfae2822d"
+    },
+    {
+      "path": "resources/bunfs/files-api-9r91z451.md",
+      "blob": "b62f163fcf38c823812ec4181ad2ee75e0c3c2e7"
+    },
+    {
+      "path": "resources/bunfs/files-api-cbspt4rc.md",
+      "blob": "26bd142dcdb34b63d7158409fac0e89f08745695"
+    },
+    {
+      "path": "resources/bunfs/files-api-gjyn8jqt.md",
+      "blob": "e824fc3c8b0d280274dac380e3ccd9dd1817f094"
+    },
+    {
+      "path": "resources/bunfs/files-api-h174sj6q.md",
+      "blob": "46f85ca24528c5605d95c6a39bc44aafab1d58e5"
+    },
+    {
+      "path": "resources/bunfs/files-api-m5wzhchy.md",
+      "blob": "b73dc512859f65d1b1266a031ae087837e30aa64"
+    },
+    {
+      "path": "resources/bunfs/hosts.mjs-724sr8hv.txt",
+      "blob": "87e746e091f5af7f308bfee7382023b15abd7f08"
+    },
+    {
+      "path": "resources/bunfs/http-serve.mjs-jyx95bas.txt",
+      "blob": "a268825307998a6a1111b0370d72bede9f15c99a"
+    },
+    {
+      "path": "resources/bunfs/incident-commander-ks44x788.md",
+      "blob": "82bf689d7249445f3c9f3c6436feefbff7b3f7b8"
+    },
+    {
+      "path": "resources/bunfs/install-tools.mjs-mqgxnqdh.txt",
+      "blob": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa"
+    },
+    {
+      "path": "resources/bunfs/interaction-d4xwjtb3.md",
+      "blob": "0a4ce5fa2da40cf8af82a43c53ed36e7a9656756"
+    },
+    {
+      "path": "resources/bunfs/library-yywvyb11.md",
+      "blob": "924822d36c802d5d5c24bd072676f5c94010a465"
+    },
+    {
+      "path": "resources/bunfs/live-sources-pvws3ftv.md",
+      "blob": "eafb385de5adaece5b11f439abc9de2c66863da5"
+    },
+    {
+      "path": "resources/bunfs/loopAutonomousPreamble-07qcyhv4.md",
+      "blob": "9c2fd9a20c0d4caf6d69657dc78d15de68885d55"
+    },
+    {
+      "path": "resources/bunfs/loopAutonomousPreamblePersistent-3zqtkrvg.md",
+      "blob": "a6e6d487b09a0913c69a772c9c8095d46f09c300"
+    },
+    {
+      "path": "resources/bunfs/marks-and-anatomy-xxwmekt5.md",
+      "blob": "1b67eaaf7d8a5ef116c6468a2ae4743cf75cfe1e"
+    },
+    {
+      "path": "resources/bunfs/mcp-servers-chmkz450.md",
+      "blob": "a4c75dd6e22c98f90ff6b97630d90412f5c92579"
+    },
+    {
+      "path": "resources/bunfs/open-page.mjs-v558kpk1.txt",
+      "blob": "b1f38cce8c914ce24f1d979489a99272606069ef"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-26ah6r5h.md",
+      "blob": "e3d2e85c8c850604ba0452e10c9527031dba6908"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-3fdcpdte.md",
+      "blob": "437f1824052d3a30092c520e781d2d81170ee495"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-a5cc3j2q.md",
+      "blob": "435ff9fbd950f7a2f5cd0f4b1655cf7cddab3f0c"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-n5e363c1.md",
+      "blob": "08a4cc5895dcddeddbf49d10b5737116425222c3"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-qf3594ft.md",
+      "blob": "bdabf73bf21171ac0cbf49a9def3c9f14d3439c6"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-y8cvd8yg.md",
+      "blob": "187da0c83aa542e28277d5cbab36355136a23dc9"
+    },
+    {
+      "path": "resources/bunfs/opentelemetry-z2ncngqw.md",
+      "blob": "6458a299119f064c2ec144e800c481bf99b76fbf"
+    },
+    {
+      "path": "resources/bunfs/pane-state.d.ts-11bz0njc.txt",
+      "blob": "564757b16f0953f6c6ac8677e33c9f46792e13de"
+    },
+    {
+      "path": "resources/bunfs/pane.test.tsx-ee55mcxg.txt",
+      "blob": "69179f91f78c36c3c3f7df0d35656a9403a12a9b"
+    },
+    {
+      "path": "resources/bunfs/pane.tsx-mhv389ra.txt",
+      "blob": "72bb1fbd239d409f1736c0c46feff1d9ab5d8df4"
+    },
+    {
+      "path": "resources/bunfs/playwright-g4wwbqeh.md",
+      "blob": "3f2ae31e7883f6b83f2b6f7d1b8a5fd529475673"
+    },
+    {
+      "path": "resources/bunfs/plugin.json-yqejmsqd.txt",
+      "blob": "874ef91b284243d0d34e8746cc2a10ced6848052"
+    },
+    {
+      "path": "resources/bunfs/preview-gen-storybook.mjs-yedg6ts5.txt",
+      "blob": "0b224d7a270de4629445dd8e6656d7e9db381fa6"
+    },
+    {
+      "path": "resources/bunfs/probe.mjs-24tedw09.txt",
+      "blob": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85"
+    },
+    {
+      "path": "resources/bunfs/recent-changes-g7ehqj27.md",
+      "blob": "edd7f989853cda0d5c2830741fe60b9941049a63"
+    },
+    {
+      "path": "resources/bunfs/runner-scaffold-q2rf9gg9.mjs",
+      "blob": "2f0220b41b4b30eb12606aa7ff95a9fee2f6e924"
+    },
+    {
+      "path": "resources/bunfs/search-strategies-4qam2bp6.md",
+      "blob": "2e8e2de58acd9b2959018829f99ac301fb309f9b"
+    },
+    {
+      "path": "resources/bunfs/server-6cyhjq09.md",
+      "blob": "89d35ef5357069f95a3ec7c9723fd8a5e8200b3f"
+    },
+    {
+      "path": "resources/bunfs/server-z4ytjptt.md",
+      "blob": "fd532f581b0c15100bf440e0a32e80a85c1a4a2e"
+    },
+    {
+      "path": "resources/bunfs/simple_plan-s5yyk7xh.txt",
+      "blob": "29de9f3ca94e3bce534ac49c352468a3398cc5a0"
+    },
+    {
+      "path": "resources/bunfs/skeleton.html-893t268n.txt",
+      "blob": "a92f8a9df94d197fb63ca1bd321f3f9b4b853777"
+    },
+    {
+      "path": "resources/bunfs/slides-zdpeg77q.md",
+      "blob": "b7bbb3fa926afc6b7f0a5dcaf4fea36a4d0446b7"
+    },
+    {
+      "path": "resources/bunfs/slidesHowTo-09m4dbj2.md",
+      "blob": "38b631e52710a62ac9cbda17484eb59a9e93ca9f"
+    },
+    {
+      "path": "resources/bunfs/slidesTwoSteps-1shjmnfb.md",
+      "blob": "07334f579c3189a2fb99e3a01f2999348e1b03d6"
+    },
+    {
+      "path": "resources/bunfs/source-kit.mjs-51mswsdh.txt",
+      "blob": "56da936d52f0de5de47eb88605d798764ed791f2"
+    },
+    {
+      "path": "resources/bunfs/spec-format-dwmge0np.md",
+      "blob": "32234e0a6ba6f73e0e3721e1bb67c6b19e097958"
+    },
+    {
+      "path": "resources/bunfs/sprint-retro-facilitator-tmga9swn.md",
+      "blob": "2050fb18b8257ce6fe191fa5e8b3f1f9829a6294"
+    },
+    {
+      "path": "resources/bunfs/state-library.js-wy8y4843.txt",
+      "blob": "e44dd5cd3825ab8855d4dff7c10c53b76edc22b0"
+    },
+    {
+      "path": "resources/bunfs/streaming-1ym052nm.md",
+      "blob": "ab011bfd1acc4e01ee777860b9c3b08a3b4090ec"
+    },
+    {
+      "path": "resources/bunfs/streaming-h393f7mp.md",
+      "blob": "302191f317896b0f57c57dd006c9f7158a656d61"
+    },
+    {
+      "path": "resources/bunfs/streaming-jhkcqra8.md",
+      "blob": "e0a3f5bceab27883250e9e8d4ffa556ddfca8b35"
+    },
+    {
+      "path": "resources/bunfs/streaming-pjtdae2j.md",
+      "blob": "9338c9ab556d2561aa2e9ea9c09c085203ebba51"
+    },
+    {
+      "path": "resources/bunfs/streaming-z3xabcf3.md",
+      "blob": "9e2a039b29cca352c9edae6310d8c68a15762533"
+    },
+    {
+      "path": "resources/bunfs/structured-extractor-rec1wxww.md",
+      "blob": "f15f181382809da038c3a4355c59d79f4203aafc"
+    },
+    {
+      "path": "resources/bunfs/support-agent-drb7j85g.md",
+      "blob": "93076c7c74239fff1e99d0d58314949f676e48af"
+    },
+    {
+      "path": "resources/bunfs/support-to-eng-escalator-qqj4c1c7.md",
+      "blob": "f04174f6ad0b4c7b147e2458780d5b2770f2d381"
+    },
+    {
+      "path": "resources/bunfs/template-eg8004mh.md",
+      "blob": "519b747886a0d1c2258e773c5ba6890edef8cf70"
+    },
+    {
+      "path": "resources/bunfs/template.html-j5g90adz.txt",
+      "blob": "1afa2f047176fd0ab06724d830742d0095c3c099"
+    },
+    {
+      "path": "resources/bunfs/theme-script.html-zm5eq8m1.txt",
+      "blob": "b76a4fd2ff118c61be70676069c0cde801971815"
+    },
+    {
+      "path": "resources/bunfs/three_subagents_with_critique-bd1egk7q.txt",
+      "blob": "e95a59430d3182ea72e9e955cfb621bb00a0432e"
+    },
+    {
+      "path": "resources/bunfs/token-counting-znjwtf00.md",
+      "blob": "6dbc7a8f2edb0d817b2c6accbdf56a0f79d2fd70"
+    },
+    {
+      "path": "resources/bunfs/tool-call.ts-tv29hdsd.txt",
+      "blob": "782e76163a4a4e0ecae260d970eea9fd65acaf0e"
+    },
+    {
+      "path": "resources/bunfs/tool-use-4gvjkhwj.md",
+      "blob": "4e33d7e896794a7dbfddef591b948789279b4f56"
+    },
+    {
+      "path": "resources/bunfs/tool-use-h7r7zec1.md",
+      "blob": "3d1289ed0aabdc9c0e268004b9b64c04f53a4441"
+    },
+    {
+      "path": "resources/bunfs/tools-lock.json-2wbc4a0f.txt",
+      "blob": "682cff7d1c29c81de536661ac3837e06b6f5b6ae"
+    },
+    {
+      "path": "resources/bunfs/tui-93b0fcsh.md",
+      "blob": "86ee95d6f2a21ae77ae7b99c1cf2e44f46ee1947"
+    },
+    {
+      "path": "resources/bunfs/visual_plan-9bza2qe2.txt",
+      "blob": "c32256e7586de9bcbc1ae485afd5a95c9c578c7e"
+    },
+    {
+      "path": "resources/bunfs/watchlist-scanner-kfkrzjrr.md",
+      "blob": "522ec52adc3d490f156d6b2a4723d1812d8f1c76"
+    },
+    {
+      "path": "resources/data/psl-data.json",
+      "blob": "1fdb1de5e9206c6fc46b38bca3d1bd89d7791d25"
+    },
+    {
+      "path": "resources/data/tools-snapshot.json",
+      "blob": "d17b7fe09a040f02883d36ccc938597dc55d2461"
+    },
+    {
+      "path": "resources/docs/claude-api/admin-api.md",
+      "blob": "1980f2a12d72ac67a22c5795725cea7a27dd8fa1"
+    },
+    {
+      "path": "resources/docs/claude-api/agent-design.md",
+      "blob": "517cec6b2a5529296b999916f43533425d30effb"
+    },
+    {
+      "path": "resources/docs/claude-api/anthropic-cli.md",
+      "blob": "93c896678761735f64bb38c60bb4d929b9a4ea33"
+    },
+    {
+      "path": "resources/docs/claude-api/api-version-migration.md",
+      "blob": "778496245a143bb57f62430932be1d2451b00dbf"
+    },
+    {
+      "path": "resources/docs/claude-api/cost-optimization.md",
+      "blob": "02e80a4dc66f879350bffa42df19d1368c4c28fa"
+    },
+    {
+      "path": "resources/docs/claude-api/error-codes.md",
+      "blob": "db7b518c8dfa2a7cd041d3988e8b12ab358e36c5"
+    },
+    {
+      "path": "resources/docs/claude-api/go/README.md",
+      "blob": "f90fca7a06a7a8ef035d4c3a7a64bf87fa6ec5cd"
+    },
+    {
+      "path": "resources/docs/claude-api/go/tool-use.md",
+      "blob": "57c8e714f1cd43089532e9f73a940280bf0c05cb"
+    },
+    {
+      "path": "resources/docs/claude-api/google-cloud-anthropic-managed.md",
+      "blob": "610427c5ef569fd58a8cf533d49f39e65d44d90c"
+    },
+    {
+      "path": "resources/docs/claude-api/java/README.md",
+      "blob": "d60c69a9a410db42acd57d58be0f408c23bf0c5c"
+    },
+    {
+      "path": "resources/docs/claude-api/java/tool-use.md",
+      "blob": "62d8e5b083945a1d78e141f36b9164534e85b0a5"
+    },
+    {
+      "path": "resources/docs/claude-api/model-migration.md",
+      "blob": "cd8962ec59944eddca444e4571c47979dcba7046"
+    },
+    {
+      "path": "resources/docs/claude-api/opentelemetry.md",
+      "blob": "47b01cd3b393d646f8f7adf5c794bc540693db29"
+    },
+    {
+      "path": "resources/docs/claude-api/php/tool-use.md",
+      "blob": "e699c4d1f36d9f82efd44b4a6b4e99d462f1c1e2"
+    },
+    {
+      "path": "resources/docs/claude-api/platform-availability.md",
+      "blob": "9666777448dba397931e5a02cb5ecf588a568b33"
+    },
+    {
+      "path": "resources/docs/claude-api/prompt-audit.md",
+      "blob": "6afab76f573867eee6c9ff350ee45f88952c0113"
+    },
+    {
+      "path": "resources/docs/claude-api/prompt-caching.md",
+      "blob": "b510359ee1960d0602b8ca0373af422213eafe9c"
+    },
+    {
+      "path": "resources/docs/claude-api/python/README.md",
+      "blob": "ca049cd335c0830bba72a1dfd03b7422115d5dbe"
+    },
+    {
+      "path": "resources/docs/claude-api/python/streaming.md",
+      "blob": "110928eda5f972036d9a3a44bcb287e7b61fe4cf"
+    },
+    {
+      "path": "resources/docs/claude-api/python/tool-use.md",
+      "blob": "a02b177865d333dbe95275f51ad1b22ef9ae10b3"
+    },
+    {
+      "path": "resources/docs/claude-api/sdk-upgrade.md",
+      "blob": "c887cf9553f74b6feb8de358e8a271d931e2a63f"
+    },
+    {
+      "path": "resources/docs/claude-api/tool-use-concepts.md",
+      "blob": "f22480592f9475805614dda9c8c2c23589627d2c"
+    },
+    {
+      "path": "resources/docs/claude-api/typescript/README.md",
+      "blob": "6f65649d9406c4fe5c4bfdbb51b29cb965d5e7d5"
+    },
+    {
+      "path": "resources/docs/claude-api/typescript/streaming.md",
+      "blob": "e54b84bec28dadb018485a8f0faa3a9f2a2b9f7d"
+    },
+    {
+      "path": "resources/docs/claude-api/typescript/tool-use.md",
+      "blob": "542dbfc4f42df40f7568a28e5660f0213a2e2b7f"
+    },
+    {
+      "path": "resources/docs/design/color-formula.md",
+      "blob": "0e4fa9746f8d71d4c5b7b828d7243992f10874b7"
+    },
+    {
+      "path": "resources/docs/design/palette.md",
+      "blob": "1eb45f1beffde7fa087d36b0a9d88f1c83af80cf"
+    },
+    {
+      "path": "resources/docs/evaluation/build-eval.md",
+      "blob": "85cc306279159504b3b3af239394222fec7a264a"
+    },
+    {
+      "path": "resources/docs/evaluation/cost-hillclimb.md",
+      "blob": "d929871e2663848dbf0872825d053c9e73efb938"
+    },
+    {
+      "path": "resources/docs/evaluation/eval-audit.md",
+      "blob": "bc277162f32f11c98639621d94c4a3b90ce6d33d"
+    },
+    {
+      "path": "resources/docs/evaluation/eval-hillclimb.md",
+      "blob": "82b3f10759dc175a7986428d0df24cdae6c42e48"
+    },
+    {
+      "path": "resources/docs/evaluation/performance-tuner.md",
+      "blob": "703b049d86d44caf9218d56dbc6862eca7ab531e"
+    },
+    {
+      "path": "resources/docs/managed-agents/csharp/README.md",
+      "blob": "162cfc76486dfd52d73a1a75496320e00c85c4f1"
+    },
+    {
+      "path": "resources/docs/managed-agents/go/README.md",
+      "blob": "b13cdc26ed05010f9b9c42ba5e8b9a1a077f8dbe"
+    },
+    {
+      "path": "resources/docs/managed-agents/java/README.md",
+      "blob": "cb1bb5f1d495cb2890f6b545b85f49ba8061647e"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-api-reference.md",
+      "blob": "af31596d98f23ae1a9e55ba143de96e2a45b587b"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-client-patterns.md",
+      "blob": "fa7920089e401c25cbf074c912801cb7e988ba40"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-core.md",
+      "blob": "19434f0f41ecd2c88adabb3d7b22b73076f0c1bd"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-environments.md",
+      "blob": "bdb8f3d847214d652dacb4bdefb84262cd228a5b"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-events.md",
+      "blob": "22db57856e173f5fb544be69be1ad20ddf1ef2ab"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-memory.md",
+      "blob": "408894899b85068c948ed6ea999c502d16805953"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-multiagent.md",
+      "blob": "6c34430ed395c139772fa1cff2b5d8671be73a7e"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-quickstart.md",
+      "blob": "f0d9f64b8238bd10b676196165597cb5f074ec89"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-onboarding-from-url.md",
+      "blob": "a489c445084f98635dae7cf9ba8a640576b92964"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-onboarding.md",
+      "blob": "39b4d62e4cb57541b24da7eb760df5fbb8e8545d"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-outcomes.md",
+      "blob": "e8080c35fb02c0c2dee77b611d8ee492ce2cd847"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-overview.md",
+      "blob": "1064c4fb1119aa57c2e97b09c199ac77c92b8e4c"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-scheduled-deployments.md",
+      "blob": "4c5ede07660dda58c01bdb3ac41578610642d2ed"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-secure.md",
+      "blob": "37b407460cfad70928c7fc8d9f82864f988398c5"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-self-hosted-sandboxes.md",
+      "blob": "a9f7a82cc42ce50ced2e1089f0c36ac39423373e"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-tools.md",
+      "blob": "6c2c66e34ded595594979299c1089d523001ec1e"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents-webhooks.md",
+      "blob": "25f0592cdf26bed177b36e9e2579dea9676357fd"
+    },
+    {
+      "path": "resources/docs/managed-agents/managed-agents.md",
+      "blob": "7cccb9b4c2fcfa0bf73357c10a3ca84c3b1f02e0"
+    },
+    {
+      "path": "resources/docs/managed-agents/php/README.md",
+      "blob": "44659330fcbf97e356bb6dd263330cab7abace53"
+    },
+    {
+      "path": "resources/docs/managed-agents/python/README.md",
+      "blob": "7bc5b74e26625bd979a80c120bcf4db942ba7626"
+    },
+    {
+      "path": "resources/docs/managed-agents/ruby/README.md",
+      "blob": "8e067430438208d56c7bc303d64a4e2332c19466"
+    },
+    {
+      "path": "resources/docs/managed-agents/typescript/README.md",
+      "blob": "947cbe1ad8e19e02487032c74dec2f225cd65794"
+    },
+    {
+      "path": "resources/docs/migration/causes.md",
+      "blob": "2e8a9f4f2e23761f76c7ba6617a9c486c380a047"
+    },
+    {
+      "path": "resources/docs/migration/preserved-thinking-migration.md",
+      "blob": "015a58a9371af84c2da7fdce36e5689f4897cefb"
+    },
+    {
+      "path": "resources/docs/misc/electron.md",
+      "blob": "82209736d704b00cb4bab03181a9a8382f07d59d"
+    },
+    {
+      "path": "resources/docs/misc/examples.md",
+      "blob": "377d85038b89ce030259753c71a719cf69ff7cd0"
+    },
+    {
+      "path": "resources/docs/misc/live-sources.md",
+      "blob": "1a045af3531501e3332bbc3cd8a08606e004dc56"
+    },
+    {
+      "path": "resources/docs/misc/models.md",
+      "blob": "7c030fbae740223c1d3c7a198d3ab7c1c06870df"
+    },
+    {
+      "path": "resources/docs/onboarding/onboarding.md",
+      "blob": "2b817b6f20a9d2570db4538514491a3073c1fb4b"
+    },
+    {
+      "path": "resources/docs/other/permissions-external.txt",
+      "blob": "1031195a039189c392e9c9befe4b2d8a3590500a"
+    },
+    {
+      "path": "resources/docs/plugin-authoring/component-schemas.md",
+      "blob": "631933d52d6ba6726d870cc3d67f96e797f36ebb"
+    },
+    {
+      "path": "resources/docs/plugin-authoring/plugin-eval-quickref.md",
+      "blob": "cc7314b079db87edf87f2a5abde65d8d3d91cf7a"
+    },
+    {
+      "path": "resources/docs/plugin-authoring/plugin-eval.md",
+      "blob": "14af72f54b00352b0e2768d9e3e0c3bca11ffb77"
+    },
+    {
+      "path": "resources/docs/plugin-authoring/reference.md",
+      "blob": "28d1ffeeb2263bc696d3e7fa4f368167ada91071"
+    },
+    {
+      "path": "resources/docs/schemas/SCHEMA.md",
+      "blob": "fb0d09db801f163809cdf184eb94cd74e0c5bc20"
+    },
+    {
+      "path": "resources/embedded-source-layout.json",
+      "blob": "10dba34b72764926e4d3ee3753c7ec6f5d09a851"
+    },
+    {
+      "path": "resources/function-summary.json",
+      "blob": "ad2c702cd86f85316e7dcda8deb39086afd68cea"
+    },
+    {
+      "path": "resources/function-verification-ledger.json",
+      "blob": "ce8092e59bfb25b64cf8463bbfee9e89a74a7d00"
+    },
+    {
+      "path": "resources/manifest.json",
+      "blob": "88d1bdf44971bb9392244d6b20ad243a67cc8e57"
+    },
+    {
+      "path": "resources/resource-consumer-summary.json",
+      "blob": "51cc94f75ef1a58f2de40ef31adfebc5b1c5c644"
+    },
+    {
+      "path": "resources/restored-symbol-aliases.json",
+      "blob": "ea34b43176c62ef7de00e958b979e037828b788e"
+    },
+    {
+      "path": "resources/skills/artifact-design/SKILL.md",
+      "blob": "82db5fd98ba414a0d15971ecee950d6e5e5d15e4"
+    },
+    {
+      "path": "resources/skills/building-llm-powered-applications-with-claude/SKILL.md",
+      "blob": "dc78417adb4d8defe58c4ac6260afbc1047c7bdb"
+    },
+    {
+      "path": "resources/skills/claude-test-runner-drive-the-app-in-a-browser-judge-eac/SKILL.md",
+      "blob": "8775787cf91a607f6db09ae0cdd4e0bb5f517ca3"
+    },
+    {
+      "path": "resources/skills/claude-test-the-conversation-side/SKILL.md",
+      "blob": "19c2558dd1e2bf334683bc6f78405f0a26019d2b"
+    },
+    {
+      "path": "resources/skills/claude-test-the-spec-author-background-nobody-is-watchi/SKILL.md",
+      "blob": "90eed18804db6aac9f410aa426b9f005e8916ddc"
+    },
+    {
+      "path": "resources/skills/cowork-plugin-authoring/SKILL.md",
+      "blob": "1a341501977cb1dfc7534fc850dc70400e4a576d"
+    },
+    {
+      "path": "resources/skills/design-sync/SKILL.md",
+      "blob": "b598fca5801807995eb88e2e2d6666fd02d75a21"
+    },
+    {
+      "path": "resources/skills/package-source-shape/SKILL.md",
+      "blob": "dcf98ad12710d832ae64ca5841c3aa31785d86b7"
+    },
+    {
+      "path": "resources/skills/plugin-authoring/SKILL.md",
+      "blob": "22d9332e6e47199d95136c671a7f1ce63f33dd21"
+    },
+    {
+      "path": "resources/skills/prototype/SKILL.md",
+      "blob": "c565951991e973120ddf8e0b28e317ac73195aa2"
+    },
+    {
+      "path": "resources/skills/run-skill-generator/SKILL.md",
+      "blob": "22d0dab69e41b03c91adb5b745d00dfb2b8bd9a0"
+    },
+    {
+      "path": "resources/skills/storybook-source-shape/SKILL.md",
+      "blob": "7c9f4fd014796f559d60089687fb16a59ff631f7"
+    },
+    {
+      "path": "resources/skills/verify/SKILL.md",
+      "blob": "a48311c25e6bd08b42d834ee006e18d97b14be91"
+    },
+    {
+      "path": "resources/skills/workshop/SKILL.md",
+      "blob": "bb4706d9bbfd549d859bd68206c84362aa36e797"
+    },
+    {
+      "path": "resources/templates/artifact/artifact-plan.html",
+      "blob": "1671e272b5de918f8214f5a8f43d62d8663ebd6d"
+    },
+    {
+      "path": "resources/templates/artifact/artifact-workshop.html",
+      "blob": "4a4a477491eb6c86903731204c4f1dc73e368156"
+    },
+    {
+      "path": "resources/templates/artifact/component.css",
+      "blob": "a6785d0b75f3a4c7fda47ea55e9b5ccb6b49b890"
+    },
+    {
+      "path": "resources/templates/artifact/data-table.html",
+      "blob": "430d66ace04bc81ee1373fcb52a3c222aa48dd25"
+    },
+    {
+      "path": "resources/templates/artifact/decisions-script.html",
+      "blob": "86b245d6337e16d402ded657f9fc07b0d3cdd0ce"
+    },
+    {
+      "path": "resources/templates/artifact/document-editor.html",
+      "blob": "bd9b40a2a160d409cf85b26567781f3f3a580322"
+    },
+    {
+      "path": "resources/templates/artifact/report.html",
+      "blob": "998a3c6834192c473c1bf6d5501519879c808f43"
+    },
+    {
+      "path": "resources/templates/artifact/tokens.css",
+      "blob": "0ba5891ee2fad9563f1130172f96e873db497273"
+    },
+    {
+      "path": "resources/templates/artifact/workshop-page.html",
+      "blob": "8ae5b9acd18596419980c402fffc239bb6ca14b9"
+    },
+    {
+      "path": "resources/tools/artifact/scripts/appifact_sdk.js",
+      "blob": "5e9dcb99f0d0a5f76558f16484bbb5c99300e5e6"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/ct-auth.mjs",
+      "blob": "35f4f18f11312392236cf2355389ed558f8a2f63"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/ct.mjs",
+      "blob": "7a79ebb54fc6001af721e07d15e4ea7e0d19d4d9"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/ctbrowser.mjs",
+      "blob": "af776d7405da27ff28dcc0657f6c382f7672da2b"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/install-tools.mjs",
+      "blob": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/allow-tool.mjs",
+      "blob": "b97427c16c223e1e419d47ae150762530d21c4f4"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/config.mjs",
+      "blob": "399e61c65124cf6ba64ad5b4e8530027d7fadf01"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/discover.mjs",
+      "blob": "7875e735c41f99c83e0b38244751a2946c3b5d5d"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/envreport.mjs",
+      "blob": "84e3c09d103a96f335c213875ac0b7aaa8325454"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/fence-proxy.mjs",
+      "blob": "cbd1281e78d35913c5140d5f21240b00d97c0e5a"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/guard.mjs",
+      "blob": "8b43c67b4897054cd632c6837c3f91c4c811b4e2"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/hosts.mjs",
+      "blob": "87e746e091f5af7f308bfee7382023b15abd7f08"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/live-page.mjs",
+      "blob": "6d4547d1dfbf8e506cf01b65da76b0b2ce1695e5"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/open-page.mjs",
+      "blob": "b1f38cce8c914ce24f1d979489a99272606069ef"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/psl-data.json",
+      "blob": "1fdb1de5e9206c6fc46b38bca3d1bd89d7791d25"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/run-tools.mjs",
+      "blob": "1cef27aed5d4016f65820df8b824f384300954ca"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/runs.mjs",
+      "blob": "e0ca31c5ba389d677d824c09e504a40444d55537"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/signin.mjs",
+      "blob": "d93f403093ded8aced25bf85b0d1bb7c5269432f"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/tools-lock.json",
+      "blob": "682cff7d1c29c81de536661ac3837e06b6f5b6ae"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/tools.mjs",
+      "blob": "3f1ca62a495958d0456b39bca9d6ca134365415d"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/lib/vet.mjs",
+      "blob": "7d2159d8bbe92037da471f0bf70c779d11b93533"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/playwright-mcp.mjs",
+      "blob": "4726f3c53ddba60fea76cb47eb2a4d56f90d1e8a"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/sign-in.mjs",
+      "blob": "6fe1cf168e19dd64b7c3e38632d54dca32d940b1"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/stop-on-exit.mjs",
+      "blob": "888d2f64512880478668c530d971b01a35354b48"
+    },
+    {
+      "path": "resources/tools/claude-test/scripts/tools-snapshot.json",
+      "blob": "d17b7fe09a040f02883d36ccc938597dc55d2461"
+    },
+    {
+      "path": "resources/tools/claude-test/source-layout.json",
+      "blob": "be8c5198aa76e8aa09827c31fb0e26dd48003348"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/bundle.mjs",
+      "blob": "577637caf6db3e6b78345fc16793c1ab149e8be8"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/common.mjs",
+      "blob": "e6cd1a70b433d8333811ef3bfc341cf625db82c2"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/css-fallback.mjs",
+      "blob": "1460b41bc3545121b19d070b2141b08a50d5fb08"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/css.mjs",
+      "blob": "982fde0a02969eb03d0ec437930ebf022ffb62b3"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/detect.mjs",
+      "blob": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/docs.mjs",
+      "blob": "69dcb3fc8ba9c06f78f00bb74618cbe083e14f1c"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/dts.mjs",
+      "blob": "4a600b717ec30554104a32ca683597ad66dda59a"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/emit.mjs",
+      "blob": "c46517acf16fa6743ca963578edbbb9bcb6a8d2b"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/preview-gen-storybook.mjs",
+      "blob": "0b224d7a270de4629445dd8e6656d7e9db381fa6"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/preview-rebuild.mjs",
+      "blob": "b9c30825961e7bff1622ac794cf3d39a5bbc8bdb"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/previews.mjs",
+      "blob": "b9af10b5cc24c296fc7af7904b478c9bc6a78c92"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/remote-diff.mjs",
+      "blob": "04307628611370cdc4748b94e9ea1e605f47843c"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/source-kit.mjs",
+      "blob": "56da936d52f0de5de47eb88605d798764ed791f2"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/source-storybook.mjs",
+      "blob": "cebb31dbbd70a862aea4ddad255098138599b3ac"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/story-imports.mjs",
+      "blob": "ec275864eecf19bc8d402dcd9b2bbd98e4278a9d"
+    },
+    {
+      "path": "resources/tools/design-sync/lib/sync-hashes.mjs",
+      "blob": "fe0164230e9fe0a9dd8fb80cf5a0230540638158"
+    },
+    {
+      "path": "resources/tools/design-sync/package-build.mjs",
+      "blob": "029faaaa5c7773bfea10f12841b75b4c9da49052"
+    },
+    {
+      "path": "resources/tools/design-sync/package-capture.mjs",
+      "blob": "c10344f12030efa260093335e54a036fc724cef5"
+    },
+    {
+      "path": "resources/tools/design-sync/package-validate.mjs",
+      "blob": "9a0f277d2882764a518f16cc0301e0e8c102c699"
+    },
+    {
+      "path": "resources/tools/design-sync/resync.mjs",
+      "blob": "d91879ff03bf9024c667bc41f75782adf0428228"
+    },
+    {
+      "path": "resources/tools/design-sync/source-layout.json",
+      "blob": "4a2bf45b197ad48353839e4facd6335cfaea5a9f"
+    },
+    {
+      "path": "resources/tools/design-sync/storybook/compare.mjs",
+      "blob": "bda88455d84d40bcebf5ef474ac197d76b003031"
+    },
+    {
+      "path": "resources/tools/design-sync/storybook/http-serve.mjs",
+      "blob": "a268825307998a6a1111b0370d72bede9f15c99a"
+    },
+    {
+      "path": "resources/tools/design-sync/storybook/probe.mjs",
+      "blob": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85"
+    },
+    {
+      "path": "resources/tools/design/scripts/validate_palette.js",
+      "blob": "0529c4f9c3bdb689bfe8ee30327b78e99c94976a"
+    },
+    {
+      "path": "resources/tools/design/scripts/validate_palette.py",
+      "blob": "c5cd012f445f8b7a8c26106dcafded4326958abe"
+    },
+    {
+      "path": "resources/tools/evaluation/drop_block_probe.py",
+      "blob": "b39d47dbe57bfebf53534f4a15788a3be7000829"
+    },
+    {
+      "path": "resources/tools/evaluation/prefix_diff.py",
+      "blob": "cfa88044b45b4acb8b82044f51872f4f7e306c2f"
+    },
+    {
+      "path": "resources/tools/plugin-api/scripts/kit-modules.js",
+      "blob": "86d013751295b67aadd5ca8190f2227e003f5f3b"
+    },
+    {
+      "path": "resources/tools/plugin-api/types/claude-code.d.ts",
+      "blob": "0e6a0d375bf4f1f3a2eb8f4a43f6e4cf99a11d93"
+    },
+    {
+      "path": "runtime/assets.mjs",
+      "blob": "9dbdb1d2c6e8cbffce315b80163ab20a627f269e"
+    },
+    {
+      "path": "scripts/build-resource-consumers.cjs",
+      "blob": "74a541a690a34ed4b10f23f987262a1ab8f9f47e"
+    },
+    {
+      "path": "scripts/check-restored-aliases.cjs",
+      "blob": "266802c668f1a2f44a25509225e808d2d7b2dd09"
+    },
+    {
+      "path": "scripts/check-source-fingerprint.cjs",
+      "blob": "b60f4b0e99558bd63df041595cc98f99f81ba1f7"
+    },
+    {
+      "path": "scripts/install.sh",
+      "blob": "99c8259dabae6cd1fff54ecb018498cf609c7056"
+    },
+    {
+      "path": "scripts/restore-plugin-testing-kit.cjs",
+      "blob": "9c1bb01019cafe6bb38a900d993d4a9250b53e34"
+    },
+    {
+      "path": "scripts/source-function-index.cjs",
+      "blob": "529ffa0bd76c682f215ada5189a2a64d358a9404"
+    },
+    {
+      "path": "scripts/trace-query-loop-callchain.cjs",
+      "blob": "941da4755e0b51755bada394920c84e31708a48e"
+    },
+    {
+      "path": "scripts/verify-function-ledger.cjs",
+      "blob": "f17e521811e8e12aed1eb90d3d87e970834f98b3"
+    },
+    {
+      "path": "src/chart.umd.min.js",
+      "blob": "008464faaecaf20a761739a61da2278be62b4963"
+    },
+    {
+      "path": "src/embedded/agent-guides/build-report-lite.mjs",
+      "blob": "ba1c1ba05eadd9b121a1a1cc07cf59443e70754a"
+    },
+    {
+      "path": "src/embedded/agent-guides/runner-scaffold.mjs",
+      "blob": "2f0220b41b4b30eb12606aa7ff95a9fee2f6e924"
+    },
+    {
+      "path": "src/embedded/browser-tools/hosts.mjs",
+      "blob": "87e746e091f5af7f308bfee7382023b15abd7f08"
+    },
+    {
+      "path": "src/embedded/browser-tools/install-tools.mjs",
+      "blob": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa"
+    },
+    {
+      "path": "src/embedded/browser-tools/open-page.mjs",
+      "blob": "b1f38cce8c914ce24f1d979489a99272606069ef"
+    },
+    {
+      "path": "src/embedded/browser-tools/plugin.json",
+      "blob": "874ef91b284243d0d34e8746cc2a10ced6848052"
+    },
+    {
+      "path": "src/embedded/browser-tools/tools-lock.json",
+      "blob": "682cff7d1c29c81de536661ac3837e06b6f5b6ae"
+    },
+    {
+      "path": "src/embedded/component-build/css-fallback.mjs",
+      "blob": "1460b41bc3545121b19d070b2141b08a50d5fb08"
+    },
+    {
+      "path": "src/embedded/component-build/detect.mjs",
+      "blob": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9"
+    },
+    {
+      "path": "src/embedded/component-build/http-serve.mjs",
+      "blob": "a268825307998a6a1111b0370d72bede9f15c99a"
+    },
+    {
+      "path": "src/embedded/component-build/preview-gen-storybook.mjs",
+      "blob": "0b224d7a270de4629445dd8e6656d7e9db381fa6"
+    },
+    {
+      "path": "src/embedded/component-build/probe.mjs",
+      "blob": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85"
+    },
+    {
+      "path": "src/embedded/component-build/source-kit.mjs",
+      "blob": "56da936d52f0de5de47eb88605d798764ed791f2"
+    },
+    {
+      "path": "src/embedded/components/band-state.d.ts",
+      "blob": "c528ee59e8eaf52e3f7e7e6b7e5a4992cb84acaf"
+    },
+    {
+      "path": "src/embedded/components/band.tsx",
+      "blob": "99b4a69925fe45767aedbfa307681e131d6368c6"
+    },
+    {
+      "path": "src/embedded/components/pane-state.d.ts",
+      "blob": "564757b16f0953f6c6ac8677e33c9f46792e13de"
+    },
+    {
+      "path": "src/embedded/components/pane.test.tsx",
+      "blob": "69179f91f78c36c3c3f7df0d35656a9403a12a9b"
+    },
+    {
+      "path": "src/embedded/components/pane.tsx",
+      "blob": "72bb1fbd239d409f1736c0c46feff1d9ab5d8df4"
+    },
+    {
+      "path": "src/embedded/components/tool-call.ts",
+      "blob": "782e76163a4a4e0ecae260d970eea9fd65acaf0e"
+    },
+    {
+      "path": "src/embedded/design-templates/check.mjs",
+      "blob": "7f1e1c1e5e3cd797a2aa9bef165b8a59679059d7"
+    },
+    {
+      "path": "src/embedded/design-templates/skeleton.html",
+      "blob": "9048ab216ff81d4e63be27713e9d7ecca06f7713"
+    },
+    {
+      "path": "src/embedded/design-templates/template.html",
+      "blob": "1afa2f047176fd0ab06724d830742d0095c3c099"
+    },
+    {
+      "path": "src/embedded/design-templates/theme-script.html",
+      "blob": "adfc4d22a6b151507338a4e561574517bc85f0f4"
+    },
+    {
+      "path": "src/embedded/runtime/state-library.js",
+      "blob": "e44dd5cd3825ab8855d4dff7c10c53b76edc22b0"
+    },
+    {
+      "path": "src/hljsBundle.generated.min.js",
+      "blob": "eaf80b890e6bed330ab25ad7f4916510350b8787"
+    },
+    {
+      "path": "src/mermaid.min.js",
+      "blob": "e32ca23c25add2aa730cd4aeafe53ca028b681a3"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/collector.js",
+      "blob": "56d3db5e842728f2eb8805f6a8912758b2026edc"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/create-collector.js",
+      "blob": "4bc2ada3a3105300528bb5500ff9637f4980c8cb"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/index.js",
+      "blob": "19f2fbfdbe569737c0da23c43089a2dececfcd05"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/test-case-of/index.js",
+      "blob": "c2665ef4cc50f5b3489b7abd0e896a8f464bc475"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/test-case-of/test-case-of.js",
+      "blob": "3957fca03f06475783b716499c8955dd46a03b86"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/test-case-of/timeout-ms/index.js",
+      "blob": "26f730e9b3369ee0f3501b3c76dd3d3e106da86f"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/test-case-of/timeout-ms/timeout-ms.js",
+      "blob": "3f79c560354f1850fc2f36fb0d69cf4cead7e4eb"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/title-of/index.js",
+      "blob": "03faf3bd04020b568ed68003e46623833d2db3a3"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/create-collector/title-of/title-of.js",
+      "blob": "81ac33be6d9301881eefb0467058e16ca59a0fce"
+    },
+    {
+      "path": "src/plugin-testing-kit/collector/index.js",
+      "blob": "6ef275994496cd054b2c4ec28384a8044515db1b"
+    },
+    {
+      "path": "src/plugin-testing-kit/delay-max-ms/delay-max-ms.js",
+      "blob": "78b84f0f0f94d0435998b644d67d3c26e030d191"
+    },
+    {
+      "path": "src/plugin-testing-kit/delay-max-ms/index.js",
+      "blob": "9bdc001139c2164f10687d1786b7cff7dbd7f314"
+    },
+    {
+      "path": "src/plugin-testing-kit/describe/describe.js",
+      "blob": "a18fee19c3c2c95ea4d6a61192f84584dfdb3ce5"
+    },
+    {
+      "path": "src/plugin-testing-kit/describe/index.js",
+      "blob": "3a8a36bb1ed83e97392c7f206629d8005ed64728"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/asymmetry/asymmetry.js",
+      "blob": "656459fe0b9b7c014d9f447ecf5fed7191f40b01"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/asymmetry/create-asymmetry/create-asymmetry.js",
+      "blob": "fa5f95c7e6325d2b24e7a943146c7c5e2015b06a"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/asymmetry/create-asymmetry/index.js",
+      "blob": "00c66be0034008fe0c90e37fb199a004b4f80a6f"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/asymmetry/index.js",
+      "blob": "5d64a4ca1454731048228ae150e74124001b668e"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/equals-under.js",
+      "blob": "da041dbd5f9cc96e497ccb1ce1e520fed9f46ddf"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/index.js",
+      "blob": "2dc8aaabf88c787f2765cd2e7a8e5f98645d3015"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/arrays-equal/arrays-equal.js",
+      "blob": "787863c5b99b7a5d0964e99c1c86e31c574676d9"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/arrays-equal/index.js",
+      "blob": "e18e7855456a1f37a30aac6146f00ed68006e4a9"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/index.js",
+      "blob": "36c65b0ab73bbe75f4eeb9ec54f27382f216164e"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/index.js",
+      "blob": "cfa142acb2f92b24048f87f0fabfe2f90d86fb7c"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/maps-equal.js",
+      "blob": "69a36fbbb69b857397e08c74d46cc5643a7391b3"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/index.js",
+      "blob": "2ca34c5cf35ba955b7f1351d566a12ae6d77834e"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/keys-of/index.js",
+      "blob": "1f2c3f1973f0eeb9c16bd348114bca47f71f580b"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/keys-of/keys-of.js",
+      "blob": "cc343eb84eddc8e5cec48e58fdfe27cc7989fb35"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/properties-equal/properties-equal.js",
+      "blob": "31bcbe0f69433c29c3750f1f9585eeac87b3967d"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/index.js",
+      "blob": "e58d83d1ad453b322c5e2d2982a62afa44928e68"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/sets-equal.js",
+      "blob": "df8362507872bb505cfddc15a686ce2f7f948b33"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/structurally-equal.js",
+      "blob": "6e11b1bdf3101ac1159d1eac7c9b690ed7a34e67"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/equals.js",
+      "blob": "14d3c2bdd1c6bad4aacb2537f573001f98ab798f"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/equals/index.js",
+      "blob": "d8a84563e034a842118ce50b5bceab2f2a235fb5"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/brackets-of/brackets-of.js",
+      "blob": "e9751d9505775d0c8378f88dc7bb6528fc450c0c"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/brackets-of/index.js",
+      "blob": "6e514d06240a1ddffe56140b99075c49943e18ce"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/container-text.js",
+      "blob": "c21848b75ffbc59db757157efa8c29df68ce95f7"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/format-width/format-width.js",
+      "blob": "26bf3a6594bf3fccf6930510ec804a1278b5439e"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/format-width/index.js",
+      "blob": "cd1c8693bb5b66a96ee033c81f74839dbbc7574a"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/index.js",
+      "blob": "88ca8e7e2fe51701fbe50890d35ee2e860e0e72c"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/parts-of/index.js",
+      "blob": "ede818c380b972736d6b737ae21164e5a0dcca16"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/parts-of/key-text/index.js",
+      "blob": "e1a95fe63483527531fd698bbb7d65e05cd78d3b"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/parts-of/key-text/key-text.js",
+      "blob": "c8e852deee964acf13a79c4915342deff30d16ce"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/container-text/parts-of/parts-of.js",
+      "blob": "224a76582d2e65db1fa83d960ec2c444bd2cf26f"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/date-text/date-text.js",
+      "blob": "c1412546b07a1b91e50424e6e779fa74fa124009"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/date-text/index.js",
+      "blob": "6a95e20cd57d216e6ce91caf444921c62ecf8f8d"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/format.js",
+      "blob": "3e5120d12ecb9c62881e1af585082eb6d5b156d5"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/format/index.js",
+      "blob": "723d64993fe4d6d5e31f31c80008fdb9d8769ada"
+    },
+    {
+      "path": "src/plugin-testing-kit/equality/index.js",
+      "blob": "76a8712ed029a3b8643a04c12bc7d61baace8ea8"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/assertion-error-of/assertion-error-name/assertion-error-name.js",
+      "blob": "aaff9f86fb2e70cb54faf4b723066c2bce44b367"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/assertion-error-of/assertion-error-name/index.js",
+      "blob": "f1d20b0a99ab89269b7688252f38d298d28d6da0"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/assertion-error-of/assertion-error-of.js",
+      "blob": "54ae9906afd7e72a9abffb1a5db72bf4b3ecf076"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/assertion-error-of/index.js",
+      "blob": "d1919fae71b8d8092d2e881c4c1d0e98c9353c0a"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/by-matcher/by-matcher.js",
+      "blob": "f7d3a5e4969e07c1ea4197587b5f731459de7eab"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/by-matcher/index.js",
+      "blob": "a0e2fff037082c469cd21a87206c7f0adf77f68f"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/check/check.js",
+      "blob": "0349b47661915807fd461bbafd1ab464255937a7"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/check/index.js",
+      "blob": "d6407703df8bccb856a2bb86afa14cbb2766eb33"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expect.js",
+      "blob": "12e3f726aabc46eceaf3e6bd0e105b230f114150"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/checks-of/checks-of.js",
+      "blob": "f72d8ede33a71aa4a1c942e790d70638e804bb3a"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/checks-of/index.js",
+      "blob": "4319272cbf4802e475dfa97dbaaadcdaae88437f"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/expectation-of.js",
+      "blob": "a1cffbac3d77397ad65ec159861a918fd0d29f87"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/index.js",
+      "blob": "4f76418d95643dcc1d00539a73d61cfeb8983828"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/negatable-of/index.js",
+      "blob": "ae990f266f9b3ef64f1d0cc09a9c0a34463f772c"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/negatable-of/negatable-of.js",
+      "blob": "15f9066a44994686a303f3b7ed1487fc5806bb08"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/plain-context-of/index.js",
+      "blob": "40aca5e7b4189dae41103f3e694afc7e0ada08f8"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/plain-context-of/plain-context-of.js",
+      "blob": "623f919c32e8d5b430cd46438191f4a5c85a19a6"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/index.js",
+      "blob": "3e868415b971d4b7c4258153970f0e495b81ac08"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/outcome-of/index.js",
+      "blob": "cf6ce0d9e238a0d3c624342bf9879ae4d78651cf"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/outcome-of/outcome-of.js",
+      "blob": "2486bd6c06a31240df574bd85efc140fd602eb16"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/expectation-of/settled-checks-of/settled-checks-of.js",
+      "blob": "2b323a4b375124fb6491ace12b8b2a8e2da8cb8f"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/index.js",
+      "blob": "7169eecdc5c196265eebff3fe6955c0b909473d1"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/lead-of/index.js",
+      "blob": "56cbfb7d42c500ef16662aaa83cb6468a2f7e9e8"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/lead-of/lead-of.js",
+      "blob": "7b0d22928ca8bfea862b1e15961736e90646a859"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-names/index.js",
+      "blob": "70d8ec10a6bb8f8b3ceaf7d7d553c8f93e867d5b"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-names/matcher-names.js",
+      "blob": "5d722a860416b230f66ff8e2ffab40ff8f5679eb"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/index.js",
+      "blob": "395e6dce995ef7049cddb43c6c0c78bf409d59df"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/is-affixed/index.js",
+      "blob": "4d265e2b0a14a45920308608ff05b1e7c53b1ab2"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/is-affixed/is-affixed.js",
+      "blob": "18a8f3b5b32f28d82e50254b639fbacb7a224d88"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/is-matched/index.js",
+      "blob": "98993dc09d7fe4608e67adfb252e9925e5d3cd92"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/is-matched/is-matched.js",
+      "blob": "6d19dcc92e4c1e05b3de9890a9b8d8ac27e9db0f"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/is-thrown-as/index.js",
+      "blob": "a4a5a59f92d1a8a47be66c04d00b95dc33f5a47d"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/is-thrown-as/is-thrown-as.js",
+      "blob": "1733186b6d4ab8fd0b9c6a4872842135068ae3af"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/length-of/index.js",
+      "blob": "2da9bb9b10d715d539cf07200e8dab9fa465f479"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/length-of/length-of.js",
+      "blob": "ddfd2c924fdd8dc27866d74bb9ecc7af6e8661a0"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/matcher-table.js",
+      "blob": "059a5703ecb8666feff58cbe77ffa9ac7d387a9c"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/ordered-of/index.js",
+      "blob": "e9b64a08b9680d181bed99282b638dd3d99ba0b7"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/ordered-of/ordered-of.js",
+      "blob": "9b3c629502d81bf8fa6faa67a21d65f3cae65483"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/property-at/index.js",
+      "blob": "a6e5f8b80bffaaefd3f2d65b85158bab3a7a00c6"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/property-at/property-at.js",
+      "blob": "505dcdc1f29c45ec3c8cac8496605bdd550b0bf6"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/thrown-by/index.js",
+      "blob": "3b87fa5ab47be7920a1bc0e919bf2429a17e652b"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matcher-table/thrown-by/thrown-by.js",
+      "blob": "f943d78be5ecf72566c7d6659deca5799f2eb0de"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matching/index.js",
+      "blob": "a902155fe2cc68c1fe947e6292b24c419ba1252e"
+    },
+    {
+      "path": "src/plugin-testing-kit/expect/matching/matching.js",
+      "blob": "695c54c413db75e6b46319d817f35f7037f1cfc4"
+    },
+    {
+      "path": "src/plugin-testing-kit/index.js",
+      "blob": "bb358b97746aa09e76e2aaac8e4c6e451447d132"
+    },
+    {
+      "path": "src/plugin-testing-kit/install/index.js",
+      "blob": "443bd897be32d9ca2aeb6aa30b75fb5828976500"
+    },
+    {
+      "path": "src/plugin-testing-kit/install/install.js",
+      "blob": "172bd8655a984f6ce464a146576c8c73fcae2a3f"
+    },
+    {
+      "path": "src/plugin-testing-kit/installed/create-installed/create-installed.js",
+      "blob": "b0a0a7f348e380f1c85a755884f77122645bf34f"
+    },
+    {
+      "path": "src/plugin-testing-kit/installed/create-installed/index.js",
+      "blob": "377cb9e7f6006211a4246aaa25f137e2ce1b2335"
+    },
+    {
+      "path": "src/plugin-testing-kit/installed/index.js",
+      "blob": "58a241750cd61364fb3a3684996a9067defd0a0d"
+    },
+    {
+      "path": "src/plugin-testing-kit/installed/installed.js",
+      "blob": "db03cf78c271c97cffece9002c543dad881023ae"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-duration/index.js",
+      "blob": "f1bbcf8604afa8cd10eb047dfb7041351bb8b41a"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-duration/is-duration.js",
+      "blob": "2506a4b710b1402e06dd9ca18105f431bcd88c06"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-iterable/index.js",
+      "blob": "39c9c60b2d64d5a2d0eef3c99c265de7c7f0af86"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-iterable/is-iterable.js",
+      "blob": "fc835af4720a25822e9dd94c5fbe0774846538e8"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-object/index.js",
+      "blob": "c501384d4d52a60664434a7d20be13444473314d"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-object/is-object.js",
+      "blob": "607ecc7fd071589330a9d5a149fea807297a0028"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-plugin-tier/index.js",
+      "blob": "195c711d58c1f1455a18730984147dd9075d1d43"
+    },
+    {
+      "path": "src/plugin-testing-kit/is-plugin-tier/is-plugin-tier.js",
+      "blob": "7e2a14e97409ce9c0d316cbbf630631bbc0d4029"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/index.js",
+      "blob": "1e47a0a103565e0f2f27f86038e56895b94c7e17"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/advance-clock/advance-clock.js",
+      "blob": "c794199ef0777fbd9ebff2ad8ebcd021daa3ce1e"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/advance-clock/fires-per-advance-max/fires-per-advance-max.js",
+      "blob": "4bba8a46d112144fee73e71098dec4b31c745e51"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/advance-clock/fires-per-advance-max/index.js",
+      "blob": "4dc63283f9efefda29ffd1847d7b2fdee0313820"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/advance-clock/index.js",
+      "blob": "12b0e4513504994cd98f5324ef4452a797693e84"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/create-pending-clock.js",
+      "blob": "682aff19f396f31062412de3cefc61b5cbcbbc63"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/due-of/due-of.js",
+      "blob": "6dc470f27e77179eae2ede23b12486daeff212e4"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/due-of/index.js",
+      "blob": "f2108684743e7ebfe7dd09198e58ac1c9abf1043"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/index.js",
+      "blob": "b2e9dd7f85446ecaa263433ea8b41b65bbcb6d39"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/pending-wait-of/index.js",
+      "blob": "1d992cadb76d86629cf7521d53d44700e52b5144"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/create-pending-clock/pending-wait-of/pending-wait-of.js",
+      "blob": "778e09a2e70869e045b3ab595adb060bea89c708"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/hold-of/hold-of.js",
+      "blob": "75b375583759bbbd6e309b35e7eb1cccbb63fe59"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/hold-of/index.js",
+      "blob": "2058ab0386c6bec8257f996cccbc1d275e084e31"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/index.js",
+      "blob": "89f99b6ae6d31984250d007702fe98456ea2549b"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/mock-clock.js",
+      "blob": "cb1c7fc6050c76102a8ad76fa2c14603e309b585"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/set-clock/index.js",
+      "blob": "5bed16c9655fbad8d3e7222f263e72123f3bab89"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/set-clock/set-clock.js",
+      "blob": "f5e11cbe7fa9ee18141ee233bd4adc1b26daef6b"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/sleep-on/index.js",
+      "blob": "e7d6dfbb70294fac87b3399753e807c8f7f4a44b"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/sleep-on/sleep-on.js",
+      "blob": "d61559b75238b5e38cce93970ed0b9369c0eca03"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/start-of/index.js",
+      "blob": "6ccf0224053a5a4385fc89c1b6f20db278e60503"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-clock/start-of/start-of.js",
+      "blob": "0d90184a3c79cc8651be143a9435cfc4f70d8697"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-env/index.js",
+      "blob": "dfa4e39f827be6822cf391a37825a6df21dcc260"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-env/mock-env.js",
+      "blob": "ba1648548d6237e12c0a91d57a902b75030bc942"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-session/index.js",
+      "blob": "4766d59387295642e5c547aaabfa4c9a99bc189e"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-session/mock-session.js",
+      "blob": "322f9dcda826f5349917ac517d3e8871b1011f03"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-store/index.js",
+      "blob": "934a68394fd9966b5fb81ade8c3953749712c8e9"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock-store/mock-store.js",
+      "blob": "fef487589f20e54bd55d707be49d46db9f36034a"
+    },
+    {
+      "path": "src/plugin-testing-kit/mock/mock.js",
+      "blob": "943bb11c1ac0b675fb8bcfbe5e84b9191864c3be"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/checked-hook-of/checked-hook-of.js",
+      "blob": "7c2c826a468c6aa024561d26f2bca36194c9effe"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/checked-hook-of/index.js",
+      "blob": "a829156d372ea3021628317374b33e7cb1f46121"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/clause-of/clause-of.js",
+      "blob": "d789474741ec86955f086bae0d5804e9f48421ce"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/clause-of/index.js",
+      "blob": "f380a494c29e69ec111e017db51ea0ab53e3b64d"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/create-checks/create-checks.js",
+      "blob": "f65f3dd2f3158d8bc7995ec4ac77e9031d1a667c"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/create-checks/index.js",
+      "blob": "5f2ae26215e8660217976e2bacec0f9885fb1db3"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/create-holds/create-holds.js",
+      "blob": "e7d705c0d27121c1b1695bc3e5a2b463a00a460b"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/create-holds/index.js",
+      "blob": "de123dfc53b25c93415586f11f3f9fade22868ed"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/engine-of.js",
+      "blob": "23f531a36f10a3050821ab0f75f5197c9dd1ab55"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/index.js",
+      "blob": "ec27ecf8e065d90d3198727b6989152601fac2fb"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/call-of/call-of.js",
+      "blob": "30821d8f30281e3e18f20e75ec0b7b3e121bcd32"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/call-of/index.js",
+      "blob": "9e18ae3bbf88c2bcd2c4444482bcf7b3885f70f9"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/index.js",
+      "blob": "040d0f6a2d31a6990ed892bbe9584f30ba25c12f"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/input-call-of/index.js",
+      "blob": "641db6554ee234216c4417d19ede669fca737964"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/input-call-of/input-call-of.js",
+      "blob": "aa9eab9ed81170366272e7d5583e1107d6b8bdb0"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/index.js",
+      "blob": "6f4546df6aa282bd158e36c68131e522336623c0"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/is-viewport/index.js",
+      "blob": "29753cdcdfb2626b566ab56291ecf5091fa12e33"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/is-viewport/is-viewport.js",
+      "blob": "6a565df542ae43dc20d66a2d743f3494e31feb2b"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mount-call-of.js",
+      "blob": "a5058691d7397c01069f88235f09ab0a04431f36"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mounted-of/index.js",
+      "blob": "9690bbe1e6278b575d0cce0840ae3ae57e7749e0"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/mounted-of/mounted-of.js",
+      "blob": "8c2046c895be65f05af08c35b5a3812d1a26f378"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/query-of/index.js",
+      "blob": "53c33ecddf20d98c15245fb3528081133eddd958"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/mount-call-of/query-of/query-of.js",
+      "blob": "ebf38aaee36d963afb78ee43e3303b9adf10e1cb"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/noun-of.js",
+      "blob": "c55be1aeaafa87764f48e2200d2cb71a1217d1f6"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/press-call-of/index.js",
+      "blob": "994249421cf7e7cdcead894e52e4eda6cf6b609f"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/press-call-of/press-call-of.js",
+      "blob": "241be50b5990051c69d2250bc24c65731c6bcccb"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/select-call-of/index.js",
+      "blob": "1ff673cb32eff35d3d6027558713134e78a6ff13"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/select-call-of/select-call-of.js",
+      "blob": "59c7f33dc231401222bb70268e51a3e2f218c4b6"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/stream-of/index.js",
+      "blob": "aec41b190f75b5641fb200c278372255c9755e12"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/engine-of/noun-of/stream-of/stream-of.js",
+      "blob": "74750b4dfdbf00d66d45dc9b8f7e5eff17b9ba52"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/helper-spec-of/helper-spec-of.js",
+      "blob": "2094e44be297b3df66840a89ad2a2e1fcd4a1b39"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/helper-spec-of/index.js",
+      "blob": "d8a6672a6d4d3d9425beecfa89c9a9f128c3c0c3"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/index.js",
+      "blob": "9414c3f889c5a78027986b33c94de3b8c87deadc"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/is-plain-hook/index.js",
+      "blob": "2e2a4f515c01156f0ebcc124ce7d3a822b38c257"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/is-plain-hook/is-plain-hook.js",
+      "blob": "4ea333840db091fa7280419f35d501d9cdbe86fd"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/open-seat.js",
+      "blob": "8c3a16519d54d08b6e2d56ed7245c55ba877a76a"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counted-next-of.js",
+      "blob": "4520914c40f9c9211c18b2a1410a6690e16e5ed2"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counting-of/counting-of.js",
+      "blob": "0a58c6ac5435a458d64012920a706acc906f3d33"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/counting-of/index.js",
+      "blob": "4fd55643253437bb7e345b95db9e387adbeadaee"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/counted-next-of/index.js",
+      "blob": "0eb7141c2d07b1ce84b5c4d29da2c9a8d5fd6d3c"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/held-hook-of.js",
+      "blob": "9f84623ad91f7cd1a1ef94c902af0a7f5397a625"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/held-hook-of/index.js",
+      "blob": "77d890ca66bfa9b8076941175bb357aa22821fc6"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/index.js",
+      "blob": "4ff6decccbb745e90b9bf177868fc1b08ce4b195"
+    },
+    {
+      "path": "src/plugin-testing-kit/open-seat/replay-on/replay-on.js",
+      "blob": "b1c11c5fe091aff26b6d02d4f2b216fa1c3e1a85"
+    },
+    {
+      "path": "src/plugin-testing-kit/plugin-tiers/index.js",
+      "blob": "f961facb234161b724b7d10f920601d58760c952"
+    },
+    {
+      "path": "src/plugin-testing-kit/plugin-tiers/plugin-tiers-text/index.js",
+      "blob": "d1b7237044ad5c07052b217a3c28de50e504b592"
+    },
+    {
+      "path": "src/plugin-testing-kit/plugin-tiers/plugin-tiers-text/plugin-tiers-text.js",
+      "blob": "edc4da46bfa0b95dda64c44286e01c36fcfb86a2"
+    },
+    {
+      "path": "src/plugin-testing-kit/plugin-tiers/plugin-tiers.js",
+      "blob": "dc44ddec323b0661027108868eb0e91633f9b82f"
+    },
+    {
+      "path": "src/plugin-testing-kit/render-surface-names/index.js",
+      "blob": "528e65742752d938d3c7f75a8d988c001802bc14"
+    },
+    {
+      "path": "src/plugin-testing-kit/render-surface-names/render-surface-names.js",
+      "blob": "a8a9319a2969826c78bd10875d029be2a344f37d"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/index.js",
+      "blob": "5740fd9f23c509ff235324702874ca0288a06696"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/error-text-of/error-text-of.js",
+      "blob": "b830acf8a0c4ae96aa5ef8d522d7adb613e6df99"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/error-text-of/index.js",
+      "blob": "c93ffe217769accb6d34ee1c7515ef178b7c25b8"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/error-text-of/read-of/index.js",
+      "blob": "06d5b71d8cfce4342079d8e6b395d45c7680cd22"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/error-text-of/read-of/read-of.js",
+      "blob": "ec9732078a64676b1796c675c17ca6e22f505586"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/failure-of/failure-of.js",
+      "blob": "ea930b51445dcb6433a52e945331deea25f3c0fe"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/failure-of/hint-of/hint-of.js",
+      "blob": "6908ca20499aa007face797f1ee820f1368d17b8"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/failure-of/hint-of/index.js",
+      "blob": "ff0279873ffc02c64fceeda9dadab82989530790"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/failure-of/index.js",
+      "blob": "7177d3cb36c985e0ca32e9f8d668b641bf878b32"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/hook-notes-of/hook-notes-of.js",
+      "blob": "5ad6562a44bf5a3c2cb87b6435e9352bbacefb2d"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/hook-notes-of/index.js",
+      "blob": "088f42019a265133a3d0182eda1b70d5c57f6aff"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/index.js",
+      "blob": "4edb70227296ea3bf63496066c796a30c8274b84"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/run-case.js",
+      "blob": "5637c139b02ba97a8a5d9fef7dfa3e1d939efb93"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/timed/index.js",
+      "blob": "c9bd53cb747efa825eb56e543de6982a7b770aa5"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/timed/overran-error/index.js",
+      "blob": "dc368958046698b2d091674eab38de268029c131"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/timed/overran-error/overran-error.js",
+      "blob": "9d10f6171f942371fbf8ab8f90628136522f1ed2"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/timed/reject-overran/index.js",
+      "blob": "baf4740cc64d6c66511387288aadb377c3ef2201"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/timed/reject-overran/reject-overran.js",
+      "blob": "1593b3abac30c8c57c3f1132f97642e43d3c0ba8"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run-case/timed/timed.js",
+      "blob": "533780eb8fe6726d7dcbab2f75947017d0b13f93"
+    },
+    {
+      "path": "src/plugin-testing-kit/run/run.js",
+      "blob": "6a7dc891a699e604431a393383ead3a81235b930"
+    },
+    {
+      "path": "src/plugin-testing-kit/test/index.js",
+      "blob": "c5ec748033e5b056af7481f442ca5831d719d987"
+    },
+    {
+      "path": "src/plugin-testing-kit/test/test.js",
+      "blob": "1c32b91f432977bf132455ae23ad8dcb0635447c"
+    },
+    {
+      "path": "src/plugin-testing-kit/tier/index.js",
+      "blob": "a759a16b53f73fa788a461878b824d31d46aff82"
+    },
+    {
+      "path": "src/plugin-testing-kit/tier/tier.js",
+      "blob": "f9cccc5200effff016ce09facbe4290353cd6288"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/by-matcher/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/expectation-context/index.js",
+      "blob": "bb27f7576861fdc8b1f8d8b14227501236c1b5f7"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/expectation-context/polarity/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/index.js",
+      "blob": "535acae0632d198f17a09208b0577fdef8cdc4b8"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/matcher-check/index.js",
+      "blob": "43ad7e6c2a0769a72cdede4ff59d87d23a1bb006"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/matcher-check/verdict/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/matcher-name/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/outcome/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/property-lookup/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/settlement/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/throw-mode/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/checking/thrown/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/collecting/index.js",
+      "blob": "bc7d36b2cd3be19f04167d193452b532dc617f8c"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/collecting/test-case/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-classic/classic-event/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-classic/classic-fields/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-classic/index.js",
+      "blob": "fd55e2328af2104de2526e12a9cd59ed3c2e30be"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-input/index.js",
+      "blob": "9643eb6f1e4279f55915dfb87309359bc00a6c00"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-input/input-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/element-query/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/found-element/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/index.js",
+      "blob": "0de9b3c0f5b9eac57fade8445ecb2653b7b93af8"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mount-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/element-of-act/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/index.js",
+      "blob": "2a9bb5301775fcc0db83249d02925b53cc564ca9"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/client-scope/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/index.js",
+      "blob": "274b999195efec819d0700fc8e21d35fef04e272"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-input-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-key-event/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-pointer-event/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-press-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-resize-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-mount/mounted/mounted-members/mount-select-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-noun/engine-call/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-noun/engine-noun-event/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-noun/engine-tool-call/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-noun/index.js",
+      "blob": "88b7fe096bf7dc85d882671a257e6a22a4b1bbc4"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-press/index.js",
+      "blob": "41461a5d61d9d92df45e6ab8946b8af40ab57a76"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-press/press-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-select/index.js",
+      "blob": "ad3ef83edf3cdd1df5be1b3bb40639ed82f2496a"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/engine-select/select-target/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/engine/index.js",
+      "blob": "d3c14e4e789ffbd9e5a094f290b64698bfde2f65"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/equality/equality-mode/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/equality/index.js",
+      "blob": "0cc0e5fd8ce6a4e7e13e059f705d565d280f9ad6"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/equality/matcher-probe/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/equality/seen-pair/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/expect/expecting/expectation/async-matchers/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/expect/expecting/expectation/index.js",
+      "blob": "a207a85d9110576dae703a1cc290b24bad954c0e"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/expect/expecting/expectation/negatable/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/expect/expecting/index.js",
+      "blob": "3e694ab11d4d6a8715032d20b4a5adb773ecff5f"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/expect/index.js",
+      "blob": "812a6cb29ea1f76934e6aba08dd370878a89b86d"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/expect/matching/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/handover/engine-events/engine-noun-events/event-entry/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/handover/engine-events/engine-noun-events/index.js",
+      "blob": "4f57280e01371db0130d3e14afde918e3533d016"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/handover/engine-events/index.js",
+      "blob": "9461dbb9a95dbd86d2e4be96b380a92410790971"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/handover/host-calls/index.js",
+      "blob": "bdb2dac45d482161986f980a56ec1f0d73b64758"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/handover/host-calls/seat-module/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/handover/index.js",
+      "blob": "b129c346849799d43e659c6697144863f7d2a7ef"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/host/index.js",
+      "blob": "bf088ebc43b3e72f0b970714ad3cdded012eeb17"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/index.js",
+      "blob": "3da9c14da6cace7fdfd4306e5e3423519c008264"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/matchers/asymmetric-matcher/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/matchers/constructor/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/matchers/index.js",
+      "blob": "6480db6123a94df8a54f75663196034cb7b069e2"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/matchers/throw-expectation/index.js",
+      "blob": "c94494a72e7da7befba8be516b86374873f82d13"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/matchers/throw-expectation/with-message/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/index.js",
+      "blob": "482866561138e246e34724c2b183950a1a8b1cc0"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/mock-clock-options/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/mock-clock/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/mock-session/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/op-void/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/pending-wait/index.js",
+      "blob": "1c30f1ebe7ded50aa83361d32c69bc5aad69c480"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/pending-wait/settling/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/mock/signalled/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/plugin-tier/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/seat/checks/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/seat/holds/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/seat/hook-failure/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/seat/index.js",
+      "blob": "c73e34940b5088f68c58fbf001e56a99e030565e"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/seat/registration-handle/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/seat/seat-end/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/test/index.js",
+      "blob": "ec8cc70a423776cf325d3302854d7e04b3b841fd"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/test/test-body/index.js",
+      "blob": "9d3c8531f990949777b3e24ee86e68eaa18a6043"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/test/test-options/index.js",
+      "blob": "5cb417ec6019b7e6407ac4d7bcac0ccc99e79fea"
+    },
+    {
+      "path": "src/plugin-testing-kit/types/test/test-options/plugin/index.js",
+      "blob": "e14e95a2271ce38bfb1a8e928f287e13ba8a0522"
+    },
+    {
+      "path": "tests/agent-resume-errors.test.cjs",
+      "blob": "cee08cecb4d340e982f81be5bf1459b5b4dc7ee5"
+    },
+    {
+      "path": "tests/check-design-sync-layout.cjs",
+      "blob": "23d1259d6b19681bc4e5ede936fa5e0925cf938a"
+    },
+    {
+      "path": "tests/check-embedded.cjs",
+      "blob": "d12d5366eef6c98bcf1cab2c11c989d61c5190ee"
+    },
+    {
+      "path": "tests/check-naming-layout.cjs",
+      "blob": "5f0590c32dc1355241794567eeb86b0281bb24be"
+    },
+    {
+      "path": "tests/check-source.cjs",
+      "blob": "15cfff6eb57f94e2f23c8b8e26acef59ca915417"
+    },
+    {
+      "path": "tests/check-tool-layout.cjs",
+      "blob": "c3ed5f458500beb5f2ed08e66d852226a2e51cdb"
+    },
+    {
+      "path": "tests/cli-command-dispatch-source.test.cjs",
+      "blob": "694096df8ecaf0b441c4e4a0d5df490330fea9aa"
+    },
+    {
+      "path": "tests/daemon-orphan-cleanup.test.cjs",
+      "blob": "6986ac45dbff2767fd0d68b4dc2be843206931d4"
+    },
+    {
+      "path": "tests/daemon-recovery-helpers.test.cjs",
+      "blob": "712d58cf3b1b0a797a74fcc05f60f792965fe15a"
+    },
+    {
+      "path": "tests/design-sync-adapter-contract.test.cjs",
+      "blob": "a4a8e890cbc8e686fcfbb3c1803a0b025068d799"
+    },
+    {
+      "path": "tests/function-hook-worker-contract.test.cjs",
+      "blob": "746b2f70435add098b98cc890aa836f39f8167ea"
+    },
+    {
+      "path": "tests/helpers/source-extraction.cjs",
+      "blob": "4fad13634c9d51cbc2b24bf7f872316f8ff2f767"
+    },
+    {
+      "path": "tests/hook-dispatch-source.test.cjs",
+      "blob": "0eb6c367dc06a2ee11f7c3a23fb63aa0270c0d23"
+    },
+    {
+      "path": "tests/hook-identifier-restored.test.cjs",
+      "blob": "5c2e29feaaa1dabed2d043aa5c362d4020976e4c"
+    },
+    {
+      "path": "tests/hooks-source-restoration.test.cjs",
+      "blob": "8337a66a9704cfad482468bcacd7729f29d90558"
+    },
+    {
+      "path": "tests/js-resource-loader.test.mjs",
+      "blob": "8870853da9cbfd728d9c17ba2ca56e8461471d68"
+    },
+    {
+      "path": "tests/mcp-connection-settlement.test.cjs",
+      "blob": "fc2eb951b1721d1bcfd346718bddefe840afe012"
+    },
+    {
+      "path": "tests/mcp-issuer-echo.test.cjs",
+      "blob": "bdb07fa376aceb011620e9dabb6300359d3614bc"
+    },
+    {
+      "path": "tests/mcp-oauth-lifecycle.test.cjs",
+      "blob": "678dc67292cda805d06c752d18af1b0c38f62acb"
+    },
+    {
+      "path": "tests/mcp-oauth-refresh-errors.test.cjs",
+      "blob": "f6ddc8ce73523cb400379a8ddc157bbc5bc844bc"
+    },
+    {
+      "path": "tests/mcp-oauth-refresh-lock.test.cjs",
+      "blob": "db95e0366ab4b088c893f58558eea7ffc815b1f0"
+    },
+    {
+      "path": "tests/mcp-retry-executor.test.cjs",
+      "blob": "1913d86c0b41d0b6894b3873589899880cf0f0ee"
+    },
+    {
+      "path": "tests/mcp-retry-state.test.cjs",
+      "blob": "304c4bb2a650a83ba40653f3041132612da8f6f2"
+    },
+    {
+      "path": "tests/mcp-tool-forwarding.test.cjs",
+      "blob": "75dd3a55b00b94ed81e415d7ebe9e392234e0772"
+    },
+    {
+      "path": "tests/model-refusal-recovery.test.cjs",
+      "blob": "d95f553d077f7c9e9f630a48126a320c621049bc"
+    },
+    {
+      "path": "tests/model-request-source.test.cjs",
+      "blob": "132415449a034e2083bbb48826092f69253b9f4f"
+    },
+    {
+      "path": "tests/native-audio-source.test.cjs",
+      "blob": "156456749dfd0fc6c408f03b3735c7796c2802b5"
+    },
+    {
+      "path": "tests/permission-template-source.test.cjs",
+      "blob": "5f884f91a8f4574f51d8182eb0a7f07ad8562829"
+    },
+    {
+      "path": "tests/plugin-eval-report-source.test.cjs",
+      "blob": "68642c3cc822786cc12b9dc18ced1a620a237677"
+    },
+    {
+      "path": "tests/plugin-event-registry.test.cjs",
+      "blob": "e356645e466280d79304b32930b7a2e678acd660"
+    },
+    {
+      "path": "tests/plugin-kit-source.test.cjs",
+      "blob": "97451ec409817f7cea0641db72f98f11218cb417"
+    },
+    {
+      "path": "tests/query-loop-recovery.test.cjs",
+      "blob": "db84ba946f8b777d02cc58a11418d1a461157bed"
+    },
+    {
+      "path": "tests/query-state-helpers.test.cjs",
+      "blob": "f53ab25d3f2b59a5aca7c8cdd158a1880bf6702a"
+    },
+    {
+      "path": "tests/runtime-assets.test.mjs",
+      "blob": "5ad829844341d178a2f9a492eaf8617a60a987f7"
+    },
+    {
+      "path": "tests/session-append-source.test.cjs",
+      "blob": "fc13ecc299e93ee05726661721f5a6bab66ed199"
+    },
+    {
+      "path": "tests/session-append-storage.test.cjs",
+      "blob": "4754a690578bae4d2f7119aa51b7868d2a656b0a"
+    },
+    {
+      "path": "tests/smoke-version.cjs",
+      "blob": "42ff1c2bab79ada77b894c6b082c3ade03290a71"
+    },
+    {
+      "path": "tests/source-extraction.test.cjs",
+      "blob": "c25f38e3545d2b02629edfdd78f645677beb889b"
+    },
+    {
+      "path": "tests/streaming-tool-contract.test.cjs",
+      "blob": "9e8b08ea002e3068997fe2b0029d2f9304df88f7"
+    },
+    {
+      "path": "tests/subagent-resume-chain.test.cjs",
+      "blob": "d825fff1c29fb9474a76bf4a7ebb5689cdbd6027"
+    },
+    {
+      "path": "tests/subagent-resume-lock.test.cjs",
+      "blob": "88bf31dc4295014f2a2a8166dda044585cb37fdb"
+    },
+    {
+      "path": "tests/subagent-shutdown-recovery.test.cjs",
+      "blob": "4b3af9aa5c3a8c702f125a74d82f5d21cc4f42ea"
+    },
+    {
+      "path": "tests/task-upload-lifecycle.test.cjs",
+      "blob": "c20362dbab4b7272548c6767f0482e70f7326852"
+    },
+    {
+      "path": "tests/thinking-model-override.test.cjs",
+      "blob": "32d1c28107e39d0f85dbcd6f031f590d92afb359"
+    }
+  ]
+}

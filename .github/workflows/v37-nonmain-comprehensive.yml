@@ -1,0 +1,62 @@
+name: v37 除主模块外全部652文件深度复核
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/audit-v37-nonmain-inventory.cjs'
+      - 'tests/v37-nonmain-inventory.test.cjs'
+      - 'resources/research/v37-nonmain-pinned-blobs.json'
+      - '.github/workflows/v37-nonmain-comprehensive.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/audit-v37-nonmain-inventory.cjs'
+      - 'tests/v37-nonmain-inventory.test.cjs'
+      - 'resources/research/v37-nonmain-pinned-blobs.json'
+      - '.github/workflows/v37-nonmain-comprehensive.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nonmain:
+    name: 652份剩余原件指纹与独立业务代码静态+定向验证
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - name: 安装AST与插件验证依赖
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 运行实际独立工具网络安全边界和清单测试
+        run: npm run check:v37-nonmain
+      - name: v37固定Git版本对照全部非主模块并生成工具AST分析
+        run: |
+          node scripts/audit-v37-nonmain-inventory.cjs --output "$RUNNER_TEMP/111-v37-nonmain.json"
+          node - "$RUNNER_TEMP/111-v37-nonmain.json" <<'NODE'
+          const fs=require('node:fs'),j=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(j.problems.length)throw Error('nonmain source integrity failures');
+          if(j.metrics.nonMainFiles!==652||j.metrics.bundledJsFiles!==47||j.metrics.bundledPythonFiles!==3)
+            throw Error('original v37 non-main inventory drift');
+          const out=[
+            '## v37非主模块652份文件：独立可执行工具与原件审计',
+            '| 项目 | 文件数 |','|---|---:|',
+            ...Object.entries(j.groups).map(([k,v])=>`| ${k} | ${v.files} |`),
+            '| 其他源码及资源总计 | '+j.metrics.nonMainFiles+' |',
+            '| 独立工具JS/MJS语法文件 | '+j.metrics.bundledJsFiles+' |',
+            '| 独立工具Python语法文件 | '+j.metrics.bundledPythonFiles+' |',
+            '| 原生ELF插件 | '+j.metrics.nativeELFModules+' |',
+            '',
+            '**仅证明固定Git版本存在/指纹及部分实际函数边界；不等于产品完整业务链或原版二进制运行等价。**'
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,out+'\n');
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: 111-v37-other-652-code-evidence
+          path: ${{ runner.temp }}/111-v37-nonmain.json
+          retention-days: 30
+          if-no-files-found: error
