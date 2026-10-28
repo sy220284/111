@@ -10,11 +10,11 @@ async function load(modules) {
  const context=vm.createContext({});
  const mod=new vm.SourceTextModule(code,{context,identifier:'core/chunk-q85nvv4x.js'});
  await mod.link(async name=>{
-   const bindings=name.includes('core/chunk-g2mvjkdk.js')
+   const bindings=name.includes('chunk-g2mvjkdk.js')
      ? {Ie:()=>({loadedModules:modules})}
-     : name.includes('core/chunk-y609bddh.js')
+     : name.includes('chunk-y609bddh.js')
        ? {DS:candidate=>candidate.isPolicy===true}
-       : name.includes('core/chunk-5rw2zfa0.js')
+       : name.includes('chunk-5rw2zfa0.js')
          ? {GNe:'managed'}
          : null;
    assert.ok(bindings,'unexpected original module dependency '+name);
