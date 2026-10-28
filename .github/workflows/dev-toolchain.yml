@@ -8,7 +8,7 @@ on:
       - 'tools/dev/**'
       - 'tools/analysis/ghidra-headless.sh'
       - 'tools/analysis/integrated-reverse-evidence.py'
-      - 'tests/integrated-reverse-evidence.test.py'
+      - 'tests/test_integrated_reverse_evidence.py'
       - 'tools/analysis/ghidra-scripts/**'
       - '.github/workflows/dev-toolchain.yml'
       - 'package.json'
@@ -489,7 +489,7 @@ jobs:
           print(s)
           PY
       - name: 验证联合取证校验器的正反例
-        run: python3 -m unittest discover -s tests -p 'integrated-reverse-evidence.test.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_integrated_reverse_evidence.py' -v
       - name: 同一提交重建JS函数调用图
         run: |
           set -euo pipefail
