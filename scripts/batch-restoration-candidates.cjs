@@ -117,7 +117,7 @@ function matchOne(f,idx) {
     return {confidence:'歧义',score:ranked[0].score,choices:ranked.slice(0,3).map(x=>({file:x.old.file,name:x.old.name,line:x.old.line,score:+x.score.toFixed(3)}))};
   return {...ranked[0],confidence:'待复核',reason:'长字符串证据与函数规模相近'};
 }
-function plan({oldRoot,newRoot,focus=[],max=200,aliasPath}) {
+function plan({oldRoot,newRoot,focus=[],max=200,aliasPath,v40Map,reference='2.1.88'}) {
   const oldFiles = sourceFiles(oldRoot,{old:true});
   const newFiles = sourceFiles(newRoot,{focus});
   const old = oldFiles.flatMap(f=>collect(f.full,f.relative));
@@ -125,6 +125,14 @@ function plan({oldRoot,newRoot,focus=[],max=200,aliasPath}) {
   let aliases=[];
   if (aliasPath && fs.existsSync(aliasPath)) aliases=JSON.parse(fs.readFileSync(aliasPath,'utf8')).entries||[];
   const done = new Set(aliases.map(x => x.source.replace(/^src\//,'') + '::' + x.legacy));
+  let v40Items=[];
+  if (v40Map && fs.existsSync(v40Map)) v40Items=JSON.parse(fs.readFileSync(v40Map,'utf8')).items||[];
+  const v40BySymbol=new Map();
+  for (const item of v40Items) for (const d of item.definitions||[]) {
+    const key=d.module+'::'+d.symbol;
+    if (!v40BySymbol.has(key)) v40BySymbol.set(key,[]);
+    v40BySymbol.get(key).push(item.symbolName);
+  }
   const matches=[], review=[], ambiguous=[];
   let functions=0, skippedRecovered=0;
   for (const f of newFiles.flatMap(x=>collect(x.full,x.relative))) {
@@ -133,6 +141,8 @@ function plan({oldRoot,newRoot,focus=[],max=200,aliasPath}) {
     const m=matchOne(f,idx);
     if (!m) continue;
     const next={new:{file:f.file,name:f.name,line:f.line,tokens:f.tokens},confidence:m.confidence,score:+m.score.toFixed(3)};
+    const v40Names=v40BySymbol.get(f.file+'::'+f.name);
+    if(v40Names)next.v40LocatedNames=v40Names;
     if (m.confidence==='歧义') {next.choices=m.choices;ambiguous.push(next);continue;}
     next.old={file:m.old.file,name:m.old.name,line:m.old.line};
     next.evidence={reason:m.reason,sharedLiterals:m.shared.slice(0,8)};
@@ -141,7 +151,8 @@ function plan({oldRoot,newRoot,focus=[],max=200,aliasPath}) {
   const sort=(a,b)=>a.new.file.localeCompare(b.new.file)||a.new.line-b.new.line;
   matches.sort(sort);review.sort(sort);ambiguous.sort(sort);
   return {
-    schema:1,baseline:'2.1.310',reference:'2.1.88',mode:'只读候选，未执行源码替换',
+    schema:1,baseline:'2.1.310',reference,mode:'只读候选，未执行源码替换',
+    v40LocationEvidence:{available:v40Items.length>0,records:v40Items.length,recognizedDefinitions:v40BySymbol.size,meaning:'已定位符号，不代表缺失函数'},
     scanned:{oldFiles:oldFiles.length,oldFunctions:old.length,newFiles:newFiles.length,newFunctions:functions,alreadyRestored:skippedRecovered},
     counts:{high:matches.length,review:review.length,ambiguous:ambiguous.length},
     high:matches.slice(0,max),review:review.slice(0,max),ambiguous:ambiguous.slice(0,max)
@@ -151,12 +162,12 @@ function main(argv) {
   const option=k=>{const i=argv.indexOf(k);return i<0?null:argv[i+1]};
   const oldRoot=option('--old'),newRoot=option('--new')||path.resolve(__dirname,'../src');
   if(!oldRoot) throw Error('必须指定 --old <2.1.88/source/src 路径>');
-  const focus=(option('--focus')||'chunk-tqjdehqd.js,chunk-r4g83g7p.js,chunk-w9w4r9w1.js').split(',').filter(Boolean);
+  const focus=argv.includes('--all')?[]:(option('--focus')||'chunk-tqjdehqd.js,chunk-r4g83g7p.js,chunk-w9w4r9w1.js').split(',').filter(Boolean);
   const max=Number(option('--max')||200);
   if(!Number.isInteger(max)||max<1||max>5000)throw Error('--max 必须为 1 到 5000 的整数');
   const root=path.resolve(__dirname,'..');
   const out=option('--out')||path.join(root,'.generated','batch-restoration-candidates.json');
-  const result=plan({oldRoot:path.resolve(oldRoot),newRoot:path.resolve(newRoot),focus,max,aliasPath:option('--aliases')||path.join(root,'resources/restored-symbol-aliases.json')});
+  const result=plan({oldRoot:path.resolve(oldRoot),newRoot:path.resolve(newRoot),focus,max,reference:option('--reference')||'2.1.88',v40Map:option('--v40-map')||path.join(root,'resources/research/v40-p0-symbol-locations.json'),aliasPath:option('--aliases')||path.join(root,'resources/restored-symbol-aliases.json')});
   fs.mkdirSync(path.dirname(out),{recursive:true});
   fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
   process.stdout.write(JSON.stringify({file:out,scanned:result.scanned,counts:result.counts})+'\n');
