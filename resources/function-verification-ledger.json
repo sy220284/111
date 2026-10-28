@@ -1436,6 +1436,30 @@
       "test": "tests/v40-fleet-roster-semantics.test.cjs",
       "role": "v40-source-export-verified-updateRoster",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "$e",
+      "anchor": "function isDaemonRecordExpired(",
+      "test": "tests/daemon-beacon-source-restoration.test.cjs",
+      "role": "beacon-expiration-clock-24h-and-future-skew",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "tn",
+      "anchor": "function updateOwnedDaemonBeaconAttempt(",
+      "test": "tests/daemon-beacon-source-restoration.test.cjs",
+      "role": "monotonic-attempt-and-ownership-guard",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-t2adf9g4.js",
+      "symbol": "oxt",
+      "anchor": "function mergeOwnedDaemonBeaconProgress(",
+      "test": "tests/daemon-beacon-source-restoration.test.cjs",
+      "role": "sticky-beacon-progress-and-storage-routing",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }
