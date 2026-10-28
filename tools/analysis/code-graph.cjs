@@ -68,6 +68,10 @@ function analyze(sources, ledger = []) {
           defs.set(d.name.text,{file,symbol:d.name.text});
           if(isExported) exports.set(d.name.text,{file,local:d.name.text});
         }else if((stmt.declarationList.flags&ts.NodeFlags.Const)!==0 &&
+          ts.isObjectLiteralExpression(d.initializer)){
+          // An exported object is not itself callable, but can expose callable members.
+          if(isExported)exports.set(d.name.text,{file,local:d.name.text});
+        }else if((stmt.declarationList.flags&ts.NodeFlags.Const)!==0 &&
           ts.isIdentifier(d.initializer)){
           // An immutable function alias is the same callable, not a new implementation.
           // Never follow let/var reassignment or property/reflective aliases.
@@ -173,20 +177,54 @@ function analyze(sources, ledger = []) {
         ts.isNumericLiteral(node.argumentExpression)))return node.argumentExpression.text;
     return null;
   }
-  function objectMethods(expr,file,ast){
+  // Nested object-literal values form an explicit tree. Only leaf functions
+  // are callable. A spread or unknown computed property can replace any key,
+  // so reject the entire object's methods rather than inventing bindings.
+  function objectMethods(expr,file,ast,depth=0){
     const result=new Map();
-    if(!expr||!ts.isObjectLiteralExpression(expr))return result;
+    if(!expr||!ts.isObjectLiteralExpression(expr)||depth>12)return result;
     for(const property of expr.properties){
-      const name=staticPropertyName(property.name);
-      if(!name)continue;
+      if(ts.isSpreadAssignment(property)||
+        (property.name&&ts.isComputedPropertyName(property.name)&&
+         !ts.isStringLiteralLike(property.name.expression)&&
+         !ts.isNumericLiteral(property.name.expression)))return new Map();
+      const name=ts.isComputedPropertyName(property.name)?
+        staticPropertyName(property.name.expression):staticPropertyName(property.name);
+      if(name===null||name===undefined)continue;
       if(ts.isMethodDeclaration(property)){
         result.set(name,nodeTarget(property,file,ast,name));
-      }else if(ts.isPropertyAssignment(property)&&functionLike(property.initializer)){
+      }else if(ts.isPropertyAssignment(property)){
         const fn=property.initializer;
-        result.set(name,nodeTarget(fn,file,ast,fn.name?.text||name));
+        if(functionLike(fn))result.set(name,nodeTarget(fn,file,ast,fn.name?.text||name));
+        else if(ts.isObjectLiteralExpression(fn))result.set(name,objectMethods(fn,file,ast,depth+1));
+        else result.delete(name);
+      }else if(ts.isGetAccessorDeclaration(property)||ts.isSetAccessorDeclaration(property)){
+        result.delete(name);
       }
     }
     return result;
+  }
+  function lookupObjectMethod(object,keys){
+    let entry=object;
+    for(const k of keys){
+      if(!(entry instanceof Map))return null;
+      entry=entry.get(k);
+    }
+    return entry instanceof Map?null:(entry||null);
+  }
+  // Only a literal key or fixed syntactic property can be followed.
+  // Computed identifiers, optional chains, indexing by data, and expressions
+  // whose root is not an identifier stay unresolved.
+  function staticMemberChain(exp){
+    const members=[];
+    let cur=exp;
+    while(ts.isPropertyAccessExpression(cur)||ts.isElementAccessExpression(cur)){
+      const part=literalMemberName(cur);
+      if(part===null)return null;
+      members.unshift(part);
+      cur=cur.expression;
+    }
+    return ts.isIdentifier(cur)&&members.length?{root:cur.text,members}:null;
   }
   function scopedBindings(fn,file,ast){
     const callables=new Map(),objects=new Map(),aliases=[];
@@ -211,25 +249,79 @@ function analyze(sources, ledger = []) {
     // let/var reassignment, a property access, or an unknown cross-scope symbol.
     for(let pass=0;pass<aliases.length;pass++){
       let changed=false;
-      for(const [alias,original] of aliases)
+      for(const [alias,original] of aliases){
         if(!callables.has(alias)&&callables.has(original)){
           callables.set(alias,callables.get(original));changed=true;
         }
+        if(!objects.has(alias)&&objects.has(original)){
+          objects.set(alias,objects.get(original));changed=true;
+        }
+      }
       if(!changed)break;
+    }
+    // A destructured function member from a fixed local object can be tracked
+    // as a callable binding, but not destructuring from parameters/dynamic data.
+    for(const stmt of fn.body.statements){
+      if(!ts.isVariableStatement(stmt)||
+         !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
+      for(const d of stmt.declarationList.declarations){
+        if(!ts.isObjectBindingPattern(d.name)||!ts.isIdentifier(d.initializer))continue;
+        const obj=objects.get(d.initializer.text);
+        if(!obj)continue;
+        for(const element of d.name.elements){
+          if(!ts.isBindingElement(element)||!ts.isIdentifier(element.name))continue;
+          const property=element.propertyName?
+            staticPropertyName(element.propertyName):element.name.text;
+          const target=lookupObjectMethod(obj,[property]);
+          if(target)callables.set(element.name.text,target);
+        }
+      }
     }
     return {callables,objects};
   }
   const moduleObjects=new Map();
   for(const file of files){
-    const map=new Map(),ast=parsed.get(file);
+    const map=new Map(),aliases=[],ast=parsed.get(file);
     for(const stmt of ast.statements){
       if(!ts.isVariableStatement(stmt)||
          !(stmt.declarationList.flags&ts.NodeFlags.Const))continue;
-      for(const d of stmt.declarationList.declarations)
-        if(ts.isIdentifier(d.name)&&d.initializer&&ts.isObjectLiteralExpression(d.initializer))
+      for(const d of stmt.declarationList.declarations){
+        if(!ts.isIdentifier(d.name)||!d.initializer)continue;
+        if(ts.isObjectLiteralExpression(d.initializer))
           map.set(d.name.text,objectMethods(d.initializer,file,ast));
+        else if(ts.isIdentifier(d.initializer))
+          aliases.push([d.name.text,d.initializer.text]);
+      }
+    }
+    for(let pass=0;pass<aliases.length;pass++){
+      let changed=false;
+      for(const [alias,original] of aliases)
+        if(!map.has(alias)&&map.has(original)){
+          map.set(alias,map.get(original));changed=true;
+        }
+      if(!changed)break;
     }
     moduleObjects.set(file,map);
+  }
+  function exportObject(file,symbol,seen=new Set()){
+    if(!file||seen.has(file+'#'+symbol))return null;
+    seen.add(file+'#'+symbol);
+    const m=modules.get(file);
+    if(!m)return null;
+    const out=m.exports.get(symbol);
+    if(out){
+      if(out.file!==file)return exportObject(out.file,out.local,seen);
+      const obj=moduleObjects.get(file)?.get(out.local);
+      if(obj)return obj;
+      const binding=m.imports.get(out.local);
+      if(binding?.target&&!binding.namespace)
+        return exportObject(binding.target,binding.export,seen);
+    }
+    for(const other of m.exportAll){
+      const obj=exportObject(other,symbol,new Set(seen));
+      if(obj)return obj;
+    }
+    return null;
   }
   const edges=new Map();
   function addEdge(from,to,kind,file,ast,node){
@@ -291,25 +383,32 @@ function analyze(sources, ledger = []) {
               kind='same_module_candidate';
             }else reason='unknown_identifier';
           }
-        }else if((ts.isPropertyAccessExpression(callee)||ts.isElementAccessExpression(callee))&&
-                 ts.isIdentifier(callee.expression)&&literalMemberName(callee)!==null){
-          const ownerName=callee.expression.text,property=literalMemberName(callee);
+        }else if(staticMemberChain(callee)){
+          const {root:ownerName,members}=staticMemberChain(callee);
           let masked=false;
           for(let i=activeScopes.length-1;i>=0;i--)
             if(activeScopes[i].has(ownerName)){
               masked=true;
-              target=activeDefinitions[i].objects.get(ownerName)?.get(property)||null;
+              target=lookupObjectMethod(activeDefinitions[i].objects.get(ownerName),members);
               if(target)kind='lexical_object_method_candidate';
               break;
             }
           if(!masked){
             const ns=m.imports.get(ownerName);
-            if(ns?.target && ns.namespace){
-              target=exportTarget(ns.target,property);
-              if(target)kind='namespace_import_candidate';
+            if(ns?.target&&ns.namespace){
+              if(members.length===1){
+                target=exportTarget(ns.target,members[0]);
+                if(target)kind='namespace_import_candidate';
+              }else{
+                target=lookupObjectMethod(exportObject(ns.target,members[0]),members.slice(1));
+                if(target)kind='namespace_object_member_candidate';
+              }
+            }else if(ns?.target){
+              target=lookupObjectMethod(exportObject(ns.target,ns.export),members);
+              if(target)kind='imported_object_method_candidate';
             }
-            if(!target&&moduleObjects.get(file).has(ownerName)){
-              target=moduleObjects.get(file).get(ownerName).get(property)||null;
+            if(!target){
+              target=lookupObjectMethod(moduleObjects.get(file)?.get(ownerName),members);
               if(target)kind='module_object_method_candidate';
             }
           }
