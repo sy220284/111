@@ -30,9 +30,9 @@ test('v37固定版主源码之外652份文件分类完整，不混入2551主模�
  assert.equal(r.bundledTools.every(x=>x.ast.functions>=0),true);
 });
 test('JS AST distinguishes executable tool sources from vendor bundles and native binaries',()=>{
- assert.equal(category('tools/bundled/claude-test/scripts/ct.mjs'),'bundled_tool_sources');
- assert.equal(category('tools/bundled/design-sync/package-build.mjs'),'bundled_tool_sources');
- assert.equal(category('tools/bundled/evaluation/prefix_diff.py'),'bundled_tool_sources');
+ assert.equal(category('resources/tools/claude-test/scripts/ct.mjs'),'bundled_tool_sources');
+ assert.equal(category('resources/tools/design-sync/package-build.mjs'),'bundled_tool_sources');
+ assert.equal(category('resources/tools/evaluation/prefix_diff.py'),'bundled_tool_sources');
  assert.equal(category('resources/bunfs/clipboard-napi.node'),'other_embedded_resources');
  assert.equal(category('src/mermaid.min.js'),'prebuilt_vendor_bundle');
  const s=astMetrics("export const a = x=>x; export async function f(x){return import('../adapter.js')}",'example.js');
@@ -75,7 +75,7 @@ test('设计同步与浏览器工具归属固定、保留已知未验证的真�
   const m=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
   assert.equal(m.migrated.length,expectedMoved);
   assert.equal(m.supporting.length,expectedSupporting);
-  for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path)));
+  for(const e of [...m.migrated,...m.supporting])assert.ok(fs.existsSync(path.join(root,e.path.replace(/^resources\/tools\//,'tools/bundled/'))));
  }
  const design=JSON.parse(fs.readFileSync(path.join(root,'tools/bundled/design-sync/source-layout.json'),'utf8'));
  assert.equal(design.runtimeNotYetVerified.length,2);

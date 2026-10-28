@@ -6,15 +6,16 @@ const source=JSON.parse(fs.readFileSync(path.join(root,'tools/bundled/design-syn
 const sha=d=>crypto.createHash('sha1').update('blob '+d.length+String.fromCharCode(0)).update(d).digest('hex');
 assert.equal(source.migrated.length,12,'expected original source modules');
 assert.equal(source.supporting.length,6,'expected source-backed helper modules');
+const currentPath=p=>p.replace(/^resources\/tools\//,'tools/bundled/');
 const all=new Set();
 let staticImports=0;
 for(const entry of [...source.migrated,...source.supporting]){
- assert.ok(entry.path.startsWith('tools/bundled/design-sync/'),'unexpected source placement: '+entry.path);
+ assert.ok(currentPath(entry.path).startsWith('tools/bundled/design-sync/'),'unexpected source placement: '+entry.path);
  assert.ok(!all.has(entry.path),'duplicate path '+entry.path);all.add(entry.path);
- const absolute=path.join(root,entry.path),data=fs.readFileSync(absolute);
+ const absolute=path.join(root,currentPath(entry.path)),data=fs.readFileSync(absolute);
  assert.equal(sha(data),entry.sha,'Git original content differs: '+entry.path);
- if(entry.key){assert.equal(layout.entries[entry.key]?.path,entry.path,'resource mapping lost: '+entry.key);assert.ok(!fs.existsSync(path.join(root,entry.old)),'old hashed source remains: '+entry.old)}
- else assert.ok(fs.existsSync(path.join(root,entry.source)),'original helper provenance missing: '+entry.source);
+ if(entry.key){assert.equal(layout.entries[entry.key]?.path,currentPath(entry.path),'resource mapping lost: '+entry.key);assert.ok(!fs.existsSync(path.join(root,entry.old)),'old hashed source remains: '+entry.old)}
+ else assert.ok(fs.existsSync(path.join(root,currentPath(entry.source))),'original helper provenance missing: '+entry.source);
  const module=new vm.SourceTextModule(data.toString('utf8'),{identifier:absolute});
  for(const specifier of module.dependencySpecifiers){
   if(!specifier.startsWith('.'))continue;
@@ -36,7 +37,7 @@ for(const [p,name] of [
 const captureKey='capture.mjs-9e2f2f8b.txt.zst';
 const restoredCapture='tools/bundled/design-sync/package-capture.mjs';
 assert.equal(layout.entries[captureKey]?.path,restoredCapture,'original BunFS mapping must point to executable name');
-assert.equal(source.migrated.find(x=>x.key===captureKey)?.path,restoredCapture,'source provenance must track renamed executable');
+assert.equal(currentPath(source.migrated.find(x=>x.key===captureKey)?.path),restoredCapture,'source provenance must track renamed executable');
 assert.ok(!fs.existsSync(path.join(root,'tools/bundled/design-sync/capture.mjs')),'obsolete capture alias must be removed');
 const resyncText=fs.readFileSync(path.join(root,'tools/bundled/design-sync/resync.mjs'),'utf8');
 const scriptsHashText=fs.readFileSync(path.join(root,'tools/bundled/design-sync/lib/sync-hashes.mjs'),'utf8');

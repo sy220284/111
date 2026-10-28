@@ -15,7 +15,7 @@ for(const x of r.files){
  assert.match(x.originalGitBlob,/^[a-f0-9]{40}$/);
  assert.equal(fs.existsSync(path.join(root,x.old)),false,'旧目录残留 '+x.old);
  assert.equal(fs.existsSync(path.join(root,x.current)),true,'归档缺失 '+x.current);
- if(['embedded-source','plugin-source','bundled-tool-source'].includes(x.kind) && !x.current.endsWith('/source-layout.json')){
+ if(['embedded-source','plugin-source','bundled-tool-source'].includes(x.kind)){
   const bytes=fs.readFileSync(path.join(root,x.current));
   const actual=crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
   assert.equal(actual,x.originalGitBlob,'独立源码字节发生非预期改变 '+x.current);
