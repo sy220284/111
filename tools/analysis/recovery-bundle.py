@@ -51,7 +51,7 @@ def build(root, source, native, output):
     for record in jelly["records"]:
         relative = Path(record["entry"])
         require(not relative.is_absolute() and ".." not in relative.parts and
-                relative.parts[0] == "src", "unsafe Jelly source path")
+                relative.parts[0] == "core", "unsafe Jelly source path")
         require(record["status"] == "analyzed_static_candidates" and
                 record["runtimeCallsConfirmed"] == 0 and
                 record["sourceSHA256"] == digest(root / relative),
@@ -70,7 +70,8 @@ def build(root, source, native, output):
                 report["decompiled_functions"] > 0 and
                 report["total_functions"] == report["decompiled_functions"] + report["failed_functions"],
                 "invalid Ghidra counts: " + name)
-        rows = list(csv.DictReader((folder / "functions.tsv").open(encoding="utf-8"), delimiter="\t"))
+        with (folder / "functions.tsv").open(encoding="utf-8") as stream:
+            rows = list(csv.DictReader(stream, delimiter="\t"))
         require(len(rows) == report["total_functions"] and
                 sum(r["status"] == "ok" for r in rows) == report["decompiled_functions"] and
                 sum(r["status"] == "failed" for r in rows) == report["failed_functions"],
