@@ -1,0 +1,147 @@
+name: 111 增强反编译与初始提取快照合包
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/initial-decompile-supplement.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  supplement:
+    name: 核对初始提交、增强源码并生成不含原版ELF/研究包的单一归档
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: 检出完整111历史
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 下载已经通过验收的增强反编译源码
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 40656111783 --repo "$GITHUB_REPOSITORY" \
+            --name 111-clean-decompile-2.1.310-x64-full-graphs \
+            --dir "$RUNNER_TEMP/verified"
+          (cd "$RUNNER_TEMP/verified" && sha256sum -c SHA256SUMS)
+          tar --zstd -tf "$RUNNER_TEMP/verified/111-Claude-Code-2.1.310-x64-clean-decompiled-source-graphs.tar.zst" \
+            | grep -Fx 'claude-2.1.310-clean/src/chunk-tqjdehqd.js'
+      - name: 将原版程序最初提取成果补入独立目录
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-decompile-initial-supplement"
+          temp="$RUNNER_TEMP/111-first-commit"
+          mkdir -p "$stage/00_核验清单" "$temp"
+          tar --zstd -xf "$RUNNER_TEMP/verified/111-Claude-Code-2.1.310-x64-clean-decompiled-source-graphs.tar.zst" \
+            -C "$stage"
+          mv "$stage/claude-2.1.310-clean" "$stage/01_增强反编译源码"
+          initial='9064bf7d4ea1eacd0c5781ba264fddb88471a3d7'
+          prefix='Claude_Code_2.1.310_源码修复版_v3_20261027_解压/Claude_Code_2.1.310_源码修复版_v3'
+          test "$(git cat-file -t "$initial")" = commit
+          git archive --format=tar "$initial" "$prefix" | tar -xf - -C "$temp"
+          mv "$temp/$prefix" "$stage/02_首次提取源码快照"
+          # Native .node add-ons are binary payloads, not decompiled source.
+          # Keep only the already-included runtime components in current release,
+          # do not add another original binary copy from the initial snapshot.
+          find "$stage/02_首次提取源码快照" -type f -name '*.node' -delete
+          printf '%s\n' "$initial" > "$stage/00_核验清单/首次提取Git提交.txt"
+          printf '40656111783\n' > "$stage/00_核验清单/增强包来源Actions运行.txt"
+          cat > "$stage/00_核验清单/README_先读.txt" <<'READ'
+          Claude Code 2.1.310：增强反编译 + 首次可核实提取源码快照
+
+          01_增强反编译源码：
+          111 已经通过验收的最新完整恢复源码、250份资源、AST依赖/函数图谱、
+          Jelly全仓原生证据、候选分级、脚本和测试。
+          本目录并非上游原始TypeScript源码，不代表原版ELF业务等价。
+
+          02_首次提取源码快照：
+          111 首次解压源码提交 9064bf7d4ea1eacd0c5781ba264fddb88471a3d7 的
+          真实提取树，独立于后续修改，保存最初JS模块、资源、清单及脚本。
+          历史快照并不意味着未经过初次修复；原提交名称为“源码修复版v3”。
+          两个原始 .node 二进制加载项不在本初始副本中额外重复归档。
+
+          明确不纳入：原版发行包/ELF可执行文件、历史v36-v40研究包、
+          Git历史bundle、前代重复研究快照及后续研究成果整包。
+          全部差异请查阅：初始与增强逐文件SHA256对照.tsv。
+          READ
+      - name: 验证两版所有源码并生成逐文件差异清单
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-decompile-initial-supplement"
+          python3 - "$stage" <<'PY'
+          import hashlib,json,sys,csv
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          orig=root/'02_首次提取源码快照'
+          now=root/'01_增强反编译源码'
+          report=root/'00_核验清单'
+          def scan(d):
+              return {x.relative_to(d).as_posix():x for x in d.rglob('*') if x.is_file()}
+          a=scan(orig);b=scan(now)
+          # Initial verified git tree contains 2839 files; original native
+          # addons are deliberately excluded, no other entries discarded.
+          assert len(a)==2837,(len(a),'initial tree unexpectedly incomplete')
+          assert len([p for p in a if p.startswith('src/')])==2578
+          assert len([p for p in a if p.startswith('src/') and p.endswith('.js')])==2555
+          assert len([p for p in b if p.startswith('src/') and p.endswith('.js')])>=2551
+          assert 'resources/function-summary.json' in b
+          assert '图谱与证据/Jelly分析校验.json' in b
+          assert '图谱与证据/Jelly未解析调用候选分级.tsv' in b
+          assert '图谱与证据/Jelly原生分片证据' not in b
+          assert any(p.startswith('图谱与证据/Jelly原生分片证据/') for p in b)
+          bad = [p for p in a if p.endswith(('.node','.elf','.so','.tar.gz','.tar.zst','.zip'))]
+          assert not bad,bad
+          def hash_file(p):
+              h=hashlib.sha256()
+              with p.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024),b''):h.update(chunk)
+              return h.hexdigest()
+          equal=changed=initial_only=new_only=0
+          with (report/'初始与增强逐文件SHA256对照.tsv').open('w',encoding='utf8',newline='') as f:
+              w=csv.writer(f,delimiter='\t',lineterminator='\n')
+              w.writerow(('相对路径','初始SHA256','增强SHA256','对比状态'))
+              for p in sorted(set(a)|set(b)):
+                  h1=hash_file(a[p]) if p in a else ''
+                  h2=hash_file(b[p]) if p in b else ''
+                  state=('initial_only' if not h2 else 'enhanced_only' if not h1 else
+                         'same' if h1==h2 else 'changed_both_versions_retained')
+                  w.writerow((p,h1,h2,state))
+                  if state=='initial_only':initial_only+=1
+                  elif state=='enhanced_only':new_only+=1
+                  elif state=='same':equal+=1
+                  else:changed+=1
+          with (report/'完整交付核验.json').open('w',encoding='utf8') as f:
+              json.dump(dict(initialSourceCommit='9064bf7d4ea1eacd0c5781ba264fddb88471a3d7',
+                initialSourceFileCount=len(a),initialSrcEntries=2578,initialJSModules=2555,
+                excludedDuplicateInitialNativeBinaries=2,enhancedFileCount=len(b),
+                samePathsSameContents=equal,changedPathsBothVersionsRetained=changed,
+                sourceFilesOnlyInInitial=initial_only,filesOnlyInEnhanced=new_only,
+                originalELFIncluded=False,originalReleaseArchiveIncluded=False,
+                laterStudyPackagesIncluded=False,gitBundleIncluded=False,
+                runTimeAndOriginalELFEquivalenceVerified=False),f,ensure_ascii=False,indent=2)
+          print((report/'完整交付核验.json').read_text())
+          PY
+          (
+            cd "$stage"
+            find . -type f ! -path './00_核验清单/ALL_FILES_SHA256SUMS' -print0 \
+              | sort -z | xargs -0 sha256sum > '00_核验清单/ALL_FILES_SHA256SUMS'
+            sha256sum -c '00_核验清单/ALL_FILES_SHA256SUMS' >/dev/null
+            find . -type f | LC_ALL=C sort > '00_核验清单/文件清单.txt'
+          )
+      - name: 以完整ZIP归档交付两版源码和校验记录
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-Claude-Code-2.1.310-decompiled-plus-initial-extraction
+          path: ${{ runner.temp }}/111-decompile-initial-supplement/
+          retention-days: 90
+          compression-level: 6
+          if-no-files-found: error
