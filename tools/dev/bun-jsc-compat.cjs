@@ -111,20 +111,24 @@ function scan(root = ROOT) {
 }
 function probe(bun = 'bun') {
   const script = path.join(ROOT, 'tools/dev/bun-jsc-probe.mjs');
-  try {
-    const result = cp.execFileSync(bun, [script], {
-      cwd: ROOT, encoding:'utf8', timeout: 25000, maxBuffer: 1024*1024,
-      env: { ...process.env, CI: 'true' }
-    });
-    const parsed = JSON.parse(result.trim());
-    if (parsed.schema !== 1 || parsed.kind !== 'bun-runtime-probe' || !Array.isArray(parsed.checks))
-      throw new Error('Invalid probe schema');
-    return parsed;
-  } catch (error) {
-    return { schema: 1, kind: 'bun-runtime-probe', status: 'unavailable_or_failed',
-      message: String(error.message || error).slice(0, 1200),
-      checks: [] };
-  }
+  const result = cp.spawnSync(bun, [script], {
+    cwd: ROOT, encoding:'utf8', timeout: 25000, maxBuffer: 1024*1024,
+    env: { ...process.env, CI: 'true' }
+  });
+  if (result.error) return {schema:1,kind:'bun-runtime-probe',
+    status:'unavailable_or_failed',message:String(result.error.message),checks:[]};
+  let parsed;
+  try { parsed = JSON.parse(result.stdout.trim()); }
+  catch (error) { return {schema:1,kind:'bun-runtime-probe',
+    status:'unavailable_or_failed',message:'probe output is not valid JSON; exit='+result.status+
+      '; stderr='+String(result.stderr||'').slice(0,900),checks:[]}; }
+  if (parsed.schema !== 1 || parsed.kind !== 'bun-runtime-probe' || !Array.isArray(parsed.checks))
+    throw Error('Invalid probe schema');
+  // Bun probe intentionally exits nonzero on a failing API. Preserve its real
+  // failed checks rather than discarding the structured stdout in an execFileSync exception.
+  if (result.status !== 0 && parsed.status === 'passed')
+    throw Error('Bun probe reported success but exited '+result.status);
+  return parsed;
 }
 function main(args) {
   const command = args.shift() || 'scan';

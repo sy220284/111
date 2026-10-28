@@ -55,3 +55,18 @@ test('missing reference runtime returns explicit unavailable, never success', ()
   assert.equal(result.status, 'unavailable_or_failed');
   assert.deepEqual(result.checks, []);
 });
+
+
+test('Bun 探针返回非零状态时仍保留具体失败 API 和错误详情',()=>{
+  const fs=require('node:fs'),os=require('node:os');
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-bun-probe-fixture-'));
+  const executable=path.join(dir,'mock-bun');
+  try{
+    fs.writeFileSync(executable, '#!/usr/bin/env node\\n'+
+      'process.stdout.write(JSON.stringify({schema:1,kind:"bun-runtime-probe",status:"failed",checks:[{api:"Bun.Terminal",status:"failed",error:"PTY mismatch"}]})+"\\n");process.exitCode=1;\\n');
+    fs.chmodSync(executable,0o755);
+    const result=probe(executable);
+    assert.equal(result.status,'failed');
+    assert.deepEqual(result.checks,[{api:'Bun.Terminal',status:'failed',error:'PTY mismatch'}]);
+  }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
