@@ -1,5 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { CellSegmenter } from '../../runtime/terminal/cell-segmenter.mjs';
+import { test } from 'node:test';
+test('真实终端单元与宽字符/BiDi 行为：_paint_cleanup.test', () => {
 const s = new CellSegmenter({ screen: { widthMask: 3, narrow: 0, wide: 1, spacerTail: 2, spacerHead: 3, emptyCharIndex: 0, spacerCharIndex: 1, emptyWord: 0, tabWidth: 8 } });
 const width = 6;
 const chars = new Int32Array(16).map((_, i) => 100 + i);
@@ -28,3 +30,5 @@ assert.equal(cells[4], 1);
 assert.equal(cells[6], 0);
 assert.deepEqual(damage(p), { left: 1, right: 4, cursor: 3 });
 console.log(JSON.stringify({ status: 'pass', scenarios: 3, focus: 'text paint clears stale wide-char spacers and expands damage bounds' }));
+
+});
