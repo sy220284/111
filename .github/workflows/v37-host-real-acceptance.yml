@@ -1,0 +1,92 @@
+name: v37 独立工具真实宿主与浏览器验收
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/v37-*'
+      - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/v37-*'
+      - 'tests/cli-live-mcp-tool-model-e2e.test.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-rpc-and-fence:
+    name: Artifact FD RPC及Claude Test TCP/MCP真实子进程
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: |
+          python3 tests/v37-artifact-fd-host.test.py
+          node --test tests/v37-browser-network-host.test.cjs
+  real-design-browser:
+    name: Design Sync真实构建与Chromium截图和上传差异协议
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 安装真实构建器和Playwright
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund esbuild@0.25.12 ts-morph@27.0.2 react@18.3.1 react-dom@18.3.1 playwright@1.62.1 storybook@9.1.10 @storybook/react-vite@9.1.10 vite@7.1.10
+          npx playwright install chromium
+          mkdir -p "$RUNNER_TEMP/v37-mcp-tools"
+          cp resources/tools/claude-test/scripts/lib/tools-lock.json "$RUNNER_TEMP/v37-mcp-tools/package-lock.json"
+          node - "$RUNNER_TEMP/v37-mcp-tools/package.json" <<'NODE'
+          const fs=require('node:fs');
+          fs.writeFileSync(process.argv[2],JSON.stringify({name:'claude-test-tools',private:true,
+            dependencies:{'@playwright/mcp':'0.0.79'},
+            overrides:{playwright:'1.62.1','playwright-core':'1.62.1'}},null,2)+'\n');
+          NODE
+          npm ci --prefix "$RUNNER_TEMP/v37-mcp-tools" --ignore-scripts --no-audit --no-fund
+      - name: 实际运行Design Sync并生成浏览器截图
+        run: |
+          set -euo pipefail
+          mkdir -p v37-host-acceptance
+          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" node tests/v37-design-live-acceptance.cjs
+          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" node tests/v37-storybook-live-acceptance.cjs
+          V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance" V37_PLAYWRIGHT_MCP_CLI="$RUNNER_TEMP/v37-mcp-tools/node_modules/@playwright/mcp/cli.js" node --test tests/v37-playwright-mcp-live.test.cjs
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-v37-design-real-browser-evidence
+          path: v37-host-acceptance/
+          retention-days: 30
+          if-no-files-found: warn
+  native-and-model:
+    name: 原生N-API真实ABI及CLI多轮Thinking/Compaction对照
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 真实ELF加载和真实CLI请求回放对照
+        run: |
+          set -euo pipefail
+          mkdir -p v37-host-acceptance
+          export V37_REPORT_DIR="$GITHUB_WORKSPACE/v37-host-acceptance"
+          node tests/v37-native-abi-probe.cjs
+          node --test tests/cli-live-mcp-tool-model-e2e.test.cjs
+          node tests/v37-thinking-compaction-acceptance.cjs
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 111-v37-native-model-request-evidence
+          path: v37-host-acceptance/
+          retention-days: 30
+          if-no-files-found: warn
