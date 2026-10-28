@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "baseline": "3c64d1669174e825fb0fbae088c5ec95edaa7339",
+  "sourceScope": "294 independent plugin-testing-kit JavaScript files + 24 embedded source/config files, excluding 2551 main modules",
+  "entries": [
+    {
+      "file": "src/plugin-testing-kit/equality/equals/equals-under/equals-under.js",
+      "symbol": "equalsUnder",
+      "role": "Recursively compare nested objects, handling revisited object pairs and asymmetric expectations",
+      "behavior": "Cyclic object comparisons and structural equality are executed against actual recovered source",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/equality/equals/equals.js",
+      "symbol": "equals",
+      "role": "Construct comparison context and delegate to equalsUnder",
+      "behavior": "Strict/subset and cyclic comparisons",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/structurally-equal.js",
+      "symbol": "structurallyEqual",
+      "role": "Dispatch structural comparison among arrays, maps, sets, dates, regexps and object properties",
+      "behavior": "Differential strict and subset runtime assertions",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/maps-equal/maps-equal.js",
+      "symbol": "mapsEqual",
+      "role": "Compare Map entries with matching keys and recursive value equality",
+      "behavior": "Map comparison tested",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/equality/equals/equals-under/structurally-equal/sets-equal/sets-equal.js",
+      "symbol": "setsEqual",
+      "role": "Compare Set items with recursive comparison",
+      "behavior": "Set comparison tested",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/collector/create-collector/create-collector.js",
+      "symbol": "createCollector",
+      "role": "Register grouped plugin tests, enforce collection lifecycle and file tier",
+      "behavior": "Collector real registration and close assertions",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/run/run.js",
+      "symbol": "run",
+      "role": "Close collection, run cases serially and JSON serialize results",
+      "behavior": "End-to-end plugin testing kit test already runs actual run()",
+      "test": "tests/plugin-kit-source.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/run/run-case/run-case.js",
+      "symbol": "runCase",
+      "role": "Run one plugin test and always close seat, reporting failures",
+      "behavior": "Full-chain plugin runner success and failure test",
+      "test": "tests/plugin-kit-source.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/open-seat/open-seat.js",
+      "symbol": "openSeat",
+      "role": "Connect independent plugin test to host and registration/cleanup",
+      "behavior": "Full-chain test executes seat open/close",
+      "test": "tests/plugin-kit-source.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/mock/mock-store/mock-store.js",
+      "symbol": "mockStore",
+      "role": "Provide event-backed in-memory key value store handlers",
+      "behavior": "Real event handlers tested in new focused tests",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/mock/mock-session/mock-session.js",
+      "symbol": "mockSession",
+      "role": "Capture successful session.append events but ignore denied entries",
+      "behavior": "Real hook callback tested",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/plugin-testing-kit/expect/expectation-of/expectation-of.js",
+      "symbol": "expectationOf",
+      "role": "Create positive, negative and promise-aware assertion checking contexts",
+      "behavior": "Public plugin kit exposed expect API verified",
+      "test": "tests/plugin-kit-source.test.cjs"
+    },
+    {
+      "file": "src/embedded/runtime/state-library.js",
+      "symbol": "atom",
+      "role": "Create frozen state atom with immutable initial value and optional shape",
+      "behavior": "Frozen atom tests with nested initial values",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/embedded/runtime/state-library.js",
+      "symbol": "memberOf",
+      "role": "Scope family atom/reference to requestId",
+      "behavior": "Request identity and original atom immutability tests",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/embedded/runtime/state-library.js",
+      "symbol": "derive",
+      "role": "Create version-memoized derived state specification",
+      "behavior": "Derived value recompute only on version change",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/embedded/runtime/state-library.js",
+      "symbol": "read",
+      "role": "Read atom, raw ref or derived source from injected async state",
+      "behavior": "Real read/get/version tests",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    },
+    {
+      "file": "src/embedded/runtime/state-library.js",
+      "symbol": "update",
+      "role": "Perform bounded compare-and-set update with version preconditions and retry",
+      "behavior": "Successful CAS, conflict retry and bounded failure tests",
+      "test": "tests/v37-supplemental-runtime.test.cjs"
+    }
+  ]
+}
