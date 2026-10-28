@@ -1,0 +1,34 @@
+name: Daemon 真实进程生命周期验收
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'tests/cli-live-daemon-supervisor.test.cjs'
+      - '.github/workflows/daemon-supervisor-live.yml'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'runtime/**'
+      - 'bin/**'
+      - 'tests/cli-live-daemon-supervisor.test.cjs'
+      - '.github/workflows/daemon-supervisor-live.yml'
+      - 'package.json'
+permissions:
+  contents: read
+jobs:
+  daemon-process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 真实 supervisor 启停锁生命周期和跨进程重启
+        run: npm run check:daemon-live-supervisor

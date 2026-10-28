@@ -205,3 +205,110 @@ test('方括号字面量成员能解析，计算键不会被猜为目标函数',
  assert.ok(g.callEdges.some(e=>e.kind==='module_object_method_candidate'));
  assert.ok(g.callEdges.some(e=>e.kind==='namespace_import_candidate'));
 });
+
+test('多级对象方法与不可变模块别名解析到准确的 AST 方法定义',()=>{
+ const g=analyze({'src/a.js':
+  'const first={nested:{work(){return 1}, stop:()=>2}};const second=first;'+
+  'function run(){second.nested.work();first.nested.stop()}'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ assert.ok(g.callEdges.every(e=>e.kind==='module_object_method_candidate'));
+ assert.equal(new Set(g.callEdges.map(e=>e.to.id)).size,2);
+});
+
+test('命名导入对象、命名空间嵌套对象及再次转导出可以跨文件追溯',()=>{
+ const g=analyze({
+  'src/impl.js':'export const client={session:{start(){return 1}}}',
+  'src/re-export.js':'export{client as gateway}from"./impl.js"',
+  'src/use.js':'import{client}from"./impl.js";client.session.start()',
+  'src/use2.js':'import * as ns from "./re-export.js";ns.gateway.session.start()',
+  'src/use3.js':'import{gateway as api}from"./re-export.js";api.session.start()'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,3);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ assert.equal(g.callEdges.filter(e=>e.kind==='imported_object_method_candidate').length,2);
+ assert.equal(g.callEdges.filter(e=>e.kind==='namespace_object_member_candidate').length,1);
+ assert.ok(g.callEdges.every(e=>e.to.file==='src/impl.js'));
+ assert.equal(new Set(g.callEdges.map(e=>e.to.id)).size,1);
+});
+
+test('函数内对象别名、方法解构和不可变字符串索引可以解析',()=>{
+ const g=analyze({'src/a.js':
+  'function f(){const origin={start(){},child:{end(){}}};'+
+  'const copy=origin;const {start:invoke}=copy;const key="end";'+
+  'copy.child[key]();invoke()}'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,2);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ assert.ok(g.callEdges.every(e=>e.kind==='lexical_object_method_candidate'||
+  e.kind==='lexical_function_candidate'));
+});
+
+test('不信任对象动态键、展开覆盖、参数遮蔽和非 const 别名',()=>{
+ const g=analyze({'src/a.js':
+   'const obj={run(){}};const key="run";obj[key]();'+
+   'function shadow(key){obj[key]()}'+
+   'const extended={run(){},...unknown};extended.run();'+
+   'let variable=obj;variable=unknown;variable.run();'+
+   'const computed={run(){},[unknown](){}};computed.run()'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,4);
+ assert.equal(g.unresolvedCallsites.length,4);
+ assert.equal(g.summary.unresolvedReasons.dynamic_property,1);
+});
+
+test('跨文件对象仅允许真正导出的成员，缺失导出不得猜测',()=>{
+ const g=analyze({
+   'src/api.js':'const privateApi={hidden(){}};export const publicApi={visible(){}}',
+   'src/consumer.js':'import{privateApi,publicApi}from"./api.js";'+
+     'privateApi.hidden();publicApi.visible();'
+ });
+ assert.equal(g.summary.candidateResolvedCalls,1);
+ assert.equal(g.summary.unresolvedCallExpressions,1);
+ assert.equal(g.unresolvedCallsites[0].callee,'privateApi.hidden');
+});
+
+test('对象简写函数成员和显式函数引用沿导出绑定定位实现',()=>{
+ const g=analyze({
+  'src/source.js':'export function ping(){};export const api={ping,alt:ping}',
+  'src/use.js':'import{api,ping}from"./source.js";const local={go:ping};'+
+    'api.ping();api.alt();local.go();'
+ });
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,3);
+ assert.equal(g.summary.unresolvedCallExpressions,0);
+ assert.ok(g.callEdges.every(e=>e.to.file==='src/source.js'&&e.to.symbol==='ping'));
+});
+test('局部参数变量作为对象简写值不得误连同名模块函数',()=>{
+ const g=analyze({'src/foo.js':
+  'function cb(){};function run(cb){const api={cb,call:cb};api.cb();api.call()}'
+ });
+ assert.equal(g.summary.candidateResolvedCalls,0);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+});
+
+test('真实压缩源常见 var/let 单写对象及别名可解析，属性写入必须失效',()=>{
+ const g=analyze({'src/minified.js':
+  'var a={send(){}};var b=a;let c={recv(){}};'+
+  'a.send();b.send();c.recv();'+
+  'var mutated={run(){}};mutated.run=()=>0;mutated.run();'+
+  'var overwritten={go(){}};overwritten={};overwritten.go();'});
+ assert.deepEqual(g.errors,[]);
+ assert.equal(g.summary.candidateResolvedCalls,3);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+ assert.ok(g.callEdges.some(e=>e.kind==='module_object_method_candidate'));
+ assert.equal(g.unresolvedCallsites.length,2);
+});
+test('函数内未重赋值 var 对象可解析，重赋值的同名 minified 变量不猜测',()=>{
+ const g=analyze({'src/minified.js':
+  'function f(){var obj={go(){}};obj.go()}'+
+  'function g(){var obj={go(){}};obj={};obj.go()}'});
+ // File-wide same-name conservative invalidation: both stay unresolved.
+ assert.equal(g.summary.candidateResolvedCalls,0);
+ assert.equal(g.summary.unresolvedCallExpressions,2);
+});

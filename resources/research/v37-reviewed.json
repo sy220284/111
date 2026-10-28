@@ -75,6 +75,18 @@
       "tests": [
         "tests/historical-array-parity.test.cjs"
       ]
+    },
+    "src/chunk-cpf0ynb1.js": {
+      "classification": "Daemon fresh HOME startup must create local daemon lock parent before exclusive file acquisition; original ifAbsent V5 branch preserved",
+      "tests": [
+        "tests/cli-live-daemon-supervisor.test.cjs"
+      ]
+    },
+    "src/chunk-4kxznmzw.js": {
+      "classification": "Node daemon status uses native stripVTControlCharacters when Bun.stripANSI unavailable, preserving Bun branch",
+      "tests": [
+        "tests/cli-live-daemon-supervisor.test.cjs"
+      ]
     }
   }
 }
