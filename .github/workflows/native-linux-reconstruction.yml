@@ -40,3 +40,11 @@ jobs:
             echo '专用 CI 严禁把环境缺失标记为通过' >&2
             exit 1
           fi
+      - name: 联合真实高层剪贴板和原生 N-API 回退
+        run: |
+          set -euo pipefail
+          xvfb-run -a node --test tests/mainline-native-bridge.test.mjs | tee /tmp/mainline-native-bridge.log
+          if grep -Eq '^# (skipped [1-9]|fail [1-9])' /tmp/mainline-native-bridge.log; then
+            echo '跨 PR X11 集成测试没有完整通过' >&2
+            exit 1
+          fi
