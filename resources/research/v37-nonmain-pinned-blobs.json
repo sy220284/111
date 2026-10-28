@@ -2438,7 +2438,7 @@
       "blob": "e14e95a2271ce38bfb1a8e928f287e13ba8a0522"
     },
     {
-      "path": "tests/agents/agent-resume-errors.test.cjs",
+      "path": "tests/agent-resume-errors.test.cjs",
       "blob": "cee08cecb4d340e982f81be5bf1459b5b4dc7ee5"
     },
     {
@@ -2462,23 +2462,23 @@
       "blob": "c3ed5f458500beb5f2ed08e66d852226a2e51cdb"
     },
     {
-      "path": "tests/cli/cli-command-dispatch-source.test.cjs",
+      "path": "tests/cli-command-dispatch-source.test.cjs",
       "blob": "694096df8ecaf0b441c4e4a0d5df490330fea9aa"
     },
     {
-      "path": "tests/daemon/daemon-orphan-cleanup.test.cjs",
+      "path": "tests/daemon-orphan-cleanup.test.cjs",
       "blob": "6986ac45dbff2767fd0d68b4dc2be843206931d4"
     },
     {
-      "path": "tests/daemon/daemon-recovery-helpers.test.cjs",
+      "path": "tests/daemon-recovery-helpers.test.cjs",
       "blob": "712d58cf3b1b0a797a74fcc05f60f792965fe15a"
     },
     {
-      "path": "tests/plugins/design-sync-adapter-contract.test.cjs",
+      "path": "tests/design-sync-adapter-contract.test.cjs",
       "blob": "a4a8e890cbc8e686fcfbb3c1803a0b025068d799"
     },
     {
-      "path": "tests/hooks/function-hook-worker-contract.test.cjs",
+      "path": "tests/function-hook-worker-contract.test.cjs",
       "blob": "746b2f70435add098b98cc890aa836f39f8167ea"
     },
     {
@@ -2486,99 +2486,99 @@
       "blob": "4fad13634c9d51cbc2b24bf7f872316f8ff2f767"
     },
     {
-      "path": "tests/hooks/hook-dispatch-source.test.cjs",
+      "path": "tests/hook-dispatch-source.test.cjs",
       "blob": "0eb6c367dc06a2ee11f7c3a23fb63aa0270c0d23"
     },
     {
-      "path": "tests/hooks/hook-identifier-restored.test.cjs",
+      "path": "tests/hook-identifier-restored.test.cjs",
       "blob": "5c2e29feaaa1dabed2d043aa5c362d4020976e4c"
     },
     {
-      "path": "tests/hooks/hooks-source-restoration.test.cjs",
+      "path": "tests/hooks-source-restoration.test.cjs",
       "blob": "8337a66a9704cfad482468bcacd7729f29d90558"
     },
     {
-      "path": "tests/runtime/js-resource-loader.test.mjs",
+      "path": "tests/js-resource-loader.test.mjs",
       "blob": "8870853da9cbfd728d9c17ba2ca56e8461471d68"
     },
     {
-      "path": "tests/mcp/mcp-connection-settlement.test.cjs",
+      "path": "tests/mcp-connection-settlement.test.cjs",
       "blob": "fc2eb951b1721d1bcfd346718bddefe840afe012"
     },
     {
-      "path": "tests/mcp/mcp-issuer-echo.test.cjs",
+      "path": "tests/mcp-issuer-echo.test.cjs",
       "blob": "bdb07fa376aceb011620e9dabb6300359d3614bc"
     },
     {
-      "path": "tests/mcp/mcp-oauth-lifecycle.test.cjs",
+      "path": "tests/mcp-oauth-lifecycle.test.cjs",
       "blob": "678dc67292cda805d06c752d18af1b0c38f62acb"
     },
     {
-      "path": "tests/mcp/mcp-oauth-refresh-errors.test.cjs",
+      "path": "tests/mcp-oauth-refresh-errors.test.cjs",
       "blob": "f6ddc8ce73523cb400379a8ddc157bbc5bc844bc"
     },
     {
-      "path": "tests/mcp/mcp-oauth-refresh-lock.test.cjs",
+      "path": "tests/mcp-oauth-refresh-lock.test.cjs",
       "blob": "db95e0366ab4b088c893f58558eea7ffc815b1f0"
     },
     {
-      "path": "tests/mcp/mcp-retry-executor.test.cjs",
+      "path": "tests/mcp-retry-executor.test.cjs",
       "blob": "1913d86c0b41d0b6894b3873589899880cf0f0ee"
     },
     {
-      "path": "tests/mcp/mcp-retry-state.test.cjs",
+      "path": "tests/mcp-retry-state.test.cjs",
       "blob": "304c4bb2a650a83ba40653f3041132612da8f6f2"
     },
     {
-      "path": "tests/mcp/mcp-tool-forwarding.test.cjs",
+      "path": "tests/mcp-tool-forwarding.test.cjs",
       "blob": "75dd3a55b00b94ed81e415d7ebe9e392234e0772"
     },
     {
-      "path": "tests/model/model-refusal-recovery.test.cjs",
+      "path": "tests/model-refusal-recovery.test.cjs",
       "blob": "d95f553d077f7c9e9f630a48126a320c621049bc"
     },
     {
-      "path": "tests/model/model-request-source.test.cjs",
+      "path": "tests/model-request-source.test.cjs",
       "blob": "132415449a034e2083bbb48826092f69253b9f4f"
     },
     {
-      "path": "tests/runtime/native-audio-source.test.cjs",
+      "path": "tests/native-audio-source.test.cjs",
       "blob": "156456749dfd0fc6c408f03b3735c7796c2802b5"
     },
     {
-      "path": "tests/hooks/permission-template-source.test.cjs",
+      "path": "tests/permission-template-source.test.cjs",
       "blob": "5f884f91a8f4574f51d8182eb0a7f07ad8562829"
     },
     {
-      "path": "tests/plugins/plugin-eval-report-source.test.cjs",
+      "path": "tests/plugin-eval-report-source.test.cjs",
       "blob": "68642c3cc822786cc12b9dc18ced1a620a237677"
     },
     {
-      "path": "tests/plugins/plugin-event-registry.test.cjs",
+      "path": "tests/plugin-event-registry.test.cjs",
       "blob": "e356645e466280d79304b32930b7a2e678acd660"
     },
     {
-      "path": "tests/plugins/plugin-kit-source.test.cjs",
+      "path": "tests/plugin-kit-source.test.cjs",
       "blob": "97451ec409817f7cea0641db72f98f11218cb417"
     },
     {
-      "path": "tests/model/query-loop-recovery.test.cjs",
+      "path": "tests/query-loop-recovery.test.cjs",
       "blob": "db84ba946f8b777d02cc58a11418d1a461157bed"
     },
     {
-      "path": "tests/model/query-state-helpers.test.cjs",
+      "path": "tests/query-state-helpers.test.cjs",
       "blob": "f53ab25d3f2b59a5aca7c8cdd158a1880bf6702a"
     },
     {
-      "path": "tests/runtime/runtime-assets.test.mjs",
+      "path": "tests/runtime-assets.test.mjs",
       "blob": "5ad829844341d178a2f9a492eaf8617a60a987f7"
     },
     {
-      "path": "tests/model/session-append-source.test.cjs",
+      "path": "tests/session-append-source.test.cjs",
       "blob": "fc13ecc299e93ee05726661721f5a6bab66ed199"
     },
     {
-      "path": "tests/model/session-append-storage.test.cjs",
+      "path": "tests/session-append-storage.test.cjs",
       "blob": "4754a690578bae4d2f7119aa51b7868d2a656b0a"
     },
     {
@@ -2586,31 +2586,31 @@
       "blob": "42ff1c2bab79ada77b894c6b082c3ade03290a71"
     },
     {
-      "path": "tests/restoration/source-extraction.test.cjs",
+      "path": "tests/source-extraction.test.cjs",
       "blob": "c25f38e3545d2b02629edfdd78f645677beb889b"
     },
     {
-      "path": "tests/model/streaming-tool-contract.test.cjs",
+      "path": "tests/streaming-tool-contract.test.cjs",
       "blob": "9e8b08ea002e3068997fe2b0029d2f9304df88f7"
     },
     {
-      "path": "tests/agents/subagent-resume-chain.test.cjs",
+      "path": "tests/subagent-resume-chain.test.cjs",
       "blob": "d825fff1c29fb9474a76bf4a7ebb5689cdbd6027"
     },
     {
-      "path": "tests/agents/subagent-resume-lock.test.cjs",
+      "path": "tests/subagent-resume-lock.test.cjs",
       "blob": "88bf31dc4295014f2a2a8166dda044585cb37fdb"
     },
     {
-      "path": "tests/agents/subagent-shutdown-recovery.test.cjs",
+      "path": "tests/subagent-shutdown-recovery.test.cjs",
       "blob": "4b3af9aa5c3a8c702f125a74d82f5d21cc4f42ea"
     },
     {
-      "path": "tests/agents/task-upload-lifecycle.test.cjs",
+      "path": "tests/task-upload-lifecycle.test.cjs",
       "blob": "c20362dbab4b7272548c6767f0482e70f7326852"
     },
     {
-      "path": "tests/model/thinking-model-override.test.cjs",
+      "path": "tests/thinking-model-override.test.cjs",
       "blob": "32d1c28107e39d0f85dbcd6f031f590d92afb359"
     }
   ]
