@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const read=name=>fs.readFileSync(path.join(root,'src',name),'utf8');
 const fleet=read('chunk-y93r9xd4.js');
 const roster=read('chunk-fnsjs1v2.js');
@@ -67,7 +67,7 @@ test('rosterKey 保留原存储 namespace；bgShort 校验合法任务号',()=>{
  });
  assert.equal(a.NFt,a.rosterKey);assert.equal(a.NFt(),'daemon:roster.json');
  assert.equal(a.ax,a.bgShort);assert.equal(a.ax('task-123'),'short:task-123');
- assert.equal(a.ax('../bad'),'fallback:invalid');
+ assert.equal(a.ax('../../bad'),'fallback:invalid');
 });
 test('readRoster 在远端 inspect 失败时标记结果，正常返回相同 roster 对象',async()=>{
  const readSource=fragment(roster,'async function readRoster(e, n)','async function Ye(e, n, r)');

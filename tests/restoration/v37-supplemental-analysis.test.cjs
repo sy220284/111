@@ -1,8 +1,8 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
-const {build,kind,parse,shaBlob}=require('../scripts/audit-v37-supplemental.cjs');
-const root=path.resolve(__dirname,'..');
+const {build,kind,parse,shaBlob}=require('../../scripts/audit-v37-supplemental.cjs');
+const root=path.resolve(__dirname,'../..');
 const ledger=JSON.parse(fs.readFileSync(path.join(root,'resources/research/v37-supplemental-semantics.json'),'utf8'));
 test('scope distinguishes independent bundled sources from main program modules',()=>{
  assert.equal(kind('src/plugin-testing-kit/index.js'),'plugin_test_kit');

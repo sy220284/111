@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),cp=require('node:child_process');
-const {isModule,functionBodies,preserve,audit}=require('../scripts/audit-v37-source.cjs');
+const {isModule,functionBodies,preserve,audit}=require('../../scripts/audit-v37-source.cjs');
 test('only real 2551 source modules are selected',()=>{
  assert.equal(isModule('src/chunk-abc.js'),true);
  assert.equal(isModule('src/audio-capture.js'),true);

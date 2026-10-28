@@ -3,8 +3,8 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const map = require('../resources/research/v40-p0-symbol-locations.json');
-const root = path.resolve(__dirname, '../src');
+const map = require('../../resources/research/v40-p0-symbol-locations.json');
+const root = path.resolve(__dirname, '../../src');
 test('v40的92条标识符属于已定位证据，不按缺失函数计数',()=>{
   assert.equal(map.version,'2.1.310');
   assert.equal(map.record_count,92);

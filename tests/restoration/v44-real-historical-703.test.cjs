@@ -8,7 +8,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const candidatePath=path.join(root,'.generated/v43-historical-real-full.json');
 const reviewPath=path.join(root,'.generated/v44-reviewed-703.json');
 if(!fs.existsSync(candidatePath)||!fs.existsSync(reviewPath))

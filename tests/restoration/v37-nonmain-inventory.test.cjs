@@ -3,8 +3,8 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const root=path.resolve(__dirname,'..');
-const {build,category,astMetrics}=require('../scripts/audit-v37-nonmain-inventory.cjs');
+const root=path.resolve(__dirname,'../..');
+const {build,category,astMetrics}=require('../../scripts/audit-v37-nonmain-inventory.cjs');
 
 test('v37固定版主源码之外652份文件分类完整，不混入2551主模块',()=>{
  const r=build({root,verify:false});
@@ -35,14 +35,14 @@ test('JS AST distinguishes executable tool sources from vendor bundles and nativ
  assert.equal(category('resources/tools/evaluation/prefix_diff.py'),'bundled_tool_sources');
  assert.equal(category('resources/bunfs/clipboard-napi.node'),'other_embedded_resources');
  assert.equal(category('src/mermaid.min.js'),'prebuilt_vendor_bundle');
- const s=astMetrics("export const a = x=>x; export async function f(x){return import('./adapter.js')}",'example.js');
+ const s=astMetrics("export const a = x=>x; export async function f(x){return import('../adapter.js')}",'example.js');
  assert.equal(s.functions,2);
  assert.equal(s.dynamicImports,1);
  assert.deepEqual(s.exports,['a','f']);
  assert.throws(()=>astMetrics('function x( {','broken.js'),/AST parse failed/);
 });
 test('独立浏览器网络围栏：私网及回环识别、代理凭证拒绝、NO_PROXY边界',async()=>{
- const {isNonPublicAddress,plainAddress,upstreamProxySetting,noProxyMatcher}=await import('../resources/tools/claude-test/scripts/lib/fence-proxy.mjs');
+ const {isNonPublicAddress,plainAddress,upstreamProxySetting,noProxyMatcher}=await import('../../resources/tools/claude-test/scripts/lib/fence-proxy.mjs');
  for(const ip of ['127.0.0.1','10.0.0.1','172.16.0.1','192.168.0.1','::1','fc00::1234','fe80::1','::ffff:127.0.0.1'])
   assert.equal(isNonPublicAddress(ip),true,'private IP incorrectly treated as public '+ip);
  assert.equal(isNonPublicAddress('8.8.8.8'),false);
@@ -60,7 +60,7 @@ test('独立浏览器网络围栏：私网及回环识别、代理凭证拒绝�
  assert.equal(valid.proxy.port,8080);
 });
 test('浏览器安全来源与DNS钉住：输入边界必须能解析而不能忽略垃圾规则',async()=>{
- const {bypassOf,resolverPins}=await import('../resources/tools/claude-test/scripts/lib/guard.mjs');
+ const {bypassOf,resolverPins}=await import('../../resources/tools/claude-test/scripts/lib/guard.mjs');
  assert.deepEqual(bypassOf('https://example.com:8443'),['https://example.com:8443','wss://example.com:8443']);
  assert.deepEqual(bypassOf('http://example.com'),['http://example.com:80','ws://example.com:80']);
  assert.deepEqual(bypassOf('not/a/host'),[]);

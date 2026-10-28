@@ -26,7 +26,7 @@ const specs={
 function sourceFunctions(){
   const fragments=[],aliases=[];
   for(const [file,mapping] of Object.entries(specs)){
-    const filepath=path.join(__dirname,'../src',file);
+    const filepath=path.join(__dirname,'../../src',file);
     const ast=ts.createSourceFile(filepath,fs.readFileSync(filepath,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
     assert.equal(ast.parseDiagnostics.length,0,'must parse '+file);
     const found=new Set();
@@ -171,7 +171,7 @@ test('v40恢复的FrameLive实时同意采集只带真实存在的slug和合法�
 test('v40恢复的脚本路径解析拒绝非法路径，不吞掉安全拒绝分支',()=>{
  const c=makeFixture();
  assert.equal(c.f.resolveAdoptedScriptPath('/safe/task.js'),'/safe/task.js');
- assert.throws(()=>c.f.resolveAdoptedScriptPath('../invalid'),/path not allowed/);
+ assert.throws(()=>c.f.resolveAdoptedScriptPath('../../invalid'),/path not allowed/);
 });
 test('Daemon回复真实函数处理peer socket缺失和正常peer发送',async()=>{
  const c=makeFixture();

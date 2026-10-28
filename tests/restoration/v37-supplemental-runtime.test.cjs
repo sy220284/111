@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 
 test('real plugin equality code handles nested objects, subsets, cyclic references and typed containers',async()=>{
- const {equals}=await import('../src/plugin-testing-kit/equality/equals/equals.js');
+ const {equals}=await import('../../src/plugin-testing-kit/equality/equals/equals.js');
  assert.equal(equals({a:{b:1}}, {a:{b:1}},'strict'),true);
  assert.equal(equals({a:{b:1}}, {a:{b:2}},'strict'),false);
  assert.equal(equals({a:1,extra:3},{a:1},'subset'),true);
@@ -16,7 +16,7 @@ test('real plugin equality code handles nested objects, subsets, cyclic referenc
  assert.equal(equals(a,b,'strict'),true);
 });
 test('actual mockStore dispatches get/set/delete/keys and keeps independent held state',async()=>{
- const {mockStore}=await import('../src/plugin-testing-kit/mock/mock-store/mock-store.js');
+ const {mockStore}=await import('../../src/plugin-testing-kit/mock/mock-store/mock-store.js');
  const handlers=new Map();
  mockStore((event,handler)=>handlers.set(event,handler),{alpha:3});
  assert.equal(handlers.get('store.get')(null,{key:'alpha'}).value,3);
@@ -29,7 +29,7 @@ test('actual mockStore dispatches get/set/delete/keys and keeps independent held
  assert.throws(()=>mockStore(()=>{},null),TypeError);
 });
 test('actual mockSession only journals successful transformed session append messages',async()=>{
- const {mockSession}=await import('../src/plugin-testing-kit/mock/mock-session/mock-session.js');
+ const {mockSession}=await import('../../src/plugin-testing-kit/mock/mock-session/mock-session.js');
  let hook=null;
  const journal=mockSession((event,handler)=>{assert.equal(event,'session.append');hook=handler});
  const accepted=await hook({}, {message:{content:'pre'}},async e=>({...e,message:{content:'normalized'}}));
@@ -40,7 +40,7 @@ test('actual mockSession only journals successful transformed session append mes
  assert.equal(journal.appended().length,1);
 });
 test('embedded state atom freezes initial nested object, request membership and preserves source atom',async()=>{
- const {atom,memberOf}=await import('../src/embedded/runtime/state-library.js');
+ const {atom,memberOf}=await import('../../src/embedded/runtime/state-library.js');
  const initial={a:{b:1}};
  const a=atom({plugin:'demo',key:'value'},initial);
  assert.equal(Object.isFrozen(a),true);
@@ -67,7 +67,7 @@ function stateFixture(initial={}){
  };
 }
 test('embedded state read/derive memoizes by versions, update uses CAS, and shaped atom detects stale data',async()=>{
- const {atom,derive,read,update}=await import('../src/embedded/runtime/state-library.js');
+ const {atom,derive,read,update}=await import('../../src/embedded/runtime/state-library.js');
  const fixture=stateFixture();const $={state:fixture.state};
  const a=atom({plugin:'demo',key:'a'},2);
  const b=atom({plugin:'demo',key:'b'},5);
@@ -86,7 +86,7 @@ test('embedded state read/derive memoizes by versions, update uses CAS, and shap
  assert.deepEqual(fixture.map.get(fixture.key(shaped.ref)),{shape:'s1',value:12});
 });
 test('embedded state optimistic update retries version conflicts but stops after 64 failures',async()=>{
- const {atom,update}=await import('../src/embedded/runtime/state-library.js');
+ const {atom,update}=await import('../../src/embedded/runtime/state-library.js');
  const a=atom({plugin:'demo',key:'retry'},0);
  let reads=0,writes=0;
  const state={
