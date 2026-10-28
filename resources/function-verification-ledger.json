@@ -1388,6 +1388,70 @@
       "test": "tests/daemon-control-evidence.test.cjs",
       "role": "daemon-interactive-runner-bridge",
       "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "gc",
+      "anchor": "function normalizeLegacyToolName(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-gc",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "Cse",
+      "anchor": "function getLegacyToolNames(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-Cse",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "m",
+      "anchor": "function escapeRuleContent(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-m",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "AQo",
+      "anchor": "function unescapeRuleContent(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-AQo",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "Bn",
+      "anchor": "function permissionRuleValueFromString(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-Bn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "dn",
+      "anchor": "function permissionRuleValueToString(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-dn",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "R",
+      "anchor": "function findFirstUnescapedChar(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-R",
+      "status": "targeted_behavior_test_only"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "symbol": "E",
+      "anchor": "function findLastUnescapedChar(",
+      "test": "tests/historical-permission-rule-parity.test.cjs",
+      "role": "v2188-permission-rule-parser-E",
+      "status": "targeted_behavior_test_only"
     }
   ]
 }

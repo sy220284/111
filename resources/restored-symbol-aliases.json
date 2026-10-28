@@ -788,6 +788,54 @@
       "legacy": "Ge",
       "readable": "invokeDaemonInteractiveRunner",
       "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "gc",
+      "readable": "normalizeLegacyToolName",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "Cse",
+      "readable": "getLegacyToolNames",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "m",
+      "readable": "escapeRuleContent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "AQo",
+      "readable": "unescapeRuleContent",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "Bn",
+      "readable": "permissionRuleValueFromString",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "dn",
+      "readable": "permissionRuleValueToString",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "R",
+      "readable": "findFirstUnescapedChar",
+      "style": "constAlias"
+    },
+    {
+      "source": "src/chunk-9z5ybxhe.js",
+      "legacy": "E",
+      "readable": "findLastUnescapedChar",
+      "style": "constAlias"
     }
   ]
 }
