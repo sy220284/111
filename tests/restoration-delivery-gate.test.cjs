@@ -7,7 +7,7 @@ const path=require('node:path');
 const cp=require('node:child_process');
 const {
   field,businessPath,testPath,categoryPathAllowed,classifyCodeChange,registeredTest,
-  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename,exactManifestPaths
+  auditDelivery,gitDiff,inspectGit,checkScriptIntegrity,delegatedHistoricalRename,exactManifestPaths,verifiedStandaloneSourceMoves
 }=require('../scripts/check-restoration-delivery.cjs');
 
 const impl='src/chunk-demo.js', suite='tests/model-transport.test.cjs';
@@ -371,4 +371,30 @@ test('整合验收必须同时核实真实来源映射、业务修改和全部�
   assert.ok(dropped.errors.some(x=>x.includes('移除任何原有npm test')));
   const fakeLevel=auditDelivery({...actual,body:body.replace('验收级别：部分完成','验收级别：业务链已验证')});
   assert.equal(fakeLevel.ok,false);
+});
+
+test('严格按Git文件树原始字节核验搬迁，不依赖易漏报的R100检测',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-tree-')),cwd=process.cwd();
+ const git=(...args)=>cp.execFileSync('git',args,{cwd:dir,encoding:'utf8'}).trim();
+ try{
+  process.chdir(dir);
+  git('init','-q');git('config','user.email','tree@example.com');git('config','user.name','Tree Test');
+  fs.mkdirSync(path.join(dir,'src/embedded'),{recursive:true});
+  const old='src/embedded/probe.mjs',current='embedded/probe.mjs';
+  fs.writeFileSync(path.join(dir,old),'export const actual=1;\n');
+  git('add','-A');git('commit','-qm','original');
+  const ancestor=git('rev-parse','HEAD'),originalGitBlob=git('rev-parse','HEAD:'+old);
+  fs.mkdirSync(path.join(dir,'embedded'));
+  fs.renameSync(path.join(dir,old),path.join(dir,current));
+  fs.mkdirSync(path.join(dir,'resources/layout'),{recursive:true});
+  fs.writeFileSync(path.join(dir,'resources/layout/relocations.json'),
+   JSON.stringify({files:[{old,current,kind:'embedded-source',originalGitBlob}]}));
+  git('add','-A');git('commit','-qm','relocated');
+  assert.deepEqual(verifiedStandaloneSourceMoves({ancestor,diffs:[]},git('rev-parse','HEAD')),
+    [{old,current}],'没有R100时仍能核对可信迁移');
+  fs.writeFileSync(path.join(dir,current),'export const actual=2;\n');
+  git('add','-A');git('commit','-qm','modified');
+  assert.deepEqual(verifiedStandaloneSourceMoves({ancestor,diffs:[]},git('rev-parse','HEAD')),[],
+    '真实字节改变必须拒绝视为纯迁移');
+ }finally{process.chdir(cwd);fs.rmSync(dir,{recursive:true,force:true})}
 });
