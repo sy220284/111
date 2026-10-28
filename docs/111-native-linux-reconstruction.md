@@ -26,3 +26,7 @@ node --test tests/native-linux-reconstruction.test.cjs
 - 原版音频模块的真实硬件设备、采样漂移、极端并发和设备断连路径未完全测试。不要在默认 CLI 中用新 `.node` 覆盖供应商二进制。
 - Xvfb 是真实的隔离 X11 传输测试，不代表 Wayland/实际桌面环境已验收。
 - GitHub CI 默认只在本地测试代码 ABI 和指定环境路径；原版 ELF 的完整业务等价尚未证明。
+
+## 双层 CI 说明
+
+仓库通用源码测试机可能没有 `X11/Xlib.h`。因此通用 `npm test` **强制编译并验证** Linux 系统调用 `.node`，缺少 X11 头文件时明确跳过 X11/ALSA 相关场景；独立的 `native-linux-reconstruction.yml` 在固定 Ubuntu 24.04 安装编译依赖并运行**全部**原生场景，不接受 skip。两种环境结果必须分别检查。
