@@ -3,26 +3,26 @@ import assert from 'node:assert/strict';
 // The actual ESM modules, including their real imports and export tables.
 // No AST extraction, mocked implementations or hand-written replicas here.
 import {
-  gc,normalizeLegacyToolName,Cse,getLegacyToolNames,m,escapeRuleContent,
+  gc,normalizeLegacyToolName,Cse,getLegacyToolNames,escapeRuleContent,
   AQo,unescapeRuleContent,Bn,permissionRuleValueFromString,
-  dn,permissionRuleValueToString,R,findFirstUnescapedChar,E,findLastUnescapedChar
+  dn,permissionRuleValueToString,findFirstUnescapedChar,findLastUnescapedChar
 } from '../src/chunk-9z5ybxhe.js';
 import {Hxe,F,L} from '../src/chunk-wrtp8qz8.js';
 
 test('真实ESM权限解析入口：函数别名身份与新增旧版兼容规则',()=>{
  for(const [short,readable] of [
   [gc,normalizeLegacyToolName],[Cse,getLegacyToolNames],
-  [m,escapeRuleContent],[AQo,unescapeRuleContent],
+  [AQo,unescapeRuleContent],
   [Bn,permissionRuleValueFromString],[dn,permissionRuleValueToString],
-  [R,findFirstUnescapedChar],[E,findLastUnescapedChar]
+  [findFirstUnescapedChar,findFirstUnescapedChar],[findLastUnescapedChar,findLastUnescapedChar]
  ])assert.strictEqual(short,readable);
  assert.equal(gc('Task'),'Agent');
  assert.equal(gc('KillBash'),'TaskStop');
  assert.equal(gc('KillShell'),'TaskStop');
  assert.equal(gc('unknownCustomTool'),'unknownCustomTool');
  assert.ok(Cse('TaskStop').includes('KillBash'));
- assert.equal(AQo(m('word\\(nested)')),'word\\(nested)');
- assert.equal(R('\\(inner)(outer)','('),8);
+ assert.equal(AQo(escapeRuleContent('word\\(nested)')),'word\\(nested)');
+ assert.equal(findFirstUnescapedChar('\\(inner)(outer)','('),8);
 });
 test('真实ESM数组入口：生产模块导出、计数/唯一化及插入语义',()=>{
  const input=['a','b','c'];
