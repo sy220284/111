@@ -1,141 +1,261 @@
 'use strict';
-/**
- * 111 的恢复交付门禁。
- * 自动检查 PR 的源码/测试差异与交付声明；不把静态检查冒充运行时语义等价。
- * 使用方式：GitHub pull_request 工作流检出 PR head（完整历史）后执行。
- */
+// 111 功能恢复交付门禁：静态变更分类 + 本次测试真实运行；不宣称语义等价。
+// PR 检查必须从 BASE 提取本文件执行，不能运行 PR 内可任意改写的验证器。
 const fs = require('node:fs');
-const {execFileSync} = require('node:child_process');
+const cp = require('node:child_process');
+const path = require('node:path');
 const ts = require('typescript');
 
-const CATEGORIES = new Set(['功能恢复', '缺陷修复', '独立测试', '工具维护', '文档维护', '治理配置']);
-const FUNCTIONAL = new Set(['功能恢复', '缺陷修复']);
-const FIELDS = ['业务问题', '实际代码改动', '调用链', '验证命令', '验证结果', '验收级别', '未验收范围'];
-const PLACEHOLDER = /^(?:待填写|待补充|待测试|TODO|TBD|未执行|无内容|占位|\.{2,}|[-—])$/i;
+const CATEGORIES = new Set(['功能恢复','缺陷修复','独立测试','工具维护','文档维护','治理配置']);
+const FUNCTIONAL = new Set(['功能恢复','缺陷修复']);
+const REQUIRED = ['业务问题','实际代码改动','调用链','验收测试','验证命令','验证结果','验收级别','未验收范围'];
+const LEVELS = new Set(['局部行为已验证','业务链已验证','部分完成']);
+const PLACEHOLDER = /^(?:待填写|待补充|待测试|TODO|TBD|未执行|无内容|占位|.{0,2}|[-—])$/i;
+const SOURCE_EXT = /\.(?:cjs|mjs|js|jsx|ts|tsx)$/;
+const TEST_EXT = /\.(?:test|spec)\.(?:cjs|mjs|js|ts)$/;
 
 function field(body, name) {
-  const lines = String(body || '').split(/\r?\n/);
-  const matches = lines
+  const matches = String(body || '').split(/\r?\n/)
     .map(line => line.match(new RegExp('^\\s*(?:[-*]\\s*)?' + name + '[：:]\\s*(.*)$')))
     .filter(Boolean);
-  if (matches.length !== 1) return '';
-  return matches[0][1].trim();
+  return matches.length === 1 ? matches[0][1].trim() : '';
 }
-function businessPath(path) {
-  return /^(?:src|runtime|bin)\//.test(path) || /^resources\/(?:bunfs|data)\//.test(path);
+function businessPath(p) {
+  return /^(?:src|runtime|bin)\//.test(p) || /^resources\/(?:bunfs|data)\//.test(p);
 }
-function runnableSource(path) {
-  return /\.(?:cjs|mjs|js|jsx|ts|tsx)$/.test(path);
+function testPath(p) { return /^tests\/.+/.test(p) && TEST_EXT.test(p); }
+function docPath(p) {
+  return /^docs\//.test(p) || /^resources\/docs\//.test(p) ||
+    ['README.md','LICENSE','CHANGELOG.md'].includes(p);
 }
-function testPath(path) {
-  return /^tests\/.*\.(?:test|spec)\.(?:cjs|mjs|js|ts)$/.test(path) ||
-    /\.(?:test|spec)\.(?:cjs|mjs|js|ts)$/.test(path);
+function categoryPathAllowed(category, p) {
+  if (category === '文档维护') return docPath(p);
+  if (category === '独立测试') return /^tests\//.test(p) || docPath(p);
+  if (category === '工具维护') return /^(?:scripts|tools|tests)\//.test(p) ||
+    docPath(p) || ['package.json','package-lock.json'].includes(p) ||
+    p === '.github/workflows/dev-toolchain.yml';
+  if (category === '治理配置') return p === 'AGENTS.md' || /^\.github\//.test(p) ||
+    /^(?:scripts\/check-restoration-delivery\.cjs|tests\/restoration-delivery-gate\.test\.cjs)$/.test(p) ||
+    docPath(p);
+  return true;
 }
-function astSignature(source, identifiersOnly = false) {
-  // 对比真正的 AST 结构，而不是把可选分号、注释或空白当成功能变化。
-  const ast = ts.createSourceFile('restoration-source.js', source,
-    ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
-  if (ast.parseDiagnostics.length) throw Error('业务源码无法解析，不能认定为有效源码变更');
-  const tokens = [];
+function asText(value) { return Buffer.isBuffer(value) ? value.toString('utf8') : String(value); }
+function parsed(code, filename = 'file.js') {
+  const kind = /\.tsx$/.test(filename) ? ts.ScriptKind.TSX :
+    /\.ts$/.test(filename) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  const ast = ts.createSourceFile(filename, asText(code), ts.ScriptTarget.Latest, true, kind);
+  if (ast.parseDiagnostics.length) throw Error('无法解析源码：' + filename);
+  return ast;
+}
+function declarationId(node) {
+  const p = node.parent;
+  return !!(p && p.name === node && (
+    ts.isVariableDeclaration(p) || ts.isFunctionDeclaration(p) || ts.isFunctionExpression(p) ||
+    ts.isClassDeclaration(p) || ts.isClassExpression(p) || ts.isParameter(p) ||
+    ts.isBindingElement(p) || ts.isMethodDeclaration(p) || ts.isPropertyDeclaration(p) ||
+    ts.isImportSpecifier(p) || ts.isImportClause(p) || ts.isNamespaceImport(p)
+  ));
+}
+function astShape(code, filename = 'file.js') {
+  const ast = parsed(code, filename);
+  const tokens = [], ids = [];
   function visit(node) {
     tokens.push(node.kind);
-    if (ts.isIdentifier(node)) tokens.push(identifiersOnly ? '标识符' : node.text);
-    else if (ts.isLiteralExpression(node) || ts.isRegularExpressionLiteral(node)) {
-      tokens.push(node.getText(ast));
-    }
+    if (ts.isIdentifier(node)) ids.push({text:node.text, declaration:declarationId(node)});
+    else if (ts.isStringLiteral(node) || ts.isNumericLiteral(node) ||
+      ts.isBigIntLiteral(node) || ts.isRegularExpressionLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node)) tokens.push(node.getText(ast));
     ts.forEachChild(node, visit);
   }
   visit(ast);
-  return tokens.join('\u0000');
+  return {shape:tokens.join(','), ids};
 }
 function classifyCodeChange(change) {
-  if (!runnableSource(change.path)) {
-    return change.before !== change.after ? 'effective' : 'none';
+  const {before,after,path:p,status} = change;
+  if (status && status.startsWith('D') || after === null || after === undefined) return 'deleted';
+  if (before === null || before === undefined) return 'added';
+  if (!SOURCE_EXT.test(p)) {
+    return Buffer.compare(Buffer.from(before),Buffer.from(after)) === 0 ? 'none' : 'effective';
   }
-  if (change.before === null || change.after === null) return 'effective';
-  const previous = astSignature(change.before);
-  const current = astSignature(change.after);
-  if (previous === current) return 'cosmetic';
-  if (astSignature(change.before, true) === astSignature(change.after, true)) return 'identifier_only';
-  return 'effective';
+  if (asText(before) === asText(after)) return 'none';
+  const a=astShape(before,p), b=astShape(after,p);
+  if (a.shape !== b.shape || a.ids.length !== b.ids.length) return 'effective';
+  const rename = new Map();
+  let idChanged = false;
+  for (let i=0;i<a.ids.length;i++) {
+    const old=a.ids[i], now=b.ids[i];
+    if (old.text === now.text) continue;
+    idChanged = true;
+    if (old.declaration && now.declaration) {
+      if (rename.has(old.text) && rename.get(old.text)!==now.text) return 'effective';
+      rename.set(old.text,now.text);
+    }
+  }
+  for(let i=0;i<a.ids.length;i++) {
+    const old=a.ids[i], now=b.ids[i];
+    if (old.text!==now.text && rename.get(old.text)!==now.text) return 'effective';
+  }
+  return idChanged ? 'identifier_only' : 'cosmetic';
 }
-function auditDelivery({title = '', body = '', changed = [], sourceChanges = []}) {
-  const errors = [];
-  const category = field(body, '交付类别');
-  if (!CATEGORIES.has(category)) errors.push('必须以“交付类别：功能恢复/缺陷修复/独立测试/工具维护/文档维护/治理配置”声明唯一类别');
-  const implementation = changed.filter(businessPath);
-  const tests = changed.filter(testPath);
-  const isFunction = FUNCTIONAL.has(category);
+function registeredTest(code, filename) {
+  const ast=parsed(code,filename);
+  let registered=false, asserted=false;
+  function visit(n) {
+    if (ts.isCallExpression(n)) {
+      const expr=n.expression;
+      const name=ts.isIdentifier(expr)?expr.text:
+        ts.isPropertyAccessExpression(expr)?expr.name.text:'';
+      if (['test','it','describe'].includes(name) && n.arguments.length > 0) registered=true;
+      if (['assert','equal','strictEqual','deepEqual','deepStrictEqual','ok','match','rejects',
+        'throws','doesNotThrow','notEqual','notStrictEqual','notDeepEqual','notDeepStrictEqual',
+        'expect','fail'].includes(name)) asserted=true;
+    }
+    ts.forEachChild(n,visit);
+  }
+  visit(ast);
+  return registered && asserted;
+}
+function auditDelivery({title='',body='',changed=[],sourceChanges=[],testChanges=[]}) {
+  const errors=[], warnings=[];
+  const category=field(body,'交付类别');
+  if (!CATEGORIES.has(category)) errors.push('必须声明唯一有效的交付类别');
+  const implementation=changed.filter(businessPath);
+  const tests=changed.filter(testPath);
+  const isFunction=FUNCTIONAL.has(category);
+  const statusByPath=new Map([...sourceChanges,...testChanges].map(x=>[x.path,x]));
   if (isFunction) {
-    if (!implementation.length) errors.push('功能恢复/缺陷修复缺少实际业务源码或运行资源变更，不能用台账、报告、工具或测试替代');
-    if (!tests.length) errors.push('功能恢复/缺陷修复缺少对应测试文件的实际变更');
-    for (const name of FIELDS) {
-      const answer = field(body, name);
-      if (!answer || PLACEHOLDER.test(answer)) errors.push('功能恢复/缺陷修复必须填写有效字段：' + name);
+    if (!implementation.length) errors.push('缺少实际业务源码或运行资源变更');
+    if (!tests.length) errors.push('缺少对应测试文件的实际变更');
+    for (const name of REQUIRED) {
+      const answer=field(body,name);
+      if (!answer || PLACEHOLDER.test(answer)) errors.push('缺少有效交付字段：'+name);
     }
-    if (field(body, '验收级别') && !['局部行为已验证', '业务链已验证', '部分完成'].includes(field(body, '验收级别'))) {
+    if (field(body,'验收级别') && !LEVELS.has(field(body,'验收级别')))
       errors.push('验收级别只能为：局部行为已验证、业务链已验证、部分完成');
+    if (field(body,'实际代码改动') && implementation.length &&
+      !implementation.some(p=>field(body,'实际代码改动').includes(p)))
+      errors.push('“实际代码改动”必须指明本次变更的真实业务文件');
+    if (field(body,'验收测试') && tests.length &&
+      !tests.some(p=>field(body,'验收测试').includes(p)))
+      errors.push('“验收测试”必须列出本次实际修改的测试文件');
+    if (implementation.some(p=>!sourceChanges.some(s=>s.path===p)))
+      errors.push('业务源码或资源缺少实际前后差异检查');
+    const codes=sourceChanges.filter(s=>implementation.includes(s.path));
+    let effective=0;
+    for(const s of codes) {
+      try {if(['effective','added'].includes(classifyCodeChange(s))) effective++;}
+      catch(e) {errors.push(e.message);}
     }
-    if (implementation.length) {
-      const inspected = sourceChanges.filter(item => implementation.includes(item.path));
-      if (inspected.length !== implementation.length) errors.push('有业务代码未完成实际差异分析，禁止跳过');
-      if (inspected.length && inspected.every(item => classifyCodeChange(item) !== 'effective')) {
-        errors.push('业务代码只有注释/格式/标识符改名差异，没有可识别的实际行为变更；不能记为功能恢复');
-      }
-      if (inspected.some(item => classifyCodeChange(item) === 'identifier_only') && !inspected.some(item => classifyCodeChange(item) === 'effective')) {
-        errors.push('只改短符号或标识符名称不能证明恢复了业务语义');
-      }
-    }
+    if (codes.length && !effective)
+      errors.push('只有删除/注释/格式/符号改名，缺少实际业务行为变更');
+    if (codes.length && codes.every(s=>s.before===null))
+      warnings.push('业务修改仅包含新增文件：仍须人工确认它已进入真实消费者调用链');
   } else if (CATEGORIES.has(category)) {
-    if (!body.includes('不计入功能恢复')) errors.push('非恢复类 PR 必须明确声明“不计入功能恢复”');
-    if (implementation.length) errors.push('实际修改业务源码的 PR 必须按功能恢复/缺陷修复类提交，并补齐真实行为测试');
-    if (/(?:完成|实现|修复|恢复).*(?:完整业务|全部功能|真实业务恢复|功能等价)/.test(title)) {
-      errors.push('非恢复类 PR 标题不得宣称已完成业务恢复或功能等价');
-    }
+    if (!/^\s*不计入功能恢复\s*$/m.test(body)) errors.push('非恢复类必须独立声明“不计入功能恢复”');
+    if (implementation.length) errors.push('非恢复类不得夹带运行态源码或资源变更');
+    const unexpected=changed.filter(p=>!categoryPathAllowed(category,p));
+    if (unexpected.length) errors.push('交付类别与实际修改范围不符：'+unexpected.join(', '));
+    if (category==='独立测试' && !tests.length) errors.push('独立测试类没有实际修改测试');
+    if (/(?:完成|实现|修复|恢复).*(?:完整业务|全部功能|真实业务恢复|功能等价)/.test(title))
+      errors.push('非恢复类标题不得宣称已完成业务恢复或功能等价');
   }
-  return {ok: errors.length === 0, category, implementation, tests, errors};
+  if (isFunction || category==='独立测试') {
+    if(tests.some(p=>!testChanges.some(s=>s.path===p)))
+      errors.push('测试文件缺少实际前后差异检查');
+    let valid=0;
+    for(const s of testChanges.filter(s=>tests.includes(s.path))) {
+      try {
+        const state=classifyCodeChange(s);
+        if (state==='effective' || state==='added') {
+          if(registeredTest(s.after,s.path)) valid++;
+          else errors.push('测试必须真实注册用例并包含断言：'+s.path);
+        }
+      } catch(e) {errors.push(e.message);}
+    }
+    if(tests.length && !valid) errors.push('没有有效新增/修改的可执行断言测试');
+  }
+  if(isFunction && changed.some(p=>p==='.github/workflows/source-restoration.yml'))
+    errors.push('功能 PR 不得同时修改主源码回归工作流，请将 CI 治理修改独立提交');
+  return {ok:errors.length===0,category,implementation,tests,errors,warnings};
 }
-function runGit(args) {
-  return execFileSync('git', args, {encoding:'utf8', maxBuffer:64 * 1024 * 1024});
+function git(args) {
+  return cp.execFileSync('git',args,{maxBuffer:128*1024*1024});
 }
-function gitAt(commit, path) {
-  try { return runGit(['show', commit + ':' + path]); }
-  catch { return null; } // 新增文件在 merge-base 不存在
+function gitAt(revision,p) {
+  try {return git(['show',revision+':'+p]);}
+  catch(e) {if(e.status!==128)throw e;return null;}
+}
+function gitDiff(base,head) {
+  const parts=git(['diff','--name-status','--find-renames','-z',base,head])
+    .toString('utf8').split('\0').filter(Boolean);
+  const results=[];
+  for (let i=0;i<parts.length;) {
+    const status=parts[i++], oldPath=/^[RC]/.test(status)?parts[i++]:null;
+    const file=parts[i++];
+    if (!file) throw Error('Git diff 文件状态格式异常');
+    results.push({path:file,oldPath:oldPath||file,status});
+  }
+  return results;
+}
+function inspectGit(event) {
+  const base=event.pull_request.base.sha, head=event.pull_request.head.sha;
+  if(!/^[a-f0-9]{40}$/.test(base)|| !/^[a-f0-9]{40}$/.test(head))
+    throw Error('PR 缺少可验证的完整 Git 提交 SHA');
+  if(git(['rev-parse','HEAD']).toString('utf8').trim() !== head)
+    throw Error('当前工作区 HEAD 与 PR 预期 SHA 不一致');
+  const ancestor=git(['merge-base',base,head]).toString('utf8').trim();
+  const diffs=gitDiff(ancestor,head);
+  const sourceChanges=diffs.filter(x=>businessPath(x.path)).map(x=>({
+    ...x,before:gitAt(ancestor,x.oldPath),after:gitAt(head,x.path)
+  }));
+  const testChanges=diffs.filter(x=>testPath(x.path)).map(x=>({
+    ...x,before:gitAt(ancestor,x.oldPath),after:gitAt(head,x.path)
+  }));
+  return {diffs,sourceChanges,testChanges,ancestor};
+}
+function runChangedTests(report, changes) {
+  if(!report.ok) return;
+  if (!FUNCTIONAL.has(report.category) && report.category!=='独立测试') return;
+  const paths=changes.testChanges.filter(x=>report.tests.includes(x.path) && x.after!==null)
+    .map(x=>x.path);
+  if(!paths.length) throw Error('没有实际可运行的变更测试');
+  console.log('本次增量测试执行：',paths.join(', '));
+  const run=cp.spawnSync(process.execPath,
+    ['--no-warnings','--experimental-vm-modules','--test',...paths],{
+      stdio:'inherit',timeout:240000,env:{...process.env,CI:'true',NO_COLOR:'1'}
+    });
+  if(run.error)throw run.error;
+  if(run.status!==0)throw Error('本次变更的真实测试执行失败，exit='+run.status);
 }
 function main() {
-  if (!process.env.GITHUB_EVENT_PATH) throw Error('只能在带有 pull_request 事件的环境运行；单元测试请直接调用 auditDelivery');
-  const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
-  if (!event.pull_request) throw Error('恢复交付门禁必须收到 pull_request 事件');
-  const base = event.pull_request.base.sha;
-  const head = event.pull_request.head.sha;
-  const ancestor = runGit(['merge-base', base, head]).trim();
-  const changed = runGit(['diff', '--name-only', '-z', ancestor, head])
-    .split('\u0000').filter(Boolean);
-  const sourceChanges = changed.filter(businessPath).map(path => {
-    const before = gitAt(ancestor, path);
-    const after = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : null;
-    return {path, before, after};
+  if(!process.env.GITHUB_EVENT_PATH)throw Error('必须由 GitHub pull_request 事件运行');
+  const event=JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
+  if(!event.pull_request)throw Error('必须收到 pull_request 事件');
+  const changes=inspectGit(event);
+  const report=auditDelivery({
+    title:event.pull_request.title,body:event.pull_request.body,
+    changed:changes.diffs.map(x=>x.path),
+    sourceChanges:changes.sourceChanges,testChanges:changes.testChanges
   });
-  const report = auditDelivery({
-    title: event.pull_request.title,
-    body: event.pull_request.body,
-    changed,
-    sourceChanges
-  });
-  const lines = [
-    '## 111 源码恢复交付门禁',
-    '- 类别：' + (report.category || '未声明'),
-    '- 变更文件：' + changed.length,
-    '- 运行时代码/资源：' + report.implementation.length,
-    '- 测试文件：' + report.tests.length,
-    '- 结论：' + (report.ok ? '基础交付约束通过（仍需真实测试及人工审查）' : '拒绝：交付约束不满足'),
-    ...report.errors.map(e => '- 违规：' + e),
+  const summary=[
+    '## 111 恢复交付门禁（基于 BASE 信任版本）',
+    '- 类别：'+(report.category||'未声明'),
+    '- PR head：'+event.pull_request.head.sha,
+    '- 实际变更文件：'+changes.diffs.length,
+    '- 业务源码/资源：'+report.implementation.length,
+    '- 修改的测试：'+report.tests.length,
+    '- 交付检查：'+(report.ok?'通过':'失败'),
+    ...report.errors.map(e=>'- 失败：'+e),
+    ...report.warnings.map(w=>'- 人工复查：'+w),
     '',
-    '注意：本门禁不会自动证明函数语义、消费者有效性或完整端到端行为；这些必须由真实测试和代码审查确认。'
+    '注意：检查只保证差异与可执行测试的最低要求，不证明业务入口可达、语义等价、原版行为一致或线上服务正常。'
   ];
-  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
-  console.log(lines.join('\n'));
-  if (!report.ok) process.exitCode = 1;
+  const line=summary.join('\n')+'\n';
+  console.log(line);
+  if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,line);
+  if(!report.ok)process.exitCode=1;
+  else runChangedTests(report,changes);
 }
-if (require.main === module) main();
-module.exports = {field, businessPath, testPath, classifyCodeChange, auditDelivery};
+if(require.main===module)main();
+module.exports={field,businessPath,testPath,docPath,categoryPathAllowed,astShape,
+  classifyCodeChange,registeredTest,auditDelivery,gitDiff,inspectGit,runChangedTests};
