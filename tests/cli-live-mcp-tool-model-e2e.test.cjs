@@ -107,6 +107,13 @@ test('真实 CLI 模型工具调用跨 MCP 子进程执行并将工具结果交�
     assert.ok(calls.slice(1).some(body=>JSON.stringify(body.messages||[]).includes('MCP_TOOL_RESULT_'+token)),
       'tool_result not returned to model: '+diagnostics());
     assert.ok(stdout.includes(marker),'model final answer absent: '+diagnostics());
+    // Real CLI-emitted request bodies from the isolated local HTTP model service.
+    // The fixture contains only synthetic tool/user data and no cloud credentials.
+    if(process.env.V37_REPORT_DIR){
+      fs.mkdirSync(process.env.V37_REPORT_DIR,{recursive:true});
+      fs.writeFileSync(path.join(process.env.V37_REPORT_DIR,'actual-cli-model-requests.jsonl'),
+        calls.map(x=>JSON.stringify(x)).join('\n')+'\n');
+    }
   }finally{
     if(timeout)clearTimeout(timeout);
     if(child&&child.exitCode===null)child.kill('SIGKILL');
