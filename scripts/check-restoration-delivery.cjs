@@ -310,13 +310,18 @@ function verifiedStandaloneSourceMoves(changes,head){
  const approved=[];
  for(const change of changes.diffs){
   const old=change.oldPath;
-  const dest=old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
+  const dest=old==='resources/tools/claude-test/source-layout.json'?'resources/layout/claude-test-source-layout.json':
+    old==='resources/tools/design-sync/source-layout.json'?'resources/layout/design-sync-source-layout.json':
+    old.startsWith('src/embedded/')?'embedded/'+old.slice('src/embedded/'.length):
     old.startsWith('src/plugin-testing-kit/')?'plugin-testing-kit/'+old.slice('src/plugin-testing-kit/'.length):
     old.startsWith('resources/tools/')?'tools/bundled/'+old.slice('resources/tools/'.length):old;
   if(dest===old||change.path!==dest||change.status!=='R100')continue;
+  const expectedKind=old.endsWith('/source-layout.json')&&old.startsWith('resources/tools/')?'tool-provenance':
+    old.startsWith('src/embedded/')?'embedded-source':
+    old.startsWith('src/plugin-testing-kit/')?'plugin-source':
+    old.startsWith('resources/tools/')?'bundled-tool':null;
   const row=records.get(old);
-  if(!row||row.current!==dest||!(['embedded-source','plugin-source','bundled-tool'].includes(row.kind) &&
-      (old.startsWith('resources/tools/') ? row.kind==='bundled-tool' : row.kind!=='bundled-tool')))continue;
+  if(!row||row.current!==dest||row.kind!==expectedKind)continue;
   const before=gitAt(changes.ancestor,old),after=gitAt(head,change.path);
   if(!before||!after||!before.equals(after))continue;
   const blob=crypto.createHash('sha1').update('blob '+before.length+String.fromCharCode(0)).update(before).digest('hex');

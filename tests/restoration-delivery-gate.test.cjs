@@ -339,3 +339,15 @@ test('目录整理独立工具源码只允许Git R100无损搬迁，不改变内
  assert.equal(accepted.ok,true,accepted.errors.join('\n'));
  assert.equal(auditDelivery({...context,changed:[...context.changed,'resources/bunfs/native.node'],verifiedRelocations:[{old,current}]}).ok,false);
 });
+
+test('原始工具来源JSON只能R100归入 resources/layout，不允许修改字节或借机放行业务源码',()=>{
+ const old='resources/tools/claude-test/source-layout.json';
+ const current='resources/layout/claude-test-source-layout.json';
+ const base={title:'工具来源布局归档',body:['交付类别：目录整理','不计入功能恢复'].join(String.fromCharCode(10)),
+ changed:[old,current,'docs/README.md','resources/layout/relocations.json','tests/repository-layout.test.cjs'],
+ testChanges:[{path:'tests/repository-layout.test.cjs',status:'A',before:null,
+ after:"const {test}=require('node:test');const assert=require('node:assert');test('check',()=>assert.ok(true));"}]};
+ assert.equal(auditDelivery(base).ok,false);
+ assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}]}).ok,true);
+ assert.equal(auditDelivery({...base,verifiedRelocations:[{old,current}],changed:[...base.changed,'src/chunk-1234.js']}).ok,false);
+});
