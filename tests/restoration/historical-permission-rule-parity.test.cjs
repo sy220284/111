@@ -6,7 +6,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const ts=require('typescript');
 
-const sourcePath=path.resolve(__dirname,'../src/chunk-9z5ybxhe.js');
+const sourcePath=path.resolve(__dirname,'../../src/chunk-9z5ybxhe.js');
 const source=fs.readFileSync(sourcePath,'utf8');
 const ast=ts.createSourceFile(sourcePath,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 const legacy=new Map([

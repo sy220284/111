@@ -6,8 +6,8 @@ import {
   gc,normalizeLegacyToolName,Cse,getLegacyToolNames,escapeRuleContent,
   AQo,unescapeRuleContent,Bn,permissionRuleValueFromString,
   dn,permissionRuleValueToString,findFirstUnescapedChar,findLastUnescapedChar
-} from '../src/chunk-9z5ybxhe.js';
-import {Hxe,F,L} from '../src/chunk-wrtp8qz8.js';
+} from '../../src/chunk-9z5ybxhe.js';
+import {Hxe,F,L} from '../../src/chunk-wrtp8qz8.js';
 
 test('真实ESM权限解析入口：函数别名身份与新增旧版兼容规则',()=>{
  for(const [short,readable] of [

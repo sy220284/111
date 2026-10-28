@@ -4,8 +4,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
-const {analyze}=require('../tools/analysis/code-graph.cjs');
-const {evaluate,sourceDefinitions,shortestModulePath}=require('../scripts/audit-historical-business-chains.cjs');
+const {analyze}=require('../../tools/analysis/code-graph.cjs');
+const {evaluate,sourceDefinitions,shortestModulePath}=require('../../scripts/audit-historical-business-chains.cjs');
 const makeAudit=(file,def)=>({
  schema:'review-703-v1',baseline:'2.1.310',
  summary:{candidates:1},manifestSha256:'test',

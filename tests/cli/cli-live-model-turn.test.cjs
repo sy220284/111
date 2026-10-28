@@ -9,7 +9,7 @@ const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
 
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const bin=path.join(root,'bin/claude-310.mjs');
 const runtime=process.env.CLAUDE_E2E_RUNTIME||process.execPath;
 const marker='MODEL_E2E_PASS';

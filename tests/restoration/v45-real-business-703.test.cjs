@@ -4,7 +4,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'../..');
 const auditPath=path.join(root,'.generated/v45-703-business-chains.json');
 if(!fs.existsSync(auditPath)){
  test('真实703条历史源及图谱尚未注入此普通CI：交由固定历史工作流实际验收',{skip:'historical CI must provide real 2.1.88 and 703 report'},()=>{
