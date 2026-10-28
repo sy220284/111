@@ -56,14 +56,15 @@ function astMetrics(source,filename){
  visit(ast);
  return {functions,imports:imports.sort(),exports:[...exportNames].sort(),...calls};
 }
-function pythonAst(files,root){
+function pythonAst(files,root,locations=new Map()){
  if(!files.length)return {};
  const py=`import ast,json,sys,pathlib
 root=pathlib.Path(sys.argv[1])
 files=json.loads(sys.argv[2])
+locations=json.loads(sys.argv[3])
 out={}
 for name in files:
-    src=(root/name).read_text(encoding="utf-8")
+    src=(root/locations.get(name,name)).read_text(encoding="utf-8")
     tree=ast.parse(src,filename=name)
     fun=sum(isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) for n in ast.walk(tree))
     cls=sum(isinstance(n,ast.ClassDef) for n in ast.walk(tree))
@@ -71,7 +72,7 @@ for name in files:
     out[name]={"functions":fun,"classes":cls,"imports":imp}
 print(json.dumps(out))
 `;
- return JSON.parse(cp.execFileSync('python3',['-c',py,root,JSON.stringify(files)],{cwd:root,encoding:'utf8',maxBuffer:16*1024*1024}));
+ return JSON.parse(cp.execFileSync('python3',['-c',py,root,JSON.stringify(files),JSON.stringify(Object.fromEntries(locations))],{cwd:root,encoding:'utf8',maxBuffer:16*1024*1024}));
 }
 function build({root=ROOT,reference=PIN,verify=true}={}){
  root=path.resolve(root);
@@ -115,7 +116,7 @@ function build({root=ROOT,reference=PIN,verify=true}={}){
  if(code.length!==47)problem.push('bundled executable JS/MJS/CJS expected 47 got '+code.length);
  if(python.length!==3)problem.push('bundled Python code expected 3 got '+python.length);
  let py={};
- try{py=pythonAst(python,root);}catch(e){problem.push('Python AST verification failed: '+e.message);}
+ try{py=pythonAst(python,root,relocations);}catch(e){problem.push('Python AST verification failed: '+e.message);}
  const native=entries.filter(x=>x.file.endsWith('.node'));
  if(native.length!==2||native.some(x=>x.nativeFormat!=='ELF'))problem.push('two original ELF .node modules not found');
  const metrics={
