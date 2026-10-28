@@ -2,7 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const {scanText, scan, probe} = require('../tools/dev/bun-jsc-compat.cjs');
+const {scanText, scan, probe} = require('../../tools/dev/bun-jsc-compat.cjs');
 
 test('AST scan handles direct, bracket, globalThis, nested ant and destructured Bun APIs', () => {
   const code = [
@@ -37,7 +37,7 @@ test('AST scan identifies Bun builtin imports but not ordinary string mentions',
 });
 
 test('repository audit scans main recovered modules, not README or vendor files', () => {
-  const report = scan(path.resolve(__dirname, '..'));
+  const report = scan(path.resolve(__dirname, '../..'));
   assert.equal(report.schema, 1);
   assert.equal(report.scannedModules, 2551);
   assert.deepEqual(report.parseErrors, []);

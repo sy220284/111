@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {analyze}=require('../tools/analysis/code-graph.cjs');
-const {buildReport,inspectArchive}=require('../tools/analysis/closure-audit.cjs');
+const {analyze}=require('../../tools/analysis/code-graph.cjs');
+const {buildReport,inspectArchive}=require('../../tools/analysis/closure-audit.cjs');
 test('evidence is not promoted to runtime equivalence; missing archives stay blocked',()=>{
   const graph=analyze({'src/a.js':'function fn(){};fn()' },[{source:'src/a.js',symbol:'fn',role:'test',test:'tests/example.test.cjs',status:'targeted_behavior_test_only'}]);
   // Minimal fake fixtures exercise the report builder without pretending to scan the full repo.
