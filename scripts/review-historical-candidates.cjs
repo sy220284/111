@@ -77,9 +77,9 @@ function readTargets(root,prefix,targets){
  const byFile=new Map();
  for(const row of targets){
   const loc=row[prefix];
-  if(!loc||!loc.file||!Number.isInteger(loc.line))throw Error('candidate location missing');
+  if(!loc||!loc.file||!Number.isInteger(loc.line)||!Number.isInteger(loc.offset))throw Error('candidate location missing');
   if(!byFile.has(loc.file))byFile.set(loc.file,new Set());
-  byFile.get(loc.file).add(loc.line+'::'+loc.name);
+  byFile.get(loc.file).add(loc.offset+'::'+loc.name);
  }
  const found=new Map(),hashes={};
  for(const [file,wanted] of [...byFile].sort(([a],[b])=>a.localeCompare(b))){
@@ -93,8 +93,8 @@ function readTargets(root,prefix,targets){
   const got=new Set();
   function visit(n){
    if(ts.isFunctionLike(n)&&n.body){
-    const line=ast.getLineAndCharacterOfPosition(n.getStart(ast)).line+1;
-    const name=fnName(n),key=line+'::'+name;
+    const offset=n.getStart(ast),line=ast.getLineAndCharacterOfPosition(offset).line+1;
+    const name=fnName(n),key=offset+'::'+name;
     if(wanted.has(key)){
       if(got.has(key))throw Error('duplicate source location '+file+':'+key);
       found.set(file+'::'+key,{features:features(n,ast,file),stats:stats(n.body)});
@@ -114,17 +114,17 @@ function audit(plan,oldRoot,newRoot){
   throw Error('review candidates truncated; run matcher --max 5000 to audit ALL cases');
  const wanted=plan.review,ids=new Set(),olderCounts=new Map();
  for(const row of wanted){
-  const newid=row.new.file+':'+row.new.line+':'+row.new.name,oldid=row.old.file+':'+row.old.line+':'+row.old.name;
+  const newid=row.new.file+':'+row.new.offset+':'+row.new.name,oldid=row.old.file+':'+row.old.offset+':'+row.old.name;
   if(ids.has(newid))throw Error('duplicate new candidate '+newid);
   ids.add(newid);
   olderCounts.set(oldid,(olderCounts.get(oldid)||0)+1);
  }
  const old=readTargets(oldRoot,'old',wanted),now=readTargets(newRoot,'new',wanted);
  const results=wanted.map(row=>{
-  const oldKey=row.old.file+'::'+row.old.line+'::'+row.old.name,
-        newKey=row.new.file+'::'+row.new.line+'::'+row.new.name,
+  const oldKey=row.old.file+'::'+row.old.offset+'::'+row.old.name,
+        newKey=row.new.file+'::'+row.new.offset+'::'+row.new.name,
         oldEntry=old.found.get(oldKey),newEntry=now.found.get(newKey);
-  const oldId=row.old.file+':'+row.old.line+':'+row.old.name;
+  const oldId=row.old.file+':'+row.old.offset+':'+row.old.name;
   const r=inspectPair(oldEntry,newEntry,olderCounts.get(oldId));
   return {
     id:sha(newKey+' => '+oldKey).slice(0,16),
@@ -136,7 +136,7 @@ function audit(plan,oldRoot,newRoot){
      runtimeBehaviorVerified:false,semanticEquivalenceConfirmed:false}
   };
  });
- results.sort((a,b)=>a.new.file.localeCompare(b.new.file)||a.new.line-b.new.line||a.id.localeCompare(b.id));
+ results.sort((a,b)=>a.new.file.localeCompare(b.new.file)||a.new.line-b.new.line||a.new.offset-b.new.offset||a.id.localeCompare(b.id));
  const classes={};
  for(const r of results)classes[r.independent.classification]=(classes[r.independent.classification]||0)+1;
  return {
