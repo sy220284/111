@@ -38,3 +38,19 @@ jobs:
           bun --version
       - name: 逐项执行完整 npm test 的真实子检查并分别记录结果
         run: node scripts/run-pr50-functional-matrix.cjs 6 ${{ matrix.part }}
+
+  governance-regression:
+    name: 可信整合验收正反例回归
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+      - name: 实际运行可信门禁的所有正反例
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --test tests/restoration-delivery-gate.test.cjs
