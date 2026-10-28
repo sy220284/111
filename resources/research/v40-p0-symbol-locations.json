@@ -1,0 +1,950 @@
+{
+  "version": "2.1.310",
+  "source": "v40_P0_92条标识符真实归属.json",
+  "evidenceLevel": "实际导入导出追踪；不是函数缺失或语义等价证明",
+  "record_count": 92,
+  "resolved_export_count": 92,
+  "real_definition_modules": {
+    "chunk-y93r9xd4.js": 2,
+    "chunk-0b5x1n8w.js": 2,
+    "chunk-fnsjs1v2.js": 4,
+    "chunk-bwt94x0y.js": 52,
+    "chunk-j0tbz6ra.js": 11,
+    "chunk-hz8c78tk.js": 1,
+    "chunk-jqa1r9n0.js": 2,
+    "chunk-t2adf9g4.js": 14,
+    "chunk-jp8fbcj2.js": 1,
+    "chunk-g4gahamw.js": 1,
+    "chunk-ajtyjx88.js": 4
+  },
+  "items": [
+    {
+      "symbolName": "createFleetViewHost",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-y93r9xd4.js",
+          "symbol": "Tat"
+        }
+      ]
+    },
+    {
+      "symbolName": "useAttachFleetOwners",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-y93r9xd4.js",
+          "symbol": "BZr"
+        }
+      ]
+    },
+    {
+      "symbolName": "CONTEXT_DROPPED_NOTE",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-0b5x1n8w.js",
+          "symbol": "p"
+        }
+      ]
+    },
+    {
+      "symbolName": "runPromptMentionChain",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-0b5x1n8w.js",
+          "symbol": "P"
+        }
+      ]
+    },
+    {
+      "symbolName": "bgShort",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-fnsjs1v2.js",
+          "symbol": "ax"
+        }
+      ]
+    },
+    {
+      "symbolName": "readRoster",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-fnsjs1v2.js",
+          "symbol": "JN"
+        }
+      ]
+    },
+    {
+      "symbolName": "rosterKey",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-fnsjs1v2.js",
+          "symbol": "NFt"
+        }
+      ]
+    },
+    {
+      "symbolName": "updateRoster",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-fnsjs1v2.js",
+          "symbol": "Hne"
+        }
+      ]
+    },
+    {
+      "symbolName": "ADOPT_ID_MAX_CHARS",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Kxt"
+        }
+      ]
+    },
+    {
+      "symbolName": "ADOPT_ID_PATTERN",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Ymr"
+        }
+      ]
+    },
+    {
+      "symbolName": "CLOCK_SKEW_ALLOWANCE_MS",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "rgi"
+        }
+      ]
+    },
+    {
+      "symbolName": "STALE_THRESHOLD_MS",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Clt"
+        }
+      ]
+    },
+    {
+      "symbolName": "TAKEOVER_ADOPT_WAIT_MS",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "gno"
+        }
+      ]
+    },
+    {
+      "symbolName": "WORKFLOW_RUN_ID_MAX_CHARS",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "QPn"
+        }
+      ]
+    },
+    {
+      "symbolName": "adoptCron",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Ono"
+        }
+      ]
+    },
+    {
+      "symbolName": "adoptedCounts",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "oIn"
+        }
+      ]
+    },
+    {
+      "symbolName": "carriedFrameLiveSlugs",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "xwe"
+        }
+      ]
+    },
+    {
+      "symbolName": "carriesTasks",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Dno"
+        }
+      ]
+    },
+    {
+      "symbolName": "classifyAdoptLinkFailure",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Pno"
+        }
+      ]
+    },
+    {
+      "symbolName": "collectFrameLiveConsent",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "ZPn"
+        }
+      ]
+    },
+    {
+      "symbolName": "computeAdoptability",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "FX"
+        }
+      ]
+    },
+    {
+      "symbolName": "countAbandonable",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "qxt"
+        }
+      ]
+    },
+    {
+      "symbolName": "countAdoptable",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Vxt"
+        }
+      ]
+    },
+    {
+      "symbolName": "countCarriedSince",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Yxt"
+        }
+      ]
+    },
+    {
+      "symbolName": "countLiveWorkflowAgents",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "f6e"
+        }
+      ]
+    },
+    {
+      "symbolName": "dedupFrameLiveNewest",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Zmr"
+        }
+      ]
+    },
+    {
+      "symbolName": "detachAndSerializeShell",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Xmr"
+        }
+      ]
+    },
+    {
+      "symbolName": "drainUnresumedAdopt",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "egr"
+        }
+      ]
+    },
+    {
+      "symbolName": "drainUnresumedFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "tIn"
+        }
+      ]
+    },
+    {
+      "symbolName": "emitAdoptAgentDenied",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Ino"
+        }
+      ]
+    },
+    {
+      "symbolName": "emitAdoptAgentFailed",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "nIn"
+        }
+      ]
+    },
+    {
+      "symbolName": "emitAdoptWorkflowFailed",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "E8t"
+        }
+      ]
+    },
+    {
+      "symbolName": "isAdoptableAgentTask",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "rgr"
+        }
+      ]
+    },
+    {
+      "symbolName": "isAdoptableCron",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "lUe"
+        }
+      ]
+    },
+    {
+      "symbolName": "isAdoptableShellTask",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "ngr"
+        }
+      ]
+    },
+    {
+      "symbolName": "isAdoptableTask",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "u6e"
+        }
+      ]
+    },
+    {
+      "symbolName": "isAdoptableWorkflowTask",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "rIn"
+        }
+      ]
+    },
+    {
+      "symbolName": "isCarriedFrameLiveWatch",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "F6"
+        }
+      ]
+    },
+    {
+      "symbolName": "killOrphanedAdoptedShell",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Cno"
+        }
+      ]
+    },
+    {
+      "symbolName": "leftArrowNeedsInterstitial",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Mno"
+        }
+      ]
+    },
+    {
+      "symbolName": "linkAdoptedAgentTranscript",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Tno"
+        }
+      ]
+    },
+    {
+      "symbolName": "linkAdoptedWorkflowDir",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Rno"
+        }
+      ]
+    },
+    {
+      "symbolName": "mcpSettledForAdopt",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "tgr"
+        }
+      ]
+    },
+    {
+      "symbolName": "noticeDescriptionOf",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "xlt"
+        }
+      ]
+    },
+    {
+      "symbolName": "noticeFieldOf",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "aUe"
+        }
+      ]
+    },
+    {
+      "symbolName": "readAndConsumeAdoptJson",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "hno"
+        }
+      ]
+    },
+    {
+      "symbolName": "recordExitRetryFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Eno"
+        }
+      ]
+    },
+    {
+      "symbolName": "recordUnresumedAdopt",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "yno"
+        }
+      ]
+    },
+    {
+      "symbolName": "recordUnresumedFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "bno"
+        }
+      ]
+    },
+    {
+      "symbolName": "releaseReparkedFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "vno"
+        }
+      ]
+    },
+    {
+      "symbolName": "relinkAdoptedAgentSymlinks",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Ano"
+        }
+      ]
+    },
+    {
+      "symbolName": "reparkUnresumedFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "wno"
+        }
+      ]
+    },
+    {
+      "symbolName": "resolveAdoptedScriptPath",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "xno"
+        }
+      ]
+    },
+    {
+      "symbolName": "serializeAdoptAgent",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Jmr"
+        }
+      ]
+    },
+    {
+      "symbolName": "serializeAdoptWorkflow",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Qmr"
+        }
+      ]
+    },
+    {
+      "symbolName": "serializeAdoptable",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "eIn"
+        }
+      ]
+    },
+    {
+      "symbolName": "takeExitRetryFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "kno"
+        }
+      ]
+    },
+    {
+      "symbolName": "takeUnresumedAdopt",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "_no"
+        }
+      ]
+    },
+    {
+      "symbolName": "takeUnresumedFrameLive",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Sno"
+        }
+      ]
+    },
+    {
+      "symbolName": "writeAdoptJson",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-bwt94x0y.js",
+          "symbol": "Rlt"
+        }
+      ]
+    },
+    {
+      "symbolName": "WebFetchTool",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "CS"
+        }
+      ]
+    },
+    {
+      "symbolName": "isArtifactFetchEnabled",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "y2n"
+        }
+      ]
+    },
+    {
+      "symbolName": "renameRecordingForSession",
+      "neighbors": "chunk-05z051sc.js",
+      "definitions": [
+        {
+          "module": "chunk-hz8c78tk.js",
+          "symbol": "qOn"
+        }
+      ]
+    },
+    {
+      "symbolName": "ReleaseNotesPicker",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-jqa1r9n0.js",
+          "symbol": "X"
+        }
+      ]
+    },
+    {
+      "symbolName": "formatAll",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-jqa1r9n0.js",
+          "symbol": "A"
+        }
+      ]
+    },
+    {
+      "symbolName": "RECAP_TRIGGER_FILE",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "_3t"
+        }
+      ]
+    },
+    {
+      "symbolName": "REPLY_ENOJOB_MSG",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "jFe"
+        }
+      ]
+    },
+    {
+      "symbolName": "REPLY_PEER_NO_SOCK_MSG",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "vpr"
+        }
+      ]
+    },
+    {
+      "symbolName": "WORKTREE_DIGEST_PATTERN",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Epr"
+        }
+      ]
+    },
+    {
+      "symbolName": "applyReplyPatch",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "zat"
+        }
+      ]
+    },
+    {
+      "symbolName": "attachJob",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Heo"
+        }
+      ]
+    },
+    {
+      "symbolName": "deleteJob",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Hee"
+        }
+      ]
+    },
+    {
+      "symbolName": "isDaemonJobPresent",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Meo"
+        }
+      ]
+    },
+    {
+      "symbolName": "isReplyDaemonRestartingMsg",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Deo"
+        }
+      ]
+    },
+    {
+      "symbolName": "killJob",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "yPe"
+        }
+      ]
+    },
+    {
+      "symbolName": "killOrphanedWorker",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "wpr"
+        }
+      ]
+    },
+    {
+      "symbolName": "listAliveDaemonJobs",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "b3t"
+        }
+      ]
+    },
+    {
+      "symbolName": "probeDaemonJob",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Yxn"
+        }
+      ]
+    },
+    {
+      "symbolName": "replyToJob",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-t2adf9g4.js",
+          "symbol": "Kat"
+        }
+      ]
+    },
+    {
+      "symbolName": "filterResumableSessions",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-jp8fbcj2.js",
+          "symbol": "G"
+        }
+      ]
+    },
+    {
+      "symbolName": "redirectMessageFor",
+      "neighbors": "chunk-338c6mgq.js",
+      "definitions": [
+        {
+          "module": "chunk-g4gahamw.js",
+          "symbol": "m"
+        }
+      ]
+    },
+    {
+      "symbolName": "RESTRICTED_SESSION_CLOUD_REFUSAL",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "eIr"
+        }
+      ]
+    },
+    {
+      "symbolName": "archiveRemoteSession",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-ajtyjx88.js",
+          "symbol": "nM"
+        },
+        {
+          "module": "chunk-ajtyjx88.js",
+          "symbol": "nM"
+        }
+      ]
+    },
+    {
+      "symbolName": "awaitRemoteSessionResult",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "DTo"
+        }
+      ]
+    },
+    {
+      "symbolName": "cloudCreateRefusal",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "L0t"
+        }
+      ]
+    },
+    {
+      "symbolName": "formatRepoMismatchDisplay",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "QPr"
+        }
+      ]
+    },
+    {
+      "symbolName": "handleTeleportPrerequisites",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "ZPr"
+        }
+      ]
+    },
+    {
+      "symbolName": "interruptRemoteSession",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "dCi"
+        }
+      ]
+    },
+    {
+      "symbolName": "launchReadsOnlyTags",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "wzn"
+        }
+      ]
+    },
+    {
+      "symbolName": "pollRemoteSessionEvents",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-ajtyjx88.js",
+          "symbol": "dRe"
+        },
+        {
+          "module": "chunk-ajtyjx88.js",
+          "symbol": "dRe"
+        }
+      ]
+    },
+    {
+      "symbolName": "stashToCleanState",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "OTo"
+        }
+      ]
+    },
+    {
+      "symbolName": "subscribeRemoteSessionToPR",
+      "neighbors": "chunk-9xz7emqc.js",
+      "definitions": [
+        {
+          "module": "chunk-j0tbz6ra.js",
+          "symbol": "HTo"
+        }
+      ]
+    }
+  ]
+}
