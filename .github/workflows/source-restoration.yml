@@ -81,6 +81,9 @@ jobs:
         run: |
           set -euo pipefail
           node --max-old-space-size=4096 tools/analysis/code-graph.cjs scan --full --output "$RUNNER_TEMP/111-code-graph.json" > /dev/null
+          node --max-old-space-size=4096 tools/analysis/closure-audit.cjs \
+            --graph "$RUNNER_TEMP/111-code-graph.json" \
+            --output "$RUNNER_TEMP/111-code-semantic-closure.json"
           node - "$RUNNER_TEMP/111-code-graph.json" <<'NODE'
           const fs=require('node:fs');
           const graph=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
@@ -107,5 +110,6 @@ jobs:
           path: |
             ${{ runner.temp }}/111-code-graph.json
             ${{ runner.temp }}/111-code-graph-summary.json
+            ${{ runner.temp }}/111-code-semantic-closure.json
           retention-days: 30
           if-no-files-found: error
