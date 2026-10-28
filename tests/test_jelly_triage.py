@@ -69,19 +69,19 @@ class TriageTests(unittest.TestCase):
         self.assertEqual(result["originalASTDistinctUnresolvedPositions"],4)
         rows=list(csv.DictReader(
             (self.report/"Jelly未解析调用候选分级.tsv").open(encoding="utf8"),
-            delimiter="\\t"))
+            delimiter="\t"))
         self.assertEqual(rows[0]["证据等级"],"ambiguous_ast_callsite_location")
         self.assertEqual(rows[0]["原AST同位置调用表达式数"],"2")
         focused=list(csv.DictReader(
             (self.report/"Jelly唯一索引候选待验收.tsv").open(encoding="utf8"),
-            delimiter="\\t"))
+            delimiter="\t"))
         self.assertEqual(focused,[])
 
     def test_mistagged_jelly_unresolved_position_is_rejected(self):
         contents=(self.report/"Jelly跨分析器调用候选.tsv").read_text(encoding="utf8")
         contents=contents.replace(
-            "src/a.js\\t2\\t3\\tsrc/b.js\\t8\\t5\\t111_unresolved_exact_callsite",
-            "src/a.js\\t2\\t3\\tsrc/b.js\\t8\\t5\\tnot_in_111_unresolved")
+            "src/a.js\t2\t3\tsrc/b.js\t8\t5\t111_unresolved_exact_callsite",
+            "src/a.js\t2\t3\tsrc/b.js\t8\t5\tnot_in_111_unresolved")
         (self.report/"Jelly跨分析器调用候选.tsv").write_text(contents,encoding="utf8")
         with self.assertRaisesRegex(ValueError,"incorrectly tagged"):
             classify_candidates(self.report,self.graph,self.functions)
