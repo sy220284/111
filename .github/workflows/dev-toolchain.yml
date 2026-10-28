@@ -105,6 +105,13 @@ jobs:
             "$NODE_VERSION" "$BUN_VERSION" > "$dir/component.env"
           tar -czf "$dir/payload.tar.gz" -C "$RUNNER_TEMP/bun-stage" bin
           (cd "$dir"; sha256sum component.env payload.tar.gz > SHA256SUMS; sha256sum -c SHA256SUMS)
+      - name: Bun/JSC 原生运行时执行真实 CLI 与 MCP stdio 业务链
+        env:
+          CLAUDE_E2E_RUNTIME: ${{ runner.temp }}/bun-stage/bin/bun
+        run: |
+          set -euo pipefail
+          PATH="${RUNNER_TEMP}/bun-stage/bin:${PATH}" npm run verify:bun:runtime
+          npm run check:cli-live-mcp
       - name: 上传 Node 组件
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
