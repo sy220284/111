@@ -205,13 +205,27 @@ function inspectGit(event) {
     throw Error('当前工作区 HEAD 与 PR 预期 SHA 不一致');
   const ancestor=git(['merge-base',base,head]).toString('utf8').trim();
   const diffs=gitDiff(ancestor,head);
-  const sourceChanges=diffs.filter(x=>businessPath(x.path)).map(x=>({
-    ...x,before:gitAt(ancestor,x.oldPath),after:gitAt(head,x.path)
-  }));
-  const testChanges=diffs.filter(x=>testPath(x.path)).map(x=>({
-    ...x,before:gitAt(ancestor,x.oldPath),after:gitAt(head,x.path)
-  }));
-  return {diffs,sourceChanges,testChanges,ancestor};
+  // 重命名跨出运行态/测试目录必须按“原文件已移除”审计，不能借 docs/ 目标路径逃逸。
+  const changed=diffs.flatMap(x=>[
+    x.path,
+    ...(x.oldPath!==x.path && businessPath(x.oldPath) && !businessPath(x.path) ? [x.oldPath] : []),
+    ...(x.oldPath!==x.path && testPath(x.oldPath) && !testPath(x.path) ? [x.oldPath] : [])
+  ]);
+  const sourceChanges=diffs
+    .filter(x=>businessPath(x.path)||businessPath(x.oldPath))
+    .map(x=>{
+      const movedOut=!businessPath(x.path);
+      return {...x,path:movedOut?x.oldPath:x.path,status:movedOut?'D':x.status,
+        before:gitAt(ancestor,x.oldPath),after:movedOut?null:gitAt(head,x.path)};
+    });
+  const testChanges=diffs
+    .filter(x=>testPath(x.path)||testPath(x.oldPath))
+    .map(x=>{
+      const movedOut=!testPath(x.path);
+      return {...x,path:movedOut?x.oldPath:x.path,status:movedOut?'D':x.status,
+        before:gitAt(ancestor,x.oldPath),after:movedOut?null:gitAt(head,x.path)};
+    });
+  return {diffs,changed,sourceChanges,testChanges,ancestor};
 }
 function runChangedTests(report, changes) {
   if(!report.ok) return;
@@ -234,7 +248,7 @@ function main() {
   const changes=inspectGit(event);
   const report=auditDelivery({
     title:event.pull_request.title,body:event.pull_request.body,
-    changed:changes.diffs.map(x=>x.path),
+    changed:changes.changed,
     sourceChanges:changes.sourceChanges,testChanges:changes.testChanges
   });
   const summary=[
