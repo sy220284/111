@@ -367,7 +367,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "allow-tool.mjs-dec5a728.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/allow-tool.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/allow-tool.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "8fcf17571a84a971bf07a1e9631c4503be4057a6bdbe1e4ead858ef599fd71ca",
@@ -406,7 +406,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "appifact_sdk.js-852e8bcb.txt.zst": {
-      "path": "resources/tools/artifact/scripts/appifact_sdk.js",
+      "path": "tools/bundled/artifact/scripts/appifact_sdk.js",
       "kind": "javascript-source",
       "purpose": "embedded JavaScript helper",
       "compressedSha256": "c1cc3d71a6133dc8ea76632c110d3da68ae120c9337e5bdf24cf42e90d679ff3",
@@ -458,7 +458,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "bundle.mjs-c7466167.txt.zst": {
-      "path": "resources/tools/design-sync/lib/bundle.mjs",
+      "path": "tools/bundled/design-sync/lib/bundle.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "eea0c3056637f5ed3472c51792dd5da10eefd6c51a29b7571a8c0118f9dd759a",
@@ -471,7 +471,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "capture.mjs-9e2f2f8b.txt.zst": {
-      "path": "resources/tools/design-sync/package-capture.mjs",
+      "path": "tools/bundled/design-sync/package-capture.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "95e405b84589920957ef7b89f83c3356bf97b3bcf1bae4aa965604f1881bd94e",
@@ -508,7 +508,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "claude-code.d.ts-bf9d954c.txt.zst": {
-      "path": "resources/tools/plugin-api/types/claude-code.d.ts",
+      "path": "tools/bundled/plugin-api/types/claude-code.d.ts",
       "kind": "typescript-declaration",
       "purpose": "function hook API declarations",
       "compressedSha256": "888e95b7a59851c8edd7d31dff5a66aa279cc384401813ec649a1e52f17bd582",
@@ -534,7 +534,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "common.mjs-21a45017.txt.zst": {
-      "path": "resources/tools/design-sync/lib/common.mjs",
+      "path": "tools/bundled/design-sync/lib/common.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "9a2a85b8e4fb01f104c51a12e96997b5a11ea1ed378d29d03439c2693abcc2b2",
@@ -547,7 +547,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "compare.mjs-4b810a57.txt.zst": {
-      "path": "resources/tools/design-sync/storybook/compare.mjs",
+      "path": "tools/bundled/design-sync/storybook/compare.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "5f2b25c057fe794a9b52082f8fd35a63bd0d2b6798fcc38ddfc57bdc077b4da4",
@@ -586,7 +586,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "config.mjs-c64f0576.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/config.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/config.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "82e722f79c1fa3c83daf8991ceb8c9448e970fed57e9dd6fe55daa15d1b4faa0",
@@ -625,7 +625,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "css.mjs-0d869c37.txt.zst": {
-      "path": "resources/tools/design-sync/lib/css.mjs",
+      "path": "tools/bundled/design-sync/lib/css.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "d45ca03e771054d7fa3d018afaed0ca48a65273aa400ce150636d5336919269c",
@@ -638,7 +638,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "ct-auth.mjs-12e61ad0.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/ct-auth.mjs",
+      "path": "tools/bundled/claude-test/scripts/ct-auth.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "91aff8861c5419de3e99ef6e95e25d316a230f2227266664fdc0ec8eb3e0ca93",
@@ -651,7 +651,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "ct.mjs-db1716e5.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/ct.mjs",
+      "path": "tools/bundled/claude-test/scripts/ct.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "30c5cbde796cec1ac8e5f39daa746acf3babd6d2e32e023b5d66b39c0fe955e1",
@@ -664,7 +664,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "ctbrowser.mjs-c343fa0d.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/ctbrowser.mjs",
+      "path": "tools/bundled/claude-test/scripts/ctbrowser.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "8344f14755e8c48fef105d407d2b969c9b96e116b4cf2ce5fa976a12deefaf32",
@@ -690,7 +690,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "discover.mjs-05fbb73b.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/discover.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/discover.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "cbba1c8ef436e726d4e461793864991eab406ffdb1e16769a796a01527f77746",
@@ -703,7 +703,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "docs.mjs-0d218ce7.txt.zst": {
-      "path": "resources/tools/design-sync/lib/docs.mjs",
+      "path": "tools/bundled/design-sync/lib/docs.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "8014463cc126bf883b5a126e6d2e6e9acda85b9a8498989f96025904c1f7d87e",
@@ -716,7 +716,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "drop_block_probe-bcdfaa4d.py.zst": {
-      "path": "resources/tools/evaluation/drop_block_probe.py",
+      "path": "tools/bundled/evaluation/drop_block_probe.py",
       "kind": "python-source",
       "purpose": "evaluation and validation script",
       "compressedSha256": "7c2291534c84cbff589fade3b0b8784b827a79b9cb0b0c39ee3cb68d8b66ed3d",
@@ -729,7 +729,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "dts.mjs-59972049.txt.zst": {
-      "path": "resources/tools/design-sync/lib/dts.mjs",
+      "path": "tools/bundled/design-sync/lib/dts.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "51401a86444a65f79cba21f33339ea82fe9437d8f598209b2c90a7c0b10febff",
@@ -755,7 +755,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "emit.mjs-7951914b.txt.zst": {
-      "path": "resources/tools/design-sync/lib/emit.mjs",
+      "path": "tools/bundled/design-sync/lib/emit.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "41d52543349472ffc8567937fdd0831654285fb679b844c411285fe7e56adac6",
@@ -768,7 +768,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "envreport.mjs-2a6a40b0.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/envreport.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/envreport.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "65dbe5a801122bb79a75cf8b9ea0e4e9e42148909ef625c68a6984822820ffdc",
@@ -833,7 +833,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "fence-proxy.mjs-e706eaf6.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/fence-proxy.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/fence-proxy.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "3a593b08b4c54a9ef1fe7151e90d4fb09baa908e4478aa385de3f72ee4c67038",
@@ -859,7 +859,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "guard.mjs-167f6a6a.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/guard.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/guard.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "7b32a3d758e617a5728ad7a523b254d3f2e3a5a5c6750c9183de309eb6849937",
@@ -883,7 +883,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "kit-modules.js-02f8fcd0.txt.zst": {
-      "path": "resources/tools/plugin-api/scripts/kit-modules.js",
+      "path": "tools/bundled/plugin-api/scripts/kit-modules.js",
       "kind": "javascript-source",
       "purpose": "embedded JavaScript helper",
       "compressedSha256": "0ef008f6cdc8ec2e63b10482d74f67db62f1bf30a63a9896bcbc935f20f5c51b",
@@ -896,7 +896,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "live-page.mjs-841e1124.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/live-page.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/live-page.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "b861d27597fe2afb07d0f43e900e5d61599746d3c55015a19abef17c832053aa",
@@ -1219,7 +1219,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "package-build.mjs-5c9a3b66.txt.zst": {
-      "path": "resources/tools/design-sync/package-build.mjs",
+      "path": "tools/bundled/design-sync/package-build.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "94243f637340870939684cf9edb02d88d2c904db20395bd0586ed08c72606384",
@@ -1232,7 +1232,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "package-validate.mjs-3a0e4e2a.txt.zst": {
-      "path": "resources/tools/design-sync/package-validate.mjs",
+      "path": "tools/bundled/design-sync/package-validate.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "fea9d9754f6ca6d8e64ff5714efc545a147d59f413132646aa5ca07a9f02e98f",
@@ -1297,7 +1297,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "playwright-mcp.mjs-4153e6ec.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/playwright-mcp.mjs",
+      "path": "tools/bundled/claude-test/scripts/playwright-mcp.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "6f2f2b2a34a7a07af5bb3cf6f08c4d1cbd8bb89ca08152366550d74503b1e7f0",
@@ -1336,7 +1336,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "prefix_diff-69deb9d3.py.zst": {
-      "path": "resources/tools/evaluation/prefix_diff.py",
+      "path": "tools/bundled/evaluation/prefix_diff.py",
       "kind": "python-source",
       "purpose": "evaluation and validation script",
       "compressedSha256": "11c3e750b5fc92ce88cb941d64643d97a9e68f74c1544f4524cacc47ff80e7bd",
@@ -1362,7 +1362,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "preview-rebuild.mjs-88e389b0.txt.zst": {
-      "path": "resources/tools/design-sync/lib/preview-rebuild.mjs",
+      "path": "tools/bundled/design-sync/lib/preview-rebuild.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "fd511241b12db26f80110e3d8b2dab21fdb3c9d5d91d65717dc2a1a668e9cbf8",
@@ -1375,7 +1375,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "previews.mjs-8fcda441.txt.zst": {
-      "path": "resources/tools/design-sync/lib/previews.mjs",
+      "path": "tools/bundled/design-sync/lib/previews.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "f950e077649fc49f8540dabd5baaa22a8c2d7985e1aab85dead0c615e658d253",
@@ -1440,7 +1440,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "remote-diff.mjs-a2ecedbc.txt.zst": {
-      "path": "resources/tools/design-sync/lib/remote-diff.mjs",
+      "path": "tools/bundled/design-sync/lib/remote-diff.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "92b5dd7afef45d95c0acda50209e0e8a72a633616804fd9935efa09592783413",
@@ -1453,7 +1453,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "resync.mjs-4ec2827e.txt.zst": {
-      "path": "resources/tools/design-sync/resync.mjs",
+      "path": "tools/bundled/design-sync/resync.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "15ec8a3ede371a0dd1dba946a37ed6b827c91a4b28151decc7a8566b451f091a",
@@ -1466,7 +1466,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "run-tools.mjs-0e78c453.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/run-tools.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/run-tools.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "9170344bcbcfb4cff7087969b3dcf185df02deb4f4c5e19d5cc65a7cc3e05ddd",
@@ -1479,7 +1479,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "runs.mjs-766956db.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/runs.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/runs.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "7cdac056d3882f8f06074cbd2a792c36cd691d3c70ec403135c9890d431f9976",
@@ -1505,7 +1505,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "sign-in.mjs-e560d968.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/sign-in.mjs",
+      "path": "tools/bundled/claude-test/scripts/sign-in.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "5c82dd62b97b2f1a28d7cecc8dfa68fff2fa513a15d7c98b7b091d7aab302242",
@@ -1518,7 +1518,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "signin.mjs-e32ba544.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/signin.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/signin.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "4369332c1a96f67a64f3f7d33378c491377c0b575649fa46215308bfc7d2df4f",
@@ -1531,7 +1531,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "source-storybook.mjs-125aecbd.txt.zst": {
-      "path": "resources/tools/design-sync/lib/source-storybook.mjs",
+      "path": "tools/bundled/design-sync/lib/source-storybook.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "22aacb2cc5ec3d3143a620072a21fb9b0784dab0e8bfa6d675218126c6e45abe",
@@ -1544,7 +1544,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "stop-on-exit.mjs-da3fcb46.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/stop-on-exit.mjs",
+      "path": "tools/bundled/claude-test/scripts/stop-on-exit.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "c06323aaa0b22db6ea25e93d0b0b3cc48fa001839e175ff275a757582b4165db",
@@ -1557,7 +1557,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "story-imports.mjs-c9db5303.txt.zst": {
-      "path": "resources/tools/design-sync/lib/story-imports.mjs",
+      "path": "tools/bundled/design-sync/lib/story-imports.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "97bda05fdf962a8d844e6e67c8aa372cde92c16b096830ba156c5abddb988d49",
@@ -1596,7 +1596,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "sync-hashes.mjs-a0844915.txt.zst": {
-      "path": "resources/tools/design-sync/lib/sync-hashes.mjs",
+      "path": "tools/bundled/design-sync/lib/sync-hashes.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "f1c0bc0b017dd550a10286dcc787640c4c9f2580dfbf6f29a3693b5a11bc37da",
@@ -1752,7 +1752,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "tools.mjs-6ad628aa.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/tools.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/tools.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "0af08402dceddd2f4aabba522e7eee905a6258ea60360dc215dcc7a11565ac7a",
@@ -1765,7 +1765,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "validate_palette.js-f945bc6a.txt.zst": {
-      "path": "resources/tools/design/scripts/validate_palette.js",
+      "path": "tools/bundled/design/scripts/validate_palette.js",
       "kind": "javascript-source",
       "purpose": "embedded JavaScript helper",
       "compressedSha256": "a7036cff4ddf24d5a4124f098c151d5ea317239f733f91ef03108a92007ccb2f",
@@ -1778,7 +1778,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "validate_palette.py-f97163c4.txt.zst": {
-      "path": "resources/tools/design/scripts/validate_palette.py",
+      "path": "tools/bundled/design/scripts/validate_palette.py",
       "kind": "reference-text",
       "purpose": "embedded text reference",
       "compressedSha256": "16452489db2a19c17b5433303795d1b9c63c1cf9dce33f27c18f98a8ee0aa76b",
@@ -1791,7 +1791,7 @@
       "source": "2.1.310 embedded BunFS"
     },
     "vet.mjs-e320abbd.txt.zst": {
-      "path": "resources/tools/claude-test/scripts/lib/vet.mjs",
+      "path": "tools/bundled/claude-test/scripts/lib/vet.mjs",
       "kind": "javascript-module",
       "purpose": "embedded tool module",
       "compressedSha256": "250f4a678540ddc717c4fe9e576971eaff87a55f291a9bffce8c2edf6bca86f6",

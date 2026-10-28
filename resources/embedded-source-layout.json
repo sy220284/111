@@ -4,122 +4,122 @@
   "entries": [
     {
       "old": "src/embedded/01_运行时扩展与核心资源/state-library-wy8y4843.js",
-      "path": "src/embedded/runtime/state-library.js",
+      "path": "embedded/runtime/state-library.js",
       "gitBlobSha1": "e44dd5cd3825ab8855d4dff7c10c53b76edc22b0"
     },
     {
       "old": "src/embedded/02_规划与交互组件/band-1v7nt0yx.tsx",
-      "path": "src/embedded/components/band.tsx",
+      "path": "embedded/components/band.tsx",
       "gitBlobSha1": "99b4a69925fe45767aedbfa307681e131d6368c6"
     },
     {
       "old": "src/embedded/02_规划与交互组件/band-state.d-jt01vrsc.ts",
-      "path": "src/embedded/components/band-state.d.ts",
+      "path": "embedded/components/band-state.d.ts",
       "gitBlobSha1": "c528ee59e8eaf52e3f7e7e6b7e5a4992cb84acaf"
     },
     {
       "old": "src/embedded/02_规划与交互组件/pane-mhv389ra.tsx",
-      "path": "src/embedded/components/pane.tsx",
+      "path": "embedded/components/pane.tsx",
       "gitBlobSha1": "72bb1fbd239d409f1736c0c46feff1d9ab5d8df4"
     },
     {
       "old": "src/embedded/02_规划与交互组件/pane-state.d-11bz0njc.ts",
-      "path": "src/embedded/components/pane-state.d.ts",
+      "path": "embedded/components/pane-state.d.ts",
       "gitBlobSha1": "564757b16f0953f6c6ac8677e33c9f46792e13de"
     },
     {
       "old": "src/embedded/02_规划与交互组件/pane.test-ee55mcxg.tsx",
-      "path": "src/embedded/components/pane.test.tsx",
+      "path": "embedded/components/pane.test.tsx",
       "gitBlobSha1": "69179f91f78c36c3c3f7df0d35656a9403a12a9b"
     },
     {
       "old": "src/embedded/02_规划与交互组件/tool-call-tv29hdsd.ts",
-      "path": "src/embedded/components/tool-call.ts",
+      "path": "embedded/components/tool-call.ts",
       "gitBlobSha1": "782e76163a4a4e0ecae260d970eea9fd65acaf0e"
     },
     {
       "old": "src/embedded/03_浏览器与工具集成/hosts-724sr8hv.mjs",
-      "path": "src/embedded/browser-tools/hosts.mjs",
+      "path": "embedded/browser-tools/hosts.mjs",
       "gitBlobSha1": "87e746e091f5af7f308bfee7382023b15abd7f08"
     },
     {
       "old": "src/embedded/03_浏览器与工具集成/install-tools-mqgxnqdh.mjs",
-      "path": "src/embedded/browser-tools/install-tools.mjs",
+      "path": "embedded/browser-tools/install-tools.mjs",
       "gitBlobSha1": "7c2dfabbe5adb35d511f3f6c357a252651dedbaa"
     },
     {
       "old": "src/embedded/03_浏览器与工具集成/open-page-v558kpk1.mjs",
-      "path": "src/embedded/browser-tools/open-page.mjs",
+      "path": "embedded/browser-tools/open-page.mjs",
       "gitBlobSha1": "b1f38cce8c914ce24f1d979489a99272606069ef"
     },
     {
       "old": "src/embedded/03_浏览器与工具集成/plugin-yqejmsqd.json",
-      "path": "src/embedded/browser-tools/plugin.json",
+      "path": "embedded/browser-tools/plugin.json",
       "gitBlobSha1": "874ef91b284243d0d34e8746cc2a10ced6848052"
     },
     {
       "old": "src/embedded/03_浏览器与工具集成/tools-lock-2wbc4a0f.json",
-      "path": "src/embedded/browser-tools/tools-lock.json",
+      "path": "embedded/browser-tools/tools-lock.json",
       "gitBlobSha1": "682cff7d1c29c81de536661ac3837e06b6f5b6ae"
     },
     {
       "old": "src/embedded/04_设计技能与网页模板/check-9esx2ea6.mjs",
-      "path": "src/embedded/design-templates/check.mjs",
+      "path": "embedded/design-templates/check.mjs",
       "gitBlobSha1": "7f1e1c1e5e3cd797a2aa9bef165b8a59679059d7"
     },
     {
       "old": "src/embedded/04_设计技能与网页模板/skeleton-893t268n.html",
-      "path": "src/embedded/design-templates/skeleton.html",
+      "path": "embedded/design-templates/skeleton.html",
       "gitBlobSha1": "9048ab216ff81d4e63be27713e9d7ecca06f7713"
     },
     {
       "old": "src/embedded/04_设计技能与网页模板/template-j5g90adz.html",
-      "path": "src/embedded/design-templates/template.html",
+      "path": "embedded/design-templates/template.html",
       "gitBlobSha1": "1afa2f047176fd0ab06724d830742d0095c3c099"
     },
     {
       "old": "src/embedded/04_设计技能与网页模板/theme-script-zm5eq8m1.html",
-      "path": "src/embedded/design-templates/theme-script.html",
+      "path": "embedded/design-templates/theme-script.html",
       "gitBlobSha1": "adfc4d22a6b151507338a4e561574517bc85f0f4"
     },
     {
       "old": "src/embedded/05_组件构建与验证工具/css-fallback-75zwvs8w.mjs",
-      "path": "src/embedded/component-build/css-fallback.mjs",
+      "path": "embedded/component-build/css-fallback.mjs",
       "gitBlobSha1": "1460b41bc3545121b19d070b2141b08a50d5fb08"
     },
     {
       "old": "src/embedded/05_组件构建与验证工具/detect-4ep12q1p.mjs",
-      "path": "src/embedded/component-build/detect.mjs",
+      "path": "embedded/component-build/detect.mjs",
       "gitBlobSha1": "3bdbe3bcbb397ee2262831d5583b9fd9cede14c9"
     },
     {
       "old": "src/embedded/05_组件构建与验证工具/http-serve-jyx95bas.mjs",
-      "path": "src/embedded/component-build/http-serve.mjs",
+      "path": "embedded/component-build/http-serve.mjs",
       "gitBlobSha1": "a268825307998a6a1111b0370d72bede9f15c99a"
     },
     {
       "old": "src/embedded/05_组件构建与验证工具/preview-gen-storybook-yedg6ts5.mjs",
-      "path": "src/embedded/component-build/preview-gen-storybook.mjs",
+      "path": "embedded/component-build/preview-gen-storybook.mjs",
       "gitBlobSha1": "0b224d7a270de4629445dd8e6656d7e9db381fa6"
     },
     {
       "old": "src/embedded/05_组件构建与验证工具/probe-24tedw09.mjs",
-      "path": "src/embedded/component-build/probe.mjs",
+      "path": "embedded/component-build/probe.mjs",
       "gitBlobSha1": "dfe2e41beeae9b1839aa11bada4c9aa3cf06ec85"
     },
     {
       "old": "src/embedded/05_组件构建与验证工具/source-kit-51mswsdh.mjs",
-      "path": "src/embedded/component-build/source-kit.mjs",
+      "path": "embedded/component-build/source-kit.mjs",
       "gitBlobSha1": "56da936d52f0de5de47eb88605d798764ed791f2"
     },
     {
       "old": "src/embedded/07_高级代理与平台指南/build-report-lite-jwtbvm49.mjs",
-      "path": "src/embedded/agent-guides/build-report-lite.mjs",
+      "path": "embedded/agent-guides/build-report-lite.mjs",
       "gitBlobSha1": "ba1c1ba05eadd9b121a1a1cc07cf59443e70754a"
     },
     {
       "old": "src/embedded/07_高级代理与平台指南/runner-scaffold-q2rf9gg9.mjs",
-      "path": "src/embedded/agent-guides/runner-scaffold.mjs",
+      "path": "embedded/agent-guides/runner-scaffold.mjs",
       "gitBlobSha1": "2f0220b41b4b30eb12606aa7ff95a9fee2f6e924"
     }
   ]
