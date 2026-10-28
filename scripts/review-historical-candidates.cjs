@@ -125,6 +125,8 @@ function audit(plan,oldRoot,newRoot){
         newKey=row.new.file+'::'+row.new.offset+'::'+row.new.name,
         oldEntry=old.found.get(oldKey),newEntry=now.found.get(newKey);
   const oldId=row.old.file+':'+row.old.offset+':'+row.old.name;
+  if(oldEntry.features.line!==row.old.line||newEntry.features.line!==row.new.line)
+   throw Error('candidate source line changed: '+oldKey+' => '+newKey);
   const r=inspectPair(oldEntry,newEntry,olderCounts.get(oldId));
   return {
     id:sha(newKey+' => '+oldKey).slice(0,16),
