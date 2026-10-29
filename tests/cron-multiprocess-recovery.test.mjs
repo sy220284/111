@@ -184,3 +184,64 @@ test('旧事务释放时不能删除已由另一个所有者取得的 Cron 锁',
     unlinkSync(lock);
   });
 });
+
+test('跨进程恢复旧任务归属不得覆盖并发创建和删除的任务', { timeout: 25000 }, async () => {
+  await tempStore(async ({ dir, store }) => {
+    const owned = {
+      ...task('old-owner'),
+      createdBySessionId: 'resume-session',
+      createdByPid: 99999,
+      createdByProcStart: 'previous-process'
+    };
+    const deleted = task('deleted-while-recovering');
+    const added = task('created-while-recovering');
+    await c6n([owned, deleted], dir);
+    let recovering;
+    await withCronStoreLock(store, async () => {
+      const script = `import {refreshDurableTaskOwner} from ${JSON.stringify(cronModule)};
+        process.stdout.write('READY\\n');
+        await refreshDurableTaskOwner('resume-session', process.pid, 'new-process-start', process.argv[1]);`;
+      recovering = child(script, [dir], dir);
+      await new Promise((resolve, reject) => {
+        let output = '';
+        const timeout = setTimeout(() => reject(Error('recovery worker never started')), 7000);
+        recovering.processRef.stdout.on('data', chunk => {
+          output += String(chunk);
+          if (output.includes('READY')) { clearTimeout(timeout); resolve(); }
+        });
+        recovering.processRef.once('error', reject);
+      });
+      // The recovering worker cannot enter its transaction while we own the lock.
+      await wait(120);
+      const snapshot = JSON.parse(readFileSync(store, 'utf8'));
+      snapshot.tasks = snapshot.tasks.filter(item => item.id !== deleted.id);
+      snapshot.tasks.push(added);
+      writeFileSync(store, JSON.stringify(snapshot));
+    });
+    await recovering.finished;
+    const tasks = await Ecn(dir);
+    assert.deepEqual(tasks.map(item => item.id).sort(), [owned.id, added.id].sort(),
+      'recovery must preserve concurrently created items and must not resurrect deleted ones');
+    const actual = tasks.find(item => item.id === owned.id);
+    assert.equal(actual.createdByProcStart, 'new-process-start');
+    assert.notEqual(actual.createdByPid, 99999);
+    assert.equal(tasks.find(item => item.id === added.id).createdByPid, undefined);
+    assert.equal(existsSync(store + '.lock'), false);
+  });
+});
+
+test('原 PID 被复用时仍刷新归属的进程启动身份，并保留其他会话归属', async () => {
+  await tempStore(async ({ dir }) => {
+    const own = {...task('pid-reuse'), createdBySessionId:'ours',
+      createdByPid:process.pid, createdByProcStart:'stale-start'};
+    const foreign = {...task('foreign-owner'), createdBySessionId:'other',
+      createdByPid:42, createdByProcStart:'foreign-start'};
+    await c6n([own, foreign], dir);
+    const { refreshDurableTaskOwner } = await import(cronModule);
+    await refreshDurableTaskOwner('ours', process.pid, 'actual-start', dir);
+    const tasks = await Ecn(dir);
+    assert.equal(tasks.find(t => t.id === own.id).createdByProcStart, 'actual-start');
+    assert.equal(tasks.find(t => t.id === foreign.id).createdByPid, 42);
+    assert.equal(tasks.find(t => t.id === foreign.id).createdByProcStart, 'foreign-start');
+  });
+});
