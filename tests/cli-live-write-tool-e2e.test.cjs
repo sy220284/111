@@ -31,8 +31,9 @@ function reply(res,body,tool,file){
 }
 async function runRealEditFlow(disallowed){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-real-write-'));
- fs.writeFileSync(path.join(dir,'checked-write.txt'),'BEFORE_EDIT_111\n');
- const file=path.join(dir,'checked-write.txt'),calls=[];
+ const filename=disallowed==='nested'?'checked(write) target.txt':'checked-write.txt';
+ fs.writeFileSync(path.join(dir,filename),'BEFORE_EDIT_111\n');
+ const file=path.join(dir,filename),calls=[];
  const server=http.createServer((req,res)=>{
   const chunks=[];req.on('data',c=>chunks.push(c));req.on('end',()=>{
    let body={};try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{}
@@ -52,7 +53,7 @@ async function runRealEditFlow(disallowed){
    ANTHROPIC_BASE_URL:'http://127.0.0.1:'+server.address().port,
    HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'};
   child=spawn(runtime,[bin,'--bare','--print','Edit '+file+' replacing BEFORE_EDIT_111 with '+marker,
-   '--dangerously-skip-permissions',...(disallowed?['--disallowedTools','Edit']:[]),'--model','claude-sonnet-4-5','--output-format','json',
+   '--dangerously-skip-permissions',...(disallowed?['--disallowedTools',disallowed==='nested'?'Edit('+file+')':'Edit']:[]),'--model','claude-sonnet-4-5','--output-format','json',
    '--no-session-persistence','--max-turns','4'],{cwd:dir,env,stdio:['ignore','pipe','pipe']});
   let stdout='',stderr=''; child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
   const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Edit tool CLI timeout '+stderr.slice(-1800)))},55000)})]);
@@ -103,3 +104,5 @@ test('真实文件检查点回退必须恢复磁盘字节，即使编辑后的 m
   const output=JSON.parse(result.stdout);assert.equal(output.enabled,true);assert.ok(output.snapshots>=1);assert.equal(output.tracked,1);
  }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
+
+test('真实 CLI 拒绝包含嵌套括号和空格路径的 Edit，磁盘保持原字节',{timeout:80000},()=>runRealEditFlow('nested'));
