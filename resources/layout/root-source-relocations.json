@@ -10145,11 +10145,12 @@
       "old": "src/chunk-hp7h93my.js",
       "current": "core/chunk-hp7h93my.js",
       "originalGitBlob": "fa39f70fb8da18d24b73cfde1b26d247cf8603fc",
-      "currentGitBlob": "e46094ed1be4b158f85360761ceae3b24b5c781d",
+      "currentGitBlob": "c587c9da1c835996a2f540dda254a706178ddf36",
       "importAdjusted": false,
-      "behaviorAdjusted": "cron-durable-integrity",
+      "behaviorAdjusted": "cron-durable-integrity-and-process-lock",
       "behaviorTests": [
-        "tests/cron-durable-integrity.test.mjs"
+        "tests/cron-durable-integrity.test.mjs",
+        "tests/cron-multiprocess-recovery.test.mjs"
       ]
     },
     {
@@ -14636,8 +14637,12 @@
       "old": "src/chunk-t2adf9g4.js",
       "current": "core/chunk-t2adf9g4.js",
       "originalGitBlob": "6f7809a7ec9daa1b11090200489ab657c86ff5fa",
-      "currentGitBlob": "6f7809a7ec9daa1b11090200489ab657c86ff5fa",
-      "importAdjusted": false
+      "currentGitBlob": "0f2b28232e834c476685b8ef91740417b0664ad6",
+      "importAdjusted": false,
+      "behaviorAdjusted": "daemon-roster-presence-fallback",
+      "behaviorTests": [
+        "tests/daemon-job-contract.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-t2r35q36.js",
