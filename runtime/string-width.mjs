@@ -37,7 +37,7 @@ function stripTerminalControls(text) {
         if (cp >= 0x40 && cp <= 0x7e) break;
       }
       continue;
-    } else if (code >= 0x98 && code <= 0x9f && code !== 0x9c) {
+    } else if (code === 0x90 || (code >= 0x98 && code <= 0x9f && code !== 0x9c)) {
       // C1 SOS, DCS, OSC, PM and APC, terminated by ST.
       i++;
     } else {
