@@ -28,10 +28,10 @@
       ]
     },
     "src/chunk-t2adf9g4.js": {
-      "classification": "daemon job and beacon newer lifecycle",
+      "classification": "Daemon presence caller now shares existing PID/procStart-verified roster fallback of probeDaemonJob instead of treating disconnected supervisor as absent. Explicit has results remain authoritative; not claimed as complete worker AI task resumption.",
       "tests": [
         "tests/daemon-job-contract.test.cjs",
-        "tests/v43-daemon-adoption-lifecycle.test.cjs"
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
       ]
     },
     "src/chunk-vw9e882a.js": {
@@ -89,9 +89,10 @@
       ]
     },
     "src/chunk-kj2kfe1q.js": {
-      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior",
+      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior Worker 状态使用 HOo 区分 absent 与损坏；损坏时阻止盲重放，SIGKILL 真实进程只证明失败回执，不代表复杂 AI 任务续跑完成。",
       "tests": [
-        "tests/cli-live-daemon-worker-recovery.test.cjs"
+        "tests/cli-live-daemon-worker-recovery.test.cjs",
+        "tests/daemon-worker-state-guard.test.cjs"
       ]
     },
     "src/chunk-7aasgh0z.js": {
@@ -109,9 +110,33 @@
       ]
     },
     "src/chunk-hp7h93my.js": {
-      "classification": "Durable Cron storage: 2.1.310 Ecn retains tolerant reads but c6n now fail-closes on malformed JSON, invalid saved tasks, and non-ENOENT I/O errors; independently verified data-integrity hardening, NOT full v37 or official runtime equivalence",
+      "classification": "Durable Cron store now holds OS-exclusive lock around read/update/write for create/delete/fire and supports abandoned worker lock recovery. Validated against real multi-process children; not proven cloud notification or full original binary parity.",
       "tests": [
-        "tests/cron-durable-integrity.test.mjs"
+        "tests/cron-durable-integrity.test.mjs",
+        "tests/cron-multiprocess-recovery.test.mjs"
+      ]
+    },
+    "src/chunk-8r2m7vfp.js": {
+      "classification": "Node 22 的 JSONL 历史读取改为安全检测 globalThis.Bun?.JSONL?.parseChunk；保留 Bun 原有快速解析分支。仅覆盖历史 JSONL 局部与真实 CLI 恢复，未声称所有读取与编辑工具已验收。",
+      "tests": [
+        "tests/jsonl-node-fallback.test.mjs",
+        "tests/cli-live-session-resume-e2e.test.cjs"
+      ]
+    },
+    "src/chunk-d5zj5299.js": {
+      "classification": "真实 Read→Edit 基线 v1r 直接复用 chunk-q1myka9a 的 portableBunHash；不增加运行时模块依赖，也不修改源码验收器；跨进程 Node 摘要稳定，Bun 原生分支不变。",
+      "tests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs",
+        "tests/root-source-relocation.test.cjs"
+      ]
+    },
+    "src/chunk-q1myka9a.js": {
+      "classification": "在真实消息缓存与模型指纹原业务模块中提供可复用 portableBunHash：Bun 使用原生 Bun.hash，Node 使用稳定 64 位摘要；保留原消息指纹调用路径，供文件 Read 基线复用。",
+      "tests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs",
+        "tests/root-source-relocation.test.cjs"
       ]
     }
   }

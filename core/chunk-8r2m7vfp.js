@@ -746,7 +746,7 @@ function p$e(e) { if (!e)
 catch (i) {
     return t(`Failed to parse JSONC: ${i instanceof Error ? i.message : String(i)}`, { level: "error" }), null;
 } }
-function _Qo() { return Bun.JSONL?.parseChunk; }
+function _Qo() { return globalThis.Bun?.JSONL?.parseChunk; }
 function ye(e, i) {
     let r = e.length, n = i(e);
     if (!n.error || n.done || n.read >= r)

@@ -4943,8 +4943,14 @@
       "old": "src/chunk-8r2m7vfp.js",
       "current": "core/chunk-8r2m7vfp.js",
       "originalGitBlob": "99ede38b474f4f137cd959e4dd8a0af0f9fae995",
-      "currentGitBlob": "99ede38b474f4f137cd959e4dd8a0af0f9fae995",
-      "importAdjusted": false
+      "currentGitBlob": "afcfb9406a9ec81b7fc2ff8d94b71ed634efe237",
+      "importAdjusted": false,
+      "behaviorAdjusted": "node-jsonl-bun-global-fallback",
+      "behaviorTests": [
+        "tests/jsonl-node-fallback.test.mjs",
+        "tests/cli-live-session-resume-e2e.test.cjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-8rb8cbd4.js",
@@ -7470,8 +7476,13 @@
       "old": "src/chunk-d5zj5299.js",
       "current": "core/chunk-d5zj5299.js",
       "originalGitBlob": "3adfe39a5ef9294c126296947a58d3adedcd5eed",
-      "currentGitBlob": "3adfe39a5ef9294c126296947a58d3adedcd5eed",
-      "importAdjusted": false
+      "currentGitBlob": "1e7ab6ea5d0fca47dc7c82a3be9df7a4687562ab",
+      "importAdjusted": false,
+      "behaviorAdjusted": "node-read-baseline-hash-fallback",
+      "behaviorTests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-d65ze5ng.js",
@@ -10145,11 +10156,12 @@
       "old": "src/chunk-hp7h93my.js",
       "current": "core/chunk-hp7h93my.js",
       "originalGitBlob": "fa39f70fb8da18d24b73cfde1b26d247cf8603fc",
-      "currentGitBlob": "e46094ed1be4b158f85360761ceae3b24b5c781d",
+      "currentGitBlob": "a401013b3f581abf3ac6d1083ffb53b7be8ac444",
       "importAdjusted": false,
-      "behaviorAdjusted": "cron-durable-integrity",
+      "behaviorAdjusted": "cron-durable-integrity-and-atomic-process-lock-recovery",
       "behaviorTests": [
-        "tests/cron-durable-integrity.test.mjs"
+        "tests/cron-durable-integrity.test.mjs",
+        "tests/cron-multiprocess-recovery.test.mjs"
       ]
     },
     {
@@ -11055,7 +11067,10 @@
       "currentGitBlob": "eec14ef82b2de5e94346993bfaa98189de7b1b5b",
       "importAdjusted": false,
       "behaviorAdjusted": "worker-state-replay-guard",
-      "behaviorTests": ["tests/daemon-worker-state-guard.test.cjs", "tests/cli-live-daemon-worker-recovery.test.cjs"]
+      "behaviorTests": [
+        "tests/daemon-worker-state-guard.test.cjs",
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-kjgmmff6.js",
@@ -13105,8 +13120,13 @@
       "old": "src/chunk-q1myka9a.js",
       "current": "core/chunk-q1myka9a.js",
       "originalGitBlob": "bf43944db833caf93e0f0d26584e9a302f9d3565",
-      "currentGitBlob": "bf43944db833caf93e0f0d26584e9a302f9d3565",
-      "importAdjusted": false
+      "currentGitBlob": "aaafe47b39423f75739e376692605f58e74f9add",
+      "importAdjusted": false,
+      "behaviorAdjusted": "node-prompt-hash-fallback",
+      "behaviorTests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-q1v3wh97.js",
@@ -14638,8 +14658,12 @@
       "old": "src/chunk-t2adf9g4.js",
       "current": "core/chunk-t2adf9g4.js",
       "originalGitBlob": "6f7809a7ec9daa1b11090200489ab657c86ff5fa",
-      "currentGitBlob": "6f7809a7ec9daa1b11090200489ab657c86ff5fa",
-      "importAdjusted": false
+      "currentGitBlob": "0f2b28232e834c476685b8ef91740417b0664ad6",
+      "importAdjusted": false,
+      "behaviorAdjusted": "daemon-roster-presence-fallback",
+      "behaviorTests": [
+        "tests/daemon-job-contract.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-t2r35q36.js",
