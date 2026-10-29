@@ -1,5 +1,5 @@
 'use strict';
-// True CLI + real filesystem Write tool + local HTTP/SSE test model.
+// True CLI + real filesystem Edit tool + local HTTP/SSE test model.
 // Does not claim cloud login or user-interactive approval was tested.
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -17,8 +17,8 @@ function reply(res,body,tool,file){
  res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache','request-id':'req_local_write'});
  event(res,'message_start',{type:'message_start',message});
  if(tool){
-  event(res,'content_block_start',{type:'content_block_start',index:0,content_block:{type:'tool_use',id:'toolu_real_write',name:'Write',input:{}}});
-  event(res,'content_block_delta',{type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:JSON.stringify({file_path:file,content:marker+'\n'})}});
+  event(res,'content_block_start',{type:'content_block_start',index:0,content_block:{type:'tool_use',id:'toolu_real_write',name:'Edit',input:{}}});
+  event(res,'content_block_delta',{type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:JSON.stringify({file_path:file,old_string:'BEFORE_EDIT_111',new_string:marker})}});
   event(res,'content_block_stop',{type:'content_block_stop',index:0});
   event(res,'message_delta',{type:'message_delta',delta:{stop_reason:'tool_use',stop_sequence:null},usage:{output_tokens:16}});
  }else{
@@ -29,8 +29,9 @@ function reply(res,body,tool,file){
  }
  event(res,'message_stop',{type:'message_stop'});res.end();
 }
-test('真实 CLI 模型调用 Write 后修改磁盘并将工具结果返回给下一轮模型',{timeout:80000},async()=>{
+test('真实 CLI 模型调用 Edit 后修改磁盘并将工具结果返回给下一轮模型',{timeout:80000},async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-real-write-'));
+ fs.writeFileSync(path.join(dir,'checked-write.txt'),'BEFORE_EDIT_111\n');
  const file=path.join(dir,'checked-write.txt'),calls=[];
  const server=http.createServer((req,res)=>{
   const chunks=[];req.on('data',c=>chunks.push(c));req.on('end',()=>{
@@ -51,18 +52,18 @@ test('真实 CLI 模型调用 Write 后修改磁盘并将工具结果返回给�
    ANTHROPIC_API_KEY:'sk-ant-api03-local-write-fake',ANTHROPIC_AUTH_TOKEN:'',
    ANTHROPIC_BASE_URL:'http://127.0.0.1:'+server.address().port,
    HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'};
-  child=spawn(runtime,[bin,'--bare','--print','Create '+file+' with '+marker,
+  child=spawn(runtime,[bin,'--bare','--print','Edit '+file+' replacing BEFORE_EDIT_111 with '+marker,
    '--dangerously-skip-permissions','--model','claude-sonnet-4-5','--output-format','json',
    '--no-session-persistence','--max-turns','3'],{cwd:dir,env,stdio:['ignore','pipe','pipe']});
   let stdout='',stderr=''; child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
-  const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Write tool CLI timeout '+stderr.slice(-1800)))},55000)})]);
+  const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Edit tool CLI timeout '+stderr.slice(-1800)))},55000)})]);
   clearTimeout(timer);timer=null;
   const diag=()=>`code=${result.code} stdout=${stdout.slice(-3500)} stderr=${stderr.slice(-4000)} calls=${calls.length}`;
   assert.equal(result.code,0,diag());
-  assert.ok(fs.existsSync(file),'Write did not create actual file: '+diag()+' tools='+JSON.stringify(calls.map(b=>(b.tools||[]).map(x=>x.name))));
+  assert.ok(fs.existsSync(file),'Edit did not change actual file: '+diag()+' tools='+JSON.stringify(calls.map(b=>(b.tools||[]).map(x=>x.name))));
   assert.equal(fs.readFileSync(file,'utf8'),marker+'\n','actual file mismatch: '+diag());
-  assert.ok(calls.length>=2,'model was not called again after Write: '+diag());
-  assert.ok(calls.slice(1).some(body=>JSON.stringify(body.messages||[]).includes('toolu_real_write')),'real Write tool result not returned to model: '+diag());
+  assert.ok(calls.length>=2,'model was not called again after Edit: '+diag());
+  assert.ok(calls.slice(1).some(body=>JSON.stringify(body.messages||[]).includes('toolu_real_write')),'real Edit tool result not returned to model: '+diag());
   assert.ok(stdout.includes(marker),'final response missing: '+diag());
  }finally{if(timer)clearTimeout(timer);if(child&&child.exitCode===null)child.kill('SIGKILL');await new Promise(resolve=>server.close(resolve));fs.rmSync(dir,{recursive:true,force:true})}
 });
