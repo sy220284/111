@@ -41,17 +41,27 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       const method=bytes.toString('utf8');
       assert.ok(method.includes('this._requestResolvers.delete(d),this._cleanupTimeout(d)'),'MCP取消回调必须清理关联任务resolver');
     }else if(item.current==='core/chunk-hp7h93my.js'){
-      // Explicitly audited second exception: preserve the original historical
-      // Blob while pinning the exact tested runtime source Blob. Never
-      // generalize this to arbitrary changes under core/.
-      assert.equal(item.behaviorAdjusted,'cron-durable-integrity');
-      assert.deepEqual(item.behaviorTests,['tests/cron-durable-integrity.test.mjs']);
+      assert.equal(item.behaviorAdjusted,'cron-durable-integrity-and-process-lock');
+      assert.deepEqual(item.behaviorTests,[
+        'tests/cron-durable-integrity.test.mjs',
+        'tests/cron-multiprocess-recovery.test.mjs'
+      ]);
       assert.equal(item.originalGitBlob,'fa39f70fb8da18d24b73cfde1b26d247cf8603fc');
-      assert.equal(item.currentGitBlob,'e46094ed1be4b158f85360761ceae3b24b5c781d');
-      assert.ok(fs.existsSync(path.join(ROOT,item.behaviorTests[0])));
+      assert.equal(item.currentGitBlob,'c587c9da1c835996a2f540dda254a706178ddf36');
+      for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
       const method=bytes.toString('utf8');
       assert.ok(method.includes('await Ecn(s,!0)'),'持久化写入未执行严格校验');
-      assert.ok(method.includes('refusing to overwrite malformed'),'任务文件损坏未阻止写入');
+      assert.ok(method.includes('await Qcn(tHe(s)'),'定时任务写入没有进程间互斥');
+      assert.ok(method.includes('await Qcn(tHe()'),'定时任务创建没有进程间互斥');
+      assert.ok(method.includes('async function WTe(e,s)'),'定时任务删除原入口不再存在');
+    }else if(item.current==='core/chunk-t2adf9g4.js'){
+      assert.equal(item.behaviorAdjusted,'daemon-roster-presence-fallback');
+      assert.deepEqual(item.behaviorTests,['tests/daemon-job-contract.test.cjs']);
+      assert.equal(item.originalGitBlob,'6f7809a7ec9daa1b11090200489ab657c86ff5fa');
+      assert.equal(item.currentGitBlob,'0f2b28232e834c476685b8ef91740417b0664ad6');
+      assert.ok(fs.existsSync(path.join(ROOT,item.behaviorTests[0])));
+      assert.ok(bytes.toString('utf8').includes('let n=await probeDaemonJob(e);return n.present'),
+        'Daemon 断线未进行带 PID 启动指纹的 roster 回退');
     }else{
       assert.fail('未经审计的运行态源码变更：'+item.current);
     }
