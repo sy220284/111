@@ -20,7 +20,7 @@ function run(mode){
       import {spawnSync} from 'node:child_process';
       import {mkdirSync,writeFileSync} from 'node:fs';
       import {join} from 'node:path';
-      const mode=process.argv[1],short='b3d4e5f6',dir=_o(short);
+      const scenario=process.argv[1],recycled=scenario.startsWith('recycled-'),mode=recycled?scenario.slice(9):scenario,short='b3d4e5f6',dir=_o(short);
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{invalid-json');
       if(['done','failed','stopped','queued','working'].includes(mode)){
@@ -42,7 +42,8 @@ function run(mode){
       worker.phase={kind:'running'};
       worker.workerReady=true;
       worker.attempt=1;
-      worker.record.pid=child.pid;
+      worker.record.pid=recycled?process.pid:child.pid;
+      if(recycled)worker.pidRecycledAsync=async()=>true;
       if(mode==='permission'){
         const original=process.kill;
         process.kill=(pid,signal)=>{
@@ -91,6 +92,14 @@ for(const mode of ['working','corrupt','absent']){
     const result=run(mode);
     assert.equal(result.outcome,'crashed',JSON.stringify(result));
     assert.match(result.detail,/without a verified terminal job state/);
+  });
+}
+for(const [mode,outcome] of [['recycled-done','done'],['recycled-failed','failed']]){
+  test('PID 启动身份变化时恢复磁盘最终成果 '+mode,{timeout:30000},()=>{
+    const result=run(mode);
+    assert.equal(result.outcome,outcome,JSON.stringify(result));
+    assert.equal(result.detail,'persisted-'+mode.slice(9));
+    assert.deepEqual(result.output,{summary:'result-'+mode.slice(9)});
   });
 }
 test('进程存在性权限拒绝 EPERM 不应误报 Worker 已崩溃',{timeout:30000},()=>{
