@@ -4614,11 +4614,12 @@
       "old": "src/chunk-82n8x00g.js",
       "current": "core/chunk-82n8x00g.js",
       "originalGitBlob": "2f445da1222b457ab02a2b8748c1ca8b4920ccd0",
-      "currentGitBlob": "41e5c9f45b843aa9fc76693e94ba1cfcae4a298c",
+      "currentGitBlob": "5e82c985f9e2a764c6e9eda38777d1295da2524d",
       "importAdjusted": false,
-      "behaviorAdjusted": "cron-owner-refresh-atomic-transaction",
+      "behaviorAdjusted": "cron-owner-refresh-atomic-transaction-and-pid-scoped-scheduler-lease",
       "behaviorTests": [
-        "tests/cron-multiprocess-recovery.test.mjs"
+        "tests/cron-multiprocess-recovery.test.mjs",
+        "tests/root-source-relocation.test.cjs"
       ]
     },
     {

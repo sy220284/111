@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { withCronStoreLock, Ecn, c6n } from '../core/chunk-hp7h93my.js';
+import { acquireSchedulerLease, releaseSchedulerLease } from '../core/chunk-82n8x00g.js';
 
 const lockModule = new URL('../core/chunk-hp7h93my.js', import.meta.url).href;
 const cronModule = new URL('../core/chunk-hp7h93my.js', import.meta.url).href;
@@ -243,5 +244,62 @@ test('原 PID 被复用时仍刷新归属的进程启动身份，并保留其他
     assert.equal(tasks.find(t => t.id === own.id).createdByProcStart, 'actual-start');
     assert.equal(tasks.find(t => t.id === foreign.id).createdByPid, 42);
     assert.equal(tasks.find(t => t.id === foreign.id).createdByProcStart, 'foreign-start');
+  });
+});
+
+const schedulerModule = new URL('../core/chunk-82n8x00g.js',import.meta.url).href;
+const leaseOpts = (dir) => ({dir,lockIdentity:'shared-restored-session'});
+function leaseState(){return{unregisterCleanup:undefined,lastBlockedBy:undefined,reset(){this.unregisterCleanup?.();this.unregisterCleanup=undefined;this.lastBlockedBy=undefined}}}
+test('真实多进程恢复同一 sessionId 时不能夺取存活调度器租约或误删其锁',{timeout:25000},async()=>{
+  await tempStore(async ({dir})=>{
+    const opts=leaseOpts(dir),owner=leaseState(),lock=join(dir,'.claude','scheduled_tasks.lock');
+    assert.equal(await acquireSchedulerLease(owner,opts),true);
+    const original=JSON.parse(readFileSync(lock,'utf8'));
+    assert.equal(original.pid,process.pid);
+    const script=`import {acquireSchedulerLease,releaseSchedulerLease} from ${JSON.stringify(schedulerModule)};
+      const opts={dir:process.argv[1],lockIdentity:'shared-restored-session'};
+      const worker={unregisterCleanup:undefined,lastBlockedBy:undefined,
+        reset(){this.unregisterCleanup?.();this.unregisterCleanup=undefined;}};
+      const acquired=await acquireSchedulerLease(worker,opts);
+      await releaseSchedulerLease(worker,opts);
+      process.stdout.write(JSON.stringify({acquired})+'\\n');`;
+    try{
+      const worker=child(script,[dir],dir);
+      let stdout='';worker.processRef.stdout.on('data',x=>stdout+=String(x));
+      await worker.finished;
+      assert.equal(JSON.parse(stdout.trim().split('\\n').at(-1)).acquired,false,
+        'second live process cannot reuse the same session ID to steal a lease');
+      assert.deepEqual(JSON.parse(readFileSync(lock,'utf8')),original,
+        'a process which did not acquire the lease cannot overwrite or release it');
+    }finally{
+      await releaseSchedulerLease(owner,opts);
+    }
+    assert.equal(existsSync(lock),false,'original lease owner can still release its own lock');
+  });
+});
+test('旧调度器的延迟释放不得删除同进程新一代租约',{timeout:15000},async()=>{
+  await tempStore(async ({dir})=>{
+    const opts=leaseOpts(dir),owner=leaseState(),lock=join(dir,'.claude','scheduled_tasks.lock');
+    assert.equal(await acquireSchedulerLease(owner,opts),true);
+    const old=JSON.parse(readFileSync(lock,'utf8'));
+    const newer={...old,acquiredAt:old.acquiredAt+10000};
+    writeFileSync(lock,JSON.stringify(newer));
+    await releaseSchedulerLease(owner,opts,old);
+    assert.deepEqual(JSON.parse(readFileSync(lock,'utf8')),newer,
+      'release callback must verify exact lease generation, not session ID alone');
+    unlinkSync(lock);
+  });
+});
+test('失效进程租约仍可由新进程恢复，且更新进程身份',{timeout:15000},async()=>{
+  await tempStore(async ({dir})=>{
+    const opts=leaseOpts(dir),owner=leaseState(),lock=join(dir,'.claude','scheduled_tasks.lock');
+    writeFileSync(lock,JSON.stringify({sessionId:'shared-restored-session',
+      pid:99999999,procStart:'dead-process-start',acquiredAt:1}));
+    assert.equal(await acquireSchedulerLease(owner,opts),true);
+    const claimed=JSON.parse(readFileSync(lock,'utf8'));
+    assert.equal(claimed.pid,process.pid);
+    assert.notEqual(claimed.procStart,'dead-process-start');
+    await releaseSchedulerLease(owner,opts);
+    assert.equal(existsSync(lock),false);
   });
 });
