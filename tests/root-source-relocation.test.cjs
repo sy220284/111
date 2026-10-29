@@ -101,7 +101,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
       assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-and-result-receipt');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'5a42bf1cc2b8354abed74c9607250a74d1c85c97');
+      assert.equal(item.currentGitBlob,'6e01174549217a97ea2724d29aadd71d5b807593');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
         'tests/cli-live-daemon-worker-recovery.test.cjs'
@@ -116,6 +116,10 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         '恢复已结束任务时必须回传持久化结果描述');
       assert.ok(method.includes('output:e.output'),
         '恢复已结束任务时必须保留最终输出');
+      assert.ok(method.includes('this.doSpawnUnlessSettledOnDisk(F,!0)'),
+        '升级重启不得绕过真实磁盘终态检查');
+      assert.ok(method.includes('return this.doSpawn(bridgeEnv,fromUpgrade)'),
+        '状态核验通过的升级重启必须保持既有桥接环境和升级标志');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
       assert.equal(item.behaviorAdjusted,'file-history-content-compare-despite-older-mtime');
       assert.deepEqual(item.behaviorTests,['tests/cli-live-write-tool-e2e.test.cjs']);

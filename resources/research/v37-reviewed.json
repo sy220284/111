@@ -90,7 +90,7 @@
       ]
     },
     "src/chunk-kj2kfe1q.js": {
-      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior Worker 状态使用 HOo 区分 absent 与损坏；损坏时阻止盲重放，SIGKILL 真实进程只证明失败回执，不代表复杂 AI 任务续跑完成。",
+      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior Worker 状态使用 HOo 区分 absent 与损坏；损坏时阻止盲重放，SIGKILL 真实进程只证明失败回执，不代表复杂 AI 任务续跑完成。 此次修复版本升级旧 Worker 退出通道 onExit(upgrading) 直接调用 doSpawn(F,true) 绕过 doSpawnUnlessSettledOnDisk 的缺陷：升级与崩溃重试共用磁盘终态/状态损坏防重校验，仍向真实 spawn 传递桥接环境和升级标志；真实 Node 子进程分别测试 done/failed/stopped/corrupt/absent，证明不能仅因升级重复执行已经结束的作业。",
       "tests": [
         "tests/cli-live-daemon-worker-recovery.test.cjs",
         "tests/daemon-worker-state-guard.test.cjs"

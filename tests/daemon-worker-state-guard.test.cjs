@@ -19,7 +19,7 @@ function run(mode){
       import {_o} from ${JSON.stringify(stateURL)};
       import {mkdirSync,writeFileSync} from 'node:fs';
       import {join} from 'node:path';
-      const mode=process.argv[1],short='d3a4b5c6',dir=_o(short);
+      const scenario=process.argv[1],upgrade=scenario.startsWith('upgrade-'),mode=upgrade?scenario.slice(8):scenario,short='d3a4b5c6',dir=_o(short);
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{incomplete-json');
       if(mode==='not-regular')mkdirSync(join(dir,'state.json'));
@@ -28,10 +28,16 @@ function run(mode){
         cwd:process.cwd(),source:'shell',launch:{mode:'prompt',args:[]},
         env:{},isolation:'none',respawnFlags:[]};
       const worker=new fpe(dispatch,()=>{},undefined,'cold',undefined,undefined,undefined);
-      let replays=0;
-      worker.doSpawn=async()=>{replays++};
-      await worker.doSpawnUnlessSettledOnDisk();
-      process.stdout.write(JSON.stringify({replays,outcome:worker.record.outcome??null,
+      let replays=0,spawnArgs=null;
+      worker.doSpawn=async(...args)=>{replays++;spawnArgs=args};
+      if(upgrade){
+        worker.phase={kind:'upgrading'};
+        worker.buildBridgeReattachEnvFromState=async()=>({REATTACH_TEST:'retained'});
+        // Invoke the real version-upgrade exit branch, not only the ordinary retry helper.
+        worker.onExit(0,undefined,undefined);
+        await new Promise(resolve=>setTimeout(resolve,350));
+      }else await worker.doSpawnUnlessSettledOnDisk();
+      process.stdout.write(JSON.stringify({replays,spawnArgs,outcome:worker.record.outcome??null,
         state:worker.record.state,detail:worker.record.detail,output:worker.record.output??null})+'\\n');
     `;
     const result=spawnSync(process.execPath,['--input-type=module','-e',script,mode],{
@@ -73,3 +79,26 @@ for(const [state,outcome] of [['done','done'],['failed','failed'],['stopped','ki
     assert.deepEqual(result.output,{summary:'result-'+state},'必须保留最终输出');
   });
 }
+
+for(const [state,outcome] of [['done','done'],['failed','failed'],['stopped','killed']]){
+  test('升级 Worker 前读取实际磁盘 '+state+' 回执并防止重复启动',{timeout:30000},()=>{
+    const result=run('upgrade-'+state);
+    assert.equal(result.replays,0,'升级过程不能绕过已完成任务的磁盘确认');
+    assert.equal(result.outcome,outcome,JSON.stringify(result));
+    assert.equal(result.state,state);
+    assert.equal(result.detail,'persisted-'+state);
+    assert.deepEqual(result.output,{summary:'result-'+state});
+  });
+}
+test('升级 Worker 遇到损坏状态不能盲目重新执行',{timeout:30000},()=>{
+  const result=run('upgrade-corrupt');
+  assert.equal(result.replays,0);
+  assert.equal(result.outcome,'crashed');
+  assert.match(result.detail,/cannot verify persisted job state/);
+});
+test('升级 Worker 确认无旧状态时允许重启并保留桥接环境',{timeout:30000},()=>{
+  const result=run('upgrade-absent');
+  assert.equal(result.replays,1);
+  assert.equal(result.outcome,null);
+  assert.deepEqual(result.spawnArgs,[{REATTACH_TEST:'retained'},true]);
+});
