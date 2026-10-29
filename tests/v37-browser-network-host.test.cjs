@@ -107,3 +107,18 @@ test('real Claude Test MCP subprocess initializes and enumerates actual tools sa
     'browser MCP should preserve the permission/consent tool');
  }finally{child.stdin.end();rl.close()}
 });
+
+// The real v37 hosts must resolve the post-relocation SDK and analyzer files.
+test('v37 real-host SDK and prefix analyzer paths exist after tool relocation',()=>{
+ const root=path.resolve(__dirname,'..');
+ for(const rel of ['tools/bundled/artifact/scripts/appifact_sdk.js',
+                    'tools/bundled/evaluation/prefix_diff.py',
+                    'tools/bundled/claude-test/scripts/lib/tools-lock.json']){
+   const file=path.join(root,rel);
+   assert.ok(fs.statSync(file).isFile(), 'relocated host input missing: '+rel);
+ }
+ for(const legacy of ['resources/tools/artifact/scripts/appifact_sdk.js',
+                       'resources/tools/evaluation/prefix_diff.py']){
+   assert.equal(fs.existsSync(path.join(root,legacy)),false,'stale pre-migration script remains: '+legacy);
+ }
+});

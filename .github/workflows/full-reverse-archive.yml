@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
     paths: [.github/workflows/full-reverse-archive.yml]
+  push:
+    branches: [main]
+    paths: [.github/workflows/full-reverse-archive.yml]
   workflow_dispatch:
 
 permissions:
@@ -14,13 +17,14 @@ jobs:
   complete-archive:
     name: 汇总恢复源码、研究历史、全量调用证据及离线工具
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 80
     steps:
       - name: 检出完整 Git 历史和可重建工具
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: 固定源码及历史的可重现压缩快照
         shell: bash
         run: |
@@ -29,8 +33,9 @@ jobs:
           command -v zstd
           command -v gh
           stage="$RUNNER_TEMP/111-complete-reverse-archive"
-          mkdir -p "$stage"/{00_manifest,01_latest_source,02_verified_decompile,03_jelly_full_corpus,04_offline_toolchain,05_runtime_differential,06_previous_verified_baseline,07_history}
+          mkdir -p "$stage"/{00_manifest,01_latest_source,02_verified_decompile,03_jelly_full_corpus,04_offline_toolchain,05_runtime_differential,06_previous_verified_baseline,07_history,08_current_same_commit_evidence,09_reverse_toolchain}
           git rev-parse HEAD > "$stage/00_manifest/PACKAGING_COMMIT.txt"
+          test "$(cat "$stage/00_manifest/PACKAGING_COMMIT.txt")" = "${{ github.event.pull_request.head.sha || github.sha }}"
           git status --short > "$stage/00_manifest/PACKAGING_WORKTREE.txt"
           git archive --format=tar HEAD | zstd -T0 -3 -o "$stage/01_latest_source/111-current-source-tree.tar.zst"
           git bundle create "$stage/07_history/111-all-fetched-git-history.bundle" --all
@@ -44,13 +49,15 @@ jobs:
           cat > "$stage/00_manifest/README_先读.txt" <<'READ'
           111 Claude Code 2.1.310 x64：此前全部 GitHub 可交付研究成果的单包归档
 
-          01_latest_source: 压缩时真实仓库工作树 (includes src/runtime/bin/resources/scripts/tests/tools)
+          01_latest_source: 本次 HEAD 的真实源码快照 (core/embedded/plugins/plugin-testing-kit/runtime/resources/bin/tests/tools)
           02_verified_decompile: PR47已验收的纯净反编译源码、完整AST图谱、全量Jelly交叉分析、分级候选表和所有静态分析原生证据
           03_jelly_full_corpus: 8分片Jelly原始分析JSON、输入摘要与静态候选完整记录
           04_offline_toolchain: Node22/npm缓存/Bun1.4.4/Jelly0.13.0/actionlint组件
           05_runtime_differential: Node/Bun回归及Bun/JSC诊断原始报告；不等于ELF完整等价
           06_previous_verified_baseline: 更早完整成功构建的纯净反编译版本（独立保留，不覆盖新证据）
           07_history: 仓库Git提交历史及PR47定版代码快照
+          08_current_same_commit_evidence: 本次 HEAD 的真实 AST/Jelly/原生反编译与模型/MCP证据，按 SUMMARY.commit 和全文件SHA256核验
+          09_reverse_toolchain: 最新成功工具链运行提供的Ghidra12.2/JDK25可校验离线组件（明确记录独立工具来源SHA）
           00_manifest: 版本、artifact来源、全量文件SHA256与计数
 
           仅将已有测试证明的静态候选标为静态；未运行确权的调用、ELF原版等价、完整Bun/JSC等价仍未验证。
@@ -61,6 +68,7 @@ jobs:
           printf 'previous base clean: GitHub Actions run 40648699702\n' >> "$stage/00_manifest/PROVENANCE.txt"
           printf 'official toolchain: GitHub Actions run 40659090129\n' >> "$stage/00_manifest/PROVENANCE.txt"
           printf 'Node/Bun differential: GitHub Actions run 40659186630\n' >> "$stage/00_manifest/PROVENANCE.txt"
+          printf 'packaging and newest source/native evidence commit: %s\n' "$(git rev-parse HEAD)" >> "$stage/00_manifest/PROVENANCE.txt"
       - name: 获取之前实际通过的所有反编译包和Jelly完整证据
         shell: bash
         env:
@@ -110,6 +118,49 @@ jobs:
           gh run download 40659186630 --repo "$GITHUB_REPOSITORY" \
             --name 111-node-bun-live-differential-evidence \
             --dir "$stage/05_runtime_differential/111-node-bun-live-differential-evidence"
+      - name: 取得当前同一提交实际通过的源码、Jelly、原生反编译与模型工具证据
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-complete-reverse-archive"
+          commit="$(cat "$stage/00_manifest/PACKAGING_COMMIT.txt")"
+          run=''
+          for attempt in $(seq 1 90); do
+            result="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/recovery-evidence.yml/runs?head_sha=$commit&per_page=15")"
+            run="$(printf '%s' "$result" | jq -r --arg sha "$commit" '[.workflow_runs[] | select(.head_sha==$sha and .conclusion=="success" and .head_repository.full_name=="'"${GITHUB_REPOSITORY}"'")] | first | .id // empty')"
+            if [ -n "$run" ]; then break; fi
+            echo "等待 SHA=$commit 的真实 recovery-evidence 成功工作流：$attempt/90"
+            sleep 10
+          done
+          test -n "$run" || { echo '无法找到与当前提交完全一致且成功的恢复证据，拒绝归档' >&2; exit 1; }
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" \
+            --name 111-same-commit-source-native-recovery-evidence \
+            --dir "$stage/08_current_same_commit_evidence"
+          (cd "$stage/08_current_same_commit_evidence" && sha256sum -c SHA256SUMS > /dev/null)
+          jq -e --arg sha "$commit" '.commit==$sha and .originalMainELFDecompiled==false and .originalJSCBytecodeRecovered==false and .crossLanguageFunctionMappingVerified==false and (.native|length)==2' \
+            "$stage/08_current_same_commit_evidence/SUMMARY.json" > /dev/null
+          printf 'current source/native recovery: Actions run %s commit %s\n' "$run" "$commit" \
+            >> "$stage/00_manifest/PROVENANCE.txt"
+      - name: 下载验证通过的 Ghidra 12.2 与 JDK 25 离线组件
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/111-complete-reverse-archive"
+          response="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/dev-toolchain.yml/runs?branch=main&status=success&per_page=20")"
+          run="$(printf '%s' "$response" | jq -r '[.workflow_runs[] | select(.conclusion=="success" and .head_branch=="main")] | first | .id // empty')"
+          test -n "$run" || { echo '无已通过的主分支开发工具链运行' >&2; exit 1; }
+          for name in 111-toolchain-ghidra-latest 111-toolchain-jdk-latest; do
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" --name "$name" \
+              --dir "$stage/09_reverse_toolchain/$name"
+            (cd "$stage/09_reverse_toolchain/$name" && sha256sum -c SHA256SUMS)
+            test -s "$stage/09_reverse_toolchain/$name/payload.tar.gz"
+          done
+          printf 'Ghidra/JDK source: Actions successful main run %s (versioned separately from source commit)\n' "$run" \
+            >> "$stage/00_manifest/PROVENANCE.txt"
       - name: 全包完整性、历史证据、工具链与Jelly覆盖核验
         shell: bash
         run: |
@@ -131,8 +182,13 @@ jobs:
           assert sum(x['uniqueCandidateEdges'] for x in sums)==236166
           assert sum(x['successful'] for x in sums)==2551
           assert len(list((root/'04_offline_toolchain').glob('*/SHA256SUMS')))==5
+          assert len(list((root/'09_reverse_toolchain').glob('*/SHA256SUMS')))==2
+          current=json.loads((root/'08_current_same_commit_evidence/SUMMARY.json').read_text())
+          assert current['commit']==(root/'00_manifest/PACKAGING_COMMIT.txt').read_text().strip()
+          assert current['evidenceStatus']=='verified_same_commit_partial_recovery_evidence'
+          assert len(current['native'])==2 and not current['originalMainELFDecompiled'] and not current['originalJSCBytecodeRecovered']
           assert len(list((root/'05_runtime_differential').rglob('*')))>3
-          for where in ('01_latest_source','02_verified_decompile','03_jelly_full_corpus','04_offline_toolchain','05_runtime_differential','06_previous_verified_baseline','07_history'):
+          for where in ('01_latest_source','02_verified_decompile','03_jelly_full_corpus','04_offline_toolchain','05_runtime_differential','06_previous_verified_baseline','07_history','08_current_same_commit_evidence','09_reverse_toolchain'):
               assert any((root/where).rglob('*')),where
           summary={
             'type':'111-one-archive',
@@ -140,7 +196,12 @@ jobs:
             'verifiedJellyUniqueStaticCandidates':236166,
             'verifiedJellyFailures':0,
             'rawJellyShards':8,
-            'offlineToolchainComponents':5,
+            'offlineToolchainComponents':7,
+            'historicalToolchainComponents':5,
+            'currentSourceAndNativeEvidenceCommit':current['commit'],
+            'currentNativeDecompiledFunctions':sum(x['decompiled'] for x in current['native']),
+            'currentNativeFailedFunctions':sum(x['failed'] for x in current['native']),
+            'sameCommitEvidenceVerified':True,
             'originalELFEquivalenceConfirmed':False,
             'completeBunJSCParityConfirmed':False,
             'remoteSourceArchivesNotIncluded':'User Library originals are separate private files',
