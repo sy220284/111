@@ -70,7 +70,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'tests/cron-multiprocess-recovery.test.mjs'
       ]);
       assert.equal(item.originalGitBlob,'fa39f70fb8da18d24b73cfde1b26d247cf8603fc');
-      assert.equal(item.currentGitBlob,'a401013b3f581abf3ac6d1083ffb53b7be8ac444');
+      assert.equal(item.currentGitBlob,'078959826f66e07c42c3451d04c2fa5176f37865');
       for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
       const method=bytes.toString('utf8');
       assert.ok(method.includes('await Ecn(s,!0)'),'持久化写入未执行严格校验');
@@ -80,6 +80,16 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(method.includes('async function tryReapAbandonedReaper'),'回收者崩溃恢复函数未接入');
       assert.ok(method.includes('await Qcn(tHe()'),'定时任务创建没有进程间互斥');
       assert.ok(method.includes('async function WTe(e,s)'),'定时任务删除原入口不再存在');
+    }else if(item.current==='core/chunk-82n8x00g.js'){
+      assert.equal(item.behaviorAdjusted,'cron-owner-refresh-atomic-transaction');
+      assert.equal(item.originalGitBlob,'2f445da1222b457ab02a2b8748c1ca8b4920ccd0');
+      assert.equal(item.currentGitBlob,'41e5c9f45b843aa9fc76693e94ba1cfcae4a298c');
+      assert.deepEqual(item.behaviorTests,['tests/cron-multiprocess-recovery.test.mjs']);
+      const method=bytes.toString('utf8');
+      assert.ok(method.includes('c=await refreshDurableTaskOwner(V,process.pid,que(),d)'),
+        '真实 Cron 调度器必须用跨进程事务刷新任务归属');
+      assert.ok(!method.includes('await c6n(c,d)'),
+        '旧快照不能整份覆盖并发创建删除的任务');
     }else if(item.current==='core/chunk-t2adf9g4.js'){
       assert.equal(item.behaviorAdjusted,'daemon-roster-presence-fallback');
       assert.deepEqual(item.behaviorTests,['tests/daemon-job-contract.test.cjs']);

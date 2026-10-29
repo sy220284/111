@@ -139,6 +139,13 @@
         "tests/cli-live-write-tool-e2e.test.cjs",
         "tests/root-source-relocation.test.cjs"
       ]
+    },
+    "src/chunk-82n8x00g.js": {
+      "classification": "2.1.310 原定时调度器 ye 恢复旧进程所有权时调用 c6n(c,d) 整份写回旧快照，和多进程 Cron 创建、删除存在丢更新竞争；改为调用同一事务锁内严格重读的 refreshDurableTaskOwner，只刷新所属会话的进程身份，隔离其他任务且写入失败不据旧快照调度。真实 Node 独立子进程竞争增删测试覆盖。",
+      "tests": [
+        "tests/cron-multiprocess-recovery.test.mjs",
+        "tests/root-source-relocation.test.cjs"
+      ]
     }
   }
 }
