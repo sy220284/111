@@ -61,12 +61,12 @@ async function runRealEditFlow(disallowed){
   assert.equal(result.code,0,diag());
   assert.ok(fs.existsSync(file),'Edit did not change actual file: '+diag()+' tools='+JSON.stringify(calls.map(b=>(b.tools||[]).map(x=>x.name))));
   if(disallowed){
-   assert.equal(fs.readFileSync(file,'utf8'),'BEFORE_EDIT_111\\n','disallowed Edit changed the actual file: '+diag());
+   assert.equal(fs.readFileSync(file,'utf8'),'BEFORE_EDIT_111\n','disallowed Edit changed the actual file: '+diag());
    assert.ok(calls.length>=3,'model did not receive disallowed Edit result: '+diag());
    const toolResults=calls.slice(2).flatMap(body=>(body.messages||[]).filter(m=>m.role==='user').flatMap(m=>Array.isArray(m.content)?m.content.filter(item=>item.type==='tool_result'):[]));
    assert.ok(toolResults.some(item=>item.tool_use_id==='toolu_real_write'&&item.is_error===true),'Edit denial was not returned as a tool error: '+diag());
   }else{
-   assert.equal(fs.readFileSync(file,'utf8'),marker+'\\n','actual file mismatch: '+diag());
+   assert.equal(fs.readFileSync(file,'utf8'),marker+'\n','actual file mismatch: '+diag());
    assert.ok(calls.length>=3,'model did not continue Read -> Edit -> final: '+diag());
    assert.ok(calls.slice(2).some(body=>JSON.stringify(body.messages||[]).includes('toolu_real_write')),'real Edit tool result not returned to model: '+diag());
   }
