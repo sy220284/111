@@ -155,3 +155,32 @@ test('仍存活的锁持有者即使锁文件时间较旧也不会被并发写�
     assert.equal(readFileSync(store, 'utf8'), 'second');
   });
 });
+
+
+test('PID 复用后不得将旧锁误判为活进程并永久阻塞 Cron', { timeout: 12000 }, async t => {
+  if (process.platform !== 'linux') return t.skip('procfs PID start-time verification is Linux-specific');
+  await tempStore(async ({ store }) => {
+    writeFileSync(store + '.lock', JSON.stringify({
+      pid: process.pid, token: 'owner-with-reused-process-id', procStart: '0'
+    }));
+    const old = new Date(Date.now() - 5000);
+    utimesSync(store + '.lock', old, old);
+    await withCronStoreLock(store, async () => writeFileSync(store, 'pid-reuse-recovered'));
+    assert.equal(readFileSync(store, 'utf8'), 'pid-reuse-recovered');
+    assert.equal(existsSync(store + '.lock'), false);
+  });
+});
+
+test('旧事务释放时不能删除已由另一个所有者取得的 Cron 锁', async () => {
+  await tempStore(async ({ store }) => {
+    const lock = store + '.lock';
+    const foreign = 'other-owner-must-survive';
+    await withCronStoreLock(store, async () => {
+      const original = JSON.parse(readFileSync(lock, 'utf8'));
+      unlinkSync(lock);
+      writeFileSync(lock, JSON.stringify({ pid: process.pid, token: foreign, procStart: original.procStart }));
+    });
+    assert.equal(JSON.parse(readFileSync(lock, 'utf8')).token, foreign);
+    unlinkSync(lock);
+  });
+});
