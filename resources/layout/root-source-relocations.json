@@ -4614,8 +4614,12 @@
       "old": "src/chunk-82n8x00g.js",
       "current": "core/chunk-82n8x00g.js",
       "originalGitBlob": "2f445da1222b457ab02a2b8748c1ca8b4920ccd0",
-      "currentGitBlob": "2f445da1222b457ab02a2b8748c1ca8b4920ccd0",
-      "importAdjusted": false
+      "currentGitBlob": "41e5c9f45b843aa9fc76693e94ba1cfcae4a298c",
+      "importAdjusted": false,
+      "behaviorAdjusted": "cron-owner-refresh-atomic-transaction",
+      "behaviorTests": [
+        "tests/cron-multiprocess-recovery.test.mjs"
+      ]
     },
     {
       "old": "src/chunk-831dh4nz.js",
@@ -10156,7 +10160,7 @@
       "old": "src/chunk-hp7h93my.js",
       "current": "core/chunk-hp7h93my.js",
       "originalGitBlob": "fa39f70fb8da18d24b73cfde1b26d247cf8603fc",
-      "currentGitBlob": "a401013b3f581abf3ac6d1083ffb53b7be8ac444",
+      "currentGitBlob": "078959826f66e07c42c3451d04c2fa5176f37865",
       "importAdjusted": false,
       "behaviorAdjusted": "cron-durable-integrity-and-atomic-process-lock-recovery",
       "behaviorTests": [
