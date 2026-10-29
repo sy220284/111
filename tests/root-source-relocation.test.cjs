@@ -81,15 +81,21 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(method.includes('await Qcn(tHe()'),'定时任务创建没有进程间互斥');
       assert.ok(method.includes('async function WTe(e,s)'),'定时任务删除原入口不再存在');
     }else if(item.current==='core/chunk-82n8x00g.js'){
-      assert.equal(item.behaviorAdjusted,'cron-owner-refresh-atomic-transaction');
+      assert.equal(item.behaviorAdjusted,'cron-owner-refresh-atomic-transaction-and-pid-scoped-scheduler-lease');
       assert.equal(item.originalGitBlob,'2f445da1222b457ab02a2b8748c1ca8b4920ccd0');
-      assert.equal(item.currentGitBlob,'41e5c9f45b843aa9fc76693e94ba1cfcae4a298c');
-      assert.deepEqual(item.behaviorTests,['tests/cron-multiprocess-recovery.test.mjs']);
+      assert.equal(item.currentGitBlob,'5e82c985f9e2a764c6e9eda38777d1295da2524d');
+      assert.deepEqual(item.behaviorTests,['tests/cron-multiprocess-recovery.test.mjs','tests/root-source-relocation.test.cjs']);
       const method=bytes.toString('utf8');
       assert.ok(method.includes('c=await refreshDurableTaskOwner(V,process.pid,que(),d)'),
         '真实 Cron 调度器必须用跨进程事务刷新任务归属');
       assert.ok(!method.includes('await c6n(c,d)'),
         '旧快照不能整份覆盖并发创建删除的任务');
+      assert.ok(method.includes('k.pid===process.pid&&k.procStart===S.procStart'),
+        '同一会话仅在同一真实进程身份下允许复用调度锁');
+      assert.ok(method.includes('S.pid!==process.pid||S.procStart!==que()'),
+        '不能由同会话其他进程删除调度租约');
+      assert.ok(method.includes('S.acquiredAt!==owner.acquiredAt'),
+        '释放旧代租约不能删除新代租约');
     }else if(item.current==='core/chunk-t2adf9g4.js'){
       assert.equal(item.behaviorAdjusted,'daemon-roster-presence-fallback');
       assert.deepEqual(item.behaviorTests,['tests/daemon-job-contract.test.cjs']);
