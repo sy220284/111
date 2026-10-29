@@ -10145,9 +10145,9 @@
       "old": "src/chunk-hp7h93my.js",
       "current": "core/chunk-hp7h93my.js",
       "originalGitBlob": "fa39f70fb8da18d24b73cfde1b26d247cf8603fc",
-      "currentGitBlob": "1ddf400bb987987faa721c10a46ea2f207fb660c",
+      "currentGitBlob": "36b8ae6d4655a593fc1f520d1719aa119bd58a4e",
       "importAdjusted": false,
-      "behaviorAdjusted": "cron-durable-integrity-and-process-lock",
+      "behaviorAdjusted": "cron-durable-integrity-and-atomic-process-lock-recovery",
       "behaviorTests": [
         "tests/cron-durable-integrity.test.mjs",
         "tests/cron-multiprocess-recovery.test.mjs"
