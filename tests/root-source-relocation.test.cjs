@@ -112,6 +112,18 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(fs.existsSync(path.join(ROOT,item.behaviorTests[0])));
       assert.ok(bytes.toString('utf8').includes('let n=await probeDaemonJob(e);return n.present'),
         'Daemon 断线未进行带 PID 启动指纹的 roster 回退');
+    }else if(item.current==='core/chunk-9z5ybxhe.js'){
+      assert.equal(item.behaviorAdjusted,'permission-nested-escaped-rule-boundaries');
+      assert.equal(item.originalGitBlob,'a2f639b9fba72def2bd6d11da2fe11bde33865ad');
+      assert.equal(item.currentGitBlob,'15565c33c1f14847d5af7b807e60dfaccd504b4e');
+      assert.deepEqual(item.behaviorTests,[
+        'tests/historical-permission-rule-parity.test.cjs',
+        'tests/cli-live-write-tool-e2e.test.cjs'
+      ]);
+      for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
+      const method=bytes.toString('utf8');
+      assert.ok(method.includes('depth=Math.max(0,depth-1)')&&method.includes('if(escaped){r+=s;escaped=!1;continue}'),
+        '权限规则解析必须区分嵌套括号和反斜杠转义，不能拆散拒绝规则');
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
       assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-result-receipt-adopted-unverified-and-nonzero-exit-reconciliation');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
