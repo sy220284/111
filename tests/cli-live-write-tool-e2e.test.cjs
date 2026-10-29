@@ -51,13 +51,20 @@ test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{ti
    ANTHROPIC_API_KEY:'sk-ant-api03-local-write-fake',ANTHROPIC_AUTH_TOKEN:'',
    ANTHROPIC_BASE_URL:'http://127.0.0.1:'+server.address().port,
    HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'};
+  const probe=path.join(dir,'read-bun-probe.cjs'),traceFile=path.join(dir,'read-bun-stack.log');
+  fs.writeFileSync(probe,`const fs=require('node:fs');
+Object.defineProperty(globalThis,'Bun',{configurable:true,get(){
+  fs.appendFileSync(process.env.CLAUDE_READ_TRACE_FILE,new Error('Node Read Bun access').stack+'\\n');return undefined;
+}});`);
+  env.NODE_OPTIONS=(env.NODE_OPTIONS||'')+' --require='+probe;
+  env.CLAUDE_READ_TRACE_FILE=traceFile;
   child=spawn(runtime,[bin,'--bare','--print','Edit '+file+' replacing BEFORE_EDIT_111 with '+marker,
    '--dangerously-skip-permissions','--model','claude-sonnet-4-5','--output-format','json',
    '--no-session-persistence','--max-turns','4'],{cwd:dir,env,stdio:['ignore','pipe','pipe']});
   let stdout='',stderr=''; child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
   const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Edit tool CLI timeout '+stderr.slice(-1800)))},55000)})]);
   clearTimeout(timer);timer=null;
-  const diag=()=>`code=${result.code} stdout=${stdout.slice(-3500)} stderr=${stderr.slice(-4000)} calls=${calls.length} toolReplies=${JSON.stringify(calls.slice(1).flatMap(b=>(b.messages||[]).filter(m=>m.role==='user').flatMap(m=>Array.isArray(m.content)?m.content.filter(c=>c.type==='tool_result'):[]))).slice(-6500)}`;
+  const diag=()=>`bunTrace=${fs.existsSync(traceFile)?fs.readFileSync(traceFile,'utf8').slice(-5200):'none'} code=${result.code} stdout=${stdout.slice(-3500)} stderr=${stderr.slice(-4000)} calls=${calls.length} toolReplies=${JSON.stringify(calls.slice(1).flatMap(b=>(b.messages||[]).filter(m=>m.role==='user').flatMap(m=>Array.isArray(m.content)?m.content.filter(c=>c.type==='tool_result'):[]))).slice(-6500)}`;
   assert.equal(result.code,0,diag());
   assert.ok(fs.existsSync(file),'Edit did not change actual file: '+diag()+' tools='+JSON.stringify(calls.map(b=>(b.tools||[]).map(x=>x.name))));
   assert.equal(fs.readFileSync(file,'utf8'),marker+'\n','actual file mismatch: '+diag());
