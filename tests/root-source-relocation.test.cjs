@@ -83,7 +83,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
     }else if(item.current==='core/chunk-82n8x00g.js'){
       assert.equal(item.behaviorAdjusted,'cron-owner-refresh-atomic-transaction-and-pid-scoped-scheduler-lease');
       assert.equal(item.originalGitBlob,'2f445da1222b457ab02a2b8748c1ca8b4920ccd0');
-      assert.equal(item.currentGitBlob,'5e82c985f9e2a764c6e9eda38777d1295da2524d');
+      assert.equal(item.currentGitBlob,'ab39eb9f585ad66c012df079c6bef8288be7a205');
       assert.deepEqual(item.behaviorTests,['tests/cron-multiprocess-recovery.test.mjs','tests/root-source-relocation.test.cjs']);
       const method=bytes.toString('utf8');
       assert.ok(method.includes('c=await refreshDurableTaskOwner(V,process.pid,que(),d)'),
@@ -96,6 +96,14 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         '不能由同会话其他进程删除调度租约');
       assert.ok(method.includes('S.acquiredAt!==owner.acquiredAt'),
         '释放旧代租约不能删除新代租约');
+      assert.ok(method.includes('if(L&&C.length>0)'),
+        '无租约不得处理错过的一次性持久化任务');
+      assert.ok(method.includes('for(let e of ne)if(L&&Se(e))'),
+        '持久化 Cron 执行入口必须持有租约');
+      assert.ok(method.includes('if(r&&L&&V!==void 0'),
+        '无租约不能抢写其他进程的任务归属');
+      assert.ok(method.includes('void ye(!0).then(de)'),
+        '接管租约后必须重新处理错过任务，而非永远遗忘');
     }else if(item.current==='core/chunk-t2adf9g4.js'){
       assert.equal(item.behaviorAdjusted,'daemon-roster-presence-fallback');
       assert.deepEqual(item.behaviorTests,['tests/daemon-job-contract.test.cjs']);
