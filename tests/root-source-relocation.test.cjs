@@ -113,12 +113,13 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(bytes.toString('utf8').includes('let n=await probeDaemonJob(e);return n.present'),
         'Daemon 断线未进行带 PID 启动指纹的 roster 回退');
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
-      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-and-result-receipt');
+      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-result-receipt-and-adopted-worker-reconciliation');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'e074d62785952c60499e6126490655fc5b1dc931');
+      assert.equal(item.currentGitBlob,'6b03e3304b48090601f3f74207ad735dcdca9f97');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
-        'tests/cli-live-daemon-worker-recovery.test.cjs'
+        'tests/cli-live-daemon-worker-recovery.test.cjs',
+        'tests/daemon-adopted-worker-receipt.test.cjs'
       ]);
       for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
       const method=bytes.toString('utf8');
@@ -140,6 +141,10 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         '必须区分全新 Worker 和已有执行尝试');
       assert.ok(method.includes('return this.doSpawn(bridgeEnv,fromUpgrade)'),
         '状态核验通过的升级重启必须保持既有桥接环境和升级标志');
+      assert.ok(method.includes('await this.reconcileVanishedWorker(!1,e)'),
+        '接管 Worker 进程消失时必须核验真实磁盘结果');
+      assert.ok(method.includes('if(p==="ESRCH")await this.reconcileVanishedWorker'),
+        'EPERM 权限拒绝不能直接误报进程死亡');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
       assert.equal(item.behaviorAdjusted,'file-history-content-compare-despite-older-mtime');
       assert.deepEqual(item.behaviorTests,['tests/cli-live-write-tool-e2e.test.cjs']);
