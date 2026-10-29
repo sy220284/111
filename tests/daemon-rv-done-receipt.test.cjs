@@ -29,7 +29,9 @@ function run(mode){
         updatedAt:new Date().toISOString(),...extra
       });
       const stateFile=join(dir,'state.json');
-      if(mode!=='absent')writeFileSync(stateFile,receipt(mode==='queued'?'done':mode==='flush'?'working':mode,
+      if(mode==='corrupt')writeFileSync(stateFile,'{invalid-json');
+      else if(mode==='not-regular')mkdirSync(stateFile);
+      else if(mode!=='absent')writeFileSync(stateFile,receipt(mode==='queued'?'done':mode==='flush'?'working':mode,
         mode==='queued'?{queuedPrompt:'continue the next turn'}:{}));
       const sock=join(process.cwd(),'rv.sock');
       let delivered=0;
@@ -107,6 +109,14 @@ test('rendezvous 完成信号不得吞掉磁盘 queuedPrompt，退出后走统�
   assert.equal(result.phase,'spawning');
   assert.match(result.detail,/respawning/);
 });
+for(const mode of ['working','corrupt','not-regular']){
+  test('rendezvous 完成消息遇到未完成或损坏的磁盘状态不得伪报成功 '+mode,{timeout:25000},()=>{
+    const result=run(mode);
+    assert.equal(result.delivered,1);
+    assert.equal(result.outcome,'crashed',JSON.stringify(result));
+    assert.match(result.detail,/without a readable terminal job state/);
+  });
+}
 test('没有持久化状态时保留显式 rendezvous 完成回执的兼容行为',{timeout:25000},()=>{
   const result=run('absent');
   assert.equal(result.outcome,'done',JSON.stringify(result));
