@@ -90,10 +90,11 @@
       ]
     },
     "src/chunk-kj2kfe1q.js": {
-      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior Worker 状态使用 HOo 区分 absent 与损坏；损坏时阻止盲重放，SIGKILL 真实进程只证明失败回执，不代表复杂 AI 任务续跑完成。 此次修复版本升级旧 Worker 退出通道 onExit(upgrading) 直接调用 doSpawn(F,true) 绕过 doSpawnUnlessSettledOnDisk 的缺陷：升级与崩溃重试共用磁盘终态/状态损坏防重校验，仍向真实 spawn 传递桥接环境和升级标志；真实 Node 子进程分别测试 done/failed/stopped/corrupt/absent，证明不能仅因升级重复执行已经结束的作业。 新发现静态 fpe.spawn({afterUpgrade:true}) 直接调用 doSpawn 且重试中状态 absent 被当作全新任务：统一复用 doSpawnUnlessSettledOnDisk；有过实际尝试或升级交接后丢失 state.json 时拒绝盲重放（明确报错可由用户人工核查），首次创建任务仍正常执行。真实 Node 独立进程验证静态升级终态回执、文件损坏、历史状态丢失。 Worker 退出码为 0 时核对持久化终态：失败/停止不再伪报成功，排队工作进入受保护续跑，缺失/损坏/未终态明确崩溃；真实 Node 子进程覆盖状态延迟写入及成果回执。",
+      "classification": "Node daemon exec dispatch originally invoked Bun.spawn; added Node subprocess launcher with stderr FD and exited Promise while preserving Bun behavior Worker 状态使用 HOo 区分 absent 与损坏；损坏时阻止盲重放，SIGKILL 真实进程只证明失败回执，不代表复杂 AI 任务续跑完成。 此次修复版本升级旧 Worker 退出通道 onExit(upgrading) 直接调用 doSpawn(F,true) 绕过 doSpawnUnlessSettledOnDisk 的缺陷：升级与崩溃重试共用磁盘终态/状态损坏防重校验，仍向真实 spawn 传递桥接环境和升级标志；真实 Node 子进程分别测试 done/failed/stopped/corrupt/absent，证明不能仅因升级重复执行已经结束的作业。 新发现静态 fpe.spawn({afterUpgrade:true}) 直接调用 doSpawn 且重试中状态 absent 被当作全新任务：统一复用 doSpawnUnlessSettledOnDisk；有过实际尝试或升级交接后丢失 state.json 时拒绝盲重放（明确报错可由用户人工核查），首次创建任务仍正常执行。真实 Node 独立进程验证静态升级终态回执、文件损坏、历史状态丢失。 Worker 退出码为 0 时核对持久化终态：失败/停止不再伪报成功，排队工作进入受保护续跑，缺失/损坏/未终态明确崩溃；真实 Node 子进程覆盖状态延迟写入及成果回执。 接管的后台 Worker PID 消失或复用时重新核验真实持久化终态，恢复 done/failed/stopped 成果及排队续跑；未核实状态拒绝盲重放。process.kill(pid,0) 的 EPERM 表示无权限验证存活，不再误判进程死亡。真实独立 Node 子进程和故障注入覆盖接管状态。",
       "tests": [
         "tests/cli-live-daemon-worker-recovery.test.cjs",
-        "tests/daemon-worker-state-guard.test.cjs"
+        "tests/daemon-worker-state-guard.test.cjs",
+        "tests/daemon-adopted-worker-receipt.test.cjs"
       ]
     },
     "src/chunk-7aasgh0z.js": {
