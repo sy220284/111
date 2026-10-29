@@ -107,6 +107,12 @@
         "tests/function-hook-worker-contract.test.cjs",
         "tests/check-source.cjs"
       ]
+    },
+    "src/chunk-hp7h93my.js": {
+      "classification": "Durable Cron storage: 2.1.310 Ecn retains tolerant reads but c6n now fail-closes on malformed JSON, invalid saved tasks, and non-ENOENT I/O errors; independently verified data-integrity hardening, NOT full v37 or official runtime equivalence",
+      "tests": [
+        "tests/cron-durable-integrity.test.mjs"
+      ]
     }
   }
 }
