@@ -29,7 +29,7 @@ function reply(res,body,tool,file){
  }
  event(res,'message_stop',{type:'message_stop'});res.end();
 }
-test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{timeout:80000},async()=>{
+async function runRealEditFlow(disallowed){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-real-write-'));
  fs.writeFileSync(path.join(dir,'checked-write.txt'),'BEFORE_EDIT_111\n');
  const file=path.join(dir,'checked-write.txt'),calls=[];
@@ -52,7 +52,7 @@ test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{ti
    ANTHROPIC_BASE_URL:'http://127.0.0.1:'+server.address().port,
    HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'};
   child=spawn(runtime,[bin,'--bare','--print','Edit '+file+' replacing BEFORE_EDIT_111 with '+marker,
-   '--dangerously-skip-permissions','--model','claude-sonnet-4-5','--output-format','json',
+   '--dangerously-skip-permissions',...(disallowed?['--disallowedTools','Edit']:[]),'--model','claude-sonnet-4-5','--output-format','json',
    '--no-session-persistence','--max-turns','4'],{cwd:dir,env,stdio:['ignore','pipe','pipe']});
   let stdout='',stderr=''; child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
   const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Edit tool CLI timeout '+stderr.slice(-1800)))},55000)})]);
@@ -60,9 +60,18 @@ test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{ti
   const diag=()=>`code=${result.code} stdout=${stdout.slice(-3500)} stderr=${stderr.slice(-4000)} calls=${calls.length} toolReplies=${JSON.stringify(calls.slice(1).flatMap(b=>(b.messages||[]).filter(m=>m.role==='user').flatMap(m=>Array.isArray(m.content)?m.content.filter(c=>c.type==='tool_result'):[]))).slice(-6500)}`;
   assert.equal(result.code,0,diag());
   assert.ok(fs.existsSync(file),'Edit did not change actual file: '+diag()+' tools='+JSON.stringify(calls.map(b=>(b.tools||[]).map(x=>x.name))));
-  assert.equal(fs.readFileSync(file,'utf8'),marker+'\n','actual file mismatch: '+diag());
-  assert.ok(calls.length>=3,'model did not continue Read -> Edit -> final: '+diag());
-  assert.ok(calls.slice(2).some(body=>JSON.stringify(body.messages||[]).includes('toolu_real_write')),'real Edit tool result not returned to model: '+diag());
+  if(disallowed){
+   assert.equal(fs.readFileSync(file,'utf8'),'BEFORE_EDIT_111\\n','disallowed Edit changed the actual file: '+diag());
+   assert.ok(calls.length>=3,'model did not receive disallowed Edit result: '+diag());
+   const toolResults=calls.slice(2).flatMap(body=>(body.messages||[]).filter(m=>m.role==='user').flatMap(m=>Array.isArray(m.content)?m.content.filter(item=>item.type==='tool_result'):[]));
+   assert.ok(toolResults.some(item=>item.tool_use_id==='toolu_real_write'&&item.is_error===true),'Edit denial was not returned as a tool error: '+diag());
+  }else{
+   assert.equal(fs.readFileSync(file,'utf8'),marker+'\\n','actual file mismatch: '+diag());
+   assert.ok(calls.length>=3,'model did not continue Read -> Edit -> final: '+diag());
+   assert.ok(calls.slice(2).some(body=>JSON.stringify(body.messages||[]).includes('toolu_real_write')),'real Edit tool result not returned to model: '+diag());
+  }
   assert.ok(stdout.includes(marker),'final response missing: '+diag());
  }finally{if(timer)clearTimeout(timer);if(child&&child.exitCode===null)child.kill('SIGKILL');await new Promise(resolve=>server.close(resolve));fs.rmSync(dir,{recursive:true,force:true})}
-});
+}
+test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{timeout:80000},()=>runRealEditFlow(false));
+test('真实 CLI 禁止 Edit 时必须拒绝模型工具调用且保持磁盘原字节',{timeout:80000},()=>runRealEditFlow(true));
