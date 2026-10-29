@@ -5,10 +5,9 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { withCronStoreLock } from '../runtime/cron-durable-lock.mjs';
-import { Ecn, c6n } from '../core/chunk-hp7h93my.js';
+import { withCronStoreLock, Ecn, c6n } from '../core/chunk-hp7h93my.js';
 
-const lockModule = new URL('../runtime/cron-durable-lock.mjs', import.meta.url).href;
+const lockModule = new URL('../core/chunk-hp7h93my.js', import.meta.url).href;
 const cronModule = new URL('../core/chunk-hp7h93my.js', import.meta.url).href;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 function tempStore(fn) {
