@@ -146,7 +146,9 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         '接管 Worker 进程消失时必须核验真实磁盘结果');
       assert.ok(method.includes('if(p==="ESRCH")await this.reconcileVanishedWorker'),
         'EPERM 权限拒绝不能直接误报进程死亡');
-      assert.ok(method.includes('async onExit(e,r,s)')&&method.includes('worker exited nonzero with queued follow-up work'),\n        'Worker 非零退出必须读取真实磁盘终态并保留排队续跑');\n      assert.ok(method.includes('unverified worker socket disappeared without a confirmed terminal receipt'),
+      assert.ok(method.includes('async onExit(e,r,s)')&&method.includes('worker exited nonzero with queued follow-up work'),
+        'Worker 非零退出必须读取真实磁盘终态并保留排队续跑');
+      assert.ok(method.includes('unverified worker socket disappeared without a confirmed terminal receipt'),
         '无 PID 验证的接管 Worker 套接字丢失时必须核对真实终态');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
       assert.equal(item.behaviorAdjusted,'file-history-content-compare-despite-older-mtime');
