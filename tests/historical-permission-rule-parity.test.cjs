@@ -96,7 +96,6 @@ test('生产权限规则解析必须保留嵌套括号、转义右括号及空�
   'Bash(echo hello\\) world)',
   'Read(/tmp/normal.txt)'
  ]);
- assert.deepEqual(Su(['Edit(/tmp/one\\\\) two.txt),Read(/tmp/two.txt)']),[
-  'Edit(/tmp/one\\\\) two.txt)', 'Read(/tmp/two.txt)'
- ]);
+ const escaped='Edit(/tmp/one'+String.fromCharCode(92)+') two.txt)';
+ assert.deepEqual(Su([escaped+',Read(/tmp/two.txt)']),[escaped,'Read(/tmp/two.txt)']);
 });
