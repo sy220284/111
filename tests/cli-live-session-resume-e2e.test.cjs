@@ -24,7 +24,7 @@ function model(res,body){
  sse(res,'message_stop',{type:'message_stop'});res.end();
 }
 async function run(env,cwd,args){
- const child=spawn(runtime,[bin,'--bare','--print',...args,'--model','claude-sonnet-4-5','--output-format','json','--max-turns','1'],{cwd,env,stdio:['ignore','pipe','pipe']});
+ const child=spawn(runtime,[bin,'--bare','--print','--debug-to-stderr',...args,'--model','claude-sonnet-4-5','--output-format','json','--max-turns','1'],{cwd,env,stdio:['ignore','pipe','pipe']});
  let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
  let timer;try{const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('resume CLI timed out: '+stderr.slice(-2500)))},50000)})]);
  assert.equal(result.code,0,`code=${result.code} stdout=${stdout.slice(-2800)} stderr=${stderr.slice(-2800)}`);
