@@ -95,7 +95,7 @@ test('真实文件检查点回退必须恢复磁盘字节，即使编辑后的 m
    "await fileHistoryRewind(get,'before-edit');",
    "if(fs.readFileSync(file,'utf8')!=='ORIGINAL_111')throw Error('rewind did not restore real file bytes: '+JSON.stringify({diff,state:{snapshots:state.snapshots.length,tracked:state.trackedFiles.size}}));",
    "process.stdout.write(JSON.stringify({enabled:true,snapshots:state.snapshots.length,tracked:state.trackedFiles.size,diff}));"
-  ].join('\\n');
+  ].join('\n');
   const env={...process.env,HOME:dir,CLAUDE_CONFIG_DIR:path.join(dir,'.claude'),CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING:'1',CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING:'',CLAUDE_TEST_CHECKPOINT_FILE:file,DISABLE_TELEMETRY:'1'};
   const result=spawnSync(process.execPath,['--input-type=module','-e',source],{cwd:dir,env,encoding:'utf8',timeout:30000});
   assert.equal(result.status,0,'real checkpoint subprocess failed: '+result.stderr+' stdout='+result.stdout);
