@@ -10287,8 +10287,12 @@
       "old": "src/chunk-j0tbz6ra.js",
       "current": "core/chunk-j0tbz6ra.js",
       "originalGitBlob": "d389ecc3179a8c1040ad878f5579bfa4276c4d68",
-      "currentGitBlob": "d389ecc3179a8c1040ad878f5579bfa4276c4d68",
-      "importAdjusted": false
+      "currentGitBlob": "7de092bc628a72f48d92c3b9eff636453352125e",
+      "importAdjusted": false,
+      "behaviorAdjusted": "file-history-content-compare-despite-older-mtime",
+      "behaviorTests": [
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-j19hq9v9.js",

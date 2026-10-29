@@ -22,9 +22,10 @@
       ]
     },
     "src/chunk-j0tbz6ra.js": {
-      "classification": "ESM circular-init fix, do not revert v37",
+      "classification": "真实文件历史恢复的 $3t 在同大小同权限时不能因目标 mtime 早于备份就跳过内容比较；删除错误短路，保留文件类型、权限、哈希及恢复安全检查。真实磁盘 E2E 覆盖旧时间戳且内容变化时的撤销。",
       "tests": [
-        "tests/check-source.cjs"
+        "tests/cli-live-write-tool-e2e.test.cjs",
+        "tests/root-source-relocation.test.cjs"
       ]
     },
     "src/chunk-t2adf9g4.js": {
