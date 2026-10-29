@@ -40,6 +40,19 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.equal(item.currentGitBlob,'78f0fd359e4df812d4bbba9cf0ebc019a6d15585','当前修复必须保留与原基线一致的清理代码');
       const method=bytes.toString('utf8');
       assert.ok(method.includes('this._requestResolvers.delete(d),this._cleanupTimeout(d)'),'MCP取消回调必须清理关联任务resolver');
+    }else if(item.current==='core/chunk-8r2m7vfp.js'){
+      assert.equal(item.behaviorAdjusted,'node-jsonl-bun-global-fallback');
+      assert.deepEqual(item.behaviorTests,[
+        'tests/jsonl-node-fallback.test.mjs',
+        'tests/cli-live-session-resume-e2e.test.cjs',
+        'tests/cli-live-write-tool-e2e.test.cjs'
+      ]);
+      assert.equal(item.originalGitBlob,'99ede38b474f4f137cd959e4dd8a0af0f9fae995');
+      assert.equal(item.currentGitBlob,'afcfb9406a9ec81b7fc2ff8d94b71ed634efe237');
+      for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
+      const source=bytes.toString('utf8');
+      assert.ok(source.includes('return globalThis.Bun?.JSONL?.parseChunk'),'Node 无 Bun 时必须进入原有 JSONL 解析后备链');
+      assert.ok(source.includes('return Te(e); return Oe(e)'),'不能删改原有逐行解析回退实现');
     }else if(item.current==='core/chunk-hp7h93my.js'){
       assert.equal(item.behaviorAdjusted,'cron-durable-integrity-and-atomic-process-lock-recovery');
       assert.deepEqual(item.behaviorTests,[
