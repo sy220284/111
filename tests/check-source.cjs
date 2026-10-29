@@ -30,7 +30,7 @@ for (const name of names) {
 
 // Runtime adapters participate in the same static link graph. A restored main
 // source module may import these files directly; check real named ESM exports.
-const runtimeFiles = ['assets.mjs', 'string-width.mjs'];
+const runtimeFiles = ['assets.mjs', 'string-width.mjs', 'portable-bun-hash.mjs'];
 for (const filename of runtimeFiles) {
   const runtimeId = 'runtime/' + filename;
   const runtimeText = fs.readFileSync(path.resolve(src, runtimeId), 'utf8');
