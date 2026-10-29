@@ -7472,8 +7472,10 @@
       "old": "src/chunk-d5zj5299.js",
       "current": "core/chunk-d5zj5299.js",
       "originalGitBlob": "3adfe39a5ef9294c126296947a58d3adedcd5eed",
-      "currentGitBlob": "3adfe39a5ef9294c126296947a58d3adedcd5eed",
-      "importAdjusted": false
+      "currentGitBlob": "9f2388452563a3f0c5da7312539504b23dd7603c",
+      "importAdjusted": false,
+      "behaviorAdjusted": "node-read-baseline-hash-fallback",
+      "behaviorTests": ["tests/portable-bun-hash.test.mjs", "tests/cli-live-write-tool-e2e.test.cjs"]
     },
     {
       "old": "src/chunk-d65ze5ng.js",
@@ -13106,8 +13108,10 @@
       "old": "src/chunk-q1myka9a.js",
       "current": "core/chunk-q1myka9a.js",
       "originalGitBlob": "bf43944db833caf93e0f0d26584e9a302f9d3565",
-      "currentGitBlob": "bf43944db833caf93e0f0d26584e9a302f9d3565",
-      "importAdjusted": false
+      "currentGitBlob": "8232c2dbbad2c696b1bcf1db61cc92e1a194065d",
+      "importAdjusted": false,
+      "behaviorAdjusted": "node-prompt-hash-fallback",
+      "behaviorTests": ["tests/portable-bun-hash.test.mjs", "tests/cli-live-write-tool-e2e.test.cjs"]
     },
     {
       "old": "src/chunk-q1v3wh97.js",
