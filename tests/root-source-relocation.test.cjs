@@ -47,11 +47,12 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'tests/cron-multiprocess-recovery.test.mjs'
       ]);
       assert.equal(item.originalGitBlob,'fa39f70fb8da18d24b73cfde1b26d247cf8603fc');
-      assert.equal(item.currentGitBlob,'c587c9da1c835996a2f540dda254a706178ddf36');
+      assert.equal(item.currentGitBlob,'1ddf400bb987987faa721c10a46ea2f207fb660c');
       for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
       const method=bytes.toString('utf8');
       assert.ok(method.includes('await Ecn(s,!0)'),'持久化写入未执行严格校验');
       assert.ok(method.includes('await Qcn(tHe(s)'),'定时任务写入没有进程间互斥');
+      assert.ok(method.includes('async function withCronStoreLock'),'实际互斥函数未进入受审计的原业务模块');
       assert.ok(method.includes('await Qcn(tHe()'),'定时任务创建没有进程间互斥');
       assert.ok(method.includes('async function WTe(e,s)'),'定时任务删除原入口不再存在');
     }else if(item.current==='core/chunk-t2adf9g4.js'){
@@ -74,8 +75,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
 test('core 的运行时相对导入恢复为 ../runtime 并能定位到真实文件',()=>{
  const modules=manifest.files.filter(x=>x.current.startsWith('core/'));
  const runtime=modules.filter(x=>fs.readFileSync(path.join(ROOT,x.current),'utf8').includes('../runtime/'));
- assert.equal(runtime.length,52,'51个原有运行时适配模块加1个Cron跨进程互斥接入，不得遗漏');
- assert.ok(runtime.some(item=>item.current==='core/chunk-hp7h93my.js'),'Cron 原业务函数未接入跨进程锁后端');
+ assert.equal(runtime.length,51,'原有51个运行时适配消费者应完整保留');
  for(const item of runtime){
   const code=fs.readFileSync(path.join(ROOT,item.current),'utf8');
   assert.ok(!code.includes("from './runtime/"),item.current+' 存在错误的平级适配导入');
