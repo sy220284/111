@@ -23,7 +23,7 @@ function run(mode){
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{incomplete-json');
       if(mode==='not-regular')mkdirSync(join(dir,'state.json'));
-      if(mode==='working')writeFileSync(join(dir,'state.json'),JSON.stringify({state:'working',tempo:'idle',detail:'unfinished-job',template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
+      if(mode==='working'||mode==='flush')writeFileSync(join(dir,'state.json'),JSON.stringify({state:'working',tempo:'idle',detail:'unfinished-job',template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       if(mode==='queued')writeFileSync(join(dir,'state.json'),JSON.stringify({state:'done',tempo:'idle',queuedPrompt:'continue the pending work',detail:'queued-follow-up',template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       if(['done','failed','stopped'].includes(mode))writeFileSync(join(dir,'state.json'),JSON.stringify({state:mode,tempo:'idle',detail:'persisted-'+mode,output:{summary:'result-'+mode},template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       const dispatch={short,sessionId:'worker-guard-e2e',createdAt:Date.now(),
@@ -49,6 +49,7 @@ function run(mode){
         worker.workerReady=true;
         worker.attempt=1;
         worker.lastSpawnAt=Date.now()-10000;
+        if(mode==='flush')setTimeout(()=>writeFileSync(join(dir,'state.json'),JSON.stringify({state:'done',tempo:'idle',detail:'persisted-after-flush',output:{summary:'flushed'},template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()})),15);
         worker.onExit(0,undefined,undefined);
         await new Promise(resolve=>setTimeout(resolve,350));
       }else {
@@ -181,4 +182,12 @@ test('Worker 退出码 0 但仍有排队工作时不得丢弃续跑',{timeout:30
   assert.equal(result.outcome,null,JSON.stringify(result));
   assert.equal(result.phase,'spawning');
   assert.match(result.detail,/respawning/);
+});
+
+test('Worker 退出码 0 等待短暂持久化写入并恢复真正完成回执',{timeout:30000},()=>{
+  const result=run('exit-zero-flush');
+  assert.equal(result.replays,0);
+  assert.equal(result.outcome,'done',JSON.stringify(result));
+  assert.equal(result.detail,'persisted-after-flush');
+  assert.deepEqual(result.output,{summary:'flushed'});
 });
