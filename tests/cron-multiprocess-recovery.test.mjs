@@ -303,3 +303,52 @@ test('失效进程租约仍可由新进程恢复，且更新进程身份',{timeo
     assert.equal(existsSync(lock),false);
   });
 });
+
+test('真实调度器没有租约时不得处理错过的一次性任务，接管后恰好处理一次', { timeout: 30000 }, async () => {
+  await tempStore(async ({ dir }) => {
+    const missed = {
+      ...task('missed-owner-only'),
+      recurring: false,
+      createdAt: Date.now() - 600000,
+      createdBySessionId: 'shared-restored-session',
+      createdByPid: process.pid
+    };
+    await c6n([missed], dir);
+    const opts = leaseOpts(dir), owner = leaseState();
+    assert.equal(await acquireSchedulerLease(owner, opts), true);
+    const script = `import {n7r} from ${JSON.stringify(schedulerModule)};
+      const events=[],s=n7r({
+        dir:process.argv[1],lockIdentity:'shared-restored-session',
+        isLoading:()=>false,
+        onFire:prompt=>events.push({kind:'fire',prompt}),
+        onMissed:tasks=>{events.push({kind:'missed',ids:tasks.map(t=>t.id)});return []}
+      });
+      s.start();
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      s.checkNow();
+      await new Promise(resolve=>setTimeout(resolve,300));
+      s.stop();
+      process.stdout.write(JSON.stringify(events)+'\\n');`;
+    const runScheduler = async () => {
+      const processResult = child(script, [dir], dir);
+      let output = '';
+      processResult.processRef.stdout.on('data', chunk => output += String(chunk));
+      await processResult.finished;
+      return JSON.parse(output.trim().split('\\n').at(-1));
+    };
+    try {
+      const withoutLease = await runScheduler();
+      assert.deepEqual(withoutLease, [],
+        'another process must not fire or delete missed tasks while the real owner holds the lease');
+      assert.equal((await Ecn(dir)).some(t=>t.id===missed.id),true,
+        'missing the lease must not remove the one-shot task');
+    } finally {
+      await releaseSchedulerLease(owner,opts);
+    }
+    const withLease = await runScheduler();
+    assert.deepEqual(withLease,[{kind:'missed',ids:[missed.id]}],
+      'the new lease holder must surface the missed task exactly once');
+    assert.equal((await Ecn(dir)).some(t=>t.id===missed.id),false,
+      'the successful owner must persist removal after the missed-task callback');
+  });
+});

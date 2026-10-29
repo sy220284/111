@@ -141,7 +141,7 @@
       ]
     },
     "src/chunk-82n8x00g.js": {
-      "classification": "2.1.310 原定时调度器 ye 恢复旧进程所有权时调用 c6n(c,d) 整份写回旧快照，和多进程 Cron 创建、删除存在丢更新竞争；改为调用同一事务锁内严格重读的 refreshDurableTaskOwner，只刷新所属会话的进程身份，隔离其他任务且写入失败不据旧快照调度。真实 Node 独立子进程竞争增删测试覆盖。 此次新增修复 2.1.310 调度租约仅凭同一 sessionId 允许不同存活 PID 接管以及无条件同 sessionId 释放租约的问题：严格核对 PID 与进程启动指纹，绑定获取时的 acquiredAt 代际；真实 Node 进程测试证明存活调度器不被抢占、无权进程不能误删锁、旧代回调不删除新代锁、死亡进程能够恢复。",
+      "classification": "2.1.310 原定时调度器 ye 恢复旧进程所有权时调用 c6n(c,d) 整份写回旧快照，和多进程 Cron 创建、删除存在丢更新竞争；改为调用同一事务锁内严格重读的 refreshDurableTaskOwner，只刷新所属会话的进程身份，隔离其他任务且写入失败不据旧快照调度。真实 Node 独立子进程竞争增删测试覆盖。 此次新增修复 2.1.310 调度租约仅凭同一 sessionId 允许不同存活 PID 接管以及无条件同 sessionId 释放租约的问题：严格核对 PID 与进程启动指纹，绑定获取时的 acquiredAt 代际；真实 Node 进程测试证明存活调度器不被抢占、无权进程不能误删锁、旧代回调不删除新代锁、死亡进程能够恢复。 新发现真实持久化任务的 onMissed 与 de 执行链没有租约门控：同会话两个 PID 即使一个持有调度锁，另一个仍可补发 missed one-shot 并删除任务，还会抢写 createdByPid；现在持久任务的缺失归属更新、错过任务处理与周期触发均需获得租约，延迟接管时重新读取并补发。真实双进程持锁冲突/接管测试覆盖。",
       "tests": [
         "tests/cron-multiprocess-recovery.test.mjs",
         "tests/root-source-relocation.test.cjs"
