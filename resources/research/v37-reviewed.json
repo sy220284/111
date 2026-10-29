@@ -28,10 +28,10 @@
       ]
     },
     "src/chunk-t2adf9g4.js": {
-      "classification": "daemon job and beacon newer lifecycle",
+      "classification": "Daemon presence caller now shares existing PID/procStart-verified roster fallback of probeDaemonJob instead of treating disconnected supervisor as absent. Explicit has results remain authoritative; not claimed as complete worker AI task resumption.",
       "tests": [
         "tests/daemon-job-contract.test.cjs",
-        "tests/v43-daemon-adoption-lifecycle.test.cjs"
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
       ]
     },
     "src/chunk-vw9e882a.js": {
@@ -109,9 +109,10 @@
       ]
     },
     "src/chunk-hp7h93my.js": {
-      "classification": "Durable Cron storage: 2.1.310 Ecn retains tolerant reads but c6n now fail-closes on malformed JSON, invalid saved tasks, and non-ENOENT I/O errors; independently verified data-integrity hardening, NOT full v37 or official runtime equivalence",
+      "classification": "Durable Cron store now holds OS-exclusive lock around read/update/write for create/delete/fire and supports abandoned worker lock recovery. Validated against real multi-process children; not proven cloud notification or full original binary parity.",
       "tests": [
-        "tests/cron-durable-integrity.test.mjs"
+        "tests/cron-durable-integrity.test.mjs",
+        "tests/cron-multiprocess-recovery.test.mjs"
       ]
     }
   }
