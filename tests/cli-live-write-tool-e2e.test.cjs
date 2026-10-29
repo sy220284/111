@@ -33,6 +33,8 @@ test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{ti
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-real-write-'));
  fs.writeFileSync(path.join(dir,'checked-write.txt'),'BEFORE_EDIT_111\n');
  const file=path.join(dir,'checked-write.txt'),calls=[];
+ const trace=path.join(dir,'bun-global-trace.log'),preload=path.join(dir,'bun-global-trace.cjs');
+ fs.writeFileSync(preload,`const fs=require('node:fs');Object.defineProperty(globalThis,'Bun',{configurable:true,get(){fs.appendFileSync(process.env.CLAUDE_BUN_TRACE,new Error('Bun access').stack+'\\n');return undefined;}});`);
  const server=http.createServer((req,res)=>{
   const chunks=[];req.on('data',c=>chunks.push(c));req.on('end',()=>{
    let body={};try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{}
@@ -50,7 +52,8 @@ test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{ti
    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1',DISABLE_TELEMETRY:'1',CI:'true',NO_COLOR:'1',TERM:'dumb',
    ANTHROPIC_API_KEY:'sk-ant-api03-local-write-fake',ANTHROPIC_AUTH_TOKEN:'',
    ANTHROPIC_BASE_URL:'http://127.0.0.1:'+server.address().port,
-   HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'};
+   HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost',
+   NODE_OPTIONS:'--require '+preload,CLAUDE_BUN_TRACE:trace};
   const probe=path.join(dir,'read-bun-probe.cjs'),traceFile=path.join(dir,'read-bun-stack.log');
   fs.writeFileSync(probe,`const fs=require('node:fs');
 Object.defineProperty(globalThis,'Bun',{configurable:true,get(){
