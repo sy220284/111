@@ -59,7 +59,8 @@ test('真实 CLI 模型调用 Write 后修改磁盘并将工具结果返回给�
   clearTimeout(timer);timer=null;
   const diag=()=>`code=${result.code} stdout=${stdout.slice(-3500)} stderr=${stderr.slice(-4000)} calls=${calls.length}`;
   assert.equal(result.code,0,diag());
-  assert.equal(fs.readFileSync(file,'utf8'),marker+'\n','actual file was not created: '+diag());
+  assert.ok(fs.existsSync(file),'Write did not create actual file: '+diag()+' tools='+JSON.stringify(calls.map(b=>(b.tools||[]).map(x=>x.name))));
+  assert.equal(fs.readFileSync(file,'utf8'),marker+'\n','actual file mismatch: '+diag());
   assert.ok(calls.length>=2,'model was not called again after Write: '+diag());
   assert.ok(calls.slice(1).some(body=>JSON.stringify(body.messages||[]).includes('toolu_real_write')),'real Write tool result not returned to model: '+diag());
   assert.ok(stdout.includes(marker),'final response missing: '+diag());
