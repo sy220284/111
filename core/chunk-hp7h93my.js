@@ -10,27 +10,31 @@
 // Version: 2.1.310
 import{q,ao,no,dP,rrs,Om,Fxe,TX}from"./chunk-wrtp8qz8.js";import{Vt}from"./chunk-fs43t96t.js";import{_,ie,t}from"./chunk-4kxznmzw.js";import{pie}from"./chunk-jazcqqqr.js";import{l}from"./chunk-ewvf3tep.js";import{iW}from"./chunk-qywdxehb.js";import{HAt,xR}from"./chunk-13nwb0xt.js";import{que}from"./chunk-bh50mq9d.js";import{ot}from"./chunk-8r2m7vfp.js";import{jot}from"./chunk-d54avynm.js";import{ekt}from"./chunk-rh5ymkjp.js";import{randomUUID as D}from"crypto";import{randomUUID}from"crypto";import{readFileSync as P}from"fs";import{mkdir as R}from"fs/promises";import{join as S}from"path";import{open,readFile,stat,unlink,link}from"fs/promises";const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const LOCK_WAIT_MS=20_000,STALE_LOCK_GRACE_MS=2_000;
-function pidIsAlive(pid){if(!Number.isSafeInteger(pid)||pid<=0)return false;try{process.kill(pid,0);return true}catch(error){return error?.code!=='ESRCH'}}
-function validOwner(owner){return owner&&typeof owner==='object'&&Number.isSafeInteger(owner.pid)&&owner.pid>0&&typeof owner.token==='string'&&owner.token.length>=10}
+function cronProcessStart(pid){if(process.platform!=='linux')return null;try{const raw=P('/proc/'+pid+'/stat','utf8'),end=raw.lastIndexOf(')');if(end<0)return null;const field=raw.slice(end+1).trim().split(/\s+/)[19];return /^\d+$/.test(field??'')?field:null}catch{return null}}
+function pidIsAlive(pid,start){if(!Number.isSafeInteger(pid)||pid<=0)return false;try{process.kill(pid,0)}catch(error){return error?.code!=='ESRCH'}if(start!==void 0&&start!==null&&process.platform==='linux'){const now=cronProcessStart(pid);return now===null||now===start}return true}
+function validOwner(owner){return owner&&typeof owner==='object'&&Number.isSafeInteger(owner.pid)&&owner.pid>0&&typeof owner.token==='string'&&owner.token.length>=10&&(owner.procStart==null||typeof owner.procStart==='string')}
 async function readOwner(path){try{const owner=JSON.parse(await readFile(path,'utf8'));return validOwner(owner)?owner:null}catch(error){if(error?.code==='ENOENT')return null;return null}}
 async function fileIdentity(path){try{return await stat(path)}catch(error){if(error?.code==='ENOENT')return null;throw error}}
 function sameFile(a,b){return !!a&&!!b&&a.dev===b.dev&&a.ino===b.ino&&a.mtimeMs===b.mtimeMs}
 // Write the complete ownership record before atomically publishing the lock.
 // A crash during creation cannot leave an empty, published lock.
 async function createOwnedLock(path){
+  const owner={pid:process.pid,token:randomUUID(),procStart:cronProcessStart(process.pid)};
   const staging=path+'.pending.'+process.pid+'.'+randomUUID();
   const file=await open(staging,'wx',0o600);
-  try{await file.writeFile(JSON.stringify({pid:process.pid,token:randomUUID()}));await file.sync()}
+  try{await file.writeFile(JSON.stringify(owner));await file.sync()}
   finally{await file.close()}
   try{await link(staging,path)}
   finally{await unlink(staging).catch(error=>{if(error?.code!=='ENOENT')throw error})}
+  return owner;
 }
 // Reapers can also be killed. Recover an old dead reaper before retrying.
+async function releaseOwnedCronLock(path,owner){if(!owner)return;const current=await readOwner(path);if(!current||current.pid!==owner.pid||current.token!==owner.token||current.procStart!==owner.procStart)return;await unlink(path).catch(error=>{if(error?.code!=='ENOENT')throw error})}
 async function tryReapAbandonedReaper(path){
   const before=await fileIdentity(path);
   if(!before||Date.now()-before.mtimeMs<STALE_LOCK_GRACE_MS)return;
   const owner=await readOwner(path);
-  if(owner&&pidIsAlive(owner.pid))return;
+  if(owner&&pidIsAlive(owner.pid,owner.procStart))return;
   if(!sameFile(before,await fileIdentity(path)))return;
   const latest=await readOwner(path);
   if(owner?(!latest||latest.pid!==owner.pid||latest.token!==owner.token):latest)return;
@@ -40,9 +44,10 @@ async function tryReapAbandonedLock(path){
   const before=await fileIdentity(path);
   if(!before||Date.now()-before.mtimeMs<STALE_LOCK_GRACE_MS)return;
   const owner=await readOwner(path);
-  if(owner&&pidIsAlive(owner.pid))return;
+  if(owner&&pidIsAlive(owner.pid,owner.procStart))return;
   const reaperPath=path+'.reaper';
-  try{await createOwnedLock(reaperPath)}
+  let reaperOwner;
+  try{reaperOwner=await createOwnedLock(reaperPath)}
   catch(error){
     if(error?.code!=='EEXIST')throw error;
     await tryReapAbandonedReaper(reaperPath);
@@ -51,17 +56,18 @@ async function tryReapAbandonedLock(path){
   try{
     if(!sameFile(before,await fileIdentity(path)))return;
     const latest=await readOwner(path);
-    if(owner?(!latest||latest.pid!==owner.pid||latest.token!==owner.token||pidIsAlive(latest.pid)):latest)return;
+    if(owner?(!latest||latest.pid!==owner.pid||latest.token!==owner.token||pidIsAlive(latest.pid,latest.procStart)):latest)return;
     await unlink(path).catch(error=>{if(error?.code!=='ENOENT')throw error});
   }finally{
-    await unlink(reaperPath).catch(error=>{if(error?.code!=='ENOENT')throw error});
+    await releaseOwnedCronLock(reaperPath,reaperOwner);
   }
 }
 /** Serialize all durable task changes across CLI, daemon and scheduled workers. */
 async function withCronStoreLock(storePath,operation){
   const path=storePath+'.lock',deadline=Date.now()+LOCK_WAIT_MS;
   while(Date.now()<deadline){
-    try{await createOwnedLock(path)}
+    let owner;
+    try{owner=await createOwnedLock(path)}
     catch(error){
       if(error?.code!=='EEXIST')throw error;
       await tryReapAbandonedLock(path);
@@ -69,7 +75,7 @@ async function withCronStoreLock(storePath,operation){
       continue;
     }
     try{return await operation()}
-    finally{await unlink(path).catch(error=>{if(error?.code!=='ENOENT')throw error})}
+    finally{await releaseOwnedCronLock(path,owner)}
   }
   throw new Error('Timed out waiting for the scheduled task store lock: '+storePath);
 }
