@@ -28,21 +28,10 @@ for (const name of names) {
   }
 }
 
-// Runtime adapters participate in the same static link graph. A restored main
-// source module may import these files directly; check real named ESM exports.
-const runtimeFiles = ['assets.mjs', 'string-width.mjs'];
-for (const filename of runtimeFiles) {
-  const runtimeId = 'runtime/' + filename;
-  const runtimeText = fs.readFileSync(path.resolve(src, runtimeId), 'utf8');
-  const runtimeModule = new vm.SourceTextModule(runtimeText, { identifier: runtimeId });
-  modules.set(runtimeId, runtimeModule);
-  for (const specifier of runtimeModule.dependencySpecifiers) {
-    refs++;
-    if (!specifier.startsWith('.')) externalRequests.add(specifier);
-    else assert.ok(fs.existsSync(path.resolve(src, 'runtime', specifier)),
-      `runtime: missing ${specifier}`);
-  }
-}
+// Include every runtime adapter actually imported by restored source modules.
+// The resolver still verifies every named export and all recursive static imports.
+const { discoverStaticRuntimeModules } = require('../scripts/discover-static-runtime-modules.cjs');
+discoverStaticRuntimeModules({root:src,modules,externalRequests,onImport:()=>{refs++}});
 const requireFromProject = createRequire(path.join(src, 'core/cli.js'));
 for (const specifier of externalRequests) {
   if (specifier === 'ws') {
