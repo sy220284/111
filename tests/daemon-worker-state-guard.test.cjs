@@ -19,11 +19,12 @@ function run(mode){
       import {_o} from ${JSON.stringify(stateURL)};
       import {mkdirSync,writeFileSync} from 'node:fs';
       import {join} from 'node:path';
-      const scenario=process.argv[1],staticUpgrade=scenario.startsWith('static-upgrade-'),upgrade=scenario.startsWith('upgrade-'),retry=scenario.startsWith('retry-'),mode=staticUpgrade?scenario.slice(15):upgrade?scenario.slice(8):retry?scenario.slice(6):scenario,short='d3a4b5c6',dir=_o(short);
+      const scenario=process.argv[1],staticUpgrade=scenario.startsWith('static-upgrade-'),upgrade=scenario.startsWith('upgrade-'),retry=scenario.startsWith('retry-'),exitZero=scenario.startsWith('exit-zero-'),mode=staticUpgrade?scenario.slice(15):upgrade?scenario.slice(8):retry?scenario.slice(6):exitZero?scenario.slice(10):scenario,short='d3a4b5c6',dir=_o(short);
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{incomplete-json');
       if(mode==='not-regular')mkdirSync(join(dir,'state.json'));
       if(mode==='working')writeFileSync(join(dir,'state.json'),JSON.stringify({state:'working',tempo:'idle',detail:'unfinished-job',template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
+      if(mode==='queued')writeFileSync(join(dir,'state.json'),JSON.stringify({state:'done',tempo:'idle',queuedPrompt:'continue the pending work',detail:'queued-follow-up',template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       if(['done','failed','stopped'].includes(mode))writeFileSync(join(dir,'state.json'),JSON.stringify({state:mode,tempo:'idle',detail:'persisted-'+mode,output:{summary:'result-'+mode},template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       const dispatch={short,sessionId:'worker-guard-e2e',createdAt:Date.now(),
         cwd:process.cwd(),source:'shell',launch:{mode:'prompt',args:[]},
@@ -43,12 +44,19 @@ function run(mode){
         // Invoke the real version-upgrade exit branch, not only the ordinary retry helper.
         worker.onExit(0,undefined,undefined);
         await new Promise(resolve=>setTimeout(resolve,350));
+      }else if(exitZero){
+        worker.phase={kind:'running'};
+        worker.workerReady=true;
+        worker.attempt=1;
+        worker.lastSpawnAt=Date.now()-10000;
+        worker.onExit(0,undefined,undefined);
+        await new Promise(resolve=>setTimeout(resolve,350));
       }else {
         if(retry)worker.attempt=1; // Simulate a prior launch after the state file disappeared.
         await worker.doSpawnUnlessSettledOnDisk();
       }
       process.stdout.write(JSON.stringify({replays,spawnArgs,outcome:worker.record.outcome??null,
-        state:worker.record.state,detail:worker.record.detail,output:worker.record.output??null})+'\\n');
+        phase:worker.phase.kind,state:worker.record.state,detail:worker.record.detail,output:worker.record.output??null})+'\\n');
     `;
     const result=spawnSync(process.execPath,['--input-type=module','-e',script,mode],{
       cwd:home,encoding:'utf8',timeout:25000,
@@ -147,4 +155,30 @@ test('静态升级任务丢失状态时不应重复执行',{timeout:30000},()=>{
   assert.equal(result.replays,0);
   assert.equal(result.outcome,'crashed');
   assert.match(result.detail,/missing after a prior worker launch/);
+});
+
+for(const [state,outcome] of [['done','done'],['failed','failed'],['stopped','killed']]){
+  test('Worker 退出码 0 必须以磁盘 '+state+' 终态作为真实成果回执',{timeout:30000},()=>{
+    const result=run('exit-zero-'+state);
+    assert.equal(result.replays,0);
+    assert.equal(result.outcome,outcome,JSON.stringify(result));
+    assert.equal(result.state,state);
+    assert.equal(result.detail,'persisted-'+state);
+    assert.deepEqual(result.output,{summary:'result-'+state});
+  });
+}
+for(const mode of ['corrupt','not-regular','working','absent']){
+  test('Worker 退出码 0 但持久化结果不可核验时不得伪报成功 '+mode,{timeout:30000},()=>{
+    const result=run('exit-zero-'+mode);
+    assert.equal(result.replays,0);
+    assert.equal(result.outcome,'crashed',JSON.stringify(result));
+    assert.match(result.detail,/without a verified terminal job state/);
+  });
+}
+test('Worker 退出码 0 但仍有排队工作时不得丢弃续跑',{timeout:30000},()=>{
+  const result=run('exit-zero-queued');
+  assert.equal(result.replays,0,'续跑必须走统一的持久化校验与退避调度');
+  assert.equal(result.outcome,null,JSON.stringify(result));
+  assert.equal(result.phase,'spawning');
+  assert.match(result.detail,/respawning/);
 });

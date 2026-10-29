@@ -115,7 +115,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
       assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-and-result-receipt');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'ac1cb441046d5037abeea55e98b6ca037bc1dd9c');
+      assert.equal(item.currentGitBlob,'e074d62785952c60499e6126490655fc5b1dc931');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
         'tests/cli-live-daemon-worker-recovery.test.cjs'
