@@ -107,7 +107,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
       assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-and-result-receipt');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'6e01174549217a97ea2724d29aadd71d5b807593');
+      assert.equal(item.currentGitBlob,'ac1cb441046d5037abeea55e98b6ca037bc1dd9c');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
         'tests/cli-live-daemon-worker-recovery.test.cjs'
@@ -124,6 +124,12 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         '恢复已结束任务时必须保留最终输出');
       assert.ok(method.includes('this.doSpawnUnlessSettledOnDisk(F,!0)'),
         '升级重启不得绕过真实磁盘终态检查');
+      assert.ok(method.includes('o.doSpawnUnlessSettledOnDisk(u,!0)'),
+        '静态 spawn(afterUpgrade) 也必须经过磁盘终态校验');
+      assert.ok(method.includes('reason:b("missing_prior_state")'),
+        '丢失既有状态文件不能默认判定为全新可重放作业');
+      assert.ok(method.includes('if(this.attempt>0)'),
+        '必须区分全新 Worker 和已有执行尝试');
       assert.ok(method.includes('return this.doSpawn(bridgeEnv,fromUpgrade)'),
         '状态核验通过的升级重启必须保持既有桥接环境和升级标志');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
