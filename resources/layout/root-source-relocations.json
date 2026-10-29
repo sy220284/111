@@ -11052,8 +11052,10 @@
       "old": "src/chunk-kj2kfe1q.js",
       "current": "core/chunk-kj2kfe1q.js",
       "originalGitBlob": "06bfe55d5d50f36920a1e8c62d19e0e07312f4c3",
-      "currentGitBlob": "06bfe55d5d50f36920a1e8c62d19e0e07312f4c3",
-      "importAdjusted": false
+      "currentGitBlob": "eec14ef82b2de5e94346993bfaa98189de7b1b5b",
+      "importAdjusted": false,
+      "behaviorAdjusted": "worker-state-replay-guard",
+      "behaviorTests": ["tests/daemon-worker-state-guard.test.cjs", "tests/cli-live-daemon-worker-recovery.test.cjs"]
     },
     {
       "old": "src/chunk-kjgmmff6.js",
