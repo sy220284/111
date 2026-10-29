@@ -14,7 +14,7 @@ import threading
 import unittest
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-SDK=ROOT/'resources/tools/artifact/scripts/appifact_sdk.js'
+SDK=ROOT/'tools/bundled/artifact/scripts/appifact_sdk.js'
 # The embedded .js is a CommonJS SDK inside a type:module repository; load it
 # into Node's actual CJS module wrapper rather than misexecuting it as ESM.
 CJS_BOOT="const fs=require('node:fs'),M=require('node:module'),p=require('node:path');const f=process.argv[1],m=new M(f);m.filename=f;m.paths=M._nodeModulePaths(p.dirname(f));m._compile(fs.readFileSync(f,'utf8'),f)"
