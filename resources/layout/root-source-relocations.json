@@ -5703,8 +5703,13 @@
       "old": "src/chunk-9z5ybxhe.js",
       "current": "core/chunk-9z5ybxhe.js",
       "originalGitBlob": "a2f639b9fba72def2bd6d11da2fe11bde33865ad",
-      "currentGitBlob": "a2f639b9fba72def2bd6d11da2fe11bde33865ad",
-      "importAdjusted": false
+      "currentGitBlob": "15565c33c1f14847d5af7b807e60dfaccd504b4e",
+      "importAdjusted": false,
+      "behaviorAdjusted": "permission-nested-escaped-rule-boundaries",
+      "behaviorTests": [
+        "tests/historical-permission-rule-parity.test.cjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-9zd34fgb.js",
