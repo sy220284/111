@@ -11,8 +11,8 @@ test('真实 VM 静态链接自动发现嵌套 runtime 模块与命名导出',as
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'111-runtime-discovery-'));
   try{
     fs.mkdirSync(path.join(root,'runtime'),{recursive:true});
-    fs.writeFileSync(path.join(root,'runtime','nested.mjs'),'export const value=42;\\n');
-    fs.writeFileSync(path.join(root,'runtime','adapter.mjs'),'import {value} from "./nested.mjs"; export const result=value;\\n');
+    fs.writeFileSync(path.join(root,'runtime','nested.mjs'),'export const value=42;\n');
+    fs.writeFileSync(path.join(root,'runtime','adapter.mjs'),'import {value} from "./nested.mjs"; export const result=value;\n');
     const main=new vm.SourceTextModule('import {result} from "../runtime/adapter.mjs"; export const answer=result;',{identifier:'core/main.js'});
     const modules=new Map([['core/main.js',main]]),externalRequests=new Set();
     let imports=0;
