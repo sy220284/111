@@ -11073,12 +11073,13 @@
       "old": "src/chunk-kj2kfe1q.js",
       "current": "core/chunk-kj2kfe1q.js",
       "originalGitBlob": "06bfe55d5d50f36920a1e8c62d19e0e07312f4c3",
-      "currentGitBlob": "e074d62785952c60499e6126490655fc5b1dc931",
+      "currentGitBlob": "6b03e3304b48090601f3f74207ad735dcdca9f97",
       "importAdjusted": false,
-      "behaviorAdjusted": "worker-state-replay-guard-and-result-receipt",
+      "behaviorAdjusted": "worker-state-replay-guard-result-receipt-and-adopted-worker-reconciliation",
       "behaviorTests": [
         "tests/daemon-worker-state-guard.test.cjs",
-        "tests/cli-live-daemon-worker-recovery.test.cjs"
+        "tests/cli-live-daemon-worker-recovery.test.cjs",
+        "tests/daemon-adopted-worker-receipt.test.cjs"
       ]
     },
     {
