@@ -23,6 +23,7 @@ function run(mode){
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{incomplete-json');
       if(mode==='not-regular')mkdirSync(join(dir,'state.json'));
+      if(mode==='working')writeFileSync(join(dir,'state.json'),JSON.stringify({state:'working',tempo:'idle',detail:'unfinished-job',template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       if(['done','failed','stopped'].includes(mode))writeFileSync(join(dir,'state.json'),JSON.stringify({state:mode,tempo:'idle',detail:'persisted-'+mode,output:{summary:'result-'+mode},template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       const dispatch={short,sessionId:'worker-guard-e2e',createdAt:Date.now(),
         cwd:process.cwd(),source:'shell',launch:{mode:'prompt',args:[]},
@@ -105,12 +106,20 @@ test('升级 Worker 遇到损坏状态不能盲目重新执行',{timeout:30000},
   assert.equal(result.outcome,'crashed');
   assert.match(result.detail,/cannot verify persisted job state/);
 });
-test('升级 Worker 确认无旧状态时允许重启并保留桥接环境',{timeout:30000},()=>{
+test('升级 Worker 找不到既有状态时拒绝潜在重复副作用',{timeout:30000},()=>{
   const result=run('upgrade-absent');
-  assert.equal(result.replays,1);
-  assert.equal(result.outcome,null);
-  assert.deepEqual(result.spawnArgs,[{REATTACH_TEST:'retained'},true]);
+  assert.equal(result.replays,0);
+  assert.equal(result.outcome,'crashed');
+  assert.match(result.detail,/missing after a prior worker launch/);
 });
+for(const scenario of ['upgrade-working','static-upgrade-working']){
+  test('升级任务明确未完成时保持桥接环境并继续启动 '+scenario,{timeout:30000},()=>{
+    const result=run(scenario);
+    assert.equal(result.replays,1,JSON.stringify(result));
+    assert.equal(result.outcome,null);
+    assert.deepEqual(result.spawnArgs,[{REATTACH_TEST:'retained'},true]);
+  });
+}
 
 for(const [state,outcome] of [['done','done'],['failed','failed'],['stopped','killed']]){
   test('静态 spawn(afterUpgrade) 从磁盘恢复 '+state+' 真实结果而不二次执行',{timeout:30000},()=>{
