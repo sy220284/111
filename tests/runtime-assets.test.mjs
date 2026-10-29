@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, unlinkSync, rmSync, copyFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname, sep } from 'node:path';
+import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { createHash as hashForLayout } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { resolveEmbeddedPath, isEmbeddedPath, embeddedRoot, loadEmbeddedRequire } from '../runtime/assets.mjs';
@@ -135,4 +137,40 @@ test('内嵌资源路径只接受规范化且实际仍位于受信任目录的�
   const sentinel={from:'fallback'};
   assert.equal(loadEmbeddedRequire(escaped,()=>{fallback++;return sentinel;}),sentinel);
   assert.equal(fallback,1,'traversal path must not bypass ordinary require handling');
+});
+
+test('映射资源的符号链接不能把仓库其他文件伪装成内嵌资源', async () => {
+  // Exercise the actual runtime assets module in an isolated installation,
+  // including its real filesystem and ESM import path. Do not mutate the
+  // tracked resource files or depend on a mocked realpath implementation.
+  const root = mkdtempSync(join(tmpdir(), '111-assets-isolation-'));
+  try {
+    const runtime = join(root, 'runtime');
+    const docs = join(root, 'resources', 'docs');
+    mkdirSync(runtime, { recursive: true });
+    mkdirSync(docs, { recursive: true });
+    mkdirSync(join(root, 'resources', 'bunfs'), { recursive: true });
+    writeFileSync(join(root, 'resources', 'asset-layout.json'),
+      JSON.stringify({ entries: { 'mapped.md': { path: 'resources/docs/mapped.md' } } }));
+    writeFileSync(join(docs, 'private.txt'), 'not an embedded asset');
+    const mapped = join(docs, 'mapped.md');
+    symlinkSync('private.txt', mapped);
+    const isolatedModule = join(runtime, 'assets.mjs');
+    copyFileSync(new URL('../runtime/assets.mjs', import.meta.url), isolatedModule);
+    const asset = await import(pathToFileURL(isolatedModule).href);
+    assert.equal(asset.resolveEmbeddedPath('mapped.md'), mapped);
+    assert.equal(asset.isEmbeddedPath(mapped), false,
+      'symlink to another file in projectRoot must not be trusted as an embedded asset');
+    const sentinel = { fallback: true };
+    assert.equal(asset.loadEmbeddedRequire(mapped, () => sentinel), sentinel,
+      'mapped symlink must use ordinary require resolution, never leak target text');
+    unlinkSync(mapped);
+    writeFileSync(mapped, 'the actual embedded resource');
+    assert.equal(asset.isEmbeddedPath(mapped), true,
+      'a real file at its declared location must still be trusted');
+    assert.equal(asset.loadEmbeddedRequire(mapped, () => { throw Error('unexpected fallback'); }),
+      'the actual embedded resource');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
