@@ -24,10 +24,10 @@ function model(res,body){
  sse(res,'message_stop',{type:'message_stop'});res.end();
 }
 async function run(env,cwd,args){
- const child=spawn(runtime,[bin,'--bare','--print','--debug-to-stderr',...args,'--model','claude-sonnet-4-5','--output-format','json','--max-turns','1'],{cwd,env,stdio:['ignore','pipe','pipe']});
+ const child=spawn(runtime,[bin,'--bare','--print',...args,'--model','claude-sonnet-4-5','--output-format','json','--max-turns','1'],{cwd,env,stdio:['ignore','pipe','pipe']});
  let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
  let timer;try{const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('resume CLI timed out: '+stderr.slice(-2500)))},50000)})]);
- assert.equal(result.code,0,`code=${result.code} stdout=${stdout.slice(-2800)} stderr=${stderr.slice(-2800)} bunTrace=${env.CLAUDE_RESUME_TRACE_FILE&&fs.existsSync(env.CLAUDE_RESUME_TRACE_FILE)?fs.readFileSync(env.CLAUDE_RESUME_TRACE_FILE,'utf8').slice(-5800):''}`);
+ assert.equal(result.code,0,`code=${result.code} stdout=${stdout.slice(-2800)} stderr=${stderr.slice(-2800)}`);
  const lines=stdout.trim().split('\n');let payload;try{payload=JSON.parse(lines.at(-1))}catch{payload=JSON.parse(stdout)}
  return {payload,stdout,stderr};
  }finally{if(timer)clearTimeout(timer);if(child.exitCode===null)child.kill('SIGKILL')}
@@ -51,14 +51,7 @@ test('两次真实 CLI 进程恢复同一会话并携带上轮对话给模型',{
   const first=await run(env,cwd,[initial]);
   const session=first.payload.session_id;
   assert.match(session,/^[0-9a-f-]{20,}$/i,'first CLI did not persist a session id: '+first.stdout.slice(-1200));
-  const probe=path.join(cwd,'resume-bun-probe.cjs'),traceFile=path.join(cwd,'resume-bun-stack.log');
-  fs.writeFileSync(probe,`const fs=require('node:fs');
-Object.defineProperty(globalThis,'Bun',{configurable:true,get(){
-  fs.appendFileSync(process.env.CLAUDE_RESUME_TRACE_FILE,new Error('Bun reference from Node CLI').stack+'\\n');
-  return undefined;
-}});`);
-  const probeEnv={...env,CLAUDE_RESUME_TRACE_FILE:traceFile,NODE_OPTIONS:(env.NODE_OPTIONS||'')+' --require='+probe};
-  const secondOutput=await run(probeEnv,cwd,['--resume',session,second]);
+  const secondOutput=await run(env,cwd,['--resume',session,second]);
   assert.ok(secondOutput.stdout.includes(answer),'resume did not return follow-up model answer');
   assert.ok(requests.some(b=>JSON.stringify(b.messages||[]).includes(second)&&JSON.stringify(b.messages||[]).includes(initial)),
    'second real CLI model request omitted the original user turn');
