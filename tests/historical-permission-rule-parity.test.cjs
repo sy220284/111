@@ -87,3 +87,16 @@ test('旧版已弃用的工具名不强制注入新版映射',()=>{
  assert.equal(f.gc('ReadMcpResource'),'ReadMcpResourceTool');
  assert.deepEqual([...f.Cse('TaskStop')].sort(),['KillBash','KillShell']);
 });
+
+test('生产权限规则解析必须保留嵌套括号、转义右括号及空格路径',async()=>{
+ const {Su}=await import(require('node:url').pathToFileURL(sourcePath).href);
+ const rules=['Edit(/tmp/checked(write) target.txt), Bash(echo hello\\) world)', 'Read(/tmp/normal.txt)'];
+ assert.deepEqual(Su(rules),[
+  'Edit(/tmp/checked(write) target.txt)',
+  'Bash(echo hello\\) world)',
+  'Read(/tmp/normal.txt)'
+ ]);
+ assert.deepEqual(Su(['Edit(/tmp/one\\\\) two.txt),Read(/tmp/two.txt)']),[
+  'Edit(/tmp/one\\\\) two.txt)', 'Read(/tmp/two.txt)'
+ ]);
+});
