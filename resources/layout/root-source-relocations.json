@@ -4943,8 +4943,10 @@
       "old": "src/chunk-8r2m7vfp.js",
       "current": "core/chunk-8r2m7vfp.js",
       "originalGitBlob": "99ede38b474f4f137cd959e4dd8a0af0f9fae995",
-      "currentGitBlob": "99ede38b474f4f137cd959e4dd8a0af0f9fae995",
-      "importAdjusted": false
+      "currentGitBlob": "afcfb9406a9ec81b7fc2ff8d94b71ed634efe237",
+      "importAdjusted": false,
+      "behaviorAdjusted": "node-jsonl-bun-global-fallback",
+      "behaviorTests": ["tests/jsonl-node-fallback.test.mjs", "tests/cli-live-session-resume-e2e.test.cjs", "tests/cli-live-write-tool-e2e.test.cjs"]
     },
     {
       "old": "src/chunk-8rb8cbd4.js",
