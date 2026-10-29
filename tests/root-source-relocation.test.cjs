@@ -47,7 +47,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'tests/cron-multiprocess-recovery.test.mjs'
       ]);
       assert.equal(item.originalGitBlob,'fa39f70fb8da18d24b73cfde1b26d247cf8603fc');
-      assert.equal(item.currentGitBlob,'36b8ae6d4655a593fc1f520d1719aa119bd58a4e');
+      assert.equal(item.currentGitBlob,'a401013b3f581abf3ac6d1083ffb53b7be8ac444');
       for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
       const method=bytes.toString('utf8');
       assert.ok(method.includes('await Ecn(s,!0)'),'持久化写入未执行严格校验');
