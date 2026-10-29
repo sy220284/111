@@ -72,7 +72,7 @@ test('持锁进程遭 SIGKILL 后，下一进程能够回收遗留锁并正常�
     const script = `import {withCronStoreLock} from ${JSON.stringify(lockModule)};
       await withCronStoreLock(process.argv[1],async()=>{
         process.stdout.write('LOCKED\\n');
-        await new Promise(()=>{});
+        await new Promise(()=>{ setInterval(()=>{},1000); });
       });`;
     const childRef = child(script, [store], dir);
     await new Promise((resolve, reject) => {
