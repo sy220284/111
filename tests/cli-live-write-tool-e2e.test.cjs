@@ -53,7 +53,7 @@ async function runRealEditFlow(disallowed){
    ANTHROPIC_BASE_URL:'http://127.0.0.1:'+server.address().port,
    HTTP_PROXY:'',HTTPS_PROXY:'',ALL_PROXY:'',NO_PROXY:'127.0.0.1,localhost'};
   child=spawn(runtime,[bin,'--bare','--print','Edit '+file+' replacing BEFORE_EDIT_111 with '+marker,
-   '--dangerously-skip-permissions',...(disallowed?['--disallowedTools',disallowed==='nested'?'Edit('+file+')':'Edit']:[]),'--model','claude-sonnet-4-5','--output-format','json',
+   '--dangerously-skip-permissions',...(disallowed?['--disallowedTools',disallowed==='nested'||disallowed==='scoped'?'Edit('+file+')':'Edit']:[]),'--model','claude-sonnet-4-5','--output-format','json',
    '--no-session-persistence','--max-turns','4'],{cwd:dir,env,stdio:['ignore','pipe','pipe']});
   let stdout='',stderr=''; child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
   const result=await Promise.race([new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}))}),new Promise((_,reject)=>{timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Edit tool CLI timeout '+stderr.slice(-1800)))},55000)})]);
@@ -106,3 +106,4 @@ test('真实文件检查点回退必须恢复磁盘字节，即使编辑后的 m
 });
 
 test('真实 CLI 拒绝包含嵌套括号和空格路径的 Edit，磁盘保持原字节',{timeout:80000},()=>runRealEditFlow('nested'));
+test('真实 CLI 普通绝对路径限定 Edit 拒绝规则基线',{timeout:80000},()=>runRealEditFlow('scoped'));
