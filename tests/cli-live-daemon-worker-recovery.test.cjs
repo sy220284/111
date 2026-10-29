@@ -181,3 +181,52 @@ test('PTY exit receipt observer tolerates concurrent cleanup without hiding othe
   }finally{fs.rmSync(dir,{recursive:true,force:true})}
   assert.doesNotThrow(()=>captureExitReceipts(dir,receipts));
 });
+
+test('真实 Worker 遭 SIGKILL 后留下失败回执，非幂等 exec 不被偷偷重放',{timeout:120000},async()=>{
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'111-daemon-worker-killed-'));
+  const env=environment(home),short='f7e6d5c4';
+  const marker=path.join(home,'killed-worker.json');
+  const count=path.join(home,'side-effect-count.txt');
+  const fixture=path.join(home,'killed-worker.cjs');
+  let supervisor,watcher,workerPid;
+  const receipts=new Map();
+  try{
+    fs.writeFileSync(fixture,
+      'const fs=require("node:fs");'+
+      'const file='+JSON.stringify(count)+';'+
+      'const n=fs.existsSync(file)?Number(fs.readFileSync(file,"utf8")):0;'+
+      'fs.writeFileSync(file,String(n+1));'+
+      'fs.writeFileSync('+JSON.stringify(marker)+',JSON.stringify({pid:process.pid}));'+
+      'setInterval(()=>{},1000);');
+    supervisor=await start(home,env);
+    const bound=read(path.join(home,'supervisor.log')).match(/control socket bound at (\S+\/control\.sock)/);
+    assert.ok(bound,'真实 supervisor 控制 socket 未启动');
+    const ptyDir=path.join(path.dirname(bound[1]),'pty');
+    fs.mkdirSync(ptyDir,{recursive:true,mode:0o700});
+    const observe=()=>captureExitReceipts(ptyDir,receipts);
+    watcher=fs.watch(ptyDir,observe);
+    const dispatchDir=path.join(home,'.claude/daemon/dispatch');
+    fs.mkdirSync(dispatchDir,{recursive:true});
+    const dispatch={proto:1,short,sessionId:'killed-worker-session',
+      createdAt:Date.now(),source:'shell',cwd:home,
+      launch:{mode:'exec',cmd:process.execPath,args:[fixture]},
+      env:{},isolation:'none',respawnFlags:[]};
+    fs.writeFileSync(path.join(dispatchDir,short+'.tmp'),JSON.stringify(dispatch));
+    fs.renameSync(path.join(dispatchDir,short+'.tmp'),path.join(dispatchDir,short));
+    await waitFor(()=>fs.existsSync(marker),'worker created side effect',home,35000);
+    workerPid=JSON.parse(read(marker)).pid;
+    assert.equal(Number(read(count)),1);
+    process.kill(workerPid,'SIGKILL');
+    await waitFor(()=>{observe();return receipts.has(short+'.sock.exec-exit');},
+      'SIGKILL worker exit receipt',home,30000);
+    const receipt=receipts.get(short+'.sock.exec-exit');
+    assert.notEqual(receipt.code,0,'SIGKILL 被错误报告为成功');
+    await sleep(1800);
+    assert.equal(Number(read(count)),1,'不具备幂等保障的 exec 被后台重复执行');
+  }finally{
+    watcher?.close();
+    if(workerPid){try{process.kill(workerPid,'SIGKILL')}catch{}}
+    if(supervisor?.exitCode===null)supervisor.kill('SIGKILL');
+    fs.rmSync(home,{recursive:true,force:true});
+  }
+});

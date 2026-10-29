@@ -88,6 +88,20 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(fs.existsSync(path.join(ROOT,item.behaviorTests[0])));
       assert.ok(bytes.toString('utf8').includes('let n=await probeDaemonJob(e);return n.present'),
         'Daemon 断线未进行带 PID 启动指纹的 roster 回退');
+    }else if(item.current==='core/chunk-kj2kfe1q.js'){
+      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard');
+      assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
+      assert.equal(item.currentGitBlob,'eec14ef82b2de5e94346993bfaa98189de7b1b5b');
+      assert.deepEqual(item.behaviorTests,[
+        'tests/daemon-worker-state-guard.test.cjs',
+        'tests/cli-live-daemon-worker-recovery.test.cjs'
+      ]);
+      for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
+      const method=bytes.toString('utf8');
+      assert.ok(method.includes('await HOo(_o(this.dispatch.short),this.storageV5)'),
+        'Worker 恢复未区分状态不存在与状态损坏');
+      assert.ok(method.includes('reason:b("unreadable_state")'),
+        '无法验证状态时必须禁止自动重放');
     }else{
       assert.fail('未经审计的运行态源码变更：'+item.current);
     }

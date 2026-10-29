@@ -4946,7 +4946,11 @@
       "currentGitBlob": "afcfb9406a9ec81b7fc2ff8d94b71ed634efe237",
       "importAdjusted": false,
       "behaviorAdjusted": "node-jsonl-bun-global-fallback",
-      "behaviorTests": ["tests/jsonl-node-fallback.test.mjs", "tests/cli-live-session-resume-e2e.test.cjs", "tests/cli-live-write-tool-e2e.test.cjs"]
+      "behaviorTests": [
+        "tests/jsonl-node-fallback.test.mjs",
+        "tests/cli-live-session-resume-e2e.test.cjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-8rb8cbd4.js",
@@ -7475,7 +7479,10 @@
       "currentGitBlob": "9f2388452563a3f0c5da7312539504b23dd7603c",
       "importAdjusted": false,
       "behaviorAdjusted": "node-read-baseline-hash-fallback",
-      "behaviorTests": ["tests/portable-bun-hash.test.mjs", "tests/cli-live-write-tool-e2e.test.cjs"]
+      "behaviorTests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-d65ze5ng.js",
@@ -11057,8 +11064,13 @@
       "old": "src/chunk-kj2kfe1q.js",
       "current": "core/chunk-kj2kfe1q.js",
       "originalGitBlob": "06bfe55d5d50f36920a1e8c62d19e0e07312f4c3",
-      "currentGitBlob": "06bfe55d5d50f36920a1e8c62d19e0e07312f4c3",
-      "importAdjusted": false
+      "currentGitBlob": "eec14ef82b2de5e94346993bfaa98189de7b1b5b",
+      "importAdjusted": false,
+      "behaviorAdjusted": "worker-state-replay-guard",
+      "behaviorTests": [
+        "tests/daemon-worker-state-guard.test.cjs",
+        "tests/cli-live-daemon-worker-recovery.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-kjgmmff6.js",
@@ -13111,7 +13123,10 @@
       "currentGitBlob": "8232c2dbbad2c696b1bcf1db61cc92e1a194065d",
       "importAdjusted": false,
       "behaviorAdjusted": "node-prompt-hash-fallback",
-      "behaviorTests": ["tests/portable-bun-hash.test.mjs", "tests/cli-live-write-tool-e2e.test.cjs"]
+      "behaviorTests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs"
+      ]
     },
     {
       "old": "src/chunk-q1v3wh97.js",
