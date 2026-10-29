@@ -3,7 +3,7 @@
 // Does not claim cloud login or user-interactive approval was tested.
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {spawn}=require('node:child_process');
+const {spawn,spawnSync}=require('node:child_process');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
@@ -75,3 +75,31 @@ async function runRealEditFlow(disallowed){
 }
 test('真实 CLI 模型按 Read→Edit 顺序修改磁盘并将结果回注',{timeout:80000},()=>runRealEditFlow(false));
 test('真实 CLI 禁止 Edit 时必须拒绝模型工具调用且保持磁盘原字节',{timeout:80000},()=>runRealEditFlow(true));
+
+test('真实文件检查点回退必须恢复磁盘字节，即使编辑后的 mtime 早于备份',{timeout:45000},()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'111-file-rewind-'));
+ const file=path.join(dir,'checkpoint.txt');fs.writeFileSync(file,'ORIGINAL_111');
+ try{
+  const source=[
+   "import fs from 'node:fs';",
+   "import {fileHistoryEnabled,fileHistoryMakeSnapshot,fileHistoryTrackEdit,fileHistoryRewind,fileHistoryGetDiffStats,reduceFileHistoryState} from "+JSON.stringify(require('node:url').pathToFileURL(path.resolve(__dirname,'../core/chunk-w47s9bra.js')).href)+";",
+   "const file=process.env.CLAUDE_TEST_CHECKPOINT_FILE;",
+   "if(!fileHistoryEnabled())throw Error('file checkpointing is not enabled in real runtime');",
+   "let state={trackedFiles:new Set(),snapshots:[],snapshotSequence:0,trackSequence:0};",
+   "const get=()=>state,dispatch=event=>{state=reduceFileHistoryState(state,event)};",
+   "await fileHistoryMakeSnapshot(get,dispatch,'before-edit');",
+   "await fileHistoryTrackEdit(get,dispatch,file,'edit-turn');",
+   "fs.writeFileSync(file,'MODIFIED_111');",
+   "fs.utimesSync(file,new Date(1000),new Date(1000));",
+   "const diff=await fileHistoryGetDiffStats(state,'before-edit');",
+   "await fileHistoryRewind(get,'before-edit');",
+   "if(fs.readFileSync(file,'utf8')!=='ORIGINAL_111')throw Error('rewind did not restore real file bytes: '+JSON.stringify({diff,state:{snapshots:state.snapshots.length,tracked:state.trackedFiles.size}}));",
+   "process.stdout.write(JSON.stringify({enabled:true,snapshots:state.snapshots.length,tracked:state.trackedFiles.size,diff}));"
+  ].join('\n');
+  const env={...process.env,HOME:dir,CLAUDE_CONFIG_DIR:path.join(dir,'.claude'),CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING:'1',CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING:'',CLAUDE_TEST_CHECKPOINT_FILE:file,DISABLE_TELEMETRY:'1'};
+  const result=spawnSync(process.execPath,['--input-type=module','-e',source],{cwd:dir,env,encoding:'utf8',timeout:30000});
+  assert.equal(result.status,0,'real checkpoint subprocess failed: '+result.stderr+' stdout='+result.stdout);
+  assert.equal(fs.readFileSync(file,'utf8'),'ORIGINAL_111','real file was not rewound');
+  const output=JSON.parse(result.stdout);assert.equal(output.enabled,true);assert.ok(output.snapshots>=1);assert.equal(output.tracked,1);
+ }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
