@@ -113,9 +113,9 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(bytes.toString('utf8').includes('let n=await probeDaemonJob(e);return n.present'),
         'Daemon 断线未进行带 PID 启动指纹的 roster 回退');
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
-      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-result-receipt-adopted-worker-and-unverified-socket-reconciliation');
+      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-result-receipt-adopted-unverified-and-nonzero-exit-reconciliation');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'51035e9849c6743c5515c966f967dba488b0e01b');
+      assert.equal(item.currentGitBlob,'8ea891f3ea6b724744adc451330386595734f544');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
         'tests/cli-live-daemon-worker-recovery.test.cjs',
@@ -146,6 +146,8 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         '接管 Worker 进程消失时必须核验真实磁盘结果');
       assert.ok(method.includes('if(p==="ESRCH")await this.reconcileVanishedWorker'),
         'EPERM 权限拒绝不能直接误报进程死亡');
+      assert.ok(method.includes('async onExit(e,r,s)')&&method.includes('worker exited nonzero with queued follow-up work'),
+        'Worker 非零退出必须读取真实磁盘终态并保留排队续跑');
       assert.ok(method.includes('unverified worker socket disappeared without a confirmed terminal receipt'),
         '无 PID 验证的接管 Worker 套接字丢失时必须核对真实终态');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
