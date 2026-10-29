@@ -23,7 +23,7 @@ function run(mode){
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{incomplete-json');
       if(mode==='not-regular')mkdirSync(join(dir,'state.json'));
-      if(['done','failed','stopped'].includes(mode))writeFileSync(join(dir,'state.json'),JSON.stringify({state:mode,tempo:'idle',detail:'persisted-'+mode,output:'result-'+mode}));
+      if(['done','failed','stopped'].includes(mode))writeFileSync(join(dir,'state.json'),JSON.stringify({state:mode,tempo:'idle',detail:'persisted-'+mode,output:'result-'+mode,template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
       const dispatch={short,sessionId:'worker-guard-e2e',createdAt:Date.now(),
         cwd:process.cwd(),source:'shell',launch:{mode:'prompt',args:[]},
         env:{},isolation:'none',respawnFlags:[]};
