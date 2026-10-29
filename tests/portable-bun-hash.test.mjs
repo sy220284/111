@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { portableBunHash } from '../runtime/portable-bun-hash.mjs';
+import { portableBunHash } from '../core/chunk-q1myka9a.js';
 
 test('Node 文件指纹在无 Bun 时稳定且能区分文件变化', () => {
   if (typeof Bun !== 'undefined') return;
@@ -17,7 +17,7 @@ test('Node 文件指纹在无 Bun 时稳定且能区分文件变化', () => {
 
 test('Node 文件指纹在独立进程间结果一致', () => {
   if (typeof Bun !== 'undefined') return;
-  const source=`import {portableBunHash} from ${JSON.stringify(new URL('../runtime/portable-bun-hash.mjs',import.meta.url).href)};process.stdout.write(portableBunHash('cross-process').toString())`;
+  const source=`import {portableBunHash} from ${JSON.stringify(new URL('../core/chunk-q1myka9a.js',import.meta.url).href)};process.stdout.write(portableBunHash('cross-process').toString())`;
   const child=spawnSync(process.execPath,['--input-type=module','-e',source],{encoding:'utf8',timeout:8000});
   assert.equal(child.status,0,child.stderr);
   assert.equal(child.stdout,portableBunHash('cross-process').toString());

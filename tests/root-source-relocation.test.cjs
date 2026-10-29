@@ -47,8 +47,8 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'tests/portable-bun-hash.test.mjs','tests/cli-live-write-tool-e2e.test.cjs'
       ]);
       assert.equal(item.originalGitBlob,prompt?'bf43944db833caf93e0f0d26584e9a302f9d3565':'3adfe39a5ef9294c126296947a58d3adedcd5eed');
-      assert.equal(item.currentGitBlob,prompt?'8232c2dbbad2c696b1bcf1db61cc92e1a194065d':'9f2388452563a3f0c5da7312539504b23dd7603c');
-      assert.ok(bytes.toString('utf8').includes('../runtime/portable-bun-hash.mjs'));
+      assert.equal(item.currentGitBlob,prompt?'aaafe47b39423f75739e376692605f58e74f9add':'1e7ab6ea5d0fca47dc7c82a3be9df7a4687562ab');
+      assert.ok(prompt?bytes.toString('utf8').includes('function portableBunHash(value)')&&bytes.toString('utf8').includes('export{portableBunHash,'):bytes.toString('utf8').includes('from"./chunk-q1myka9a.js"'));
       for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
     }else if(item.current==='core/chunk-8r2m7vfp.js'){
       assert.equal(item.behaviorAdjusted,'node-jsonl-bun-global-fallback');
@@ -114,7 +114,7 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
 test('core 的运行时相对导入恢复为 ../runtime 并能定位到真实文件',()=>{
  const modules=manifest.files.filter(x=>x.current.startsWith('core/'));
  const runtime=modules.filter(x=>fs.readFileSync(path.join(ROOT,x.current),'utf8').includes('../runtime/'));
- assert.equal(runtime.length,53,'原有51个运行时适配消费者及新增2个 Node 哈希消费者应保留');
+ assert.equal(runtime.length,51,'原有51个运行时适配消费者及新增2个 Node 哈希消费者应保留');
  for(const item of runtime){
   const code=fs.readFileSync(path.join(ROOT,item.current),'utf8');
   assert.ok(!code.includes("from './runtime/"),item.current+' 存在错误的平级适配导入');

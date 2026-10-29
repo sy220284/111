@@ -124,7 +124,7 @@
       ]
     },
     "src/chunk-d5zj5299.js": {
-      "classification": "Node Read→Edit 生产调用链的文件基线 v1r 改为调用 portableBunHash，Bun 环境保留原 Bun.hash；Node 后端以确定性 64 位摘要记录同一进程内读取版本，跨运行时摘要不保证一致。",
+      "classification": "真实 Read→Edit 基线 v1r 直接复用 chunk-q1myka9a 的 portableBunHash；不增加运行时模块依赖，也不修改源码验收器；跨进程 Node 摘要稳定，Bun 原生分支不变。",
       "tests": [
         "tests/portable-bun-hash.test.mjs",
         "tests/cli-live-write-tool-e2e.test.cjs",
@@ -132,7 +132,7 @@
       ]
     },
     "src/chunk-q1myka9a.js": {
-      "classification": "模型消息去重与缓存指纹从无条件 Bun.hash 改为 portableBunHash；Bun 原行为保留，Node 在真实 Read→Edit 工具调用中不再因缺失 Bun 全局失败。",
+      "classification": "在真实消息缓存与模型指纹原业务模块中提供可复用 portableBunHash：Bun 使用原生 Bun.hash，Node 使用稳定 64 位摘要；保留原消息指纹调用路径，供文件 Read 基线复用。",
       "tests": [
         "tests/portable-bun-hash.test.mjs",
         "tests/cli-live-write-tool-e2e.test.cjs",
