@@ -61,7 +61,7 @@ function run(mode){
     `;
     // The test child is a real independent process importing the production module.
     const result=spawnSync(process.execPath,['--input-type=module','-e',
-      '(async()=>{'+script+'})().catch(e=>{console.error(e);process.exitCode=1})',mode],{
+      script,mode],{
       cwd:home,encoding:'utf8',timeout:25000,
       env:{...process.env,HOME:home,CLAUDE_CONFIG_DIR:path.join(home,'.claude'),
         CI:'true',DISABLE_TELEMETRY:'1',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'}
