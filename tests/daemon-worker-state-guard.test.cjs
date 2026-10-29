@@ -19,7 +19,7 @@ function run(mode){
       import {_o} from ${JSON.stringify(stateURL)};
       import {mkdirSync,writeFileSync} from 'node:fs';
       import {join} from 'node:path';
-      const scenario=process.argv[1],upgrade=scenario.startsWith('upgrade-'),mode=upgrade?scenario.slice(8):scenario,short='d3a4b5c6',dir=_o(short);
+      const scenario=process.argv[1],staticUpgrade=scenario.startsWith('static-upgrade-'),upgrade=scenario.startsWith('upgrade-'),retry=scenario.startsWith('retry-'),mode=staticUpgrade?scenario.slice(15):upgrade?scenario.slice(8):retry?scenario.slice(6):scenario,short='d3a4b5c6',dir=_o(short);
       mkdirSync(dir,{recursive:true});
       if(mode==='corrupt')writeFileSync(join(dir,'state.json'),'{incomplete-json');
       if(mode==='not-regular')mkdirSync(join(dir,'state.json'));
@@ -27,16 +27,25 @@ function run(mode){
       const dispatch={short,sessionId:'worker-guard-e2e',createdAt:Date.now(),
         cwd:process.cwd(),source:'shell',launch:{mode:'prompt',args:[]},
         env:{},isolation:'none',respawnFlags:[]};
-      const worker=new fpe(dispatch,()=>{},undefined,'cold',undefined,undefined,undefined);
+      let worker=new fpe(dispatch,()=>{},undefined,'cold',undefined,undefined,undefined);
       let replays=0,spawnArgs=null;
       worker.doSpawn=async(...args)=>{replays++;spawnArgs=args};
-      if(upgrade){
+      if(staticUpgrade){
+        // Exercise the production static spawn(..., { afterUpgrade: true }) branch.
+        fpe.prototype.doSpawn=async function(...args){replays++;spawnArgs=args};
+        fpe.prototype.buildBridgeReattachEnvFromState=async()=>({REATTACH_TEST:'retained'});
+        worker=fpe.spawn(dispatch,()=>{},undefined,{afterUpgrade:true},undefined,undefined);
+        await new Promise(resolve=>setTimeout(resolve,350));
+      }else if(upgrade){
         worker.phase={kind:'upgrading'};
         worker.buildBridgeReattachEnvFromState=async()=>({REATTACH_TEST:'retained'});
         // Invoke the real version-upgrade exit branch, not only the ordinary retry helper.
         worker.onExit(0,undefined,undefined);
         await new Promise(resolve=>setTimeout(resolve,350));
-      }else await worker.doSpawnUnlessSettledOnDisk();
+      }else {
+        if(retry)worker.attempt=1; // Simulate a prior launch after the state file disappeared.
+        await worker.doSpawnUnlessSettledOnDisk();
+      }
       process.stdout.write(JSON.stringify({replays,spawnArgs,outcome:worker.record.outcome??null,
         state:worker.record.state,detail:worker.record.detail,output:worker.record.output??null})+'\\n');
     `;
@@ -101,4 +110,32 @@ test('升级 Worker 确认无旧状态时允许重启并保留桥接环境',{tim
   assert.equal(result.replays,1);
   assert.equal(result.outcome,null);
   assert.deepEqual(result.spawnArgs,[{REATTACH_TEST:'retained'},true]);
+});
+
+for(const [state,outcome] of [['done','done'],['failed','failed'],['stopped','killed']]){
+  test('静态 spawn(afterUpgrade) 从磁盘恢复 '+state+' 真实结果而不二次执行',{timeout:30000},()=>{
+    const result=run('static-upgrade-'+state);
+    assert.equal(result.replays,0,'构造器升级恢复不得直接执行已结束任务');
+    assert.equal(result.outcome,outcome);
+    assert.equal(result.detail,'persisted-'+state);
+    assert.deepEqual(result.output,{summary:'result-'+state});
+  });
+}
+test('静态升级入口遇到损坏 state.json 拒绝重放',{timeout:30000},()=>{
+  const result=run('static-upgrade-corrupt');
+  assert.equal(result.replays,0);
+  assert.equal(result.outcome,'crashed');
+  assert.match(result.detail,/cannot verify persisted job state/);
+});
+test('重试任务丢失 state.json 必须阻止潜在重复工具副作用',{timeout:30000},()=>{
+  const result=run('retry-absent');
+  assert.equal(result.replays,0,'没有证据表明已执行副作用是否完成时不得重放');
+  assert.equal(result.outcome,'crashed');
+  assert.match(result.detail,/missing after a prior worker launch/);
+});
+test('静态升级任务丢失状态时不应重复执行',{timeout:30000},()=>{
+  const result=run('static-upgrade-absent');
+  assert.equal(result.replays,0);
+  assert.equal(result.outcome,'crashed');
+  assert.match(result.detail,/missing after a prior worker launch/);
 });
