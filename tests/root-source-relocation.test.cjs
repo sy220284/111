@@ -125,14 +125,15 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(method.includes('depth=Math.max(0,depth-1)')&&method.includes('if(escaped){r+=s;escaped=!1;continue}'),
         '权限规则解析必须区分嵌套括号和反斜杠转义，不能拆散拒绝规则');
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
-      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-result-receipt-adopted-unverified-and-nonzero-exit-reconciliation');
+      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-result-receipt-adopted-unverified-nonzero-exit-and-rendezvous-done-reconciliation');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'8ea891f3ea6b724744adc451330386595734f544');
+      assert.equal(item.currentGitBlob,'57719150edb611e55db4780cee0a050f9a8dd3b2');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
         'tests/cli-live-daemon-worker-recovery.test.cjs',
         'tests/daemon-adopted-worker-receipt.test.cjs',
-        'tests/daemon-unverified-socket-receipt.test.cjs'
+        'tests/daemon-unverified-socket-receipt.test.cjs',
+        'tests/daemon-rv-done-receipt.test.cjs'
       ]);
       for(const name of item.behaviorTests)assert.ok(fs.existsSync(path.join(ROOT,name)));
       const method=bytes.toString('utf8');
@@ -162,6 +163,10 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'Worker 非零退出必须读取真实磁盘终态并保留排队续跑');
       assert.ok(method.includes('unverified worker socket disappeared without a confirmed terminal receipt'),
         '无 PID 验证的接管 Worker 套接字丢失时必须核对真实终态');
+      assert.ok(method.includes('async reconcileRvDone(outcome)')&&method.includes('void this.reconcileRvDone(e.outcome).catch(l)'),
+        'rendezvous 完成消息必须读取真实持久化成果而非直接结算');
+      assert.ok(method.includes('rendezvous finished without a readable terminal job state'),
+        'rendezvous 完成消息不能在损坏或未完成的状态下伪报成功');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
       assert.equal(item.behaviorAdjusted,'file-history-content-compare-despite-older-mtime');
       assert.deepEqual(item.behaviorTests,['tests/cli-live-write-tool-e2e.test.cjs']);
