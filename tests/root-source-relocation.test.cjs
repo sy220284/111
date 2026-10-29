@@ -89,9 +89,9 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
       assert.ok(bytes.toString('utf8').includes('let n=await probeDaemonJob(e);return n.present'),
         'Daemon 断线未进行带 PID 启动指纹的 roster 回退');
     }else if(item.current==='core/chunk-kj2kfe1q.js'){
-      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard');
+      assert.equal(item.behaviorAdjusted,'worker-state-replay-guard-and-result-receipt');
       assert.equal(item.originalGitBlob,'06bfe55d5d50f36920a1e8c62d19e0e07312f4c3');
-      assert.equal(item.currentGitBlob,'eec14ef82b2de5e94346993bfaa98189de7b1b5b');
+      assert.equal(item.currentGitBlob,'5a42bf1cc2b8354abed74c9607250a74d1c85c97');
       assert.deepEqual(item.behaviorTests,[
         'tests/daemon-worker-state-guard.test.cjs',
         'tests/cli-live-daemon-worker-recovery.test.cjs'
@@ -102,6 +102,10 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'Worker 恢复未区分状态不存在与状态损坏');
       assert.ok(method.includes('reason:b("unreadable_state")'),
         '无法验证状态时必须禁止自动重放');
+      assert.ok(method.includes('this.patch({state:e.state,detail:e.detail'),
+        '恢复已结束任务时必须回传持久化结果描述');
+      assert.ok(method.includes('output:e.output'),
+        '恢复已结束任务时必须保留最终输出');
     }else if(item.current==='core/chunk-j0tbz6ra.js'){
       assert.equal(item.behaviorAdjusted,'file-history-content-compare-despite-older-mtime');
       assert.deepEqual(item.behaviorTests,['tests/cli-live-write-tool-e2e.test.cjs']);

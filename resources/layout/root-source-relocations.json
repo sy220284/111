@@ -11068,9 +11068,9 @@
       "old": "src/chunk-kj2kfe1q.js",
       "current": "core/chunk-kj2kfe1q.js",
       "originalGitBlob": "06bfe55d5d50f36920a1e8c62d19e0e07312f4c3",
-      "currentGitBlob": "eec14ef82b2de5e94346993bfaa98189de7b1b5b",
+      "currentGitBlob": "5a42bf1cc2b8354abed74c9607250a74d1c85c97",
       "importAdjusted": false,
-      "behaviorAdjusted": "worker-state-replay-guard",
+      "behaviorAdjusted": "worker-state-replay-guard-and-result-receipt",
       "behaviorTests": [
         "tests/daemon-worker-state-guard.test.cjs",
         "tests/cli-live-daemon-worker-recovery.test.cjs"
