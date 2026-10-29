@@ -28350,8 +28350,7 @@ function $3t(e, n, r) { if (e === null !== (n === null))
     return !0; if (e === null || n === null)
     return !1; if (!e.isFile() || !n.isFile())
     return !0; if (e.mode !== n.mode || e.size !== n.size)
-    return !0; if (e.mtimeMs < n.mtimeMs)
-    return !1; return r(); }
+    return !0; return r(); }
 async function Z2o(e, n) { let r = [], s = 0, h = 0; try {
     let y = n ? YM(n) : void 0, [S, w] = await Promise.all([eK(e), y ? eK(y, { noFollow: !0 }) : null]);
     if (S === null && w === null)

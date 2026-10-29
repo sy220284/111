@@ -102,6 +102,13 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
         'Worker 恢复未区分状态不存在与状态损坏');
       assert.ok(method.includes('reason:b("unreadable_state")'),
         '无法验证状态时必须禁止自动重放');
+    }else if(item.current==='core/chunk-j0tbz6ra.js'){
+      assert.equal(item.behaviorAdjusted,'file-history-content-compare-despite-older-mtime');
+      assert.deepEqual(item.behaviorTests,['tests/cli-live-write-tool-e2e.test.cjs']);
+      assert.equal(item.originalGitBlob,'d389ecc3179a8c1040ad878f5579bfa4276c4d68');
+      assert.equal(item.currentGitBlob,'7de092bc628a72f48d92c3b9eff636453352125e');
+      assert.ok(bytes.toString('utf8').includes('function $3t(e, n, r)'));
+      assert.ok(!bytes.toString('utf8').includes('if (e.mtimeMs < n.mtimeMs)'));
     }else{
       assert.fail('未经审计的运行态源码变更：'+item.current);
     }
