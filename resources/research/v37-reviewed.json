@@ -122,6 +122,22 @@
         "tests/jsonl-node-fallback.test.mjs",
         "tests/cli-live-session-resume-e2e.test.cjs"
       ]
+    },
+    "src/chunk-d5zj5299.js": {
+      "classification": "Node Read→Edit 生产调用链的文件基线 v1r 改为调用 portableBunHash，Bun 环境保留原 Bun.hash；Node 后端以确定性 64 位摘要记录同一进程内读取版本，跨运行时摘要不保证一致。",
+      "tests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs",
+        "tests/root-source-relocation.test.cjs"
+      ]
+    },
+    "src/chunk-q1myka9a.js": {
+      "classification": "模型消息去重与缓存指纹从无条件 Bun.hash 改为 portableBunHash；Bun 原行为保留，Node 在真实 Read→Edit 工具调用中不再因缺失 Bun 全局失败。",
+      "tests": [
+        "tests/portable-bun-hash.test.mjs",
+        "tests/cli-live-write-tool-e2e.test.cjs",
+        "tests/root-source-relocation.test.cjs"
+      ]
     }
   }
 }
