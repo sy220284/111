@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, utimesSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -100,6 +100,58 @@ test('锁定操作失败仍清理归属锁，后续写入不被永久阻塞', as
     }), /intentional rollback/);
     assert.equal(existsSync(store + '.lock'), false);
     await withCronStoreLock(store, async () => writeFileSync(store, 'second'));
+    assert.equal(readFileSync(store, 'utf8'), 'second');
+  });
+});
+
+test('旧版创建中途崩溃留下空锁，超过宽限后仍可恢复执行', { timeout: 12000 }, async () => {
+  await tempStore(async ({ store }) => {
+    writeFileSync(store + '.lock', '');
+    const old = new Date(Date.now() - 5000);
+    utimesSync(store + '.lock', old, old);
+    await withCronStoreLock(store, async () => writeFileSync(store, 'recovered-empty-lock'));
+    assert.equal(readFileSync(store, 'utf8'), 'recovered-empty-lock');
+    assert.equal(existsSync(store + '.lock'), false);
+  });
+});
+
+test('回收进程自身崩溃后，遗留 reaper 不会永久阻塞定时写入', { timeout: 12000 }, async () => {
+  await tempStore(async ({ store }) => {
+    const old = new Date(Date.now() - 5000);
+    writeFileSync(store + '.lock', JSON.stringify({ pid: 99999999, token: 'abandoned-writer-token' }));
+    writeFileSync(store + '.lock.reaper', JSON.stringify({ pid: 99999999, token: 'abandoned-reaper-token' }));
+    utimesSync(store + '.lock', old, old);
+    utimesSync(store + '.lock.reaper', old, old);
+    await withCronStoreLock(store, async () => writeFileSync(store, 'recovered-dead-reaper'));
+    assert.equal(readFileSync(store, 'utf8'), 'recovered-dead-reaper');
+    assert.equal(existsSync(store + '.lock'), false);
+    assert.equal(existsSync(store + '.lock.reaper'), false);
+  });
+});
+
+test('仍存活的锁持有者即使锁文件时间较旧也不会被并发写入者夺锁', { timeout: 12000 }, async () => {
+  await tempStore(async ({ store }) => {
+    let release;
+    let signalLocked;
+    const locked = new Promise(resolve => { signalLocked = resolve; });
+    const barrier = new Promise(resolve => { release = resolve; });
+    const first = withCronStoreLock(store, async () => {
+      const old = new Date(Date.now() - 5000);
+      utimesSync(store + '.lock', old, old);
+      signalLocked();
+      await barrier;
+      writeFileSync(store, 'first');
+    });
+    await locked;
+    let entered = false;
+    const second = withCronStoreLock(store, async () => {
+      entered = true;
+      writeFileSync(store, 'second');
+    });
+    await wait(250);
+    assert.equal(entered, false);
+    release();
+    await Promise.all([first, second]);
     assert.equal(readFileSync(store, 'utf8'), 'second');
   });
 });
