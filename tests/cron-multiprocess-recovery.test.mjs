@@ -54,11 +54,11 @@ test('真实 CronDelete 持久化路径在并发进程下不丢失不相干的�
     const tasks = Array.from({ length: 24 }, (_, i) => task('multi-' + i));
     await c6n(tasks, dir);
     const worker = `import {WTe} from ${JSON.stringify(cronModule)};
-      await WTe(process.argv.slice(2).split,process.argv[1]);`;
+      await WTe(process.argv.slice(2),process.argv[1]);`;
     // Each child deletes a distinct subset. The old unlocked read/write
     // sequence could resurrect another child's deleted task.
     const workers = Array.from({ length: 4 }, (_, n) =>
-      child(worker.replace('process.argv.slice(2).split', 'process.argv.slice(2)'),
+      child(worker,
         [dir, ...tasks.filter((_, i) => i % 4 === n).map(t => t.id)], dir));
     await Promise.all(workers.map(w => w.finished));
     assert.deepEqual(await Ecn(dir), []);
