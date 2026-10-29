@@ -114,6 +114,13 @@
         "tests/cron-durable-integrity.test.mjs",
         "tests/cron-multiprocess-recovery.test.mjs"
       ]
+    },
+    "src/chunk-8r2m7vfp.js": {
+      "classification": "Node 22 的 JSONL 历史读取改为安全检测 globalThis.Bun?.JSONL?.parseChunk；保留 Bun 原有快速解析分支。仅覆盖历史 JSONL 局部与真实 CLI 恢复，未声称所有读取与编辑工具已验收。",
+      "tests": [
+        "tests/jsonl-node-fallback.test.mjs",
+        "tests/cli-live-session-resume-e2e.test.cjs"
+      ]
     }
   }
 }
