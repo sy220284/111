@@ -18,6 +18,7 @@ function run(mode){
       import {fpe} from ${JSON.stringify(moduleURL)};
       import {_o} from ${JSON.stringify(stateURL)};
       import {mkdirSync,writeFileSync} from 'node:fs';
+      import {spawnSync} from 'node:child_process';
       import {join} from 'node:path';
       const scenario=process.argv[1],staticUpgrade=scenario.startsWith('static-upgrade-'),upgrade=scenario.startsWith('upgrade-'),retry=scenario.startsWith('retry-'),exitZero=scenario.startsWith('exit-zero-'),exitNonzero=scenario.startsWith('exit-nonzero-'),mode=staticUpgrade?scenario.slice(15):upgrade?scenario.slice(8):retry?scenario.slice(6):exitZero?scenario.slice(10):exitNonzero?scenario.slice(13):scenario,short='d3a4b5c6',dir=_o(short);
       mkdirSync(dir,{recursive:true});
@@ -50,7 +51,12 @@ function run(mode){
         worker.attempt=1;
         worker.lastSpawnAt=Date.now()-10000;
         if(mode==='flush')setTimeout(()=>writeFileSync(join(dir,'state.json'),JSON.stringify({state:'done',tempo:'idle',detail:'persisted-after-flush',output:{summary:'flushed'},template:'prompt',intent:'worker-receipt',sessionId:'worker-guard-e2e',cwd:process.cwd(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()})),15);
-        worker.onExit(exitNonzero?137:0,exitNonzero?'SIGKILL':undefined,undefined);
+        if(exitNonzero){
+          const crash=spawnSync(process.execPath,['-e','process.kill(process.pid,"SIGKILL")'],{timeout:10000});
+          if(crash.signal!=='SIGKILL')throw Error('real OS SIGKILL worker fixture failed: '+JSON.stringify(crash));
+          worker.record.pid=crash.pid;
+          worker.onExit(crash.status??137,crash.signal,undefined);
+        }else worker.onExit(0,undefined,undefined);
         await new Promise(resolve=>setTimeout(resolve,350));
       }else {
         if(retry)worker.attempt=1; // Simulate a prior launch after the state file disappeared.
