@@ -19,10 +19,11 @@ function listFixture(response,workers={},isAlive=()=>false){
  });
  return {...api,calls};
 }
-function presentFixture(response){
- const code=between('async function isDaemonJobPresent(e)','function refreshDaemonJobRecord(e,n)');
- return vm.runInNewContext(code+';({isDaemonJobPresent,Meo})',{
-  bh:async()=>response,Oc:7
+function presentFixture(response,workers={},isAlive=()=>false){
+ const code=between('async function probeDaemonJob(e,n)','function refreshDaemonJobRecord(e,n)');
+ return vm.runInNewContext(code+';({isDaemonJobPresent,Meo,probeDaemonJob,Yxn})',{
+  bh:async()=>response,Oc:7,JN:async()=>({workers}),
+  $an:async(pid,start)=>isAlive(pid,start)
  });
 }
 function recordFixture(){
@@ -55,6 +56,27 @@ test('Daemon 单作业存在性遵从 present 并在字段缺失时回退 alive'
  assert.equal(await presentFixture({ok:true,op:'has',alive:true}).Meo('a'),true);
  assert.equal(await presentFixture({ok:false,code:'ENOCONN'}).Meo('a'),false);
 });
+test('daemon 断线后作业存在性回退到持久化 roster，并核对真实 PID 启动指纹',async()=>{
+ const live=presentFixture({ok:false,code:'ENOCONN'},{
+  active:{pid:4242,procStart:'start-A'},
+  stale:{pid:4242,procStart:'wrong'}
+ },(pid,start)=>pid===4242&&start==='start-A');
+ assert.equal(await live.Meo('active'),true,'supervisor crash must not erase still-running worker');
+ assert.equal(await live.Meo('stale'),false,'PID reuse or stale procStart must not masquerade as an active worker');
+ assert.equal(await live.Meo('absent'),false,'unknown job must remain absent');
+ const probe=await live.Yxn('active');
+ assert.equal(probe.daemonUp,false);
+ assert.equal(probe.present,true);
+ assert.equal(probe.alive,true);
+});
+
+test('daemon 协议明确说明不存在时，不能由旧 roster 意外复活已完成作业',async()=>{
+ const confirmed=presentFixture({ok:true,op:'has',alive:false,present:false},
+  {active:{pid:4242,procStart:'start-A'}},()=>true);
+ assert.equal(await confirmed.Meo('active'),false);
+ assert.equal((await confirmed.Yxn('active')).daemonUp,true);
+});
+
 test('清理背景任务仅匹配明确关联的 jobId 或 sessionId 前缀',()=>{
  const {matchesBackgroundJobReference,Bn}=recordFixture();
  assert.equal(matchesBackgroundJobReference,Bn);
