@@ -1,6 +1,6 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join, resolve, sep, isAbsolute } from 'node:path';
+import { join, resolve, relative, sep, isAbsolute } from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
 
 // The original 2.1.310 module imports retain their BunFS resource names.
@@ -35,6 +35,14 @@ export function isEmbeddedPath(path) {
     const actual = realpathSync(path);
     const trustedRoot = realpathSync(raw ? embeddedRoot : projectRoot);
     if (!actual.startsWith(trustedRoot + sep)) return false;
+    // A relocated resource is a fixed file, not a path prefix: a symlink to
+    // another file inside this repository must not bypass normal require.
+    // Compare against the canonical repository root so symlinked checkouts
+    // are supported, while redirects inside the checkout are rejected.
+    if (!raw) {
+      const expected = resolve(trustedRoot, relative(projectRoot, path));
+      if (actual !== expected) return false;
+    }
     return raw || relocatedPaths.has(path);
   } catch {
     return false;

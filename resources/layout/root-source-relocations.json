@@ -10145,8 +10145,12 @@
       "old": "src/chunk-hp7h93my.js",
       "current": "core/chunk-hp7h93my.js",
       "originalGitBlob": "fa39f70fb8da18d24b73cfde1b26d247cf8603fc",
-      "currentGitBlob": "fa39f70fb8da18d24b73cfde1b26d247cf8603fc",
-      "importAdjusted": false
+      "currentGitBlob": "e46094ed1be4b158f85360761ceae3b24b5c781d",
+      "importAdjusted": false,
+      "behaviorAdjusted": "cron-durable-integrity",
+      "behaviorTests": [
+        "tests/cron-durable-integrity.test.mjs"
+      ]
     },
     {
       "old": "src/chunk-hp871ge6.js",

@@ -35,10 +35,26 @@ test('2554 个文件分类并验证 Hook Worker 130 个导入路径变更可逆�
     const original=current.replaceAll('../../../core/chunk-','../../../../chunk-');
     assert.equal(blob(Buffer.from(original)),item.originalGitBlob,'Hook Worker 反向还原后与原 Git Blob 不一致');
   }else if(item.behaviorAdjusted){
-    assert.equal(item.current,'core/chunk-fmf16p94.js','只认可已审计的MCP资源清理行为修复');
-    assert.equal(item.currentGitBlob,'78f0fd359e4df812d4bbba9cf0ebc019a6d15585','当前修复必须保留与原基线一致的清理代码');
-    const method=bytes.toString('utf8');
-    assert.ok(method.includes('this._requestResolvers.delete(d),this._cleanupTimeout(d)'),'MCP取消回调必须清理关联任务resolver');
+    if(item.current==='core/chunk-fmf16p94.js'){
+      assert.equal(item.behaviorAdjusted,true,'原 MCP 修复标记不得改变');
+      assert.equal(item.currentGitBlob,'78f0fd359e4df812d4bbba9cf0ebc019a6d15585','当前修复必须保留与原基线一致的清理代码');
+      const method=bytes.toString('utf8');
+      assert.ok(method.includes('this._requestResolvers.delete(d),this._cleanupTimeout(d)'),'MCP取消回调必须清理关联任务resolver');
+    }else if(item.current==='core/chunk-hp7h93my.js'){
+      // Explicitly audited second exception: preserve the original historical
+      // Blob while pinning the exact tested runtime source Blob. Never
+      // generalize this to arbitrary changes under core/.
+      assert.equal(item.behaviorAdjusted,'cron-durable-integrity');
+      assert.deepEqual(item.behaviorTests,['tests/cron-durable-integrity.test.mjs']);
+      assert.equal(item.originalGitBlob,'fa39f70fb8da18d24b73cfde1b26d247cf8603fc');
+      assert.equal(item.currentGitBlob,'e46094ed1be4b158f85360761ceae3b24b5c781d');
+      assert.ok(fs.existsSync(path.join(ROOT,item.behaviorTests[0])));
+      const method=bytes.toString('utf8');
+      assert.ok(method.includes('await Ecn(s,!0)'),'持久化写入未执行严格校验');
+      assert.ok(method.includes('refusing to overwrite malformed'),'任务文件损坏未阻止写入');
+    }else{
+      assert.fail('未经审计的运行态源码变更：'+item.current);
+    }
   }else{
     assert.equal(blob(bytes),item.originalGitBlob,'未调整源码字节被更改 '+item.current);
   }
