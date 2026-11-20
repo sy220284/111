@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -181,6 +183,62 @@ fun CodexChoiceSheet(
                 }
             }
             Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+/** Read long raw execution evidence on a dedicated mobile sheet, without shrinking the run stream. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CodexEvidenceSheet(
+    title: String,
+    payload: String,
+    onDismiss: () -> Unit
+) {
+    val clipboard = LocalClipboardManager.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Ink.recessed,
+        contentColor = Ink.parchment,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text("Codex 返回的原始执行信息", style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            Surface(
+                color = Ink.panel,
+                border = BorderStroke(1.dp, Ink.border.copy(alpha = .7f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                SelectionContainer {
+                    Text(
+                        payload,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 440.dp)
+                            .verticalScroll(rememberScrollState()).padding(14.dp),
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ink.parchment
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                    Text("关闭")
+                }
+                Button(
+                    onClick = { clipboard.setText(AnnotatedString(payload)) },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                ) {
+                    Icon(Icons.Outlined.ContentCopy, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("复制原始记录")
+                }
+            }
+            Spacer(Modifier.height(10.dp))
         }
     }
 }
