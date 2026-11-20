@@ -37,6 +37,7 @@ object AccountLoginContract {
     fun completion(params: JSONObject, activeId: String): Completion? {
         val eventId = params.optString("loginId")
         if (activeId.isNotBlank() && eventId.isNotBlank() && activeId != eventId) return null
-        return Completion(params.optBoolean("success", false), params.optString("error"))
+        return Completion(params.optBoolean("success", false),
+            if (params.isNull("error")) "" else params.optString("error"))
     }
 }

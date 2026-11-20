@@ -185,10 +185,19 @@ fun AccountPage(vm: CodexViewModel) {
             Text("账号信息", style = MaterialTheme.typography.titleLarge)
             Text(account?.optJSONObject("account")?.optString("email") ?: "尚未读取账号", color = Ink.muted)
             Text(account?.optString("authMode") ?: "", color = Ink.muted)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.startDeviceLogin() }) { Text("设备验证码登录") }
-                OutlinedButton(onClick = { vm.startLogin() }) { Text("浏览器登录") }
-                TextButton(onClick = { vm.refresh("account", "account/read") }) { Text("刷新状态") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { vm.startDeviceLogin() }, modifier = Modifier.weight(1f)) {
+                    Text("设备码登录", maxLines = 1)
+                }
+                OutlinedButton(onClick = { vm.startLogin() }, modifier = Modifier.weight(1f)) {
+                    Text("浏览器登录", maxLines = 1)
+                }
+            }
+            TextButton(onClick = { vm.refresh("account", "account/read") },
+                modifier = Modifier.align(Alignment.End)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(6.dp))
+                Text("刷新账号状态")
             }
             if (deviceCode.isNotBlank() && deviceUrl.startsWith("https://")) {
                 DividerLine()
