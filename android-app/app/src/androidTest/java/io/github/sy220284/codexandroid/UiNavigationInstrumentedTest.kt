@@ -15,6 +15,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.onNodeWithText
@@ -118,10 +119,12 @@ class UiNavigationInstrumentedTest {
         rule.onNode(hasSetTextAction()).performTextInput("账号登录")
         rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
         rule.onNodeWithText("选择登录方式").assertExists()
-        rule.onNodeWithText("设备码登录").assertIsDisplayed()
-        rule.onNodeWithText("浏览器登录").assertIsDisplayed()
+        rule.onNodeWithText("设备码登录").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("浏览器登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("查看协议数据").assertExists()
-        rule.onNodeWithText("刷新账号状态").assertIsDisplayed()
+        rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
+        // Preserve a clear screenshot of the top-level login choices.
+        rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
     }
 
