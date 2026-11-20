@@ -190,6 +190,8 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
+    val activeTurn by vm.activeTurn.collectAsState()
+    val steering by vm.steerBusy.collectAsState()
     val items by vm.timeline.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
@@ -326,6 +328,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         errors["conversation"]?.let { ErrorText(it) }
+        errors["steer"]?.let { ErrorText(it) }
         DividerLine()
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(
@@ -378,7 +381,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             OutlinedTextField(
                 value = draft, onValueChange = { draft = it },
                 modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6,
-                placeholder = { Text("描述目标、文件及验收要求…") },
+                placeholder = { Text(if (busy) "任务运行中，可以补充要求或修正方向…" else "描述目标、文件及验收要求…") },
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
             )
@@ -395,13 +398,24 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("停止")
                 }
                 Button(
-                    onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
-                    enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
+                    onClick = {
+                        val message = draft.trim()
+                        if (busy) {
+                            vm.steerPrompt(message) {
+                                if (draft.trim() == message) draft = ""
+                            }
+                        } else {
+                            draft = ""
+                            vm.sendPrompt(message)
+                        }
+                    },
+                    enabled = draft.isNotBlank() && status == EngineStatus.Connected &&
+                        (if (busy) thread != null && !activeTurn.isNullOrBlank() && !steering else true),
                     modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
                 ) {
-                    Icon(Icons.Outlined.ArrowUpward, null)
+                    Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
                     Spacer(Modifier.width(7.dp))
-                    Text("发送给 Codex", maxLines = 1)
+                    Text(if (busy) "补充指令" else "发送给 Codex", maxLines = 1)
                 }
             }
         }
