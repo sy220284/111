@@ -1,0 +1,100 @@
+name: 编译 Android 原生 Codex 核心
+
+on:
+  push:
+    paths:
+      - ".github/workflows/build-native-codex.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-native-codex
+  cancel-in-progress: false
+
+jobs:
+  native:
+    name: 编译 ${{ matrix.abi }} 核心
+    runs-on: ubuntu-latest
+    timeout-minutes: 115
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust_target: aarch64-linux-android
+            clang: aarch64-linux-android29-clang
+            clangxx: aarch64-linux-android29-clang++
+            abi: arm64-v8a
+            elf_arch: AArch64
+          - rust_target: x86_64-linux-android
+            clang: x86_64-linux-android29-clang
+            clangxx: x86_64-linux-android29-clang++
+            abi: x86_64
+            elf_arch: X86-64
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_RELEASE_DEBUG: "0"
+      CARGO_PROFILE_RELEASE_LTO: "false"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+    steps:
+      - name: 检出已锁定的官方源码快照
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            upstream/codex
+            CODEX_UPSTREAM_COMMIT
+      - name: 检查源码快照版本
+        run: |
+          set -euo pipefail
+          test -f upstream/codex/codex-rs/app-server/Cargo.toml
+          cat CODEX_UPSTREAM_COMMIT
+      - name: 配置 Android SDK/NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOL="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -x "$TOOL"
+          "$TOOL" "ndk;27.2.12479018"
+          NDK="$ANDROID_HOME/ndk/27.2.12479018"
+          test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.clang }}"
+          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+      - name: 安装 Rust Android 目标
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: 缓存 Rust 构建依赖
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: upstream/codex/codex-rs
+          key: codex-android-${{ matrix.rust_target }}
+      - name: 使用 Android Bionic 编译 App Server
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          TARGET="${{ matrix.rust_target }}"
+          TARGET_ENV="$(echo "$TARGET" | tr '[:lower:]-' '[:upper:]_')"
+          TARGET_C="$(echo "$TARGET" | tr '-' '_')"
+          export "CARGO_TARGET_${TARGET_ENV}_LINKER=$BIN/${{ matrix.clang }}"
+          export "CC_${TARGET_C}=$BIN/${{ matrix.clang }}"
+          export "CXX_${TARGET_C}=$BIN/${{ matrix.clangxx }}"
+          export "AR_${TARGET_C}=$BIN/llvm-ar"
+          export CMAKE_ANDROID_NDK="$ANDROID_NDK_HOME"
+          export CMAKE_ANDROID_API=29
+          cd upstream/codex/codex-rs
+          cargo build --locked --release -p codex-app-server --bin codex-app-server --target "$TARGET"
+          CORE="target/$TARGET/release/codex-app-server"
+          test -s "$CORE"
+          file "$CORE"
+          readelf -h "$CORE" | grep -q '${{ matrix.elf_arch }}'
+          readelf -l "$CORE" | grep -q '/system/bin/linker64'
+          sha256sum "$CORE"
+      - name: 上传原生内核与构建清单
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-native-${{ matrix.abi }}
+          path: upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-app-server
+          if-no-files-found: error
+          retention-days: 14
