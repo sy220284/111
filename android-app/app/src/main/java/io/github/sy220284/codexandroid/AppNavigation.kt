@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -77,6 +78,7 @@ fun CodexShell(vm: CodexViewModel) {
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val move: (String) -> Unit = { destination ->
         selected = destination
         if (page.id != destination) {
@@ -132,7 +134,8 @@ fun CodexShell(vm: CodexViewModel) {
                     AnimatedContent(
                         targetState = selected,
                         transitionSpec = {
-                            (fadeIn(tween(185)) + slideInHorizontally(tween(210)) { it / 9 })
+                            if (reducedMotion) fadeIn(tween(50)).togetherWith(fadeOut(tween(50)))
+                            else (fadeIn(tween(185)) + slideInHorizontally(tween(210)) { it / 9 })
                                 .togetherWith(fadeOut(tween(100)) + slideOutHorizontally(tween(115)) { -it / 12 })
                         },
                         label = "section_switch"
