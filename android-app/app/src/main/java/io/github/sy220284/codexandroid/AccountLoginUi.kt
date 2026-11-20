@@ -63,6 +63,57 @@ fun AccountPage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("IDENTITY / ACCESS", "账号与身份")
 
+        if (!connected && !pending) {
+            Text("选择登录方式", style = MaterialTheme.typography.titleMedium)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val wide = maxWidth >= 600.dp
+                if (wide) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AuthMethodTile(
+                            "设备码登录",
+                            "复制一次性代码，在浏览器确认",
+                            Icons.Outlined.PhoneAndroid,
+                            enabled = !loginBusy,
+                            emphasized = true,
+                            onClick = vm::startDeviceLogin,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AuthMethodTile(
+                            "浏览器登录",
+                            "通过浏览器完成 ChatGPT 授权",
+                            Icons.Outlined.OpenInBrowser,
+                            enabled = !loginBusy,
+                            emphasized = false,
+                            onClick = vm::startLogin,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        AuthMethodTile(
+                            "设备码登录",
+                            "复制一次性代码，在浏览器确认",
+                            Icons.Outlined.PhoneAndroid,
+                            enabled = !loginBusy,
+                            emphasized = true,
+                            onClick = vm::startDeviceLogin,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        AuthMethodTile(
+                            "浏览器登录",
+                            "通过浏览器完成 ChatGPT 授权",
+                            Icons.Outlined.OpenInBrowser,
+                            enabled = !loginBusy,
+                            emphasized = false,
+                            onClick = vm::startLogin,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+
+
         MaterialPanel(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -135,55 +186,6 @@ fun AccountPage(vm: CodexViewModel) {
             }
         }
 
-        if (!connected && !pending) {
-            Text("选择登录方式", style = MaterialTheme.typography.titleMedium)
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val wide = maxWidth >= 600.dp
-                if (wide) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AuthMethodTile(
-                            "设备码登录",
-                            "复制一次性代码，在浏览器确认",
-                            Icons.Outlined.PhoneAndroid,
-                            enabled = !loginBusy,
-                            emphasized = true,
-                            onClick = vm::startDeviceLogin,
-                            modifier = Modifier.weight(1f)
-                        )
-                        AuthMethodTile(
-                            "浏览器登录",
-                            "通过浏览器完成 ChatGPT 授权",
-                            Icons.Outlined.OpenInBrowser,
-                            enabled = !loginBusy,
-                            emphasized = false,
-                            onClick = vm::startLogin,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AuthMethodTile(
-                            "设备码登录",
-                            "复制一次性代码，在浏览器确认",
-                            Icons.Outlined.PhoneAndroid,
-                            enabled = !loginBusy,
-                            emphasized = true,
-                            onClick = vm::startDeviceLogin,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        AuthMethodTile(
-                            "浏览器登录",
-                            "通过浏览器完成 ChatGPT 授权",
-                            Icons.Outlined.OpenInBrowser,
-                            enabled = !loginBusy,
-                            emphasized = false,
-                            onClick = vm::startLogin,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-        }
 
         errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
 
