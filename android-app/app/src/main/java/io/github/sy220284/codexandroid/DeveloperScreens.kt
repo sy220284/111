@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -158,6 +159,7 @@ fun WorkspacePage(vm: CodexViewModel) {
 
 @Composable
 private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     val scope = rememberCoroutineScope()
     var content by remember(file.path) { mutableStateOf(if (file.length() <= 1_000_000L) file.readText() else "") }
     var message by remember { mutableStateOf("") }
