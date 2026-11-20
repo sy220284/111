@@ -125,6 +125,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun newThread() {
+        if (running.value) {
+            errors.value = errors.value + ("conversation" to "请先中断或完成当前任务，再新建会话")
+            return
+        }
         activeThread.value = null
         activeTurn.value = null
         timeline.value = emptyList()
@@ -133,9 +137,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendPrompt(text: String) {
-        if (text.isBlank()) return
+        if (text.isBlank() || running.value) return
+        running.value = true
         viewModelScope.launch {
-            running.value = true
             timeline.value = timeline.value + TimelineItem("user-" + System.nanoTime(), "user", text)
             try {
                 var id = activeThread.value
