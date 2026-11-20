@@ -75,23 +75,23 @@ jobs:
           echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE" >> "$GITHUB_ENV"
           echo "CODEX_RELEASE_PASSWORD=ci-only-password" >> "$GITHUB_ENV"
           echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
-      - name: 真实编译并验证两个签名 Release APK
+      - name: 真实编译并验证 ARM64 手机签名 Release APK
         shell: bash
         run: |
           set -euo pipefail
           gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
+            -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
             -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
-          for ABI in arm64-v8a x86_64; do
-            APK="android-app/app/build/outputs/apk/release/app-$ABI-release.apk"
-            test -s "$APK"
-            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
-            BADGE="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | sed -n '1p')"
-            [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
-            [[ "$BADGE" == *"versionCode='999'"* ]]
-            [[ "$BADGE" == *"versionName='0.1.0-111.999'"* ]]
-          done
+          APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
+          test -s "$APK"
+          test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          BADGE="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | sed -n '1p')"
+          [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
+          [[ "$BADGE" == *"versionCode='999'"* ]]
+          [[ "$BADGE" == *"versionName='0.1.0-111.999'"* ]]
 
   check-release:
     name: 识别待发布源码与版本
@@ -172,8 +172,7 @@ jobs:
             if [ "$VERSION" != "$EXPECTED" ]; then continue; fi
             ASSETS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
               --jq '.artifacts[] | select(.expired == false) | .name')"
-            if printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-arm64-v8a' \
-              && printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-x86_64'; then
+            if printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-arm64-v8a'; then
               SELECTED="$RUN_ID"
               break
             fi
@@ -243,7 +242,7 @@ jobs:
           echo "准备发布 $RELEASE_SHA -> v$VERSION"
 
   release:
-    name: 签名、验证并发布双架构 APK
+    name: 签名、验证并发布 ARM64 手机 APK
     needs: check-release
     if: needs.check-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
@@ -310,39 +309,32 @@ jobs:
           run-id: ${{ needs.check-release.outputs.native_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
-      - uses: actions/download-artifact@v4
-        with:
-          name: codex-android-native-x86_64
-          run-id: ${{ needs.check-release.outputs.native_run_id }}
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/native-x86
 
-      - name: 验证 16 KB 对齐并组装双架构内核
+      - name: 验证 16 KB 对齐并组装 ARM64 手机内核
         shell: bash
         run: |
           set -euo pipefail
+          ABI=arm64-v8a
+          ARCH=AArch64
+          SRC_DIR="$RUNNER_TEMP/native-arm64"
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
           test -x "$STRIP"
-          for ABI in arm64-v8a x86_64; do
-            if [ "$ABI" = arm64-v8a ]; then SRC_DIR="$RUNNER_TEMP/native-arm64"; ARCH=AArch64;
-            else SRC_DIR="$RUNNER_TEMP/native-x86"; ARCH=X86-64; fi
-            mapfile -t FOUND < <(find "$SRC_DIR" -type f -name codex-app-server)
-            test "${#FOUND[@]}" -eq 1
-            SRC="${FOUND[0]}"
-            readelf -h "$SRC" | grep -Fq "$ARCH"
-            readelf -l "$SRC" | grep -Fq '/system/bin/linker64'
-            mapfile -t ALIGNS < <(readelf -Wl "$SRC" | awk '$1=="LOAD" {print $NF}')
-            test "${#ALIGNS[@]}" -gt 0
-            for ALIGN in "${ALIGNS[@]}"; do
-              if (( ALIGN < 16384 )); then echo "::error::$ABI 原生段对齐不足 16 KB"; exit 1; fi
-            done
-            TARGET="android-app/app/src/main/jniLibs/$ABI"
-            mkdir -p "$TARGET"
-            cp "$SRC" "$TARGET/libcodex_server.so"
-            chmod 755 "$TARGET/libcodex_server.so"
-            "$STRIP" --strip-all "$TARGET/libcodex_server.so"
-            readelf -h "$TARGET/libcodex_server.so" | grep -Fq "$ARCH"
+          mapfile -t FOUND < <(find "$SRC_DIR" -type f -name codex-app-server)
+          test "${#FOUND[@]}" -eq 1
+          SRC="${FOUND[0]}"
+          readelf -h "$SRC" | grep -Fq "$ARCH"
+          readelf -l "$SRC" | grep -Fq '/system/bin/linker64'
+          mapfile -t ALIGNS < <(readelf -Wl "$SRC" | awk '$1=="LOAD" {print $NF}')
+          test "${#ALIGNS[@]}" -gt 0
+          for ALIGN in "${ALIGNS[@]}"; do
+            if (( ALIGN < 16384 )); then echo "::error::$ABI 原生段对齐不足 16 KB"; exit 1; fi
           done
+          TARGET="android-app/app/src/main/jniLibs/$ABI"
+          mkdir -p "$TARGET"
+          cp "$SRC" "$TARGET/libcodex_server.so"
+          chmod 755 "$TARGET/libcodex_server.so"
+          "$STRIP" --strip-all "$TARGET/libcodex_server.so"
+          readelf -h "$TARGET/libcodex_server.so" | grep -Fq "$ARCH"
 
       - name: 生成与已合并 PR 一致的中文更新说明
         shell: bash
@@ -362,6 +354,7 @@ jobs:
           set -euo pipefail
           gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
+            -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \
             -PcodexReleaseVersionCode="${{ needs.check-release.outputs.version_code }}" \
             --no-daemon --stacktrace
@@ -375,27 +368,22 @@ jobs:
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           VERSION="${{ needs.check-release.outputs.version }}"
           CODE="${{ needs.check-release.outputs.version_code }}"
-          EXPECTED_CERT=""
-          for ABI in arm64-v8a x86_64; do
-            APK="$DIR/app-$ABI-release.apk"
-            test -s "$APK"
-            unzip -tqq "$APK"
-            BADGE="$("$AAPT" dump badging "$APK" | sed -n '1p')"
-            [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
-            [[ "$BADGE" == *"versionCode='$CODE'"* ]]
-            [[ "$BADGE" == *"versionName='$VERSION'"* ]]
-            "$APKSIGNER" verify --min-sdk-version 29 --verbose "$APK"
-            CERT="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
-            test -n "$CERT"
-            if [ -z "$EXPECTED_CERT" ]; then EXPECTED_CERT="$CERT";
-            else test "$EXPECTED_CERT" = "$CERT"; fi
-            unzip -Z1 "$APK" | grep -Fxq "lib/$ABI/libcodex_server.so"
-            unzip -Z1 "$APK" | grep -Fxq 'classes.dex'
-            if [ "$ABI" = arm64-v8a ]; then OTHER=x86_64; else OTHER=arm64-v8a; fi
-            if unzip -Z1 "$APK" | grep -Fxq "lib/$OTHER/libcodex_server.so"; then
-              echo "::error::$ABI APK 混入另一架构的内核"; exit 1
-            fi
-          done
+          APK="$DIR/app-arm64-v8a-release.apk"
+          test -s "$APK"
+          test ! -e "$DIR/app-x86_64-release.apk"
+          unzip -tqq "$APK"
+          BADGE="$("$AAPT" dump badging "$APK" | sed -n '1p')"
+          [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
+          [[ "$BADGE" == *"versionCode='$CODE'"* ]]
+          [[ "$BADGE" == *"versionName='$VERSION'"* ]]
+          "$APKSIGNER" verify --min-sdk-version 29 --verbose "$APK"
+          CERT="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          test -n "$CERT"
+          unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_server.so'
+          unzip -Z1 "$APK" | grep -Fxq 'classes.dex'
+          if unzip -Z1 "$APK" | grep -Fxq 'lib/x86_64/libcodex_server.so'; then
+            echo "::error::手机 APK 混入模拟器内核"; exit 1
+          fi
 
       - name: 制作校验清单及可回放增量更新包
         shell: bash
