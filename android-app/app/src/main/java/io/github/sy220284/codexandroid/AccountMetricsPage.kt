@@ -23,7 +23,7 @@ import java.util.Locale
  * server; no usage amount or eligibility is inferred when a field is missing.
  */
 @Composable
-fun AccountMetricsPage(id: String, vm: CodexViewModel) {
+fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -58,7 +58,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel) {
         if (result == null && id !in loading && id !in errors) {
             CodexEmptyState("等待账号数据", "请检查账号是否已经登录，并刷新当前页面。",
                 actionLabel = "前往账号登录",
-                onAction = { vm.refresh("account", "account/read") })
+                onAction = { navigate("account") })
         }
         if (usage && result != null) {
             val summary = result.optJSONObject("summary")
