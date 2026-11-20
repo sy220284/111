@@ -125,8 +125,13 @@ class UiNavigationInstrumentedTest {
 
     @Test
     fun allTwentyEightSidebarDestinationsOpenWithoutCrashing() {
-        // Exercise every real sidebar entry on a 320dp Android device, not just
-        // a small hand-picked subset. The header is bound to the active route.
+        // CI verifies every sidebar destination at 360, 393 and 411dp phone widths.
+        // The header must match the active route, and the emulator must use an approved width.
+        val widthDp = rule.activity.resources.configuration.screenWidthDp
+        org.junit.Assert.assertTrue(
+            "UI 验收宽度应为 360/393/411dp，实际为 ${widthDp}dp",
+            widthDp in setOf(360, 393, 411)
+        )
         rule.onNodeWithTag("screen-title").assertTextEquals("总览")
         for (destination in pages.filter { it.id != "home" }) {
             rule.onNodeWithContentDescription("打开侧边导航").performClick()
