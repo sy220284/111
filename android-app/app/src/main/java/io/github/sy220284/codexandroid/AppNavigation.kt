@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -75,6 +77,8 @@ fun CodexShell(vm: CodexViewModel) {
     var selected by rememberSaveable { mutableStateOf("home") }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
@@ -90,6 +94,9 @@ fun CodexShell(vm: CodexViewModel) {
                 "diagnostics" -> vm.refresh("diagnostics", "server/diagnostics")
             }
         }
+        // The drawer search field must release IME space before the destination renders.
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
         selected = destination
         scope.launch { drawer.close() }
     }

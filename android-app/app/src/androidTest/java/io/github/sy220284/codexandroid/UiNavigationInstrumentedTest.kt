@@ -10,6 +10,7 @@ import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
@@ -40,7 +41,7 @@ class UiNavigationInstrumentedTest {
         rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
         rule.onNodeWithText("设备码登录").assertExists()
         rule.onNodeWithText("浏览器登录").assertExists()
-        rule.onNodeWithText("刷新账号状态").assertExists()
+        rule.onNodeWithText("刷新账号状态").assertIsDisplayed()
         capture("account-android35.png")
     }
 
