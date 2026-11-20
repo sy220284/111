@@ -38,11 +38,11 @@ GitHub Actions 构建结果为最终记录；源码中存在页面或协议声�
 
 | 验证项目 | 证据 | 结果 |
 |---|---|---|
-| Kotlin 编译、官方协议检查、单元测试及 Lint | [UI 独立验收 #44739715772](https://github.com/sy220284/111/actions/runs/44739715772) | 通过 |
-| Android UI 交互（6 项仪器测试） | 同一工作流，`ui-instrument-result.log` 含 `OK (6 tests)` | 通过 |
+| Kotlin 编译、官方协议检查、单元测试及 Lint | [UI 独立验收 #44741331155](https://github.com/sy220284/111/actions/runs/44741331155) | 通过 |
+| Android UI 交互（7 项仪器测试） | 同一工作流，`ui-instrument-result.log` 含 `OK (7 tests)` | 通过 |
 | 七张真实设备截图 | 同一工作流，`codex-android-ui-device-evidence` 产物 | 全部存在并人工复查 |
-| 完整 APK 构建与 Codex 内核测试 | [完整构建 #44738322351](https://github.com/sy220284/111/actions/runs/44738322351) | 通过 |
-| 侧栏、协作模式、外观、终端确认 | 设备截图和界面测试 | 通过 |
+| 完整 APK 构建与 Codex 内核测试 | [完整构建 #44741331136](https://github.com/sy220284/111/actions/runs/44741331136) | 通过 |
+| 侧栏、协作模式、外观、终端确认、停止与发送按钮 | 设备截图和界面测试 | 通过 |
 | 底部执行依据弹层 | 原始信息展示、复制、关闭的设备测试与截图 | 通过 |
 | 主分支新改动与 UI 分支兼容 | 已合并主分支修复，并保留 ABI/连接生命周期相关调整 | 无冲突，待 PR 合并 |
 
