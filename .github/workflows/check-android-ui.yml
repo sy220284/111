@@ -11,8 +11,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: codex-android-ui-check
-  cancel-in-progress: true
+  group: codex-android-ui-check-${{ github.ref_name }}
+  # Verify each branch independently and retain complete device evidence.
+  cancel-in-progress: false
 
 jobs:
   verify-ui:

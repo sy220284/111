@@ -81,6 +81,7 @@ class CodexConnection(private val appContext: Context) {
                         // Drain stderr to avoid a blocked child; keep diagnostics only in local memory.
                         while (true) {
                             val line = stream.readLine() ?: break
+                            if (process !== child) break
                             recentStderr.value = (recentStderr.value + line.take(350))
                                 .takeLast(16)
                         }

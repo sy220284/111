@@ -33,6 +33,16 @@ android {
             keepDebugSymbols += "**/libcodex_server.so"
         }
     }
+    // Enabled only in the native APK pipeline. Standalone UI verification keeps
+    // its compact APK and does not require any of the runtime native binaries.
+    splits {
+        abi {
+            isEnable = providers.gradleProperty("codexSplitAbi").orNull == "true"
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
+    }
 }
 
 dependencies {
