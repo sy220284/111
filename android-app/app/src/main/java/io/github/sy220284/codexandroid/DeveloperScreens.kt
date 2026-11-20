@@ -338,38 +338,7 @@ private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
 
 @Composable
 fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val diff by vm.latestDiff.collectAsState()
-    val active by vm.activeThread.collectAsState()
-    val lines = remember(diff) { diff.lines() }
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { SectionIntro("PATCH / REVIEW", "代码差异", "绿色新增 · 红色删除 · 中性上下文") }
-            IconButton(onClick = { navigate("review") }) { Icon(Icons.Outlined.FactCheck, "发起代码审查") }
-        }
-        if (active == null || diff.isBlank()) {
-            ScreenColumn {
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Text("暂无可展示的代码差异", style = MaterialTheme.typography.titleMedium)
-                    Text("运行修改文件的任务后，通过 turn/diff/updated 实时呈现差异。", color = Ink.muted)
-                    TextButton(onClick = { navigate("chat") }) { Text("返回任务") }
-                }
-            }
-        } else {
-            LazyColumn(contentPadding = PaddingValues(12.dp)) {
-                items(lines) { line ->
-                    val tint = when {
-                        line.startsWith("+") && !line.startsWith("+++") -> Ink.jade
-                        line.startsWith("-") && !line.startsWith("---") -> Ink.red
-                        line.startsWith("@@") -> Ink.copper
-                        else -> Ink.muted
-                    }
-                    Text(line.ifEmpty { " " }, color = tint, fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.fillMaxWidth().background(Ink.recessed).padding(horizontal = 12.dp, vertical = 2.dp))
-                }
-            }
-        }
-    }
+    DiffReaderPage(vm, navigate)
 }
 
 @Composable
