@@ -13,9 +13,9 @@
 | 工作台主任务 | 首页统计卡片占据大半屏，任务路径分散 | 首页直接给新任务、文件、Diff 与真实内核/审批提示 | `Screens.kt` HomePage |
 | 信息架构 | 28 个侧栏入口同时展开，操作密度高 | 工作台/开发工具/Codex生态/设置分组折叠，搜索即显示匹配项、提供常用入口 | `AppNavigation.kt` Sidebar |
 | 真实数据状态 | 加载、成功、错误、无数据表达分散 | `CodexNotice`、`CodexEmptyState`、`StatusPill` 形成一致反馈；保留 VM 数据源 | `InteractionSystem.kt` |
-| AI 执行可信度 | 工具步骤仅见类型和短文本，无法追溯执行来源 | `TimelineItem.evidence` 保存原始服务端步骤；逐条可展开验证 JSON，实时状态与类型图标区分 | `CodexViewModel.kt`、`Screens.kt` |
-| 三阶段任务信息 | 队列、运行、历史分散，任务中无法快速确认 | 会话顶部提供待办队列/历史任务/改动记录入口，运行中与待审批提供驻留提示和中断操作 | `Screens.kt` ConversationPage |
-| 阅读长任务 | 每次出现新步骤都强制自动滚到底 | 用户仍在底部时才跟随新内容，阅读旧步骤时保留位置 | `Screens.kt` ConversationPage |
+| AI 执行可信度 | 工具步骤仅见类型和短文本，无法追溯执行来源 | `TimelineItem.evidence` 保存原始服务端步骤；手机端点击步骤打开独立底部弹层，可查看和复制未经改写的原始 JSON，状态与类型图标区分 | `CodexViewModel.kt`、`Screens.kt` |
+| 三阶段任务信息 | 队列、运行、历史分散，任务中无法快速确认 | 会话顶部提供待办队列/历史任务/改动记录入口，运行中与待审批提供驻留提示；停止按钮始终占据底部拇指触控区域，任务运行时启用 | `Screens.kt` ConversationPage |
+| 阅读长任务 | 每次出现新步骤都强制自动滚到底 | 用户仍在底部时才跟随新内容，阅读旧步骤时保留位置并显示可点击的“新步骤”计数 | `Screens.kt` ConversationPage |
 | 模型与模式选择 | 窄下拉菜单不便手机操作 | 使用可滚动、明确选中态的底部选择弹层 | `InteractionSystem.kt` CodexChoiceSheet |
 | 触摸反馈与动效 | 页面转场有单一渐隐，其他组件缺少一致规则 | 110/210/240ms 分层；按压缩放、状态展开、分组切换；简化动效统一归零 | `CodexMotion`、`CodexActionTile`、`CodexReveal` |
 | 危险操作 | 不同页面各自编写确认弹窗，正文和主次按钮不一致 | 统一标题/风险说明/原始详情/确认与取消，重点动作采用危险语义色 | `CodexConfirmDialog`，全部业务入口 |
@@ -37,10 +37,11 @@
 | --- | --- | --- | --- |
 | `CodexChoiceSheet` | 点击模型或协作方式 | 标题、说明、至少 58dp 高的选项和选中状态 | 点击选项写入真实 VM 状态；取消由原生遮罩/返回键与拖拽处理 |
 | `CodexConfirmDialog` | 命令、权限、删除、退出、安装、配置写入等 | 作用范围、确认对象、必要时展示 JSON/命令全文 | 取消不发送 RPC；确认才发送，数据刷新由原流程负责 |
-| `CodexNotice` | 引擎断开、待审批、运行状态 | 语义图标、具体事件与下一步操作 | 点击查看/连接/停止执行真实动作 |
-| `CodexReveal` | 展开详情/执行证据/配置表单 | 随内容高度平滑展开或关闭 | 跟随当前用户动作；减弱动效时即时完成 |
+| `CodexNotice` | 引擎断开、待审批、运行状态 | 语义图标、具体事件与下一步操作 | 点击查看审批或连接；停止操作固定在会话底部 |
+| `CodexReveal` | 展开设置详情/配置表单/提示 | 随内容高度平滑展开或关闭 | 跟随当前用户动作；减弱动效时即时完成 |
 | `CodexActionTile` | 首页高频操作、外观预览 | 标题、说明、方向提示与按压反馈 | 点击后导航或更新配置，按压松手复位 |
-| `TimelineStepCard` | 协议事件进入任务流 | 事件类型、真实文本、完成或异常状态、可展开原始执行记录 | 只有带 `evidence` 的事件才出现展开入口 |
+| `TimelineStepCard` | 协议事件进入任务流 | 事件类型、真实文本、完成或异常状态、执行依据入口 | 只有带 `evidence` 的事件才展示详情按钮 |
+| `CodexEvidenceSheet` | 点击步骤执行依据 | 原始 JSON/命令详情、滚动阅读与复制 | Material 3 底部弹层；关闭恢复当前步骤与阅读位置 |
 
 各类弹层均使用 Material 3 原生语义、返回键和系统 Insets；嵌入式详情用 Compose 状态控制。信息底层的请求/权限方案未被视觉层替换。
 
@@ -54,11 +55,11 @@
 
 ## 五、实际验收证据与边界
 
-- Android 代码内有 UI instrumentation 检查：侧栏导航与截图、协作模式选择弹层、侧栏搜索及外观入口、终端执行确认。
+- Android 代码内有 UI instrumentation 检查：侧栏导航、协作模式选择弹层、侧栏搜索与外观页、终端执行确认与取消、系统返回键，以及执行依据弹层复制与关闭。
 - `.github/workflows/check-android-ui.yml` 会在提交后执行 Kotlin 编译、官方协议检查、单元测试、Lint、APK 编译和 Android 35 模拟器设备 UI 测试，并保存截图。
 - 以对应分支最新 GitHub Actions 记录为准，失败应在该分支修复后重跑。
 - 独立 UI 编译成功不等于 Android 原生 Codex 核心端到端执行成功；核心 ABI、真实账户登录、实际文件权限和低端机性能仍以端到端验收矩阵判断。
 
 ## 六、复用规则
 
-后续新增页面只需复用 `CodexTheme / MaterialPanel / SectionIntro / CodexNotice / CodexEmptyState / CodexChoiceSheet / CodexConfirmDialog / CodexReveal / CodexActionTile` 及 `CodexMotion`。业务页面只提供准确的操作对象、风险和回调，不重复声明阴影、颜色、弹窗结构或动效时长。所有操作保留真实数据源与错误路径。
+后续新增页面只需复用 `CodexTheme / MaterialPanel / SectionIntro / CodexNotice / CodexEmptyState / CodexChoiceSheet / CodexEvidenceSheet / CodexConfirmDialog / CodexReveal / CodexActionTile` 及 `CodexMotion`。业务页面只提供准确的操作对象、风险和回调，不重复声明阴影、颜色、弹窗结构或动效时长。所有操作保留真实数据源与错误路径。
