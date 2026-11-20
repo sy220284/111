@@ -29,6 +29,9 @@ object WorkspaceFileActions {
         require(normalized.isNotEmpty() && normalized != "." && normalized != ".." &&
             !normalized.contains('/') && !normalized.contains('\\') &&
             !normalized.contains('\u0000')) { "文件名只能包含合法的单层名称" }
+        require(!normalized.startsWith(".codex-import-")) {
+            "该前缀为工作区导入缓存保留名称"
+        }
         val base = root.canonicalFile
         val parent = folder.canonicalFile
         require(parent == base || parent.path.startsWith(base.path + File.separator)) {
