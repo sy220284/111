@@ -80,15 +80,17 @@ fun CodexShell(vm: CodexViewModel) {
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val move: (String) -> Unit = { destination ->
-        selected = destination
         if (page.id != destination) {
-            pages.firstOrNull { it.id == destination }?.rpc?.let { method ->
-                // Read-only pages refresh on entry; thread-specific calls are handled by their screens.
-                if (destination !in setOf("goals", "queue", "environments", "review", "search")) {
-                    vm.refresh(destination, method)
-                }
+            // Each specialized screen owns its initial read and refresh lifecycle.
+            // Only these three pages intentionally delegate an entry refresh to the shell.
+            when (destination) {
+                "account" -> vm.refresh("account", "account/read")
+                "config" -> vm.refresh("config", "config/read",
+                    org.json.JSONObject().put("includeLayers", true))
+                "diagnostics" -> vm.refresh("diagnostics", "server/diagnostics")
             }
         }
+        selected = destination
         scope.launch { drawer.close() }
     }
 
