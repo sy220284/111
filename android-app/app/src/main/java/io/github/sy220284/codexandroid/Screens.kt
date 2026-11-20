@@ -235,18 +235,28 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModes by remember { mutableStateOf(false) }
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     var followTail by remember { mutableStateOf(true) }
+    var lastKnownStepCount by remember { mutableIntStateOf(0) }
+    var unreadSteps by remember { mutableIntStateOf(0) }
     LaunchedEffect(scroll) {
         snapshotFlow {
             val total = scroll.layoutInfo.totalItemsCount
             val tail = scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
             total <= 1 || tail >= total - 2
-        }.collect { followTail = it }
+        }.collect { atBottom ->
+            followTail = atBottom
+            if (atBottom) unreadSteps = 0
+        }
     }
     LaunchedEffect(items.size) {
+        val added = (items.size - lastKnownStepCount).coerceAtLeast(0)
+        lastKnownStepCount = items.size
         if (items.isNotEmpty() && followTail) {
             if (reducedMotion) scroll.scrollToItem(items.size - 1)
             else scroll.animateScrollToItem(items.size - 1)
+        } else if (!followTail) {
+            unreadSteps += added
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
@@ -291,9 +301,8 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 actionLabel = "查看", onAction = { navigate("approvals") })
         }
         CodexReveal(visible = busy) {
-            CodexNotice("Codex 正在执行任务，过程将持续更新",
-                NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                actionLabel = "中断", onAction = { vm.interrupt() })
+            CodexNotice("任务执行中 · 已显示 ${items.size} 条步骤记录",
+                NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (items.isEmpty()) {
@@ -320,7 +329,29 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(items, key = { it.id }) { item ->
-                    TimelineStepCard(item, reducedMotion)
+                    TimelineStepCard(item)
+                }
+            }
+            if (unreadSteps > 0) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(bottom = 10.dp)
+                        .clickable {
+                            scope.launch {
+                                if (items.isNotEmpty()) {
+                                    if (reducedMotion) scroll.scrollToItem(items.lastIndex)
+                                    else scroll.animateScrollToItem(items.lastIndex)
+                                }
+                                unreadSteps = 0
+                            }
+                        },
+                    shape = RoundedCornerShape(99.dp),
+                    color = Ink.copper,
+                    shadowElevation = 4.dp
+                ) {
+                    Text("↓ ${unreadSteps} 条新步骤",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        color = Ink.canvas, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -361,19 +392,12 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
 
                 }
-                IconButton(onClick = { if (busy) vm.interrupt() else navigate("diagnostics") }) {
+                IconButton(onClick = { navigate("diagnostics") }) {
                     Icon(
-                        when {
-                            busy -> Icons.Outlined.StopCircle
-                            status == EngineStatus.Connected -> Icons.Outlined.CheckCircle
-                            else -> Icons.Outlined.ErrorOutline
-                        },
-                        contentDescription = when {
-                            busy -> "停止运行中的任务"
-                            status == EngineStatus.Connected -> "内核已连接，查看诊断"
-                            else -> "内核未连接，查看诊断"
-                        },
-                        tint = if (busy || status != EngineStatus.Connected) Ink.red else Ink.jade
+                        if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle
+                        else Icons.Outlined.ErrorOutline,
+                        contentDescription = "查看内核运行诊断",
+                        tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
                     )
                 }
             }
@@ -388,12 +412,27 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
             )
-            Button(
-                onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
-                enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Outlined.ArrowUpward, null); Spacer(Modifier.width(8.dp)); Text("发送给 Codex")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { vm.interrupt() },
+                    enabled = busy,
+                    modifier = Modifier.weight(.38f).heightIn(min = 50.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
+                    contentPadding = PaddingValues(horizontal = 9.dp)
+                ) {
+                    Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("停止")
+                }
+                Button(
+                    onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
+                    enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
+                    modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
+                ) {
+                    Icon(Icons.Outlined.ArrowUpward, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text("发送给 Codex", maxLines = 1)
+                }
             }
         }
     }
@@ -431,7 +470,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 /** Every tool step retains the source payload for verification while keeping the chat readable. */
 @Composable
-private fun TimelineStepCard(item: TimelineItem, reducedMotion: Boolean) {
+private fun TimelineStepCard(item: TimelineItem) {
     val user = item.kind == "user"
     val failure = item.kind == "error" ||
         item.status.contains("failed", ignoreCase = true)
@@ -463,7 +502,7 @@ private fun TimelineStepCard(item: TimelineItem, reducedMotion: Boolean) {
         "error" -> Icons.Outlined.ErrorOutline
         else -> Icons.Outlined.AutoAwesome
     }
-    var expanded by rememberSaveable(item.id) { mutableStateOf(false) }
+    var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(17.dp),
@@ -502,40 +541,24 @@ private fun TimelineStepCard(item: TimelineItem, reducedMotion: Boolean) {
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
                 if (item.evidence.isNotBlank()) {
-                    TextButton(onClick = { expanded = !expanded },
+                    TextButton(onClick = { evidenceOpen = true },
                         modifier = Modifier.heightIn(min = 46.dp)) {
-                        Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                            null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (expanded) "收起执行依据" else "查看执行依据")
-                    }
-                    AnimatedVisibility(
-                        visible = expanded,
-                        enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))) +
-                            fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))),
-                        exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))) +
-                            fadeOut(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion)))
-                    ) {
-                        Surface(
-                            color = Ink.recessed, shape = RoundedCornerShape(11.dp),
-                            border = BorderStroke(1.dp, Ink.border)
-                        ) {
-                            SelectionContainer {
-                                Text(item.evidence,
-                                    modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp)
-                                        .verticalScroll(rememberScrollState()).padding(11.dp),
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Ink.muted)
-                            }
-                        }
+                        Icon(Icons.Outlined.OpenInNew, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("查看执行依据")
                     }
                 }
             }
         }
     }
+    if (evidenceOpen) CodexEvidenceSheet(
+        title = title + " · 执行依据",
+        payload = item.evidence,
+        onDismiss = { evidenceOpen = false }
+    )
 }
 
+/** On phones, evidence lives in a bottom sheet instead of squeezing the chat timeline. */
 /** Different upstream responses use data, threads, or a module-specific array. */
 fun records(response: JSONObject?): List<JSONObject> {
     if (response == null) return emptyList()
