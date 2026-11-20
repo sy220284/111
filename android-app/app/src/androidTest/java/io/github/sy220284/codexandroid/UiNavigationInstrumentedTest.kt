@@ -67,6 +67,9 @@ class UiNavigationInstrumentedTest {
     @Test
     fun diffReaderShowsFileFirstSummaryAndReviewAction() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        // The sidebar intentionally expands only one group. Filter the target
+        // before selecting it, as an actual user would.
+        rule.onNodeWithTag("navigation-search").performTextInput("代码差异")
         rule.onNodeWithTag("nav-diff").performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
