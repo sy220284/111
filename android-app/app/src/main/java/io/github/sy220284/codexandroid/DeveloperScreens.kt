@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -140,11 +141,12 @@ fun WorkspacePage(vm: CodexViewModel) {
                         leadingIcon = { Icon(Icons.Outlined.Description, null) })
                     FilterChip(selected = createKind == "folder",
                         onClick = { createKind = "folder" }, label = { Text("文件夹") },
+                        modifier = Modifier.testTag("workspace-folder-mode"),
                         leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) })
                 }
                 OutlinedTextField(createName, { createName = it },
                     label = { Text(if (createKind == "file") "文件名（如 README.md）" else "文件夹名称") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    modifier = Modifier.fillMaxWidth().testTag("workspace-new-name"), singleLine = true)
                 Button(onClick = {
                     try {
                         val created = if (createKind == "file")
@@ -157,7 +159,8 @@ fun WorkspacePage(vm: CodexViewModel) {
                         notice = "创建失败：" + (failure.message ?: "未知错误")
                     }
                 }, enabled = createName.isNotBlank() && !actionBusy,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .testTag("workspace-create")) {
                     Icon(Icons.Outlined.Add, null)
                     Spacer(Modifier.width(7.dp))
                     Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
@@ -204,7 +207,8 @@ fun WorkspacePage(vm: CodexViewModel) {
                     }
                     Box {
                         IconButton(onClick = { optionsOpen = true },
-                            enabled = !actionBusy) {
+                            enabled = !actionBusy,
+                            modifier = Modifier.testTag("workspace-menu-" + file.name)) {
                             Icon(Icons.Outlined.MoreVert, "管理 " + file.name)
                         }
                         DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
