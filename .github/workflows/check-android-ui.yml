@@ -104,21 +104,15 @@ jobs:
             adb exec-out screencap -p > ui-screenshots/home-android35.png
             adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
             grep -Fq 'OK (' ui-instrument-result.log
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/sidebar-android35.png ui-screenshots/sidebar-android35.png
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/chat-android35.png ui-screenshots/chat-android35.png
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/account-android35.png ui-screenshots/account-android35.png
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/appearance-android35.png ui-screenshots/appearance-android35.png
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/mode-sheet-android35.png ui-screenshots/mode-sheet-android35.png
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/terminal-confirm-android35.png ui-screenshots/terminal-confirm-android35.png
-            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/evidence-sheet-android35.png ui-screenshots/evidence-sheet-android35.png
+            # All designed pages have real 320x640 simulator screenshots.
+            # A missing screenshot fails the job instead of being reported as verified.
+            for SCREEN in sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet \
+                thread-library account-usage account-limits workspace-files; do
+              adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" \
+                "ui-screenshots/${SCREEN}-android35.png"
+              test -s "ui-screenshots/${SCREEN}-android35.png"
+            done
             test -s ui-screenshots/home-android35.png
-            test -s ui-screenshots/sidebar-android35.png
-            test -s ui-screenshots/chat-android35.png
-            test -s ui-screenshots/account-android35.png
-            test -s ui-screenshots/appearance-android35.png
-            test -s ui-screenshots/mode-sheet-android35.png
-            test -s ui-screenshots/terminal-confirm-android35.png
-            test -s ui-screenshots/evidence-sheet-android35.png
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
