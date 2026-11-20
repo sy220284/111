@@ -102,7 +102,10 @@ jobs:
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
             adb exec-out screencap -p > ui-screenshots/home-android35.png
+            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/sidebar-android35.png ui-screenshots/sidebar-android35.png
             test -s ui-screenshots/home-android35.png
+            test -s ui-screenshots/sidebar-android35.png
+            file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
         uses: actions/upload-artifact@v4
