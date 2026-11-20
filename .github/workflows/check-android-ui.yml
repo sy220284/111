@@ -123,15 +123,15 @@ jobs:
             adb shell wm density 160
             test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_dp }}x800"
             test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
-            # Capture the clean home screen before instrumented screenshots show Android's transient screenshot preview.
+            # The instrumentation test captures the home screen after a visible
+            # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
-            adb exec-out screencap -p > ui-screenshots/home-android35.png
             adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
             grep -Fq 'OK (' ui-instrument-result.log
-            # All designed pages have real 320x640 simulator screenshots.
-            # A missing screenshot fails the job instead of being reported as verified.
-            for SCREEN in sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
+            # All listed pages must have screenshots from the current tested screen width.
+            # Missing image evidence fails the job even if the navigation tests pass.
+            for SCREEN in home sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
             test -s ui-screenshots/home-android35.png
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
