@@ -33,6 +33,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val deviceLoginCode = MutableStateFlow("")
     val deviceLoginUrl = MutableStateFlow("")
     val activeLoginId = MutableStateFlow("")
+    val steerBusy = MutableStateFlow(false)
 
     init {
         viewModelScope.launch {
@@ -180,6 +181,39 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "发送失败"))
                 timeline.value = timeline.value + TimelineItem(
                     "failure-" + System.nanoTime(), "error", failure.message ?: "发送失败")
+            }
+        }
+    }
+
+    /**
+     * Capture the running turn and reserve ownership before launching so rapid
+     * repeated taps do not send the same instruction twice.
+     */
+    fun steerPrompt(text: String, afterAccepted: () -> Unit) {
+        if (steerBusy.value) return
+        val threadId = activeThread.value
+        val turnId = activeTurn.value
+        if (!running.value || threadId.isNullOrBlank() || turnId.isNullOrBlank()) {
+            errors.value = errors.value + ("steer" to "当前没有可补充指令的运行任务")
+            return
+        }
+        val prompt = text.trim()
+        if (prompt.isBlank()) return
+        steerBusy.value = true
+        viewModelScope.launch {
+            try {
+                bridge.request("turn/steer", TurnRequestContract.steer(threadId, turnId, prompt))
+                if (activeThread.value == threadId && activeTurn.value == turnId) {
+                    timeline.value = timeline.value + TimelineItem(
+                        "steer-" + System.nanoTime(), "user", "补充指令：" + prompt)
+                    afterAccepted()
+                }
+                errors.value = errors.value - "steer"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("steer" to
+                    (failure.message ?: "补充指令未被接受"))
+            } finally {
+                steerBusy.value = false
             }
         }
     }
