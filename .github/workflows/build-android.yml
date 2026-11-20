@@ -202,6 +202,11 @@ jobs:
           script: |
             adb install -r apks/device/app-x86_64-debug.apk
             adb install -r apks/test/app-debug-androidTest.apk
+            # Keep full native-core acceptance at the representative 393dp phone width.
+            adb shell wm size 393x800
+            adb shell wm density 160
+            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "393x800"
+            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
             adb shell am instrument -w -r io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee instrument-result.log
             grep -Fq 'OK (' instrument-result.log
       - name: 保存设备测试证据

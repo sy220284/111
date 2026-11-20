@@ -72,6 +72,10 @@
 
 `CodexTheme`：颜色、字阶、圆角。 `MaterialPanel`：全局材质。 `SectionIntro`：页面信息层级。 `StatusPill`：状态标签。 `Sidebar`：四组折叠、搜索与直达入口。 `CodexNotice`：带操作按钮的真实事件提示。 `CodexEmptyState`：首日无数据引导。 `CodexChoiceSheet`：手机端底部选择。 `CodexEvidenceSheet`：可复制原始步骤依据的详情弹层。 `CodexConfirmDialog`：统一风险确认。 `CodexReveal`：可减弱的内容展开。 `CodexActionTile`：带触摸状态的任务入口。 `TimelineStepCard`：可展开依据的步骤流。 `ConversationPage`：运行与历史上下文、模型选择、任务执行。 `ApprovalsPage`：服务端实际人工审批入口。
 
+## 手机屏宽验收范围
+
+Android 35 自动化 UI 验收重点覆盖 **360dp、393dp、411dp** 三档手机屏宽，逐档执行侧栏 28 个入口、账号页、对话、弹层、终端确认及截图检查；320dp 不再纳入 CI 验收矩阵。完整原生核心的设备验收使用 393dp，避免重复构建内核。模拟器统一设置 160dpi，使像素宽度与逻辑 dp 宽度一致，并在仪器测试中验证实际屏宽。更宽设备、横屏、字体放大与无障碍仍按独立适配要求验收。
+
 ## 完成标准
 
 大多数操作 1–3 步内可到达；每个需要服务端数据的页面具有加载、错误、空数据与成功的展示路径。安卓 CI 需要编译、Lint、协议契约检查、单元测试与模拟器交互测试。需真实测试：首页及侧栏截图、模式选择弹层、执行依据详情弹层、外观页面、搜索跳转、终端确认与取消、系统返回键。发布前补充多尺寸、系统字体放大、TalkBack、键盘避让和真实 Codex 核心的端到端测试；具体结果以 CI 和验收记录为准。
