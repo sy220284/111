@@ -40,7 +40,7 @@ private fun DetailToggle(value: JSONObject, label: String = "查看协议详情"
         Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
         Text(if (open) "收起详情" else label)
     }
-    AnimatedVisibility(open) {
+    CodexReveal(open) {
         Text(value.toString(2), color = Ink.muted,
             style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace)
     }
