@@ -9,6 +9,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -44,6 +46,22 @@ class CoreStartupInstrumentedTest {
                 assertEquals(EngineStatus.Connected, bridge.status.value)
                 val response = bridge.request("account/read")
                 assertNotNull(response)
+                val dir = File(app.filesDir, "projects").apply { mkdirs() }
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
             }
         } catch (failure: Exception) {
             throw AssertionError(
