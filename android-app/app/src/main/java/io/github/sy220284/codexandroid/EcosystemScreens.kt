@@ -215,6 +215,7 @@ fun PluginsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val marketplaces = data["plugins"]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
+    var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
     LaunchedEffect(Unit) { vm.refresh("plugins", "plugin/list") }
     ScreenColumn {
         SectionIntro("CODEX / MARKETPLACE", "插件", "浏览官方与本地插件市场。安装、卸载逐项确认。")
@@ -254,7 +255,12 @@ fun PluginsPage(vm: CodexViewModel) {
                                 enabled = item.optString("installPolicy") != "NOT_AVAILABLE") { Text("安装插件") }
                         }
                     }
-                    DetailToggle(item)
+                    TextButton(onClick = { selectedPlugin = market to item },
+                        modifier = Modifier.heightIn(min = 48.dp)) {
+                        Icon(Icons.Outlined.Info, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("查看插件详情")
+                    }
                 }
             }
         }
@@ -264,6 +270,10 @@ fun PluginsPage(vm: CodexViewModel) {
                 Text("重新获取")
             }
         }
+    }
+    selectedPlugin?.let { (market, item) ->
+        PluginDetailSheet(marketplace = market, entry = item, vm = vm,
+            onDismiss = { selectedPlugin = null })
     }
     action?.let { (market, item, install) ->
         CodexConfirmDialog(
