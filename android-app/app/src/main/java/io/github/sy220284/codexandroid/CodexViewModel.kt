@@ -42,6 +42,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             bridge.events.collect { receive(it) }
         }
+        viewModelScope.launch {
+            try {
+                LocalImageAttachments.cleanExpired(application.applicationContext)
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("attachments" to
+                    (failure.message ?: "附件缓存清理失败"))
+            }
+        }
         connect()
     }
 
