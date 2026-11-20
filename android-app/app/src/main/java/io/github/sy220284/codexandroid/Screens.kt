@@ -40,7 +40,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     when (id) {
         "home" -> HomePage(vm, navigate)
         "chat" -> ConversationPage(vm, navigate)
-        "threads" -> ThreadListPage(vm, navigate)
+        "threads" -> ThreadLibraryPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
         "terminal" -> TerminalPage(vm)
@@ -182,40 +182,6 @@ private fun ThreadRow(item: JSONObject, onClick: () -> Unit) {
             }
             Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
         }
-    }
-}
-
-@Composable
-private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val running by vm.running.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    var query by remember { mutableStateOf("") }
-    val list = records(data["threads"]).filter {
-        query.isEmpty() || (it.optString("name") + it.optString("preview") + it.optString("cwd")).contains(query, true)
-    }
-    LaunchedEffect(Unit) { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }
-    ScreenColumn {
-        SectionIntro("THREADS / LOCAL HISTORY", "会话历史", "随时返回工程任务，继续上下文。")
-        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("搜索会话名称和路径") }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            singleLine = true)
-        Button(onClick = { vm.newThread(); navigate("chat") },
-            enabled = !running, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("新建会话")
-        }
-        errors["threads"]?.let { ErrorText(it) }
-        if (list.isEmpty() && "threads" !in errors) {
-            CodexEmptyState(if (query.isBlank()) "暂无历史会话" else "没有匹配的会话",
-                if (query.isBlank()) "新建会话后，可在这里继续任务。" else "尝试更短的关键词或修改搜索条件。",
-                actionLabel = if (query.isBlank()) "新建会话" else "清除搜索",
-                onAction = { if (query.isBlank()) {
-                    if (!running) vm.newThread()
-                    navigate("chat")
-                } else query = "" })
-        }
-        list.forEach { t -> ThreadRow(t) { vm.chooseThread(t.optString("id")); navigate("chat") } }
-        TextButton(onClick = { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }) { Text("刷新会话列表") }
     }
 }
 
