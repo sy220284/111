@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,10 +27,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.zip.ZipInputStream
-
-private const val MAX_IMPORT_BYTES = 120L * 1024 * 1024
-private const val MAX_IMPORT_ENTRIES = 12000
 
 @Composable
 fun WorkspacePage(vm: CodexViewModel) {
@@ -41,60 +38,29 @@ fun WorkspacePage(vm: CodexViewModel) {
     var refresh by remember { mutableIntStateOf(0) }
     var notice by remember { mutableStateOf("") }
     var createName by remember { mutableStateOf("") }
+    var createKind by remember { mutableStateOf("file") }
+    var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
+    var renameName by remember { mutableStateOf("") }
+    var actionBusy by remember { mutableStateOf(false) }
+
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
+            val importFolder = folder.canonicalFile
             try {
                 val result = withContext(Dispatchers.IO) {
-                    val name = ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                        ?.use { cursor ->
-                            if (cursor.moveToFirst()) cursor.getString(0) else null
-                        } ?: "imported-file"
-                    require(!name.contains('/') && !name.contains('\\') && name != "." && name != "..") { "文件名称不合法" }
-                    val destination = File(root, name).canonicalFile
-                    require(destination.parentFile == root) { "非法文件路径" }
-                    ctx.contentResolver.openInputStream(uri)?.use { stream ->
-                        if (name.endsWith(".zip", ignoreCase = true)) {
-                            var sum = 0L
-                            var count = 0
-                            ZipInputStream(stream).use { zip ->
-                                while (true) {
-                                    val entry = zip.nextEntry ?: break
-                                    count++
-                                    require(count <= MAX_IMPORT_ENTRIES) { "压缩包条目超过安全上限" }
-                                    val out = File(root, entry.name).canonicalFile
-                                    require(out.path.startsWith(root.path + File.separator)) { "压缩包包含非法路径" }
-                                    if (entry.isDirectory) out.mkdirs() else {
-                                        out.parentFile?.mkdirs()
-                                        out.outputStream().use { sink ->
-                                            val buffer = ByteArray(8192)
-                                            while (true) {
-                                                val size = zip.read(buffer)
-                                                if (size < 0) break
-                                                sum += size
-                                                require(sum <= MAX_IMPORT_BYTES) { "导入内容超过 120 MB 限额" }
-                                                sink.write(buffer, 0, size)
-                                            }
-                                        }
-                                    }
-                                    zip.closeEntry()
-                                }
-                            }
-                            "已导入 " + count + " 个工程条目"
-                        } else {
-                            var total = 0L
-                            destination.outputStream().use { sink ->
-                                val buffer = ByteArray(8192)
-                                while (true) {
-                                    val size = stream.read(buffer)
-                                    if (size < 0) break
-                                    total += size
-                                    require(total <= MAX_IMPORT_BYTES) { "单文件超过 120 MB 限额" }
-                                    sink.write(buffer, 0, size)
-                                }
-                            }
-                            "已导入 " + name
-                        }
-                    } ?: throw IllegalStateException("无法打开所选文件")
+                    val name = ctx.contentResolver.query(
+                        uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else null
+                    } ?: throw IllegalStateException("无法读取所选文档名称")
+                    val input = ctx.contentResolver.openInputStream(uri)
+                        ?: throw IllegalStateException("无法打开所选文档")
+                    input.use { stream ->
+                        if (name.endsWith(".zip", ignoreCase = true))
+                            WorkspaceImport.importZip(root, importFolder, name, stream)
+                        else
+                            WorkspaceImport.importFile(root, importFolder, name, stream)
+                    }
                 }
                 notice = result
                 refresh++
@@ -104,57 +70,237 @@ fun WorkspacePage(vm: CodexViewModel) {
             }
         }
     }
+    LaunchedEffect(folder) {
+        try {
+            withContext(Dispatchers.IO) { WorkspaceImport.cleanAbandoned(root, folder) }
+        } catch (failure: Exception) {
+            notice = "导入缓存清理失败：" + (failure.message ?: "未知错误")
+        }
+    }
 
     if (focus != null) {
         FileEditor(focus!!, root, onBack = { focus = null; refresh++ })
         return
     }
-    val children = remember(folder, refresh) { folder.listFiles()?.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() }) ?: emptyList() }
-    ScreenColumn {
-        SectionIntro("LOCAL / FILES", "工作区文件", "Android 私有空间中的工程。可导入文件或 ZIP 项目。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("当前目录", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            Text(folder.relativeTo(root).path.takeIf { it != "." }?.let { "projects/" + it } ?: "projects/", fontFamily = FontFamily.Monospace)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { folder.parentFile?.let { if (it.path.startsWith(root.path)) folder = it } },
-                    enabled = folder != root) { Icon(Icons.Outlined.ArrowBack, null); Text("上一级") }
-                Button(onClick = { picker.launch(arrayOf("*/*")) }) {
-                    Icon(Icons.Outlined.FileUpload, null); Spacer(Modifier.width(6.dp)); Text("导入文件")
+    BackHandler(enabled = folder != root) {
+        folder = folder.parentFile?.takeIf {
+            it.path == root.path || it.path.startsWith(root.path + File.separator)
+        } ?: root
+    }
+    val children = remember(folder, refresh) {
+        folder.listFiles()?.filterNot { WorkspaceImport.isStagingName(it.name) }
+            ?.sortedWith(compareBy<File> { !it.isDirectory }
+                .thenBy { it.name.lowercase() }) ?: emptyList()
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().testTag("workspace-list"),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
+    ) {
+        item { SectionIntro("LOCAL / FILES", "工作区文件",
+            "本机工程与文件统一管理，支持文件夹、导入、重命名与安全删除。") }
+        item {
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("当前目录", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                Text(folder.relativeTo(root).path.takeIf { it != "." }
+                    ?.let { "projects/" + it } ?: "projects/",
+                    fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        folder.parentFile?.let {
+                            if (it.path == root.path ||
+                                it.path.startsWith(root.path + File.separator)) folder = it
+                        }
+                    }, enabled = folder != root) {
+                        Icon(Icons.Outlined.ArrowBack, null)
+                        Spacer(Modifier.width(5.dp))
+                        Text("上一级")
+                    }
+                    Button(onClick = { picker.launch(arrayOf("*/*")) },
+                        enabled = !actionBusy) {
+                        Icon(Icons.Outlined.FileUpload, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("导入")
+                    }
                 }
             }
         }
-        if (notice.isNotBlank()) {
-            Text(notice, color = if (notice.startsWith("已")) Ink.jade else Ink.red, style = MaterialTheme.typography.bodyMedium)
+        if (notice.isNotBlank()) item {
+            CodexNotice(notice, if (notice.startsWith("已")) NoticeTone.Success else NoticeTone.Warning)
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(createName, { createName = it }, label = { Text("新建文本文件名") },
-                modifier = Modifier.weight(1f), singleLine = true)
-            Spacer(Modifier.width(8.dp))
-            FilledIconButton(onClick = {
-                try {
-                    require(createName.isNotBlank() && !createName.contains('/') && !createName.contains('\\'))
-                    val target = File(folder, createName).canonicalFile
-                    require(target.parentFile == folder.canonicalFile)
-                    require(target.createNewFile()) { "文件已存在" }
-                    createName = ""; refresh++
-                } catch (failure: Exception) { notice = failure.message ?: "创建文件失败" }
-            }) { Icon(Icons.Outlined.Add, "新建文件") }
+        if (actionBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        item {
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("新建项目内容", style = MaterialTheme.typography.titleMedium)
+                Text("在当前目录创建文件或文件夹。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    FilterChip(selected = createKind == "file",
+                        onClick = { createKind = "file" }, label = { Text("文本文件") },
+                        leadingIcon = { Icon(Icons.Outlined.Description, null) })
+                    FilterChip(selected = createKind == "folder",
+                        onClick = { createKind = "folder" }, label = { Text("文件夹") },
+                        modifier = Modifier.testTag("workspace-folder-mode"),
+                        leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) })
+                }
+                OutlinedTextField(createName, { createName = it },
+                    label = { Text(if (createKind == "file") "文件名（如 README.md）" else "文件夹名称") },
+                    modifier = Modifier.fillMaxWidth().testTag("workspace-new-name"), singleLine = true)
+                Button(onClick = {
+                    try {
+                        val created = if (createKind == "file")
+                            WorkspaceFileActions.createTextFile(root, folder, createName)
+                        else WorkspaceFileActions.createFolder(root, folder, createName)
+                        notice = "已创建：" + created.name
+                        createName = ""
+                        refresh++
+                    } catch (failure: Exception) {
+                        notice = "创建失败：" + (failure.message ?: "未知错误")
+                    }
+                }, enabled = createName.isNotBlank() && !actionBusy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .testTag("workspace-create")) {
+                    Icon(Icons.Outlined.Add, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
+                }
+            }
         }
-        if (children.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("目录为空，导入工程开始工作。", color = Ink.muted) }
-        children.forEach { file ->
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("目录内容", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                Text("${children.size} 项", style = MaterialTheme.typography.labelMedium,
+                    color = Ink.muted)
+            }
+        }
+        if (children.isEmpty()) item {
+            CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
+                icon = Icons.Outlined.FolderOpen)
+        }
+        items(children, key = { it.absolutePath }) { file ->
+            var optionsOpen by remember(file.path) { mutableStateOf(false) }
             Surface(
-                color = Ink.panel, shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
-                modifier = Modifier.fillMaxWidth().clickable { if (file.isDirectory) folder = file else focus = file }
+                color = Ink.panel,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
+                modifier = Modifier.fillMaxWidth().clickable {
+                    val safe = file.canonicalFile
+                    if (safe.path.startsWith(root.path + File.separator)) {
+                        if (safe.isDirectory) folder = safe else focus = safe
+                    } else notice = "已阻止打开工作区以外的文件链接"
+                }
             ) {
-                Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (file.isDirectory) Icons.Outlined.Folder else Icons.Outlined.Description, null, tint = Ink.copper)
+                Row(Modifier.padding(start = 14.dp, end = 5.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (file.isDirectory) Icons.Outlined.Folder
+                        else Icons.Outlined.Description,
+                        contentDescription = null, tint = Ink.copper,
+                        modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(11.dp))
-                    Text(file.name, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+                    Column(Modifier.weight(1f)) {
+                        Text(file.name, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium)
+                        Text(if (file.isDirectory) "文件夹" else "${file.length() / 1024} KB",
+                            color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Box {
+                        IconButton(onClick = { optionsOpen = true },
+                            enabled = !actionBusy,
+                            modifier = Modifier.testTag("workspace-menu-" + file.name)) {
+                            Icon(Icons.Outlined.MoreVert, "管理 " + file.name)
+                        }
+                        DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
+                            DropdownMenuItem(text = { Text("重命名") },
+                                leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+                                onClick = {
+                                    optionsOpen = false
+                                    renameName = file.name
+                                    fileAction = "rename" to file
+                                })
+                            DropdownMenuItem(text = { Text("删除") },
+                                leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red) },
+                                onClick = {
+                                    optionsOpen = false
+                                    fileAction = "delete" to file
+                                })
+                        }
+                    }
                 }
             }
         }
     }
+
+    fileAction?.let { (kind, target) ->
+        if (kind == "rename") {
+            AlertDialog(
+                onDismissRequest = { fileAction = null },
+                title = { Text("重命名") },
+                containerColor = Ink.elevated,
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("对象：" + target.name, color = Ink.muted)
+                        OutlinedTextField(renameName, { renameName = it },
+                            label = { Text("新名称") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        actionBusy = true
+                        fileAction = null
+                        scope.launch {
+                            try {
+                                val changed = withContext(Dispatchers.IO) {
+                                    WorkspaceFileActions.rename(root, target, renameName)
+                                }
+                                notice = "已重命名为：" + changed.name
+                                refresh++
+                            } catch (failure: Exception) {
+                                notice = "重命名失败：" + (failure.message ?: "未知错误")
+                            } finally {
+                                actionBusy = false
+                            }
+                        }
+                    }, enabled = renameName.isNotBlank() && !actionBusy) {
+                        Text("保存名称")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { fileAction = null }) { Text("取消") }
+                }
+            )
+        } else if (kind == "delete") {
+            CodexConfirmDialog(
+                title = "确认删除" + if (target.isDirectory) "文件夹" else "文件",
+                message = if (target.isDirectory)
+                    "将删除此文件夹及其全部内容。该操作无法撤销。"
+                    else "将删除选中的文件。该操作无法撤销。",
+                detail = target.relativeTo(root).path,
+                destructive = true, confirmLabel = "永久删除",
+                onConfirm = {
+                    actionBusy = true
+                    fileAction = null
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                WorkspaceFileActions.delete(root, target)
+                            }
+                            notice = "已删除：" + target.name
+                            refresh++
+                        } catch (failure: Exception) {
+                            notice = "删除失败：" + (failure.message ?: "未知错误")
+                        } finally {
+                            actionBusy = false
+                        }
+                    }
+                },
+                onDismiss = { fileAction = null }
+            )
+        }
+    }
+
 }
 
 @Composable
@@ -176,7 +322,7 @@ private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                     try {
                         withContext(Dispatchers.IO) {
                             require(file.canonicalPath.startsWith(root.path + File.separator)) { "编辑路径超出工作区" }
-                            file.writeText(content)
+                            WorkspaceFileActions.saveText(root, file, content)
                         }
                         message = "已保存到工作区"
                     } catch (failure: Exception) { message = failure.message ?: "保存失败" }
@@ -192,38 +338,7 @@ private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
 
 @Composable
 fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val diff by vm.latestDiff.collectAsState()
-    val active by vm.activeThread.collectAsState()
-    val lines = remember(diff) { diff.lines() }
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { SectionIntro("PATCH / REVIEW", "代码差异", "绿色新增 · 红色删除 · 中性上下文") }
-            IconButton(onClick = { navigate("review") }) { Icon(Icons.Outlined.FactCheck, "发起代码审查") }
-        }
-        if (active == null || diff.isBlank()) {
-            ScreenColumn {
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Text("暂无可展示的代码差异", style = MaterialTheme.typography.titleMedium)
-                    Text("运行修改文件的任务后，通过 turn/diff/updated 实时呈现差异。", color = Ink.muted)
-                    TextButton(onClick = { navigate("chat") }) { Text("返回任务") }
-                }
-            }
-        } else {
-            LazyColumn(contentPadding = PaddingValues(12.dp)) {
-                items(lines) { line ->
-                    val tint = when {
-                        line.startsWith("+") && !line.startsWith("+++") -> Ink.jade
-                        line.startsWith("-") && !line.startsWith("---") -> Ink.red
-                        line.startsWith("@@") -> Ink.copper
-                        else -> Ink.muted
-                    }
-                    Text(line.ifEmpty { " " }, color = tint, fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.fillMaxWidth().background(Ink.recessed).padding(horizontal = 12.dp, vertical = 2.dp))
-                }
-            }
-        }
-    }
+    DiffReaderPage(vm, navigate)
 }
 
 @Composable
@@ -278,13 +393,14 @@ fun TerminalPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun ReviewPage(vm: CodexViewModel) {
+fun ReviewPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val active by vm.activeThread.collectAsState()
     val errors by vm.errors.collectAsState()
     val response by vm.data.collectAsState()
     var selection by remember { mutableStateOf("uncommittedChanges") }
     var value by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
+    var showReviewRaw by remember { mutableStateOf(false) }
     ScreenColumn {
         SectionIntro("CODE / QUALITY", "代码审查", "使用 Codex 原生 reviewer，对变更给出可追踪的问题。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -306,7 +422,44 @@ fun ReviewPage(vm: CodexViewModel) {
         }
         if (active == null) Text("先在任务对话中打开一个会话。", color = Ink.muted)
         errors["review"]?.let { ErrorText(it) }
-        response["review"]?.let { MaterialPanel(Modifier.fillMaxWidth()) { Text(it.toString(2), fontFamily = FontFamily.Monospace) } }
+        response["review"]?.let { result ->
+            val reviewTurn = result.optJSONObject("turn")
+            val status = reviewTurn?.optString("status").orEmpty()
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.FactCheck, null, tint = Ink.copper)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("审查任务已创建", style = MaterialTheme.typography.titleMedium)
+                        Text("内核已接收审查请求，结果在会话任务流中继续更新。",
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (status.isNotBlank()) StatusPill(
+                        status, !status.contains("fail", ignoreCase = true))
+                }
+                val turnId = reviewTurn?.optString("id").orEmpty()
+                if (turnId.isNotBlank()) {
+                    Text("审查轮次：" + turnId,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                }
+                Button(onClick = { navigate("chat") },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.Chat, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text("查看会话中的审查过程")
+                }
+                TextButton(onClick = { showReviewRaw = !showReviewRaw }) {
+                    Text(if (showReviewRaw) "收起原始结果" else "查看原始结果")
+                }
+                CodexReveal(showReviewRaw) {
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(result.toString(2), fontFamily = FontFamily.Monospace,
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
     }
     if (confirm) CodexConfirmDialog(
         title = "发起代码审查",

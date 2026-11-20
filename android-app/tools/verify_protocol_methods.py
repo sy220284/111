@@ -23,6 +23,9 @@ INTERNAL_EVENTS = {"local/unsupportedServerRequest"}
 # Method-shaped enum variants from official v2/mcp.rs; these are payload
 # discriminators, not request methods.
 PROTOCOL_VARIANTS = {"openai/form", "openai/userVerification"}
+# The Android document picker validates MIME literals. These are content types,
+# not app-server methods; only exact supported formats are exempted.
+SUPPORTED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9]+(?:/[a-zA-Z0-9]+)+\b')
 EXPLICIT_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\{')
 
@@ -52,7 +55,8 @@ def main() -> int:
                 if method in known:
                     used.add(method)
                 elif (method not in SERVER_NOTIFICATIONS and method not in INTERNAL_EVENTS
-                      and method not in PROTOCOL_VARIANTS):
+                      and method not in PROTOCOL_VARIANTS
+                      and method not in SUPPORTED_IMAGE_MIME_TYPES):
                     unknown.append((file, number, method))
     print(f"已读取官方请求方法 {len(known)} 项；核查 Kotlin 文件 {len(source_files)} 个；使用到的有效请求 {len(used)} 项。")
     for file, number, method in unknown:

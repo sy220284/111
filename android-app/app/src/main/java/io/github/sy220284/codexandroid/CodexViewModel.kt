@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 data class TimelineItem(
     val id: String,
@@ -34,10 +35,20 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val deviceLoginUrl = MutableStateFlow("")
     val activeLoginId = MutableStateFlow("")
     val loginBusy = MutableStateFlow(false)
+    val steerBusy = MutableStateFlow(false)
+    private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
         viewModelScope.launch {
             bridge.events.collect { receive(it) }
+        }
+        viewModelScope.launch {
+            try {
+                LocalImageAttachments.cleanExpired(application.applicationContext)
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("attachments" to
+                    (failure.message ?: "附件缓存清理失败"))
+            }
         }
         connect()
     }
@@ -140,9 +151,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         running.value = false
     }
 
-    fun sendPrompt(text: String) {
+    fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
         val prompt = text.trim()
-        if (prompt.isEmpty() || running.value) return
+        if ((prompt.isEmpty() && localImages.isEmpty()) || running.value) return
+        val images = localImages.toList()
         // Acquire turn ownership before dispatching the coroutine: rapid taps
         // cannot submit duplicate messages even while thread/start is pending.
         running.value = true
@@ -150,10 +162,20 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenMode = selectedMode.value
         viewModelScope.launch {
             timeline.value = timeline.value + TimelineItem(
-                "user-" + System.nanoTime(), "user", prompt)
+                "user-" + System.nanoTime(), "user",
+                if (images.isEmpty()) prompt else
+                    listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"))
             try {
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
+                }
+                require(images.size <= LocalImageAttachments.MAX_FILES) { "图片附件数量超限" }
+                val permittedFolder = LocalImageAttachments.directory(getApplication()).canonicalFile
+                images.forEach { path ->
+                    val file = File(path).canonicalFile
+                    require(file.parentFile == permittedFolder && file.isFile && file.length() > 0L) {
+                        "图片附件不在本应用缓存中或已失效"
+                    }
                 }
                 val catalog = records(data.value["models"])
                 if (chosenMode == "plan") {
@@ -171,16 +193,51 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val params = TurnRequestContract.build(
                     threadId = id, text = prompt, modelId = chosenModel,
-                    mode = chosenMode, catalog = catalog
+                    mode = chosenMode, catalog = catalog, localImages = images
                 )
                 val response = bridge.request("turn/start", params)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
+                imagePathsForActiveTurn = images
                 errors.value = errors.value - "conversation"
+                afterAccepted()
             } catch (failure: Exception) {
                 running.value = false
                 errors.value = errors.value + ("conversation" to (failure.message ?: "发送失败"))
                 timeline.value = timeline.value + TimelineItem(
                     "failure-" + System.nanoTime(), "error", failure.message ?: "发送失败")
+            }
+        }
+    }
+
+    /**
+     * Capture the running turn and reserve ownership before launching so rapid
+     * repeated taps do not send the same instruction twice.
+     */
+    fun steerPrompt(text: String, afterAccepted: () -> Unit) {
+        if (steerBusy.value) return
+        val threadId = activeThread.value
+        val turnId = activeTurn.value
+        if (!running.value || threadId.isNullOrBlank() || turnId.isNullOrBlank()) {
+            errors.value = errors.value + ("steer" to "当前没有可补充指令的运行任务")
+            return
+        }
+        val prompt = text.trim()
+        if (prompt.isBlank()) return
+        steerBusy.value = true
+        viewModelScope.launch {
+            try {
+                bridge.request("turn/steer", TurnRequestContract.steer(threadId, turnId, prompt))
+                if (activeThread.value == threadId && activeTurn.value == turnId) {
+                    timeline.value = timeline.value + TimelineItem(
+                        "steer-" + System.nanoTime(), "user", "补充指令：" + prompt)
+                    afterAccepted()
+                }
+                errors.value = errors.value - "steer"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("steer" to
+                    (failure.message ?: "补充指令未被接受"))
+            } finally {
+                steerBusy.value = false
             }
         }
     }
@@ -341,6 +398,18 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             "turn/completed" -> {
                 running.value = false
+                val finishedImages = imagePathsForActiveTurn
+                imagePathsForActiveTurn = emptyList()
+                if (finishedImages.isNotEmpty()) viewModelScope.launch {
+                    for (path in finishedImages) {
+                        try {
+                            LocalImageAttachments.release(getApplication(), path)
+                        } catch (failure: Exception) {
+                            errors.value = errors.value + ("attachments" to
+                                (failure.message ?: "无法清理已完成任务的图片"))
+                        }
+                    }
+                }
                 val turn = params.optJSONObject("turn")
                 if (turn?.optString("status") != "completed") {
                     timeline.value = timeline.value + TimelineItem(

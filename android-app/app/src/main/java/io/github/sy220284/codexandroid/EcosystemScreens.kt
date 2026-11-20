@@ -215,6 +215,7 @@ fun PluginsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val marketplaces = data["plugins"]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
+    var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
     LaunchedEffect(Unit) { vm.refresh("plugins", "plugin/list") }
     ScreenColumn {
         SectionIntro("CODEX / MARKETPLACE", "插件", "浏览官方与本地插件市场。安装、卸载逐项确认。")
@@ -254,7 +255,12 @@ fun PluginsPage(vm: CodexViewModel) {
                                 enabled = item.optString("installPolicy") != "NOT_AVAILABLE") { Text("安装插件") }
                         }
                     }
-                    DetailToggle(item)
+                    TextButton(onClick = { selectedPlugin = market to item },
+                        modifier = Modifier.heightIn(min = 48.dp)) {
+                        Icon(Icons.Outlined.Info, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("查看插件详情")
+                    }
                 }
             }
         }
@@ -264,6 +270,10 @@ fun PluginsPage(vm: CodexViewModel) {
                 Text("重新获取")
             }
         }
+    }
+    selectedPlugin?.let { (market, item) ->
+        PluginDetailSheet(marketplace = market, entry = item, vm = vm,
+            onDismiss = { selectedPlugin = null })
     }
     action?.let { (market, item, install) ->
         CodexConfirmDialog(
@@ -377,35 +387,3 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     }
 }
 
-@Composable
-fun MetricsPage(id: String, vm: CodexViewModel) {
-    val page = pages.first { it.id == id }
-    val payload by vm.data.collectAsState()
-    val result = payload[id]
-    LaunchedEffect(id) { page.rpc?.let { vm.refresh(id, it) } }
-    ScreenColumn {
-        SectionIntro("ACCOUNT / TELEMETRY", page.title, page.subtitle)
-        SourceState(vm, id) { page.rpc?.let { vm.refresh(id, it) } }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Icon(page.icon, null, tint = Ink.copper, modifier = Modifier.size(29.dp))
-            Text("来源：Codex 当前账号", style = MaterialTheme.typography.titleMedium)
-            Text("额度与时间窗口采用服务端返回值，未登录时可在账号页查看原因。", color = Ink.muted)
-            OutlinedButton(onClick = { page.rpc?.let { vm.refresh(id, it) } }) { Text("刷新数据") }
-        }
-        if (result != null) {
-            val keys = result.keys().asSequence().toList()
-            keys.forEach { key ->
-                val value = result.opt(key)
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Text(key, color = Ink.copper, style = MaterialTheme.typography.labelMedium)
-                    when (value) {
-                        is JSONObject -> DetailToggle(value, "展开 " + key)
-                        is JSONArray -> Text(value.toString(2), fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodyMedium)
-                        else -> Text(value?.toString() ?: "—", style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-            }
-        } else MaterialPanel(Modifier.fillMaxWidth()) { Text("等待服务端返回统计信息。", color = Ink.muted) }
-    }
-}

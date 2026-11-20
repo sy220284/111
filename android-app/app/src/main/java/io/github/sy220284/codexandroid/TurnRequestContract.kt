@@ -9,16 +9,35 @@ import org.json.JSONObject
  * while TurnStartParams itself is camelCase. Keep those two layers separate.
  */
 object TurnRequestContract {
+    /** Attach a new instruction to the current running turn, with an ID precondition. */
+    fun steer(threadId: String, expectedTurnId: String, text: String): JSONObject {
+        require(threadId.isNotBlank()) { "缺少当前会话" }
+        require(expectedTurnId.isNotBlank()) { "任务尚未取得运行轮次" }
+        val instruction = text.trim()
+        require(instruction.isNotEmpty()) { "补充指令不能为空" }
+        return JSONObject()
+            .put("threadId", threadId)
+            .put("expectedTurnId", expectedTurnId)
+            .put("input", JSONArray().put(JSONObject().put("type", "text").put("text", instruction)))
+    }
+
     fun build(threadId: String, text: String, modelId: String, mode: String,
-              catalog: List<JSONObject>): JSONObject {
+              catalog: List<JSONObject>, localImages: List<String> = emptyList()): JSONObject {
         require(threadId.isNotBlank()) { "缺少会话标识" }
-        require(text.isNotBlank()) { "任务内容不能为空" }
+        require(text.isNotBlank() || localImages.isNotEmpty()) { "任务内容和图片不能同时为空" }
+        require(localImages.size <= LocalImageAttachments.MAX_FILES) { "图片数量超过上限" }
+        require(localImages.all { it.startsWith("/") && it.isNotBlank() }) {
+            "图片附件必须使用本地绝对路径"
+        }
         require(mode == "default" || mode == "plan") { "未知工作方式：$mode" }
+        val input = JSONArray()
+        if (text.isNotBlank()) input.put(JSONObject().put("type", "text").put("text", text))
+        localImages.forEach { path ->
+            input.put(JSONObject().put("type", "localImage").put("path", path))
+        }
         val args = JSONObject()
             .put("threadId", threadId)
-            .put("input", JSONArray().put(
-                JSONObject().put("type", "text").put("text", text)
-            ))
+            .put("input", input)
         // Default execution inherits the live thread's model and current effort.
         // Only an explicit picker change should override its model.
         if (mode == "default") {

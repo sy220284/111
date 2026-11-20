@@ -1,5 +1,8 @@
 package io.github.sy220284.codexandroid
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -40,11 +43,11 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     when (id) {
         "home" -> HomePage(vm, navigate)
         "chat" -> ConversationPage(vm, navigate)
-        "threads" -> ThreadListPage(vm, navigate)
+        "threads" -> ThreadLibraryPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
         "terminal" -> TerminalPage(vm)
-        "review" -> ReviewPage(vm)
+        "review" -> ReviewPage(vm, navigate)
         "approvals" -> ApprovalsPage(vm)
         "models" -> ModelsPage(vm)
         "providers" -> ProvidersPage(vm)
@@ -56,7 +59,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "mcp" -> McpServicesPage(vm)
         "environments" -> EnvironmentsPage(vm)
         "diagnostics" -> EngineDiagnosticsPage(vm)
-        "usage", "limits" -> MetricsPage(id, vm)
+        "usage", "limits" -> AccountMetricsPage(id, vm, navigate)
         "account" -> AccountPage(vm)
         "config" -> ConfigPage(vm)
         "appearance" -> AppearancePage()
@@ -186,44 +189,12 @@ private fun ThreadRow(item: JSONObject, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val running by vm.running.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    var query by remember { mutableStateOf("") }
-    val list = records(data["threads"]).filter {
-        query.isEmpty() || (it.optString("name") + it.optString("preview") + it.optString("cwd")).contains(query, true)
-    }
-    LaunchedEffect(Unit) { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }
-    ScreenColumn {
-        SectionIntro("THREADS / LOCAL HISTORY", "会话历史", "随时返回工程任务，继续上下文。")
-        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("搜索会话名称和路径") }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            singleLine = true)
-        Button(onClick = { vm.newThread(); navigate("chat") },
-            enabled = !running, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("新建会话")
-        }
-        errors["threads"]?.let { ErrorText(it) }
-        if (list.isEmpty() && "threads" !in errors) {
-            CodexEmptyState(if (query.isBlank()) "暂无历史会话" else "没有匹配的会话",
-                if (query.isBlank()) "新建会话后，可在这里继续任务。" else "尝试更短的关键词或修改搜索条件。",
-                actionLabel = if (query.isBlank()) "新建会话" else "清除搜索",
-                onAction = { if (query.isBlank()) {
-                    if (!running) vm.newThread()
-                    navigate("chat")
-                } else query = "" })
-        }
-        list.forEach { t -> ThreadRow(t) { vm.chooseThread(t.optString("id")); navigate("chat") } }
-        TextButton(onClick = { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }) { Text("刷新会话列表") }
-    }
-}
-
-@Composable
 private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
+    val activeTurn by vm.activeTurn.collectAsState()
+    val steering by vm.steerBusy.collectAsState()
     val items by vm.timeline.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
@@ -233,9 +204,35 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var draft by rememberSaveable { mutableStateOf("") }
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
+    var showContextTools by remember { mutableStateOf(false) }
+    val attachmentContext = LocalContext.current
+    var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var attachmentBusy by remember { mutableStateOf(false) }
+    var attachmentError by remember { mutableStateOf("") }
+
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            if (attachedImages.size >= LocalImageAttachments.MAX_FILES) {
+                attachmentError = "最多添加三张图片，请先移除一张"
+            } else {
+                attachmentBusy = true
+                scope.launch {
+                    try {
+                        val path = LocalImageAttachments.importFrom(attachmentContext, uri)
+                        attachedImages = attachedImages + path
+                        attachmentError = ""
+                    } catch (failure: Exception) {
+                        attachmentError = failure.message ?: "无法读取所选图片"
+                    } finally {
+                        attachmentBusy = false
+                    }
+                }
+            }
+        }
+    }
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
     var unreadSteps by remember { mutableIntStateOf(0) }
@@ -266,6 +263,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(thread?.take(18) ?: "请选择模型并输入任务", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
+            IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
+                Icon(Icons.Outlined.MoreHoriz, "会话工具")
+            }
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
@@ -356,59 +356,47 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         errors["conversation"]?.let { ErrorText(it) }
+        errors["steer"]?.let { ErrorText(it) }
         DividerLine()
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(Modifier.weight(1.1f)) {
-                    OutlinedButton(
-                        onClick = { showModels = true },
-                        enabled = status == EngineStatus.Connected,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(disabledContentColor = Ink.muted)
-                    ) {
-                        Text(vm.modelId.collectAsState().value.ifBlank { "默认模型" },
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false))
-                        Icon(Icons.Outlined.ArrowDropDown, null)
-                    }
-
-                }
-                Box(Modifier.weight(.9f)) {
-                    OutlinedButton(
-                        onClick = { showModes = true },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 9.dp)
-                    ) {
-                        Text(if (selectedMode == "plan") "先计划" else "执行",
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false))
-                        Icon(Icons.Outlined.ArrowDropDown, null)
-                    }
-
-                }
-                IconButton(onClick = { navigate("diagnostics") }) {
-                    Icon(
-                        if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle
-                        else Icons.Outlined.ErrorOutline,
-                        contentDescription = "查看内核运行诊断",
-                        tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
-                    )
-                }
-            }
+            ConversationControlBar(
+                modelName = vm.modelId.collectAsState().value,
+                mode = selectedMode,
+                connected = status == EngineStatus.Connected,
+                running = busy,
+                importingImage = attachmentBusy,
+                imageCount = attachedImages.size,
+                onModel = { showModels = true },
+                onMode = { showModes = true },
+                onDiagnostics = { navigate("diagnostics") },
+                onImage = { imagePicker.launch("image/*") }
+            )
             if (!busy && status != EngineStatus.Connected) {
                 Text("内核未连接，点击右侧状态图标查看诊断",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
+            if (attachmentBusy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text("正在导入图片…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            if (attachmentError.isNotBlank()) {
+                ErrorText(attachmentError)
+            }
+            errors["attachments"]?.let { ErrorText(it) }
+            LocalImageAttachmentStrip(attachedImages) { path ->
+                attachedImages = attachedImages - path
+                scope.launch {
+                    try {
+                        LocalImageAttachments.release(attachmentContext, path)
+                    } catch (failure: Exception) {
+                        attachmentError = failure.message ?: "无法移除图片"
+                    }
+                }
+            }
             OutlinedTextField(
                 value = draft, onValueChange = { draft = it },
                 modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6,
-                placeholder = { Text("描述目标、文件及验收要求…") },
+                placeholder = { Text(if (busy) "任务运行中，可以补充要求或修正方向…" else "描述目标、文件及验收要求…") },
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
             )
@@ -425,16 +413,35 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("停止")
                 }
                 Button(
-                    onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
-                    enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
+                    onClick = {
+                        val message = draft.trim()
+                        if (busy) {
+                            vm.steerPrompt(message) {
+                                if (draft.trim() == message) draft = ""
+                            }
+                        } else {
+                            val images = attachedImages.toList()
+                            vm.sendPrompt(message, images) {
+                                if (draft.trim() == message) draft = ""
+                                if (attachedImages == images) attachedImages = emptyList()
+                            }
+                        }
+                    },
+                    enabled = status == EngineStatus.Connected && !attachmentBusy &&
+                        (if (busy) draft.isNotBlank() && thread != null &&
+                            !activeTurn.isNullOrBlank() && !steering
+                         else draft.isNotBlank() || attachedImages.isNotEmpty()),
                     modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
                 ) {
-                    Icon(Icons.Outlined.ArrowUpward, null)
+                    Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
                     Spacer(Modifier.width(7.dp))
-                    Text("发送给 Codex", maxLines = 1)
+                    Text(if (busy) "补充指令" else "发送给 Codex", maxLines = 1)
                 }
             }
         }
+    }
+    if (showContextTools) {
+        ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
     }
     if (showModels) {
         val available = records(models["models"]).filter { !it.optBoolean("hidden") }.take(80)

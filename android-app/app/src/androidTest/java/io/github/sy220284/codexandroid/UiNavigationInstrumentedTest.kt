@@ -13,6 +13,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.onNodeWithText
@@ -48,6 +51,30 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("任务对话").performClick()
         rule.onNodeWithText("停止").assertExists()
         rule.onNodeWithText("发送给 Codex").assertExists()
+    }
+
+    @Test
+    fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-chat").performClick()
+        rule.onNodeWithText("默认模型").assertIsDisplayed()
+        rule.onNodeWithText("执行", substring = false).assertIsDisplayed()
+        rule.onNodeWithText("内核状态").assertIsDisplayed()
+        rule.onNodeWithText("添加图片").assertIsDisplayed()
+        capture("chat-toolbar-android35.png")
+    }
+
+    @Test
+    fun diffReaderShowsFileFirstSummaryAndReviewAction() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        // The sidebar intentionally expands only one group. Filter the target
+        // before selecting it, as an actual user would.
+        rule.onNodeWithTag("navigation-search").performTextInput("代码差异")
+        rule.onNodeWithTag("nav-diff").performClick()
+        rule.onNodeWithText("本次改动").assertExists()
+        rule.onNodeWithText("代码审查").assertExists()
+        rule.onNodeWithText("暂无可展示的代码差异").assertExists()
+        capture("diff-reader-android35.png")
     }
 
     @Test
@@ -116,10 +143,12 @@ class UiNavigationInstrumentedTest {
         rule.onNode(hasSetTextAction()).performTextInput("账号登录")
         rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
         rule.onNodeWithText("选择登录方式").assertExists()
-        rule.onNodeWithText("设备码登录").assertIsDisplayed()
-        rule.onNodeWithText("浏览器登录").assertIsDisplayed()
+        rule.onNodeWithText("设备码登录").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("浏览器登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("查看协议数据").assertExists()
-        rule.onNodeWithText("刷新账号状态").assertIsDisplayed()
+        rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
+        // Preserve a clear screenshot of the top-level login choices.
+        rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
     }
 
@@ -142,6 +171,70 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("nav-${destination.id}").performClick()
             rule.waitForIdle()
             rule.onNodeWithTag("screen-title").assertTextEquals(destination.title)
+        }
+    }
+
+    @Test
+    fun threadLibraryExposesServerBackedManagementLayout() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-threads").performClick()
+        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithText("活跃", substring = false).assertExists()
+        rule.onNodeWithText("已归档", substring = false).performClick()
+        rule.onNodeWithText("搜索会话标题").assertExists()
+        rule.onNodeWithText("新建任务").assertExists()
+        capture("thread-library-android35.png")
+    }
+
+    @Test
+    fun accountMetricsHavePurposeBuiltLayouts() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val search = rule.onNodeWithTag("navigation-search")
+        search.performTextClearance()
+        search.performTextInput("使用量")
+        rule.onNodeWithTag("nav-usage").performClick()
+        rule.onNodeWithText("账号使用概况").assertExists()
+        capture("account-usage-android35.png")
+
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val nextSearch = rule.onNodeWithTag("navigation-search")
+        nextSearch.performTextClearance()
+        nextSearch.performTextInput("使用限额")
+        rule.onNodeWithTag("nav-limits").performClick()
+        rule.onNodeWithText("额度窗口").assertExists()
+        capture("account-limits-android35.png")
+    }
+
+    @Test
+    fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
+        val name = "ui-folder-" + System.currentTimeMillis()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val search = rule.onNodeWithTag("navigation-search")
+        search.performTextClearance()
+        search.performTextInput("工作区文件")
+        rule.onNodeWithTag("nav-files").performClick()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-folder-mode"))
+        rule.onNodeWithTag("workspace-folder-mode").performClick()
+        rule.onNodeWithTag("workspace-new-name").performTextInput(name)
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-create"))
+        rule.onNodeWithTag("workspace-create").performClick()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-menu-" + name))
+        rule.onNodeWithTag("workspace-menu-" + name).assertExists()
+        capture("workspace-files-android35.png")
+
+        rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.onNodeWithText("删除", substring = false).performClick()
+        rule.onNodeWithText("确认删除文件夹").assertExists()
+        rule.onNodeWithText("取消").performClick()
+        rule.onNodeWithTag("workspace-menu-" + name).assertExists()
+        rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.onNodeWithText("删除", substring = false).performClick()
+        rule.onNodeWithText("永久删除").performClick()
+        rule.waitUntil(10_000L) {
+            rule.onAllNodesWithText(name, substring = false).fetchSemanticsNodes().isEmpty()
         }
     }
 
