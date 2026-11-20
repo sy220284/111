@@ -238,27 +238,22 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         border = BorderStroke(1.dp, if (user) Ink.copperDim else Ink.border.copy(alpha = .6f))
                     ) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (user) Icons.Outlined.Person else Icons.Outlined.Code, null, tint = if (user) Ink.copper else Ink.jade, modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (user) "你" else item.kind, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.weight(1f))
-                                if (item.status.isNotBlank()) Text(item.status, color = Ink.jade, style = MaterialTheme.typography.labelMedium)
-                            }
-                            Text(item.text.ifBlank { "处理中…" }, style = MaterialTheme.typography.bodyLarge,
-                                fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
-                        }
-                    }
-                }
-            }
-        }
-        errors["conversation"]?.let { ErrorText(it) }
-        DividerLine()
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box {
-                    OutlinedButton(onClick = { showModels = true }, enabled = status == EngineStatus.Connected) {
-                        Text(vm.modelId.collectAsState().value.ifBlank { "默认模型" }, maxLines = 1)
+                            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(Modifier.weight(1.1f)) {
+                    OutlinedButton(
+                        onClick = { showModels = true },
+                        enabled = status == EngineStatus.Connected,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(disabledContentColor = Ink.muted)
+                    ) {
+                        Text(vm.modelId.collectAsState().value.ifBlank { "默认模型" },
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false))
                         Icon(Icons.Outlined.ArrowDropDown, null)
                     }
                     DropdownMenu(expanded = showModels, onDismissRequest = { showModels = false }) {
@@ -269,15 +264,22 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                         if (records(models["models"]).isEmpty()) {
                             DropdownMenuItem(text = { Text("刷新模型目录") }, onClick = {
-                                vm.refresh("models", "model/list"); showModels = false
+                                vm.refresh("models", "model/list")
+                                showModels = false
                             })
                         }
                     }
                 }
-                Spacer(Modifier.width(8.dp))
-                Box {
-                    OutlinedButton(onClick = { showModes = true }, enabled = !busy) {
-                        Text(if (selectedMode == "plan") "先计划" else "执行")
+                Box(Modifier.weight(.9f)) {
+                    OutlinedButton(
+                        onClick = { showModes = true },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 9.dp)
+                    ) {
+                        Text(if (selectedMode == "plan") "先计划" else "执行",
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false))
                         Icon(Icons.Outlined.ArrowDropDown, null)
                     }
                     DropdownMenu(expanded = showModes, onDismissRequest = { showModes = false }) {
@@ -289,12 +291,25 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         })
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                if (busy) {
-                    TextButton(onClick = { vm.interrupt() }) {
-                        Icon(Icons.Outlined.StopCircle, null); Text("停止任务")
-                    }
-                } else StatusPill(if (status == EngineStatus.Connected) "就绪" else "未连接", status == EngineStatus.Connected)
+                IconButton(onClick = { if (busy) vm.interrupt() else navigate("diagnostics") }) {
+                    Icon(
+                        when {
+                            busy -> Icons.Outlined.StopCircle
+                            status == EngineStatus.Connected -> Icons.Outlined.CheckCircle
+                            else -> Icons.Outlined.ErrorOutline
+                        },
+                        contentDescription = when {
+                            busy -> "停止运行中的任务"
+                            status == EngineStatus.Connected -> "内核已连接，查看诊断"
+                            else -> "内核未连接，查看诊断"
+                        },
+                        tint = if (busy || status != EngineStatus.Connected) Ink.red else Ink.jade
+                    )
+                }
+            }
+            if (!busy && status != EngineStatus.Connected) {
+                Text("内核未连接，点击右侧状态图标查看诊断",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             OutlinedTextField(
                 value = draft, onValueChange = { draft = it },
