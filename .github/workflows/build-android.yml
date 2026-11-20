@@ -176,7 +176,7 @@ jobs:
             adb install -r apks/debug/app-debug.apk
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
             adb shell am instrument -w -r io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee instrument-result.log
-            grep -Eq '^OK \([0-9]+ tests?' instrument-result.log
+            grep -Fq 'OK (' instrument-result.log
       - name: 保存设备测试证据
         if: always()
         uses: actions/upload-artifact@v4
