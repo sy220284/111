@@ -1,39 +1,62 @@
 # Codex Android｜原生移动开发工作台
 
-本仓库把 [OpenAI Codex](https://github.com/openai/codex) 官方源码与自研 Android 界面分开维护。
+目标：将官方 Codex 运行核心与 Kotlin / Jetpack Compose 安卓界面结合，在手机上完整呈现任务对话、开发工具、技能、插件、MCP、账号与权限设置。
 
-- `upstream/codex/`：官方 Codex 的完整源码快照。根目录 `CODEX_UPSTREAM_COMMIT` 记录准确版本与导入时间。
-- `android-app/`：Kotlin、Jetpack Compose 原生 Android 项目，侧边栏导航、实时会话、代码工具与账户/配置界面。
-- `docs/`：信息架构、UI 材质与动效、JSON-RPC 交互约定以及测试验收。
-- `.github/workflows/import-codex.yml`：手动或首次文件提交触发的上游导入机制，无定时调度。
-- `.github/workflows/build-android.yml`：编译 APK、校验 ARM64 核心及上传构建产物。
+## 项目结构
 
-## 目标
+| 目录 | 作用 |
+|---|---|
+| `upstream/codex/` | OpenAI Codex 官方源码快照（保持原貌） |
+| `CODEX_UPSTREAM_COMMIT` | 对应上游提交、日期与来源 |
+| `android-app/` | Compose 原生 Android APP，28 个侧栏入口及功能页面 |
+| `docs/DESIGN_SYSTEM.md` | 审美、材质、布局、动效、交互规范 |
+| `docs/PROTOCOL_CONTRACTS.md` | Codex App Server JSON-RPC 页面契约 |
+| `docs/ACCEPTANCE.md` | 依据真实构建和设备日志核验的进度 |
 
-把完整 Codex 开发体验适配到手机：一条主线是会话、工作区、实时执行与文件变更；另一条主线是模型、插件、技能、MCP 与权限设置。任务列表与功能配置读取官方 `app-server` 的数据，避免凭空展示执行结果。
+**平台最低 Android 10（API 29）**，优先 ARM64，自动化测试额外使用 x86_64 模拟器。用户项目、配置与会话数据留在应用私有目录；外部 AI 模型、插件和用户明确选择的远端执行环境仍可能产生网络通信。
 
-Android 项目最低系统版本为 Android 10（API 29），以 ARM64 设备为优先适配目标。APK 调试版产物由 `安卓版本构建与验证` 工作流提供。
+## Android 核心兼容性
 
-## 核心来源及当前限制
+曾经尝试在 APK 内直接打包官方 `unknown-linux-musl` 发布文件。GitHub Actions 可编译 APK，但 Android 35 模拟器实测：
 
-2026-11-20 导入的主分支源码提交记录在根目录 `CODEX_UPSTREAM_COMMIT`。打包使用官方稳定发布 `rust-v0.171.0` 的 `codex-app-server-aarch64-unknown-linux-musl`。构建工作流通过官方发布的 SHA-256 校验文件完整性。
+- 官方 Linux ARM64/x86_64 静态 ELF 与 Android 运行限制不兼容；
+- x86_64 核心执行 `--version` 退出码为 159（SIGSYS）；
+- `initialize` 无法成功握手。
 
-**重要：Linux MUSL ARM64 二进制与 Android/Bionic 的实际运行兼容性需要真机验证。** 即便 APK 构建成功且包含 ELF 文件，也不能直接推断 Android 内核可以运行全部 Codex 执行路径。为避免混淆，构建验证与 Android 端到端运行是两个独立验收项。若官方 Linux MUSL 包在设备上出现执行器、动态链接、系统调用或网络问题，需要利用本仓库已保留的源码，经 Android NDK 重编译所需的运行模块并进行真机回归。
+当前采用 **Android NDK / Bionic 原生构建**：直接从包内锁定的 Codex Rust 源码分别编译 `aarch64-linux-android` 与 `x86_64-linux-android`。Rust 版本固定为 `upstream/codex/codex-rs/rust-toolchain.toml` 所要求的 1.99.1，NDK 为 27.2.12479018，API 29。
 
-## 使用
+将官方源码与平台适配分离；编译和运行问题直接在 Android 适配层及构建流程处理。**只有设备端通过启动与初始化测试的 APK 才可视为可运行候选版。**
 
-1. 进入 GitHub 仓库的 Actions，打开 `安卓版本构建与验证`，下载 `codex-android-debug-apk`。
-2. 安装 APK，启动后检查侧栏下方的“引擎已连接”状态。失败时查看“诊断与日志”。
-3. 在“账号登录”中完成 Codex 账号授权，在“任务对话”中创建会话。
-4. 从“工作区文件”导入 ZIP 工程，或使用本机文件编辑器创建源文件。
-5. 命令、文件变更和高级权限请求集中在“待审批操作”中逐项确认。
+## GitHub Actions 工作流
 
-**私有数据**默认存在本机 Android 应用私有空间，不通过本项目建设任何云端保存服务；Codex 官方接口与用户自行接入的第三方工具仍按各自网络行为工作。可阅读 [架构](docs/ARCHITECTURE.md)、[设计系统](docs/DESIGN_SYSTEM.md)、[协议](docs/PROTOCOL_CONTRACTS.md)、[验收](docs/ACCEPTANCE.md)。
+| 工作流 | 目的 | 触发 |
+|---|---|---|
+| `一次性导入官方 Codex 源码` | 手动引入最新官方源码快照，记录提交版本 | 手动 |
+| `编译 Android 原生 Codex 核心` | 锁定 Rust / NDK，分别编译两个 ABI 的 Bionic ELF | 修改原生构建配置、手动 |
+| `安卓版本构建与验证` | 从最近成功的原生核心构建取回双架构产物，制作 APK 并执行 Android 模拟器测试 | UI 更新、原生核心成功、手动 |
+| `安卓界面与协议独立验收` | Kotlin 编译、审批协议单元测试、Android Lint | UI 更新、手动 |
 
-## 版本维护
+原生核心编译尚未成功时，APK 流水线会明确停止，不再改用已确认存在 Android 兼容性问题的 Linux 静态包。
 
-保留官方 `upstream/codex/` 不改动，在 `android-app/` 内维护适配层。升级主分支源码时，先读取官方 `app-server-protocol` 与 `app-server` 的变更，再比对 `docs/PROTOCOL_CONTRACTS.md` 和 Android 请求/事件，再逐项执行编译及设备回归。稳定发布核心的版本需要和协议兼容性检查分开处理。
+## 安装与验证
 
-## 许可证
+1. 进入 [Actions](https://github.com/sy220284/111/actions)，查看 `编译 Android 原生 Codex 核心` 是否成功。
+2. 再查看 `安卓版本构建与验证` 的 `build` 和 `android-emulator` 是否均为成功。
+3. 两项均成功后，下载其上传的 `codex-android-native-apks` 调试包，安装到 Android。
+4. 从侧栏“诊断与日志”检查本机 Codex 进程与协议；登录账号后试运行会话、命令与文件修改。
+5. APK 下载物为 GitHub Actions 暂存产物，并非已签名的正式应用发布版。
 
-Codex 原始代码按 `upstream/codex/LICENSE` 与 `upstream/codex/NOTICE` 的许可规定使用。Android 适配代码沿用 Apache-2.0 许可证；完整许可条款见 `upstream/codex/LICENSE`。
+## 功能
+
+侧栏按工作台、开发工具、Codex 生态和设置分组，支持搜索。包含流式对话、会话历史、任务模式、文件导入/编辑、Diff、终端、代码审查、模型、技能、插件、应用、MCP、Hooks、执行环境、账号登录、服务商、配置、安全、审批、使用量、限额、外观和诊断等页面。支持小屏抽屉和大屏常驻侧栏，采用“石墨·暖铜”视觉系统。
+
+## 关键原则
+
+- 使用官方 `app-server` 接口及真实事件；功能真实可用以服务器返回和设备验证为准。
+- 高风险命令、文件更改、额外权限按官方协议单独审批。
+- 不建设自有云端数据存储或 AI 服务；所有默认项目文件只在应用私有目录。
+- 官方源码保留并可追溯版本，升级时逐一比对协议变化。
+
+请查看 [架构](docs/ARCHITECTURE.md)、[视觉设计](docs/DESIGN_SYSTEM.md)、[接口契约](docs/PROTOCOL_CONTRACTS.md)、[验收矩阵](docs/ACCEPTANCE.md)。
+
+上游 Codex 授权见 `upstream/codex/LICENSE` 与相关 NOTICE。
