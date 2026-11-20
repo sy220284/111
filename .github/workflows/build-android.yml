@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
           NATIVE_COMMIT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
-          NATIVE_VERSION_FILE="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$NATIVE_COMMIT" --jq '.content' | tr -d '\\n' | base64 --decode)"
+          NATIVE_VERSION_FILE="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$NATIVE_COMMIT" --jq '.content' | base64 --decode)"
           NATIVE_UPSTREAM="$(printf '%s\n' "$NATIVE_VERSION_FILE" | sed -n '1p')"
           CURRENT_UPSTREAM="$(sed -n '1p' CODEX_UPSTREAM_COMMIT)"
           if [ "$NATIVE_UPSTREAM" != "$CURRENT_UPSTREAM" ]; then
