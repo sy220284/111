@@ -1,3 +1,23 @@
+// Release properties are supplied by the verified GitHub Actions release job.
+val releaseVersionName = providers.gradleProperty("codexReleaseVersionName").orNull
+val releaseVersionCode = providers.gradleProperty("codexReleaseVersionCode").orNull?.toIntOrNull()
+val signingKeystorePath = System.getenv("CODEX_RELEASE_KEYSTORE_PATH")
+val signingPassword = System.getenv("CODEX_RELEASE_PASSWORD")
+val signingAlias = System.getenv("CODEX_RELEASE_KEY_ALIAS") ?: "111-release"
+val signingReady = !signingKeystorePath.isNullOrBlank() && !signingPassword.isNullOrBlank()
+val releaseTasksRequested = gradle.startParameter.taskNames.any {
+    it.contains("assembleRelease") || it.contains("bundleRelease") || it.contains("packageRelease")
+}
+if (releaseTasksRequested) {
+    require(releaseVersionName?.matches(Regex("""\d+\.\d+\.\d+-111\.\d+""")) == true) {
+        "正式构建必须传入 -PcodexReleaseVersionName=0.1.0-111.N"
+    }
+    require(releaseVersionCode != null && releaseVersionCode in 1..2100000000) {
+        "正式构建必须传入合法的 -PcodexReleaseVersionCode"
+    }
+    require(signingReady) { "正式构建缺少持久化签名密钥及密码" }
+}
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,13 +32,29 @@ android {
         applicationId = "io.github.sy220284.codexandroid"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode ?: 1
+        versionName = releaseVersionName ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    signingConfigs {
+        if (signingReady) {
+            create("release") {
+                storeFile = file(signingKeystorePath!!)
+                storePassword = signingPassword
+                keyAlias = signingAlias
+                keyPassword = signingPassword
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
     }
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (signingReady) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
