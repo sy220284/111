@@ -180,6 +180,15 @@ fun AccountPage(vm: CodexViewModel) {
     var logoutConfirm by remember { mutableStateOf(false) }
     ScreenColumn {
         SectionIntro("AUTH / IDENTITY", "账号与身份", "账号资料保存在 Codex 自己的本机配置中。")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("本机账号与授权", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f))
+            TextButton(onClick = { vm.refresh("account", "account/read") }) {
+                Icon(Icons.Outlined.Refresh, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("刷新账号状态")
+            }
+        }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Icon(Icons.Outlined.AccountCircle, null, modifier = Modifier.size(42.dp), tint = Ink.copper)
             Text("账号信息", style = MaterialTheme.typography.titleLarge)
@@ -192,12 +201,6 @@ fun AccountPage(vm: CodexViewModel) {
                 OutlinedButton(onClick = { vm.startLogin() }, modifier = Modifier.weight(1f)) {
                     Text("浏览器登录", maxLines = 1)
                 }
-            }
-            TextButton(onClick = { vm.refresh("account", "account/read") },
-                modifier = Modifier.align(Alignment.End)) {
-                Icon(Icons.Outlined.Refresh, null)
-                Spacer(Modifier.width(6.dp))
-                Text("刷新账号状态")
             }
             if (deviceCode.isNotBlank() && deviceUrl.startsWith("https://")) {
                 DividerLine()
