@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   group: codex-android-build
-  cancel-in-progress: true
+  # Ensure device and core acceptance runs finish even when UI commits arrive rapidly.
+  cancel-in-progress: false
 
 jobs:
   build:

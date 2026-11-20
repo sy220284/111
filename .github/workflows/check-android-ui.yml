@@ -12,7 +12,8 @@ permissions:
 
 concurrency:
   group: codex-android-ui-check
-  cancel-in-progress: true
+  # Ensure device and core acceptance runs finish even when UI commits arrive rapidly.
+  cancel-in-progress: false
 
 jobs:
   verify-ui:
