@@ -5,6 +5,7 @@ on:
     paths:
       - "android-app/**"
       - ".github/workflows/build-android.yml"
+      - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
   workflow_run:
     workflows: ["编译 Android 原生 Codex 核心"]
@@ -28,9 +29,12 @@ jobs:
       - name: 检出 Android 工程及源码版本标记
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+          filter: blob:none
           sparse-checkout: |
             android-app
             CODEX_UPSTREAM_COMMIT
+            .github/scripts
       - name: 安装 Java 17
         uses: actions/setup-java@v4
         with:
@@ -46,34 +50,20 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
-      - name: 选择当前版本最近一次成功的原生核心构建
+      - name: 核实源码及 Rust/NDK 编译配置，复用完整双架构内核
         id: native
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          COMPLETED_NATIVE_RUN: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = workflow_run ]; then
-            RUN_ID="$COMPLETED_NATIVE_RUN"
-          else
-            RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml --limit 40 --json databaseId,conclusion --jq '[.[] | select(.conclusion == "success")][0].databaseId // empty')"
-          fi
-          if [ -z "$RUN_ID" ]; then
-            echo "当前仓库尚无成功的 Android NDK 核心构建。先运行『编译 Android 原生 Codex 核心』。" >&2
+          RUN_ID="$(python3 .github/scripts/select_native_artifacts.py \
+            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a x86_64)" || {
+            echo "::error::当前源码没有可复用的完整 ARM64 / x86_64 原生内核，请先完成自动触发的原生构建"
             exit 1
-          fi
-          NATIVE_COMMIT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
-          NATIVE_VERSION_FILE="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$NATIVE_COMMIT" --jq '.content' | base64 --decode)"
-          NATIVE_UPSTREAM="$(printf '%s\n' "$NATIVE_VERSION_FILE" | sed -n '1p')"
-          CURRENT_UPSTREAM="$(sed -n '1p' CODEX_UPSTREAM_COMMIT)"
-          if [ "$NATIVE_UPSTREAM" != "$CURRENT_UPSTREAM" ]; then
-            echo "原生内核源码版本 ($NATIVE_UPSTREAM) 与 Android 仓库当前源码 ($CURRENT_UPSTREAM) 不一致，必须重新编译。" >&2
-            exit 1
-          fi
+          }
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "原生核心已通过源码版本一致性核验：$NATIVE_UPSTREAM；构建编号：$RUN_ID"
+          echo "两种架构使用相同已验证内核构建：$RUN_ID"
       - name: 取回 ARM64 原生核心
         uses: actions/download-artifact@v4
         with:

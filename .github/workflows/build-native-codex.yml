@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/build-native-codex.yml"
+      - ".github/scripts/select_native_artifacts.py"
       - "CODEX_UPSTREAM_COMMIT"
       - "upstream/codex/**"
       - "android-app/tools/prepare_android_mxc.py"
@@ -12,14 +13,51 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: android-native-codex
   cancel-in-progress: false
 
 jobs:
+  reuse:
+    name: 复用已验证原生内核（源码及编译配置一致）
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    outputs:
+      reuse: ${{ steps.detect.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            .github/scripts
+      - name: 查找双架构可复用内核
+        id: detect
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RESULT=0
+          python3 .github/scripts/select_native_artifacts.py \
+            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a x86_64 \
+            > "$RUNNER_TEMP/reused-native-run" || RESULT=$?
+          if [ "$RESULT" -eq 0 ]; then
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+            echo "复用原生构建 $(cat "$RUNNER_TEMP/reused-native-run")，跳过 Rust/NDK 重编译"
+          elif [ "$RESULT" -eq 3 ]; then
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            echo "源码、编译参数变更或可用产物缺失，启动原生编译"
+          else
+            exit "$RESULT"
+          fi
+
   native:
     name: 编译 ${{ matrix.abi }} 核心
+    needs: reuse
+    if: needs.reuse.outputs.reuse != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 115
     strategy:
@@ -158,4 +196,4 @@ jobs:
           name: codex-android-native-${{ matrix.abi }}
           path: upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-app-server
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90

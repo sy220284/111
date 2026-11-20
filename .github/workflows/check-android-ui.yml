@@ -5,6 +5,11 @@ on:
     paths:
       - "android-app/**"
       - ".github/workflows/check-android-ui.yml"
+      - ".github/workflows/build-android.yml"
+      - ".github/workflows/build-native-codex.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/select_native_artifacts.py"
+      - ".github/scripts/test_native_reuse.py"
       - "CODEX_UPSTREAM_COMMIT"
       - "upstream/codex/**"
   workflow_dispatch:
