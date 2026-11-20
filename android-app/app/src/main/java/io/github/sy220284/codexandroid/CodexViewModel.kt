@@ -156,7 +156,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             timeline.value = timeline.value + TimelineItem(
                 "user-" + System.nanoTime(), "user",
                 if (images.isEmpty()) prompt else
-                    listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\\n"))
+                    listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"))
             try {
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
