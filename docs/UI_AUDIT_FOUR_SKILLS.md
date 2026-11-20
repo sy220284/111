@@ -57,7 +57,8 @@
 
 - Android 代码内有 UI instrumentation 检查：侧栏导航、协作模式选择弹层、侧栏搜索与外观页、终端执行确认与取消、系统返回键，以及执行依据弹层复制与关闭。
 - `.github/workflows/check-android-ui.yml` 会在提交后执行 Kotlin 编译、官方协议检查、单元测试、Lint、APK 编译和 Android 35 模拟器设备 UI 测试，并保存截图。
-- 以对应分支最新 GitHub Actions 记录为准，失败应在该分支修复后重跑。
+- 四项技能驱动的 UI 设计已由 PR #5 合并主分支；会话契约和设备码登录由 PR #8 整合完成。
+- [集成 UI 工作流](https://github.com/sy220284/111/actions/runs/44743790233)：8 项 Android 35 模拟器界面测试通过；[完整 APK 工作流](https://github.com/sy220284/111/actions/runs/44743790342)：11 项原生核心与交互设备测试通过。
 - 独立 UI 编译成功不等于 Android 原生 Codex 核心端到端执行成功；核心 ABI、真实账户登录、实际文件权限和低端机性能仍以端到端验收矩阵判断。
 
 ## 六、复用规则
