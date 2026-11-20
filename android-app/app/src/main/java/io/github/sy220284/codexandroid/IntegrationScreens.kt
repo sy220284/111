@@ -202,6 +202,7 @@ fun McpServicesPage(vm: CodexViewModel) {
     val login = data["mcpLogin"]?.optString("authorizationUrl") ?: ""
     var selected by remember { mutableStateOf("") }
     var confirmLogin by remember { mutableStateOf("") }
+    var resourceSelection by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
     val currentThread by vm.activeThread.collectAsState()
     LaunchedEffect(Unit) {
         val args = JSONObject().put("detail", "full")
@@ -254,6 +255,25 @@ fun McpServicesPage(vm: CodexViewModel) {
                         keys.forEach { key ->
                             Text("· " + key, style = MaterialTheme.typography.bodyMedium)
                         }
+                        if (resources.length() > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Text("服务资源", style = MaterialTheme.typography.titleMedium)
+                            for (index in 0 until resources.length()) {
+                                val resource = resources.optJSONObject(index) ?: continue
+                                val uri = resource.optString("uri")
+                                if (uri.isBlank()) continue
+                                OutlinedButton(
+                                    onClick = { resourceSelection = name to resource },
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                ) {
+                                    Icon(Icons.Outlined.Description, null)
+                                    Spacer(Modifier.width(9.dp))
+                                    Text(resource.optString("name").ifBlank { uri },
+                                        modifier = Modifier.weight(1f), maxLines = 2)
+                                    Icon(Icons.Outlined.ChevronRight, null)
+                                }
+                            }
+                        }
                         val error = server.optString("toolsError")
                         if (error.isNotBlank()) ErrorText(error)
                         Text(server.toString(2), fontFamily = FontFamily.Monospace,
@@ -271,6 +291,10 @@ fun McpServicesPage(vm: CodexViewModel) {
             }
         }
         IntegrationState(vm, "mcpLogin") { }
+    }
+    resourceSelection?.let { (name, resource) ->
+        McpResourceSheet(serverName = name, resource = resource, vm = vm,
+            onDismiss = { resourceSelection = null })
     }
     if (confirmLogin.isNotBlank()) CodexConfirmDialog(
         title = "授权 MCP 服务",
