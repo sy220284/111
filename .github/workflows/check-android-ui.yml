@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: codex-android-ui-check
+  group: codex-android-ui-check-${{ github.ref_name }}
   # Ensure device and core acceptance runs finish even when UI commits arrive rapidly.
   cancel-in-progress: false
 

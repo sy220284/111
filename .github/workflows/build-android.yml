@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: codex-android-build
+  group: codex-android-build-${{ github.ref_name }}
   # Ensure device and core acceptance runs finish even when UI commits arrive rapidly.
   cancel-in-progress: false
 
