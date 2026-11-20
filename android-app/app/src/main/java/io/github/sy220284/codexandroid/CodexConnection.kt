@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.BufferedWriter
 import java.io.File
+import java.io.IOException
 import java.io.OutputStreamWriter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -33,8 +34,8 @@ class CodexConnection(private val appContext: Context) {
     private val lifecycleMutex = Mutex()
     private val sequence = AtomicLong(1)
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
-    private var process: Process? = null
-    private var writer: BufferedWriter? = null
+    @Volatile private var process: Process? = null
+    @Volatile private var writer: BufferedWriter? = null
 
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
     val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 512)
@@ -75,14 +76,28 @@ class CodexConnection(private val appContext: Context) {
                 }
             }
             scope.launch {
-                child.errorStream.bufferedReader().use { stream ->
-                    // Read stderr so the child does not block on a full pipe.
-                    // Store a bounded, local-only diagnostic tail for crash investigation.
-                    // Never forward process stderr to Android logcat or telemetry.
-                    while (true) {
-                        val line = stream.readLine() ?: break
-                        recentStderr.value = (recentStderr.value + line.take(350))
-                            .takeLast(16)
+                try {
+                    child.errorStream.bufferedReader().use { stream ->
+                        // Drain stderr to avoid a blocked child; keep diagnostics only in local memory.
+                        while (true) {
+                            val line = stream.readLine() ?: break
+                            recentStderr.value = (recentStderr.value + line.take(350))
+                                .takeLast(16)
+                        }
+                    }
+                } catch (failure: IOException) {
+                    // Destroying a child closes its pipes from another thread; readLine then
+                    // raises InterruptedIOException on Android. It is a completed shutdown.
+                    // A failure while this child is still owned is a real connection fault.
+                    if (process === child) {
+                        val reason = "Codex 错误输出通道读取失败：" +
+                            (failure.message ?: failure.javaClass.simpleName)
+                        process = null
+                        writer = null
+                        status.value = EngineStatus.Unavailable(reason)
+                        prompts.value = emptyList()
+                        failWaiting(reason)
+                        child.destroy()
                     }
                 }
             }
