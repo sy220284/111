@@ -63,8 +63,16 @@ jobs:
             echo "当前仓库尚无成功的 Android NDK 核心构建。先运行『编译 Android 原生 Codex 核心』。" >&2
             exit 1
           fi
+          NATIVE_COMMIT="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
+          NATIVE_VERSION_FILE="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$NATIVE_COMMIT" --jq '.content' | tr -d '\\n' | base64 --decode)"
+          NATIVE_UPSTREAM="$(printf '%s\n' "$NATIVE_VERSION_FILE" | sed -n '1p')"
+          CURRENT_UPSTREAM="$(sed -n '1p' CODEX_UPSTREAM_COMMIT)"
+          if [ "$NATIVE_UPSTREAM" != "$CURRENT_UPSTREAM" ]; then
+            echo "原生内核源码版本 ($NATIVE_UPSTREAM) 与 Android 仓库当前源码 ($CURRENT_UPSTREAM) 不一致，必须重新编译。" >&2
+            exit 1
+          fi
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "选择原生核心构建：$RUN_ID"
+          echo "原生核心已通过源码版本一致性核验：$NATIVE_UPSTREAM；构建编号：$RUN_ID"
       - name: 取回 ARM64 原生核心
         uses: actions/download-artifact@v4
         with:
