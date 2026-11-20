@@ -272,12 +272,12 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        AnimatedVisibility(visible = prompts.isNotEmpty()) {
+        CodexReveal(visible = prompts.isNotEmpty()) {
             CodexNotice("本次任务有 ${prompts.size} 项待审批操作",
                 NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看", onAction = { navigate("approvals") })
         }
-        AnimatedVisibility(visible = busy) {
+        CodexReveal(visible = busy) {
             CodexNotice("Codex 正在执行任务，过程将持续更新",
                 NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "中断", onAction = { vm.interrupt() })
@@ -581,7 +581,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 var showDetail by remember { mutableStateOf(false) }
                 TextButton(onClick = { showDetail = !showDetail }) { Text(if (showDetail) "收起详情" else "查看详情") }
-                AnimatedVisibility(showDetail) {
+                CodexReveal(showDetail) {
                     Text(entry.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
                 }
@@ -598,7 +598,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
         TextButton(onClick = { expanded = !expanded }) {
             Icon(Icons.Outlined.Terminal, null); Spacer(Modifier.width(7.dp)); Text("高级协议操作")
         }
-        AnimatedVisibility(expanded) {
+        CodexReveal(expanded) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("调用官方 App Server 接口", style = MaterialTheme.typography.titleMedium)
                 Text("请求参数采用 JSON，异常会显示在本页。修改或删除操作需明确输入对应方法。", color = Ink.muted)
