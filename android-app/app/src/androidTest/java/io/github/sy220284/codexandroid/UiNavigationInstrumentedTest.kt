@@ -54,6 +54,27 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test
+    fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-chat").performClick()
+        rule.onNodeWithText("默认模型").assertIsDisplayed()
+        rule.onNodeWithText("执行", substring = false).assertIsDisplayed()
+        rule.onNodeWithText("内核状态").assertIsDisplayed()
+        rule.onNodeWithText("添加图片").assertIsDisplayed()
+        capture("chat-toolbar-android35.png")
+    }
+
+    @Test
+    fun diffReaderShowsFileFirstSummaryAndReviewAction() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-diff").performClick()
+        rule.onNodeWithText("本次改动").assertExists()
+        rule.onNodeWithText("代码审查").assertExists()
+        rule.onNodeWithText("暂无可展示的代码差异").assertExists()
+        capture("diff-reader-android35.png")
+    }
+
+    @Test
     fun androidBackReturnsToPreviousScreen() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").performClick()
