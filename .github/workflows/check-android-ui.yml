@@ -113,7 +113,7 @@ jobs:
             adb shell wm size ${{ matrix.width_dp }}x800
             adb shell wm density 160
             test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_dp }}x800"
-            test "$(adb shell wm density | awk '/Override density:/ {print $3}' | tr -d '\r')" = "160"
+            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
             # Capture the clean home screen before instrumented screenshots show Android's transient screenshot preview.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
