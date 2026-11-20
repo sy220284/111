@@ -117,11 +117,8 @@ jobs:
             grep -Fq 'OK (' ui-instrument-result.log
             # All designed pages have real 320x640 simulator screenshots.
             # A missing screenshot fails the job instead of being reported as verified.
-            for SCREEN in sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet \
-                thread-library account-usage account-limits workspace-files \
-                chat-toolbar diff-reader; do
-              adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" \
-                "ui-screenshots/${SCREEN}-android35.png"
+            for SCREEN in sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader; do
+              adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png"
               test -s "ui-screenshots/${SCREEN}-android35.png"
             done
             test -s ui-screenshots/home-android35.png
