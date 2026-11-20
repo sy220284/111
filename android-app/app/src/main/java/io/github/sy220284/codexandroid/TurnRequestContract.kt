@@ -9,6 +9,18 @@ import org.json.JSONObject
  * while TurnStartParams itself is camelCase. Keep those two layers separate.
  */
 object TurnRequestContract {
+    /** Attach a new instruction to the current running turn, with an ID precondition. */
+    fun steer(threadId: String, expectedTurnId: String, text: String): JSONObject {
+        require(threadId.isNotBlank()) { "缺少当前会话" }
+        require(expectedTurnId.isNotBlank()) { "任务尚未取得运行轮次" }
+        val instruction = text.trim()
+        require(instruction.isNotEmpty()) { "补充指令不能为空" }
+        return JSONObject()
+            .put("threadId", threadId)
+            .put("expectedTurnId", expectedTurnId)
+            .put("input", JSONArray().put(JSONObject().put("type", "text").put("text", instruction)))
+    }
+
     fun build(threadId: String, text: String, modelId: String, mode: String,
               catalog: List<JSONObject>): JSONObject {
         require(threadId.isNotBlank()) { "缺少会话标识" }
