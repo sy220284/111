@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
@@ -36,7 +37,7 @@ class UiNavigationInstrumentedTest {
     fun accountPageExposesNarrowScreenDeviceLoginActions() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("账号登录")
-        rule.onNodeWithText("账号登录").performClick()
+        rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
         rule.onNodeWithText("设备码登录").assertExists()
         rule.onNodeWithText("浏览器登录").assertExists()
         rule.onNodeWithText("刷新账号状态").assertExists()
