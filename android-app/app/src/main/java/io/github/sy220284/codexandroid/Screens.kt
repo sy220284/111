@@ -55,7 +55,8 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "security" -> SecurityPage(vm, navigate)
         "about" -> AboutPage(vm)
         "search" -> ThreadSearchPage(vm, navigate)
-        "goals", "queue" -> ThreadScopedPage(id, vm)
+        "goals" -> ThreadGoalPage(vm)
+        "queue" -> ThreadQueuePage(vm)
         else -> CatalogPage(pages.first { it.id == id }, vm)
     }
 }
