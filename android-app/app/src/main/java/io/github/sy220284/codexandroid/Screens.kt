@@ -405,8 +405,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 if (draft.trim() == message) draft = ""
                             }
                         } else {
-                            draft = ""
-                            vm.sendPrompt(message)
+                            vm.sendPrompt(message) {
+                                if (draft.trim() == message) draft = ""
+                            }
                         }
                     },
                     enabled = draft.isNotBlank() && status == EngineStatus.Connected &&
