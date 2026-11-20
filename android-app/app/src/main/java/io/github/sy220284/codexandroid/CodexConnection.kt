@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.BufferedWriter
 import java.io.File
+import java.io.IOException
 import java.io.OutputStreamWriter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -33,8 +34,9 @@ class CodexConnection(private val appContext: Context) {
     private val lifecycleMutex = Mutex()
     private val sequence = AtomicLong(1)
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
-    private var process: Process? = null
-    private var writer: BufferedWriter? = null
+    // Process IO is managed by separate coroutines and may also be closed on the UI thread.
+    @Volatile private var process: Process? = null
+    @Volatile private var writer: BufferedWriter? = null
 
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
     val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 512)
@@ -75,14 +77,24 @@ class CodexConnection(private val appContext: Context) {
                 }
             }
             scope.launch {
-                child.errorStream.bufferedReader().use { stream ->
-                    // Read stderr so the child does not block on a full pipe.
-                    // Store a bounded, local-only diagnostic tail for crash investigation.
-                    // Never forward process stderr to Android logcat or telemetry.
-                    while (true) {
-                        val line = stream.readLine() ?: break
-                        recentStderr.value = (recentStderr.value + line.take(350))
-                            .takeLast(16)
+                try {
+                    child.errorStream.bufferedReader().use { stream ->
+                        // Drain stderr and retain only a bounded device-local diagnostic tail.
+                        while (true) {
+                            val line = stream.readLine() ?: break
+                            if (process !== child) break
+                            recentStderr.value = (recentStderr.value + line.take(350))
+                                .takeLast(16)
+                        }
+                    }
+                } catch (error: IOException) {
+                    if (process === child) {
+                        // Unexpected stderr failure is a transport fault. On an intentional
+                        // close(), process is cleared first; Android may then interrupt a
+                        // pending read with InterruptedIOException, which is expected.
+                        val reason = "Codex 错误输出通道中断：" + (error.message ?: error.javaClass.simpleName)
+                        status.value = EngineStatus.Unavailable(reason)
+                        failWaiting(reason)
                     }
                 }
             }
