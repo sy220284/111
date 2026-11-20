@@ -5,6 +5,8 @@ on:
     paths:
       - "android-app/**"
       - ".github/workflows/check-android-ui.yml"
+      - "CODEX_UPSTREAM_COMMIT"
+      - "upstream/codex/**"
   workflow_dispatch:
 
 permissions:

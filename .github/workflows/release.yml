@@ -1,0 +1,406 @@
+name: 111 Android 正式发布
+
+'on':
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/scripts/generate-release-notes.py'
+      - '.github/scripts/test_generate_release_notes.py'
+      - '.github/scripts/test_release_assets.py'
+      - '.github/scripts/prepare-release-assets.sh'
+      - '.github/release-version'
+      - 'android-app/app/build.gradle.kts'
+  workflow_run:
+    workflows: ['安卓版本构建与验证', '安卓界面与协议独立验收']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: android-release-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: 发布脚本回归检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: 检查版本号、Shell 语法和中文发布说明
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-111\.[0-9]+$' .github/release-version
+          bash -n .github/scripts/prepare-release-assets.sh
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+
+  release-signing-smoke:
+    name: PR 内验证 Release 签名构建
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout: |
+            android-app
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        with:
+          gradle-version: '8.11.1'
+      - name: 配置 Android API 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -x "$SDK_MANAGER"
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - name: 生成仅本次 CI 有效的测试签名
+        shell: bash
+        run: |
+          set -euo pipefail
+          STORE="$RUNNER_TEMP/release-signing-smoke.jks"
+          keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 \
+            -alias 111-release -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci-only-password -keypass ci-only-password -dname "CN=111 CI signing smoke"
+          echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE" >> "$GITHUB_ENV"
+          echo "CODEX_RELEASE_PASSWORD=ci-only-password" >> "$GITHUB_ENV"
+          echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
+      - name: 真实编译并验证 ARM64 手机签名 Release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
+            -PcodexSplitAbi=true \
+            -PcodexReleaseTargetAbi=arm64-v8a \
+            -PcodexReleaseVersionName=0.1.0-111.999 \
+            -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
+          APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
+          test -s "$APK"
+          test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          BADGE="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | sed -n '1p')"
+          [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
+          [[ "$BADGE" == *"versionCode='999'"* ]]
+          [[ "$BADGE" == *"versionName='0.1.0-111.999'"* ]]
+
+  check-release:
+    name: 识别待发布源码与版本
+    needs: preflight
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      should_release: ${{ steps.detect.outputs.should_release }}
+      version: ${{ steps.detect.outputs.version }}
+      version_code: ${{ steps.detect.outputs.version_code }}
+      release_sha: ${{ steps.detect.outputs.release_sha }}
+      previous_tag: ${{ steps.detect.outputs.previous_tag }}
+      native_run_id: ${{ steps.detect.outputs.native_run_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+      - name: 仅为未发布的客户端变更递增版本
+        id: detect
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="$(git rev-parse HEAD)"
+          git fetch --tags --force origin
+          git fetch origin main
+          LATEST_MAIN="$(git rev-parse FETCH_HEAD)"
+          echo "should_release=false" >> "$GITHUB_OUTPUT"
+          if [ ! -f .github/release-version ] || [ ! -f .github/workflows/release.yml ]; then
+            echo "::notice::旧源码尚未接入正式发布流程，跳过"
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" "$LATEST_MAIN"; then
+            echo "::error::正式发布源码必须来自仓库 main 的提交历史"
+            exit 1
+          fi
+          if [ "$RELEASE_SHA" != "$LATEST_MAIN" ]; then
+            echo "::notice::本次验收源版本已被新的 main 提交取代，等待新版验收完成"
+            exit 0
+          fi
+          # The two workflows can finish in either order. The last successful
+          # completion will publish only if both green runs match this SHA.
+          for REQUIRED_WORKFLOW in build-android.yml check-android-ui.yml; do
+            PASSED="$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow "$REQUIRED_WORKFLOW" --branch main --commit "$RELEASE_SHA" \
+              --limit 100 --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')"
+            if [ "$PASSED" -eq 0 ]; then
+              echo "::notice::源码 $RELEASE_SHA 尚未同时通过 $REQUIRED_WORKFLOW，等待对应验收成功后再发布"
+              exit 0
+            fi
+          done
+          set -euo pipefail
+          EXPECTED="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
+          RUN_IDS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml \
+            --branch main --limit 100 --json databaseId,conclusion \
+            --jq '.[] | select(.conclusion == "success") | .databaseId')"
+          SELECTED=""
+          for RUN_ID in $RUN_IDS; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
+            if ! git merge-base --is-ancestor "$SHA" HEAD; then continue; fi
+            # Reuse only if the entire native source and build inputs are unchanged.
+            if ! git diff --quiet "$SHA" HEAD -- \
+                CODEX_UPSTREAM_COMMIT upstream/codex/ \
+                .github/workflows/build-native-codex.yml \
+                android-app/tools/prepare_android_mxc.py; then
+              continue
+            fi
+            VERSION="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$SHA" \
+              --jq '.content' | base64 --decode | head -n 1)"
+            if [ "$VERSION" != "$EXPECTED" ]; then continue; fi
+            ASSETS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.expired == false) | .name')"
+            if printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-arm64-v8a'; then
+              SELECTED="$RUN_ID"
+              break
+            fi
+          done
+          if [ -z "$SELECTED" ]; then
+            echo "::notice::当前原生构建尚未完成或产物过期，待编译成功并再次通过安卓验收后发布"
+            exit 0
+          fi
+          echo "native_run_id=$SELECTED" >> "$GITHUB_OUTPUT"
+          echo "采用原生构建 $SELECTED，Codex 源码 $EXPECTED"
+          echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
+          EXISTING="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq ".[] | select(.draft == false and .prerelease == false and .target_commitish == \"$RELEASE_SHA\") | .tag_name" | head -n 1)"
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::当前源码已发布：$EXISTING"
+            exit 0
+          fi
+
+          RELEASED_TAGS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' |
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-111\.[0-9]+$' || true)"
+          PREVIOUS_TAG="$(printf '%s\n' "$RELEASED_TAGS" | sed '/^$/d' | sort -V | tail -n 1)"
+          echo "previous_tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+          if [ -n "$PREVIOUS_TAG" ]; then
+            git merge-base --is-ancestor "$PREVIOUS_TAG" "$RELEASE_SHA" || {
+              echo "::error::上版提交不在当前发布链上，需要人工检查主分支历史"; exit 1;
+            }
+            git diff --name-only "$PREVIOUS_TAG" "$RELEASE_SHA" > "$RUNNER_TEMP/release-paths.txt"
+            if ! grep -Eq '^(android-app/|upstream/codex/|CODEX_UPSTREAM_COMMIT$|\.github/workflows/build-native-codex\.yml$)' "$RUNNER_TEMP/release-paths.txt"; then
+              echo "::notice::距上版仅有文档或发布流程变化，跳过重复 APK"
+              exit 0
+            fi
+          fi
+
+          FALLBACK="$(tr -d '\r\n' < .github/release-version)"
+          if [[ ! "$FALLBACK" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-111\.([0-9]+)$ ]]; then
+            echo "::error::初始化版本格式非法"; exit 1
+          fi
+          BASE="${BASH_REMATCH[1]}"
+          SEQUENCE="${BASH_REMATCH[2]}"
+          MAX_SEQUENCE=0
+          LATEST_TAG=""
+          while IFS= read -r tag; do
+            if [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-111\.([0-9]+)$ ]]; then
+              if (( 10#${BASH_REMATCH[2]} > MAX_SEQUENCE )); then
+                MAX_SEQUENCE="$((10#${BASH_REMATCH[2]}))"
+              fi
+              LATEST_TAG="$tag"
+            fi
+          done < <(git tag -l 'v*-111.*' | sort -V)
+          if [ -n "$LATEST_TAG" ]; then
+            LATEST_BASE="${LATEST_TAG#v}"
+            LATEST_BASE="${LATEST_BASE%-111.*}"
+            if [ "$(printf '%s\n%s\n' "$BASE" "$LATEST_BASE" | sort -V | tail -n 1)" = "$LATEST_BASE" ]; then
+              BASE="$LATEST_BASE"
+            fi
+            SEQUENCE="$((MAX_SEQUENCE + 1))"
+          fi
+          if (( 10#$SEQUENCE > 2100000000 )); then
+            echo "::error::Android versionCode 超出限制"; exit 1
+          fi
+          VERSION="$BASE-111.$((10#$SEQUENCE))"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$((10#$SEQUENCE))" >> "$GITHUB_OUTPUT"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "准备发布 $RELEASE_SHA -> v$VERSION"
+
+  release:
+    name: 签名、验证并发布 ARM64 手机 APK
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.check-release.outputs.release_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        with:
+          gradle-version: '8.11.1'
+      - name: 安装 Android API 35 与 NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -x "$SDK_MANAGER"
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+
+      - name: 校验正式签名材料
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::请为 111 配置 RELEASE_KEYSTORE（Base64）与 RELEASE_KEY_PASSWORD（密钥库及私钥共用密码）"
+            exit 1
+          fi
+          KEYSTORE_B64="${KEYSTORE_B64#RELEASE_KEYSTORE=}"
+          KEYSTORE_B64="$(printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]')"
+          KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD#RELEASE_KEY_PASSWORD=}"
+          KEYSTORE_PASSWORD="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          KEYSTORE_PATH="$RUNNER_TEMP/111-release.keystore"
+          REMAINDER="$(("${#KEYSTORE_B64}" % 4))"
+          case "$REMAINDER" in
+            0) ;;
+            2) KEYSTORE_B64="${KEYSTORE_B64}==" ;;
+            3) KEYSTORE_B64="${KEYSTORE_B64}=" ;;
+            *) echo "::error::签名密钥库 Base64 不完整"; exit 1 ;;
+          esac
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias 111-release >/dev/null
+          chmod 600 "$KEYSTORE_PATH"
+          echo "CODEX_RELEASE_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "CODEX_RELEASE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
+
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-android-native-arm64-v8a
+          run-id: ${{ needs.check-release.outputs.native_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/native-arm64
+
+      - name: 验证 16 KB 对齐并组装 ARM64 手机内核
+        shell: bash
+        run: |
+          set -euo pipefail
+          ABI=arm64-v8a
+          ARCH=AArch64
+          SRC_DIR="$RUNNER_TEMP/native-arm64"
+          STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          test -x "$STRIP"
+          mapfile -t FOUND < <(find "$SRC_DIR" -type f -name codex-app-server)
+          test "${#FOUND[@]}" -eq 1
+          SRC="${FOUND[0]}"
+          readelf -h "$SRC" | grep -Fq "$ARCH"
+          readelf -l "$SRC" | grep -Fq '/system/bin/linker64'
+          mapfile -t ALIGNS < <(readelf -Wl "$SRC" | awk '$1=="LOAD" {print $NF}')
+          test "${#ALIGNS[@]}" -gt 0
+          for ALIGN in "${ALIGNS[@]}"; do
+            if (( ALIGN < 16384 )); then echo "::error::$ABI 原生段对齐不足 16 KB"; exit 1; fi
+          done
+          TARGET="android-app/app/src/main/jniLibs/$ABI"
+          mkdir -p "$TARGET"
+          cp "$SRC" "$TARGET/libcodex_server.so"
+          chmod 755 "$TARGET/libcodex_server.so"
+          "$STRIP" --strip-all "$TARGET/libcodex_server.so"
+          readelf -h "$TARGET/libcodex_server.so" | grep -Fq "$ARCH"
+
+      - name: 生成与已合并 PR 一致的中文更新说明
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_TAG: ${{ needs.check-release.outputs.previous_tag }}
+          RELEASE_SHA: ${{ needs.check-release.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/generate-release-notes.py \
+            --repo "$GITHUB_REPOSITORY" --base "$PREVIOUS_TAG" \
+            --head "$RELEASE_SHA" --output "$RUNNER_TEMP/release-notes.md"
+
+      - name: 测试并构建正式签名 APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
+            -PcodexSplitAbi=true \
+            -PcodexReleaseTargetAbi=arm64-v8a \
+            -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \
+            -PcodexReleaseVersionCode="${{ needs.check-release.outputs.version_code }}" \
+            --no-daemon --stacktrace
+
+      - name: 核验签名、应用包名、版本与 ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIR="android-app/app/build/outputs/apk/release"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          VERSION="${{ needs.check-release.outputs.version }}"
+          CODE="${{ needs.check-release.outputs.version_code }}"
+          APK="$DIR/app-arm64-v8a-release.apk"
+          test -s "$APK"
+          test ! -e "$DIR/app-x86_64-release.apk"
+          unzip -tqq "$APK"
+          BADGE="$("$AAPT" dump badging "$APK" | sed -n '1p')"
+          [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
+          [[ "$BADGE" == *"versionCode='$CODE'"* ]]
+          [[ "$BADGE" == *"versionName='$VERSION'"* ]]
+          "$APKSIGNER" verify --min-sdk-version 29 --verbose "$APK"
+          CERT="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          test -n "$CERT"
+          unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_server.so'
+          unzip -Z1 "$APK" | grep -Fxq 'classes.dex'
+          if unzip -Z1 "$APK" | grep -Fxq 'lib/x86_64/libcodex_server.so'; then
+            echo "::error::手机 APK 混入模拟器内核"; exit 1
+          fi
+
+      - name: 制作校验清单及可回放增量更新包
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
+          RELEASE_TAG: v${{ needs.check-release.outputs.version }}
+          PREVIOUS_TAG: ${{ needs.check-release.outputs.previous_tag }}
+        run: bash .github/scripts/prepare-release-assets.sh
+
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: v${{ needs.check-release.outputs.version }}
+          name: v${{ needs.check-release.outputs.version }}
+          target_commitish: ${{ needs.check-release.outputs.release_sha }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          generate_release_notes: false
+          files: .release-assets/*
+          fail_on_unmatched_files: true
