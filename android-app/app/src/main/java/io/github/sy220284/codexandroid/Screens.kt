@@ -66,10 +66,11 @@ fun ScreenColumn(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val compact by UiPreferences.compact.collectAsState()
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = if (compact) 12.dp else 18.dp, vertical = if (compact) 12.dp else 20.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 16.dp),
         content = content
     )
 }
@@ -81,7 +82,14 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
     ScreenColumn {
-        SectionIntro("YOUR COMMAND CENTER", "让代码，流动起来", "直接在手机上管理项目、任务与 Codex 执行过程。")
+        SectionIntro("WORKSPACE / LIVE", "继续你的工程", "从任务、文件到执行结果，都在这一个工作台。")
+        if (prompts.isNotEmpty()) {
+            CodexNotice("有 ${prompts.size} 项操作需要人工确认", NoticeTone.Warning,
+                actionLabel = "立即处理", onAction = { navigate("approvals") })
+        } else if (status != EngineStatus.Connected) {
+            CodexNotice("本机 Codex 引擎尚未连接", NoticeTone.Info,
+                actionLabel = "连接", onAction = { vm.connect() })
+        }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(shape = RoundedCornerShape(15.dp), color = Ink.copper.copy(alpha = .17f)) {
@@ -107,28 +115,25 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
             SmallStat("历史会话", threads.size.toString(), Icons.Outlined.History, Modifier.weight(1f))
             SmallStat("工作目录", "本地存储", Icons.Outlined.Folder, Modifier.weight(1f))
         }
+        Text("常用工作入口", style = MaterialTheme.typography.titleLarge)
+        CodexActionTile("工作区文件", "查看与编辑本机工程", Icons.Outlined.FolderOpen,
+            onClick = { navigate("files") }, modifier = Modifier.fillMaxWidth())
+        CodexActionTile("代码差异", "检查当前任务改动", Icons.Outlined.Difference,
+            onClick = { navigate("diff") }, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("继续最近工作", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
         }
         if (threads.isEmpty()) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("还没有可恢复的会话", color = Ink.parchment)
-                Text("新建任务后，历史会话会在这里出现。", color = Ink.muted)
-            }
+            CodexEmptyState("还没有可恢复的会话",
+                "创建第一个任务后，后续可以从这里继续工作。",
+                actionLabel = "新建任务", onAction = { vm.newThread(); navigate("chat") })
         } else {
             threads.take(5).forEach { item ->
                 ThreadRow(item) {
                     vm.chooseThread(item.optString("id"))
                     navigate("chat")
                 }
-            }
-        }
-        if (prompts.isNotEmpty()) {
-            Button(onClick = { navigate("approvals") }, colors = ButtonDefaults.buttonColors(containerColor = Ink.red.copy(alpha = .18f), contentColor = Ink.parchment)) {
-                Icon(Icons.Outlined.WarningAmber, null)
-                Spacer(Modifier.width(8.dp))
-                Text("有 " + prompts.size + " 项操作需要确认")
             }
         }
     }
@@ -185,8 +190,11 @@ private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("新建会话")
         }
         errors["threads"]?.let { ErrorText(it) }
-        if (list.isEmpty()) {
-            MaterialPanel(Modifier.fillMaxWidth()) { Text("当前列表为空", color = Ink.muted) }
+        if (list.isEmpty() && "threads" !in errors) {
+            CodexEmptyState(if (query.isBlank()) "暂无历史会话" else "没有匹配的会话",
+                if (query.isBlank()) "新建会话后，可在这里继续任务。" else "尝试更短的关键词或修改搜索条件。",
+                actionLabel = if (query.isBlank()) "新建会话" else "清除搜索",
+                onAction = { if (query.isBlank()) { vm.newThread(); navigate("chat") } else query = "" })
         }
         list.forEach { t -> ThreadRow(t) { vm.chooseThread(t.optString("id")); navigate("chat") } }
         TextButton(onClick = { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }) { Text("刷新会话列表") }
@@ -201,13 +209,20 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val items by vm.timeline.collectAsState()
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
+    val prompts by vm.bridge.prompts.collectAsState()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     var draft by rememberSaveable { mutableStateOf("") }
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(items.size) { if (items.isNotEmpty()) scroll.animateScrollToItem(items.size - 1) }
+    LaunchedEffect(items.size) {
+        if (items.isNotEmpty()) {
+            if (reducedMotion) scroll.scrollToItem(items.size - 1)
+            else scroll.animateScrollToItem(items.size - 1)
+        }
+    }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -218,6 +233,16 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
+        AnimatedVisibility(visible = prompts.isNotEmpty()) {
+            CodexNotice("本次任务有 ${prompts.size} 项待审批操作",
+                NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                actionLabel = "查看", onAction = { navigate("approvals") })
+        }
+        AnimatedVisibility(visible = busy) {
+            CodexNotice("Codex 正在执行任务，过程将持续更新",
+                NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                actionLabel = "中断", onAction = { vm.interrupt() })
+        }
         Box(Modifier.weight(1f)) {
             if (items.isEmpty()) {
                 Column(Modifier.align(Alignment.Center).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -273,19 +298,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             modifier = Modifier.weight(1f, fill = false))
                         Icon(Icons.Outlined.ArrowDropDown, null)
                     }
-                    DropdownMenu(expanded = showModels, onDismissRequest = { showModels = false }) {
-                        records(models["models"]).take(30).forEach { model ->
-                            val id = model.optString("id").ifBlank { model.optString("model") }
-                            DropdownMenuItem(text = { Text(model.optString("displayName").ifBlank { id }) },
-                                onClick = { vm.modelId.value = id; showModels = false })
-                        }
-                        if (records(models["models"]).isEmpty()) {
-                            DropdownMenuItem(text = { Text("刷新模型目录") }, onClick = {
-                                vm.refresh("models", "model/list")
-                                showModels = false
-                            })
-                        }
-                    }
+
                 }
                 Box(Modifier.weight(.9f)) {
                     OutlinedButton(
@@ -299,14 +312,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             modifier = Modifier.weight(1f, fill = false))
                         Icon(Icons.Outlined.ArrowDropDown, null)
                     }
-                    DropdownMenu(expanded = showModes, onDismissRequest = { showModes = false }) {
-                        DropdownMenuItem(text = { Text("直接执行任务") }, onClick = {
-                            vm.selectedMode.value = "default"; showModes = false
-                        })
-                        DropdownMenuItem(text = { Text("先制定计划") }, onClick = {
-                            vm.selectedMode.value = "plan"; showModes = false
-                        })
-                    }
+
                 }
                 IconButton(onClick = { if (busy) vm.interrupt() else navigate("diagnostics") }) {
                     Icon(
@@ -343,6 +349,36 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Icon(Icons.Outlined.ArrowUpward, null); Spacer(Modifier.width(8.dp)); Text("发送给 Codex")
             }
         }
+    }
+    if (showModels) {
+        val available = records(models["models"]).filter { !it.optBoolean("hidden") }.take(80)
+        CodexChoiceSheet(
+            title = "选择运行模型", description = "影响后续任务，已经启动的任务继续使用原设置。",
+            choices = if (available.isEmpty()) listOf(
+                CodexChoice("__reload", "刷新模型目录", "读取 Codex 内核支持的模型")
+            ) else available.map {
+                val id = it.optString("id").ifBlank { it.optString("model") }
+                CodexChoice(id, it.optString("displayName").ifBlank { id }, it.optString("description"))
+            }.distinctBy { it.id },
+            selectedId = vm.modelId.collectAsState().value,
+            onSelect = { id ->
+                if (id == "__reload") vm.refresh("models", "model/list") else vm.modelId.value = id
+                showModels = false
+            },
+            onDismiss = { showModels = false }
+        )
+    }
+    if (showModes) {
+        CodexChoiceSheet(
+            title = "选择协作方式", description = "直接执行或先规划步骤；运行中不能切换。",
+            choices = listOf(
+                CodexChoice("default", "直接执行", "按任务要求执行并报告进度"),
+                CodexChoice("plan", "先制定计划", "先明确步骤，再由你决定下一步")
+            ),
+            selectedId = selectedMode,
+            onSelect = { vm.selectedMode.value = it; showModes = false },
+            onDismiss = { showModes = false }
+        )
     }
 }
 
