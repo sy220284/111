@@ -33,7 +33,10 @@ class UiNavigationInstrumentedTest {
 
     @Test
     fun drawerOpensAndNavigatesToConversation() {
-        rule.onNodeWithText("继续你的工程").assertExists()
+        // Capture only after Compose has rendered the home screen. An am start
+        // screenshot can still show Android's splash frame on slower devices.
+        rule.onNodeWithText("继续你的工程").assertIsDisplayed()
+        capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").assertExists()
         capture("sidebar-android35.png")
