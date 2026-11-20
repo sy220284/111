@@ -80,8 +80,12 @@ jobs:
           retention-days: 14
 
   ui-emulator:
-    name: Android 模拟器侧栏交互与截图验收
+    name: Android 35 · ${{ matrix.width_dp }}dp UI 交互与截图验收
     needs: verify-ui
+    strategy:
+      fail-fast: false
+      matrix:
+        width_dp: [360, 393, 411]
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -105,6 +109,11 @@ jobs:
           script: |
             adb install -r apks/debug/app-debug.apk
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
+            # The three phone-width checks share the same Android 35 APK, and never run 320dp.
+            adb shell wm size ${{ matrix.width_dp }}x800
+            adb shell wm density 160
+            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_dp }}x800"
+            test "$(adb shell wm density | awk '/Override density:/ {print $3}' | tr -d '\r')" = "160"
             # Capture the clean home screen before instrumented screenshots show Android's transient screenshot preview.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
@@ -131,7 +140,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-android-ui-device-evidence
+          name: codex-android-ui-device-evidence-${{ matrix.width_dp }}dp
           path: |
             ui-instrument-result.log
             ui-screenshots/
