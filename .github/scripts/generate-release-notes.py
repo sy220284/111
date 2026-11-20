@@ -109,7 +109,7 @@ def pull_requests(repo: str, commit: str) -> list[dict]:
 
 def generate(repo: str, base: str, head: str) -> str:
     if not base:
-        return "## 本次更新\n\n- 首次发布 Codex Android 双架构正式安装包。\n"
+        return "## 本次更新\n\n- 首次发布 Codex Android ARM64 手机版正式安装包。\n"
     run("git", "rev-parse", "--verify", f"{base}^{{commit}}")
     run("git", "merge-base", "--is-ancestor", base, head)
     shas = run("git", "rev-list", "--first-parent", "--reverse", f"{base}..{head}").splitlines()
