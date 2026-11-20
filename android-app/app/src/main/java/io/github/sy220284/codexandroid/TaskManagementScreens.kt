@@ -98,7 +98,12 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                         .put("origin", "user")
                         .put("objective", objective.trim())
                         .put("status", status)
-                    if (budget.isNotBlank()) params.put("tokenBudget", budget.toLong())
+                    if (budget.isNotBlank()) {
+                        params.put("tokenBudget", budget.toLong())
+                    } else if (goal != null && !goal.isNull("tokenBudget")) {
+                        // The protocol uses Option<Option<i64>>: explicit null clears a prior limit.
+                        params.put("tokenBudget", JSONObject.NULL)
+                    }
                     vm.rpc("goalWrite", "thread/goal/set", params, after = {
                         vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
                     })
@@ -155,6 +160,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 
     ScreenColumn {
         SectionIntro("TASK / QUEUE", "任务队列", "任务可以逐条排队执行，支持新增、删除、调整顺序与分页浏览。")
+        StatusPill("上游实验接口", false)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先打开一个任务会话", style = MaterialTheme.typography.titleMedium)
