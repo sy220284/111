@@ -232,14 +232,18 @@ fun AccountPage(vm: CodexViewModel) {
                 fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
         }
     }
-    if (logoutConfirm) AlertDialog(onDismissRequest = { logoutConfirm = false },
-        title = { Text("退出 Codex 账号") },
-        text = { Text("将清除 Codex 运行核心所持有的本机登录状态。") },
-        confirmButton = { TextButton(onClick = {
-            vm.rpc("account", "account/logout", JSONObject(), after = { vm.refresh("account", "account/read") })
+    if (logoutConfirm) CodexConfirmDialog(
+        title = "退出 Codex 账号",
+        message = "退出将清除 Codex 运行核心的本机登录状态。之后可以重新登录。",
+        confirmLabel = "退出登录",
+        destructive = true,
+        onConfirm = {
+            vm.rpc("account", "account/logout", JSONObject(),
+                after = { vm.refresh("account", "account/read") })
             logoutConfirm = false
-        }) { Text("退出登录") } },
-        dismissButton = { TextButton(onClick = { logoutConfirm = false }) { Text("取消") } })
+        },
+        onDismiss = { logoutConfirm = false }
+    )
 }
 
 @Composable
