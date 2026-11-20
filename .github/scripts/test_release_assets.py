@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test both ABI release assets without external services or signing material."""
+"""Test ARM64-only release assets without external services or signing material."""
 import hashlib
 import json
 import os
@@ -13,7 +13,7 @@ SCRIPT = Path(__file__).with_name("prepare-release-assets.sh").resolve()
 
 
 class ReleaseAssetTests(unittest.TestCase):
-    def test_first_release_contains_two_verified_apks_and_manifest(self):
+    def test_first_release_contains_only_verified_phone_apk_and_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             apk_dir = root / "android-app/app/build/outputs/apk/release"
@@ -41,12 +41,16 @@ class ReleaseAssetTests(unittest.TestCase):
             self.assertEqual(manifest["schema"], 2)
             self.assertEqual(manifest["targetVersion"], "0.1.0-111.1")
             self.assertEqual(manifest["patches"], [])
-            self.assertEqual({a["abi"] for a in manifest["apks"]}, set(source_apks))
+            self.assertEqual({a["abi"] for a in manifest["apks"]}, {"arm64-v8a"})
             for entry in manifest["apks"]:
                 data = (out / entry["name"]).read_bytes()
                 self.assertEqual(data, source_apks[entry["abi"]])
                 self.assertEqual(entry["size"], len(data))
                 self.assertEqual(entry["sha256"], hashlib.sha256(data).hexdigest())
+            self.assertEqual(
+                {p.name for p in out.iterdir()},
+                {"codex-android-arm64-v8a-0.1.0-111.1.apk", "update-manifest.json", "SHA256SUMS.txt"},
+            )
             sums = (out / "SHA256SUMS.txt").read_text(encoding="utf-8")
             self.assertIn("update-manifest.json", sums)
             for entry in manifest["apks"]:
