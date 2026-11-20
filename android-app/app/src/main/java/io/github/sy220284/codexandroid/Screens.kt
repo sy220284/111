@@ -359,56 +359,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         errors["steer"]?.let { ErrorText(it) }
         DividerLine()
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(Modifier.weight(1.1f)) {
-                    OutlinedButton(
-                        onClick = { showModels = true },
-                        enabled = status == EngineStatus.Connected,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(disabledContentColor = Ink.muted)
-                    ) {
-                        Text(vm.modelId.collectAsState().value.ifBlank { "默认模型" },
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false))
-                        Icon(Icons.Outlined.ArrowDropDown, null)
-                    }
-
-                }
-                Box(Modifier.weight(.9f)) {
-                    OutlinedButton(
-                        onClick = { showModes = true },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 9.dp)
-                    ) {
-                        Text(if (selectedMode == "plan") "先计划" else "执行",
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false))
-                        Icon(Icons.Outlined.ArrowDropDown, null)
-                    }
-
-                }
-                IconButton(onClick = { navigate("diagnostics") }) {
-                    Icon(
-                        if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle
-                        else Icons.Outlined.ErrorOutline,
-                        contentDescription = "查看内核运行诊断",
-                        tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
-                    )
-                }
-                IconButton(
-                    onClick = { imagePicker.launch("image/*") },
-                    enabled = !busy && !attachmentBusy &&
-                        attachedImages.size < LocalImageAttachments.MAX_FILES
-                ) {
-                    Icon(Icons.Outlined.AddPhotoAlternate, "添加本地图片", tint = Ink.copper)
-                }
-            }
+            ConversationControlBar(
+                modelName = vm.modelId.collectAsState().value,
+                mode = selectedMode,
+                connected = status == EngineStatus.Connected,
+                running = busy,
+                importingImage = attachmentBusy,
+                imageCount = attachedImages.size,
+                onModel = { showModels = true },
+                onMode = { showModes = true },
+                onDiagnostics = { navigate("diagnostics") },
+                onImage = { imagePicker.launch("image/*") }
+            )
             if (!busy && status != EngineStatus.Connected) {
                 Text("内核未连接，点击右侧状态图标查看诊断",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
