@@ -22,10 +22,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
-      - name: 安装 Android 平台
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: 检查 Android SDK 并安装平台
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --list_installed | head -45
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: 安装 Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
