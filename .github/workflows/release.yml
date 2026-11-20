@@ -56,6 +56,7 @@ jobs:
       version_code: ${{ steps.detect.outputs.version_code }}
       release_sha: ${{ steps.detect.outputs.release_sha }}
       previous_tag: ${{ steps.detect.outputs.previous_tag }}
+      native_run_id: ${{ steps.detect.outputs.native_run_id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -87,6 +88,39 @@ jobs:
               exit 0
             fi
           done
+          set -euo pipefail
+          EXPECTED="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
+          RUN_IDS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml \
+            --branch main --limit 100 --json databaseId,conclusion \
+            --jq '.[] | select(.conclusion == "success") | .databaseId')"
+          SELECTED=""
+          for RUN_ID in $RUN_IDS; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
+            if ! git merge-base --is-ancestor "$SHA" HEAD; then continue; fi
+            # Reuse only if the entire native source and build inputs are unchanged.
+            if ! git diff --quiet "$SHA" HEAD -- \
+                CODEX_UPSTREAM_COMMIT upstream/codex/ \
+                .github/workflows/build-native-codex.yml \
+                android-app/tools/prepare_android_mxc.py; then
+              continue
+            fi
+            VERSION="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$SHA" \
+              --jq '.content' | base64 --decode | head -n 1)"
+            if [ "$VERSION" != "$EXPECTED" ]; then continue; fi
+            ASSETS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.expired == false) | .name')"
+            if printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-arm64-v8a' \
+              && printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-x86_64'; then
+              SELECTED="$RUN_ID"
+              break
+            fi
+          done
+          if [ -z "$SELECTED" ]; then
+            echo "::notice::当前原生构建尚未完成或产物过期，待编译成功并再次通过安卓验收后发布"
+            exit 0
+          fi
+          echo "native_run_id=$SELECTED" >> "$GITHUB_OUTPUT"
+          echo "采用原生构建 $SELECTED，Codex 源码 $EXPECTED"
           echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
 
           EXISTING="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
@@ -206,56 +240,17 @@ jobs:
           echo "CODEX_RELEASE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
           echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
 
-      - name: 查找与当前 Codex 源码一致的原生内核
-        id: native
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          EXPECTED="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
-          RUN_IDS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml \
-            --branch main --limit 100 --json databaseId,conclusion \
-            --jq '.[] | select(.conclusion == "success") | .databaseId')"
-          SELECTED=""
-          for RUN_ID in $RUN_IDS; do
-            SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
-            if ! git merge-base --is-ancestor "$SHA" HEAD; then continue; fi
-            # Reuse only if the entire native source and build inputs are unchanged.
-            if ! git diff --quiet "$SHA" HEAD -- \
-                CODEX_UPSTREAM_COMMIT upstream/codex/ \
-                .github/workflows/build-native-codex.yml \
-                android-app/tools/prepare_android_mxc.py; then
-              continue
-            fi
-            VERSION="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$SHA" \
-              --jq '.content' | base64 --decode | head -n 1)"
-            if [ "$VERSION" != "$EXPECTED" ]; then continue; fi
-            ASSETS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
-              --jq '.artifacts[] | select(.expired == false) | .name')"
-            if printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-arm64-v8a' \
-              && printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-x86_64'; then
-              SELECTED="$RUN_ID"
-              break
-            fi
-          done
-          if [ -z "$SELECTED" ]; then
-            echo "::error::缺少与当前原生源码、编译配置一致且未过期的双架构产物；先运行『编译 Android 原生 Codex 核心』"
-            exit 1
-          fi
-          echo "run_id=$SELECTED" >> "$GITHUB_OUTPUT"
-          echo "采用原生构建 $SELECTED，Codex 源码 $EXPECTED"
 
       - uses: actions/download-artifact@v4
         with:
           name: codex-android-native-arm64-v8a
-          run-id: ${{ steps.native.outputs.run_id }}
+          run-id: ${{ needs.check-release.outputs.native_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
       - uses: actions/download-artifact@v4
         with:
           name: codex-android-native-x86_64
-          run-id: ${{ steps.native.outputs.run_id }}
+          run-id: ${{ needs.check-release.outputs.native_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-x86
 
