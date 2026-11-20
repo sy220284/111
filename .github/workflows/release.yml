@@ -45,7 +45,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 8
     outputs:
@@ -68,6 +69,11 @@ jobs:
           set -euo pipefail
           RELEASE_SHA="$(git rev-parse HEAD)"
           git fetch --tags --force origin
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" refs/remotes/origin/main; then
+            echo "::error::正式发布源码必须来自仓库 main 的提交历史"
+            exit 1
+          fi
           echo "should_release=false" >> "$GITHUB_OUTPUT"
           echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
 
