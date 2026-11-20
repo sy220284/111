@@ -55,4 +55,26 @@ class TurnRequestContractTest {
             fail("Unknown mode must be rejected")
         } catch (_: IllegalArgumentException) {}
     }
+    @Test fun steeringUsesExpectedRunningTurnAndTypedUserInput() {
+        val request = TurnRequestContract.steer("thread-1", "turn-2", "  先检查页面回归  ")
+        assertEquals("thread-1", request.getString("threadId"))
+        assertEquals("turn-2", request.getString("expectedTurnId"))
+        val input = request.getJSONArray("input").getJSONObject(0)
+        assertEquals("text", input.getString("type"))
+        assertEquals("先检查页面回归", input.getString("text"))
+    }
+
+    @Test fun steeringRejectsEmptyInstructionOrMissingRunningTurn() {
+        for (params in listOf(
+            Triple("", "turn-2", "补充指令"),
+            Triple("thread-1", "", "补充指令"),
+            Triple("thread-1", "turn-2", "   ")
+        )) {
+            try {
+                TurnRequestContract.steer(params.first, params.second, params.third)
+                fail("Invalid steer request should be rejected")
+            } catch (_: IllegalArgumentException) {}
+        }
+    }
+
 }
