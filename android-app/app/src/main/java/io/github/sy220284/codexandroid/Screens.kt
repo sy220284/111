@@ -43,6 +43,10 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "skills" -> SkillsPage(vm)
         "plugins" -> PluginsPage(vm)
         "hooks" -> HooksPage(vm)
+        "modes" -> CollaborationModesPage(vm)
+        "apps" -> ConnectedAppsPage(vm)
+        "mcp" -> McpServicesPage(vm)
+        "environments" -> EnvironmentsPage(vm)
         "diagnostics" -> EngineDiagnosticsPage(vm)
         "usage", "limits" -> MetricsPage(id, vm)
         "account" -> AccountPage(vm)
@@ -198,6 +202,8 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     var draft by rememberSaveable { mutableStateOf("") }
     var showModels by remember { mutableStateOf(false) }
+    var showModes by remember { mutableStateOf(false) }
+    val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
     LaunchedEffect(items.size) { if (items.isNotEmpty()) scroll.animateScrollToItem(items.size - 1) }
@@ -265,6 +271,21 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 vm.refresh("models", "model/list"); showModels = false
                             })
                         }
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Box {
+                    OutlinedButton(onClick = { showModes = true }, enabled = !busy) {
+                        Text(if (selectedMode == "plan") "先计划" else "执行")
+                        Icon(Icons.Outlined.ArrowDropDown, null)
+                    }
+                    DropdownMenu(expanded = showModes, onDismissRequest = { showModes = false }) {
+                        DropdownMenuItem(text = { Text("直接执行任务") }, onClick = {
+                            vm.selectedMode.value = "default"; showModes = false
+                        })
+                        DropdownMenuItem(text = { Text("先制定计划") }, onClick = {
+                            vm.selectedMode.value = "plan"; showModes = false
+                        })
                     }
                 }
                 Spacer(Modifier.weight(1f))

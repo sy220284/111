@@ -27,6 +27,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
     val latestDiff = MutableStateFlow("")
     val modelId = MutableStateFlow("")
+    val selectedMode = MutableStateFlow("default")
     val accountLoginUrl = MutableStateFlow("")
 
     init {
@@ -144,7 +145,24 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     refresh("threads", "thread/list", JSONObject().put("limit", 30))
                 }
                 val input = JSONArray().put(JSONObject().put("type", "text").put("text", text))
-                val response = bridge.request("turn/start", JSONObject().put("threadId", id).put("input", input))
+                val turnArgs = JSONObject().put("threadId", id).put("input", input)
+                val allModels = records(data.value["models"])
+                val model = modelId.value.ifBlank {
+                    allModels.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
+                        ?: allModels.firstOrNull()?.optString("id").orEmpty()
+                }
+                if (model.isNotBlank()) {
+                    val current = allModels.firstOrNull { it.optString("id") == model }
+                    val settings = JSONObject().put("model", model)
+                        .put("reasoningEffort", current?.optString("defaultReasoningEffort")
+                            ?.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+                        .put("developerInstructions", JSONObject.NULL)
+                    turnArgs.put("collaborationMode",
+                        JSONObject().put("mode", selectedMode.value).put("settings", settings))
+                } else if (selectedMode.value == "plan") {
+                    throw IllegalStateException("计划模式需要先加载可用模型目录")
+                }
+                val response = bridge.request("turn/start", turnArgs)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
             } catch (failure: Exception) {
                 running.value = false
