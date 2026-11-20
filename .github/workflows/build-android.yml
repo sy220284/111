@@ -6,9 +6,13 @@ on:
       - "android-app/**"
       - ".github/workflows/build-android.yml"
   workflow_dispatch:
+  workflow_run:
+    workflows: ["编译 Android 原生 Codex 核心"]
+    types: [completed]
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: codex-android-build
@@ -16,20 +20,22 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
-      - name: 检出 Android 工程
+      - name: 检出 Android 工程及源码版本标记
         uses: actions/checkout@v4
         with:
-          sparse-checkout: android-app
+          sparse-checkout: |
+            android-app
+            CODEX_UPSTREAM_COMMIT
       - name: 安装 Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - name: 检查 Android SDK 并安装平台
-        shell: bash
+      - name: 安装 Android 平台
         run: |
           set -euo pipefail
           SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
@@ -39,98 +45,107 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
-      - name: 下载并校验两种 ABI 的 Codex 官方运行核心
+      - name: 选择当前版本最近一次成功的原生核心构建
+        id: native
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMPLETED_NATIVE_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_run ]; then
+            RUN_ID="$COMPLETED_NATIVE_RUN"
+          else
+            RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml --limit 40 --json databaseId,conclusion --jq '[.[] | select(.conclusion == "success")][0].databaseId // empty')"
+          fi
+          if [ -z "$RUN_ID" ]; then
+            echo "当前仓库尚无成功的 Android NDK 核心构建。先运行『编译 Android 原生 Codex 核心』。" >&2
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "选择原生核心构建：$RUN_ID"
+      - name: 取回 ARM64 原生核心
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-android-native-arm64-v8a
+          run-id: ${{ steps.native.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/native-arm64
+      - name: 取回 x86_64 原生核心
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-android-native-x86_64
+          run-id: ${{ steps.native.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/native-x86
+      - name: 核验 Android 原生二进制并装配到 APK
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="rust-v0.171.0"
-          for ARCH in aarch64 x86_64; do
-            if [ "$ARCH" = aarch64 ]; then
-              ABI="arm64-v8a"
-              EXPECTED="565429aaa1f81c8b24d1747cb71670b9dfd1fd476094375e195d81d5c119a30a"
+          for ABI in arm64-v8a x86_64; do
+            if [ "$ABI" = arm64-v8a ]; then
+              SRC_DIR="$RUNNER_TEMP/native-arm64"
+              ARCH="AArch64"
             else
-              ABI="x86_64"
-              EXPECTED="421bcd19b25b5e5b88fd851ddaba6a155c6f9adebae154a2821b73db12d03787"
+              SRC_DIR="$RUNNER_TEMP/native-x86"
+              ARCH="X86-64"
             fi
-            FILE="codex-app-server-${ARCH}-unknown-linux-musl"
-            ARCHIVE="$RUNNER_TEMP/$FILE.tar.gz"
-            curl -fL --retry 4 --retry-delay 3 -o "$ARCHIVE" "https://github.com/openai/codex/releases/download/${VERSION}/${FILE}.tar.gz"
-            echo "$EXPECTED  $ARCHIVE" | sha256sum --check
-            mkdir -p "android-app/app/src/main/jniLibs/$ABI"
-            tar -xzf "$ARCHIVE" -C "android-app/app/src/main/jniLibs/$ABI" "$FILE"
-            mv "android-app/app/src/main/jniLibs/$ABI/$FILE" "android-app/app/src/main/jniLibs/$ABI/libcodex_server.so"
-            chmod 755 "android-app/app/src/main/jniLibs/$ABI/libcodex_server.so"
-            readelf -h "android-app/app/src/main/jniLibs/$ABI/libcodex_server.so" | grep -Eq 'AArch64|Advanced Micro Devices X86-64'
+            mapfile -t FOUND < <(find "$SRC_DIR" -type f -name codex-app-server)
+            if [ "${#FOUND[@]}" != "1" ]; then
+              echo "$ABI 原生内核产物数量异常：${#FOUND[@]}" >&2
+              exit 1
+            fi
+            SRC="${FOUND[0]}"
+            file "$SRC"
+            readelf -h "$SRC" | grep -q "$ARCH"
+            readelf -l "$SRC" | grep -q '/system/bin/linker64'
+            TARGET="android-app/app/src/main/jniLibs/$ABI"
+            mkdir -p "$TARGET"
+            cp "$SRC" "$TARGET/libcodex_server.so"
+            chmod 755 "$TARGET/libcodex_server.so"
+            sha256sum "$TARGET/libcodex_server.so"
           done
-      - name: 在 Linux 上验证官方 x86_64 内核能响应 JSON-RPC
-        shell: bash
-        run: |
-          set -euo pipefail
-          BINARY="$GITHUB_WORKSPACE/android-app/app/src/main/jniLibs/x86_64/libcodex_server.so"
-          "$BINARY" --version
-          CODEX_HOME="$RUNNER_TEMP/codex-smoke" BINARY="$BINARY" python3 - <<'PY'
-          import json, os, selectors, subprocess
-          os.makedirs(os.environ["CODEX_HOME"], exist_ok=True)
-          proc = subprocess.Popen([os.environ["BINARY"], "--listen", "stdio://"],
-                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE, text=True)
-          try:
-              request = {"method": "initialize", "id": 1,
-                         "params": {"clientInfo": {"name": "codex_android", "title": "Android smoke", "version": "0.1.0"},
-                                    "capabilities": {"experimentalApi": True, "requiredHumanApproval": True}}}
-              proc.stdin.write(json.dumps(request) + "\n")
-              proc.stdin.flush()
-              selector = selectors.DefaultSelector()
-              selector.register(proc.stdout, selectors.EVENT_READ)
-              ready = selector.select(35)
-              if not ready:
-                  raise RuntimeError("Linux Codex initialization timeout; exit=" + str(proc.poll()))
-              response = json.loads(proc.stdout.readline())
-              if response.get("id") != 1 or "result" not in response:
-                  raise RuntimeError("Unexpected initialize response: " + str(response)[:1200])
-              print("Linux Codex app-server initialize OK")
-          finally:
-              proc.terminate()
-              try: proc.wait(timeout=8)
-              except subprocess.TimeoutExpired: proc.kill()
-          PY
-      - name: 构建 APK 并执行协议单元测试
+          head -n 1 CODEX_UPSTREAM_COMMIT
+      - name: 编译 APK 并验证审批协议测试
         run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
-      - name: 核查 APK 内含两种 ABI 的核心
+      - name: 确认 APK 包含 Android 原生内核
+        shell: bash
         run: |
           set -euo pipefail
           APK="android-app/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          unzip -l "$APK" | grep -q 'lib/arm64-v8a/libcodex_server.so'
-          unzip -l "$APK" | grep -q 'lib/x86_64/libcodex_server.so'
-          unzip -l "$APK" | grep -q 'classes.dex'
+          unzip -l "$APK" | grep 'lib/arm64-v8a/libcodex_server.so'
+          unzip -l "$APK" | grep 'lib/x86_64/libcodex_server.so'
+          unzip -l "$APK" | grep 'classes.dex'
           sha256sum "$APK"
-      - name: 上传本次 APK 与设备测试包
+      - name: 上传可安装包和设备测试包
         uses: actions/upload-artifact@v4
         with:
-          name: codex-android-apks
+          name: codex-android-native-apks
           path: |
             android-app/app/build/outputs/apk/debug/app-debug.apk
             android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
   android-emulator:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 55
     steps:
-      - name: 下载通过单元测试的 APK
+      - name: 取回已通过构建的 APK
         uses: actions/download-artifact@v4
         with:
-          name: codex-android-apks
+          name: codex-android-native-apks
           path: apks
-      - name: 允许硬件虚拟化
+      - name: 允许虚拟机加速
         run: |
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
-      - name: 在 Android 35 模拟器上验证内核初始化
+      - name: 在 Android 35 模拟器中验证 Codex 核心
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -142,8 +157,8 @@ jobs:
             adb install -r apks/debug/app-debug.apk
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
             adb shell am instrument -w -r io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee instrument-result.log
-            grep -Eq '^OK \([0-9]+ test' instrument-result.log
-      - name: 保存设备测试结果
+            grep -Eq '^OK \([0-9]+ tests?' instrument-result.log
+      - name: 保存设备测试证据
         if: always()
         uses: actions/upload-artifact@v4
         with:
