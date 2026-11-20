@@ -115,8 +115,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("账号登录")
         rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
-        rule.onNodeWithText("设备码登录").assertExists()
-        rule.onNodeWithText("浏览器登录").assertExists()
+        rule.onNodeWithText("选择登录方式").assertExists()
+        rule.onNodeWithText("设备码登录").assertIsDisplayed()
+        rule.onNodeWithText("浏览器登录").assertIsDisplayed()
+        rule.onNodeWithText("查看协议数据").assertExists()
         rule.onNodeWithText("刷新账号状态").assertIsDisplayed()
         capture("account-android35.png")
     }

@@ -31,6 +31,15 @@ class AccountLoginContractTest {
         assertNull(response)
     }
 
+    @Test fun missingLoginIdNeverCompletesAnUnrelatedAttempt() {
+        assertNull(AccountLoginContract.completion(
+            JSONObject().put("success", true), "new-auth"))
+        assertNull(AccountLoginContract.completion(
+            JSONObject().put("loginId", "old-auth").put("success", true), ""))
+        assertNull(AccountLoginContract.completion(
+            JSONObject().put("loginId", JSONObject.NULL).put("success", true), "new-auth"))
+    }
+
     @Test fun failedLoginPreservesErrorAndSuccessfulLoginClearsIt() {
         val failure = AccountLoginContract.completion(JSONObject()
             .put("loginId", "auth-3").put("success", false)
