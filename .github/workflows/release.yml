@@ -214,11 +214,20 @@ jobs:
         run: |
           set -euo pipefail
           EXPECTED="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
-          RUN_IDS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml --limit 100 \
-            --json databaseId,conclusion --jq '.[] | select(.conclusion == "success") | .databaseId')"
+          RUN_IDS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml \
+            --branch main --limit 100 --json databaseId,conclusion \
+            --jq '.[] | select(.conclusion == "success") | .databaseId')"
           SELECTED=""
           for RUN_ID in $RUN_IDS; do
             SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
+            if ! git merge-base --is-ancestor "$SHA" HEAD; then continue; fi
+            # Reuse only if the entire native source and build inputs are unchanged.
+            if ! git diff --quiet "$SHA" HEAD -- \
+                CODEX_UPSTREAM_COMMIT upstream/codex/ \
+                .github/workflows/build-native-codex.yml \
+                android-app/tools/prepare_android_mxc.py; then
+              continue
+            fi
             VERSION="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$SHA" \
               --jq '.content' | base64 --decode | head -n 1)"
             if [ "$VERSION" != "$EXPECTED" ]; then continue; fi
@@ -231,7 +240,7 @@ jobs:
             fi
           done
           if [ -z "$SELECTED" ]; then
-            echo "::error::缺少与当前 CODEX_UPSTREAM_COMMIT 一致、尚未过期的双架构原生构建；先运行『编译 Android 原生 Codex 核心』"
+            echo "::error::缺少与当前原生源码、编译配置一致且未过期的双架构产物；先运行『编译 Android 原生 Codex 核心』"
             exit 1
           fi
           echo "run_id=$SELECTED" >> "$GITHUB_OUTPUT"
