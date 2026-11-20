@@ -47,7 +47,7 @@ jobs:
           tar -tzf "$ARCHIVE" | head -40
           tar -xzf "$ARCHIVE" -C "$RUNNER_TEMP/codex-unpacked"
           find "$RUNNER_TEMP/codex-unpacked" -maxdepth 3 -type f -print
-          BINARY="$(find "$RUNNER_TEMP/codex-unpacked" -type f -name 'codex-app-server' -print -quit)"
+          BINARY="$(find "$RUNNER_TEMP/codex-unpacked" -type f -name 'codex-app-server-aarch64-unknown-linux-musl' -print -quit)"
           test -n "$BINARY"
           file "$BINARY"
           readelf -h "$BINARY" | grep -q 'AArch64'
