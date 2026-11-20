@@ -86,7 +86,35 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 running.value = false
                 timeline.value = emptyList()
                 latestDiff.value = ""
-                refresh("threadHistory", "thread/read", JSONObject().put("threadId", id))
+                val history = bridge.request("thread/read", JSONObject()
+                    .put("threadId", id).put("includeTurns", true))
+                data.value = data.value + ("threadHistory" to history)
+                val turns = history.optJSONObject("thread")?.optJSONArray("turns") ?: JSONArray()
+                val restored = mutableListOf<TimelineItem>()
+                for (turnIndex in 0 until turns.length()) {
+                    val turn = turns.optJSONObject(turnIndex) ?: continue
+                    val items = turn.optJSONArray("items") ?: continue
+                    for (itemIndex in 0 until items.length()) {
+                        val item = items.optJSONObject(itemIndex) ?: continue
+                        val kind = item.optString("type", "event")
+                        val text = if (kind == "userMessage") {
+                            val parts = item.optJSONArray("content") ?: JSONArray()
+                            (0 until parts.length()).mapNotNull { parts.optJSONObject(it)?.optString("text") }
+                                .filter { it.isNotBlank() }.joinToString("\n")
+                        } else item.optString("text").ifBlank {
+                            item.optString("command").ifBlank { item.optString("tool") }
+                        }
+                        if (text.isNotBlank()) {
+                            restored += TimelineItem(
+                                item.optString("id", "history-" + turnIndex + "-" + itemIndex),
+                                if (kind == "userMessage") "user" else kind,
+                                text,
+                                item.optString("status")
+                            )
+                        }
+                    }
+                }
+                timeline.value = restored
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
             }
