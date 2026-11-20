@@ -51,6 +51,44 @@ class ApprovalProtocolTest {
         } catch (_: IllegalArgumentException) {}
     }
 
+
+    @Test fun mcpFormValidatesRequiredAndTypedFields() {
+        val properties = JSONObject()
+            .put("project", JSONObject().put("type", "string").put("minLength", 2))
+            .put("attempts", JSONObject().put("type", "integer").put("minimum", 1))
+            .put("network", JSONObject().put("type", "boolean"))
+        val schema = JSONObject().put("type", "object").put("properties", properties)
+            .put("required", JSONArray().put("project").put("attempts"))
+        val params = JSONObject().put("type", "form").put("requestedSchema", schema)
+        val prompt = ServerPrompt("mcp-req", "mcpServer/elicitation/request", params)
+        try {
+            ApprovalProtocol.result(prompt, "accept", mapOf("project" to "mobile"))
+            fail("Required integer missing")
+        } catch (_: IllegalArgumentException) {}
+        val accepted = ApprovalProtocol.result(prompt, "accept",
+            mapOf("project" to "mobile", "attempts" to "2", "network" to "false"))
+        val payload = accepted.getJSONObject("content")
+        assertEquals("mobile", payload.getString("project"))
+        assertEquals(2L, payload.getLong("attempts"))
+        assertFalse(payload.getBoolean("network"))
+    }
+
+    @Test fun mcpFormRejectsExtraFieldsAndUnknownKinds() {
+        val form = JSONObject().put("type", "form")
+            .put("requestedSchema", JSONObject().put("type", "object")
+                .put("properties", JSONObject().put("project", JSONObject().put("type", "string"))))
+        val prompt = ServerPrompt(22, "mcpServer/elicitation/request", form)
+        try {
+            ApprovalProtocol.result(prompt, "accept", mapOf("apiKey" to "not-requested"))
+            fail("Unexpected field should not be submitted")
+        } catch (_: IllegalArgumentException) {}
+        try {
+            ApprovalProtocol.result(ServerPrompt(23, "mcpServer/elicitation/request",
+                JSONObject().put("type", "openai/userVerification")), "accept")
+            fail("Device verification must not be bypassed")
+        } catch (_: IllegalArgumentException) {}
+    }
+
     @Test fun unknownServerRequestRequiresOwnAdapter() {
         try {
             ApprovalProtocol.result(ServerPrompt(2, "item/tool/call", JSONObject()), "accept")

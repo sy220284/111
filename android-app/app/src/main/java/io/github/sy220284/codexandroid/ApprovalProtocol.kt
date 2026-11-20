@@ -40,12 +40,7 @@ object ApprovalProtocol {
                 }
                 JSONObject().put("answers", resolved)
             }
-            "mcpServer/elicitation/request" -> {
-                require(decision in setOf("decline", "cancel")) {
-                    "MCP 外部授权需要匹配表单类型，当前仅支持拒绝/取消"
-                }
-                JSONObject().put("action", decision).put("content", JSONObject.NULL)
-            }
+            "mcpServer/elicitation/request" -> McpElicitationContract.respond(prompt.params, decision, answers)
             else -> throw IllegalArgumentException("缺少此类服务端请求的契约：" + prompt.method)
         }
     }

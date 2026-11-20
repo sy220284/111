@@ -65,13 +65,16 @@ fun ApprovalsPage(vm: CodexViewModel) {
 @Composable
 private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val method = prompt.method
+    if (method == "mcpServer/elicitation/request") {
+        McpElicitationRequestCard(vm, prompt)
+        return
+    }
     val command = prompt.params.optString("command")
     val kind = prompt.params.optString("kind")
     val normal = method == "item/commandExecution/requestApproval" ||
         method == "item/fileChange/requestApproval"
     val permission = method == "item/permissions/requestApproval"
     val question = method == "item/tool/requestUserInput"
-    val mcp = method == "mcpServer/elicitation/request"
     val answers = remember(prompt.id.toString()) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,12 +142,6 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     modifier = Modifier.fillMaxWidth(), singleLine = !q.optBoolean("isOther")
                 )
             }
-        }
-        if (mcp) {
-            Text("外部服务要求提供额外信息；当前客户端可拒绝或取消请求。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            Text(prompt.params.toString(2), fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") }) { Text("拒绝") }

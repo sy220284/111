@@ -203,6 +203,18 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun answerMcpElicitation(prompt: ServerPrompt, answers: Map<String, String>) {
+        viewModelScope.launch {
+            try {
+                val result = ApprovalProtocol.result(prompt, "accept", answers)
+                bridge.answer(prompt, result)
+                errors.value = errors.value - "approvals"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("approvals" to (failure.message ?: "MCP 表单无效"))
+            }
+        }
+    }
+
     fun startLogin() {
         viewModelScope.launch {
             try {
