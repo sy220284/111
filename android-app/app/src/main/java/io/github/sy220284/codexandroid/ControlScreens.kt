@@ -273,51 +273,95 @@ fun ConfigPage(vm: CodexViewModel) {
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
-    var approval by remember { mutableStateOf("on-request") }
-    var sandbox by remember { mutableStateOf("workspace-write") }
+    val current = data["config"]?.optJSONObject("config")
+    val requirements = data["securityRequirements"]
+    val effectiveApproval = current?.optString("approvalPolicy").orEmpty()
+    val effectiveSandbox = current?.optString("sandboxMode").orEmpty()
+    var draftApproval by remember { mutableStateOf<String?>(null) }
+    var draftSandbox by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.refresh("security", "configRequirements/read") }
+    val selectedApproval = draftApproval ?: effectiveApproval
+    val selectedSandbox = draftSandbox ?: effectiveSandbox
+    val hasChanges = current != null && (
+        (draftApproval != null && draftApproval != effectiveApproval) ||
+        (draftSandbox != null && draftSandbox != effectiveSandbox)
+    )
+
+    LaunchedEffect(Unit) {
+        vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+        vm.refresh("securityRequirements", "configRequirements/read")
+    }
+
     ScreenColumn {
-        SectionIntro("TRUST / EXECUTION", "运行权限与安全", "操作前明确可访问范围及何时需要授权。")
+        SectionIntro("TRUST / EXECUTION", "运行权限与安全", "先读取 Codex 实际生效设置，再明确修改审批与文件访问范围。")
         MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("当前生效权限", style = MaterialTheme.typography.titleMedium)
+            Text("审批策略：" + effectiveApproval.ifBlank { "等待引擎读取" }, color = Ink.muted)
+            Text("隔离策略：" + effectiveSandbox.ifBlank { "等待引擎读取" }, color = Ink.muted)
+            DividerLine()
             Text("审批方式", style = MaterialTheme.typography.titleMedium)
-            listOf("untrusted" to "仅执行可信操作", "on-request" to "需要时询问", "never" to "不申请额外批准").forEach { (v, label) ->
-                Row(Modifier.fillMaxWidth().clickable { approval = v }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(approval == v, onClick = { approval = v }); Text(label)
+            listOf("untrusted" to "只执行可信操作", "on-request" to "每当需要时请求批准",
+                "never" to "无需请求授权，由 Codex 自行按策略执行").forEach { (mode, title) ->
+                Row(Modifier.fillMaxWidth().clickable(enabled = current != null) { draftApproval = mode },
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = selectedApproval == mode, onClick = { draftApproval = mode },
+                        enabled = current != null)
+                    Text(title, modifier = Modifier.weight(1f))
                 }
             }
             DividerLine()
-            Text("工作区隔离策略", style = MaterialTheme.typography.titleMedium)
-            listOf("read-only" to "只读", "workspace-write" to "允许工作区写入").forEach { (v, label) ->
-                Row(Modifier.fillMaxWidth().clickable { sandbox = v }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(sandbox == v, onClick = { sandbox = v }); Text(label)
+            Text("工作区文件访问", style = MaterialTheme.typography.titleMedium)
+            listOf("read-only" to "只读", "workspace-write" to "允许编辑工作区").forEach { (mode, title) ->
+                Row(Modifier.fillMaxWidth().clickable(enabled = current != null) { draftSandbox = mode },
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = selectedSandbox == mode, onClick = { draftSandbox = mode },
+                        enabled = current != null)
+                    Text(title)
                 }
             }
-            Button(onClick = { confirm = true }) { Text("保存权限设置") }
-            Text("Android 本身的应用沙箱仍适用；网络限制还需由操作系统环境实际验证。", color = Ink.muted)
+            Button(onClick = { confirm = true }, enabled = hasChanges, modifier = Modifier.fillMaxWidth()) {
+                Text("保存本次权限调整")
+            }
+            Text("Android 应用私有空间由系统隔离；Codex 的沙箱与网络策略仍由实际运行环境执行。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
         OutlinedButton(onClick = { navigate("approvals") }) {
-            Icon(Icons.Outlined.GppGood, null); Spacer(Modifier.width(8.dp)); Text("查看待审批操作")
+            Icon(Icons.Outlined.GppGood, null)
+            Spacer(Modifier.width(8.dp))
+            Text("查看待审批操作")
         }
-        errors["security"]?.let { ErrorText(it) }
-        data["security"]?.let {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("管理员要求与受限策略", style = MaterialTheme.typography.titleMedium)
-                Text(it.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted)
-            }
+        errors["config"]?.let { ErrorText(it) }
+        errors["securityRequirements"]?.let { ErrorText(it) }
+        errors["securitySave"]?.let { ErrorText(it) }
+        if (requirements != null) MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("组织限制与允许的策略", style = MaterialTheme.typography.titleMedium)
+            Text(requirements.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
         }
     }
-    if (confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("更新运行策略") },
-        text = { Text("审批方式：" + approval + "\n隔离方式：" + sandbox) },
+    if (confirm) AlertDialog(
+        onDismissRequest = { confirm = false },
+        title = { Text("确认更新运行权限") },
+        text = { Text("审批：$effectiveApproval → $selectedApproval\n文件访问：$effectiveSandbox → $selectedSandbox") },
         confirmButton = { TextButton(onClick = {
             val edits = org.json.JSONArray()
-                .put(JSONObject().put("keyPath", "approval_policy").put("value", approval).put("mergeStrategy", "replace"))
-                .put(JSONObject().put("keyPath", "sandbox_mode").put("value", sandbox).put("mergeStrategy", "replace"))
-            vm.rpc("security", "config/batchWrite", JSONObject().put("edits", edits),
-                after = { vm.refresh("config", "config/read") })
+            if (draftApproval != null && draftApproval != effectiveApproval) {
+                edits.put(JSONObject().put("keyPath", "approval_policy")
+                    .put("value", draftApproval).put("mergeStrategy", "replace"))
+            }
+            if (draftSandbox != null && draftSandbox != effectiveSandbox) {
+                edits.put(JSONObject().put("keyPath", "sandbox_mode")
+                    .put("value", draftSandbox).put("mergeStrategy", "replace"))
+            }
+            if (edits.length() > 0) {
+                vm.rpc("securitySave", "config/batchWrite",
+                    JSONObject().put("edits", edits).put("reloadUserConfig", true),
+                    after = { vm.refresh("config", "config/read", JSONObject().put("includeLayers", true)) })
+            }
             confirm = false
         }) { Text("确认保存") } },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("取消") } })
+        dismissButton = { TextButton(onClick = { confirm = false }) { Text("取消") } }
+    )
 }
 
 @Composable
