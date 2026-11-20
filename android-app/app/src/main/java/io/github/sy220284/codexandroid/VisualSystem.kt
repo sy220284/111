@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -66,9 +67,10 @@ fun CodexTheme(content: @Composable () -> Unit) {
 
 @Composable
 fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val compact by UiPreferences.compact.collectAsState()
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(if (compact) 16.dp else 22.dp),
         border = BorderStroke(1.dp, Ink.border.copy(alpha = 0.72f)),
         color = Ink.panel,
         shadowElevation = 2.dp
@@ -80,7 +82,7 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
                         listOf(Color.White.copy(alpha = .028f), Color.Transparent, Color.Black.copy(alpha = .08f))
                     )
                 )
-                .padding(18.dp),
+                .padding(if (compact) 12.dp else 18.dp),
             content = content
         )
     }
