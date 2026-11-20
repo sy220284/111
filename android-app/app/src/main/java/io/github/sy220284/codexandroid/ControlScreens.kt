@@ -46,67 +46,125 @@ object UiPreferences {
 fun ApprovalsPage(vm: CodexViewModel) {
     val prompts by vm.bridge.prompts.collectAsState()
     val errors by vm.errors.collectAsState()
-    var reply by remember { mutableStateOf("") }
     ScreenColumn {
-        SectionIntro("HUMAN / APPROVAL", "待审批操作", "明确呈现命令、文件变更、环境权限和外部工具请求。")
-        Text("一次只批准当前确认的行为；会话授权与额外权限分开处理。", color = Ink.muted)
+        SectionIntro("HUMAN / APPROVAL", "待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
         errors["approvals"]?.let { ErrorText(it) }
         if (prompts.isEmpty()) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.GppGood, null, tint = Ink.jade)
                 Text("目前没有等待授权的操作", style = MaterialTheme.typography.titleMedium)
-                Text("当 Codex 请求运行命令或修改文件时，这里会出现审批卡片。", color = Ink.muted)
+                Text("新的命令、文件与额外权限请求会显示在这里。", color = Ink.muted)
             }
-        } else prompts.forEach { prompt ->
-            val command = prompt.params.optString("command")
-            val kind = prompt.params.optString("kind")
-            val normal = prompt.method == "item/commandExecution/requestApproval" ||
-                prompt.method == "item/fileChange/requestApproval"
-            val humanOnly = kind == "humanCommand"
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AdminPanelSettings, null, tint = Ink.copper)
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        if (prompt.method.contains("commandExecution")) "命令执行确认" else
-                            if (prompt.method.contains("fileChange")) "文件变更确认" else
-                                if (prompt.method.contains("permissions")) "额外权限申请" else "工具请求",
-                        style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)
-                    )
-                    StatusPill("待决", false)
-                }
-                DividerLine()
-                Text(prompt.params.optString("reason").ifBlank { "Codex 请求你确认下一步。" }, color = Ink.muted)
-                if (command.isNotBlank()) Text(command, color = Ink.parchment, fontFamily = FontFamily.Monospace)
-                prompt.params.optString("cwd").takeIf { it.isNotBlank() }?.let {
-                    Text("工作目录：" + it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                if (!normal || command.isBlank()) {
-                    Text(prompt.params.toString(2), color = Ink.muted, fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelMedium)
-                }
-                if (prompt.method == "item/tool/requestUserInput") {
-                    OutlinedTextField(reply, { reply = it }, label = { Text("回答问题") }, modifier = Modifier.fillMaxWidth())
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") }) {
-                        Text("拒绝")
-                    }
-                    if (normal) {
-                        Button(onClick = { vm.answerApproval(prompt, "accept") }) {
-                            Text("仅本次允许")
-                        }
-                        if (!humanOnly) {
-                            TextButton(onClick = { vm.answerApproval(prompt, "acceptForSession") }) {
-                                Text("本会话允许")
+        }
+        prompts.forEach { prompt ->
+            key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
+        }
+    }
+}
+
+@Composable
+private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
+    val method = prompt.method
+    val command = prompt.params.optString("command")
+    val kind = prompt.params.optString("kind")
+    val normal = method == "item/commandExecution/requestApproval" ||
+        method == "item/fileChange/requestApproval"
+    val permission = method == "item/permissions/requestApproval"
+    val question = method == "item/tool/requestUserInput"
+    val mcp = method == "mcpServer/elicitation/request"
+    val answers = remember(prompt.id.toString()) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
+    MaterialPanel(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AdminPanelSettings, null, tint = Ink.copper)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                when (method) {
+                    "item/commandExecution/requestApproval" -> "命令执行确认"
+                    "item/fileChange/requestApproval" -> "文件变更确认"
+                    "item/permissions/requestApproval" -> "额外权限申请"
+                    "item/tool/requestUserInput" -> "Codex 请求回答"
+                    else -> "外部工具授权请求"
+                },
+                style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)
+            )
+            StatusPill("等待决策", false)
+        }
+        DividerLine()
+        val reason = prompt.params.optString("reason")
+        if (reason.isNotBlank()) Text(reason, color = Ink.parchment)
+        if (command.isNotBlank()) {
+            Text("待执行命令", color = Ink.copper, style = MaterialTheme.typography.labelMedium)
+            Text(command, fontFamily = FontFamily.Monospace, color = Ink.parchment)
+        }
+        prompt.params.optString("cwd").takeIf { it.isNotBlank() }?.let {
+            Text("工作目录：" + it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+        }
+        if (permission) {
+            Text("正在请求以下权限", style = MaterialTheme.typography.titleMedium)
+            Text((prompt.params.optJSONObject("permissions") ?: JSONObject()).toString(2),
+                fontFamily = FontFamily.Monospace, color = Ink.parchment)
+            Text("允许仅对当前任务轮次生效；拒绝不会授予任何新增权限。", color = Ink.muted)
+        }
+        if (question) {
+            val items = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
+            for (index in 0 until items.length()) {
+                val q = items.optJSONObject(index) ?: continue
+                val id = q.optString("id")
+                val options = q.optJSONArray("options")
+                Text(q.optString("header").ifBlank { "问题 " + (index + 1) },
+                    color = Ink.copper, style = MaterialTheme.typography.labelMedium)
+                Text(q.optString("question"), style = MaterialTheme.typography.bodyMedium)
+                if (options != null) {
+                    for (opt in 0 until options.length()) {
+                        val choice = options.optJSONObject(opt) ?: continue
+                        val label = choice.optString("label")
+                        Row(Modifier.fillMaxWidth().clickable { answers[id] = label },
+                            verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = answers[id] == label, onClick = { answers[id] = label })
+                            Column {
+                                Text(label)
+                                choice.optString("description").takeIf { it.isNotBlank() }?.let {
+                                    Text(it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         }
-                    } else if (prompt.method == "item/tool/requestUserInput") {
-                        Button(onClick = { vm.answerApproval(prompt, "accept", reply) }, enabled = reply.isNotBlank()) {
-                            Text("提交回答")
-                        }
                     }
                 }
+                OutlinedTextField(
+                    value = answers[id] ?: "", onValueChange = { answers[id] = it },
+                    label = { Text(if (options == null) "输入回答" else "或者输入其他回答") },
+                    visualTransformation = if (q.optBoolean("isSecret"))
+                        androidx.compose.ui.text.input.PasswordVisualTransformation()
+                    else androidx.compose.ui.text.input.VisualTransformation.None,
+                    modifier = Modifier.fillMaxWidth(), singleLine = !q.optBoolean("isOther")
+                )
+            }
+        }
+        if (mcp) {
+            Text("外部服务要求提供额外信息；当前客户端可拒绝或取消请求。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            Text(prompt.params.toString(2), fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") }) { Text("拒绝") }
+            if (normal) {
+                Button(onClick = { vm.answerApproval(prompt, "accept") }) { Text("仅本次允许") }
+                if (kind != "humanCommand") {
+                    TextButton(onClick = { vm.answerApproval(prompt, "acceptForSession") }) {
+                        Text("当前会话允许")
+                    }
+                }
+            } else if (permission) {
+                Button(onClick = { vm.answerApproval(prompt, "accept") }) { Text("授权本轮") }
+            } else if (question) {
+                val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
+                val allAnswered = (0 until questions.length()).all {
+                    val id = questions.optJSONObject(it)?.optString("id") ?: ""
+                    answers[id]?.isNotBlank() == true
+                }
+                Button(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
+                    enabled = allAnswered && questions.length() > 0) { Text("提交全部回答") }
             }
         }
     }

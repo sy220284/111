@@ -163,26 +163,24 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun answerApproval(prompt: ServerPrompt, decision: String, customAnswer: String = "") {
         viewModelScope.launch {
             try {
-                val result = when (prompt.method) {
-                    "item/commandExecution/requestApproval", "item/fileChange/requestApproval" ->
-                        JSONObject().put("decision", decision)
-                    "item/permissions/requestApproval" ->
-                        JSONObject().put("permissions", JSONObject()).put("scope", "turn")
-                    "mcpServer/elicitation/request" ->
-                        JSONObject().put("action", "decline").put("content", JSONObject.NULL)
-                    "item/tool/requestUserInput" -> {
-                        val questionId = prompt.params.optJSONArray("questions")?.optJSONObject(0)?.optString("id")
-                        val answers = JSONObject()
-                        if (!questionId.isNullOrBlank()) {
-                            answers.put(questionId, JSONObject().put("answers", JSONArray().put(customAnswer)))
-                        }
-                        JSONObject().put("answers", answers)
-                    }
-                    else -> throw IllegalArgumentException("此类服务端请求需要专用授权处理：" + prompt.method)
-                }
+                val result = ApprovalProtocol.result(prompt, decision,
+                    if (customAnswer.isBlank()) emptyMap() else {
+                        val key = prompt.params.optJSONArray("questions")?.optJSONObject(0)?.optString("id") ?: ""
+                        mapOf(key to customAnswer)
+                    })
                 bridge.answer(prompt, result)
             } catch (failure: Exception) {
                 errors.value = errors.value + ("approvals" to (failure.message ?: "授权回复失败"))
+            }
+        }
+    }
+
+    fun answerUserInput(prompt: ServerPrompt, answers: Map<String, String>) {
+        viewModelScope.launch {
+            try {
+                bridge.answer(prompt, ApprovalProtocol.result(prompt, "submit", answers))
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("approvals" to (failure.message ?: "回答提交失败"))
             }
         }
     }
@@ -204,6 +202,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
         if (method == "account/login/completed" || method == "account/updated") {
+            accountLoginUrl.value = ""
             refresh("account", "account/read", JSONObject())
         }
         if (method == "thread/started" || method == "thread/archived") {

@@ -5,7 +5,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -37,16 +36,13 @@ class CodexConnection(private val appContext: Context) {
     private var writer: BufferedWriter? = null
 
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
-    val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 512)
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
 
     suspend fun connect() = withContext(Dispatchers.IO) {
         if (status.value == EngineStatus.Connected) return@withContext
         status.value = EngineStatus.Starting
         val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
-        require(path.isFile) {
-            "缺少 ARM64 Codex 内核：请使用包含官方运行核心的 release APK。"
-        }
         val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
         val workspace = File(appContext.filesDir, "projects").apply { mkdirs() }
         val temp = File(appContext.cacheDir, "codex-tmp").apply { mkdirs() }
@@ -60,6 +56,7 @@ class CodexConnection(private val appContext: Context) {
             put("TERM", "xterm-256color")
         }
         try {
+            require(path.isFile) { "APK 中未找到当前设备 ABI 的 Codex 运行核心，请检查发布包。" }
             val child = builder.start()
             process = child
             writer = BufferedWriter(OutputStreamWriter(child.outputStream, Charsets.UTF_8))
@@ -73,7 +70,7 @@ class CodexConnection(private val appContext: Context) {
             }
             val info = JSONObject().put("name", "codex_android")
                 .put("title", "Codex Android").put("version", "0.1.0")
-            val capabilities = JSONObject().put("experimentalApi", true)
+            val capabilities = JSONObject().put("experimentalApi", true).put("requiredHumanApproval", true)
             request("initialize", JSONObject().put("clientInfo", info)
                 .put("capabilities", capabilities))
             notify("initialized", JSONObject())
@@ -104,13 +101,23 @@ class CodexConnection(private val appContext: Context) {
                     if (id is Number && method.isEmpty()) {
                         waiting.remove(id.toLong())?.complete(message)
                     } else if (method.isNotEmpty() && id != null && id != JSONObject.NULL) {
-                        prompts.value = prompts.value + ServerPrompt(id, method, message.optJSONObject("params") ?: JSONObject())
+                        if (method in setOf("item/commandExecution/requestApproval", "item/fileChange/requestApproval",
+                                "item/permissions/requestApproval", "item/tool/requestUserInput", "mcpServer/elicitation/request")) {
+                            prompts.value = prompts.value + ServerPrompt(id, method, message.optJSONObject("params") ?: JSONObject())
+                        } else {
+                            // Unsupported host requests must be answered, or the whole turn stalls forever.
+                            write(JSONObject().put("id", id).put("error",
+                                JSONObject().put("code", -32601)
+                                    .put("message", "Android 客户端暂不支持服务端请求：" + method)))
+                            events.emit(JSONObject().put("method", "local/unsupportedServerRequest")
+                                .put("params", JSONObject().put("method", method)))
+                        }
                     } else if (method == "serverRequest/resolved") {
                         val resolved = message.optJSONObject("params")?.opt("requestId")
                         prompts.value = prompts.value.filterNot { it.id.toString() == resolved.toString() }
-                        events.tryEmit(message)
+                        events.emit(message)
                     } else {
-                        events.tryEmit(message)
+                        events.emit(message)
                     }
                 }
             }
@@ -167,6 +174,7 @@ class CodexConnection(private val appContext: Context) {
         process = null
         writer = null
         status.value = EngineStatus.Unavailable("连接已关闭")
+        prompts.value = emptyList()
         failWaiting("连接已关闭")
     }
 }
