@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
           test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
       - name: 安装 Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -123,6 +123,15 @@ jobs:
             mkdir -p "$TARGET"
             cp "$SRC" "$TARGET/libcodex_server.so"
             chmod 755 "$TARGET/libcodex_server.so"
+            echo "$ABI 原始内核大小："
+            du -h "$TARGET/libcodex_server.so"
+            STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+            test -x "$STRIP"
+            "$STRIP" --strip-all "$TARGET/libcodex_server.so"
+            readelf -h "$TARGET/libcodex_server.so" | grep -q "$ARCH"
+            readelf -l "$TARGET/libcodex_server.so" | grep -q '/system/bin/linker64'
+            echo "$ABI 发布内核大小："
+            du -h "$TARGET/libcodex_server.so"
             sha256sum "$TARGET/libcodex_server.so"
           done
           head -n 1 CODEX_UPSTREAM_COMMIT
