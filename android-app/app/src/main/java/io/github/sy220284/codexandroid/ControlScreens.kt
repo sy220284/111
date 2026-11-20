@@ -26,11 +26,13 @@ object UiPreferences {
     private var ctx: Context? = null
     val compact = MutableStateFlow(false)
     val reducedMotion = MutableStateFlow(false)
+    val softMaterial = MutableStateFlow(true)
     fun initialize(context: Context) {
         ctx = context.applicationContext
         val prefs = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
         compact.value = prefs.getBoolean("compact", false)
         reducedMotion.value = prefs.getBoolean("reducedMotion", false)
+        softMaterial.value = prefs.getBoolean("softMaterial", true)
     }
     fun setCompact(value: Boolean) {
         compact.value = value
@@ -39,6 +41,10 @@ object UiPreferences {
     fun setReducedMotion(value: Boolean) {
         reducedMotion.value = value
         ctx?.getSharedPreferences(NAME, Context.MODE_PRIVATE)?.edit()?.putBoolean("reducedMotion", value)?.apply()
+    }
+    fun setSoftMaterial(value: Boolean) {
+        softMaterial.value = value
+        ctx?.getSharedPreferences(NAME, Context.MODE_PRIVATE)?.edit()?.putBoolean("softMaterial", value)?.apply()
     }
 }
 
@@ -50,11 +56,9 @@ fun ApprovalsPage(vm: CodexViewModel) {
         SectionIntro("HUMAN / APPROVAL", "待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
         errors["approvals"]?.let { ErrorText(it) }
         if (prompts.isEmpty()) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.GppGood, null, tint = Ink.jade)
-                Text("目前没有等待授权的操作", style = MaterialTheme.typography.titleMedium)
-                Text("新的命令、文件与额外权限请求会显示在这里。", color = Ink.muted)
-            }
+            CodexEmptyState("目前没有等待授权的操作",
+                "当任务需要执行命令、修改文件或申请权限时，确认请求会显示在这里。",
+                icon = Icons.Outlined.GppGood)
         }
         prompts.forEach { prompt ->
             key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
@@ -76,6 +80,8 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val permission = method == "item/permissions/requestApproval"
     val question = method == "item/tool/requestUserInput"
     val answers = remember(prompt.id.toString()) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
+    var grantSession by remember(prompt.id.toString()) { mutableStateOf(false) }
+    var grantPermissions by remember(prompt.id.toString()) { mutableStateOf(false) }
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.AdminPanelSettings, null, tint = Ink.copper)
@@ -144,16 +150,14 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") }) { Text("拒绝") }
+            OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") },
+                modifier = Modifier.heightIn(min = 48.dp)) { Text("拒绝") }
             if (normal) {
-                Button(onClick = { vm.answerApproval(prompt, "accept") }) { Text("仅本次允许") }
-                if (kind != "humanCommand") {
-                    TextButton(onClick = { vm.answerApproval(prompt, "acceptForSession") }) {
-                        Text("当前会话允许")
-                    }
-                }
+                Button(onClick = { vm.answerApproval(prompt, "accept") },
+                    modifier = Modifier.heightIn(min = 48.dp)) { Text("仅本次允许") }
             } else if (permission) {
-                Button(onClick = { vm.answerApproval(prompt, "accept") }) { Text("授权本轮") }
+                Button(onClick = { grantPermissions = true },
+                    modifier = Modifier.heightIn(min = 48.dp)) { Text("授权本轮") }
             } else if (question) {
                 val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
                 val allAnswered = (0 until questions.length()).all {
@@ -161,10 +165,34 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     answers[id]?.isNotBlank() == true
                 }
                 Button(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
-                    enabled = allAnswered && questions.length() > 0) { Text("提交全部回答") }
+                    enabled = allAnswered && questions.length() > 0,
+                    modifier = Modifier.heightIn(min = 48.dp)) { Text("提交全部回答") }
+            }
+        }
+        if (normal && kind != "humanCommand") {
+            TextButton(onClick = { grantSession = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("在当前会话内持续允许此类操作")
             }
         }
     }
+    if (grantSession) CodexConfirmDialog(
+        title = "确认本会话授权",
+        message = "授权会覆盖当前会话中后续符合条件的同类操作，请核对执行内容和路径。",
+        detail = prompt.params.toString(2),
+        confirmLabel = "本会话允许",
+        destructive = true,
+        onConfirm = { grantSession = false; vm.answerApproval(prompt, "acceptForSession") },
+        onDismiss = { grantSession = false }
+    )
+    if (grantPermissions) CodexConfirmDialog(
+        title = "确认额外权限",
+        message = "这些权限会授予当前任务轮次。请先检查权限范围。",
+        detail = (prompt.params.optJSONObject("permissions") ?: JSONObject()).toString(2),
+        confirmLabel = "授权本轮",
+        destructive = true,
+        onConfirm = { grantPermissions = false; vm.answerApproval(prompt, "accept") },
+        onDismiss = { grantPermissions = false }
+    )
 }
 
 @Composable
@@ -255,15 +283,19 @@ fun ConfigPage(vm: CodexViewModel) {
             }
         }
     }
-    if (showConfirm) AlertDialog(onDismissRequest = { showConfirm = false }, title = { Text("保存 Codex 配置") },
-        text = { Text("键：" + path + "\n值：" + value + "\n\n此操作将修改本机 config.toml。") },
-        confirmButton = { TextButton(onClick = {
+    if (showConfirm) CodexConfirmDialog(
+        title = "保存 Codex 配置",
+        message = "本次修改会写入本机 config.toml。请核对键和值。",
+        detail = "键：$path\n值：$value",
+        confirmLabel = "确认写入",
+        onConfirm = {
             vm.rpc("config", "config/value/write", JSONObject().put("keyPath", path)
                 .put("value", parsed).put("mergeStrategy", "replace"),
                 after = { vm.refresh("config", "config/read") })
             showConfirm = false
-        }) { Text("确认写入") } },
-        dismissButton = { TextButton(onClick = { showConfirm = false }) { Text("取消") } })
+        },
+        onDismiss = { showConfirm = false }
+    )
 }
 
 @Composable
@@ -336,11 +368,13 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 style = MaterialTheme.typography.labelMedium)
         }
     }
-    if (confirm) AlertDialog(
-        onDismissRequest = { confirm = false },
-        title = { Text("确认更新运行权限") },
-        text = { Text("审批：$effectiveApproval → $selectedApproval\n文件访问：$effectiveSandbox → $selectedSandbox") },
-        confirmButton = { TextButton(onClick = {
+    if (confirm) CodexConfirmDialog(
+        title = "确认更新运行权限",
+        message = "更改会影响后续命令审批及工作区文件访问。",
+        detail = "审批：$effectiveApproval → $selectedApproval\n文件访问：$effectiveSandbox → $selectedSandbox",
+        confirmLabel = "确认保存",
+        destructive = true,
+        onConfirm = {
             val edits = org.json.JSONArray()
             if (draftApproval != null && draftApproval != effectiveApproval) {
                 edits.put(JSONObject().put("keyPath", "approval_policy")
@@ -356,8 +390,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     after = { vm.refresh("config", "config/read", JSONObject().put("includeLayers", true)) })
             }
             confirm = false
-        }) { Text("确认保存") } },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("取消") } }
+        },
+        onDismiss = { confirm = false }
     )
 }
 
@@ -365,6 +399,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 fun AppearancePage() {
     val compact by UiPreferences.compact.collectAsState()
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
+    val softMaterial by UiPreferences.softMaterial.collectAsState()
     ScreenColumn {
         SectionIntro("DESIGN / SURFACES", "外观与交互", "深石墨界面、暖铜操作重点、柔雾层次与精简动效。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -381,12 +416,25 @@ fun AppearancePage() {
             DividerLine()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
+                    Text("柔雾层次材质")
+                    Text("通过低对比渐层强调内容层级；关闭后使用纯色面板",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                }
+                Switch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
+            }
+            DividerLine()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
                     Text("减弱页面动效")
                     Text("缩短或关闭转场动画，保留状态反馈", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
                 Switch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
             }
         }
+        CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", Icons.Outlined.TouchApp,
+            onClick = { UiPreferences.setCompact(!compact) }, modifier = Modifier.fillMaxWidth())
+        CodexNotice(if (lessMotion) "已关闭装饰性位移动画，状态仍会立即更新"
+            else "页面转场与操作反馈已经启用", NoticeTone.Info)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("颜色职责", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
