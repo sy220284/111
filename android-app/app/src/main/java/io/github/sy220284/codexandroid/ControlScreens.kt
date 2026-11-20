@@ -201,18 +201,49 @@ fun AccountPage(vm: CodexViewModel) {
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loginUrl by vm.accountLoginUrl.collectAsState()
+    val deviceCode by vm.deviceLoginCode.collectAsState()
+    val deviceUrl by vm.deviceLoginUrl.collectAsState()
+    val activeLoginId by vm.activeLoginId.collectAsState()
     val account = models["account"]
     var logoutConfirm by remember { mutableStateOf(false) }
     ScreenColumn {
         SectionIntro("AUTH / IDENTITY", "账号与身份", "账号资料保存在 Codex 自己的本机配置中。")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("本机账号与授权", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f))
+            TextButton(onClick = { vm.refresh("account", "account/read") }) {
+                Icon(Icons.Outlined.Refresh, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("刷新账号状态")
+            }
+        }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Icon(Icons.Outlined.AccountCircle, null, modifier = Modifier.size(42.dp), tint = Ink.copper)
             Text("账号信息", style = MaterialTheme.typography.titleLarge)
             Text(account?.optJSONObject("account")?.optString("email") ?: "尚未读取账号", color = Ink.muted)
             Text(account?.optString("authMode") ?: "", color = Ink.muted)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.startLogin() }) { Text("登录 ChatGPT") }
-                OutlinedButton(onClick = { vm.refresh("account", "account/read") }) { Text("刷新状态") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { vm.startDeviceLogin() }, modifier = Modifier.weight(1f)) {
+                    Text("设备码登录", maxLines = 1)
+                }
+                OutlinedButton(onClick = { vm.startLogin() }, modifier = Modifier.weight(1f)) {
+                    Text("浏览器登录", maxLines = 1)
+                }
+            }
+            if (deviceCode.isNotBlank() && deviceUrl.startsWith("https://")) {
+                DividerLine()
+                Text("设备验证码", color = Ink.copper, style = MaterialTheme.typography.labelMedium)
+                Text(deviceCode, style = MaterialTheme.typography.headlineSmall,
+                    fontFamily = FontFamily.Monospace)
+                Text("在授权页面输入此代码，完成后返回应用刷新账号状态。",
+                    color = Ink.muted)
+                OutlinedButton(onClick = {
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(deviceUrl)))
+                }) {
+                    Icon(Icons.Outlined.OpenInBrowser, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("打开验证码授权页")
+                }
             }
             if (loginUrl.startsWith("https://") || loginUrl.startsWith("http://")) {
                 OutlinedButton(onClick = {
@@ -222,6 +253,9 @@ fun AccountPage(vm: CodexViewModel) {
                     Spacer(Modifier.width(6.dp))
                     Text("在浏览器继续授权")
                 }
+            }
+            if (activeLoginId.isNotBlank()) {
+                TextButton(onClick = { vm.cancelLogin() }) { Text("取消本次授权") }
             }
             TextButton(onClick = { logoutConfirm = true }) { Text("退出当前账号") }
         }

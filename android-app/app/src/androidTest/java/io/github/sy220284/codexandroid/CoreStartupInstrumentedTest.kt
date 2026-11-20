@@ -37,6 +37,29 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun localThreadCanStartAndBeReadWithoutCloudLogin() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+                val created = bridge.request("thread/start",
+                    JSONObject().put("cwd", workspace.absolutePath))
+                val id = created.getJSONObject("thread").getString("id")
+                org.junit.Assert.assertTrue("Thread id empty", id.isNotBlank())
+                val read = bridge.request("thread/read",
+                    JSONObject().put("threadId", id).put("includeTurns", false))
+                assertEquals(id, read.getJSONObject("thread").getString("id"))
+            }
+        } catch (failure: Exception) {
+            throw AssertionError("Offline thread lifecycle failed; status=" +
+                bridge.status.value + "; stderr=" + bridge.recentStderr.value.joinToString(" / "), failure)
+        } finally {
+            bridge.close()
+        }
+    }
+
     @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
