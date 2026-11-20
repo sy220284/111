@@ -10,13 +10,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: codex-android-build
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
-      - name: 检出项目
+      - name: 检出 Android 工程
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: android-app
       - name: 安装 Java 17
         uses: actions/setup-java@v4
         with:
