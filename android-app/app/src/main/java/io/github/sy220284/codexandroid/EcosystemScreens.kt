@@ -334,6 +334,13 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
             Text("工作目录：" + vm.workingDirectory, fontFamily = FontFamily.Monospace, color = Ink.muted)
+            val stderr by vm.bridge.recentStderr.collectAsState()
+            if (stderr.isNotEmpty()) {
+                Text("内核启动日志（仅保存最近 16 行）", color = Ink.copper,
+                    style = MaterialTheme.typography.titleMedium)
+                Text(stderr.joinToString("\n"), color = Ink.muted, fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.labelMedium)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { vm.bridge.close(); vm.connect() }) {
                     Icon(Icons.Outlined.RestartAlt, null); Text("重启连接")

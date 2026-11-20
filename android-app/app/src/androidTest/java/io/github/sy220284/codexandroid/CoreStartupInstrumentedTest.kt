@@ -1,5 +1,6 @@
 package io.github.sy220284.codexandroid
 
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
@@ -25,6 +26,13 @@ class CoreStartupInstrumentedTest {
                 val response = bridge.request("account/read")
                 assertNotNull(response)
             }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
         } finally {
             bridge.close()
         }

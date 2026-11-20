@@ -38,10 +38,12 @@ class CodexConnection(private val appContext: Context) {
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
     val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 512)
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
+    val recentStderr = MutableStateFlow<List<String>>(emptyList())
 
     suspend fun connect() = withContext(Dispatchers.IO) {
         if (status.value == EngineStatus.Connected) return@withContext
         status.value = EngineStatus.Starting
+        recentStderr.value = emptyList()
         val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
         val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
         val workspace = File(appContext.filesDir, "projects").apply { mkdirs() }
@@ -64,8 +66,13 @@ class CodexConnection(private val appContext: Context) {
             scope.launch {
                 child.errorStream.bufferedReader().use { stream ->
                     // Read stderr so the child does not block on a full pipe.
-                    // Keep secrets, prompts and process output out of Android logcat.
-                    while (stream.readLine() != null) Unit
+                    // Store a bounded, local-only diagnostic tail for crash investigation.
+                    // Never forward process stderr to Android logcat or telemetry.
+                    while (true) {
+                        val line = stream.readLine() ?: break
+                        recentStderr.value = (recentStderr.value + line.take(350))
+                            .takeLast(16)
+                    }
                 }
             }
             val info = JSONObject().put("name", "codex_android")
@@ -86,7 +93,10 @@ class CodexConnection(private val appContext: Context) {
             process?.destroy()
             process = null
             writer = null
-            status.value = EngineStatus.Unavailable(failure.message ?: "Codex 内核启动失败")
+            val exit = process?.takeIf { !it.isAlive }?.runCatching { exitValue() }?.getOrNull()
+            val reason = (failure.message ?: "Codex 内核启动失败") +
+                (if (exit == null) "" else " (退出码 " + exit + ")")
+            status.value = EngineStatus.Unavailable(reason)
             throw failure
         }
     }
