@@ -55,6 +55,7 @@
 
 ## 五、实际验收证据与边界
 
+- 新增 PR #10 的 28 页导航测试，核验全部侧栏项目及真实页面标题；[UI 验收为 9 项](https://github.com/sy220284/111/actions/runs/44746032933)，[原生核心完整验收为 12 项](https://github.com/sy220284/111/actions/runs/44746033005)。
 - Android 代码内有 UI instrumentation 检查：侧栏导航、协作模式选择弹层、侧栏搜索与外观页、终端执行确认与取消、系统返回键，以及执行依据弹层复制与关闭。
 - `.github/workflows/check-android-ui.yml` 会在提交后执行 Kotlin 编译、官方协议检查、单元测试、Lint、APK 编译和 Android 35 模拟器设备 UI 测试，并保存截图。
 - 四项技能驱动的 UI 设计已由 PR #5 合并主分支；会话契约和设备码登录由 PR #8 整合完成。

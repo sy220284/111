@@ -48,3 +48,10 @@ GitHub Actions 构建结果为最终记录；源码中存在页面或协议声�
 | 正确会话参数和登录结果解析 | `TurnRequestContractTest`、`AccountLoginContractTest` 使用官方 Rust 字段模型进行单元验证 |
 
 **目前仍需设备级验证：** ARM64 物理设备、ChatGPT 真实 OAuth 授权、云端模型长任务、文件改动与权限审批完整路径、TalkBack/字体放大及 Android API 多版本矩阵。当前提供调试签名 APK，正式签名发布尚未配置。
+
+## 全部 28 个侧栏页面逐页回归 · PR #10
+
+- [UI 独立编译与 Android 35 全页导航](https://github.com/sy220284/111/actions/runs/44746032933)：`OK (9 tests)`，编译、协议、单元测试、Lint 与模拟器 UI 测试全部成功。
+- [完整 ARM64/x86_64 APK 构建和 Android 35 测试](https://github.com/sy220284/111/actions/runs/44746033005)：`OK (12 tests)`，原生 Codex 内核启动、初始化、命令、离线会话及全部 28 个页面导航通过。
+- 为搜索框、导航项及页面标题增加稳定测试标识；逐页检查实际标题匹配，异常、跳错路由或崩溃会使 CI 失败。
+- 本项验收覆盖每个页面能否打开并正确导航。页面内部涉及服务端请求、插件安装、审批授权、模型输出、网络及文件读写仍在独立功能验收范围内。
