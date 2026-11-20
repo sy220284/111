@@ -33,6 +33,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val deviceLoginCode = MutableStateFlow("")
     val deviceLoginUrl = MutableStateFlow("")
     val activeLoginId = MutableStateFlow("")
+    val loginBusy = MutableStateFlow(false)
 
     init {
         viewModelScope.launch {
@@ -227,42 +228,44 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startLogin() {
-        viewModelScope.launch {
-            try {
-                val result = bridge.request("account/login/start", JSONObject().put("type", "chatgpt"))
-                val login = AccountLoginContract.browser(result)
-                activeLoginId.value = login.id
-                deviceLoginCode.value = ""
-                deviceLoginUrl.value = ""
-                accountLoginUrl.value = login.url
-                errors.value = errors.value - "account"
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("account" to (failure.message ?: "登录请求失败"))
-            }
-        }
-    }
+    fun startLogin() = beginLogin("chatgpt")
 
-    fun startDeviceLogin() {
+    fun startDeviceLogin() = beginLogin("chatgptDeviceCode")
+
+    /** Reserve the login synchronously: concurrent taps cannot replace each other's codes. */
+    private fun beginLogin(type: String) {
+        if (loginBusy.value || activeLoginId.value.isNotBlank()) return
+        loginBusy.value = true
         viewModelScope.launch {
             try {
-                val result = bridge.request("account/login/start",
-                    JSONObject().put("type", "chatgptDeviceCode"))
-                val login = AccountLoginContract.device(result)
-                activeLoginId.value = login.id
-                accountLoginUrl.value = ""
-                deviceLoginUrl.value = login.url
-                deviceLoginCode.value = login.code
+                val result = bridge.request("account/login/start", JSONObject().put("type", type))
+                if (type == "chatgptDeviceCode") {
+                    val login = AccountLoginContract.device(result)
+                    activeLoginId.value = login.id
+                    accountLoginUrl.value = ""
+                    deviceLoginUrl.value = login.url
+                    deviceLoginCode.value = login.code
+                } else {
+                    val login = AccountLoginContract.browser(result)
+                    activeLoginId.value = login.id
+                    deviceLoginCode.value = ""
+                    deviceLoginUrl.value = ""
+                    accountLoginUrl.value = login.url
+                }
                 errors.value = errors.value - "account"
             } catch (failure: Exception) {
-                errors.value = errors.value + ("account" to (failure.message ?: "设备登录请求失败"))
+                errors.value = errors.value + ("account" to
+                    (failure.message ?: "无法发起本次登录"))
+            } finally {
+                loginBusy.value = false
             }
         }
     }
 
     fun cancelLogin() {
         val id = activeLoginId.value
-        if (id.isBlank()) return
+        if (id.isBlank() || loginBusy.value) return
+        loginBusy.value = true
         viewModelScope.launch {
             try {
                 bridge.request("account/login/cancel", JSONObject().put("loginId", id))
@@ -276,6 +279,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             } catch (failure: Exception) {
                 errors.value = errors.value + ("account" to
                     (failure.message ?: "无法取消这次登录"))
+            } finally {
+                loginBusy.value = false
             }
         }
     }

@@ -36,7 +36,7 @@ object AccountLoginContract {
     /** Ignore late notifications from an earlier login when a newer attempt is pending. */
     fun completion(params: JSONObject, activeId: String): Completion? {
         val eventId = params.optString("loginId")
-        if (activeId.isNotBlank() && eventId.isNotBlank() && activeId != eventId) return null
+        if (activeId.isBlank() || eventId != activeId) return null
         return Completion(params.optBoolean("success", false),
             if (params.isNull("error")) "" else params.optString("error"))
     }
