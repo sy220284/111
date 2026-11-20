@@ -1,0 +1,51 @@
+name: 一次性导入官方 Codex 源码
+on:
+  push:
+    paths:
+      - .github/workflows/import-codex.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: codex-upstream-import
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 获取上游最新提交
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 --single-branch --branch main https://github.com/openai/codex.git "$RUNNER_TEMP/codex"
+          git -C "$RUNNER_TEMP/codex" rev-parse HEAD > CODEX_UPSTREAM_COMMIT
+          git -C "$RUNNER_TEMP/codex" show -s --format=%cI HEAD >> CODEX_UPSTREAM_COMMIT
+          echo 'https://github.com/openai/codex' >> CODEX_UPSTREAM_COMMIT
+          mkdir -p upstream/codex
+          rsync -a --delete --exclude=.git "$RUNNER_TEMP/codex/" upstream/codex/
+          echo 'Upstream commit:'
+          cat CODEX_UPSTREAM_COMMIT
+          echo 'Oversized files:'
+          find upstream/codex -type f -size +95M -print
+          if find upstream/codex -type f -size +95M | grep -q .; then
+            echo '上游存在超过 95 MB 的文件，需采用 LFS 或分包' >&2
+            exit 1
+          fi
+      - name: 提交源码快照
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add upstream/codex CODEX_UPSTREAM_COMMIT
+          if git diff --cached --quiet; then
+            echo '官方源码无变化'
+            exit 0
+          fi
+          git commit -m "导入官方 Codex 最新源码快照"
+          git pull --rebase origin main
+          git push origin HEAD:main
