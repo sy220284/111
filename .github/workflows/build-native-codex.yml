@@ -81,6 +81,20 @@ jobs:
         with:
           workspaces: upstream/codex/codex-rs
           key: codex-android-${{ matrix.rust_target }}
+      - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >> upstream/codex/codex-rs/core/Cargo.toml <<'TOML'
+          # Android target uses the same source-built OpenSSL strategy as Linux musl.
+          # This addition only applies to the CI checkout; upstream snapshot stays intact.
+          [target.aarch64-linux-android.dependencies]
+          openssl-sys = { workspace = true, features = ["vendored"] }
+
+          [target.x86_64-linux-android.dependencies]
+          openssl-sys = { workspace = true, features = ["vendored"] }
+          TOML
+          grep -A 2 'target.aarch64-linux-android.dependencies' upstream/codex/codex-rs/core/Cargo.toml
       - name: 使用 Android Bionic 编译 App Server
         shell: bash
         run: |
@@ -95,6 +109,7 @@ jobs:
           export "AR_${TARGET_C}=$BIN/llvm-ar"
           export CMAKE_ANDROID_NDK="$ANDROID_NDK_HOME"
           export CMAKE_ANDROID_API=29
+          export OPENSSL_STATIC=1
           cd upstream/codex/codex-rs
           cargo build --locked --release -p codex-app-server --bin codex-app-server --target "$TARGET"
           CORE="target/$TARGET/release/codex-app-server"
