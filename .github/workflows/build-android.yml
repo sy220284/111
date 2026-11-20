@@ -137,25 +137,47 @@ jobs:
           done
           head -n 1 CODEX_UPSTREAM_COMMIT
       - name: 编译 APK 并验证审批协议测试
-        run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
-      - name: 确认 APK 包含 Android 原生内核
+        run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true --no-daemon --stacktrace
+      - name: 验证 ARM64 / x86_64 独立 APK 的内核与 ABI
         shell: bash
         run: |
           set -euo pipefail
-          APK="android-app/app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
+          APK_DIR="android-app/app/build/outputs/apk/debug"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          unzip -l "$APK" | grep 'lib/arm64-v8a/libcodex_server.so'
-          unzip -l "$APK" | grep 'lib/x86_64/libcodex_server.so'
-          unzip -l "$APK" | grep 'classes.dex'
-          sha256sum "$APK"
-      - name: 上传可安装包和设备测试包
+          for ABI in arm64-v8a x86_64; do
+            APK="$APK_DIR/app-$ABI-debug.apk"
+            test -s "$APK"
+            unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-filelist-$ABI"
+            grep -Fxq "lib/$ABI/libcodex_server.so" "$RUNNER_TEMP/apk-filelist-$ABI"
+            grep -Fxq 'classes.dex' "$RUNNER_TEMP/apk-filelist-$ABI"
+            OTHER="x86_64"
+            if [ "$ABI" = x86_64 ]; then OTHER="arm64-v8a"; fi
+            if grep -Fxq "lib/$OTHER/libcodex_server.so" "$RUNNER_TEMP/apk-filelist-$ABI"; then
+              echo "$ABI APK 包含了另一架构的核心，拆包失败" >&2
+              exit 1
+            fi
+            ls -lh "$APK"
+            sha256sum "$APK"
+          done
+      - name: 上传 ARM64 安卓手机专用 APK
         uses: actions/upload-artifact@v4
         with:
-          name: codex-android-native-apks
-          path: |
-            android-app/app/build/outputs/apk/debug/app-debug.apk
-            android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          name: codex-android-arm64-apk
+          path: android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: 上传 x86_64 模拟器专用 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-x86_64-apk
+          path: android-app/app/build/outputs/apk/debug/app-x86_64-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: 上传设备仪器测试 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-instrumentation-apk
+          path: android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -165,11 +187,16 @@ jobs:
     needs: build
     timeout-minutes: 55
     steps:
-      - name: 取回已通过构建的 APK
+      - name: 取回 x86_64 原生运行包
         uses: actions/download-artifact@v4
         with:
-          name: codex-android-native-apks
-          path: apks
+          name: codex-android-x86_64-apk
+          path: apks/device
+      - name: 取回设备仪器测试包
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-android-instrumentation-apk
+          path: apks/test
       - name: 允许虚拟机加速
         run: |
           sudo adduser "$USER" kvm || true
@@ -183,8 +210,8 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           script: |
-            adb install -r apks/debug/app-debug.apk
-            adb install -r apks/androidTest/debug/app-debug-androidTest.apk
+            adb install -r apks/device/app-x86_64-debug.apk
+            adb install -r apks/test/app-debug-androidTest.apk
             adb shell am instrument -w -r io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee instrument-result.log
             grep -Fq 'OK (' instrument-result.log
       - name: 保存设备测试证据
