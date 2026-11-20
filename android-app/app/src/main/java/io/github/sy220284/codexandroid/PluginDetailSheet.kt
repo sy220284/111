@@ -36,10 +36,7 @@ fun PluginDetailSheet(
 
     fun refresh() {
         if (name.isBlank()) return
-        val args = JSONObject().put("pluginName", name)
-        if (marketPath.isNotBlank()) args.put("marketplacePath", marketPath)
-        else if (marketName.isNotBlank()) args.put("remoteMarketplaceName", marketName)
-        vm.refresh(key, "plugin/read", args)
+        vm.refresh(key, "plugin/read", InspectionContracts.plugin(name, marketName, marketPath))
     }
     LaunchedEffect(name, marketName, marketPath) { refresh() }
 
