@@ -326,10 +326,11 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                     StatusPill(if (status == EngineStatus.Connected) "已连接" else "连接异常", status == EngineStatus.Connected)
                 }
             }
-            Text(when (status) {
+            val statusSnapshot = status
+            Text(when (statusSnapshot) {
                 EngineStatus.Starting -> "正在初始化本机进程和 JSON-RPC。"
                 EngineStatus.Connected -> "进程已通过 initialize 并建立响应通道。"
-                is EngineStatus.Unavailable -> status.reason
+                is EngineStatus.Unavailable -> statusSnapshot.reason
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
             Text("工作目录：" + vm.workingDirectory, fontFamily = FontFamily.Monospace, color = Ink.muted)
