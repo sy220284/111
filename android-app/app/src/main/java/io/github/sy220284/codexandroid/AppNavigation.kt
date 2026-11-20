@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -109,7 +112,7 @@ fun CodexShell(vm: CodexViewModel) {
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(page.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                                Text("CODEX / ANDROID", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                                Text(page.section + " / CODEX", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                             }
                         },
                         navigationIcon = {
@@ -118,13 +121,16 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         actions = {
+                            IconButton(onClick = { vm.newThread(); move("chat") }) {
+                                Icon(Icons.Outlined.AddCircleOutline, "新建任务")
+                            }
                             if (pending.isNotEmpty()) {
                                 BadgedBox(badge = { Badge { Text(pending.size.toString()) } }) {
                                     IconButton(onClick = { move("approvals") }) { Icon(Icons.Outlined.GppGood, "待审批") }
                                 }
                             }
-                            IconButton(onClick = { if (status == EngineStatus.Connected) vm.refresh("account", "account/read") else vm.connect() }) {
-                                Icon(if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle else Icons.Outlined.SyncProblem, "内核状态",
+                            IconButton(onClick = { if (status == EngineStatus.Connected) move("diagnostics") else vm.connect() }) {
+                                Icon(if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle else Icons.Outlined.SyncProblem, if (status == EngineStatus.Connected) "查看内核诊断" else "连接内核",
                                     tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red)
                             }
                         },
@@ -136,9 +142,9 @@ fun CodexShell(vm: CodexViewModel) {
                     AnimatedContent(
                         targetState = selected,
                         transitionSpec = {
-                            if (reducedMotion) fadeIn(tween(50)).togetherWith(fadeOut(tween(50)))
-                            else (fadeIn(tween(185)) + slideInHorizontally(tween(210)) { it / 9 })
-                                .togetherWith(fadeOut(tween(100)) + slideOutHorizontally(tween(115)) { -it / 12 })
+                            if (reducedMotion) fadeIn(tween(0)).togetherWith(fadeOut(tween(0)))
+                            else (fadeIn(tween(CodexMotion.reveal)) + slideInHorizontally(tween(CodexMotion.navigation)) { it / 10 })
+                                .togetherWith(fadeOut(tween(CodexMotion.feedback)) + slideOutHorizontally(tween(CodexMotion.feedback)) { -it / 14 })
                         },
                         label = "section_switch"
                     ) { screen ->
@@ -172,73 +178,119 @@ fun CodexShell(vm: CodexViewModel) {
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit, status: EngineStatus, approvals: Int
 ) {
-    var filter by remember { mutableStateOf("") }
-    Column(
-        modifier = modifier.background(Ink.recessed).padding(horizontal = 14.dp, vertical = 12.dp)
-    ) {
-        Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 12.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                color = Ink.copper.copy(alpha = .16f),
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, Ink.copperDim)
-            ) {
+    var filter by rememberSaveable { mutableStateOf("") }
+    var expandedGroup by rememberSaveable { mutableStateOf("工作台") }
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+    LaunchedEffect(selected) {
+        pages.firstOrNull { it.id == selected }?.let { expandedGroup = it.section }
+    }
+    Column(modifier.background(Ink.recessed).padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 8.dp, bottom = 15.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = Ink.copper.copy(alpha = .14f), shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Ink.copperDim)) {
                 Icon(Icons.Outlined.Code, null, tint = Ink.copper, modifier = Modifier.padding(12.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("CODEX", style = MaterialTheme.typography.titleLarge, letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified)
+                Text("CODEX", style = MaterialTheme.typography.titleLarge)
                 Text("移动开发工作台", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
         }
-        OutlinedTextField(
-            value = filter, onValueChange = { filter = it },
+        OutlinedTextField(filter, { filter = it },
             modifier = Modifier.fillMaxWidth(), singleLine = true,
             leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            placeholder = { Text("查找功能") },
-            shape = RoundedCornerShape(14.dp),
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(Modifier.height(16.dp))
-        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            placeholder = { Text("搜索功能与设置") },
+            trailingIcon = {
+                if (filter.isNotEmpty()) IconButton(onClick = { filter = "" }) {
+                    Icon(Icons.Outlined.Close, "清除搜索")
+                }
+            },
+            shape = RoundedCornerShape(14.dp), textStyle = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                Triple("chat", "对话", Icons.Outlined.ChatBubbleOutline),
+                Triple("files", "文件", Icons.Outlined.FolderOpen),
+                Triple("approvals", if (approvals > 0) "审批 $approvals" else "审批", Icons.Outlined.GppGood)
+            ).forEach { (id, title, icon) ->
+                OutlinedButton(onClick = { onSelect(id) },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {
+                    Icon(icon, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(title, maxLines = 1)
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        DividerLine()
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             for (group in pages.map { it.section }.distinct()) {
-                val entries = pages.filter { it.section == group && (filter.isBlank() || (it.title + it.subtitle).contains(filter, true)) }
-                if (entries.isNotEmpty()) {
-                    item(key = "group-" + group) {
-                        Text(group, color = Ink.muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 12.dp, top = 17.dp, bottom = 7.dp))
-                    }
-                    items(entries, key = { it.id }) { entry ->
-                        NavigationDrawerItem(
-                            label = { Text(entry.title, maxLines = 1) },
-                            selected = entry.id == selected,
-                            onClick = { onSelect(entry.id) },
-                            icon = { Icon(entry.icon, null, modifier = Modifier.size(21.dp)) },
-                            badge = {
-                                if (entry.id == "approvals" && approvals > 0) Text(approvals.toString(), color = Ink.copper)
-                            },
-                            modifier = Modifier.height(47.dp),
-                            shape = RoundedCornerShape(13.dp),
-                            colors = NavigationDrawerItemDefaults.colors(
-                                selectedContainerColor = Ink.copper.copy(alpha = .14f),
-                                selectedIconColor = Ink.copper,
-                                selectedTextColor = Ink.parchment,
-                                unselectedContainerColor = Color.Transparent,
-                                unselectedIconColor = Ink.muted,
-                                unselectedTextColor = Ink.muted
-                            )
-                        )
+                val entries = pages.filter {
+                    it.section == group && (filter.isBlank() ||
+                        (it.title + it.subtitle + it.id).contains(filter, ignoreCase = true))
+                }
+                if (entries.isNotEmpty()) item(key = "group-$group") {
+                    Column {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { expandedGroup = if (expandedGroup == group) "" else group }
+                                .heightIn(min = 49.dp).padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(group, modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                            Text(entries.size.toString(), style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                            Spacer(Modifier.width(7.dp))
+                            Icon(if (filter.isNotBlank() || expandedGroup == group)
+                                Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                contentDescription = null, tint = Ink.muted, modifier = Modifier.size(19.dp))
+                        }
+                        AnimatedVisibility(
+                            visible = filter.isNotBlank() || expandedGroup == group,
+                            enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))) +
+                                fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))),
+                            exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))) +
+                                fadeOut(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion)))
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                entries.forEach { entry ->
+                                    NavigationDrawerItem(
+                                        label = { Text(entry.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        selected = entry.id == selected, onClick = { onSelect(entry.id) },
+                                        icon = { Icon(entry.icon, null, modifier = Modifier.size(21.dp)) },
+                                        badge = { if (entry.id == "approvals" && approvals > 0)
+                                            Text(approvals.toString(), color = Ink.copper) },
+                                        modifier = Modifier.heightIn(min = 51.dp),
+                                        shape = RoundedCornerShape(13.dp),
+                                        colors = NavigationDrawerItemDefaults.colors(
+                                            selectedContainerColor = Ink.copper.copy(alpha = .14f),
+                                            selectedIconColor = Ink.copper, selectedTextColor = Ink.parchment,
+                                            unselectedContainerColor = Color.Transparent,
+                                            unselectedIconColor = Ink.muted, unselectedTextColor = Ink.parchment
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
         DividerLine()
-        Spacer(Modifier.height(12.dp))
-        Row(
-            Modifier.fillMaxWidth().clickable { onSelect("diagnostics") }.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StatusPill(if (status == EngineStatus.Connected) "引擎已连接" else "引擎待连接", status == EngineStatus.Connected)
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth().clickable { onSelect("diagnostics") }
+            .heightIn(min = 53.dp).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            StatusPill(if (status == EngineStatus.Connected) "引擎已连接" else "连接状态待检查",
+                status == EngineStatus.Connected)
             Spacer(Modifier.weight(1f))
-            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+            Icon(Icons.Outlined.ChevronRight, "查看诊断", tint = Ink.muted)
         }
     }
 }
