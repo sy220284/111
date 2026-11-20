@@ -238,7 +238,24 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         border = BorderStroke(1.dp, if (user) Ink.copperDim else Ink.border.copy(alpha = .6f))
                     ) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if (user) Icons.Outlined.Person else Icons.Outlined.Code, null, tint = if (user) Ink.copper else Ink.jade, modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (user) "你" else item.kind, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.weight(1f))
+                                if (item.status.isNotBlank()) Text(item.status, color = Ink.jade, style = MaterialTheme.typography.labelMedium)
+                            }
+                            Text(item.text.ifBlank { "处理中…" }, style = MaterialTheme.typography.bodyLarge,
+                                fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
+                        }
+                    }
+                }
+            }
+        }
+        errors["conversation"]?.let { ErrorText(it) }
+        DividerLine()
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
