@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
@@ -127,7 +128,7 @@ fun CodexShell(vm: CodexViewModel) {
                     CenterAlignedTopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(page.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                                Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                                 Text(page.section + " / CODEX", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                             }
                         },
@@ -218,7 +219,7 @@ private fun Sidebar(
             }
         }
         OutlinedTextField(filter, { filter = it },
-            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("navigation-search"), singleLine = true,
             leadingIcon = { Icon(Icons.Outlined.Search, null) },
             placeholder = { Text("搜索功能与设置") },
             trailingIcon = {
@@ -286,7 +287,7 @@ private fun Sidebar(
                                         icon = { Icon(entry.icon, null, modifier = Modifier.size(21.dp)) },
                                         badge = { if (entry.id == "approvals" && approvals > 0)
                                             Text(approvals.toString(), color = Ink.copper) },
-                                        modifier = Modifier.heightIn(min = 51.dp),
+                                        modifier = Modifier.heightIn(min = 51.dp).testTag("nav-${entry.id}"),
                                         shape = RoundedCornerShape(13.dp),
                                         colors = NavigationDrawerItemDefaults.colors(
                                             selectedContainerColor = Ink.copper.copy(alpha = .14f),
