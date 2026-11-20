@@ -49,7 +49,7 @@ jobs:
             --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
             --sources android-app/app/src/main/java
       - name: 验证 Compose、协议测试与静态检查
-        run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug --no-daemon --stacktrace
+        run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 保存测试与 Lint 报告
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,5 +59,57 @@ jobs:
             android-app/app/build/reports/tests/
             android-app/app/build/reports/lint-results-debug.html
             android-app/app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: 保存独立编译的 UI 与设备测试安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-ui-apks
+          path: |
+            android-app/app/build/outputs/apk/debug/app-debug.apk
+            android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ui-emulator:
+    name: Android 模拟器侧栏交互与截图验收
+    needs: verify-ui
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: 取回 UI APK
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-android-ui-apks
+          path: apks
+      - name: 允许模拟器硬件加速
+        run: |
+          sudo adduser "$USER" kvm || true
+          sudo chmod 666 /dev/kvm
+      - name: 在真实 Android 环境验证侧栏导航并生成首页截图
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            adb install -r apks/debug/app-debug.apk
+            adb install -r apks/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            grep -Eq '^OK \\([0-9]+ tests?' ui-instrument-result.log
+            adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
+            mkdir -p ui-screenshots
+            adb exec-out screencap -p > ui-screenshots/home-android35.png
+            test -s ui-screenshots/home-android35.png
+      - name: 保存 UI 设备测试与真实屏幕截图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-ui-device-evidence
+          path: |
+            ui-instrument-result.log
+            ui-screenshots/
           if-no-files-found: ignore
           retention-days: 14
