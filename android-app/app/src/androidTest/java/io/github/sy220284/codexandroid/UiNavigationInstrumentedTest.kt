@@ -138,6 +138,37 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test
+    fun threadLibraryExposesServerBackedManagementLayout() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-threads").performClick()
+        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithText("活跃", substring = false).assertExists()
+        rule.onNodeWithText("已归档", substring = false).performClick()
+        rule.onNodeWithText("搜索会话标题").assertExists()
+        rule.onNodeWithText("新建任务").assertExists()
+        capture("thread-library-android35.png")
+    }
+
+    @Test
+    fun accountMetricsHavePurposeBuiltLayouts() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val search = rule.onNodeWithTag("navigation-search")
+        search.performTextClearance()
+        search.performTextInput("使用量")
+        rule.onNodeWithTag("nav-usage").performClick()
+        rule.onNodeWithText("账号使用概况").assertExists()
+        capture("account-usage-android35.png")
+
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val nextSearch = rule.onNodeWithTag("navigation-search")
+        nextSearch.performTextClearance()
+        nextSearch.performTextInput("使用限额")
+        rule.onNodeWithTag("nav-limits").performClick()
+        rule.onNodeWithText("额度窗口").assertExists()
+        capture("account-limits-android35.png")
+    }
+
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         val screen = requireNotNull(
