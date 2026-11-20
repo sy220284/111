@@ -108,6 +108,17 @@ jobs:
             file "$SRC"
             readelf -h "$SRC" | grep -q "$ARCH"
             readelf -l "$SRC" | grep -q '/system/bin/linker64'
+            mapfile -t LOAD_ALIGNS < <(readelf -Wl "$SRC" | awk '$1=="LOAD" {print $NF}')
+            if [ "${#LOAD_ALIGNS[@]}" -eq 0 ]; then
+              echo "$ABI 没有可检查的 ELF 加载段" >&2
+              exit 1
+            fi
+            for ALIGN in "${LOAD_ALIGNS[@]}"; do
+              if (( ALIGN < 16384 )); then
+                echo "$ABI ELF 加载段对齐不足 16 KB：$ALIGN" >&2
+                exit 1
+              fi
+            done
             TARGET="android-app/app/src/main/jniLibs/$ABI"
             mkdir -p "$TARGET"
             cp "$SRC" "$TARGET/libcodex_server.so"
