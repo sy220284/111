@@ -10,6 +10,7 @@ import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
 import org.junit.Test
 
@@ -20,7 +21,7 @@ class UiNavigationInstrumentedTest {
 
     @Test
     fun drawerOpensAndNavigatesToConversation() {
-        rule.onNodeWithText("让代码，流动起来").assertExists()
+        rule.onNodeWithText("继续你的工程").assertExists()
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").assertExists()
         capture("sidebar-android35.png")
@@ -28,6 +29,37 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("新的工作会话").assertExists()
         rule.onNodeWithText("从一个具体目标开始").assertExists()
         capture("chat-android35.png")
+    }
+
+
+    @Test
+    fun modeSheetOffersTwoExplicitActions() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("任务对话").performClick()
+        rule.onNodeWithText("执行", substring = false).performClick()
+        rule.onNodeWithText("选择协作方式").assertExists()
+        rule.onNodeWithText("先制定计划").performClick()
+        rule.onNodeWithText("先计划").assertExists()
+    }
+
+    @Test
+    fun sidebarFiltersSectionsAndOpensAppearance() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("搜索功能与设置").performTextInput("外观")
+        rule.onNodeWithText("外观与交互").performClick()
+        rule.onNodeWithText("柔雾层次材质").assertExists()
+        rule.onNodeWithText("交互预览").assertExists()
+    }
+
+    @Test
+    fun terminalExecutionShowsReadableConfirmation() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("搜索功能与设置").performTextInput("终端")
+        rule.onNodeWithText("终端", substring = false).performClick()
+        rule.onNodeWithText("Shell 命令").performTextInput("pwd")
+        rule.onNodeWithText("执行命令").performClick()
+        rule.onNodeWithText("确认执行命令").assertExists()
+        rule.onNodeWithText("确认执行").assertExists()
     }
 
     private fun capture(fileName: String) {
