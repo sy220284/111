@@ -393,13 +393,14 @@ fun TerminalPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun ReviewPage(vm: CodexViewModel) {
+fun ReviewPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val active by vm.activeThread.collectAsState()
     val errors by vm.errors.collectAsState()
     val response by vm.data.collectAsState()
     var selection by remember { mutableStateOf("uncommittedChanges") }
     var value by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
+    var showReviewRaw by remember { mutableStateOf(false) }
     ScreenColumn {
         SectionIntro("CODE / QUALITY", "代码审查", "使用 Codex 原生 reviewer，对变更给出可追踪的问题。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -421,7 +422,44 @@ fun ReviewPage(vm: CodexViewModel) {
         }
         if (active == null) Text("先在任务对话中打开一个会话。", color = Ink.muted)
         errors["review"]?.let { ErrorText(it) }
-        response["review"]?.let { MaterialPanel(Modifier.fillMaxWidth()) { Text(it.toString(2), fontFamily = FontFamily.Monospace) } }
+        response["review"]?.let { result ->
+            val reviewTurn = result.optJSONObject("turn")
+            val status = reviewTurn?.optString("status").orEmpty()
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.FactCheck, null, tint = Ink.copper)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("审查任务已创建", style = MaterialTheme.typography.titleMedium)
+                        Text("内核已接收审查请求，结果在会话任务流中继续更新。",
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (status.isNotBlank()) StatusPill(
+                        status, !status.contains("fail", ignoreCase = true))
+                }
+                val turnId = reviewTurn?.optString("id").orEmpty()
+                if (turnId.isNotBlank()) {
+                    Text("审查轮次：" + turnId,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                }
+                Button(onClick = { navigate("chat") },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.Chat, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text("查看会话中的审查过程")
+                }
+                TextButton(onClick = { showReviewRaw = !showReviewRaw }) {
+                    Text(if (showReviewRaw) "收起原始结果" else "查看原始结果")
+                }
+                CodexReveal(showReviewRaw) {
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(result.toString(2), fontFamily = FontFamily.Monospace,
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
     }
     if (confirm) CodexConfirmDialog(
         title = "发起代码审查",
