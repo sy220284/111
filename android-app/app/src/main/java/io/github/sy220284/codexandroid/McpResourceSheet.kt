@@ -34,7 +34,7 @@ fun McpResourceSheet(
     LaunchedEffect(serverName, uri) {
         if (uri.isNotBlank() && serverName.isNotBlank()) {
             vm.refresh(key, "mcpServer/resource/read",
-                JSONObject().put("server", serverName).put("uri", uri))
+                InspectionContracts.mcpResource(serverName, uri))
         }
     }
 
@@ -69,7 +69,7 @@ fun McpResourceSheet(
                 OutlinedButton(
                     onClick = {
                         vm.refresh(key, "mcpServer/resource/read",
-                            JSONObject().put("server", serverName).put("uri", uri))
+                            InspectionContracts.mcpResource(serverName, uri))
                     },
                     enabled = uri.isNotBlank() && key !in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
