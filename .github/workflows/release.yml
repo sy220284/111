@@ -6,6 +6,7 @@ name: 111 Android 正式发布
       - '.github/workflows/release.yml'
       - '.github/scripts/generate-release-notes.py'
       - '.github/scripts/test_generate_release_notes.py'
+      - '.github/scripts/test_release_assets.py'
       - '.github/scripts/prepare-release-assets.sh'
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
@@ -36,7 +37,7 @@ jobs:
           set -euo pipefail
           grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-111\.[0-9]+$' .github/release-version
           bash -n .github/scripts/prepare-release-assets.sh
-          python3 -m unittest discover -s .github/scripts -p 'test_generate_release_notes.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
   check-release:
     name: 识别待发布源码与版本
