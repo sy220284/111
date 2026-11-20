@@ -158,7 +158,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                         Text(if (enable) "启用应用" else "停用应用")
                     }
                 }
-                AnimatedVisibility(expanded == id) {
+                CodexReveal(expanded == id) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         IntegrationState(vm, "appDetail") { vm.refresh("appDetail", "app/read",
                             JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true)) }
@@ -173,10 +173,13 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
     }
     target?.let { item ->
         val id = item.optString("id")
-        AlertDialog(onDismissRequest = { target = null },
-            title = { Text(if (desired) "启用连接应用" else "停用连接应用") },
-            text = { Text(item.optString("name") + "\n将修改 Codex 对该应用的本地启用配置。") },
-            confirmButton = { TextButton(onClick = {
+        CodexConfirmDialog(
+            title = if (desired) "启用连接应用" else "停用连接应用",
+            message = "此操作将修改 Codex 对该应用的本地启用配置。",
+            detail = item.optString("name") + "\nID：" + id,
+            confirmLabel = "确认修改",
+            destructive = !desired,
+            onConfirm = {
                 vm.rpc("apps", "config/value/write",
                     JSONObject().put("keyPath", "apps." + id + ".enabled")
                         .put("value", desired).put("mergeStrategy", "replace"),
@@ -185,8 +188,9 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                         vm.refresh("appInstalled", "app/installed")
                     })
                 target = null
-            }) { Text("确认修改") } },
-            dismissButton = { TextButton(onClick = { target = null }) { Text("取消") } })
+            },
+            onDismiss = { target = null }
+        )
     }
 }
 
@@ -244,7 +248,7 @@ fun McpServicesPage(vm: CodexViewModel) {
                     }
                     TextButton(onClick = { confirmLogin = name }) { Text("授权登录") }
                 }
-                AnimatedVisibility(selected == name) {
+                CodexReveal(selected == name) {
                     Column {
                         val keys = tools.keys().asSequence().toList()
                         keys.forEach { key ->
@@ -268,14 +272,16 @@ fun McpServicesPage(vm: CodexViewModel) {
         }
         IntegrationState(vm, "mcpLogin") { }
     }
-    if (confirmLogin.isNotBlank()) AlertDialog(
-        onDismissRequest = { confirmLogin = "" }, title = { Text("授权 MCP 服务") },
-        text = { Text("准备为 " + confirmLogin + " 打开独立 OAuth 授权流程。") },
-        confirmButton = { TextButton(onClick = {
+    if (confirmLogin.isNotBlank()) CodexConfirmDialog(
+        title = "授权 MCP 服务",
+        message = "将为选定的 MCP 服务发起独立的 OAuth 授权流程。",
+        detail = confirmLogin,
+        confirmLabel = "发起授权",
+        onConfirm = {
             vm.rpc("mcpLogin", "mcpServer/oauth/login", JSONObject().put("name", confirmLogin))
             confirmLogin = ""
-        }) { Text("发起授权") } },
-        dismissButton = { TextButton(onClick = { confirmLogin = "" }) { Text("取消") } }
+        },
+        onDismiss = { confirmLogin = "" }
     )
 }
 
@@ -325,7 +331,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             Icon(Icons.Outlined.AddCircleOutline, null)
             Text(if (showAdd) "收起外部环境配置" else "添加外部执行环境")
         }
-        AnimatedVisibility(showAdd) {
+        CodexReveal(showAdd) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("接入额外执行服务", style = MaterialTheme.typography.titleMedium)
                 Text("仅连接已部署、可验证的执行服务。远端任务可能访问你明确选择的远程环境。", color = Ink.muted)

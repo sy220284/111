@@ -34,7 +34,6 @@ class CodexConnection(private val appContext: Context) {
     private val lifecycleMutex = Mutex()
     private val sequence = AtomicLong(1)
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
-    // Process IO is managed by separate coroutines and may also be closed on the UI thread.
     @Volatile private var process: Process? = null
     @Volatile private var writer: BufferedWriter? = null
 
@@ -79,7 +78,7 @@ class CodexConnection(private val appContext: Context) {
             scope.launch {
                 try {
                     child.errorStream.bufferedReader().use { stream ->
-                        // Drain stderr and retain only a bounded device-local diagnostic tail.
+                        // Drain stderr to avoid a blocked child; keep diagnostics only in local memory.
                         while (true) {
                             val line = stream.readLine() ?: break
                             if (process !== child) break
@@ -87,14 +86,19 @@ class CodexConnection(private val appContext: Context) {
                                 .takeLast(16)
                         }
                     }
-                } catch (error: IOException) {
+                } catch (failure: IOException) {
+                    // Destroying a child closes its pipes from another thread; readLine then
+                    // raises InterruptedIOException on Android. It is a completed shutdown.
+                    // A failure while this child is still owned is a real connection fault.
                     if (process === child) {
-                        // Unexpected stderr failure is a transport fault. On an intentional
-                        // close(), process is cleared first; Android may then interrupt a
-                        // pending read with InterruptedIOException, which is expected.
-                        val reason = "Codex 错误输出通道中断：" + (error.message ?: error.javaClass.simpleName)
+                        val reason = "Codex 错误输出通道读取失败：" +
+                            (failure.message ?: failure.javaClass.simpleName)
+                        process = null
+                        writer = null
                         status.value = EngineStatus.Unavailable(reason)
+                        prompts.value = emptyList()
                         failWaiting(reason)
+                        child.destroy()
                     }
                 }
             }

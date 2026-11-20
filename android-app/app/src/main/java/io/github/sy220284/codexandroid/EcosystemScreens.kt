@@ -40,7 +40,7 @@ private fun DetailToggle(value: JSONObject, label: String = "查看协议详情"
         Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
         Text(if (open) "收起详情" else label)
     }
-    AnimatedVisibility(open) {
+    CodexReveal(open) {
         Text(value.toString(2), color = Ink.muted,
             style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace)
     }
@@ -139,16 +139,17 @@ fun ProvidersPage(vm: CodexViewModel) {
         if (entries.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("未取得模型服务商列表。", color = Ink.muted) }
     }
     toSelect?.let { item ->
-        AlertDialog(onDismissRequest = { toSelect = null },
-            title = { Text("切换默认模型服务商") },
-            text = { Text("将新会话的默认服务商切换为 " + item.optString("name", item.optString("id")) + "。") },
-            confirmButton = { TextButton(onClick = {
+        CodexConfirmDialog(
+            title = "切换默认模型服务商",
+            message = "将新会话的默认服务商切换为：" + item.optString("name", item.optString("id")),
+            confirmLabel = "确认切换",
+            onConfirm = {
                 vm.rpc("providers", "modelProvider/default/set",
                     JSONObject().put("providerId", item.optString("id")),
                     after = { vm.refresh("providers", "modelProvider/list"); vm.refresh("models", "model/list") })
                 toSelect = null
-            }) { Text("确认切换") } },
-            dismissButton = { TextButton(onClick = { toSelect = null }) { Text("取消") } }
+            },
+            onDismiss = { toSelect = null }
         )
     }
 }
@@ -192,16 +193,20 @@ fun SkillsPage(vm: CodexViewModel) {
         if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("目录中暂时没有技能。", color = Ink.muted) }
     }
     confirmation?.let { (skill, enabled) ->
-        AlertDialog(onDismissRequest = { confirmation = null },
-            title = { Text(if (enabled) "启用技能" else "停用技能") },
-            text = { Text(skill.optString("name") + "\n路径：" + skill.optString("path")) },
-            confirmButton = { TextButton(onClick = {
+        CodexConfirmDialog(
+            title = if (enabled) "启用技能" else "停用技能",
+            message = "将修改此技能在 Codex 中的启用状态。",
+            detail = "技能：" + skill.optString("name") + "\n路径：" + skill.optString("path"),
+            confirmLabel = if (enabled) "确认启用" else "确认停用",
+            onConfirm = {
                 vm.rpc("skills", "skills/config/write",
                     JSONObject().put("path", skill.optString("path")).put("enabled", enabled),
-                    after = { vm.refresh("skills", "skills/list", JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))) })
+                    after = { vm.refresh("skills", "skills/list",
+                        JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))) })
                 confirmation = null
-            }) { Text("确认") } },
-            dismissButton = { TextButton(onClick = { confirmation = null }) { Text("取消") } })
+            },
+            onDismiss = { confirmation = null }
+        )
     }
 }
 
@@ -261,21 +266,28 @@ fun PluginsPage(vm: CodexViewModel) {
         }
     }
     action?.let { (market, item, install) ->
-        AlertDialog(onDismissRequest = { action = null },
-            title = { Text(if (install) "安装插件" else "卸载插件") },
-            text = { Text(item.optString("name") + "\n来源：" + market.optString("name")) },
-            confirmButton = { TextButton(onClick = {
+        CodexConfirmDialog(
+            title = if (install) "安装插件" else "卸载插件",
+            message = if (install) "即将从插件市场安装此插件。" else "卸载会移除当前插件。",
+            detail = item.optString("name") + "\n来源：" + market.optString("name"),
+            confirmLabel = if (install) "确认安装" else "确认卸载",
+            destructive = !install,
+            onConfirm = {
                 if (install) {
                     val params = JSONObject().put("pluginName", item.optString("name"))
                     val path = market.optString("path")
                     if (path.isNotBlank()) params.put("marketplacePath", path)
                     else params.put("remoteMarketplaceName", market.optString("name"))
-                    vm.rpc("plugins", "plugin/install", params, after = { vm.refresh("plugins", "plugin/list") })
-                } else vm.rpc("plugins", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
-                    after = { vm.refresh("plugins", "plugin/list") })
+                    vm.rpc("plugins", "plugin/install", params,
+                        after = { vm.refresh("plugins", "plugin/list") })
+                } else {
+                    vm.rpc("plugins", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
+                        after = { vm.refresh("plugins", "plugin/list") })
+                }
                 action = null
-            }) { Text(if (install) "安装" else "确认卸载") } },
-            dismissButton = { TextButton(onClick = { action = null }) { Text("取消") } })
+            },
+            onDismiss = { action = null }
+        )
     }
 }
 

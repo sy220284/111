@@ -12,7 +12,8 @@ data class TimelineItem(
     val id: String,
     val kind: String,
     val text: String,
-    val status: String = ""
+    val status: String = "",
+    val evidence: String = ""
 )
 
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
@@ -110,7 +111,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                                 item.optString("id", "history-" + turnIndex + "-" + itemIndex),
                                 if (kind == "userMessage") "user" else kind,
                                 text,
-                                item.optString("status")
+                                item.optString("status"),
+                                if (kind == "userMessage") "" else item.toString(2)
                             )
                         }
                     }
@@ -123,6 +125,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun newThread() {
+        if (running.value) {
+            errors.value = errors.value + ("conversation" to "请先中断或完成当前任务，再新建会话")
+            return
+        }
         activeThread.value = null
         activeTurn.value = null
         timeline.value = emptyList()
@@ -131,9 +137,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendPrompt(text: String) {
-        if (text.isBlank()) return
+        if (text.isBlank() || running.value) return
+        running.value = true
         viewModelScope.launch {
-            running.value = true
             timeline.value = timeline.value + TimelineItem("user-" + System.nanoTime(), "user", text)
             try {
                 var id = activeThread.value
@@ -261,7 +267,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val all = timeline.value.toMutableList()
                 val pos = all.indexOfLast { it.id == id }
-                val entry = TimelineItem(id, kind, description, item.optString("status"))
+                val entry = TimelineItem(id, kind, description, item.optString("status"), item.toString(2))
                 if (pos < 0) all += entry else all[pos] = entry
                 timeline.value = all
             }

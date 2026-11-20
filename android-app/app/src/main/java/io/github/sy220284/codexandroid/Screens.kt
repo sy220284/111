@@ -1,13 +1,20 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -21,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -66,22 +74,31 @@ fun ScreenColumn(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val compact by UiPreferences.compact.collectAsState()
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = if (compact) 12.dp else 18.dp, vertical = if (compact) 12.dp else 20.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 16.dp),
         content = content
     )
 }
 
 @Composable
 private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val running by vm.running.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
     ScreenColumn {
-        SectionIntro("YOUR COMMAND CENTER", "让代码，流动起来", "直接在手机上管理项目、任务与 Codex 执行过程。")
+        SectionIntro("WORKSPACE / LIVE", "继续你的工程", "从任务、文件到执行结果，都在这一个工作台。")
+        if (prompts.isNotEmpty()) {
+            CodexNotice("有 ${prompts.size} 项操作需要人工确认", NoticeTone.Warning,
+                actionLabel = "立即处理", onAction = { navigate("approvals") })
+        } else if (status != EngineStatus.Connected) {
+            CodexNotice("本机 Codex 引擎尚未连接", NoticeTone.Info,
+                actionLabel = "连接", onAction = { vm.connect() })
+        }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(shape = RoundedCornerShape(15.dp), color = Ink.copper.copy(alpha = .17f)) {
@@ -93,7 +110,8 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Button(onClick = { vm.newThread(); navigate("chat") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+            Button(onClick = { vm.newThread(); navigate("chat") },
+                enabled = !running, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
                 Icon(Icons.Outlined.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("新建 Codex 会话")
@@ -107,28 +125,28 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
             SmallStat("历史会话", threads.size.toString(), Icons.Outlined.History, Modifier.weight(1f))
             SmallStat("工作目录", "本地存储", Icons.Outlined.Folder, Modifier.weight(1f))
         }
+        if (running) CodexNotice("当前任务仍在执行中，请先处理运行中的会话",
+            NoticeTone.Info, actionLabel = "返回任务", onAction = { navigate("chat") })
+        Text("常用工作入口", style = MaterialTheme.typography.titleLarge)
+        CodexActionTile("工作区文件", "查看与编辑本机工程", Icons.Outlined.FolderOpen,
+            onClick = { navigate("files") }, modifier = Modifier.fillMaxWidth())
+        CodexActionTile("代码差异", "检查当前任务改动", Icons.Outlined.Difference,
+            onClick = { navigate("diff") }, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("继续最近工作", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
         }
         if (threads.isEmpty()) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("还没有可恢复的会话", color = Ink.parchment)
-                Text("新建任务后，历史会话会在这里出现。", color = Ink.muted)
-            }
+            CodexEmptyState("还没有可恢复的会话",
+                "创建第一个任务后，后续可以从这里继续工作。",
+                actionLabel = if (running) "返回任务" else "新建任务",
+                onAction = { if (!running) vm.newThread(); navigate("chat") })
         } else {
             threads.take(5).forEach { item ->
                 ThreadRow(item) {
                     vm.chooseThread(item.optString("id"))
                     navigate("chat")
                 }
-            }
-        }
-        if (prompts.isNotEmpty()) {
-            Button(onClick = { navigate("approvals") }, colors = ButtonDefaults.buttonColors(containerColor = Ink.red.copy(alpha = .18f), contentColor = Ink.parchment)) {
-                Icon(Icons.Outlined.WarningAmber, null)
-                Spacer(Modifier.width(8.dp))
-                Text("有 " + prompts.size + " 项操作需要确认")
             }
         }
     }
@@ -169,6 +187,7 @@ private fun ThreadRow(item: JSONObject, onClick: () -> Unit) {
 
 @Composable
 private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val running by vm.running.collectAsState()
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     var query by remember { mutableStateOf("") }
@@ -181,12 +200,19 @@ private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(),
             label = { Text("搜索会话名称和路径") }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
             singleLine = true)
-        Button(onClick = { vm.newThread(); navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { vm.newThread(); navigate("chat") },
+            enabled = !running, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("新建会话")
         }
         errors["threads"]?.let { ErrorText(it) }
-        if (list.isEmpty()) {
-            MaterialPanel(Modifier.fillMaxWidth()) { Text("当前列表为空", color = Ink.muted) }
+        if (list.isEmpty() && "threads" !in errors) {
+            CodexEmptyState(if (query.isBlank()) "暂无历史会话" else "没有匹配的会话",
+                if (query.isBlank()) "新建会话后，可在这里继续任务。" else "尝试更短的关键词或修改搜索条件。",
+                actionLabel = if (query.isBlank()) "新建会话" else "清除搜索",
+                onAction = { if (query.isBlank()) {
+                    if (!running) vm.newThread()
+                    navigate("chat")
+                } else query = "" })
         }
         list.forEach { t -> ThreadRow(t) { vm.chooseThread(t.optString("id")); navigate("chat") } }
         TextButton(onClick = { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }) { Text("刷新会话列表") }
@@ -199,56 +225,133 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
     val items by vm.timeline.collectAsState()
+    val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
+    val prompts by vm.bridge.prompts.collectAsState()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     var draft by rememberSaveable { mutableStateOf("") }
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(items.size) { if (items.isNotEmpty()) scroll.animateScrollToItem(items.size - 1) }
+    var followTail by remember { mutableStateOf(true) }
+    var lastKnownStepCount by remember { mutableIntStateOf(0) }
+    var unreadSteps by remember { mutableIntStateOf(0) }
+    LaunchedEffect(scroll) {
+        snapshotFlow {
+            val total = scroll.layoutInfo.totalItemsCount
+            val tail = scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            total <= 1 || tail >= total - 2
+        }.collect { atBottom ->
+            followTail = atBottom
+            if (atBottom) unreadSteps = 0
+        }
+    }
+    LaunchedEffect(items.size) {
+        val added = (items.size - lastKnownStepCount).coerceAtLeast(0)
+        lastKnownStepCount = items.size
+        if (items.isNotEmpty() && followTail) {
+            if (reducedMotion) scroll.scrollToItem(items.size - 1)
+            else scroll.animateScrollToItem(items.size - 1)
+        } else if (!followTail) {
+            unreadSteps += added
+        }
+    }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(if (thread == null) "新的工作会话" else "进行中的任务", style = MaterialTheme.typography.titleMedium)
                 Text(thread?.take(18) ?: "请选择模型并输入任务", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            TextButton(onClick = { vm.newThread() }) { Text("新建") }
+            TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
-        Box(Modifier.weight(1f)) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 13.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AssistChip(
+                onClick = { navigate("queue") }, enabled = thread != null,
+                label = { Text("待办队列") },
+                leadingIcon = { Icon(Icons.Outlined.ViewList, null, modifier = Modifier.size(17.dp)) },
+                modifier = Modifier.heightIn(min = 46.dp)
+            )
+            AssistChip(
+                onClick = { navigate("threads") },
+                label = { Text("历史任务") },
+                leadingIcon = { Icon(Icons.Outlined.History, null, modifier = Modifier.size(17.dp)) },
+                modifier = Modifier.heightIn(min = 46.dp)
+            )
+            if (latestDiff.isNotBlank()) {
+                AssistChip(
+                    onClick = { navigate("diff") },
+                    label = { Text("查看最新改动") },
+                    leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
+                    modifier = Modifier.heightIn(min = 46.dp)
+                )
+            }
+        }
+        CodexReveal(visible = prompts.isNotEmpty()) {
+            CodexNotice("本次任务有 ${prompts.size} 项待审批操作",
+                NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                actionLabel = "查看", onAction = { navigate("approvals") })
+        }
+        CodexReveal(visible = busy) {
+            CodexNotice("任务执行中 · 已显示 ${items.size} 条步骤记录",
+                NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
+        }
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (items.isEmpty()) {
-                Column(Modifier.align(Alignment.Center).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = Ink.copper, modifier = Modifier.size(38.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Text("从一个具体目标开始", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Codex 将按会话、步骤与工具执行呈现过程。", style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+                val shortViewport = maxHeight < 210.dp
+                Column(
+                    modifier = Modifier.align(Alignment.Center)
+                        .padding(horizontal = 18.dp, vertical = if (shortViewport) 6.dp else 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = Ink.copper,
+                        modifier = Modifier.size(if (shortViewport) 26.dp else 38.dp))
+                    Spacer(Modifier.height(if (shortViewport) 8.dp else 16.dp))
+                    Text("从一个具体目标开始",
+                        style = if (shortViewport) MaterialTheme.typography.titleMedium
+                            else MaterialTheme.typography.titleLarge,
+                        maxLines = 2, textAlign = TextAlign.Center)
+                    if (!shortViewport) {
+                        Spacer(Modifier.height(6.dp))
+                        Text("Codex 将按会话、步骤与工具执行呈现过程。",
+                            style = MaterialTheme.typography.bodyMedium, color = Ink.muted,
+                            textAlign = TextAlign.Center)
+                    }
                 }
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(items, key = { it.id }) { item ->
-                    val user = item.kind == "user"
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(if (user) .92f else 1f),
-                        color = if (user) Ink.copper.copy(alpha = .13f) else Ink.panel,
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, if (user) Ink.copperDim else Ink.border.copy(alpha = .6f))
-                    ) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (user) Icons.Outlined.Person else Icons.Outlined.Code, null, tint = if (user) Ink.copper else Ink.jade, modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (user) "你" else item.kind, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.weight(1f))
-                                if (item.status.isNotBlank()) Text(item.status, color = Ink.jade, style = MaterialTheme.typography.labelMedium)
+                    TimelineStepCard(item)
+                }
+            }
+            if (unreadSteps > 0) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(bottom = 10.dp)
+                        .clickable {
+                            scope.launch {
+                                if (items.isNotEmpty()) {
+                                    if (reducedMotion) scroll.scrollToItem(items.lastIndex)
+                                    else scroll.animateScrollToItem(items.lastIndex)
+                                }
+                                unreadSteps = 0
                             }
-                            Text(item.text.ifBlank { "处理中…" }, style = MaterialTheme.typography.bodyLarge,
-                                fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
-                        }
-                    }
+                        },
+                    shape = RoundedCornerShape(99.dp),
+                    color = Ink.copper,
+                    shadowElevation = 4.dp
+                ) {
+                    Text("↓ ${unreadSteps} 条新步骤",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        color = Ink.canvas, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -273,19 +376,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             modifier = Modifier.weight(1f, fill = false))
                         Icon(Icons.Outlined.ArrowDropDown, null)
                     }
-                    DropdownMenu(expanded = showModels, onDismissRequest = { showModels = false }) {
-                        records(models["models"]).take(30).forEach { model ->
-                            val id = model.optString("id").ifBlank { model.optString("model") }
-                            DropdownMenuItem(text = { Text(model.optString("displayName").ifBlank { id }) },
-                                onClick = { vm.modelId.value = id; showModels = false })
-                        }
-                        if (records(models["models"]).isEmpty()) {
-                            DropdownMenuItem(text = { Text("刷新模型目录") }, onClick = {
-                                vm.refresh("models", "model/list")
-                                showModels = false
-                            })
-                        }
-                    }
+
                 }
                 Box(Modifier.weight(.9f)) {
                     OutlinedButton(
@@ -299,28 +390,14 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             modifier = Modifier.weight(1f, fill = false))
                         Icon(Icons.Outlined.ArrowDropDown, null)
                     }
-                    DropdownMenu(expanded = showModes, onDismissRequest = { showModes = false }) {
-                        DropdownMenuItem(text = { Text("直接执行任务") }, onClick = {
-                            vm.selectedMode.value = "default"; showModes = false
-                        })
-                        DropdownMenuItem(text = { Text("先制定计划") }, onClick = {
-                            vm.selectedMode.value = "plan"; showModes = false
-                        })
-                    }
+
                 }
-                IconButton(onClick = { if (busy) vm.interrupt() else navigate("diagnostics") }) {
+                IconButton(onClick = { navigate("diagnostics") }) {
                     Icon(
-                        when {
-                            busy -> Icons.Outlined.StopCircle
-                            status == EngineStatus.Connected -> Icons.Outlined.CheckCircle
-                            else -> Icons.Outlined.ErrorOutline
-                        },
-                        contentDescription = when {
-                            busy -> "停止运行中的任务"
-                            status == EngineStatus.Connected -> "内核已连接，查看诊断"
-                            else -> "内核未连接，查看诊断"
-                        },
-                        tint = if (busy || status != EngineStatus.Connected) Ink.red else Ink.jade
+                        if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle
+                        else Icons.Outlined.ErrorOutline,
+                        contentDescription = "查看内核运行诊断",
+                        tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
                     )
                 }
             }
@@ -335,17 +412,153 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
             )
-            Button(
-                onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
-                enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Outlined.ArrowUpward, null); Spacer(Modifier.width(8.dp)); Text("发送给 Codex")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { vm.interrupt() },
+                    enabled = busy,
+                    modifier = Modifier.weight(.38f).heightIn(min = 50.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
+                    contentPadding = PaddingValues(horizontal = 9.dp)
+                ) {
+                    Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("停止")
+                }
+                Button(
+                    onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
+                    enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
+                    modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
+                ) {
+                    Icon(Icons.Outlined.ArrowUpward, null)
+                    Spacer(Modifier.width(7.dp))
+                    Text("发送给 Codex", maxLines = 1)
+                }
             }
         }
     }
+    if (showModels) {
+        val available = records(models["models"]).filter { !it.optBoolean("hidden") }.take(80)
+        CodexChoiceSheet(
+            title = "选择运行模型", description = "影响后续任务，已经启动的任务继续使用原设置。",
+            choices = if (available.isEmpty()) listOf(
+                CodexChoice("__reload", "刷新模型目录", "读取 Codex 内核支持的模型")
+            ) else available.map {
+                val id = it.optString("id").ifBlank { it.optString("model") }
+                CodexChoice(id, it.optString("displayName").ifBlank { id }, it.optString("description"))
+            }.distinctBy { it.id },
+            selectedId = vm.modelId.collectAsState().value,
+            onSelect = { id ->
+                if (id == "__reload") vm.refresh("models", "model/list") else vm.modelId.value = id
+                showModels = false
+            },
+            onDismiss = { showModels = false }
+        )
+    }
+    if (showModes) {
+        CodexChoiceSheet(
+            title = "选择协作方式", description = "直接执行或先规划步骤；运行中不能切换。",
+            choices = listOf(
+                CodexChoice("default", "直接执行", "按任务要求执行并报告进度"),
+                CodexChoice("plan", "先制定计划", "先明确步骤，再由你决定下一步")
+            ),
+            selectedId = selectedMode,
+            onSelect = { vm.selectedMode.value = it; showModes = false },
+            onDismiss = { showModes = false }
+        )
+    }
 }
 
+/** Every tool step retains the source payload for verification while keeping the chat readable. */
+@Composable
+private fun TimelineStepCard(item: TimelineItem) {
+    val user = item.kind == "user"
+    val failure = item.kind == "error" ||
+        item.status.contains("failed", ignoreCase = true)
+    val active = item.status.contains("progress", ignoreCase = true) ||
+        item.status.contains("stream", ignoreCase = true)
+    val tone = when {
+        failure -> Ink.red
+        active -> Ink.copper
+        user -> Ink.copper
+        else -> Ink.jade
+    }
+    val title = when (item.kind) {
+        "user" -> "你的指令"
+        "agentMessage" -> "Codex 回复"
+        "reasoning", "reasoningSummaryTextDelta" -> "推理与分析"
+        "plan" -> "任务计划"
+        "commandExecution" -> "命令执行"
+        "fileChange" -> "文件变更"
+        "mcpToolCall" -> "外部工具调用"
+        "error" -> "执行异常"
+        else -> item.kind
+    }
+    val icon = when (item.kind) {
+        "user" -> Icons.Outlined.PersonOutline
+        "commandExecution" -> Icons.Outlined.Terminal
+        "fileChange" -> Icons.Outlined.Difference
+        "mcpToolCall" -> Icons.Outlined.Hub
+        "plan" -> Icons.Outlined.ListAlt
+        "error" -> Icons.Outlined.ErrorOutline
+        else -> Icons.Outlined.AutoAwesome
+    }
+    var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(17.dp),
+        color = if (user) Ink.copper.copy(alpha = .12f) else Ink.panel,
+        border = BorderStroke(1.dp, if (failure) Ink.red.copy(alpha = .5f) else
+            if (user) Ink.copperDim else Ink.border.copy(alpha = .65f))
+    ) {
+        Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 13.dp, bottom = 13.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(color = tone.copy(alpha = .14f), shape = RoundedCornerShape(12.dp)) {
+                    Icon(icon, null, tint = tone, modifier = Modifier.padding(10.dp).size(18.dp))
+                }
+                if (!user) {
+                    Spacer(Modifier.height(7.dp))
+                    Box(Modifier.width(1.dp).height(20.dp).background(Ink.border))
+                }
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f))
+                    if (item.status.isNotBlank()) {
+                        Text(
+                            when (item.status.lowercase()) {
+                                "completed" -> "已完成"
+                                "inprogress", "in_progress", "running", "streaming" -> "执行中"
+                                "failed" -> "失败"
+                                "declined" -> "已拒绝"
+                                else -> item.status
+                            },
+                            style = MaterialTheme.typography.labelMedium, color = tone)
+                    }
+                }
+                Text(item.text.ifBlank { "等待执行内容…" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
+                if (item.evidence.isNotBlank()) {
+                    TextButton(onClick = { evidenceOpen = true },
+                        modifier = Modifier.heightIn(min = 46.dp)) {
+                        Icon(Icons.Outlined.OpenInNew, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("查看执行依据")
+                    }
+                }
+            }
+        }
+    }
+    if (evidenceOpen) CodexEvidenceSheet(
+        title = title + " · 执行依据",
+        payload = item.evidence,
+        onDismiss = { evidenceOpen = false }
+    )
+}
+
+/** On phones, evidence lives in a bottom sheet instead of squeezing the chat timeline. */
 /** Different upstream responses use data, threads, or a module-specific array. */
 fun records(response: JSONObject?): List<JSONObject> {
     if (response == null) return emptyList()
@@ -417,7 +630,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 var showDetail by remember { mutableStateOf(false) }
                 TextButton(onClick = { showDetail = !showDetail }) { Text(if (showDetail) "收起详情" else "查看详情") }
-                AnimatedVisibility(showDetail) {
+                CodexReveal(showDetail) {
                     Text(entry.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
                 }
@@ -434,7 +647,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
         TextButton(onClick = { expanded = !expanded }) {
             Icon(Icons.Outlined.Terminal, null); Spacer(Modifier.width(7.dp)); Text("高级协议操作")
         }
-        AnimatedVisibility(expanded) {
+        CodexReveal(expanded) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("调用官方 App Server 接口", style = MaterialTheme.typography.titleMedium)
                 Text("请求参数采用 JSON，异常会显示在本页。修改或删除操作需明确输入对应方法。", color = Ink.muted)

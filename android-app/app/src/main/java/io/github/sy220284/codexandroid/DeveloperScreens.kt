@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -158,6 +159,7 @@ fun WorkspacePage(vm: CodexViewModel) {
 
 @Composable
 private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     val scope = rememberCoroutineScope()
     var content by remember(file.path) { mutableStateOf(if (file.length() <= 1_000_000L) file.readText() else "") }
     var message by remember { mutableStateOf("") }
@@ -256,10 +258,13 @@ fun TerminalPage(vm: CodexViewModel) {
             }
         }
     }
-    if (confirm) AlertDialog(onDismissRequest = { confirm = false },
-        title = { Text("确认执行命令") },
-        text = { Text(command + "\n\n执行目录：" + vm.workingDirectory) },
-        confirmButton = { TextButton(onClick = {
+    if (confirm) CodexConfirmDialog(
+        title = "确认执行命令",
+        message = "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
+        detail = command + "\n\n执行目录：" + vm.workingDirectory,
+        confirmLabel = "确认执行",
+        destructive = true,
+        onConfirm = {
             val script = JSONArray().put("/system/bin/sh").put("-c").put(command)
             val params = JSONObject().put("command", script)
                 .put("cwd", vm.workingDirectory)
@@ -267,8 +272,8 @@ fun TerminalPage(vm: CodexViewModel) {
                 .put("timeoutMs", 30_000)
             vm.rpc("terminal", "command/exec", params)
             confirm = false
-        }) { Text("确认执行") } },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("取消") } }
+        },
+        onDismiss = { confirm = false }
     )
 }
 
@@ -303,9 +308,12 @@ fun ReviewPage(vm: CodexViewModel) {
         errors["review"]?.let { ErrorText(it) }
         response["review"]?.let { MaterialPanel(Modifier.fillMaxWidth()) { Text(it.toString(2), fontFamily = FontFamily.Monospace) } }
     }
-    if (confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("执行代码审查") },
-        text = { Text("将使用当前会话执行 Codex 审查，并在任务流展示结果。") },
-        confirmButton = { TextButton(onClick = {
+    if (confirm) CodexConfirmDialog(
+        title = "发起代码审查",
+        message = "在当前会话中提交审查请求，结果将显示在任务流。",
+        detail = "目标：$selection\n补充：$value",
+        confirmLabel = "开始审查",
+        onConfirm = {
             val target = JSONObject().put("type", selection)
             when (selection) {
                 "baseBranch" -> target.put("branch", value)
@@ -315,6 +323,7 @@ fun ReviewPage(vm: CodexViewModel) {
             vm.rpc("review", "review/start", JSONObject().put("threadId", active)
                 .put("delivery", "inline").put("target", target))
             confirm = false
-        }) { Text("开始审查") } },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("返回") } })
+        },
+        onDismiss = { confirm = false }
+    )
 }
