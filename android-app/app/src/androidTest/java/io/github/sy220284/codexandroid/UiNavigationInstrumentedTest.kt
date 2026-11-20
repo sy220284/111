@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.onNodeWithText
@@ -169,6 +171,39 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-limits").performClick()
         rule.onNodeWithText("额度窗口").assertExists()
         capture("account-limits-android35.png")
+    }
+
+    @Test
+    fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
+        val name = "ui-folder-" + System.currentTimeMillis()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val search = rule.onNodeWithTag("navigation-search")
+        search.performTextClearance()
+        search.performTextInput("工作区文件")
+        rule.onNodeWithTag("nav-files").performClick()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-folder-mode"))
+        rule.onNodeWithTag("workspace-folder-mode").performClick()
+        rule.onNodeWithTag("workspace-new-name").performTextInput(name)
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-create"))
+        rule.onNodeWithTag("workspace-create").performClick()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-menu-" + name))
+        rule.onNodeWithTag("workspace-menu-" + name).assertExists()
+        capture("workspace-files-android35.png")
+
+        rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.onNodeWithText("删除", substring = false).performClick()
+        rule.onNodeWithText("确认删除文件夹").assertExists()
+        rule.onNodeWithText("取消").performClick()
+        rule.onNodeWithTag("workspace-menu-" + name).assertExists()
+        rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.onNodeWithText("删除", substring = false).performClick()
+        rule.onNodeWithText("永久删除").performClick()
+        rule.waitUntil(10_000L) {
+            rule.onAllNodesWithText(name, substring = false).fetchSemanticsNodes().isEmpty()
+        }
     }
 
     private fun captureOverlay(fileName: String) {
