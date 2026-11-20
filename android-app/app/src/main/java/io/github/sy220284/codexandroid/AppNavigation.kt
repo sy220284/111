@@ -1,5 +1,6 @@
 package io.github.sy220284.codexandroid
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -23,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -76,14 +79,19 @@ val pages = listOf(
 @Composable
 fun CodexShell(vm: CodexViewModel) {
     var selected by rememberSaveable { mutableStateOf("home") }
+    var backHistory by rememberSaveable { mutableStateOf(listOf("home")) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val running by vm.running.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val move: (String) -> Unit = { destination ->
         if (page.id != destination) {
+            backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
             // Only these three pages intentionally delegate an entry refresh to the shell.
             when (destination) {
@@ -94,7 +102,15 @@ fun CodexShell(vm: CodexViewModel) {
             }
         }
         selected = destination
+        focusManager.clearFocus()
+        keyboard?.hide()
         scope.launch { drawer.close() }
+    }
+    BackHandler(enabled = drawer.currentValue == DrawerValue.Closed && backHistory.size > 1) {
+        backHistory = backHistory.dropLast(1)
+        selected = backHistory.last()
+        focusManager.clearFocus()
+        keyboard?.hide()
     }
 
     BoxWithConstraints(
@@ -121,8 +137,12 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         actions = {
-                            IconButton(onClick = { vm.newThread(); move("chat") }) {
-                                Icon(Icons.Outlined.AddCircleOutline, "新建任务")
+                            IconButton(
+                                onClick = { vm.newThread(); move("chat") },
+                                enabled = !running
+                            ) {
+                                Icon(Icons.Outlined.AddCircleOutline,
+                                    if (running) "执行中，请先完成当前任务" else "新建任务")
                             }
                             if (pending.isNotEmpty()) {
                                 BadgedBox(badge = { Badge { Text(pending.size.toString()) } }) {
