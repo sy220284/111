@@ -29,6 +29,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val modelId = MutableStateFlow("")
     val selectedMode = MutableStateFlow("default")
     val accountLoginUrl = MutableStateFlow("")
+    val deviceLoginCode = MutableStateFlow("")
+    val deviceLoginUrl = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -131,43 +133,39 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendPrompt(text: String) {
-        if (text.isBlank()) return
+        val prompt = text.trim()
+        if (prompt.isEmpty() || running.value) return
+        // Reserve the turn immediately, before the coroutine dispatches, so two fast taps
+        // cannot start duplicate threads or turns.
+        running.value = true
+        val chosenModel = modelId.value
+        val mode = selectedMode.value
         viewModelScope.launch {
-            running.value = true
-            timeline.value = timeline.value + TimelineItem("user-" + System.nanoTime(), "user", text)
+            timeline.value = timeline.value + TimelineItem("user-" + System.nanoTime(), "user", prompt)
             try {
+                val catalog = records(data.value["models"])
+                val turnParams = TurnRequestContract.build(
+                    threadId = activeThread.value ?: "pending",
+                    text = prompt, modelId = chosenModel, mode = mode, catalog = catalog
+                )
                 var id = activeThread.value
                 if (id == null) {
                     val args = JSONObject().put("cwd", workingDirectory)
-                    if (modelId.value.isNotBlank()) args.put("model", modelId.value)
+                    if (chosenModel.isNotBlank()) args.put("model", chosenModel)
                     id = bridge.request("thread/start", args).getJSONObject("thread").getString("id")
                     activeThread.value = id
                     refresh("threads", "thread/list", JSONObject().put("limit", 30))
                 }
-                val input = JSONArray().put(JSONObject().put("type", "text").put("text", text))
-                val turnArgs = JSONObject().put("threadId", id).put("input", input)
-                val allModels = records(data.value["models"])
-                val model = modelId.value.ifBlank {
-                    allModels.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
-                        ?: allModels.firstOrNull()?.optString("id").orEmpty()
-                }
-                if (model.isNotBlank()) {
-                    val current = allModels.firstOrNull { it.optString("id") == model }
-                    val settings = JSONObject().put("model", model)
-                        .put("reasoningEffort", current?.optString("defaultReasoningEffort")
-                            ?.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
-                        .put("developerInstructions", JSONObject.NULL)
-                    turnArgs.put("collaborationMode",
-                        JSONObject().put("mode", selectedMode.value).put("settings", settings))
-                } else if (selectedMode.value == "plan") {
-                    throw IllegalStateException("计划模式需要先加载可用模型目录")
-                }
-                val response = bridge.request("turn/start", turnArgs)
+                turnParams.put("threadId", id)
+                val response = bridge.request("turn/start", turnParams)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
+                errors.value = errors.value - "conversation"
             } catch (failure: Exception) {
                 running.value = false
                 errors.value = errors.value + ("conversation" to (failure.message ?: "发送失败"))
-                timeline.value = timeline.value + TimelineItem("failure-" + System.nanoTime(), "error", failure.message ?: "发送失败")
+                timeline.value = timeline.value + TimelineItem(
+                    "failure-" + System.nanoTime(), "error", failure.message ?: "发送失败"
+                )
             }
         }
     }
@@ -227,12 +225,33 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun startDeviceLogin() {
+        viewModelScope.launch {
+            try {
+                val result = bridge.request("account/login/start",
+                    JSONObject().put("type", "chatgptDeviceCode"))
+                val verificationUrl = result.optString("verificationUrl")
+                val userCode = result.optString("userCode")
+                require(verificationUrl.startsWith("https://") && userCode.isNotBlank()) {
+                    "运行核心没有返回设备登录地址及验证码"
+                }
+                deviceLoginUrl.value = verificationUrl
+                deviceLoginCode.value = userCode
+                errors.value = errors.value - "account"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("account" to (failure.message ?: "设备登录请求失败"))
+            }
+        }
+    }
+
     private fun receive(message: JSONObject) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
         if (method == "account/login/completed" || method == "account/updated") {
             accountLoginUrl.value = ""
+            deviceLoginCode.value = ""
+            deviceLoginUrl.value = ""
             refresh("account", "account/read", JSONObject())
         }
         if (method == "thread/started" || method == "thread/archived") {

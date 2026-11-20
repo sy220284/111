@@ -173,6 +173,8 @@ fun AccountPage(vm: CodexViewModel) {
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loginUrl by vm.accountLoginUrl.collectAsState()
+    val deviceCode by vm.deviceLoginCode.collectAsState()
+    val deviceUrl by vm.deviceLoginUrl.collectAsState()
     val account = models["account"]
     var logoutConfirm by remember { mutableStateOf(false) }
     ScreenColumn {
@@ -183,8 +185,24 @@ fun AccountPage(vm: CodexViewModel) {
             Text(account?.optJSONObject("account")?.optString("email") ?: "尚未读取账号", color = Ink.muted)
             Text(account?.optString("authMode") ?: "", color = Ink.muted)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.startLogin() }) { Text("登录 ChatGPT") }
-                OutlinedButton(onClick = { vm.refresh("account", "account/read") }) { Text("刷新状态") }
+                Button(onClick = { vm.startDeviceLogin() }) { Text("设备验证码登录") }
+                OutlinedButton(onClick = { vm.startLogin() }) { Text("浏览器登录") }
+                TextButton(onClick = { vm.refresh("account", "account/read") }) { Text("刷新状态") }
+            }
+            if (deviceCode.isNotBlank() && deviceUrl.startsWith("https://")) {
+                DividerLine()
+                Text("设备验证码", color = Ink.copper, style = MaterialTheme.typography.labelMedium)
+                Text(deviceCode, style = MaterialTheme.typography.headlineSmall,
+                    fontFamily = FontFamily.Monospace)
+                Text("在授权页面输入此代码，完成后返回应用刷新账号状态。",
+                    color = Ink.muted)
+                OutlinedButton(onClick = {
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(deviceUrl)))
+                }) {
+                    Icon(Icons.Outlined.OpenInBrowser, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("打开验证码授权页")
+                }
             }
             if (loginUrl.startsWith("https://") || loginUrl.startsWith("http://")) {
                 OutlinedButton(onClick = {
