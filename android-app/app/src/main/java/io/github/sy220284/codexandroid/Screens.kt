@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -8,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -207,6 +212,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
     val items by vm.timeline.collectAsState()
+    val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
@@ -216,9 +222,16 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModes by remember { mutableStateOf(false) }
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
-    val scope = rememberCoroutineScope()
+    var followTail by remember { mutableStateOf(true) }
+    LaunchedEffect(scroll) {
+        snapshotFlow {
+            val total = scroll.layoutInfo.totalItemsCount
+            val tail = scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            total <= 1 || tail >= total - 2
+        }.collect { followTail = it }
+    }
     LaunchedEffect(items.size) {
-        if (items.isNotEmpty()) {
+        if (items.isNotEmpty() && followTail) {
             if (reducedMotion) scroll.scrollToItem(items.size - 1)
             else scroll.animateScrollToItem(items.size - 1)
         }
@@ -233,6 +246,32 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 13.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AssistChip(
+                onClick = { navigate("queue") }, enabled = thread != null,
+                label = { Text("待办队列") },
+                leadingIcon = { Icon(Icons.Outlined.ViewList, null, modifier = Modifier.size(17.dp)) },
+                modifier = Modifier.heightIn(min = 46.dp)
+            )
+            AssistChip(
+                onClick = { navigate("threads") },
+                label = { Text("历史任务") },
+                leadingIcon = { Icon(Icons.Outlined.History, null, modifier = Modifier.size(17.dp)) },
+                modifier = Modifier.heightIn(min = 46.dp)
+            )
+            if (latestDiff.isNotBlank()) {
+                AssistChip(
+                    onClick = { navigate("diff") },
+                    label = { Text("查看最新改动") },
+                    leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
+                    modifier = Modifier.heightIn(min = 46.dp)
+                )
+            }
+        }
         AnimatedVisibility(visible = prompts.isNotEmpty()) {
             CodexNotice("本次任务有 ${prompts.size} 项待审批操作",
                 NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
@@ -255,25 +294,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(items, key = { it.id }) { item ->
-                    val user = item.kind == "user"
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(if (user) .92f else 1f),
-                        color = if (user) Ink.copper.copy(alpha = .13f) else Ink.panel,
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, if (user) Ink.copperDim else Ink.border.copy(alpha = .6f))
-                    ) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (user) Icons.Outlined.Person else Icons.Outlined.Code, null, tint = if (user) Ink.copper else Ink.jade, modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (user) "你" else item.kind, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.weight(1f))
-                                if (item.status.isNotBlank()) Text(item.status, color = Ink.jade, style = MaterialTheme.typography.labelMedium)
-                            }
-                            Text(item.text.ifBlank { "处理中…" }, style = MaterialTheme.typography.bodyLarge,
-                                fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
-                        }
-                    }
+                    TimelineStepCard(item, reducedMotion)
                 }
             }
         }
@@ -379,6 +400,113 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onSelect = { vm.selectedMode.value = it; showModes = false },
             onDismiss = { showModes = false }
         )
+    }
+}
+
+/** Every tool step retains the source payload for verification while keeping the chat readable. */
+@Composable
+private fun TimelineStepCard(item: TimelineItem, reducedMotion: Boolean) {
+    val user = item.kind == "user"
+    val failure = item.kind == "error" ||
+        item.status.contains("failed", ignoreCase = true)
+    val active = item.status.contains("progress", ignoreCase = true) ||
+        item.status.contains("stream", ignoreCase = true)
+    val tone = when {
+        failure -> Ink.red
+        active -> Ink.copper
+        user -> Ink.copper
+        else -> Ink.jade
+    }
+    val title = when (item.kind) {
+        "user" -> "你的指令"
+        "agentMessage" -> "Codex 回复"
+        "reasoning", "reasoningSummaryTextDelta" -> "推理与分析"
+        "plan" -> "任务计划"
+        "commandExecution" -> "命令执行"
+        "fileChange" -> "文件变更"
+        "mcpToolCall" -> "外部工具调用"
+        "error" -> "执行异常"
+        else -> item.kind
+    }
+    val icon = when (item.kind) {
+        "user" -> Icons.Outlined.PersonOutline
+        "commandExecution" -> Icons.Outlined.Terminal
+        "fileChange" -> Icons.Outlined.Difference
+        "mcpToolCall" -> Icons.Outlined.Hub
+        "plan" -> Icons.Outlined.ListAlt
+        "error" -> Icons.Outlined.ErrorOutline
+        else -> Icons.Outlined.AutoAwesome
+    }
+    var expanded by rememberSaveable(item.id) { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(17.dp),
+        color = if (user) Ink.copper.copy(alpha = .12f) else Ink.panel,
+        border = BorderStroke(1.dp, if (failure) Ink.red.copy(alpha = .5f) else
+            if (user) Ink.copperDim else Ink.border.copy(alpha = .65f))
+    ) {
+        Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 13.dp, bottom = 13.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(color = tone.copy(alpha = .14f), shape = RoundedCornerShape(12.dp)) {
+                    Icon(icon, null, tint = tone, modifier = Modifier.padding(10.dp).size(18.dp))
+                }
+                if (!user) {
+                    Spacer(Modifier.height(7.dp))
+                    Box(Modifier.width(1.dp).height(20.dp).background(Ink.border))
+                }
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f))
+                    if (item.status.isNotBlank()) {
+                        Text(
+                            when (item.status.lowercase()) {
+                                "completed" -> "已完成"
+                                "inprogress", "in_progress", "running", "streaming" -> "执行中"
+                                "failed" -> "失败"
+                                "declined" -> "已拒绝"
+                                else -> item.status
+                            },
+                            style = MaterialTheme.typography.labelMedium, color = tone)
+                    }
+                }
+                Text(item.text.ifBlank { "等待执行内容…" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
+                if (item.evidence.isNotBlank()) {
+                    TextButton(onClick = { expanded = !expanded },
+                        modifier = Modifier.heightIn(min = 46.dp)) {
+                        Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                            null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (expanded) "收起执行依据" else "查看执行依据")
+                    }
+                    AnimatedVisibility(
+                        visible = expanded,
+                        enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))) +
+                            fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))),
+                        exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))) +
+                            fadeOut(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion)))
+                    ) {
+                        Surface(
+                            color = Ink.recessed, shape = RoundedCornerShape(11.dp),
+                            border = BorderStroke(1.dp, Ink.border)
+                        ) {
+                            SelectionContainer {
+                                Text(item.evidence,
+                                    modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp)
+                                        .verticalScroll(rememberScrollState()).padding(11.dp),
+                                    fontFamily = FontFamily.Monospace,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Ink.muted)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
