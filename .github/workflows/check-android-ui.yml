@@ -14,8 +14,8 @@ permissions:
 
 concurrency:
   group: codex-android-ui-check-${{ github.ref_name }}
-  # Verify each branch independently and retain complete device evidence.
-  cancel-in-progress: false
+  # Keep the latest branch revision under test; older revisions are superseded.
+  cancel-in-progress: true
 
 jobs:
   verify-ui:
@@ -51,6 +51,13 @@ jobs:
           python3 android-app/tools/verify_protocol_methods.py \
             --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
             --sources android-app/app/src/main/java
+      - name: 自动核对28个页面与实际RPC引用并生成审计矩阵
+        run: |
+          python3 android-app/tools/audit_ui_feature_coverage.py \
+            --sources android-app/app/src/main/java \
+            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
+            --report ui-coverage.md \
+            --json-report ui-coverage.json
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 保存测试与 Lint 报告
@@ -62,6 +69,8 @@ jobs:
             android-app/app/build/reports/tests/
             android-app/app/build/reports/lint-results-debug.html
             android-app/app/build/test-results/testDebugUnitTest/
+            ui-coverage.md
+            ui-coverage.json
           if-no-files-found: ignore
           retention-days: 14
       - name: 保存独立编译的 UI 与设备测试安装包
@@ -109,7 +118,8 @@ jobs:
             # All designed pages have real 320x640 simulator screenshots.
             # A missing screenshot fails the job instead of being reported as verified.
             for SCREEN in sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet \
-                thread-library account-usage account-limits workspace-files; do
+                thread-library account-usage account-limits workspace-files \
+                chat-toolbar diff-reader; do
               adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" \
                 "ui-screenshots/${SCREEN}-android35.png"
               test -s "ui-screenshots/${SCREEN}-android35.png"
