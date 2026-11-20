@@ -53,6 +53,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("任务对话").performClick()
         rule.onNodeWithText("执行", substring = false).performClick()
         rule.onNodeWithText("选择协作方式").assertExists()
+        captureOverlay("mode-sheet-android35.png")
         rule.onNodeWithText("先制定计划").performClick()
         rule.onNodeWithText("先计划").assertExists()
     }
@@ -64,6 +65,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("外观与交互").performClick()
         rule.onNodeWithText("柔雾层次材质").assertExists()
         rule.onNodeWithText("交互预览").assertExists()
+        capture("appearance-android35.png")
     }
 
     @Test
@@ -86,6 +88,32 @@ class UiNavigationInstrumentedTest {
         }
         rule.onNodeWithText("确认执行命令").assertExists()
         rule.onNodeWithText("确认执行").assertExists()
+        captureOverlay("terminal-confirm-android35.png")
+        rule.onNodeWithText("取消").performClick()
+        rule.waitForIdle()
+        org.junit.Assert.assertTrue("取消后确认窗口仍存在",
+            rule.onAllNodesWithText("确认执行命令").fetchSemanticsNodes().isEmpty())
+    }
+
+    /** Capture the whole Android display, including dialog and bottom-sheet windows. */
+    private fun captureOverlay(fileName: String) {
+        rule.waitForIdle()
+        val screen = requireNotNull(
+            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        ) { "Android display screenshot unavailable: $fileName" }
+        saveScreenshot(fileName, screen)
+    }
+
+    private fun saveScreenshot(fileName: String, screenshot: Bitmap) {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = requireNotNull(app.getExternalFilesDir(null)) {
+            "Android instrumentation external files directory unavailable"
+        }
+        File(directory, fileName).outputStream().use { output ->
+            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                "Failed to encode screen capture: $fileName"
+            }
+        }
     }
 
     private fun capture(fileName: String) {
