@@ -98,7 +98,7 @@ jobs:
             adb install -r apks/debug/app-debug.apk
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
             adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
-            grep -Eq '^OK \\([0-9]+ tests?' ui-instrument-result.log
+            grep -Fq 'OK (' ui-instrument-result.log
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
             adb exec-out screencap -p > ui-screenshots/home-android35.png
