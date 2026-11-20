@@ -24,7 +24,7 @@ import org.json.JSONObject
 
 /**
  * Codex account connection workflow. The core owns credentials and OAuth.
- * Each visual step is driven by a real account/login/* response, never a sample code.
+ * Each visual step is driven by a real login response, never a sample code.
  */
 @Composable
 fun AccountPage(vm: CodexViewModel) {

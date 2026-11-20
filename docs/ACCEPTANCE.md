@@ -6,17 +6,19 @@
 |---|---|---|
 | Codex 官方源代码快照 | `CODEX_UPSTREAM_COMMIT` = `0e8c7683c4a85f00667bd762265358a407124f2e` | 已入库，可追溯 |
 | Compose 侧栏与功能页面 | 已有 28 个导航入口与专用功能页面，包含目标和队列管理 | 代码实现，部分页面尚待交互实测 |
-| Android UI、协议、Lint | [分架构分支 UI 工作流](https://github.com/sy220284/111/actions/runs/44733688170) | 编译、协议单测、Lint 和 UI 设备截图通过 |
+| Android UI、协议、Lint | [集成 UI 工作流](https://github.com/sy220284/111/actions/runs/44743790233) | 编译、协议单测、Lint 和 8 项设备 UI 测试通过 |
 | 运行核心 Android NDK 编译 | [原生核心工作流](https://github.com/sy220284/111/actions/runs/44721202452) | ARM64、x86_64 构建成功 |
 | Android 16KB 页对齐和 Bionic 链接 | 双 ABI 的 ELF / 动态链接器 / LOAD 段核查 | 通过 |
 | 单架构 APK 分发 | [ABI 拆分工作流](https://github.com/sy220284/111/actions/runs/44733688136) | ARM64、x86_64 APK 各自构建通过；未混入其他 ABI |
 | Android 核心版本查询 | 同上 Android 35 x86_64 仪器测试 | `--version` 成功 |
 | Android RPC 初始化及账号读取 | 同上 Android 35 x86_64 仪器测试 | `initialize`、`account/read` 成功 |
 | Android 本地命令执行 | 同上，调用 `command/exec` 执行 `/system/bin/sh` | 返回正确退出码和预期输出 |
-| Android 主界面导航 | 同上，侧边栏进入任务对话；另有独立 UI 截图验收 | 通过 |
+| Android 主界面导航与弹层 | [集成 UI 工作流](https://github.com/sy220284/111/actions/runs/44743790233) | 侧栏、账号页、模式选择、外观和弹层均通过 |
 | Linux MUSL 可执行文件直接移植 | 历史模拟器测试 `--version` 退出 159（SIGSYS） | 已确认不适用，改用 Android NDK |
 | ARM64 实机启动与 Android 10–17 兼容 | 尚未连接相应物理设备 | 待实测 |
-| 账号登录、模型请求、完整会话生成 | 需要有效账号和真实网络环境 | 待端到端验收 |
+| 本机会话创建与读取 | [原生核心集成工作流](https://github.com/sy220284/111/actions/runs/44743790342) | 无需账号的 `thread/start`、`thread/read` 通过 |
+| ChatGPT 账号登录 | 设备码与浏览器登录页、协议校验及状态反馈 | 页面与契约测试通过；真实 OAuth 授权待验证 |
+| 云端模型生成与长任务 | 需要真实账号和模型服务 | 待端到端验收 |
 | 文件修改、Diff、审批、MCP、插件、技能 | 协议与 UI 源码已接入，但完整设备场景未覆盖 | 待端到端验收 |
 | 无障碍、键盘避让、宽窄屏和动效 | 当前仅有 Android 35 模拟器的主要导航截图 | 待更广泛设备验收 |
 | 正式发布签名及可安装发布包 | 当前 APK 采用调试签名，保留 30 天 Actions 产物 | 待正式发布配置 |
@@ -32,18 +34,17 @@
 
 GitHub Actions 构建结果为最终记录；源码中存在页面或协议声明本身不视为设备能力通过。
 
-## 四技能 UI 重设计（PR #5）验收补充 · 2026-11-20
+## UI 重设计与会话协议正式集成 · 2026-11-20
 
-本节验证范围是 Android 原生 Compose 工作台、真实交互组件及 APK 核心启动；当前结论依据分支最新 GitHub Actions 结果及 Android 35 x86_64 模拟器产物。
+四项设计技能重构（[PR #5](https://github.com/sy220284/111/pull/5)）和会话请求/双模式账号登录（[PR #8](https://github.com/sy220284/111/pull/8)）均已合并主分支。重叠的旧草稿 PR #7 已由 #8 完整整合替代并关闭。
 
-| 验证项目 | 证据 | 结果 |
-|---|---|---|
-| Kotlin 编译、官方协议检查、单元测试及 Lint | [UI 独立验收 #44741331155](https://github.com/sy220284/111/actions/runs/44741331155) | 通过 |
-| Android UI 交互（7 项仪器测试） | 同一工作流，`ui-instrument-result.log` 含 `OK (7 tests)` | 通过 |
-| 七张真实设备截图 | 同一工作流，`codex-android-ui-device-evidence` 产物 | 全部存在并人工复查 |
-| 完整 APK 构建与 Codex 内核测试 | [完整构建 #44741331136](https://github.com/sy220284/111/actions/runs/44741331136) | 通过 |
-| 侧栏、协作模式、外观、终端确认、停止与发送按钮 | 设备截图和界面测试 | 通过 |
-| 底部执行依据弹层 | 原始信息展示、复制、关闭的设备测试与截图 | 通过 |
-| 主分支新改动与 UI 分支兼容 | 已合并主分支修复，并保留 ABI/连接生命周期相关调整 | 无冲突，待 PR 合并 |
+| 验证内容 | 来源与实际结论 |
+|---|---|
+| Kotlin 编译、官方接口方法、单元测试、Android Lint | [集成 UI 工作流 #44743790233](https://github.com/sy220284/111/actions/runs/44743790233)：通过 |
+| 八项 UI 仪器测试 | 同一工作流：`OK (8 tests)`，包括账号页首屏刷新按钮、侧栏、终端确认、外观、模式与执行依据弹层 |
+| 设备截图 | 工作流的 `codex-android-ui-device-evidence` 产物已包含 `account-android35.png` 等真实 Android 35 模拟器截图 |
+| 原生 Codex 核心与完整 APK | [集成 APK 工作流 #44743790342](https://github.com/sy220284/111/actions/runs/44743790342)：构建和设备验收均通过 |
+| 十一项完整设备测试 | 同一原生 APK 工作流：`OK (11 tests)`；包括 `--version`、`initialize`、`account/read`、真实 Shell 命令及离线 `thread/start`/ `thread/read` |
+| 正确会话参数和登录结果解析 | `TurnRequestContractTest`、`AccountLoginContractTest` 使用官方 Rust 字段模型进行单元验证 |
 
-设备测试使用 Android 35 x86_64 模拟器，验证了原生交互及未登录状态。真实账户登录、连续模型任务、ARM64 物理设备、TalkBack/系统字体放大、系统动画的不同级别和 Android 10–17 全设备矩阵仍依照上方端到端条目单独验收，不以本次 UI 测试代替。
+**目前仍需设备级验证：** ARM64 物理设备、ChatGPT 真实 OAuth 授权、云端模型长任务、文件改动与权限审批完整路径、TalkBack/字体放大及 Android API 多版本矩阵。当前提供调试签名 APK，正式签名发布尚未配置。
