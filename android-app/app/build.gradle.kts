@@ -1,6 +1,10 @@
 // Release properties are supplied by the verified GitHub Actions release job.
 val releaseVersionName = providers.gradleProperty("codexReleaseVersionName").orNull
 val releaseVersionCode = providers.gradleProperty("codexReleaseVersionCode").orNull?.toIntOrNull()
+val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
+require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
+    "正式发布目标架构只能是 arm64-v8a"
+}
 val signingKeystorePath = System.getenv("CODEX_RELEASE_KEYSTORE_PATH")
 val signingPassword = System.getenv("CODEX_RELEASE_PASSWORD")
 val signingAlias = System.getenv("CODEX_RELEASE_KEY_ALIAS") ?: "111-release"
@@ -75,7 +79,11 @@ android {
         abi {
             isEnable = providers.gradleProperty("codexSplitAbi").orNull == "true"
             reset()
-            include("arm64-v8a", "x86_64")
+            if (releaseTargetAbi == "arm64-v8a") {
+                include("arm64-v8a")
+            } else {
+                include("arm64-v8a", "x86_64")
+            }
             isUniversalApk = false
         }
     }
