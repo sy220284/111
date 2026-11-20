@@ -23,7 +23,11 @@ jobs:
       - name: 仅检出 Android UI 源码
         uses: actions/checkout@v4
         with:
-          sparse-checkout: android-app
+          filter: blob:none
+          sparse-checkout: |
+            /android-app/
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
+          sparse-checkout-cone-mode: false
       - name: 安装 JDK 17
         uses: actions/setup-java@v4
         with:
@@ -39,6 +43,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+      - name: 对照官方 Codex 接口清单，验证 UI 中所有协议方法
+        run: |
+          python3 android-app/tools/verify_protocol_methods.py \
+            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
+            --sources android-app/app/src/main/java
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug --no-daemon --stacktrace
       - name: 保存测试与 Lint 报告
