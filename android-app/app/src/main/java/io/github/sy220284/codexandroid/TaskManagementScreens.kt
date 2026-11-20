@@ -114,17 +114,19 @@ fun ThreadGoalPage(vm: CodexViewModel) {
         errors[key]?.let { ErrorText(it) }
         errors["goalWrite"]?.let { ErrorText(it) }
     }
-    if (confirmClear) AlertDialog(onDismissRequest = { confirmClear = false },
-        title = { Text("清除当前任务目标") },
-        text = { Text("这将清除当前会话目标记录，已产生的会话内容仍然保留。") },
-        confirmButton = { TextButton(onClick = {
+    if (confirmClear) CodexConfirmDialog(
+        title = "清除当前任务目标",
+        message = "当前会话的任务目标会被清除，历史会话内容继续保留。",
+        confirmLabel = "确认清除",
+        destructive = true,
+        onConfirm = {
             vm.rpc("goalWrite", "thread/goal/clear",
                 JSONObject().put("threadId", active).put("origin", "user"),
                 after = { vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active)) })
             confirmClear = false
             objective = ""; budget = ""; status = "active"
-        }) { Text("确认清除") } },
-        dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("取消") } }
+        },
+        onDismiss = { confirmClear = false }
     )
 }
 
@@ -250,17 +252,20 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         errors["queueWrite"]?.let { ErrorText(it) }
     }
     pendingDelete?.let { item ->
-        AlertDialog(onDismissRequest = { pendingDelete = null },
-            title = { Text("删除排队任务") },
-            text = { Text("任务会从当前会话的待执行队列中移除。") },
-            confirmButton = { TextButton(onClick = {
+        CodexConfirmDialog(
+            title = "删除排队任务",
+            message = "任务会从当前会话的待执行队列中移除。",
+            detail = item.optString("summary").ifBlank { item.optString("id") },
+            confirmLabel = "确认删除",
+            destructive = true,
+            onConfirm = {
                 vm.rpc("queueWrite", "thread/queue/delete",
                     JSONObject().put("threadId", active)
                         .put("queuedSubmissionId", item.optString("id")),
                     after = { refreshQueue() })
                 pendingDelete = null
-            }) { Text("确认删除") } },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("取消") } }
+            },
+            onDismiss = { pendingDelete = null }
         )
     }
 }
