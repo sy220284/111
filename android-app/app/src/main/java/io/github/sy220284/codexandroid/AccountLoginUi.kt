@@ -61,14 +61,10 @@ fun AccountPage(vm: CodexViewModel) {
     }
 
     ScreenColumn {
-        SectionIntro(
-            "IDENTITY / ACCESS",
-            "账号与身份",
-            "查看本机 Codex 账号状态，选择登录方式并完成安全授权。"
-        )
+        SectionIntro("IDENTITY / ACCESS", "账号与身份")
 
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -84,16 +80,16 @@ fun AccountPage(vm: CodexViewModel) {
                             if (connected) Icons.Outlined.VerifiedUser else Icons.Outlined.AccountCircle,
                             contentDescription = null,
                             tint = if (connected) Ink.jade else Ink.copper,
-                            modifier = Modifier.padding(13.dp).size(25.dp)
+                            modifier = Modifier.padding(10.dp).size(21.dp)
                         )
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("账号状态", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                         Text(
-                            if (connected) name else if (payload == null) "正在等待内核读取"
+                            if (connected) name else if (payload == null) "尚未读取账号"
                                 else "尚未登录",
                             style = MaterialTheme.typography.titleMedium,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                     }
                     Surface(
@@ -110,11 +106,6 @@ fun AccountPage(vm: CodexViewModel) {
                         )
                     }
                 }
-                Text(
-                    if (connected) "登录信息由本机 Codex 运行核心保存和管理。"
-                    else "登录后即可通过 Codex 核心访问账号支持的模型与功能。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium
-                )
                 if (connected && authMode.isNotBlank()) {
                     Text("认证方式 · $authMode", color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
@@ -144,14 +135,8 @@ fun AccountPage(vm: CodexViewModel) {
             }
         }
 
-        errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
-
         if (!connected && !pending) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("选择登录方式", style = MaterialTheme.typography.titleMedium)
-                Text("推荐使用设备验证码。登录请求由本机运行核心发起。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            }
+            Text("选择登录方式", style = MaterialTheme.typography.titleMedium)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val wide = maxWidth >= 600.dp
                 if (wide) {
@@ -199,6 +184,8 @@ fun AccountPage(vm: CodexViewModel) {
                 }
             }
         }
+
+        errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
 
         CodexReveal(visible = loginBusy) {
             CodexNotice(
