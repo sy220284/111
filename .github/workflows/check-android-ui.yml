@@ -98,11 +98,12 @@ jobs:
           script: |
             adb install -r apks/debug/app-debug.apk
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
-            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
-            grep -Fq 'OK (' ui-instrument-result.log
+            # Capture the clean home screen before instrumented screenshots show Android's transient screenshot preview.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
             adb exec-out screencap -p > ui-screenshots/home-android35.png
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            grep -Fq 'OK (' ui-instrument-result.log
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/sidebar-android35.png ui-screenshots/sidebar-android35.png
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/chat-android35.png ui-screenshots/chat-android35.png
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/appearance-android35.png ui-screenshots/appearance-android35.png
