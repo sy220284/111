@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -39,6 +40,20 @@ object CodexMotion {
     const val reveal = 210
     const val navigation = 240
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
+}
+
+/** State-driven reveal, never a perpetual decorative animation. */
+@Composable
+fun CodexReveal(visible: Boolean, content: @Composable () -> Unit) {
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))) +
+            fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))),
+        exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))) +
+            fadeOut(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))),
+        content = { content() }
+    )
 }
 
 data class CodexChoice(
