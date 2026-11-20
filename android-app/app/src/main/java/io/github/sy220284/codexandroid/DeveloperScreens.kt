@@ -26,10 +26,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.zip.ZipInputStream
-
-private const val MAX_IMPORT_BYTES = 120L * 1024 * 1024
-private const val MAX_IMPORT_ENTRIES = 12000
 
 @Composable
 fun WorkspacePage(vm: CodexViewModel) {
@@ -48,58 +44,22 @@ fun WorkspacePage(vm: CodexViewModel) {
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
+            val importFolder = folder.canonicalFile
             try {
                 val result = withContext(Dispatchers.IO) {
-                    val name = ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                        ?.use { cursor ->
-                            if (cursor.moveToFirst()) cursor.getString(0) else null
-                        } ?: "imported-file"
-                    require(!name.contains('/') && !name.contains('\\') && name != "." && name != "..") { "文件名称不合法" }
-                    val destination = File(root, name).canonicalFile
-                    require(destination.parentFile == root) { "非法文件路径" }
-                    ctx.contentResolver.openInputStream(uri)?.use { stream ->
-                        if (name.endsWith(".zip", ignoreCase = true)) {
-                            var sum = 0L
-                            var count = 0
-                            ZipInputStream(stream).use { zip ->
-                                while (true) {
-                                    val entry = zip.nextEntry ?: break
-                                    count++
-                                    require(count <= MAX_IMPORT_ENTRIES) { "压缩包条目超过安全上限" }
-                                    val out = File(root, entry.name).canonicalFile
-                                    require(out.path.startsWith(root.path + File.separator)) { "压缩包包含非法路径" }
-                                    if (entry.isDirectory) out.mkdirs() else {
-                                        out.parentFile?.mkdirs()
-                                        out.outputStream().use { sink ->
-                                            val buffer = ByteArray(8192)
-                                            while (true) {
-                                                val size = zip.read(buffer)
-                                                if (size < 0) break
-                                                sum += size
-                                                require(sum <= MAX_IMPORT_BYTES) { "导入内容超过 120 MB 限额" }
-                                                sink.write(buffer, 0, size)
-                                            }
-                                        }
-                                    }
-                                    zip.closeEntry()
-                                }
-                            }
-                            "已导入 " + count + " 个工程条目"
-                        } else {
-                            var total = 0L
-                            destination.outputStream().use { sink ->
-                                val buffer = ByteArray(8192)
-                                while (true) {
-                                    val size = stream.read(buffer)
-                                    if (size < 0) break
-                                    total += size
-                                    require(total <= MAX_IMPORT_BYTES) { "单文件超过 120 MB 限额" }
-                                    sink.write(buffer, 0, size)
-                                }
-                            }
-                            "已导入 " + name
-                        }
-                    } ?: throw IllegalStateException("无法打开所选文件")
+                    val name = ctx.contentResolver.query(
+                        uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else null
+                    } ?: throw IllegalStateException("无法读取所选文档名称")
+                    val input = ctx.contentResolver.openInputStream(uri)
+                        ?: throw IllegalStateException("无法打开所选文档")
+                    input.use { stream ->
+                        if (name.endsWith(".zip", ignoreCase = true))
+                            WorkspaceImport.importZip(root, importFolder, name, stream)
+                        else
+                            WorkspaceImport.importFile(root, importFolder, name, stream)
+                    }
                 }
                 notice = result
                 refresh++
@@ -107,6 +67,13 @@ fun WorkspacePage(vm: CodexViewModel) {
                 notice = "导入失败：" + (failure.message ?: "未知错误")
                 refresh++
             }
+        }
+    }
+    LaunchedEffect(folder) {
+        try {
+            withContext(Dispatchers.IO) { WorkspaceImport.cleanAbandoned(root, folder) }
+        } catch (failure: Exception) {
+            notice = "导入缓存清理失败：" + (failure.message ?: "未知错误")
         }
     }
 
@@ -120,8 +87,9 @@ fun WorkspacePage(vm: CodexViewModel) {
         } ?: root
     }
     val children = remember(folder, refresh) {
-        folder.listFiles()?.sortedWith(compareBy<File> { !it.isDirectory }
-            .thenBy { it.name.lowercase() }) ?: emptyList()
+        folder.listFiles()?.filterNot { WorkspaceImport.isStagingName(it.name) }
+            ?.sortedWith(compareBy<File> { !it.isDirectory }
+                .thenBy { it.name.lowercase() }) ?: emptyList()
     }
 
     LazyColumn(
