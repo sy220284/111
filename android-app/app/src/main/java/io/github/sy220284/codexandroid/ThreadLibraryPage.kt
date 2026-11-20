@@ -35,7 +35,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var rename by remember { mutableStateOf<JSONObject?>(null) }
     var newName by rememberSaveable { mutableStateOf("") }
     var action by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
-    val key = if (archived) "libraryArchived" else "libraryActive"
+    // Bind the result to the exact server query: switching filters or pages
+    // must never display results from a previous selection.
+    val key = "library:" + archived + ":" + searchTerm + ":" + (cursor ?: "first")
     val response = data[key]
     val entries = records(response)
     val nextCursor = response?.optString("nextCursor")?.takeIf { it.isNotBlank() }
