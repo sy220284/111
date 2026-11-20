@@ -199,6 +199,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var draft by rememberSaveable { mutableStateOf("") }
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
+    var showContextTools by remember { mutableStateOf(false) }
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -232,6 +233,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(thread?.take(18) ?: "请选择模型并输入任务", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
+            IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
+                Icon(Icons.Outlined.MoreHoriz, "会话工具")
+            }
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
@@ -401,6 +405,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
+    }
+    if (showContextTools) {
+        ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
     }
     if (showModels) {
         val available = records(models["models"]).filter { !it.optBoolean("hidden") }.take(80)
