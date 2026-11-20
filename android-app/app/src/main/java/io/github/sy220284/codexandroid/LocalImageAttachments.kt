@@ -76,6 +76,18 @@ object LocalImageAttachments {
         }
     }
 
+    /** One-time startup maintenance for files left after a process crash. */
+    suspend fun cleanExpired(context: Context) = withContext(Dispatchers.IO) {
+        val folder = directory(context)
+        if (folder.exists()) {
+            val files = folder.listFiles() ?: throw IllegalStateException("无法读取图片缓存目录")
+            val before = System.currentTimeMillis() - 24L * 60 * 60 * 1000
+            files.filter { it.isFile && it.lastModified() < before }.forEach { old ->
+                check(old.delete()) { "无法清理过期附件：" + old.name }
+            }
+        }
+    }
+
     /** Deletes only files created inside the dedicated turn-image directory. */
     suspend fun release(context: Context, path: String) = withContext(Dispatchers.IO) {
         val folder = directory(context).canonicalFile
