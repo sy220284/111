@@ -60,10 +60,22 @@ jobs:
           NDK="$ANDROID_HOME/ndk/27.2.12479018"
           test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.clang }}"
           echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
-      - name: 安装 Rust Android 目标
-        uses: dtolnay/rust-toolchain@stable
+      - name: 安装 Codex 源码锁定的 Rust 1.99.1 和 Android 目标
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.99.1"
           targets: ${{ matrix.rust_target }}
+      - name: 验证当前 Rust 工具链与安卓标准库
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream/codex/codex-rs
+          rustup target add "${{ matrix.rust_target }}" --toolchain 1.99.1
+          rustc --version
+          cargo --version
+          rustup show active-toolchain
+          rustup target list --installed | grep -Fx "${{ matrix.rust_target }}"
+          test -d "$(rustc --print sysroot)/lib/rustlib/${{ matrix.rust_target }}/lib"
       - name: 缓存 Rust 构建依赖
         uses: Swatinem/rust-cache@v2
         with:
