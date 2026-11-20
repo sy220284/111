@@ -11,7 +11,7 @@ name: 111 Android 正式发布
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
   workflow_run:
-    workflows: ['安卓版本构建与验证']
+    workflows: ['安卓版本构建与验证', '安卓界面与协议独立验收']
     types: [completed]
   workflow_dispatch:
 
@@ -76,6 +76,17 @@ jobs:
             exit 1
           fi
           echo "should_release=false" >> "$GITHUB_OUTPUT"
+          # The two workflows can finish in either order. The last successful
+          # completion will publish only if both green runs match this SHA.
+          for REQUIRED_WORKFLOW in build-android.yml check-android-ui.yml; do
+            PASSED="$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow "$REQUIRED_WORKFLOW" --branch main --commit "$RELEASE_SHA" \
+              --limit 100 --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')"
+            if [ "$PASSED" -eq 0 ]; then
+              echo "::notice::源码 $RELEASE_SHA 尚未同时通过 $REQUIRED_WORKFLOW，等待对应验收成功后再发布"
+              exit 0
+            fi
+          done
           echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
 
           EXISTING="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
