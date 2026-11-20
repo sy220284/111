@@ -35,6 +35,8 @@
 | `编译 Android 原生 Codex 核心` | 锁定 Rust / NDK，分别编译两个 ABI 的 Bionic ELF | 修改原生构建配置、手动 |
 | `安卓版本构建与验证` | 从原生核心构建取回双架构产物，分别制作手机与模拟器 APK，并完成设备测试 | UI 更新、原生核心成功、手动 |
 | `安卓界面与协议独立验收` | Kotlin 编译、审批协议单元测试、Android Lint | UI 更新、手动 |
+| `111 Android 正式发布` | Android 35 设备验收成功后，双架构正式签名、版本递增、校验和 Release 发布 | 主分支设备验收通过、手动 |
+| `清理 111 旧正式版本` | Release 发布后保留最新三版，保留 Git 标签 | Release 发布、手动 |
 
 Android NDK 的 ARM64 与 x86_64 内核已经通过编译。完整 APK 在 Android 35 x86_64 模拟器通过 `--version`、`initialize`、`account/read`、真实 Shell 命令执行以及侧边栏导航测试。构建遇到缺少原生核心时明确失败，不再使用 Linux 静态包。
 
@@ -44,7 +46,7 @@ Android NDK 的 ARM64 与 x86_64 内核已经通过编译。完整 APK 在 Andro
 2. 再查看 `安卓版本构建与验证` 的 `build` 和 `android-emulator` 是否均为成功。
 3. 两项均成功后，在工作流产物中下载 `codex-android-arm64-apk`（ARM64 手机）或 `codex-android-x86_64-apk`（x86_64 模拟器），解压 ZIP 后安装其中的 APK。两者已按 ABI 分离，无需下载其他架构的运行核心。
 4. 从侧栏“诊断与日志”检查本机 Codex 进程与协议；登录账号后试运行会话、命令与文件修改。
-5. 这些是 GitHub Actions 生成的**调试签名 APK**，可以用于验证与安装，但尚未配置独立正式发布签名。首次 Android 35 x86_64 设备验收的日志见 [成功记录](https://github.com/sy220284/111/actions/runs/44732591288)，分架构版的验证见 [对应记录](https://github.com/sy220284/111/actions/runs/44733688136)。
+5. 以上 Actions 工作流产物是**调试签名 APK**。正式签名版经「111 Android 正式发布」工作流发布至 [Releases](https://github.com/sy220284/111/releases)，签名 Secret 配置详见 [发布说明](docs/RELEASE.md)。首次 Android 35 x86_64 设备验收的日志见 [成功记录](https://github.com/sy220284/111/actions/runs/44732591288)，分架构版的验证见 [对应记录](https://github.com/sy220284/111/actions/runs/44733688136)。
 
 ## 最新集成与下载
 
@@ -53,7 +55,7 @@ Android NDK 的 ARM64 与 x86_64 内核已经通过编译。完整 APK 在 Andro
 - [Android 35 UI 验收](https://github.com/sy220284/111/actions/runs/44743790233)：**8 项设备测试通过**，包含账号首屏、侧栏导航、外观、协作模式、终端确认及执行依据弹层。
 - [原生核心与 APK 验收](https://github.com/sy220284/111/actions/runs/44743790342)：**11 项设备测试通过**，涵盖 `initialize`、`account/read`、Shell 执行和离线会话创建/读取。
 - 下载时选择最新成功构建下的 `codex-android-arm64-apk`（ARM64 手机）或 `codex-android-x86_64-apk`（x86_64 模拟器），解压 GitHub Actions ZIP 后安装 APK。
-- 现有安装包使用调试签名，ARM64 物理机、真实 ChatGPT OAuth、云端模型长任务和正式发布签名尚未完成实机验收。
+- 历史 Actions 构建使用调试签名；正式发布流程已加入，需按 [发布说明](docs/RELEASE.md) 配置签名并通过实际 Release 构建。ARM64 物理机、真实 ChatGPT OAuth 和云端模型长任务仍需分别实机验收。
 
 ## 全部页面导航回归
 
@@ -70,6 +72,6 @@ Android NDK 的 ARM64 与 x86_64 内核已经通过编译。完整 APK 在 Andro
 - 不建设自有云端数据存储或 AI 服务；所有默认项目文件只在应用私有目录。
 - 官方源码保留并可追溯版本，升级时逐一比对协议变化。
 
-请查看 [架构](docs/ARCHITECTURE.md)、[视觉设计](docs/DESIGN_SYSTEM.md)、[接口契约](docs/PROTOCOL_CONTRACTS.md)、[验收矩阵](docs/ACCEPTANCE.md)。
+请查看 [正式发布流程](docs/RELEASE.md)、[架构](docs/ARCHITECTURE.md)、[视觉设计](docs/DESIGN_SYSTEM.md)、[接口契约](docs/PROTOCOL_CONTRACTS.md)、[验收矩阵](docs/ACCEPTANCE.md)。
 
 上游 Codex 授权见 `upstream/codex/LICENSE` 与相关 NOTICE。
