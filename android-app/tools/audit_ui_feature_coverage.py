@@ -109,8 +109,8 @@ def report_markdown(result: dict) -> str:
     ]
     for page in result["pages"]:
         lines.append(
-            f"| {page['section']} | {page['title']} | \`{page['id']}\` | "
-            f"\`{page['handler']}\` | \`{page['source']}\` |"
+            f"| {page['section']} | {page['title']} | `{page['id']}` | "
+            f"`{page['handler']}` | `{page['source']}` |"
         )
     lines += [
         "",
@@ -120,7 +120,7 @@ def report_markdown(result: dict) -> str:
         "| --- | --- |",
     ]
     for method, sources in result["referencedMethodSources"].items():
-        lines.append(f"| \`{method}\` | {', '.join(sources)} |")
+        lines.append(f"| `{method}` | {', '.join(sources)} |")
     lines.extend(["", "## 缺失/冲突", ""])
     for title, field in [
         ("没有页面路由", "missingRoutes"),
