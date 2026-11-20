@@ -12,6 +12,9 @@ import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasSetTextAction
@@ -116,6 +119,23 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("浏览器登录").assertExists()
         rule.onNodeWithText("刷新账号状态").assertIsDisplayed()
         capture("account-android35.png")
+    }
+
+    @Test
+    fun allTwentyEightSidebarDestinationsOpenWithoutCrashing() {
+        // Exercise every real sidebar entry on a 320dp Android device, not just
+        // a small hand-picked subset. The header is bound to the active route.
+        rule.onNodeWithTag("screen-title").assertTextEquals("总览")
+        for (destination in pages.filter { it.id != "home" }) {
+            rule.onNodeWithContentDescription("打开侧边导航").performClick()
+            val search = rule.onNodeWithTag("navigation-search")
+            search.performTextClearance()
+            search.performTextInput(destination.title)
+            rule.waitForIdle()
+            rule.onNodeWithTag("nav-${destination.id}").performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("screen-title").assertTextEquals(destination.title)
+        }
     }
 
     private fun captureOverlay(fileName: String) {
