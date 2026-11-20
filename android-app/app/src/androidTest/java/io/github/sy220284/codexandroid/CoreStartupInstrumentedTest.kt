@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import android.os.Build
+import java.io.File
+import java.util.concurrent.TimeUnit
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
@@ -16,6 +18,23 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
+    @Test fun bundledCoreCanPrintVersionOnAndroid() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val binary = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+        org.junit.Assert.assertTrue("Missing native core: " + binary.path, binary.isFile)
+        val process = ProcessBuilder(binary.absolutePath, "--version")
+            .redirectErrorStream(true).start()
+        try {
+            val finished = process.waitFor(15, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("Codex binary --version hung on Android", finished)
+            val output = process.inputStream.bufferedReader().readText()
+            org.junit.Assert.assertEquals("Codex --version exit code; output=" + output, 0, process.exitValue())
+            org.junit.Assert.assertTrue("No version text: " + output, output.isNotBlank())
+        } finally {
+            process.destroyForcibly()
+        }
+    }
+
     @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
