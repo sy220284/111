@@ -27,6 +27,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("任务对话").performClick()
         rule.onNodeWithText("新的工作会话").assertExists()
         rule.onNodeWithText("从一个具体目标开始").assertExists()
+        capture("chat-android35.png")
     }
 
     private fun capture(fileName: String) {
