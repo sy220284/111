@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
@@ -69,7 +71,18 @@ class UiNavigationInstrumentedTest {
         rule.onNode(hasSetTextAction()).performTextInput("设备沙箱")
         rule.onNodeWithText("终端", substring = false).performClick()
         rule.onNodeWithText("Shell 命令").performTextInput("pwd")
+        // Close the IME before pressing the command CTA, as a user would on a
+        // keyboard-covered device. The full native APK uses system IME animations.
+        rule.runOnUiThread {
+            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
+            rule.activity.currentFocus?.clearFocus()
+        }
+        rule.waitForIdle()
         rule.onNodeWithText("执行命令").performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("确认执行命令").fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("确认执行命令").assertExists()
         rule.onNodeWithText("确认执行").assertExists()
     }
