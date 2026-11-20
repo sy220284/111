@@ -34,6 +34,17 @@ class UiNavigationInstrumentedTest {
 
 
     @Test
+    fun androidBackReturnsToPreviousScreen() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("任务对话").performClick()
+        rule.onNodeWithText("新的工作会话").assertExists()
+        rule.waitForIdle()
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithText("继续你的工程").assertExists()
+    }
+
+    @Test
     fun modeSheetOffersTwoExplicitActions() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").performClick()
