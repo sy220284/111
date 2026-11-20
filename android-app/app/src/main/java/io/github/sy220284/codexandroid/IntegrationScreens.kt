@@ -158,7 +158,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                         Text(if (enable) "启用应用" else "停用应用")
                     }
                 }
-                AnimatedVisibility(expanded == id) {
+                CodexReveal(expanded == id) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         IntegrationState(vm, "appDetail") { vm.refresh("appDetail", "app/read",
                             JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true)) }
@@ -248,7 +248,7 @@ fun McpServicesPage(vm: CodexViewModel) {
                     }
                     TextButton(onClick = { confirmLogin = name }) { Text("授权登录") }
                 }
-                AnimatedVisibility(selected == name) {
+                CodexReveal(selected == name) {
                     Column {
                         val keys = tools.keys().asSequence().toList()
                         keys.forEach { key ->
@@ -331,7 +331,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             Icon(Icons.Outlined.AddCircleOutline, null)
             Text(if (showAdd) "收起外部环境配置" else "添加外部执行环境")
         }
-        AnimatedVisibility(showAdd) {
+        CodexReveal(showAdd) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("接入额外执行服务", style = MaterialTheme.typography.titleMedium)
                 Text("仅连接已部署、可验证的执行服务。远端任务可能访问你明确选择的远程环境。", color = Ink.muted)
