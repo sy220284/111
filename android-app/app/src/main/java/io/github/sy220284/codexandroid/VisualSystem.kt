@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -62,7 +63,12 @@ fun CodexTheme(content: @Composable () -> Unit) {
             medium = RoundedCornerShape(16.dp),
             large = RoundedCornerShape(24.dp)
         ),
-        content = content
+        content = {
+            // Pages outside a Material Surface inherit the correct dark foreground.
+            CompositionLocalProvider(LocalContentColor provides Ink.parchment) {
+                content()
+            }
+        }
     )
 }
 
@@ -93,7 +99,7 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 fun SectionIntro(eyebrow: String, title: String, subtitle: String = "") {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(eyebrow.uppercase(), color = Ink.copper, style = MaterialTheme.typography.labelMedium, letterSpacing = 1.4.sp)
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Text(title, color = Ink.parchment, style = MaterialTheme.typography.headlineSmall)
         if (subtitle.isNotBlank()) Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
     }
 }
