@@ -151,16 +151,16 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         }
     }
     if (confirmation) {
-        AlertDialog(
-            onDismissRequest = { confirmation = false },
-            title = { Text("向 MCP 服务提交确认") },
-            text = { Text("目标：" + params.optString("serverName") +
-                "\n提交操作：" + (if (kind == "url") "确认已完成外部授权" else "提交表单字段")) },
-            confirmButton = { TextButton(onClick = {
+        CodexConfirmDialog(
+            title = "向 MCP 服务提交确认",
+            message = if (kind == "url") "确认外部服务授权已完成。" else "即将提交已填写的表单字段。",
+            detail = "服务：" + params.optString("serverName") + "\n提交字段数：" + answers.size,
+            confirmLabel = "确认提交",
+            onConfirm = {
                 vm.answerMcpElicitation(prompt, answers.toMap())
                 confirmation = false
-            }) { Text("确认") } },
-            dismissButton = { TextButton(onClick = { confirmation = false }) { Text("返回") } }
+            },
+            onDismiss = { confirmation = false }
         )
     }
 }
