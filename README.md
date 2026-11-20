@@ -25,7 +25,7 @@
 
 当前采用 **Android NDK / Bionic 原生构建**：直接从包内锁定的 Codex Rust 源码分别编译 `aarch64-linux-android` 与 `x86_64-linux-android`。Rust 版本固定为 `upstream/codex/codex-rs/rust-toolchain.toml` 所要求的 1.99.1，NDK 为 27.2.12479018，API 29。
 
-将官方源码与平台适配分离；编译和运行问题直接在 Android 适配层及构建流程处理。**只有设备端通过启动与初始化测试的 APK 才可视为可运行候选版。**
+将官方源码与平台适配分离；编译和运行问题在 Android 适配层及构建流程处理。**x86_64 模拟器版已经完成原生启动、协议握手与命令执行测试；ARM64 手机版已完成编译和 APK 结构核验，仍需真机实测。**
 
 ## GitHub Actions 工作流
 
@@ -33,18 +33,18 @@
 |---|---|---|
 | `一次性导入官方 Codex 源码` | 手动引入最新官方源码快照，记录提交版本 | 手动 |
 | `编译 Android 原生 Codex 核心` | 锁定 Rust / NDK，分别编译两个 ABI 的 Bionic ELF | 修改原生构建配置、手动 |
-| `安卓版本构建与验证` | 从最近成功的原生核心构建取回双架构产物，制作 APK 并执行 Android 模拟器测试 | UI 更新、原生核心成功、手动 |
+| `安卓版本构建与验证` | 从原生核心构建取回双架构产物，分别制作手机与模拟器 APK，并完成设备测试 | UI 更新、原生核心成功、手动 |
 | `安卓界面与协议独立验收` | Kotlin 编译、审批协议单元测试、Android Lint | UI 更新、手动 |
 
-原生核心编译尚未成功时，APK 流水线会明确停止，不再改用已确认存在 Android 兼容性问题的 Linux 静态包。
+Android NDK 的 ARM64 与 x86_64 内核已经通过编译。完整 APK 在 Android 35 x86_64 模拟器通过 `--version`、`initialize`、`account/read`、真实 Shell 命令执行以及侧边栏导航测试。构建遇到缺少原生核心时明确失败，不再使用 Linux 静态包。
 
 ## 安装与验证
 
 1. 进入 [Actions](https://github.com/sy220284/111/actions)，查看 `编译 Android 原生 Codex 核心` 是否成功。
 2. 再查看 `安卓版本构建与验证` 的 `build` 和 `android-emulator` 是否均为成功。
-3. 两项均成功后，下载其上传的 `codex-android-native-apks` 调试包，安装到 Android。
+3. 两项均成功后，在工作流产物中下载 `codex-android-arm64-apk`（ARM64 手机）或 `codex-android-x86_64-apk`（x86_64 模拟器），解压 ZIP 后安装其中的 APK。两者已按 ABI 分离，无需下载其他架构的运行核心。
 4. 从侧栏“诊断与日志”检查本机 Codex 进程与协议；登录账号后试运行会话、命令与文件修改。
-5. APK 下载物为 GitHub Actions 暂存产物，并非已签名的正式应用发布版。
+5. 这些是 GitHub Actions 生成的**调试签名 APK**，可以用于验证与安装，但尚未配置独立正式发布签名。首次 Android 35 x86_64 设备验收的日志见 [成功记录](https://github.com/sy220284/111/actions/runs/44732591288)，分架构版的验证见 [对应记录](https://github.com/sy220284/111/actions/runs/44733688136)。
 
 ## 功能
 

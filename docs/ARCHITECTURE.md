@@ -32,15 +32,15 @@ Codex app-server (Android Bionic ELF)
 
 1. `upstream/codex` 固定官方来源；版本标记为 `CODEX_UPSTREAM_COMMIT`。
 2. `build-native-codex.yml` 在 GitHub Actions 的 Android NDK 27.2 内编译两个 Rust Android 目标，分别上传 ELF 产物；执行头需包含 `/system/bin/linker64`。
-3. `build-android.yml` 从成功的原生编译记录获取产物，复制为 APK 的 `lib/<ABI>/libcodex_server.so`；Compose 中的 `ProcessBuilder` 从安装后的原生库目录执行独立进程，采用标准输入输出 JSON-RPC。
-4. 真正的成功标准为 Android 模拟器内 `--version` 及 `initialize`、`account/read` 均通过。APK 编译通过只验证安装包结构。
+3. `build-android.yml` 从成功的原生编译获取两个 ABI 的内核，核验 ELF 及 16KB 页对齐后分别输出 `codex-android-arm64-apk`、`codex-android-x86_64-apk`；每个 APK 只装对应 `lib/<ABI>/libcodex_server.so`。Compose 使用 `ProcessBuilder` 从安装后的原生库目录执行独立进程，采用标准输入输出 JSON-RPC。
+4. Android 35 x86_64 模拟器通过 `--version`、`initialize`、`account/read`、`command/exec` Shell 实际运行、UI 导航三项仪器测试（[44733688136](https://github.com/sy220284/111/actions/runs/44733688136)）。ARM64 版的真机运行尚待独立验收。
 5. `check-android-ui.yml` 独立验证 UI，不必重新编译成本高的 Codex Rust 核心。
 
 ## 已知兼容问题及解决路线
 
 官方 Linux MUSL 静态发布包在 Android 35 x86_64 模拟器测试中执行 `--version` 返回 159（SIGSYS），初始化等待超时。已永久从新版 APK 构建流程移除 Linux 发布包。
 
-Android 原生核心的代码兼容性由 Rust + NDK 编译日志裁定；若存在上游针对 Linux-only 的 API，优先基于精确的 Android 平台条件处理根因，最终编译与模拟器回归必须通过。真正可运行之后还要验证沙箱、网络请求、认证、MCP 工具以及多进程执行行为。
+Android 原生核心已通过 Rust 1.99.1 / NDK 27.2 双目标编译及 x86_64 运行验证。仍需继续验证 ARM64 真机运行、沙箱边界、网络请求、账号认证、MCP 工具及复杂的多进程工具行为。因应用包体积较大，CI 产物采用按 ABI 拆分的 APK，降低手机端下载量。
 
 ## 安全与状态
 
