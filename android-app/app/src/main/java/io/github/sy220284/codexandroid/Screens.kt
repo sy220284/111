@@ -47,7 +47,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
         "terminal" -> TerminalPage(vm)
-        "review" -> ReviewPage(vm)
+        "review" -> ReviewPage(vm, navigate)
         "approvals" -> ApprovalsPage(vm)
         "models" -> ModelsPage(vm)
         "providers" -> ProvidersPage(vm)
