@@ -1,5 +1,8 @@
 package io.github.sy220284.codexandroid
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -202,9 +205,34 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
+    val attachmentContext = LocalContext.current
+    var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var attachmentBusy by remember { mutableStateOf(false) }
+    var attachmentError by remember { mutableStateOf("") }
+
     val selectedMode by vm.selectedMode.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            if (attachedImages.size >= LocalImageAttachments.MAX_FILES) {
+                attachmentError = "最多添加三张图片，请先移除一张"
+            } else {
+                attachmentBusy = true
+                scope.launch {
+                    try {
+                        val path = LocalImageAttachments.importFrom(attachmentContext, uri)
+                        attachedImages = attachedImages + path
+                        attachmentError = ""
+                    } catch (failure: Exception) {
+                        attachmentError = failure.message ?: "无法读取所选图片"
+                    } finally {
+                        attachmentBusy = false
+                    }
+                }
+            }
+        }
+    }
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
     var unreadSteps by remember { mutableIntStateOf(0) }
@@ -373,10 +401,35 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
                     )
                 }
+                IconButton(
+                    onClick = { imagePicker.launch("image/*") },
+                    enabled = !busy && !attachmentBusy &&
+                        attachedImages.size < LocalImageAttachments.MAX_FILES
+                ) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, "添加本地图片", tint = Ink.copper)
+                }
             }
             if (!busy && status != EngineStatus.Connected) {
                 Text("内核未连接，点击右侧状态图标查看诊断",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            if (attachmentBusy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text("正在导入图片…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            if (attachmentError.isNotBlank()) {
+                ErrorText(attachmentError)
+            }
+            errors["attachments"]?.let { ErrorText(it) }
+            LocalImageAttachmentStrip(attachedImages) { path ->
+                attachedImages = attachedImages - path
+                scope.launch {
+                    try {
+                        LocalImageAttachments.release(attachmentContext, path)
+                    } catch (failure: Exception) {
+                        attachmentError = failure.message ?: "无法移除图片"
+                    }
+                }
             }
             OutlinedTextField(
                 value = draft, onValueChange = { draft = it },
@@ -405,13 +458,17 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 if (draft.trim() == message) draft = ""
                             }
                         } else {
-                            vm.sendPrompt(message) {
+                            val images = attachedImages.toList()
+                            vm.sendPrompt(message, images) {
                                 if (draft.trim() == message) draft = ""
+                                if (attachedImages == images) attachedImages = emptyList()
                             }
                         }
                     },
-                    enabled = draft.isNotBlank() && status == EngineStatus.Connected &&
-                        (if (busy) thread != null && !activeTurn.isNullOrBlank() && !steering else true),
+                    enabled = status == EngineStatus.Connected && !attachmentBusy &&
+                        (if (busy) draft.isNotBlank() && thread != null &&
+                            !activeTurn.isNullOrBlank() && !steering
+                         else draft.isNotBlank() || attachedImages.isNotEmpty()),
                     modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
                 ) {
                     Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
