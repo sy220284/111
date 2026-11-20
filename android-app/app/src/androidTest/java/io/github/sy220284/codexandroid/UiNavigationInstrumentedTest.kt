@@ -36,6 +36,15 @@ class UiNavigationInstrumentedTest {
     }
 
 
+
+    @Test
+    fun chatKeepsStopAndSendControlsReachable() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("任务对话").performClick()
+        rule.onNodeWithText("停止").assertExists()
+        rule.onNodeWithText("发送给 Codex").assertExists()
+    }
+
     @Test
     fun androidBackReturnsToPreviousScreen() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
