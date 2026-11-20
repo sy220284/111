@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -293,14 +295,27 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "中断", onAction = { vm.interrupt() })
         }
-        Box(Modifier.weight(1f)) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (items.isEmpty()) {
-                Column(Modifier.align(Alignment.Center).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = Ink.copper, modifier = Modifier.size(38.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Text("从一个具体目标开始", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Codex 将按会话、步骤与工具执行呈现过程。", style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+                val shortViewport = maxHeight < 210.dp
+                Column(
+                    modifier = Modifier.align(Alignment.Center)
+                        .padding(horizontal = 18.dp, vertical = if (shortViewport) 6.dp else 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = Ink.copper,
+                        modifier = Modifier.size(if (shortViewport) 26.dp else 38.dp))
+                    Spacer(Modifier.height(if (shortViewport) 8.dp else 16.dp))
+                    Text("从一个具体目标开始",
+                        style = if (shortViewport) MaterialTheme.typography.titleMedium
+                            else MaterialTheme.typography.titleLarge,
+                        maxLines = 2, textAlign = TextAlign.Center)
+                    if (!shortViewport) {
+                        Spacer(Modifier.height(6.dp))
+                        Text("Codex 将按会话、步骤与工具执行呈现过程。",
+                            style = MaterialTheme.typography.bodyMedium, color = Ink.muted,
+                            textAlign = TextAlign.Center)
+                    }
                 }
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
