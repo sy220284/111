@@ -141,7 +141,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         running.value = false
     }
 
-    fun sendPrompt(text: String) {
+    fun sendPrompt(text: String, afterAccepted: () -> Unit = {}) {
         val prompt = text.trim()
         if (prompt.isEmpty() || running.value) return
         // Acquire turn ownership before dispatching the coroutine: rapid taps
@@ -177,6 +177,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val response = bridge.request("turn/start", params)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
                 errors.value = errors.value - "conversation"
+                afterAccepted()
             } catch (failure: Exception) {
                 running.value = false
                 errors.value = errors.value + ("conversation" to (failure.message ?: "发送失败"))
