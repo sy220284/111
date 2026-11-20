@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - ".github/workflows/build-native-codex.yml"
+      - "CODEX_UPSTREAM_COMMIT"
+      - "upstream/codex/**"
+      - "android-app/tools/prepare_android_mxc.py"
   workflow_dispatch:
 
 permissions:
