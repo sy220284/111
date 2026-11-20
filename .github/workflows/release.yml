@@ -79,7 +79,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p android-app :app:assembleRelease -PcodexSplitAbi=true \
+          gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
+            -PcodexSplitAbi=true \
             -PcodexReleaseVersionName=0.1.0-111.999 \
             -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           for ABI in arm64-v8a x86_64; do
