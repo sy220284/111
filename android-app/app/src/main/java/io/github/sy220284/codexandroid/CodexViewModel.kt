@@ -30,6 +30,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val modelId = MutableStateFlow("")
     val selectedMode = MutableStateFlow("default")
     val accountLoginUrl = MutableStateFlow("")
+    val deviceLoginCode = MutableStateFlow("")
+    val deviceLoginUrl = MutableStateFlow("")
+    val activeLoginId = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -137,43 +140,46 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendPrompt(text: String) {
-        if (text.isBlank() || running.value) return
+        val prompt = text.trim()
+        if (prompt.isEmpty() || running.value) return
+        // Acquire turn ownership before dispatching the coroutine: rapid taps
+        // cannot submit duplicate messages even while thread/start is pending.
         running.value = true
+        val chosenModel = modelId.value
+        val chosenMode = selectedMode.value
         viewModelScope.launch {
-            timeline.value = timeline.value + TimelineItem("user-" + System.nanoTime(), "user", text)
+            timeline.value = timeline.value + TimelineItem(
+                "user-" + System.nanoTime(), "user", prompt)
             try {
+                require(chosenMode == "default" || chosenMode == "plan") {
+                    "未知协作方式：" + chosenMode
+                }
+                val catalog = records(data.value["models"])
+                if (chosenMode == "plan") {
+                    require(chosenModel.isNotBlank() || catalog.any {
+                        it.optString("id").isNotBlank()
+                    }) { "计划模式需要先读取可用模型目录" }
+                }
                 var id = activeThread.value
                 if (id == null) {
                     val args = JSONObject().put("cwd", workingDirectory)
-                    if (modelId.value.isNotBlank()) args.put("model", modelId.value)
+                    if (chosenModel.isNotBlank()) args.put("model", chosenModel)
                     id = bridge.request("thread/start", args).getJSONObject("thread").getString("id")
                     activeThread.value = id
                     refresh("threads", "thread/list", JSONObject().put("limit", 30))
                 }
-                val input = JSONArray().put(JSONObject().put("type", "text").put("text", text))
-                val turnArgs = JSONObject().put("threadId", id).put("input", input)
-                val allModels = records(data.value["models"])
-                val model = modelId.value.ifBlank {
-                    allModels.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
-                        ?: allModels.firstOrNull()?.optString("id").orEmpty()
-                }
-                if (model.isNotBlank()) {
-                    val current = allModels.firstOrNull { it.optString("id") == model }
-                    val settings = JSONObject().put("model", model)
-                        .put("reasoningEffort", current?.optString("defaultReasoningEffort")
-                            ?.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
-                        .put("developerInstructions", JSONObject.NULL)
-                    turnArgs.put("collaborationMode",
-                        JSONObject().put("mode", selectedMode.value).put("settings", settings))
-                } else if (selectedMode.value == "plan") {
-                    throw IllegalStateException("计划模式需要先加载可用模型目录")
-                }
-                val response = bridge.request("turn/start", turnArgs)
+                val params = TurnRequestContract.build(
+                    threadId = id, text = prompt, modelId = chosenModel,
+                    mode = chosenMode, catalog = catalog
+                )
+                val response = bridge.request("turn/start", params)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
+                errors.value = errors.value - "conversation"
             } catch (failure: Exception) {
                 running.value = false
                 errors.value = errors.value + ("conversation" to (failure.message ?: "发送失败"))
-                timeline.value = timeline.value + TimelineItem("failure-" + System.nanoTime(), "error", failure.message ?: "发送失败")
+                timeline.value = timeline.value + TimelineItem(
+                    "failure-" + System.nanoTime(), "error", failure.message ?: "发送失败")
             }
         }
     }
@@ -225,10 +231,51 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val result = bridge.request("account/login/start", JSONObject().put("type", "chatgpt"))
-                accountLoginUrl.value = result.optString("authUrl").ifBlank { result.optString("url") }
-                refresh("account", "account/read", JSONObject())
+                val login = AccountLoginContract.browser(result)
+                activeLoginId.value = login.id
+                deviceLoginCode.value = ""
+                deviceLoginUrl.value = ""
+                accountLoginUrl.value = login.url
+                errors.value = errors.value - "account"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("account" to (failure.message ?: "登录请求失败"))
+            }
+        }
+    }
+
+    fun startDeviceLogin() {
+        viewModelScope.launch {
+            try {
+                val result = bridge.request("account/login/start",
+                    JSONObject().put("type", "chatgptDeviceCode"))
+                val login = AccountLoginContract.device(result)
+                activeLoginId.value = login.id
+                accountLoginUrl.value = ""
+                deviceLoginUrl.value = login.url
+                deviceLoginCode.value = login.code
+                errors.value = errors.value - "account"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("account" to (failure.message ?: "设备登录请求失败"))
+            }
+        }
+    }
+
+    fun cancelLogin() {
+        val id = activeLoginId.value
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            try {
+                bridge.request("account/login/cancel", JSONObject().put("loginId", id))
+                if (activeLoginId.value == id) {
+                    activeLoginId.value = ""
+                    accountLoginUrl.value = ""
+                    deviceLoginCode.value = ""
+                    deviceLoginUrl.value = ""
+                }
+                errors.value = errors.value - "account"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("account" to
+                    (failure.message ?: "无法取消这次登录"))
             }
         }
     }
@@ -237,9 +284,20 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
-        if (method == "account/login/completed" || method == "account/updated") {
-            accountLoginUrl.value = ""
-            refresh("account", "account/read", JSONObject())
+        if (method == "account/login/completed") {
+            val result = AccountLoginContract.completion(params, activeLoginId.value)
+            if (result != null) {
+                activeLoginId.value = ""
+                accountLoginUrl.value = ""
+                deviceLoginCode.value = ""
+                deviceLoginUrl.value = ""
+                if (result.success) errors.value = errors.value - "account"
+                else errors.value = errors.value + ("account" to
+                    result.error.ifBlank { "登录未成功，请重新开始授权" })
+                refresh("account", "account/read")
+            }
+        } else if (method == "account/updated") {
+            refresh("account", "account/read")
         }
         if (method == "thread/started" || method == "thread/archived") {
             refresh("threads", "thread/list", JSONObject().put("limit", 30))

@@ -10,6 +10,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasSetTextAction
@@ -105,6 +107,17 @@ class UiNavigationInstrumentedTest {
     }
 
     /** Capture the whole Android display, including dialog and bottom-sheet windows. */
+    @Test
+    fun accountPageExposesNarrowScreenDeviceLoginActions() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNode(hasSetTextAction()).performTextInput("账号登录")
+        rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
+        rule.onNodeWithText("设备码登录").assertExists()
+        rule.onNodeWithText("浏览器登录").assertExists()
+        rule.onNodeWithText("刷新账号状态").assertIsDisplayed()
+        capture("account-android35.png")
+    }
+
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         val screen = requireNotNull(

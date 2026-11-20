@@ -106,6 +106,7 @@ jobs:
             grep -Fq 'OK (' ui-instrument-result.log
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/sidebar-android35.png ui-screenshots/sidebar-android35.png
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/chat-android35.png ui-screenshots/chat-android35.png
+            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/account-android35.png ui-screenshots/account-android35.png
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/appearance-android35.png ui-screenshots/appearance-android35.png
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/mode-sheet-android35.png ui-screenshots/mode-sheet-android35.png
             adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/terminal-confirm-android35.png ui-screenshots/terminal-confirm-android35.png
@@ -113,6 +114,7 @@ jobs:
             test -s ui-screenshots/home-android35.png
             test -s ui-screenshots/sidebar-android35.png
             test -s ui-screenshots/chat-android35.png
+            test -s ui-screenshots/account-android35.png
             test -s ui-screenshots/appearance-android35.png
             test -s ui-screenshots/mode-sheet-android35.png
             test -s ui-screenshots/terminal-confirm-android35.png
