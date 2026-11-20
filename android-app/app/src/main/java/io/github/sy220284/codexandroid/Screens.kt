@@ -83,6 +83,7 @@ fun ScreenColumn(
 
 @Composable
 private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val running by vm.running.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
@@ -107,7 +108,8 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Button(onClick = { vm.newThread(); navigate("chat") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+            Button(onClick = { vm.newThread(); navigate("chat") },
+                enabled = !running, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
                 Icon(Icons.Outlined.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("新建 Codex 会话")
@@ -121,6 +123,8 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
             SmallStat("历史会话", threads.size.toString(), Icons.Outlined.History, Modifier.weight(1f))
             SmallStat("工作目录", "本地存储", Icons.Outlined.Folder, Modifier.weight(1f))
         }
+        if (running) CodexNotice("当前任务仍在执行中，请先处理运行中的会话",
+            NoticeTone.Info, actionLabel = "返回任务", onAction = { navigate("chat") })
         Text("常用工作入口", style = MaterialTheme.typography.titleLarge)
         CodexActionTile("工作区文件", "查看与编辑本机工程", Icons.Outlined.FolderOpen,
             onClick = { navigate("files") }, modifier = Modifier.fillMaxWidth())
@@ -133,7 +137,8 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (threads.isEmpty()) {
             CodexEmptyState("还没有可恢复的会话",
                 "创建第一个任务后，后续可以从这里继续工作。",
-                actionLabel = "新建任务", onAction = { vm.newThread(); navigate("chat") })
+                actionLabel = if (running) "返回任务" else "新建任务",
+                onAction = { if (!running) vm.newThread(); navigate("chat") })
         } else {
             threads.take(5).forEach { item ->
                 ThreadRow(item) {
@@ -180,6 +185,7 @@ private fun ThreadRow(item: JSONObject, onClick: () -> Unit) {
 
 @Composable
 private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val running by vm.running.collectAsState()
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     var query by remember { mutableStateOf("") }
@@ -192,7 +198,8 @@ private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(),
             label = { Text("搜索会话名称和路径") }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
             singleLine = true)
-        Button(onClick = { vm.newThread(); navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { vm.newThread(); navigate("chat") },
+            enabled = !running, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("新建会话")
         }
         errors["threads"]?.let { ErrorText(it) }
@@ -200,7 +207,10 @@ private fun ThreadListPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             CodexEmptyState(if (query.isBlank()) "暂无历史会话" else "没有匹配的会话",
                 if (query.isBlank()) "新建会话后，可在这里继续任务。" else "尝试更短的关键词或修改搜索条件。",
                 actionLabel = if (query.isBlank()) "新建会话" else "清除搜索",
-                onAction = { if (query.isBlank()) { vm.newThread(); navigate("chat") } else query = "" })
+                onAction = { if (query.isBlank()) {
+                    if (!running) vm.newThread()
+                    navigate("chat")
+                } else query = "" })
         }
         list.forEach { t -> ThreadRow(t) { vm.chooseThread(t.optString("id")); navigate("chat") } }
         TextButton(onClick = { vm.refresh("threads", "thread/list", JSONObject().put("limit", 100)) }) { Text("刷新会话列表") }
@@ -243,7 +253,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(if (thread == null) "新的工作会话" else "进行中的任务", style = MaterialTheme.typography.titleMedium)
                 Text(thread?.take(18) ?: "请选择模型并输入任务", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            TextButton(onClick = { vm.newThread() }) { Text("新建") }
+            TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
