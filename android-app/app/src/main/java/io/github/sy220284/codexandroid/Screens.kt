@@ -421,7 +421,7 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         SectionIntro("SEARCH / THREADS", "全文检索", "通过 Codex 的历史检索定位旧任务。")
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("搜索词") }, leadingIcon = { Icon(Icons.Outlined.Search, null) })
-        Button(onClick = { vm.refresh("search", "thread/search", JSONObject().put("query", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
+        Button(onClick = { vm.refresh("search", "thread/search", JSONObject().put("searchTerm", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
         errors["search"]?.let { ErrorText(it) }
         records(data["search"]).forEach { entry ->
             ThreadRow(entry) {
