@@ -12,7 +12,8 @@ data class TimelineItem(
     val id: String,
     val kind: String,
     val text: String,
-    val status: String = ""
+    val status: String = "",
+    val evidence: String = ""
 )
 
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
@@ -110,7 +111,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                                 item.optString("id", "history-" + turnIndex + "-" + itemIndex),
                                 if (kind == "userMessage") "user" else kind,
                                 text,
-                                item.optString("status")
+                                item.optString("status"),
+                                if (kind == "userMessage") "" else item.toString(2)
                             )
                         }
                     }
@@ -261,7 +263,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val all = timeline.value.toMutableList()
                 val pos = all.indexOfLast { it.id == id }
-                val entry = TimelineItem(id, kind, description, item.optString("status"))
+                val entry = TimelineItem(id, kind, description, item.optString("status"), item.toString(2))
                 if (pos < 0) all += entry else all[pos] = entry
                 timeline.value = all
             }
