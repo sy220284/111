@@ -8,7 +8,10 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
@@ -28,6 +31,17 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("新的工作会话").assertExists()
         rule.onNodeWithText("从一个具体目标开始").assertExists()
         capture("chat-android35.png")
+    }
+
+    @Test
+    fun accountPageExposesNarrowScreenDeviceLoginActions() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNode(hasSetTextAction()).performTextInput("账号登录")
+        rule.onNodeWithText("账号登录").performClick()
+        rule.onNodeWithText("设备码登录").assertExists()
+        rule.onNodeWithText("浏览器登录").assertExists()
+        rule.onNodeWithText("刷新账号状态").assertExists()
+        capture("account-android35.png")
     }
 
     private fun capture(fileName: String) {
