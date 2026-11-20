@@ -75,18 +75,21 @@ fun CodexTheme(content: @Composable () -> Unit) {
 @Composable
 fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val compact by UiPreferences.compact.collectAsState()
+    val softMaterial by UiPreferences.softMaterial.collectAsState()
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(if (compact) 16.dp else 22.dp),
         border = BorderStroke(1.dp, Ink.border.copy(alpha = 0.72f)),
         color = Ink.panel,
-        shadowElevation = 2.dp
+        shadowElevation = if (softMaterial) 3.dp else 0.dp
     ) {
         Column(
             modifier = Modifier
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = .028f), Color.Transparent, Color.Black.copy(alpha = .08f))
+                        if (softMaterial)
+                            listOf(Color.White.copy(alpha = .035f), Color.Transparent, Color.Black.copy(alpha = .095f))
+                        else listOf(Color.Transparent, Color.Transparent)
                     )
                 )
                 .padding(if (compact) 12.dp else 18.dp),
