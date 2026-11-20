@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Image as PhotoIcon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +37,7 @@ object LocalImageAttachments {
 
     fun directory(context: Context): File = File(context.cacheDir, FOLDER)
 
-    suspend fun import(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
+    suspend fun importFrom(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
         val type = context.contentResolver.getType(uri)
         val ext = when (type) {
             "image/jpeg" -> "jpg"
@@ -45,7 +45,7 @@ object LocalImageAttachments {
             "image/webp" -> "webp"
             else -> throw IllegalArgumentException("仅支持 JPEG、PNG、WebP 图片")
         }
-        val folder = directory(context).apply { if (!exists()) require(mkdirs()) { "无法建立图片缓存目录" } }
+        val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立图片缓存目录" } }
         val output = File(folder, UUID.randomUUID().toString() + "." + ext)
         try {
             val source = context.contentResolver.openInputStream(uri)
@@ -117,7 +117,7 @@ fun LocalImageAttachmentStrip(
                                     modifier = Modifier.size(43.dp).clip(RoundedCornerShape(9.dp)),
                                     contentScale = ContentScale.Crop)
                             } else {
-                                Icon(Icons.Outlined.Image, contentDescription = null,
+                                Icon(Icons.Outlined.PhotoIcon, contentDescription = null,
                                     modifier = Modifier.size(43.dp), tint = Ink.copper)
                             }
                             Spacer(Modifier.width(7.dp))
