@@ -107,6 +107,17 @@ jobs:
           export "CC_${TARGET_C}=$BIN/${{ matrix.clang }}"
           export "CXX_${TARGET_C}=$BIN/${{ matrix.clangxx }}"
           export "AR_${TARGET_C}=$BIN/llvm-ar"
+          # OpenSSL's Android Configure uses prefixed ranlib/ar names; modern NDK
+          # ships LLVM tools without those aliases. Provide the standard names.
+          export AR="$BIN/llvm-ar"
+          export RANLIB="$BIN/llvm-ranlib"
+          mkdir -p "$RUNNER_TEMP/android-tool-aliases"
+          ln -sf "$BIN/llvm-ar" "$RUNNER_TEMP/android-tool-aliases/${TARGET}-ar"
+          ln -sf "$BIN/llvm-ranlib" "$RUNNER_TEMP/android-tool-aliases/${TARGET}-ranlib"
+          ln -sf "$BIN/llvm-nm" "$RUNNER_TEMP/android-tool-aliases/${TARGET}-nm"
+          export PATH="$RUNNER_TEMP/android-tool-aliases:$BIN:$PATH"
+          command -v "${TARGET}-ranlib"
+          test -x "$(command -v "${TARGET}-ranlib")"
           export CMAKE_ANDROID_NDK="$ANDROID_NDK_HOME"
           export CMAKE_ANDROID_API=29
           export OPENSSL_STATIC=1
