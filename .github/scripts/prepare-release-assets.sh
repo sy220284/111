@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare two signed ABI-specific APKs and optional verified binary patches.
+# Prepare the signed ARM64 phone APK and optional verified binary patch.
 set -euo pipefail
 
 : "${RELEASE_VERSION:?missing RELEASE_VERSION}"
@@ -16,7 +16,7 @@ APKS_JSON="$RUNNER_TEMP/codex-apks.json"
 printf '[]\n' > "$PATCHES_JSON"
 printf '[]\n' > "$APKS_JSON"
 
-for ABI in arm64-v8a x86_64; do
+for ABI in arm64-v8a; do
   INPUT="$APK_DIR/app-$ABI-release.apk"
   test -s "$INPUT"
   ASSET="codex-android-$ABI-$RELEASE_VERSION.apk"
@@ -43,7 +43,7 @@ if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
     HPATCHZ="$(find "$HDIFF_DIR" -type f -name hpatchz -print -quit)"
     if [ -n "$HDIFFZ" ] && [ -n "$HPATCHZ" ]; then
       chmod +x "$HDIFFZ" "$HPATCHZ"
-      for ABI in arm64-v8a x86_64; do
+      for ABI in arm64-v8a; do
         PREVIOUS_DIR="$RUNNER_TEMP/previous-$ABI"
         mkdir -p "$PREVIOUS_DIR"
         if ! gh release download "$PREVIOUS_TAG" --pattern "codex-android-$ABI-*.apk" --dir "$PREVIOUS_DIR"; then
@@ -86,7 +86,7 @@ if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
       done
     fi
   else
-    echo "::warning::增量工具不可用，仍发布双架构完整 APK"
+    echo "::warning::增量工具不可用，仍发布 ARM64 手机完整 APK"
   fi
 fi
 
@@ -101,6 +101,6 @@ jq -n --arg version "$RELEASE_VERSION" --slurpfile apks "$APKS_JSON" \
     sort | while IFS= read -r file; do sha256sum "$file"; done > SHA256SUMS.txt
   sha256sum -c SHA256SUMS.txt
 )
-jq -e '.schema == 2 and (.apks | length == 2) and (.apks | map(.abi) | sort == ["arm64-v8a","x86_64"])' \
+jq -e '.schema == 2 and (.apks | length == 1) and (.apks[0].abi == "arm64-v8a")' \
   "$OUT/update-manifest.json"
 ls -lh "$OUT"
