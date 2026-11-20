@@ -48,7 +48,7 @@ class FakeRunner:
     def __call__(self, args):
         if args[:2] == ["git", "rev-parse"]:
             ref = args[2]
-            is_old = ref.startswith("old:")
+            is_old = ref.startswith(("old:", "older:"))
             is_upstream = ref.endswith(":upstream/codex")
             if is_upstream and is_old and self.changed_source:
                 return "old-tree"
@@ -58,7 +58,7 @@ class FakeRunner:
             if ref.endswith(":CODEX_UPSTREAM_COMMIT"):
                 return "official-commit\n2026-11-20"
             if ref.endswith("build-native-codex.yml"):
-                if ref.startswith("old:") and self.changed_recipe:
+                if ref.startswith(("old:", "older:")) and self.changed_recipe:
                     return COMPILER_JOB.replace("cargo build --locked", "cargo build --release")
                 return COMPILER_JOB
         if args[:2] == ["git", "merge-base"]:
