@@ -9,7 +9,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
