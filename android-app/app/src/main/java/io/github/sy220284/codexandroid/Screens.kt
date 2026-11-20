@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -274,7 +275,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
             )
             Button(
-                onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); scope.launch { scroll.animateScrollToItem(items.size) } },
+                onClick = { val message = draft.trim(); draft = ""; vm.sendPrompt(message); Unit },
                 enabled = draft.isNotBlank() && !busy && status == EngineStatus.Connected,
                 modifier = Modifier.fillMaxWidth()
             ) {
