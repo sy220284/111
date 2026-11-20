@@ -30,6 +30,7 @@ sealed interface EngineStatus {
 class CodexConnection(private val appContext: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val writeMutex = Mutex()
+    private val lifecycleMutex = Mutex()
     private val sequence = AtomicLong(1)
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
     private var process: Process? = null
@@ -40,7 +41,8 @@ class CodexConnection(private val appContext: Context) {
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
     val recentStderr = MutableStateFlow<List<String>>(emptyList())
 
-    suspend fun connect() = withContext(Dispatchers.IO) {
+    suspend fun connect() = lifecycleMutex.withLock {
+        withContext(Dispatchers.IO) {
         if (status.value == EngineStatus.Connected) return@withContext
         status.value = EngineStatus.Starting
         recentStderr.value = emptyList()
@@ -64,6 +66,15 @@ class CodexConnection(private val appContext: Context) {
             writer = BufferedWriter(OutputStreamWriter(child.outputStream, Charsets.UTF_8))
             scope.launch { listen(child) }
             scope.launch {
+                val exitCode = child.waitFor()
+                if (process === child) {
+                    val reason = "Codex 运行核心已退出，退出码 $exitCode"
+                    status.value = EngineStatus.Unavailable(reason)
+                    failWaiting(reason)
+                    prompts.value = emptyList()
+                }
+            }
+            scope.launch {
                 child.errorStream.bufferedReader().use { stream ->
                     // Read stderr so the child does not block on a full pipe.
                     // Store a bounded, local-only diagnostic tail for crash investigation.
@@ -81,23 +92,20 @@ class CodexConnection(private val appContext: Context) {
             request("initialize", JSONObject().put("clientInfo", info)
                 .put("capabilities", capabilities))
             notify("initialized", JSONObject())
+            check(process === child && child.isAlive) { "Codex 核心在初始化后已退出" }
             status.value = EngineStatus.Connected
-            scope.launch {
-                val code = child.waitFor()
-                if (process === child) {
-                    status.value = EngineStatus.Unavailable("Codex 内核已退出，退出码 " + code)
-                    failWaiting("Codex 内核已退出")
-                }
-            }
         } catch (failure: Exception) {
-            process?.destroy()
+            val failedProcess = process
+            val exit = failedProcess?.takeIf { !it.isAlive }?.runCatching { exitValue() }?.getOrNull()
             process = null
             writer = null
-            val exit = process?.takeIf { !it.isAlive }?.runCatching { exitValue() }?.getOrNull()
+            failedProcess?.destroy()
             val reason = (failure.message ?: "Codex 内核启动失败") +
                 (if (exit == null) "" else " (退出码 " + exit + ")")
             status.value = EngineStatus.Unavailable(reason)
+            failWaiting(reason)
             throw failure
+        }
         }
     }
 
@@ -131,9 +139,18 @@ class CodexConnection(private val appContext: Context) {
                     }
                 }
             }
+            if (process === child) {
+                val code = child.takeIf { !it.isAlive }?.runCatching { exitValue() }?.getOrNull()
+                throw java.io.EOFException(
+                    "Codex 标准输出通道已关闭" + (if (code == null) "" else "，退出码 $code")
+                )
+            }
         } catch (error: Exception) {
-            status.value = EngineStatus.Unavailable("协议读取失败：" + (error.message ?: "未知错误"))
-            failWaiting("Codex 协议连接中断")
+            if (process === child) {
+                val reason = "协议连接中断：" + (error.message ?: "未知错误")
+                status.value = EngineStatus.Unavailable(reason)
+                failWaiting(reason)
+            }
         }
     }
 
@@ -180,9 +197,10 @@ class CodexConnection(private val appContext: Context) {
     }
 
     fun close() {
-        process?.destroy()
+        val current = process
         process = null
         writer = null
+        current?.destroy()
         status.value = EngineStatus.Unavailable("连接已关闭")
         prompts.value = emptyList()
         failWaiting("连接已关闭")
