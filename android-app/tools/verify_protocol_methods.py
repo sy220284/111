@@ -20,6 +20,9 @@ SERVER_NOTIFICATIONS = {
     "turn/completed", "turn/diff/updated", "turn/started",
 }
 INTERNAL_EVENTS = {"local/unsupportedServerRequest"}
+# Method-shaped enum variants from official v2/mcp.rs; these are payload
+# discriminators, not request methods.
+PROTOCOL_VARIANTS = {"openai/form", "openai/userVerification"}
 METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9]+(?:/[a-zA-Z0-9]+)+\b')
 EXPLICIT_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\{')
 
@@ -48,7 +51,8 @@ def main() -> int:
                 method = m.group(1)
                 if method in known:
                     used.add(method)
-                elif method not in SERVER_NOTIFICATIONS and method not in INTERNAL_EVENTS:
+                elif (method not in SERVER_NOTIFICATIONS and method not in INTERNAL_EVENTS
+                      and method not in PROTOCOL_VARIANTS):
                     unknown.append((file, number, method))
     print(f"已读取官方请求方法 {len(known)} 项；核查 Kotlin 文件 {len(source_files)} 个；使用到的有效请求 {len(used)} 项。")
     for file, number, method in unknown:
