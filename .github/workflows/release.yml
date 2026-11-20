@@ -152,37 +152,15 @@ jobs:
             fi
           done
           set -euo pipefail
-          EXPECTED="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
-          RUN_IDS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-native-codex.yml \
-            --branch main --limit 100 --json databaseId,conclusion \
-            --jq '.[] | select(.conclusion == "success") | .databaseId')"
-          SELECTED=""
-          for RUN_ID in $RUN_IDS; do
-            SHA="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.head_sha')"
-            if ! git merge-base --is-ancestor "$SHA" HEAD; then continue; fi
-            # Reuse only if the entire native source and build inputs are unchanged.
-            if ! git diff --quiet "$SHA" HEAD -- \
-                CODEX_UPSTREAM_COMMIT upstream/codex/ \
-                .github/workflows/build-native-codex.yml \
-                android-app/tools/prepare_android_mxc.py; then
-              continue
-            fi
-            VERSION="$(gh api "repos/$GITHUB_REPOSITORY/contents/CODEX_UPSTREAM_COMMIT?ref=$SHA" \
-              --jq '.content' | base64 --decode | head -n 1)"
-            if [ "$VERSION" != "$EXPECTED" ]; then continue; fi
-            ASSETS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
-              --jq '.artifacts[] | select(.expired == false) | .name')"
-            if printf '%s\n' "$ASSETS" | grep -Fxq 'codex-android-native-arm64-v8a'; then
-              SELECTED="$RUN_ID"
-              break
-            fi
-          done
-          if [ -z "$SELECTED" ]; then
-            echo "::notice::当前原生构建尚未完成或产物过期，待编译成功并再次通过安卓验收后发布"
+          # 统一的原生内核复用判据：上游源码树、版本、依赖修补器及
+          # 实际 Rust/NDK 编译配方全部一致，且产物未过期。
+          NATIVE_ID="$(python3 .github/scripts/select_native_artifacts.py \
+            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a)" || {
+            echo "::notice::尚无与当前源码及编译参数完全一致的 ARM64 原生内核，等待原生构建后再发版"
             exit 0
-          fi
-          echo "native_run_id=$SELECTED" >> "$GITHUB_OUTPUT"
-          echo "采用原生构建 $SELECTED，Codex 源码 $EXPECTED"
+          }
+          echo "native_run_id=$NATIVE_ID" >> "$GITHUB_OUTPUT"
+          echo "复用已验证 ARM64 原生构建 $NATIVE_ID"
           echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
 
           EXISTING="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
