@@ -31,6 +31,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val accountLoginUrl = MutableStateFlow("")
     val deviceLoginCode = MutableStateFlow("")
     val deviceLoginUrl = MutableStateFlow("")
+    val activeLoginId = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -217,8 +218,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val result = bridge.request("account/login/start", JSONObject().put("type", "chatgpt"))
-                accountLoginUrl.value = result.optString("authUrl").ifBlank { result.optString("url") }
-                refresh("account", "account/read", JSONObject())
+                val login = AccountLoginContract.browser(result)
+                activeLoginId.value = login.id
+                deviceLoginCode.value = ""
+                deviceLoginUrl.value = ""
+                accountLoginUrl.value = login.url
+                errors.value = errors.value - "account"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("account" to (failure.message ?: "登录请求失败"))
             }
@@ -230,16 +235,34 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val result = bridge.request("account/login/start",
                     JSONObject().put("type", "chatgptDeviceCode"))
-                val verificationUrl = result.optString("verificationUrl")
-                val userCode = result.optString("userCode")
-                require(verificationUrl.startsWith("https://") && userCode.isNotBlank()) {
-                    "运行核心没有返回设备登录地址及验证码"
-                }
-                deviceLoginUrl.value = verificationUrl
-                deviceLoginCode.value = userCode
+                val login = AccountLoginContract.device(result)
+                activeLoginId.value = login.id
+                accountLoginUrl.value = ""
+                deviceLoginUrl.value = login.url
+                deviceLoginCode.value = login.code
                 errors.value = errors.value - "account"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("account" to (failure.message ?: "设备登录请求失败"))
+            }
+        }
+    }
+
+    fun cancelLogin() {
+        val id = activeLoginId.value
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            try {
+                bridge.request("account/login/cancel", JSONObject().put("loginId", id))
+                if (activeLoginId.value == id) {
+                    activeLoginId.value = ""
+                    accountLoginUrl.value = ""
+                    deviceLoginCode.value = ""
+                    deviceLoginUrl.value = ""
+                }
+                errors.value = errors.value - "account"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("account" to
+                    (failure.message ?: "无法取消这次登录"))
             }
         }
     }
@@ -248,11 +271,20 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
-        if (method == "account/login/completed" || method == "account/updated") {
-            accountLoginUrl.value = ""
-            deviceLoginCode.value = ""
-            deviceLoginUrl.value = ""
-            refresh("account", "account/read", JSONObject())
+        if (method == "account/login/completed") {
+            val result = AccountLoginContract.completion(params, activeLoginId.value)
+            if (result != null) {
+                activeLoginId.value = ""
+                accountLoginUrl.value = ""
+                deviceLoginCode.value = ""
+                deviceLoginUrl.value = ""
+                if (result.success) errors.value = errors.value - "account"
+                else errors.value = errors.value + ("account" to
+                    result.error.ifBlank { "登录未成功，请重新开始授权" })
+                refresh("account", "account/read")
+            }
+        } else if (method == "account/updated") {
+            refresh("account", "account/read")
         }
         if (method == "thread/started" || method == "thread/archived") {
             refresh("threads", "thread/list", JSONObject().put("limit", 30))

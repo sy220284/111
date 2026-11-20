@@ -175,6 +175,7 @@ fun AccountPage(vm: CodexViewModel) {
     val loginUrl by vm.accountLoginUrl.collectAsState()
     val deviceCode by vm.deviceLoginCode.collectAsState()
     val deviceUrl by vm.deviceLoginUrl.collectAsState()
+    val activeLoginId by vm.activeLoginId.collectAsState()
     val account = models["account"]
     var logoutConfirm by remember { mutableStateOf(false) }
     ScreenColumn {
@@ -212,6 +213,9 @@ fun AccountPage(vm: CodexViewModel) {
                     Spacer(Modifier.width(6.dp))
                     Text("在浏览器继续授权")
                 }
+            }
+            if (activeLoginId.isNotBlank()) {
+                TextButton(onClick = { vm.cancelLogin() }) { Text("取消本次授权") }
             }
             TextButton(onClick = { logoutConfirm = true }) { Text("退出当前账号") }
         }
