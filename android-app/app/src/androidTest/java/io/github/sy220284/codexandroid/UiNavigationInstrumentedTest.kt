@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
@@ -45,7 +46,7 @@ class UiNavigationInstrumentedTest {
     @Test
     fun sidebarFiltersSectionsAndOpensAppearance() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("搜索功能与设置").performTextInput("外观")
+        rule.onNode(hasSetTextAction()).performTextInput("外观")
         rule.onNodeWithText("外观与交互").performClick()
         rule.onNodeWithText("柔雾层次材质").assertExists()
         rule.onNodeWithText("交互预览").assertExists()
@@ -54,9 +55,9 @@ class UiNavigationInstrumentedTest {
     @Test
     fun terminalExecutionShowsReadableConfirmation() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("搜索功能与设置").performTextInput("终端")
+        rule.onNode(hasSetTextAction()).performTextInput("设备沙箱")
         rule.onNodeWithText("终端", substring = false).performClick()
-        rule.onNodeWithText("Shell 命令").performTextInput("pwd")
+        rule.onNode(hasSetTextAction()).performTextInput("pwd")
         rule.onNodeWithText("执行命令").performClick()
         rule.onNodeWithText("确认执行命令").assertExists()
         rule.onNodeWithText("确认执行").assertExists()
