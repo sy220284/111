@@ -95,6 +95,7 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     var showQuickTools by rememberSaveable { mutableStateOf(false) }
+    var pendingQuickRoute by remember { mutableStateOf<String?>(null) }
     var showStatus by remember { mutableStateOf(false) }
     var showReview by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
@@ -150,6 +151,15 @@ fun CodexShell(vm: CodexViewModel) {
         keyboard?.hide()
         scope.launch { drawer.close() }
     }
+    LaunchedEffect(showQuickTools, pendingQuickRoute) {
+        if (!showQuickTools) {
+            pendingQuickRoute?.let { destination ->
+                pendingQuickRoute = null
+                move(destination)
+            }
+        }
+    }
+
     val goBack: () -> Unit = {
         if (backHistory.size > 1) {
             backHistory = backHistory.dropLast(1)
@@ -273,7 +283,10 @@ fun CodexShell(vm: CodexViewModel) {
         if (showQuickTools) {
             WorkspaceActionsSheet(
                 onDismiss = { showQuickTools = false },
-                navigate = move, hasThread = activeThread != null
+                navigate = { destination ->
+                    pendingQuickRoute = destination
+                    showQuickTools = false
+                }, hasThread = activeThread != null
             )
         }
         if (showStatus) {
