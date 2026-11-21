@@ -312,14 +312,8 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AssistChip(
-                onClick = { navigate("queue") }, enabled = thread != null,
-                label = { Text("待办队列") },
-                leadingIcon = { Icon(Icons.Outlined.ViewList, null, modifier = Modifier.size(17.dp)) },
-                modifier = Modifier.heightIn(min = 46.dp)
-            )
-            AssistChip(
                 onClick = { navigate("threads") },
-                label = { Text("历史任务") },
+                label = { Text("会话历史") },
                 leadingIcon = { Icon(Icons.Outlined.History, null, modifier = Modifier.size(17.dp)) },
                 modifier = Modifier.heightIn(min = 46.dp)
             )
