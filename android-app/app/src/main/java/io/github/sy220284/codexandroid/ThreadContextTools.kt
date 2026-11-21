@@ -166,6 +166,15 @@ fun ThreadContextTools(
                 }
                 OutlinedButton(onClick = {
                     onDismiss()
+                    navigate("thread-attachments")
+                }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.Attachment, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("会话关联资料")
+                }
+                OutlinedButton(onClick = {
+                    onDismiss()
                     navigate("review")
                 }, enabled = !threadId.isNullOrBlank() && !running,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
