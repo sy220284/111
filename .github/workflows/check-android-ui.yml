@@ -137,7 +137,9 @@ jobs:
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
-            # Clipboard-copy validation creates an Android system preview overlay. Run it last\n            # so the overlay cannot cover screenshots of later business pages.\n            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            # Clipboard-copy validation creates an Android system preview overlay. Run it last
+            # so the overlay cannot cover screenshots of later business pages.
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
             # The emulator runner executes each script line separately.
             # A single Python process collects all screenshots even after test failure.
             python3 android-app/tools/collect_ui_screenshots.py
