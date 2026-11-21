@@ -239,30 +239,41 @@ fun SkillsPage(vm: CodexViewModel) {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list") }
         groups.forEach { group ->
-            Text(group.optString("cwd"), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            Text("工作区技能", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             group.optJSONArray("skills")?.objects()?.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
+                var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.School, null, tint = Ink.copper)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(meta.optString("displayName").ifBlank { skill.optString("name") },
+                            Text(PresentationPolicy.meaningful(meta.optString("displayName")).ifEmpty {
+                                PresentationPolicy.skillName(skill.optString("name")) },
                                 style = MaterialTheme.typography.titleMedium)
-                            Text(skill.optString("path"), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            Text(if (skill.optBoolean("enabled")) "已启用 · 可在对话中调用" else "已停用",
                                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                         }
                         WhiteSwitch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
                             confirmation = skill to enabled
                         })
                     }
-                    Text(meta.optString("shortDescription").ifBlank { skill.optString("description") },
+                    val description = meta.optString("shortDescription").ifBlank {
+                        skill.optString("description")
+                    }
+                    Text(PresentationPolicy.readableSkillSummary(description),
                         color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                    DetailToggle(skill)
+                    if (PresentationPolicy.meaningful(description).isNotEmpty()) {
+                        TextButton(onClick = { expanded = !expanded }) {
+                            Text(if (expanded) "收起说明" else "查看技能说明")
+                        }
+                        if (expanded) Text(description,
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
             group.optJSONArray("errors")?.objects()?.forEach { issue ->
-                ErrorText(issue.toString())
+                ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
             }
         }
         if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("目录中暂时没有技能。", color = Ink.muted) }
