@@ -412,8 +412,9 @@ fun TerminalPage(vm: CodexViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(onClick = {
                             val submitted = input
-                            vm.sendTerminalInput(submitted)
-                            input = ""
+                            vm.sendTerminalInput(submitted) {
+                                input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
+                            }
                         }, enabled = input.isNotEmpty() && !session.terminating,
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                             Text("发送输入")
