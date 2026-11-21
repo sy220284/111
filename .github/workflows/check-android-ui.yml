@@ -131,11 +131,45 @@ jobs:
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
             adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            # Collect images even when assertions fail, so the failing state can be inspected.
+            missing=0
+            for SCREEN in home sidebar chat settings-hub tools-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-hooks audit-environments audit-security audit-config audit-diagnostics audit-queue audit-approvals audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-tool-form audit-mcp-resource audit-mcp-elicitation audit-plugin-detail; do
+              if adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" >/dev/null 2>&1 && test -s "ui-screenshots/${SCREEN}-android35.png"; then
+                echo "SCREENSHOT_OK ${SCREEN}"
+              else
+                echo "SCREENSHOT_MISSING ${SCREEN}"
+                missing=$((missing + 1))
+              fi
+            done
+            # A portable offline visual gallery is included in the artifact.
+            python3 - <<'PY'
+            from pathlib import Path
+            from html import escape
+            files = sorted(Path("ui-screenshots").glob("*.png"))
+            cards = "".join(
+                '<a class="card" href="' + escape(f.name) + '"><img loading="lazy" src="' +
+                escape(f.name) + '" alt="' + escape(f.stem) + '"><span>' +
+                escape(f.stem) + '</span></a>'
+                for f in files
+            )
+            html = ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+                    '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                    '<title>Codex Android · CI 界面验收</title>'
+                    '<style>body{font:15px system-ui,sans-serif;background:#f6f7f7;'
+                    'color:#263139;margin:24px}h1{font-size:24px}small{color:#56646d}'
+                    '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));'
+                    'gap:20px}.card{display:block;text-decoration:none;color:inherit;background:white;'
+                    'border:1px solid #d8dee1;border-radius:12px;padding:10px}'
+                    'img{width:100%;height:350px;object-fit:contain;display:block}'
+                    'span{display:block;font-size:12px;word-break:break-all;margin-top:9px}</style>'
+                    '<h1>Android 35 · 逐页截图</h1><small>当前实际捕获 ' +
+                    str(len(files)) + ' 张。点击查看完整原图；所有屏幕来自设备端。</small>'
+                    '<div class="grid">' + cards + '</div></html>')
+            Path("ui-screenshots/index.html").write_text(html, encoding="utf-8")
+            PY
+            # Fail strict verification after preserving debugging evidence.
             grep -Fq 'OK (' ui-instrument-result.log
-            # All listed pages must have screenshots from the current tested screen width.
-            # Missing image evidence fails the job even if the navigation tests pass.
-            for SCREEN in home sidebar chat settings-hub tools-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-hooks audit-environments audit-security audit-config audit-diagnostics audit-queue audit-approvals audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-tool-form audit-mcp-resource audit-mcp-elicitation audit-plugin-detail; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
-            test -s ui-screenshots/home-android35.png
+            test "$missing" -eq 0
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
