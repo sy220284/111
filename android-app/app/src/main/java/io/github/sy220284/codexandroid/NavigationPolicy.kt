@@ -1,26 +1,25 @@
 package io.github.sy220284.codexandroid
 
-/**
- * A user-task oriented navigation rule, independent from protocol plumbing.
- *
- * Daily actions remain one tap away. Specialist screens still have exact routes
- * and are reachable through explicit expansion or search, never deleted.
- * Backend RPC lifecycle methods have no navigation route.
- */
-object NavigationPolicy {
-    val primaryRoutes = listOf("home", "chat", "files", "threads")
+/** 日常入口与专业功能分开组织，所有旧页面仍保留独立路由。 */
+data class FeatureGroup(val title: String, val routes: List<String>)
 
-    private val everydayRoutes = setOf(
-        "home", "chat", "threads", "approvals",
-        "files", "diff", "terminal", "review",
-        "skills", "plugins", "apps", "mcp",
-        "account", "usage", "security", "appearance"
+object NavigationPolicy {
+    val sidebarRoutes = listOf("home", "chat", "threads", "files", "approvals", "settings")
+    val primaryRoutes = listOf("home", "chat", "files", "threads", "settings")
+    val quickToolRoutes = listOf("files", "diff", "terminal", "review", "goals", "queue")
+
+    val featureGroups = listOf(
+        FeatureGroup("账户与模型", listOf("account", "models", "providers", "modes", "usage", "limits")),
+        FeatureGroup("扩展能力", listOf("skills", "plugins", "apps", "mcp", "hooks")),
+        FeatureGroup("任务与开发", listOf("search", "goals", "queue", "diff", "terminal", "review")),
+        FeatureGroup("主机与安全", listOf("environments", "config", "security", "diagnostics")),
+        FeatureGroup("通用与外观", listOf("appearance", "about"))
     )
 
-    fun visible(id: String, revealAdvanced: Boolean, searching: Boolean): Boolean =
-        searching || revealAdvanced || id in everydayRoutes
+    val settingsRoutes: List<String> = featureGroups.flatMap { it.routes }
 
-    fun isMoreSelected(id: String): Boolean = id !in primaryRoutes
+    fun isCommon(id: String): Boolean = id in sidebarRoutes
+    fun isSettingsChild(id: String): Boolean = id in settingsRoutes
 
     fun matches(query: String, title: String, subtitle: String, id: String): Boolean {
         val q = query.trim()
