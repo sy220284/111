@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Test
 
 class PresentationPolicyTest {
@@ -30,4 +33,31 @@ class PresentationPolicyTest {
         assertEquals("可在任务对话中使用，按需启用或停用",
             PresentationPolicy.readableSkillSummary("Create editable Canva instagram posts"))
     }
+
+    @Test fun permissionRequestsExposePreciseReadableScope() {
+        val permissions = JSONObject()
+            .put("network", JSONObject().put("enabled", true))
+            .put("fileSystem", JSONObject()
+                .put("read", JSONArray().put("/data/user/0/app/files/projects"))
+                .put("entries", JSONArray().put(JSONObject()
+                    .put("access", "write")
+                    .put("path", JSONObject().put("type", "path").put("path", "/work/story")))))
+        val summary = PresentationPolicy.permissionDetails(permissions)
+        assertTrue(summary.contains("允许访问网络"))
+        assertTrue(summary.contains("读取：本机工作区"))
+        assertTrue(summary.contains("修改：story"))
+        assertEquals("内核没有提供可核对的授权范围",
+            PresentationPolicy.permissionDetails(null).single())
+    }
+
+    @Test fun readableErrorKeepsMeaningAndHidesInternalIdentifiers() {
+        val source = "访问失败：/data/user/0/io.github.sy220284.codexandroid/files/projects"
+        val shown = PresentationPolicy.readableError(source)
+        assertTrue(shown.startsWith("访问失败"))
+        assertTrue(shown.contains("应用私有目录"))
+        assertTrue(!shown.contains("/data/user/"))
+        assertTrue(!PresentationPolicy.readableError(
+            "01a1fdcb-d65d-76d2-8abc-123456789abc").contains("01a1fdcb"))
+    }
+
 }
