@@ -284,7 +284,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         rule.onNodeWithTag("quick-diff").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("代码差异")
+        // Diff 需要活动会话；未选择时先进入可选会话资料库。
+        rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
     }
 
     private fun captureOverlay(fileName: String) {
