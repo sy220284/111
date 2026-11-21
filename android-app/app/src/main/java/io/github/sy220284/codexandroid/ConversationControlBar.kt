@@ -14,11 +14,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ConversationControlBar(
     modelName: String, mode: String, connected: Boolean, running: Boolean,
-    importingImage: Boolean, imageCount: Int,
     onModel: () -> Unit, onMode: () -> Unit,
-    onDiagnostics: () -> Unit, onImage: () -> Unit
+    onDiagnostics: () -> Unit
 ) {
-    val canAddImage = !running && !importingImage && imageCount < LocalImageAttachments.MAX_FILES
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically) {
         ModelControl(modelName, connected, onModel, Modifier.weight(1.12f))
@@ -27,9 +25,6 @@ fun ConversationControlBar(
             Icon(if (connected) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
                 contentDescription = "查看内核运行诊断",
                 tint = if (connected) Ink.jade else Ink.red)
-        }
-        IconButton(onClick = onImage, enabled = canAddImage, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = "添加本地图片", tint = Ink.copper)
         }
     }
 }

@@ -4,86 +4,80 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.performTextClearance
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** UI navigation test runs without a Codex binary; backend unavailability is a valid empty state. */
+/** 参考布局验收：侧栏只出现常用入口，所有原有功能归入设置或快捷菜单。 */
 class UiNavigationInstrumentedTest {
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
-    @Test
-    fun drawerOpensAndNavigatesToConversation() {
-        // Capture only after Compose has rendered the home screen. An am start
-        // screenshot can still show Android's splash frame on slower devices.
+    private fun openDrawerRoute(id: String) {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-" + id).performClick()
+    }
+
+    private fun openSettingRoute(id: String) {
+        rule.onNodeWithTag("bottom-settings").performClick()
+        rule.waitForIdle()
+        rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
+        val search = rule.onNodeWithTag("settings-search")
+        search.performTextClearance()
+        search.performTextInput(pages.first { it.id == id }.title)
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-" + id))
+        rule.onNodeWithTag("settings-route-" + id).performClick()
+    }
+
+    @Test fun drawerOpensAndNavigatesToConversation() {
         rule.onNodeWithText("继续你的工程").assertIsDisplayed()
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").assertExists()
+        rule.onNodeWithTag("nav-settings").assertExists()
+        rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         capture("sidebar-android35.png")
-        rule.onNodeWithText("任务对话").performClick()
+        rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithText("新的工作会话").assertExists()
-        rule.onNodeWithText("从一个具体目标开始").assertExists()
+        rule.onNodeWithText("今天想做什么？").assertExists()
         capture("chat-android35.png")
     }
 
-
-
-    @Test
-    fun chatKeepsStopAndSendControlsReachable() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("任务对话").performClick()
+    @Test fun chatKeepsStopAndSendControlsReachable() {
+        openDrawerRoute("chat")
         rule.onNodeWithText("停止").assertExists()
         rule.onNodeWithText("发送给 Codex").assertExists()
+        rule.onNodeWithTag("composer-plus").assertIsDisplayed()
     }
 
-    @Test
-    fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("nav-chat").performClick()
+    @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
+        openDrawerRoute("chat")
         rule.onNodeWithText("默认模型").assertIsDisplayed()
         rule.onNodeWithText("执行", substring = false).assertIsDisplayed()
         rule.onNodeWithContentDescription("查看内核运行诊断").assertIsDisplayed()
-        rule.onNodeWithContentDescription("添加本地图片").assertIsDisplayed()
+        rule.onNodeWithContentDescription("添加附件与工具").assertIsDisplayed()
         capture("chat-toolbar-android35.png")
+        rule.onNodeWithTag("composer-plus").performClick()
+        rule.onNodeWithText("快捷工具").assertExists()
+        rule.onNodeWithText("从相册或文件中选择图片").assertExists()
+        rule.onNodeWithTag("quick-terminal").assertExists()
+        captureOverlay("tools-sheet-android35.png")
     }
 
-    @Test
-    fun diffReaderShowsFileFirstSummaryAndReviewAction() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        // The sidebar intentionally expands only one group. Filter the target
-        // before selecting it, as an actual user would.
-        rule.onNodeWithTag("navigation-search").performTextInput("代码差异")
-        rule.onNodeWithTag("nav-diff").performClick()
+    @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
+        openSettingRoute("diff")
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
         rule.onNodeWithText("暂无可展示的代码差异").assertExists()
         capture("diff-reader-android35.png")
     }
 
-    @Test
-    fun androidBackReturnsToPreviousScreen() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("任务对话").performClick()
+    @Test fun androidBackReturnsToPreviousScreen() {
+        openDrawerRoute("chat")
         rule.onNodeWithText("新的工作会话").assertExists()
         rule.waitForIdle()
         rule.activity.onBackPressedDispatcher.onBackPressed()
@@ -91,10 +85,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("继续你的工程").assertExists()
     }
 
-    @Test
-    fun modeSheetOffersTwoExplicitActions() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("任务对话").performClick()
+    @Test fun modeSheetOffersTwoExplicitActions() {
+        openDrawerRoute("chat")
         rule.onNodeWithText("执行", substring = false).performClick()
         rule.onNodeWithText("选择协作方式").assertExists()
         captureOverlay("mode-sheet-android35.png")
@@ -102,24 +94,24 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("先计划").assertExists()
     }
 
-    @Test
-    fun sidebarFiltersSectionsAndOpensAppearance() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNode(hasSetTextAction()).performTextInput("外观")
-        rule.onNodeWithText("外观与交互").performClick()
+    @Test fun settingsGroupsAndAppearancePage() {
+        openDrawerRoute("settings")
+        rule.onNodeWithText("账户与模型").assertExists()
+        capture("settings-hub-android35.png")
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasText("扩展能力"))
+        rule.onNodeWithText("扩展能力").assertIsDisplayed()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
+        rule.onNodeWithTag("settings-search").performTextInput("外观")
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-appearance"))
+        rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithText("柔雾层次材质").assertExists()
         rule.onNodeWithText("交互预览").assertExists()
         capture("appearance-android35.png")
     }
 
-    @Test
-    fun terminalExecutionShowsReadableConfirmation() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNode(hasSetTextAction()).performTextInput("设备沙箱")
-        rule.onNodeWithText("终端", substring = false).performClick()
+    @Test fun terminalExecutionShowsReadableConfirmation() {
+        openSettingRoute("terminal")
         rule.onNodeWithText("Shell 命令").performTextInput("pwd")
-        // Close the IME before pressing the command CTA, as a user would on a
-        // keyboard-covered device. The full native APK uses system IME animations.
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
@@ -134,55 +126,49 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("确认执行").assertExists()
         captureOverlay("terminal-confirm-android35.png")
         rule.onNodeWithText("取消").performClick()
-        rule.waitForIdle()
-        org.junit.Assert.assertTrue("取消后确认窗口仍存在",
-            rule.onAllNodesWithText("确认执行命令").fetchSemanticsNodes().isEmpty())
+        rule.onNodeWithText("确认执行命令").assertDoesNotExist()
     }
 
-    /** Capture the whole Android display, including dialog and bottom-sheet windows. */
-    @Test
-    fun accountPageExposesNarrowScreenDeviceLoginActions() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("navigation-search").performTextInput("账号登录")
-        rule.onNodeWithTag("nav-account").performClick()
+    @Test fun accountPageExposesNarrowScreenDeviceLoginActions() {
+        openSettingRoute("account")
         rule.onNodeWithText("选择登录方式").assertExists()
         rule.onNodeWithText("设备码登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("浏览器登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("查看协议数据").assertExists()
         rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
-        // Preserve a clear screenshot of the top-level login choices.
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
         rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
     }
 
-    @Test
-    fun allTwentyEightSidebarDestinationsOpenWithoutCrashing() {
-        // CI verifies every sidebar destination at 360, 393 and 411dp phone widths.
-        // The header must match the active route, and the emulator must use an approved width.
+    @Test fun allTwentyEightFeatureRoutesStayReachableAfterNavigationRefactor() {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
-        org.junit.Assert.assertTrue(
-            "UI 验收宽度应为 360/393/411dp，实际为 ${widthDp}dp",
-            widthDp in setOf(360, 393, 411)
-        )
-        rule.onNodeWithTag("screen-title").assertTextEquals("总览")
-        for (destination in pages.filter { it.id != "home" }) {
-            rule.onNodeWithContentDescription("打开侧边导航").performClick()
-            val search = rule.onNodeWithTag("navigation-search")
-            search.performTextClearance()
-            search.performTextInput(destination.title)
-            rule.waitForIdle()
-            rule.onNodeWithTag("nav-${destination.id}").performClick()
-            rule.waitForIdle()
-            rule.onNodeWithTag("screen-title").assertTextEquals(destination.title)
+        assertTrue("验收宽度限定为 360/393/411dp，实际为 $widthDp",
+            widthDp in setOf(360, 393, 411))
+        assertEquals(29, pages.size) // 原有 28 页 + 设置聚合页
+        assertEquals(23, NavigationPolicy.settingsRoutes.size)
+        val actualOriginal = NavigationPolicy.sidebarRoutes.filter { it != "settings" } +
+            NavigationPolicy.settingsRoutes
+        assertEquals(28, actualOriginal.distinct().size)
+        assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
+            actualOriginal.toSet())
+        for (id in NavigationPolicy.settingsRoutes) {
+            openSettingRoute(id)
+            rule.onNodeWithTag("screen-title").assertTextEquals(
+                pages.first { it.id == id }.title)
+        }
+        rule.onNodeWithTag("bottom-settings").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+        for (id in NavigationPolicy.sidebarRoutes) {
+            openDrawerRoute(id)
+            rule.onNodeWithTag("screen-title").assertTextEquals(
+                pages.first { it.id == id }.title)
         }
     }
 
-    @Test
-    fun threadLibraryExposesServerBackedManagementLayout() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("nav-threads").performClick()
+    @Test fun threadLibraryExposesServerBackedManagementLayout() {
+        openDrawerRoute("threads")
         rule.onNodeWithText("会话资料库").assertExists()
         rule.onNodeWithText("活跃", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
@@ -191,33 +177,18 @@ class UiNavigationInstrumentedTest {
         capture("thread-library-android35.png")
     }
 
-    @Test
-    fun accountMetricsHavePurposeBuiltLayouts() {
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        val search = rule.onNodeWithTag("navigation-search")
-        search.performTextClearance()
-        search.performTextInput("使用量")
-        rule.onNodeWithTag("nav-usage").performClick()
+    @Test fun accountMetricsHavePurposeBuiltLayouts() {
+        openSettingRoute("usage")
         rule.onNodeWithText("账号使用概况").assertExists()
         capture("account-usage-android35.png")
-
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        val nextSearch = rule.onNodeWithTag("navigation-search")
-        nextSearch.performTextClearance()
-        nextSearch.performTextInput("使用限额")
-        rule.onNodeWithTag("nav-limits").performClick()
+        openSettingRoute("limits")
         rule.onNodeWithText("额度窗口").assertExists()
         capture("account-limits-android35.png")
     }
 
-    @Test
-    fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
+    @Test fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
         val name = "ui-folder-" + System.currentTimeMillis()
-        rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        val search = rule.onNodeWithTag("navigation-search")
-        search.performTextClearance()
-        search.performTextInput("工作区文件")
-        rule.onNodeWithTag("nav-files").performClick()
+        rule.onNodeWithTag("bottom-files").performClick()
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-folder-mode"))
         rule.onNodeWithTag("workspace-folder-mode").performClick()
@@ -229,13 +200,26 @@ class UiNavigationInstrumentedTest {
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
         capture("workspace-files-android35.png")
-
+        // Close the IME before opening the popup so its actions remain on-screen.
+        rule.runOnUiThread {
+            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
+            rule.activity.currentFocus?.clearFocus()
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("删除", substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("删除", substring = false).performClick()
         rule.onNodeWithText("确认删除文件夹").assertExists()
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
         rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("删除", substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("删除", substring = false).performClick()
         rule.onNodeWithText("永久删除").performClick()
         rule.waitUntil(10_000L) {
@@ -243,33 +227,35 @@ class UiNavigationInstrumentedTest {
         }
     }
 
-    @Test
-    fun frequentBottomDestinationsAndAdvancedSearchRemainReachable() {
+    @Test fun frequentBottomDestinationsAndSettingsSearchStayReachable() {
         rule.onNodeWithTag("main-bottom-navigation").assertExists()
         rule.onNodeWithTag("bottom-chat").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
-        rule.onNodeWithTag("bottom-files").performClick()
+        rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
+        openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         rule.onNodeWithTag("bottom-threads").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
-        rule.onNodeWithTag("bottom-more").performClick()
-        rule.onNodeWithTag("navigation-advanced-toggle").assertExists()
-        val search = rule.onNodeWithTag("navigation-search")
-        search.performTextInput("诊断")
-        rule.onNodeWithTag("nav-diagnostics").assertExists()
-        rule.onNodeWithTag("nav-diagnostics").performClick()
+        rule.onNodeWithTag("bottom-settings").performClick()
+        rule.onNodeWithTag("settings-search").performTextInput("诊断")
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
+        rule.onNodeWithTag("settings-route-diagnostics").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 
-    @Test
-    fun installedPluginManagementAndCatalogStayReachable() {
-        rule.onNodeWithTag("bottom-more").performClick()
-        rule.onNodeWithTag("navigation-search").performTextInput("插件")
-        rule.onNodeWithTag("nav-plugins").performClick()
+    @Test fun installedPluginManagementAndCatalogStayReachable() {
+        openSettingRoute("plugins")
         rule.onNodeWithTag("plugins-tab-installed").assertExists()
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
         rule.onNodeWithText("插件源", substring = false).assertExists()
         capture("plugins-android35.png")
+    }
+
+    @Test fun toolbarQuickActionsCanOpenProjectTools() {
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-terminal").assertExists()
+        rule.onNodeWithTag("quick-diff").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("代码差异")
     }
 
     private fun captureOverlay(fileName: String) {
