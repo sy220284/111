@@ -113,7 +113,9 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
-          target: google_apis
+          # 使用 AOSP 系统镜像，避免不参与测试的 Pixel Launcher 进程
+          # 在动态切换 360/393/411dp 后产生 ANR 系统弹窗，污染证据截图。
+          target: default
           disable-animations: true
           emulator-boot-timeout: 900
           script: |

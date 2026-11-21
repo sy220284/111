@@ -305,9 +305,25 @@ class UiNavigationInstrumentedTest {
 
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
-        val screen = requireNotNull(
-            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        ) { "Android display screenshot unavailable: $fileName" }
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val automation = instrumentation.uiAutomation
+        val packageName = instrumentation.targetContext.packageName
+        // ModalBottomSheet、Dialog 都属于本应用；若系统 ANR/权限窗口挡住
+        // 实际屏幕，则快照无效。明确失败，防止截图存在却误判 UI 验收通过。
+        fun checkForegroundWindow() {
+            val root = requireNotNull(automation.rootInActiveWindow) {
+                "无法识别前台窗口，拒绝保存未经验证的截图：$fileName"
+            }
+            val foregroundPackage = root.packageName?.toString()
+            check(foregroundPackage == packageName) {
+                "截图被其他应用或系统窗口遮挡：$fileName；当前前台：$foregroundPackage"
+            }
+        }
+        checkForegroundWindow()
+        val screen = requireNotNull(automation.takeScreenshot()) {
+            "Android display screenshot unavailable: $fileName"
+        }
+        checkForegroundWindow()
         saveScreenshot(fileName, screen)
     }
 
