@@ -130,7 +130,7 @@ jobs:
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
-            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
             grep -Fq 'OK (' ui-instrument-result.log
             # All listed pages must have screenshots from the current tested screen width.
             # Missing image evidence fails the job even if the navigation tests pass.
