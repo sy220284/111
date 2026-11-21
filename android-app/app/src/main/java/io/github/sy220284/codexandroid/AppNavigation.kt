@@ -89,6 +89,7 @@ fun CodexShell(vm: CodexViewModel) {
     val running by vm.running.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
+    val terminalSession by vm.terminalSession.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val move: (String) -> Unit = { destination ->
@@ -186,9 +187,29 @@ fun CodexShell(vm: CodexViewModel) {
                                     IconButton(onClick = { move("approvals") }) { Icon(Icons.Outlined.GppGood, "待审批") }
                                 }
                             }
-                            IconButton(onClick = { if (status == EngineStatus.Connected) move("diagnostics") else vm.connect() }) {
-                                Icon(if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle else Icons.Outlined.SyncProblem, if (status == EngineStatus.Connected) "查看内核诊断" else "连接内核",
-                                    tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red)
+                            // One persistent status action: a running terminal takes
+                            // precedence over diagnostics without adding a crowded icon.
+                            IconButton(onClick = {
+                                when {
+                                    terminalSession.running -> move("terminal")
+                                    status == EngineStatus.Connected -> move("diagnostics")
+                                    else -> vm.connect()
+                                }
+                            }) {
+                                Icon(
+                                    when {
+                                        terminalSession.running -> Icons.Outlined.Terminal
+                                        status == EngineStatus.Connected -> Icons.Outlined.CheckCircle
+                                        else -> Icons.Outlined.SyncProblem
+                                    },
+                                    when {
+                                        terminalSession.running -> "终端命令运行中，返回终端"
+                                        status == EngineStatus.Connected -> "查看内核诊断"
+                                        else -> "连接内核"
+                                    },
+                                    tint = if (terminalSession.running) Ink.copper
+                                        else if (status == EngineStatus.Connected) Ink.jade else Ink.red
+                                )
                             }
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Ink.canvas.copy(alpha = .92f))

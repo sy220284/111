@@ -256,11 +256,10 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     }
                 }
-                val updatedAt = thread.optString("updatedAt").ifBlank {
-                    thread.optString("createdAt")
-                }
-                if (updatedAt.isNotBlank()) {
-                    Text("更新于 " + updatedAt.replace("T", " ").take(19),
+                val updatedAt = ThreadDisplayPolicy.updatedAt(
+                    thread.opt("updatedAt"), thread.opt("createdAt"))
+                if (updatedAt != null) {
+                    Text("更新于 " + updatedAt,
                         color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                 }
                 if (running && activeId == id)

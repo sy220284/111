@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -343,33 +345,126 @@ fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 @Composable
 fun TerminalPage(vm: CodexViewModel) {
-    var command by remember { mutableStateOf("") }
+    var command by rememberSaveable { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
-    val data by vm.data.collectAsState()
+    var input by rememberSaveable { mutableStateOf("") }
+    var showProcess by remember { mutableStateOf(false) }
+    val session by vm.terminalSession.collectAsState()
     val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+
     ScreenColumn {
-        SectionIntro("LOCAL / COMMAND", "本地终端", "明确命令后由官方 app-server 执行，并回传 stdout、stderr 与退出码。")
+        SectionIntro("LOCAL / COMMAND", "本地终端",
+            "运行本机工作区命令。执行期间可以查看实时输出、输入内容或主动停止。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("Android 进程级隔离", style = MaterialTheme.typography.titleMedium)
-            Text("工作区：" + vm.workingDirectory, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            Text("仅在点击执行后发送命令。命令可修改应用工作区，执行前请复核。", color = Ink.muted)
-            OutlinedTextField(command, { command = it }, label = { Text("Shell 命令") },
-                placeholder = { Text("pwd && ls -la") }, modifier = Modifier.fillMaxWidth(), maxLines = 5)
-            Button(onClick = { confirm = true }, enabled = command.isNotBlank() && "terminal" !in loading) {
-                Icon(Icons.Outlined.PlayArrow, null); Text("执行命令")
+            Text("工作区：" + vm.workingDirectory, color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
+            Text("命令可能修改应用工作区。执行前显示完整内容并请你确认。", color = Ink.muted)
+            OutlinedTextField(command, { command = it },
+                label = { Text("Shell 命令") }, placeholder = { Text("pwd && ls -la") },
+                modifier = Modifier.fillMaxWidth(), maxLines = 5,
+                enabled = !session.running)
+            Button(onClick = { confirm = true },
+                enabled = command.isNotBlank() && !session.running,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.PlayArrow, null)
+                Spacer(Modifier.width(8.dp))
+                Text("执行命令")
             }
         }
         errors["terminal"]?.let { ErrorText(it) }
-        data["terminal"]?.let { result ->
+
+        if (session.processId.isNotEmpty()) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("返回码 " + result.optInt("exitCode"), style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        if (session.running) Icons.Outlined.Terminal
+                        else if (session.error != null || session.exitCode != 0)
+                            Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
+                        null, tint = if (session.running || session.exitCode == 0) Ink.jade else Ink.red
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (session.terminating) "正在停止"
+                            else if (session.running) "命令执行中"
+                            else if (session.error != null) "命令执行失败"
+                            else "执行结束 · 返回码 " + (session.exitCode?.toString() ?: "未知"),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(session.command, color = Ink.muted,
+                            style = MaterialTheme.typography.labelSmall, maxLines = 2,
+                            overflow = TextOverflow.Ellipsis)
+                    }
+                    StatusPill(
+                        if (session.running) "运行中" else if (session.exitCode == 0) "完成" else "异常",
+                        !session.running && session.exitCode == 0
+                    )
                 }
+                if (session.running) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(
+                        value = input, onValueChange = { input = it },
+                        label = { Text("向运行中的命令输入一行") },
+                        modifier = Modifier.fillMaxWidth(), maxLines = 3,
+                        enabled = !session.terminating
+                    )
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = {
+                            val submitted = input
+                            vm.sendTerminalInput(submitted) {
+                                input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
+                            }
+                        }, enabled = input.isNotEmpty() && !session.terminating,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                            Text("发送输入")
+                        }
+                        OutlinedButton(onClick = { vm.stopTerminalCommand() },
+                            enabled = !session.terminating,
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
+                            Icon(Icons.Outlined.StopCircle, null)
+                            Spacer(Modifier.width(5.dp))
+                            Text("停止")
+                        }
+                    }
+                    errors["terminalInput"]?.let { ErrorText(it) }
+                    errors["terminalStop"]?.let { ErrorText(it) }
+                }
+                session.error?.let { ErrorText(it) }
+                if (session.outputTruncated) {
+                    CodexNotice("已保留终端最近 128KiB 输出，较早日志已从界面移出。",
+                        NoticeTone.Warning)
+                }
+                TextButton(onClick = { showProcess = !showProcess }) {
+                    Text(if (showProcess) "隐藏会话标识" else "查看会话标识")
+                }
+                if (showProcess) {
+                    Text(session.processId, color = Ink.muted,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("标准输出", style = MaterialTheme.typography.titleMedium)
                 DividerLine()
-                Text(result.optString("stdout").ifBlank { "(无标准输出)" }, fontFamily = FontFamily.Monospace, color = Ink.parchment)
-                val stderr = result.optString("stderr")
-                if (stderr.isNotBlank()) Text(stderr, fontFamily = FontFamily.Monospace, color = Ink.red)
+                SelectionContainer {
+                    Text(session.stdoutText.takeLast(16_000).ifBlank {
+                        if (session.running) "等待命令输出…" else "(无标准输出)"
+                    }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.testTag("terminal-stdout"))
+                }
+                if (session.stderrBytes.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("错误输出", style = MaterialTheme.typography.titleMedium)
+                    SelectionContainer {
+                        Text(session.stderrText.takeLast(16_000),
+                            fontFamily = FontFamily.Monospace, color = Ink.red,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         }
     }
@@ -380,12 +475,7 @@ fun TerminalPage(vm: CodexViewModel) {
         confirmLabel = "确认执行",
         destructive = true,
         onConfirm = {
-            val script = JSONArray().put("/system/bin/sh").put("-c").put(command)
-            val params = JSONObject().put("command", script)
-                .put("cwd", vm.workingDirectory)
-                .put("sandboxPolicy", JSONObject().put("type", "externalSandbox").put("networkAccess", "restricted"))
-                .put("timeoutMs", 30_000)
-            vm.rpc("terminal", "command/exec", params)
+            vm.startTerminalCommand(command)
             confirm = false
         },
         onDismiss = { confirm = false }

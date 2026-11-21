@@ -31,7 +31,7 @@
 | MCP | `mcpServerStatus/list`, `mcpServer/resource/read` | 工具调用 | MCP |
 | Hooks | `hooks/list` | — | 触发钩子 |
 | 协作 | `collaborationMode/list` | — | 协作 |
-| 执行 | `command/exec` | 命令输出 | 终端 |
+| 执行 | `command/exec`, `command/exec/write`, `command/exec/terminate` | `command/exec/outputDelta` (stdout/stderr) | 终端实时执行、交互输入与停止 |
 | 审查 | `review/start` | 审查结果 | 代码审查 |
 | 登录 | `account/read`, `account/login/start`, `account/logout` | `account/login/completed` | 账号 |
 | 额度 | `account/usage/read`, `account/rateLimits/read` | — | 使用量、限额 |
@@ -50,3 +50,9 @@
 - 平台未配置的供应商、沙箱和插件会返回明确错误，UI 应展示真实错误信息。
 - App Server 以事件及完整的 `thread/read` 作为会话真实状态来源，不依赖本地伪造线程记录。
 - 包装层和官方 `v2` 类型不一致时，应以锁定的可运行核心版本对照修订。
+
+## 原生终端长进程契约
+
+`command/exec` 使用客户端创建的 `processId`，并开启 `streamStdoutStderr` 和 `streamStdin`；`command/exec/outputDelta` 按相同进程 ID 接受 Base64 编码字节。界面分别展示 stdout/stderr，先组合原始 UTF-8 字节再解码，避免跨通知分段造成乱码。
+
+`command/exec/write` 发送 Base64 编码的行输入；`command/exec/terminate` 仅控制当前进程 ID。普通请求保留 45 秒超时，终端长进程请求由用户操作停止与底层进程关闭管理，错误向终端页面明确显示。终端默认命令仍需用户确认并使用受限网络策略。

@@ -67,6 +67,16 @@
       "owner": "会话/对话",
       "flag": "常规/内部"
     },
+    "thread/increment_elicitation": {
+      "surface": "后台内部",
+      "owner": "会话审批计时",
+      "flag": "实验"
+    },
+    "thread/decrement_elicitation": {
+      "surface": "后台内部",
+      "owner": "会话审批计时",
+      "flag": "实验"
+    },
     "thread/unsubscribe": {
       "surface": "后台内部",
       "owner": "会话/对话",
@@ -335,6 +345,11 @@
     "thread/items/list": {
       "surface": "上下文操作",
       "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/inject_items": {
+      "surface": "后台内部",
+      "owner": "会话历史注入",
       "flag": "常规/内部"
     },
     "thread/items/read": {

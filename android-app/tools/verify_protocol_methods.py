@@ -13,7 +13,7 @@ import sys
 # All other path-like literals in the Android transport and UI must exist in
 # Codex's generated request protocol, so an upstream rename fails CI.
 SERVER_NOTIFICATIONS = {
-    "account/login/completed", "account/updated",
+    "account/login/completed", "account/updated", "command/exec/outputDelta",
     "item/agentMessage/delta", "item/completed", "item/plan/delta",
     "item/reasoning/summaryTextDelta", "item/started",
     "serverRequest/resolved", "thread/archived", "thread/started",
@@ -26,7 +26,7 @@ PROTOCOL_VARIANTS = {"openai/form", "openai/userVerification"}
 # The Android document picker validates MIME literals. These are content types,
 # not app-server methods; only exact supported formats are exempted.
 SUPPORTED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
-METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9]+(?:/[a-zA-Z0-9]+)+\b')
+METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9_]+(?:/[a-zA-Z0-9_]+)+\b')
 EXPLICIT_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\{')
 
 
@@ -50,7 +50,7 @@ def main() -> int:
             # Kotlin source may contain file-system paths, but a literal string
             # matching a Codex RPC name always starts with an identifier and
             # contains a slash. Avoid scraping arbitrary free-form prose.
-            for m in re.finditer(r'"([A-Za-z][A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)"', line):
+            for m in re.finditer(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"', line):
                 method = m.group(1)
                 if method in known:
                     used.add(method)

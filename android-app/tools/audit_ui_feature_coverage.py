@@ -22,8 +22,8 @@ ROUTE = re.compile(
 )
 NAME = re.compile(r'"([a-z]+)"')
 FUNCTION = re.compile(r'\bfun\s+([A-Za-z]\w*)\s*\(')
-METHOD = re.compile(r'"([A-Za-z][A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)"')
-OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)"\s*\{')
+METHOD = re.compile(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"')
+OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
 
 
 def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
