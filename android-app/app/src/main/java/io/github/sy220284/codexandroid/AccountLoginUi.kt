@@ -27,7 +27,7 @@ import org.json.JSONObject
  * Each visual step is driven by a real login response, never a sample code.
  */
 @Composable
-fun AccountPage(vm: CodexViewModel) {
+fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val data by vm.data.collectAsState()
@@ -187,6 +187,29 @@ fun AccountPage(vm: CodexViewModel) {
         }
 
 
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("账号与额度", style = MaterialTheme.typography.titleMedium)
+            Text("登录状态、使用记录和额度窗口来自同一账号，可从此处集中查看。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = { navigate("usage") },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.Insights, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("使用量")
+                }
+                OutlinedButton(onClick = { navigate("limits") },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.Speed, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("使用限额")
+                }
+            }
+            TextButton(onClick = { navigate("providers") }) {
+                Text("管理模型服务商")
+                Icon(Icons.Outlined.ChevronRight, null)
+            }
+        }
         errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
 
         CodexReveal(visible = loginBusy) {
