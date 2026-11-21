@@ -2,7 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -22,7 +22,6 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var page by remember(thread) { mutableIntStateOf(0) }
-    var raw by remember(thread) { mutableStateOf<String?>(null) }
     val prefix = "advancedTimeline:" + (thread ?: "none") + ":"
     val currentKey = prefix + page
     val pages = (0..page).mapNotNull { data[prefix + it] }
@@ -63,26 +62,29 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 "若内核未启用实验接口，请返回普通回合历史查看已保存内容。")
                         }
                     }
-                    items(entries, key = { it.optLong("position") }) { entry ->
+                    itemsIndexed(entries, key = { _, item -> item.optLong("position") }) { index, entry ->
                         MaterialPanel(Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.History, null, tint = Ink.copper)
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(entry.optString("type").ifBlank { "历史事件" },
+                                    Text(PresentationPolicy.timelineKind(entry.optString("type")),
                                         style = MaterialTheme.typography.titleMedium)
-                                    Text("位置 " + entry.optLong("position") +
-                                        " · 回合 " + entry.optString("turnId").take(14),
+                                    Text("第 ${index + 1} 项事件",
                                         color = Ink.muted,
                                         style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                             entry.optString("status").takeIf { it.isNotBlank() }?.let {
-                                StatusPill(it, good = !it.contains("fail", ignoreCase = true))
+                                val visibleStatus = PresentationPolicy.timelineStatus(it)
+                                if (visibleStatus.isNotEmpty()) StatusPill(visibleStatus,
+                                    good = visibleStatus != "失败")
                             }
-                            OutlinedButton(onClick = { raw = entry.toString(2) },
-                                modifier = Modifier.fillMaxWidth()) {
-                                Text("阅读完整事件数据")
+                            val summary = PresentationPolicy.meaningful(entry.optString("summary"))
+                                .ifEmpty { PresentationPolicy.meaningful(entry.optString("text")) }
+                            if (summary.isNotEmpty()) {
+                                Text(summary, color = Ink.muted,
+                                    style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
@@ -104,5 +106,4 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
             }
         }
     }
-    raw?.let { FullTextReaderDialog("时间线事件", it) { raw = null } }
 }
