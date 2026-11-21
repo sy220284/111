@@ -241,6 +241,24 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test
+    fun frequentBottomDestinationsAndAdvancedSearchRemainReachable() {
+        rule.onNodeWithTag("main-bottom-navigation").assertExists()
+        rule.onNodeWithTag("bottom-chat").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
+        rule.onNodeWithTag("bottom-files").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("bottom-threads").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
+        rule.onNodeWithTag("bottom-more").performClick()
+        rule.onNodeWithTag("navigation-advanced-toggle").assertExists()
+        val search = rule.onNodeWithTag("navigation-search")
+        search.performTextInput("诊断")
+        rule.onNodeWithTag("nav-diagnostics").assertExists()
+        rule.onNodeWithTag("nav-diagnostics").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
+    }
+
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         val screen = requireNotNull(
