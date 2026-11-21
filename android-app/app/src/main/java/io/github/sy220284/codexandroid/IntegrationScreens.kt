@@ -82,7 +82,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun ConnectedAppsPage(vm: CodexViewModel) {
+fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val apps = records(data["apps"])
@@ -98,8 +98,8 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
         SectionIntro("CONNECTORS / APPS", "已连接应用", "清楚区分发现、配置启用和当前可调用状态。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("应用目录", style = MaterialTheme.typography.titleMedium)
-            Text(apps.size.toString() + " 个目录条目", color = Ink.copper)
-            Text("连接应用的登录与权限由 Codex 和该服务提供。应用详情通过官方 app/read 查询。", color = Ink.muted)
+            Text("当前发现 ${apps.size} 个应用", color = Ink.copper)
+            Text("应用登录、授权与可用能力由当前连接状态决定。", color = Ink.muted)
             OutlinedButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
@@ -109,7 +109,11 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
         IntegrationState(vm, "appInstalled") { vm.refresh("appInstalled", "app/installed") }
         if (apps.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
-            Text("可先检查账号登录、插件目录以及当前环境的网络和接入权限。", color = Ink.muted)
+            Text("检查登录状态，或进入插件管理查看可用的扩展。",
+                color = Ink.muted)
+            OutlinedButton(onClick = { navigate("plugins") }) {
+                Text("前往插件管理")
+            }
         }
         apps.forEach { app ->
             val id = app.optString("id")
@@ -135,7 +139,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                     StatusPill(if (app.optBoolean("isEnabled", true)) "已启用" else "已禁用",
                         app.optBoolean("isEnabled", true))
                 }
-                app.optString("description").takeIf { it.isNotBlank() }?.let {
+                PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Ink.muted)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -162,9 +166,23 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         IntegrationState(vm, "appDetail") { vm.refresh("appDetail", "app/read",
                             JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true)) }
-                        data["appDetail"]?.let {
-                            Text(it.toString(2), fontFamily = FontFamily.Monospace,
-                                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        data["appDetail"]?.let { response ->
+                            val details = records(response)
+                            val found = details.firstOrNull { it.optString("id") == id }
+                                ?: details.firstOrNull()
+                            val tools = found?.optJSONArray("tools")
+                            if (tools != null && tools.length() > 0) {
+                                Text("可调用的工具", style = MaterialTheme.typography.titleSmall)
+                                for (index in 0 until tools.length()) {
+                                    val tool = tools.optJSONObject(index) ?: continue
+                                    Text(PresentationPolicy.meaningful(tool.optString("name"))
+                                        .ifEmpty { "未命名工具" },
+                                        style = MaterialTheme.typography.bodyMedium)
+                                }
+                            } else {
+                                Text("暂未发现可直接调用的工具。",
+                                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }
@@ -176,7 +194,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
         CodexConfirmDialog(
             title = if (desired) "启用连接应用" else "停用连接应用",
             message = "此操作将修改 Codex 对该应用的本地启用配置。",
-            detail = item.optString("name") + "\nID：" + id,
+            detail = PresentationPolicy.meaningful(item.optString("name")).ifEmpty { "当前应用" },
             confirmLabel = "确认修改",
             destructive = !desired,
             onConfirm = {
