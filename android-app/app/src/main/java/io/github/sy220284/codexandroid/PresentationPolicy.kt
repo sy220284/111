@@ -104,6 +104,18 @@ object PresentationPolicy {
      * Read the official AdditionalPermissionProfile schema without exposing RPC keys.
      * Requested paths are reduced to recognizable names when they live in app-private storage.
      */
+    fun readableError(value: String?): String {
+        val raw = meaningful(value)
+        if (raw.isEmpty()) return "当前操作没有返回详细原因"
+        return raw.replace(
+            Regex("/data/(?:user/[0-9]+|data)/[^\\\\s\\\\n,;)}]+"),
+            "应用私有目录"
+        ).replace(
+            Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
+            "任务标识"
+        ).take(500)
+    }
+
     fun permissionDetails(value: JSONObject?): List<String> {
         if (value == null) return listOf("内核没有提供可核对的授权范围")
         val result = mutableListOf<String>()
