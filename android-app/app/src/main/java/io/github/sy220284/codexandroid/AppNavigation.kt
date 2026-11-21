@@ -119,7 +119,7 @@ fun CodexShell(vm: CodexViewModel) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Ink.canvas, Color(0xFF171E24), Ink.canvas)))
+            .background(Ink.canvas)
     ) {
         val wide = maxWidth >= 850.dp
         val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
@@ -166,7 +166,7 @@ fun CodexShell(vm: CodexViewModel) {
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                                Text(page.section + " / CODEX", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                                // 顶栏保留当前页面，正文只呈现一次功能介绍。
                             }
                         },
                         navigationIcon = {
@@ -271,7 +271,7 @@ private fun Sidebar(
     Column(modifier.background(Ink.recessed).padding(horizontal = 14.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 8.dp, bottom = 15.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = Ink.copper.copy(alpha = .14f), shape = RoundedCornerShape(14.dp),
+            Surface(color = Ink.canvas, shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, Ink.copperDim)) {
                 Icon(Icons.Outlined.Code, null, tint = Ink.copper, modifier = Modifier.padding(12.dp))
             }
@@ -362,8 +362,8 @@ private fun Sidebar(
                                         modifier = Modifier.heightIn(min = 51.dp).testTag("nav-${entry.id}"),
                                         shape = RoundedCornerShape(13.dp),
                                         colors = NavigationDrawerItemDefaults.colors(
-                                            selectedContainerColor = Ink.copper.copy(alpha = .14f),
-                                            selectedIconColor = Ink.copper, selectedTextColor = Ink.parchment,
+                                            selectedContainerColor = Ink.canvas,
+                                            selectedIconColor = Ink.copper, selectedTextColor = Ink.copper,
                                             unselectedContainerColor = Color.Transparent,
                                             unselectedIconColor = Ink.muted, unselectedTextColor = Ink.parchment
                                         )

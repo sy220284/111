@@ -122,7 +122,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        color = if (connected) Ink.jade.copy(alpha = .14f) else Ink.elevated,
+                        color = Ink.canvas,
                         shape = RoundedCornerShape(15.dp),
                         border = BorderStroke(1.dp,
                             if (connected) Ink.jade.copy(alpha = .35f) else Ink.border)
@@ -144,7 +144,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         )
                     }
                     Surface(
-                        color = if (connected) Ink.jade.copy(alpha = .13f) else Ink.recessed,
+                        color = Ink.canvas,
                         shape = RoundedCornerShape(99.dp),
                         border = BorderStroke(1.dp,
                             if (connected) Ink.jade.copy(alpha = .33f) else Ink.border)
@@ -280,7 +280,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("1. 复制验证码   2. 打开授权页面   3. 输入验证码并确认",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Ink.muted)
-                        Button(
+                        OutlinedButton(
                             onClick = { openAuthorization(deviceUrl) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             enabled = !loginBusy
@@ -294,7 +294,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         DividerLine()
                         Text("在浏览器完成授权，返回应用后可刷新账号状态。",
                             color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                        Button(
+                        OutlinedButton(
                             onClick = { openAuthorization(browserUrl) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             enabled = !loginBusy
@@ -381,7 +381,7 @@ private fun AuthMethodTile(
         enabled = enabled,
         modifier = modifier.heightIn(min = 86.dp),
         shape = RoundedCornerShape(18.dp),
-        color = if (emphasized) Ink.copper.copy(alpha = .11f) else Ink.panel,
+        color = Ink.canvas,
         border = BorderStroke(1.dp,
             if (emphasized) Ink.copper.copy(alpha = .53f) else Ink.border.copy(alpha = .72f))
     ) {

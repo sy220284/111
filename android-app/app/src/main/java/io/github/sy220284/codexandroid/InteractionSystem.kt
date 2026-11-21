@@ -88,7 +88,7 @@ fun CodexNotice(
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = color.copy(alpha = .09f),
+        color = Ink.canvas,
         border = BorderStroke(1.dp, color.copy(alpha = .35f)),
         shape = RoundedCornerShape(15.dp)
     ) {
@@ -164,7 +164,7 @@ fun CodexChoiceSheet(
                         Surface(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
                                 .clickable(role = Role.RadioButton) { onSelect(choice.id) },
-                            color = if (active) Ink.copper.copy(alpha = .12f) else Ink.panel,
+                            color = Ink.canvas,
                             border = BorderStroke(1.dp, if (active) Ink.copper else Ink.border),
                             shape = RoundedCornerShape(15.dp)
                         ) {
@@ -230,7 +230,7 @@ fun CodexEvidenceSheet(
                 OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                     Text("关闭")
                 }
-                Button(
+                OutlinedButton(
                     onClick = { clipboard.setText(AnnotatedString(payload)) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
@@ -291,11 +291,12 @@ fun CodexConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            OutlinedButton(
                 onClick = onConfirm,
-                colors = if (destructive) ButtonDefaults.buttonColors(containerColor = Ink.red, contentColor = Ink.canvas)
-                else ButtonDefaults.buttonColors(),
-                modifier = Modifier.heightIn(min = 48.dp)
+                colors = if (destructive) ButtonDefaults.outlinedButtonColors(containerColor = Ink.canvas, contentColor = Ink.red)
+                else ButtonDefaults.outlinedButtonColors(),
+                modifier = Modifier.heightIn(min = 48.dp),
+                border = BorderStroke(1.dp, if (destructive) Ink.red else Ink.copper)
             ) { Text(confirmLabel) }
         },
         dismissButton = {
@@ -327,10 +328,10 @@ fun CodexActionTile(
             .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = Ink.panel,
-        border = BorderStroke(1.dp, Ink.border)
+        border = BorderStroke(1.dp, if (pressed) Ink.copper else Ink.border)
     ) {
         Row(Modifier.padding(15.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = Ink.copper.copy(alpha = .12f), shape = RoundedCornerShape(12.dp)) {
+            Surface(color = Ink.canvas, shape = RoundedCornerShape(12.dp)) {
                 Icon(icon, null, tint = Ink.copper, modifier = Modifier.padding(10.dp).size(23.dp))
             }
             Spacer(Modifier.width(12.dp))

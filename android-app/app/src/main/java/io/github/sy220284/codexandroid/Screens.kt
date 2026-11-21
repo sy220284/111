@@ -113,7 +113,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(shape = RoundedCornerShape(15.dp), color = Ink.copper.copy(alpha = .17f)) {
+                Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas) {
                     Icon(if (running) Icons.Outlined.PlayCircleOutline else Icons.Outlined.AutoAwesome,
                         null, tint = Ink.copper, modifier = Modifier.padding(13.dp).size(25.dp))
                 }
@@ -125,7 +125,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             Spacer(Modifier.height(14.dp))
-            Button(onClick = {
+            CodexPrimaryButton(onClick = {
                 if (!running) vm.newThread()
                 navigate("chat")
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
@@ -337,7 +337,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 actionLabel = "查看", onAction = { navigate("approvals") })
         }
         CodexReveal(visible = busy) {
-            CodexNotice("任务执行中 · 已显示 ${items.size} 条步骤记录",
+            CodexNotice("任务执行中 · 已记录 ${items.size} 步 · ${items.lastOrNull()?.text?.trim()?.replace("\n", " ")?.take(35).orEmpty()}",
                 NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
@@ -383,11 +383,12 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         },
                     shape = RoundedCornerShape(99.dp),
                     color = Ink.copper,
-                    shadowElevation = 4.dp
+                    border = BorderStroke(1.dp, Ink.copper),
+                    shadowElevation = 1.dp
                 ) {
                     Text("↓ ${unreadSteps} 条新步骤",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        color = Ink.canvas, style = MaterialTheme.typography.labelMedium)
+                        color = Ink.copper, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -431,7 +432,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             OutlinedTextField(
                 value = draft, onValueChange = { draft = it },
-                modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6,
+                modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 5,
                 placeholder = { Text(if (busy) "任务运行中，可以补充要求或修正方向…" else "描述目标、文件及验收要求…") },
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
@@ -448,7 +449,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(5.dp))
                     Text("停止")
                 }
-                Button(
+                CodexPrimaryButton(
                     onClick = {
                         val message = draft.trim()
                         if (busy) {
@@ -549,7 +550,7 @@ private fun TimelineStepCard(item: TimelineItem) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(17.dp),
-        color = if (user) Ink.copper.copy(alpha = .12f) else Ink.panel,
+        color = Ink.canvas,
         border = BorderStroke(1.dp, if (failure) Ink.red.copy(alpha = .5f) else
             if (user) Ink.copperDim else Ink.border.copy(alpha = .65f))
     ) {
@@ -616,7 +617,7 @@ fun records(response: JSONObject?): List<JSONObject> {
 
 @Composable
 fun ErrorText(error: String) {
-    Surface(color = Ink.red.copy(alpha = .12f), shape = RoundedCornerShape(14.dp),
+    Surface(color = Ink.canvas, shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, Ink.red.copy(alpha = .35f)),
         modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -640,7 +641,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
     ScreenColumn {
         SectionIntro("CODEX / " + page.section, page.title, page.subtitle)
-        if (page.experimental) StatusPill("上游实验接口", false)
+        if (page.experimental) StatusPill("上游实验接口", tone = StatusTone.Neutral)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(page.icon, null, tint = Ink.copper)
@@ -696,7 +697,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                 Text("请求参数采用 JSON，异常会显示在本页。修改或删除操作需明确输入对应方法。", color = Ink.muted)
                 OutlinedTextField(operation, { operation = it }, label = { Text("method") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(arguments, { arguments = it }, label = { Text("params JSON") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     try { vm.rpc(page.id, operation.trim(), JSONObject(arguments)) }
                     catch (failure: Exception) { vm.errors.value = vm.errors.value + (page.id to (failure.message ?: "JSON 格式不正确")) }
                 }, enabled = operation.isNotBlank()) { Text("发送请求") }
@@ -720,7 +721,7 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
                 Text("从会话历史或任务对话中选择当前任务。", color = Ink.muted)
             }
         } else {
-            Button(onClick = { vm.refresh(id, method, JSONObject().put("threadId", active)) }) {
+            OutlinedButton(onClick = { vm.refresh(id, method, JSONObject().put("threadId", active)) }) {
                 Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text("读取当前会话")
             }
             errors[id]?.let { ErrorText(it) }
@@ -740,7 +741,7 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         SectionIntro("SEARCH / THREADS", "全文检索", "通过 Codex 的历史检索定位旧任务。")
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("搜索词") }, leadingIcon = { Icon(Icons.Outlined.Search, null) })
-        Button(onClick = { vm.refresh("search", "thread/search", JSONObject().put("searchTerm", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
+        OutlinedButton(onClick = { vm.refresh("search", "thread/search", JSONObject().put("searchTerm", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
         errors["search"]?.let { ErrorText(it) }
         records(data["search"]).forEach { entry ->
             ThreadRow(entry, enabled = ThreadDisplayPolicy.canOpenThread(
