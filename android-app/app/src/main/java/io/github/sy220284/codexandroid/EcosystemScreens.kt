@@ -551,7 +551,7 @@ fun HooksPage(vm: CodexViewModel) {
                     Text("来源：当前工作区", color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
                     Text(
-                        "运行策略：" + if (hook.optString("trustStatus").contains("trusted", true))
+                        "运行策略：" + if (hook.optString("trustStatus").equals("trusted", ignoreCase = true))
                             "已核验" else "由运行核心管理",
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium
                     )
