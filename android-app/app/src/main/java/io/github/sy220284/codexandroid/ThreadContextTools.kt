@@ -60,7 +60,7 @@ fun ThreadContextTools(
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
             SectionIntro("THREAD / OPERATIONS", "会话工具",
-                "在保留当前工程上下文的前提下复制分支，或整理长任务的历史内容。")
+                "管理当前任务的历史、资料和审查；复制分支与上下文整理位于下方。")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Forum, null, tint = Ink.copper)
@@ -88,6 +88,41 @@ fun ThreadContextTools(
                         Text("已保存回合：" + (info?.optJSONArray("turns")?.length() ?: 0),
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
+                }
+            }
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
+                Text("和此会话相关的目标、队列与历史操作集中管理。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.Flag, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("管理任务目标")
+                }
+                OutlinedButton(onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.ViewList, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("待办队列（实验）")
+                }
+                OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.History, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("回合历史与回退")
+                }
+                OutlinedButton(onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.Attachment, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("会话关联资料")
+                }
+                OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.FactCheck, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("代码审查")
                 }
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -131,41 +166,6 @@ fun ThreadContextTools(
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             listOf("threadFork", "threadCompact", "threadContext").forEach { key ->
                 errors[key]?.let { ErrorText(it) }
-            }
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
-                Text("和此会话相关的目标、队列与历史操作集中管理。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.Flag, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("管理任务目标")
-                }
-                OutlinedButton(onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.ViewList, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("待办队列（实验）")
-                }
-                OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.History, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("回合历史与回退")
-                }
-                OutlinedButton(onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.Attachment, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("会话关联资料")
-                }
-                OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.FactCheck, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("代码审查")
-                }
             }
             TextButton(onClick = { openSubpage("threads") }, modifier = Modifier.fillMaxWidth()) {
                 Text("前往会话资料库，管理名称与归档")
