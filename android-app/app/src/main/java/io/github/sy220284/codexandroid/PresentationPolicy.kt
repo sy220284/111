@@ -104,6 +104,38 @@ object PresentationPolicy {
      * Read the official AdditionalPermissionProfile schema without exposing RPC keys.
      * Requested paths are reduced to recognizable names when they live in app-private storage.
      */
+    /** Official HookEventName values mapped to task-oriented labels. */
+    fun hookEvent(value: String?): String = when (meaningful(value)) {
+        "preModelRequest" -> "调用模型前"
+        "postModelRequest" -> "模型回复后"
+        "preToolUse" -> "工具运行前"
+        "permissionRequest" -> "权限申请时"
+        "postToolUse" -> "工具运行后"
+        "preCompact" -> "整理上下文前"
+        "postCompact" -> "整理上下文后"
+        "sessionStart" -> "会话开始"
+        "sessionEnd" -> "会话结束"
+        "userPromptSubmit" -> "提交指令时"
+        "subagentStart" -> "协作任务启动"
+        "subagentStop" -> "协作任务结束"
+        "stop" -> "任务停止"
+        "interrupt" -> "任务中断"
+        else -> "其他触发事件"
+    }
+
+    fun resourceFormat(value: String?): String {
+        val kind = meaningful(value).lowercase()
+        return when {
+            kind.startsWith("text/plain") -> "纯文本"
+            kind.contains("markdown") -> "Markdown 文档"
+            kind.contains("json") -> "结构化数据"
+            kind.startsWith("image/") -> "图片"
+            kind.contains("pdf") -> "PDF 文档"
+            kind.isBlank() -> "未标明文件类型"
+            else -> "文件资源"
+        }
+    }
+
     fun readableError(value: String?): String {
         val raw = meaningful(value)
         if (raw.isEmpty()) return "当前操作没有返回详细原因"
@@ -152,7 +184,18 @@ object PresentationPolicy {
                         "path" -> workspaceName(target.optString("path"))
                         "glob_pattern" -> "匹配范围：" +
                             meaningful(target.optString("pattern")).ifEmpty { "指定文件" }
-                        "special" -> "指定系统位置"
+                        "special" -> {
+                            val special = target.optJSONObject("value")
+                            when (special?.optString("kind")) {
+                                "root" -> "整个文件系统"
+                                "minimal" -> "运行时基础目录"
+                                "project_roots" -> "当前项目目录"
+                                "tmpdir", "slash_tmp" -> "临时目录"
+                                "unknown" -> "其他路径：" +
+                                    workspaceName(special.optString("path"))
+                                else -> "未说明范围的系统位置"
+                            }
+                        }
                         else -> "指定文件"
                     }
                     result += "$access：$name"
