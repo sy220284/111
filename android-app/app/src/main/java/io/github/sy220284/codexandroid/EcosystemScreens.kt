@@ -295,6 +295,20 @@ fun PluginsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
+    var searchDraft by remember { mutableStateOf("") }
+    var searchSubmitted by remember { mutableStateOf("") }
+    var searchPage by remember { mutableIntStateOf(0) }
+    val searchActive = !installedOnly && searchSubmitted.isNotBlank()
+    val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
+    val searchKey = searchPrefix + searchPage
+    val found = if (searchActive) (0..searchPage)
+        .flatMap { PluginSearchContract.entries(data[searchPrefix + it]) }
+        .distinctBy { it.marketplace.optString("name") + ":" +
+            it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
+        else emptyList()
+    val searchCursor = if (searchActive)
+        data[searchKey]?.optString("nextCursor").orEmpty()
+    else ""
     LaunchedEffect(installedOnly) {
         if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
             JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
@@ -311,6 +325,38 @@ fun PluginsPage(vm: CodexViewModel) {
             FilterChip(selected = !installedOnly, onClick = { installedOnly = false },
                 modifier = Modifier.testTag("plugins-tab-catalog"),
                 label = { Text("发现插件") })
+        }
+        if (!installedOnly) {
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("搜索插件（实验）", style = MaterialTheme.typography.titleMedium)
+                Text("按照名称或用途搜索可用插件，结果来自当前运行内核。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = searchDraft, onValueChange = { searchDraft = it },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("插件名称或关键字") },
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val term = searchDraft.trim()
+                            searchSubmitted = term
+                            searchPage = 0
+                            vm.refresh("pluginSearch:" + term + ":0",
+                                "plugin/search", PluginSearchContract.params(term))
+                        },
+                        enabled = searchDraft.isNotBlank() &&
+                            "pluginSearch:" + searchSubmitted + ":0" !in busy,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    ) {
+                        Text("搜索插件")
+                    }
+                    TextButton(onClick = {
+                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
+                    }, modifier = Modifier.heightIn(min = 48.dp)) { Text("清除") }
+                }
+            }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -335,7 +381,57 @@ fun PluginsPage(vm: CodexViewModel) {
                 JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
             else vm.refresh("plugins", "plugin/list")
         }
-        marketplaces.forEach { market ->
+        if (searchActive) {
+            Text("插件搜索结果 · ${found.size} 项",
+                style = MaterialTheme.typography.titleMedium)
+            if (searchKey in busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            errors[searchKey]?.let { ErrorText("插件搜索失败：$it。可以改用常规插件目录。") }
+            if (searchKey !in busy && found.isEmpty() && searchKey !in errors) {
+                CodexEmptyState("没有搜索结果",
+                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。")
+            }
+            found.forEach { hit ->
+                val market = hit.marketplace
+                val item = hit.plugin
+                val display = item.optJSONObject("interface")?.optString("displayName")
+                    .orEmpty().ifBlank { item.optString("name") }
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                        Spacer(Modifier.width(9.dp))
+                        Text(display, style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        if (item.optBoolean("installed")) StatusPill("已安装", true)
+                    }
+                    Text("来源：" + market.optString("name"), color = Ink.muted,
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(item.optJSONObject("interface")?.optString("shortDescription")
+                        .orEmpty().ifBlank { item.optString("description") },
+                        color = Ink.muted)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!item.optBoolean("installed")) {
+                            OutlinedButton(onClick = { action = Triple(market, item, true) },
+                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE") {
+                                Text("安装插件")
+                            }
+                        }
+                        TextButton(onClick = { selectedPlugin = market to item }) {
+                            Text("查看详情")
+                        }
+                    }
+                }
+            }
+            if (searchCursor.isNotBlank()) {
+                OutlinedButton(onClick = {
+                    val next = searchPage + 1
+                    searchPage = next
+                    vm.refresh(searchPrefix + next, "plugin/search",
+                        PluginSearchContract.params(searchSubmitted, searchCursor))
+                }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    enabled = searchKey !in busy) { Text("加载更多结果") }
+            }
+        }
+        if (!searchActive) marketplaces.forEach { market ->
             val plugins = market.optJSONArray("plugins")?.objects() ?: emptyList()
             Text(market.optJSONObject("interface")?.optString("displayName")
                 ?.ifBlank { market.optString("name") } ?: market.optString("name"),
@@ -368,7 +464,7 @@ fun PluginsPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (data[activeKey] != null && marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
+        if (!searchActive && data[activeKey] != null && marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
             CodexEmptyState(
                 if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
                 if (installedOnly) "从插件市场安装后，可在这里集中管理。"
