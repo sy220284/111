@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** 历史分页、回合条目与明确范围回退；全部使用官方线程请求。 */
@@ -27,6 +28,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     var target by remember(thread) { mutableStateOf<String?>(null) }
     var inspected by remember(thread) { mutableStateOf<String?>(null) }
     var fullReader by remember(thread) { mutableStateOf<String?>(null) }
+    var showAdvanced by remember(thread) { mutableStateOf(false) }
     val prefix = "turnHistory:" + (thread ?: "none") + ":"
     val pages = (0..page).mapNotNull { data[prefix + it] }
     val turns = pages.flatMap { records(it) }.distinctBy { it.optString("id") }
@@ -48,6 +50,12 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             Text("回合历史与回退", style = MaterialTheme.typography.headlineSmall)
             Text("历史来自实际会话。回退仅修改保存的会话记录，已写入的本地文件不会自动恢复。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = { showAdvanced = true }, enabled = thread != null,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Timeline, null)
+                Spacer(Modifier.width(8.dp))
+                Text("查看完整时间线（实验）")
+            }
             if (thread == null) RequiresThreadPanel("回合历史") { onDismiss() }
             else {
                 if (key in loading || prefix + "0" in loading)
@@ -90,6 +98,31 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                     OutlinedButton(onClick = { fullReader = payload.toString(2) }) {
                                         Text("查看完整条目内容")
                                     }
+                                    records(payload).filter { it.optBoolean("outputDeferred") }
+                                        .forEach { entry ->
+                                            val itemId = entry.optJSONObject("item")
+                                                ?.optString("id").orEmpty()
+                                            if (itemId.isNotBlank()) {
+                                                val detailKey = "turnItemRead:" + id + ":" + itemId
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        vm.refresh(detailKey, "thread/items/read",
+                                                            JSONObject().put("threadId", thread)
+                                                                .put("turnId", id)
+                                                                .put("itemIds", JSONArray().put(itemId)))
+                                                    }, modifier = Modifier.fillMaxWidth(),
+                                                    enabled = detailKey !in loading
+                                                ) { Text("读取条目 " + itemId.take(12) + " 的完整输出") }
+                                                if (detailKey in loading)
+                                                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                                                errors[detailKey]?.let { ErrorText(it) }
+                                                data[detailKey]?.let { detail ->
+                                                    OutlinedButton(
+                                                        onClick = { fullReader = detail.toString(2) }
+                                                    ) { Text("打开完整输出") }
+                                                }
+                                            }
+                                        }
                                 }
                             }
                         }
@@ -138,4 +171,5 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     fullReader?.let { raw ->
         FullTextReaderDialog("回合条目原始记录", raw) { fullReader = null }
     }
+    if (showAdvanced) AdvancedThreadTimelineDialog(vm) { showAdvanced = false }
 }
