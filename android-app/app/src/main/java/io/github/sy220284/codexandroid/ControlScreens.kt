@@ -23,28 +23,30 @@ import org.json.JSONTokener
 
 object UiPreferences {
     private const val NAME = "visual-preferences"
-    private var ctx: Context? = null
+    // 只持久保留 SharedPreferences，不保留任何 Activity 或 Context。
+    private var storage: android.content.SharedPreferences? = null
     val compact = MutableStateFlow(false)
     val reducedMotion = MutableStateFlow(false)
     val softMaterial = MutableStateFlow(true)
+
     fun initialize(context: Context) {
-        ctx = context.applicationContext
-        val prefs = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+        val prefs = context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+        storage = prefs
         compact.value = prefs.getBoolean("compact", false)
         reducedMotion.value = prefs.getBoolean("reducedMotion", false)
         softMaterial.value = prefs.getBoolean("softMaterial", true)
     }
     fun setCompact(value: Boolean) {
         compact.value = value
-        ctx?.getSharedPreferences(NAME, Context.MODE_PRIVATE)?.edit()?.putBoolean("compact", value)?.apply()
+        storage?.edit()?.putBoolean("compact", value)?.apply()
     }
     fun setReducedMotion(value: Boolean) {
         reducedMotion.value = value
-        ctx?.getSharedPreferences(NAME, Context.MODE_PRIVATE)?.edit()?.putBoolean("reducedMotion", value)?.apply()
+        storage?.edit()?.putBoolean("reducedMotion", value)?.apply()
     }
     fun setSoftMaterial(value: Boolean) {
         softMaterial.value = value
-        ctx?.getSharedPreferences(NAME, Context.MODE_PRIVATE)?.edit()?.putBoolean("softMaterial", value)?.apply()
+        storage?.edit()?.putBoolean("softMaterial", value)?.apply()
     }
 }
 
