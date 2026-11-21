@@ -73,7 +73,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithText("添加附件").assertExists()
         rule.onNodeWithTag("attachment-pick-image").assertExists()
-        rule.onNodeWithTag("quick-terminal").assertDoesNotExist()
+        rule.onNodeWithTag("quick-terminal").assertExists()
         captureOverlay("attachment-sheet-android35.png")
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
