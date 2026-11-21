@@ -79,7 +79,11 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val models by vm.data.collectAsState()
     val selected by vm.modelId.collectAsState()
     val loading by vm.loading.collectAsState()
-    LaunchedEffect(Unit) { vm.refresh("models", "model/list") }
+    val errors by vm.errors.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
+    LaunchedEffect(engineStatus) {
+        if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
+    }
     val choices = records(models["models"]).filter { !it.optBoolean("hidden") }
         .map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
@@ -88,14 +92,28 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     CodexChoiceSheet(
         title = "选择运行模型",
-        description = if ("models" in loading) "正在读取内核可用模型…"
-        else "更改只影响后续任务；已运行任务沿用当前模型。",
-        choices = if (choices.isEmpty()) listOf(CodexChoice("__reload", "重新加载模型目录", "从本机内核读取")) else
-            listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
+        description = when {
+            engineStatus != EngineStatus.Connected ->
+                "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
+            "models" in loading -> "正在读取内核可用模型…"
+            errors["models"] != null -> "读取模型目录失败：${errors["models"]}。可手动重新加载。"
+            else -> "更改只影响后续任务；已运行任务沿用当前模型。"
+        },
+        choices = if (choices.isEmpty()) listOf(
+            CodexChoice(
+                if (engineStatus == EngineStatus.Connected) "__reload" else "__connect",
+                if (engineStatus == EngineStatus.Connected) "重新加载模型目录" else "连接本机内核",
+                if (engineStatus == EngineStatus.Connected) "重新读取可用模型" else "连接后读取模型目录"
+            ),
+            CodexChoice("", "遵循默认模型", "保留内核的默认模型设置")
+        ) else listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
         selectedId = selected,
         onSelect = { id ->
-            if (id == "__reload") vm.refresh("models", "model/list")
-            else { vm.modelId.value = id; onDismiss() }
+            when (id) {
+                "__reload" -> vm.refresh("models", "model/list")
+                "__connect" -> vm.connect()
+                else -> { vm.modelId.value = id; onDismiss() }
+            }
         },
         onDismiss = onDismiss
     )
