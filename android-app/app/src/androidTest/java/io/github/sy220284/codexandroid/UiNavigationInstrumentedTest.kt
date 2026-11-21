@@ -203,12 +203,7 @@ class UiNavigationInstrumentedTest {
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
         capture("workspace-files-android35.png")
-        // Close the IME before opening the popup so its actions remain on-screen.
-        rule.runOnUiThread {
-            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
-            rule.activity.currentFocus?.clearFocus()
-        }
+        // Creating a folder must dismiss its keyboard before opening file actions.
         rule.waitForIdle()
         rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).performClick()

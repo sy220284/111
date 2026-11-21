@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,6 +35,8 @@ import java.io.File
 @Composable
 fun WorkspacePage(vm: CodexViewModel) {
     val ctx = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val root = remember { File(vm.workingDirectory).canonicalFile }
     var folder by remember { mutableStateOf(root) }
@@ -156,6 +160,8 @@ fun WorkspacePage(vm: CodexViewModel) {
                         else WorkspaceFileActions.createFolder(root, folder, createName)
                         notice = "已创建：" + created.name
                         createName = ""
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                         refresh++
                     } catch (failure: Exception) {
                         notice = "创建失败：" + (failure.message ?: "未知错误")
