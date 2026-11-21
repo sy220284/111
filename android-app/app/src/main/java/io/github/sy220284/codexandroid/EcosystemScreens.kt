@@ -282,7 +282,7 @@ fun SkillsPage(vm: CodexViewModel) {
         CodexConfirmDialog(
             title = if (enabled) "启用技能" else "停用技能",
             message = "将修改此技能在 Codex 中的启用状态。",
-            detail = "技能：" + skill.optString("name") + "\n路径：" + skill.optString("path"),
+            detail = "技能：" + PresentationPolicy.skillName(skill.optString("name")),
             confirmLabel = if (enabled) "确认启用" else "确认停用",
             onConfirm = {
                 vm.rpc("skills", "skills/config/write",
@@ -537,19 +537,24 @@ fun HooksPage(vm: CodexViewModel) {
         SectionIntro("RUNTIME / HOOKS", "触发钩子", "查看执行时机、来源、权限与托管状态。")
         SourceState(vm, "hooks") { vm.refresh("hooks", "hooks/list") }
         groups.forEach { group ->
-            Text(group.optString("cwd"), color = Ink.muted)
+            Text("工作区触发器", color = Ink.muted)
             group.optJSONArray("hooks")?.objects()?.forEach { hook ->
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.Bolt, null, tint = Ink.copper)
                         Spacer(Modifier.width(11.dp))
-                        Text(hook.optString("eventName"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(PresentationPolicy.meaningful(hook.optString("eventName"))
+                            .ifEmpty { "运行事件" }, style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
                         StatusPill(if (hook.optBoolean("enabled")) "启用" else "停用", hook.optBoolean("enabled"))
                     }
-                    Text(hook.optString("key"), color = Ink.parchment)
-                    Text("来源：" + hook.optString("sourcePath"), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    Text("可信状态：" + hook.optString("trustStatus"), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    DetailToggle(hook)
+                    Text("来源：当前工作区", color = Ink.muted,
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "运行策略：" + if (hook.optString("trustStatus").contains("trusted", true))
+                            "已核验" else "由运行核心管理",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }
