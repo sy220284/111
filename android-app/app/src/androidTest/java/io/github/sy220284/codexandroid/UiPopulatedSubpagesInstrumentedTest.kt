@@ -1,9 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.app.Application
-import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -11,7 +9,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
-import java.io.File
 
 /**
  * 独立真实 Compose 屏幕测试：使用明确标记的协议形状样例验证填充态，
@@ -27,14 +24,8 @@ class UiPopulatedSubpagesInstrumentedTest {
     }
 
     private fun capture(name: String) {
-        val app = InstrumentationRegistry.getInstrumentation().targetContext
-        val root = requireNotNull(app.getExternalFilesDir(null))
-        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
-        File(root, name).outputStream().use {
-            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) {
-                "无法生成页面截图：$name"
-            }
-        }
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot(name)
     }
 
     @Test fun mcpToolInputRendersActualSchemaFields() {
