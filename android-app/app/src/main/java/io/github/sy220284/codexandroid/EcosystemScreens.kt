@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -213,24 +214,53 @@ fun SkillsPage(vm: CodexViewModel) {
 @Composable
 fun PluginsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
-    val marketplaces = data["plugins"]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
+    var installedOnly by remember { mutableStateOf(true) }
+    val activeKey = if (installedOnly) "installedPlugins" else "plugins"
+    val marketplaces = data[activeKey]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
+    val busy by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
-    LaunchedEffect(Unit) { vm.refresh("plugins", "plugin/list") }
+    LaunchedEffect(installedOnly) {
+        if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
+            JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+        else vm.refresh("plugins", "plugin/list",
+            JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+    }
     ScreenColumn {
-        SectionIntro("CODEX / MARKETPLACE", "插件", "浏览官方与本地插件市场。安装、卸载逐项确认。")
+        SectionIntro("CODEX / MARKETPLACE", "插件",
+            "先管理已安装能力，需要新功能时再浏览可用插件。")
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            FilterChip(selected = installedOnly, onClick = { installedOnly = true },
+                modifier = Modifier.testTag("plugins-tab-installed"),
+                label = { Text("已安装") })
+            FilterChip(selected = !installedOnly, onClick = { installedOnly = false },
+                modifier = Modifier.testTag("plugins-tab-catalog"),
+                label = { Text("发现插件") })
+        }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("插件源", style = MaterialTheme.typography.titleMedium)
-                    Text("发现 " + marketplaces.size + " 个市场", color = Ink.muted)
+                    Text(if (installedOnly) "当前安装来源" else "插件源",
+                        style = MaterialTheme.typography.titleMedium)
+                    Text("关联 " + marketplaces.size + " 个来源", color = Ink.muted)
                 }
-                IconButton(onClick = { vm.refresh("plugins", "plugin/list", JSONObject().put("forceRefetch", true)) }) {
-                    Icon(Icons.Outlined.Refresh, "刷新插件市场")
+                IconButton(onClick = {
+                    if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
+                        JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+                    else vm.refresh("plugins", "plugin/list",
+                        JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))
+                            .put("forceRefetch", true))
+                }) {
+                    Icon(Icons.Outlined.Refresh, "刷新插件列表")
                 }
             }
         }
-        SourceState(vm, "plugins") { vm.refresh("plugins", "plugin/list") }
+        SourceState(vm, activeKey) {
+            if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
+                JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+            else vm.refresh("plugins", "plugin/list")
+        }
         marketplaces.forEach { market ->
             val plugins = market.optJSONArray("plugins")?.objects() ?: emptyList()
             Text(market.optJSONObject("interface")?.optString("displayName")
@@ -264,11 +294,17 @@ fun PluginsPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (marketplaces.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("当前没有已加载的插件市场。", color = Ink.muted)
-            TextButton(onClick = { vm.refresh("plugins", "plugin/list", JSONObject().put("forceRefetch", true)) }) {
-                Text("重新获取")
-            }
+        if (marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
+            CodexEmptyState(
+                if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
+                if (installedOnly) "从插件市场安装后，可在这里集中管理。"
+                else "检查 Codex 核心连接，或刷新市场目录。",
+                actionLabel = if (installedOnly) "浏览插件" else "刷新目录",
+                onAction = {
+                    if (installedOnly) installedOnly = false
+                    else vm.refresh("plugins", "plugin/list", JSONObject().put("forceRefetch", true))
+                }
+            )
         }
     }
     selectedPlugin?.let { (market, item) ->
@@ -289,10 +325,18 @@ fun PluginsPage(vm: CodexViewModel) {
                     if (path.isNotBlank()) params.put("marketplacePath", path)
                     else params.put("remoteMarketplaceName", market.optString("name"))
                     vm.rpc("plugins", "plugin/install", params,
-                        after = { vm.refresh("plugins", "plugin/list") })
+                        after = {
+                            vm.refresh("plugins", "plugin/list")
+                            vm.refresh("installedPlugins", "plugin/installed",
+                                JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+                        })
                 } else {
                     vm.rpc("plugins", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
-                        after = { vm.refresh("plugins", "plugin/list") })
+                        after = {
+                            vm.refresh("plugins", "plugin/list")
+                            vm.refresh("installedPlugins", "plugin/installed",
+                                JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+                        })
                 }
                 action = null
             },
