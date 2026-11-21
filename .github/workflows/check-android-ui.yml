@@ -132,7 +132,7 @@ jobs:
             grep -Fq 'OK (' ui-instrument-result.log
             # All listed pages must have screenshots from the current tested screen width.
             # Missing image evidence fails the job even if the navigation tests pass.
-            for SCREEN in home sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader plugins; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
+            for SCREEN in home sidebar chat settings-hub tools-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader plugins; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
             test -s ui-screenshots/home-android35.png
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
