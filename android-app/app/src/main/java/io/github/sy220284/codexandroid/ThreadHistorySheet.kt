@@ -97,8 +97,8 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 data[entryKey]?.let { payload ->
                                     Text("已读取 ${records(payload).size} 条历史记录",
                                         color = Ink.muted)
-                                    OutlinedButton(onClick = { fullReader = payload.toString(2) }) {
-                                        Text("查看完整条目内容")
+                                    OutlinedButton(onClick = { fullReader = readableTurnItems(payload) }) {
+                                        Text("阅读任务执行记录")
                                     }
                                     records(payload).filter { it.optBoolean("outputDeferred") }
                                         .forEach { entry ->
@@ -120,7 +120,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                                 errors[detailKey]?.let { ErrorText(it) }
                                                 data[detailKey]?.let { detail ->
                                                     OutlinedButton(
-                                                        onClick = { fullReader = detail.toString(2) }
+                                                        onClick = { fullReader = readableTurnItems(detail) }
                                                     ) { Text("打开完整输出") }
                                                 }
                                             }
@@ -171,7 +171,22 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         )
     }
     fullReader?.let { raw ->
-        FullTextReaderDialog("回合条目原始记录", raw) { fullReader = null }
+        FullTextReaderDialog("会话执行记录", raw) { fullReader = null }
     }
     if (showAdvanced) AdvancedThreadTimelineDialog(vm) { showAdvanced = false }
+}
+
+/** 为历史正文阅读器提取真正的事件内容，避免把 RPC 结构当成正文。 */
+private fun readableTurnItems(payload: JSONObject): String {
+    val items = records(payload)
+    if (items.isEmpty()) return "该回合没有可阅读的文本记录。"
+    return items.mapIndexed { index, record ->
+        val item = record.optJSONObject("item") ?: record
+        val kind = PresentationPolicy.timelineKind(item.optString("type"))
+        val text = listOf("text", "message", "command", "summary").firstNotNullOfOrNull {
+            PresentationPolicy.meaningful(item.optString(it)).takeIf { value -> value.isNotEmpty() }
+        }.orEmpty()
+        "第 ${index + 1} 项 · $kind" +
+            if (text.isNotEmpty()) "\n$text" else "\n已记录操作状态"
+    }.joinToString("\n\n")
 }
