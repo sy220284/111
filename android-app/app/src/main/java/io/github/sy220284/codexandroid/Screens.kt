@@ -201,7 +201,7 @@ private fun SmallStat(label: String, value: String, icon: androidx.compose.ui.gr
 }
 
 @Composable
-private fun ThreadRow(item: JSONObject, enabled: Boolean, onClick: () -> Unit) {
+internal fun ThreadRow(item: JSONObject, enabled: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
         color = Ink.panel, border = BorderStroke(1.dp, Ink.border.copy(alpha = .5f)),
