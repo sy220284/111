@@ -559,8 +559,8 @@ fun HooksPage(vm: CodexViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.Bolt, null, tint = Ink.copper)
                         Spacer(Modifier.width(11.dp))
-                        Text(PresentationPolicy.meaningful(hook.optString("eventName"))
-                            .ifEmpty { "运行事件" }, style = MaterialTheme.typography.titleMedium,
+                        Text(PresentationPolicy.hookEvent(hook.optString("eventName")),
+                            style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.weight(1f))
                         StatusPill(if (hook.optBoolean("enabled")) "启用" else "停用", hook.optBoolean("enabled"))
                     }
