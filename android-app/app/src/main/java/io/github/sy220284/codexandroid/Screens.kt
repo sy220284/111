@@ -641,21 +641,16 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     val loading by vm.loading.collectAsState()
     val payload = result[page.id]
     val entries = records(payload)
-    var expanded by remember { mutableStateOf(false) }
-    var operation by remember(page.id) { mutableStateOf(page.rpc ?: "") }
-    var arguments by remember(page.id) { mutableStateOf("{}") }
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
     ScreenColumn {
-        SectionIntro("CODEX / " + page.section, page.title, page.subtitle)
-        if (page.experimental) StatusPill("上游实验接口", tone = StatusTone.Neutral)
+        SectionIntro("", page.title, page.subtitle)
+        if (page.experimental) StatusPill("实验功能", tone = StatusTone.Neutral)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(page.icon, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("实时服务数据", style = MaterialTheme.typography.titleMedium)
-                    Text(page.rpc ?: "本地功能", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
+                Text("当前状态", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
                 IconButton(onClick = { page.rpc?.let { vm.refresh(page.id, it) } }) {
                     Icon(Icons.Outlined.Refresh, "刷新")
                 }
@@ -663,51 +658,27 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
             if (page.id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             errors[page.id]?.let { ErrorText(it) }
         }
-        if (entries.isNotEmpty()) entries.forEachIndexed { idx, entry ->
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        entry.optString("displayName")
-                            .ifBlank { entry.optString("name") }
-                            .ifBlank { entry.optString("title") }
-                            .ifBlank { entry.optString("id") }
-                            .ifBlank { "记录 " + (idx + 1) },
-                        style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)
-                    )
-                    entry.optString("status").takeIf { it.isNotBlank() }?.let { StatusPill(it) }
-                }
-                Text(entry.optString("description").ifBlank { entry.optString("summary") },
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                var showDetail by remember { mutableStateOf(false) }
-                TextButton(onClick = { showDetail = !showDetail }) { Text(if (showDetail) "收起详情" else "查看详情") }
-                CodexReveal(showDetail) {
-                    Text(entry.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
-                        style = MaterialTheme.typography.labelMedium)
+        if (entries.isNotEmpty()) {
+            entries.forEachIndexed { index, entry ->
+                val display = sequenceOf("displayName", "name", "title").map {
+                    PresentationPolicy.meaningful(entry.optString(it))
+                }.firstOrNull { it.isNotEmpty() } ?: "记录 ${index + 1}"
+                val summary = PresentationPolicy.meaningful(entry.optString("description"))
+                    .ifEmpty { PresentationPolicy.meaningful(entry.optString("summary")) }
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Text(display, style = MaterialTheme.typography.titleMedium)
+                    val status = PresentationPolicy.timelineStatus(entry.optString("status"))
+                    if (status.isNotEmpty()) StatusPill(status)
+                    if (summary.isNotEmpty()) {
+                        Text(summary, color = Ink.muted,
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
-        } else if (payload != null) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("服务返回", style = MaterialTheme.typography.titleMedium)
-                Text(payload.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
-                    style = MaterialTheme.typography.bodyMedium)
-            }
+        } else if (payload != null && page.id !in loading && page.id !in errors) {
+            CodexEmptyState("暂无可展示内容", "已完成读取，当前没有需要处理的项目。")
         } else if (page.id !in loading && page.id !in errors) {
-            MaterialPanel(Modifier.fillMaxWidth()) { Text("从运行核心读取数据后将在此显示。", color = Ink.muted) }
-        }
-        TextButton(onClick = { expanded = !expanded }) {
-            Icon(Icons.Outlined.Terminal, null); Spacer(Modifier.width(7.dp)); Text("高级协议操作")
-        }
-        CodexReveal(expanded) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("调用官方 App Server 接口", style = MaterialTheme.typography.titleMedium)
-                Text("请求参数采用 JSON，异常会显示在本页。修改或删除操作需明确输入对应方法。", color = Ink.muted)
-                OutlinedTextField(operation, { operation = it }, label = { Text("method") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(arguments, { arguments = it }, label = { Text("params JSON") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                OutlinedButton(onClick = {
-                    try { vm.rpc(page.id, operation.trim(), JSONObject(arguments)) }
-                    catch (failure: Exception) { vm.errors.value = vm.errors.value + (page.id to (failure.message ?: "JSON 格式不正确")) }
-                }, enabled = operation.isNotBlank()) { Text("发送请求") }
-            }
+            Text("正在准备当前功能…", color = Ink.muted)
         }
     }
 }
@@ -731,7 +702,19 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
                 Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text("读取当前会话")
             }
             errors[id]?.let { ErrorText(it) }
-            payload[id]?.let { MaterialPanel(Modifier.fillMaxWidth()) { Text(it.toString(2), fontFamily = FontFamily.Monospace) } }
+            payload[id]?.let { response ->
+                val rows = records(response)
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Text(if (rows.isEmpty()) "当前任务没有更多可显示内容"
+                        else "已读取 ${rows.size} 条任务记录",
+                        style = MaterialTheme.typography.bodyMedium)
+                    rows.take(10).forEach { entry ->
+                        val description = PresentationPolicy.meaningful(entry.optString("title"))
+                            .ifEmpty { PresentationPolicy.meaningful(entry.optString("text")) }
+                        if (description.isNotEmpty()) Text(description)
+                    }
+                }
+            }
         }
     }
 }
