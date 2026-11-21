@@ -47,6 +47,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createKind by remember { mutableStateOf("file") }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
+    var copyName by remember { mutableStateOf("") }
     var actionBusy by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -105,7 +106,7 @@ fun WorkspacePage(vm: CodexViewModel) {
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item { SectionIntro("LOCAL / FILES", "工作区文件",
-            "本机工程与文件统一管理，支持文件夹、导入、重命名与安全删除。") }
+            "本机工程与文件统一管理，支持新建、导入、复制、重命名与安全删除。") }
         item {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("当前目录", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
@@ -227,6 +228,15 @@ fun WorkspacePage(vm: CodexViewModel) {
                                     renameName = file.name
                                     fileAction = "rename" to file
                                 })
+                            DropdownMenuItem(text = { Text("复制") },
+                                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                                onClick = {
+                                    optionsOpen = false
+                                    copyName = if (file.isDirectory) file.name + "-副本"
+                                        else file.nameWithoutExtension + "-副本" +
+                                            (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                                    fileAction = "copy" to file
+                                })
                             DropdownMenuItem(text = { Text("删除") },
                                 leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red) },
                                 onClick = {
@@ -273,6 +283,51 @@ fun WorkspacePage(vm: CodexViewModel) {
                         }
                     }, enabled = renameName.isNotBlank() && !actionBusy) {
                         Text("保存名称")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { fileAction = null }) { Text("取消") }
+                }
+            )
+        } else if (kind == "copy") {
+            AlertDialog(
+                onDismissRequest = { fileAction = null },
+                title = { Text("复制到当前目录") },
+                containerColor = Ink.elevated,
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("来源：" + target.relativeTo(root).path,
+                            color = Ink.muted)
+                        OutlinedTextField(copyName, { copyName = it },
+                            label = { Text("新文件或文件夹名称") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
+                        Text("创建独立副本；如已存在同名文件则停止操作。",
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                },
+                confirmButton = {
+                    OutlinedButton(onClick = {
+                        val finalName = copyName.trim()
+                        val finalFolder = folder
+                        actionBusy = true
+                        fileAction = null
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        scope.launch {
+                            try {
+                                val copied = withContext(Dispatchers.IO) {
+                                    WorkspaceFileActions.copy(root, target, finalFolder, finalName)
+                                }
+                                notice = "已复制：" + copied.name
+                                refresh++
+                            } catch (failure: Exception) {
+                                notice = "复制失败：" + (failure.message ?: "未知错误")
+                            } finally {
+                                actionBusy = false
+                            }
+                        }
+                    }, enabled = copyName.isNotBlank() && !actionBusy) {
+                        Text("确认复制")
                     }
                 },
                 dismissButton = {
