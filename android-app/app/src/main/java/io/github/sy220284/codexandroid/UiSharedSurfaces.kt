@@ -148,37 +148,6 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AttachmentActionsSheet(
-    imageCount: Int, importing: Boolean,
-    onDismiss: () -> Unit, onPickImage: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss, containerColor = Ink.canvas,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
-            .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("添加附件", style = MaterialTheme.typography.headlineSmall)
-            Text("目前支持从本机相册和文件选择图片，最多三张。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            val enabled = !importing && imageCount < LocalImageAttachments.MAX_FILES
-            OutlinedButton(onClick = { onDismiss(); onPickImage() },
-                enabled = enabled, modifier = Modifier.fillMaxWidth()
-                    .heightIn(min = 54.dp).testTag("attachment-pick-image")) {
-                Icon(Icons.Outlined.AddPhotoAlternate, null)
-                Spacer(Modifier.width(10.dp))
-                Text("从相册或文件选择图片")
-            }
-            if (!enabled) CodexNotice(
-                if (importing) "正在导入图片，请完成后再选择。"
-                else "最多添加三张图片。移除已有附件后可继续添加。", NoticeTone.Info)
-            Spacer(Modifier.height(10.dp))
-        }
-    }
-}
-
 @Composable
 fun RequiresThreadPanel(
     title: String, onOpenThreads: () -> Unit

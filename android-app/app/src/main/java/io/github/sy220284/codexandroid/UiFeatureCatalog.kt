@@ -47,7 +47,6 @@ object UiFeatureCatalog {
     )
     val byRoute = all.associateBy { it.route }
     val sidebarRoutes = listOf("home","chat","threads","files","approvals","settings")
-    val bottomRoutes = listOf("home","chat","files","threads","settings")
     val workspaceTools = listOf("files","diff","terminal","review","goals","queue")
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models")),

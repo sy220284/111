@@ -31,7 +31,6 @@ fun PluginDetailSheet(
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
-    var rawOpen by remember(name, marketName) { mutableStateOf(false) }
     var readerText by remember(name, marketName) { mutableStateOf<String?>(null) }
     var readerTitle by remember(name, marketName) { mutableStateOf("") }
     var readerProblem by remember(name, marketName) { mutableStateOf("") }
@@ -72,9 +71,9 @@ fun PluginDetailSheet(
                 val version = summary.optString("version")
                 if (version.isNotBlank()) Text("版本 " + version,
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                Text(detail?.optString("description")?.ifBlank { summary.optJSONObject("interface")
+                Text(PresentationPolicy.readableSkillSummary(detail?.optString("description")?.ifBlank { summary.optJSONObject("interface")
                     ?.optString("shortDescription").orEmpty() }
-                    ?: entry.optJSONObject("interface")?.optString("shortDescription").orEmpty(),
+                    ?: entry.optJSONObject("interface")?.optString("shortDescription").orEmpty()),
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -112,8 +111,7 @@ fun PluginDetailSheet(
                             val obj = value as? JSONObject
                             val title = obj?.optString("name").orEmpty()
                                 .ifBlank { obj?.optString("displayName").orEmpty() }
-                                .ifBlank { obj?.optString("id").orEmpty() }
-                                .ifBlank { value?.toString().orEmpty() }
+                                .ifBlank { "第 ${i + 1} 项能力" }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.CheckCircleOutline, null, tint = Ink.jade,
                                     modifier = Modifier.size(17.dp))
@@ -146,24 +144,6 @@ fun PluginDetailSheet(
                                     errors[skillKey]?.let { ErrorText(it) }
                                 }
                             }
-                        }
-                    }
-                }
-                TextButton(onClick = { rawOpen = !rawOpen }) {
-                    Text(if (rawOpen) "收起完整协议记录" else "查看完整协议记录")
-                }
-                CodexReveal(rawOpen) {
-                    MaterialPanel(Modifier.fillMaxWidth()) {
-                        val raw = info.toString(2)
-                        SelectionContainer {
-                            Text(raw.take(14000), fontFamily = FontFamily.Monospace,
-                                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (raw.length > 14000) {
-                            OutlinedButton(onClick = {
-                                readerTitle = "插件完整协议记录"
-                                readerText = raw
-                            }) { Text("查看全文") }
                         }
                     }
                 }

@@ -82,7 +82,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun ConnectedAppsPage(vm: CodexViewModel) {
+fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val apps = records(data["apps"])
@@ -98,8 +98,8 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
         SectionIntro("CONNECTORS / APPS", "已连接应用", "清楚区分发现、配置启用和当前可调用状态。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("应用目录", style = MaterialTheme.typography.titleMedium)
-            Text(apps.size.toString() + " 个目录条目", color = Ink.copper)
-            Text("连接应用的登录与权限由 Codex 和该服务提供。应用详情通过官方 app/read 查询。", color = Ink.muted)
+            Text("当前发现 ${apps.size} 个应用", color = Ink.copper)
+            Text("应用登录、授权与可用能力由当前连接状态决定。", color = Ink.muted)
             OutlinedButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
@@ -109,7 +109,11 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
         IntegrationState(vm, "appInstalled") { vm.refresh("appInstalled", "app/installed") }
         if (apps.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
-            Text("可先检查账号登录、插件目录以及当前环境的网络和接入权限。", color = Ink.muted)
+            Text("检查登录状态，或进入插件管理查看可用的扩展。",
+                color = Ink.muted)
+            OutlinedButton(onClick = { navigate("plugins") }) {
+                Text("前往插件管理")
+            }
         }
         apps.forEach { app ->
             val id = app.optString("id")
@@ -135,7 +139,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                     StatusPill(if (app.optBoolean("isEnabled", true)) "已启用" else "已禁用",
                         app.optBoolean("isEnabled", true))
                 }
-                app.optString("description").takeIf { it.isNotBlank() }?.let {
+                PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Ink.muted)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -162,9 +166,23 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         IntegrationState(vm, "appDetail") { vm.refresh("appDetail", "app/read",
                             JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true)) }
-                        data["appDetail"]?.let {
-                            Text(it.toString(2), fontFamily = FontFamily.Monospace,
-                                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        data["appDetail"]?.let { response ->
+                            val details = records(response)
+                            val found = details.firstOrNull { it.optString("id") == id }
+                                ?: details.firstOrNull()
+                            val tools = found?.optJSONArray("tools")
+                            if (tools != null && tools.length() > 0) {
+                                Text("可调用的工具", style = MaterialTheme.typography.titleSmall)
+                                for (index in 0 until tools.length()) {
+                                    val tool = tools.optJSONObject(index) ?: continue
+                                    Text(PresentationPolicy.meaningful(tool.optString("name"))
+                                        .ifEmpty { "未命名工具" },
+                                        style = MaterialTheme.typography.bodyMedium)
+                                }
+                            } else {
+                                Text("暂未发现可直接调用的工具。",
+                                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }
@@ -176,7 +194,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
         CodexConfirmDialog(
             title = if (desired) "启用连接应用" else "停用连接应用",
             message = "此操作将修改 Codex 对该应用的本地启用配置。",
-            detail = item.optString("name") + "\nID：" + id,
+            detail = PresentationPolicy.meaningful(item.optString("name")).ifEmpty { "当前应用" },
             confirmLabel = "确认修改",
             destructive = !desired,
             onConfirm = {
@@ -226,24 +244,21 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("可通过 Codex 配置页设置服务，或通过插件安装所需服务。", color = Ink.muted)
         }
         servers.forEach { server ->
-            val name = server.optString("name")
+            val name = PresentationPolicy.meaningful(server.optString("name")).ifEmpty { "未命名服务" }
             val tools = server.optJSONObject("tools") ?: JSONObject()
             val resources = server.optJSONArray("resources") ?: JSONArray()
-            val auth = server.opt("authStatus")?.toString() ?: "未知"
+            val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    StatusPill(server.opt("runtimeStatus")?.toString() ?: "尚未启动",
-                        !server.isNull("runtimeStatus") && !server.opt("runtimeStatus").toString().contains("failed", true))
+                    val serviceState = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
+                    StatusPill(serviceState, serviceState == "已连接")
                 }
                 Text("工具 " + tools.length() + " 项 · 资源 " + resources.length() + " 项",
                     color = Ink.muted)
                 Text("授权：" + auth, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                server.optString("httpOrigin").takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = Ink.muted)
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { selected = if (selected == name) "" else name }) {
                         Text(if (selected == name) "收起详情" else "查看工具")
@@ -281,7 +296,8 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 ) {
                                     Icon(Icons.Outlined.Description, null)
                                     Spacer(Modifier.width(9.dp))
-                                    Text(resource.optString("name").ifBlank { uri },
+                                    Text(PresentationPolicy.meaningful(resource.optString("name"))
+                                        .ifEmpty { "服务资源 ${index + 1}" },
                                         modifier = Modifier.weight(1f), maxLines = 2)
                                     Icon(Icons.Outlined.ChevronRight, null)
                                 }
@@ -289,8 +305,6 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                         val error = server.optString("toolsError")
                         if (error.isNotBlank()) ErrorText(error)
-                        Text(server.toString(2), fontFamily = FontFamily.Monospace,
-                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -341,12 +355,12 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             Text("Android 本机执行", style = MaterialTheme.typography.titleMedium)
             Text("默认在 Android 应用私有工作区运行，文件仅存储在设备本地。", color = Ink.muted)
             StatusPill("默认环境", true)
-            Text("目录：" + vm.workingDirectory, fontFamily = FontFamily.Monospace,
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            Text("当前工作区：本机工作区", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("查询执行服务状态", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(environmentId, { environmentId = it }, label = { Text("环境 ID") },
+            OutlinedTextField(environmentId, { environmentId = it }, label = { Text("环境名称") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = {
@@ -365,7 +379,13 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Text(when(key) { "envStatus" -> "状态"; "envInfo" -> "环境详情"; else -> "新增结果" },
                         style = MaterialTheme.typography.titleMedium)
-                    Text(response.toString(2), color = Ink.muted, fontFamily = FontFamily.Monospace)
+                    val state = PresentationPolicy.serviceState(response.optString("status"))
+                    Text(if (key == "environmentAdd") "已发送环境接入请求"
+                        else "运行状态：$state",
+                        style = MaterialTheme.typography.bodyMedium)
+                    PresentationPolicy.meaningful(response.optString("displayName")).takeIf {
+                        it.isNotEmpty()
+                    }?.let { Text(it, color = Ink.muted) }
                 }
             }
         }

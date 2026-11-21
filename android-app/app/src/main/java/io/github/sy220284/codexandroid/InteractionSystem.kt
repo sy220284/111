@@ -188,7 +188,7 @@ fun CodexChoiceSheet(
     }
 }
 
-/** Read long raw execution evidence on a dedicated mobile sheet, without shrinking the run stream. */
+/** Present execution results as readable sections; protocol fields remain in the ViewModel. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CodexEvidenceSheet(
@@ -197,6 +197,10 @@ fun CodexEvidenceSheet(
     onDismiss: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
+    val sections = remember(payload) { PresentationPolicy.evidenceSections(payload) }
+    val copyText = remember(sections) {
+        sections.joinToString("\n\n") { (label, value) -> "$label\n$value" }
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -209,21 +213,30 @@ fun CodexEvidenceSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge)
-            Text("Codex 返回的原始执行信息", style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            Text("查看本次操作的状态和实际输出",
+                style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
             Surface(
                 color = Ink.panel,
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .7f)),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                SelectionContainer {
-                    Text(
-                        payload,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 440.dp)
-                            .verticalScroll(rememberScrollState()).padding(14.dp),
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Ink.parchment
-                    )
+                Column(
+                    Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 440.dp)
+                        .verticalScroll(rememberScrollState()).padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    sections.forEach { (label, value) ->
+                        Text(label, color = Ink.muted,
+                            style = MaterialTheme.typography.labelMedium)
+                        SelectionContainer {
+                            Text(value,
+                                fontFamily = if (label == "执行输出" ||
+                                    label == "错误输出" || label == "执行命令")
+                                    FontFamily.Monospace else null,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Ink.parchment)
+                        }
+                    }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -231,12 +244,12 @@ fun CodexEvidenceSheet(
                     Text("关闭")
                 }
                 OutlinedButton(
-                    onClick = { clipboard.setText(AnnotatedString(payload)) },
+                    onClick = { clipboard.setText(AnnotatedString(copyText)) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
                     Icon(Icons.Outlined.ContentCopy, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
-                    Text("复制原始记录")
+                    Text("复制执行详情")
                 }
             }
             Spacer(Modifier.height(10.dp))

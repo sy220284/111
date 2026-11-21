@@ -35,15 +35,25 @@ private fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
 }
 
 @Composable
-private fun DetailToggle(value: JSONObject, label: String = "查看协议详情") {
+private fun DetailToggle(value: JSONObject, label: String = "查看服务信息") {
     var open by remember { mutableStateOf(false) }
     TextButton(onClick = { open = !open }) {
         Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
         Text(if (open) "收起详情" else label)
     }
     CodexReveal(open) {
-        Text(value.toString(2), color = Ink.muted,
-            style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace)
+        val description = PresentationPolicy.meaningful(value.optString("description"))
+        val status = PresentationPolicy.meaningful(value.optString("status"))
+        if (description.isNotEmpty()) {
+            Text(description, style = MaterialTheme.typography.bodyMedium,
+                color = Ink.muted)
+        }
+        if (status.isNotEmpty()) {
+            Text("当前状态：" + PresentationPolicy.serviceState(status),
+                style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+        }
+        if (description.isEmpty() && status.isEmpty())
+            Text("当前没有更多可展示的服务信息。", color = Ink.muted)
     }
 }
 
@@ -90,7 +100,8 @@ fun ModelsPage(vm: CodexViewModel) {
                     }
                     val choices = item.optJSONArray("supportedReasoningEfforts")
                     if (choices != null && choices.length() > 0) {
-                        Text("思考能力：" + choices.objects().joinToString(" · ") { it.optString("reasoningEffort") },
+                        Text("思考能力：" + choices.objects().joinToString(" · ") {
+                            PresentationPolicy.reasoningLabel(it.optString("reasoningEffort")) },
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 }
@@ -116,7 +127,11 @@ fun ProvidersPage(vm: CodexViewModel) {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("默认服务商", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-            Text(defaultId.ifBlank { "等待加载" }, style = MaterialTheme.typography.titleLarge)
+            val defaultName = entries.firstOrNull { it.optString("id") == defaultId }
+                ?.let { PresentationPolicy.meaningful(it.optString("name")) }
+                .orEmpty()
+            Text(defaultName.ifEmpty { "使用默认服务商" },
+                style = MaterialTheme.typography.titleLarge)
             Text("不同服务商拥有独立目录与认证配置。", color = Ink.muted)
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
@@ -173,7 +188,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Dns, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
-                    Text(item.optString("name").ifBlank { item.optString("id") },
+                    Text(PresentationPolicy.providerName(item.optString("name")),
                         style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     if (defaultId == item.optString("id")) StatusPill("当前默认")
                 }
@@ -216,7 +231,8 @@ fun ProvidersPage(vm: CodexViewModel) {
     toSelect?.let { item ->
         CodexConfirmDialog(
             title = "切换默认模型服务商",
-            message = "将新会话的默认服务商切换为：" + item.optString("name", item.optString("id")),
+            message = "将新会话的默认服务商切换为：" +
+                PresentationPolicy.providerName(item.optString("name")),
             confirmLabel = "确认切换",
             onConfirm = {
                 vm.rpc("providers", "modelProvider/default/set",
@@ -239,30 +255,41 @@ fun SkillsPage(vm: CodexViewModel) {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list") }
         groups.forEach { group ->
-            Text(group.optString("cwd"), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            Text("工作区技能", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             group.optJSONArray("skills")?.objects()?.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
+                var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.School, null, tint = Ink.copper)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(meta.optString("displayName").ifBlank { skill.optString("name") },
+                            Text(PresentationPolicy.meaningful(meta.optString("displayName")).ifEmpty {
+                                PresentationPolicy.skillName(skill.optString("name")) },
                                 style = MaterialTheme.typography.titleMedium)
-                            Text(skill.optString("path"), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            Text(if (skill.optBoolean("enabled")) "已启用 · 可在对话中调用" else "已停用",
                                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                         }
                         WhiteSwitch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
                             confirmation = skill to enabled
                         })
                     }
-                    Text(meta.optString("shortDescription").ifBlank { skill.optString("description") },
+                    val description = meta.optString("shortDescription").ifBlank {
+                        skill.optString("description")
+                    }
+                    Text(PresentationPolicy.readableSkillSummary(description),
                         color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                    DetailToggle(skill)
+                    if (PresentationPolicy.meaningful(description).isNotEmpty()) {
+                        TextButton(onClick = { expanded = !expanded }) {
+                            Text(if (expanded) "收起说明" else "查看技能说明")
+                        }
+                        if (expanded) Text(description,
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
             group.optJSONArray("errors")?.objects()?.forEach { issue ->
-                ErrorText(issue.toString())
+                ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
             }
         }
         if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("目录中暂时没有技能。", color = Ink.muted) }
@@ -271,7 +298,7 @@ fun SkillsPage(vm: CodexViewModel) {
         CodexConfirmDialog(
             title = if (enabled) "启用技能" else "停用技能",
             message = "将修改此技能在 Codex 中的启用状态。",
-            detail = "技能：" + skill.optString("name") + "\n路径：" + skill.optString("path"),
+            detail = "技能：" + PresentationPolicy.skillName(skill.optString("name")),
             confirmLabel = if (enabled) "确认启用" else "确认停用",
             onConfirm = {
                 vm.rpc("skills", "skills/config/write",
@@ -526,19 +553,24 @@ fun HooksPage(vm: CodexViewModel) {
         SectionIntro("RUNTIME / HOOKS", "触发钩子", "查看执行时机、来源、权限与托管状态。")
         SourceState(vm, "hooks") { vm.refresh("hooks", "hooks/list") }
         groups.forEach { group ->
-            Text(group.optString("cwd"), color = Ink.muted)
+            Text("工作区触发器", color = Ink.muted)
             group.optJSONArray("hooks")?.objects()?.forEach { hook ->
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.Bolt, null, tint = Ink.copper)
                         Spacer(Modifier.width(11.dp))
-                        Text(hook.optString("eventName"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(PresentationPolicy.hookEvent(hook.optString("eventName")),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
                         StatusPill(if (hook.optBoolean("enabled")) "启用" else "停用", hook.optBoolean("enabled"))
                     }
-                    Text(hook.optString("key"), color = Ink.parchment)
-                    Text("来源：" + hook.optString("sourcePath"), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    Text("可信状态：" + hook.optString("trustStatus"), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    DetailToggle(hook)
+                    Text("来源：当前工作区", color = Ink.muted,
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "运行策略：" + if (hook.optString("trustStatus").equals("trusted", ignoreCase = true))
+                            "已核验" else "由运行核心管理",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }
@@ -551,6 +583,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val status by vm.bridge.status.collectAsState()
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
+    var showLogs by remember { mutableStateOf(false) }
     ScreenColumn {
         SectionIntro("ENGINE / DIAGNOSTICS", "内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -566,16 +599,21 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             Text(when (statusSnapshot) {
                 EngineStatus.Starting -> "正在初始化本机进程和 JSON-RPC。"
                 EngineStatus.Connected -> "进程已通过 initialize 并建立响应通道。"
-                is EngineStatus.Unavailable -> statusSnapshot.reason
+                is EngineStatus.Unavailable ->
+                    "本机内核连接失败，可尝试重新连接或查看启动日志。"
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
-            Text("工作目录：" + vm.workingDirectory, fontFamily = FontFamily.Monospace, color = Ink.muted)
+            Text("工作区：本机工作区", color = Ink.muted)
             val stderr by vm.bridge.recentStderr.collectAsState()
             if (stderr.isNotEmpty()) {
-                Text("内核启动日志（仅保存最近 16 行）", color = Ink.copper,
-                    style = MaterialTheme.typography.titleMedium)
-                Text(stderr.joinToString("\n"), color = Ink.muted, fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.labelMedium)
+                TextButton(onClick = { showLogs = !showLogs }) {
+                    Text(if (showLogs) "收起启动日志" else "查看启动日志")
+                }
+                CodexReveal(showLogs) {
+                    Text(stderr.joinToString("\n"), color = Ink.muted,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.labelMedium)
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { vm.bridge.close(); vm.connect() }) {
@@ -590,7 +628,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
         data["diagnostics"]?.let {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("诊断结果", style = MaterialTheme.typography.titleMedium)
-                DetailToggle(it, "展开诊断数据")
+                DetailToggle(it, "查看诊断摘要")
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {

@@ -43,8 +43,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         item(key = "intro") {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -73,13 +73,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 9.dp),
                     color = Ink.muted, style = MaterialTheme.typography.titleMedium)
                 if (entries.isNotEmpty()) {
-                    Surface(shape = RoundedCornerShape(25.dp), color = Ink.canvas,
-                        border = BorderStroke(1.dp, Ink.border.copy(alpha = .72f)),
-                        shadowElevation = 2.dp, tonalElevation = 0.dp) {
+                    Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
+                        border = BorderStroke(1.dp, Ink.border),
+                        shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
                             entries.forEachIndexed { index, entry ->
                                 if (index > 0) HorizontalDivider(
-                                    modifier = Modifier.padding(start = 74.dp, end = 18.dp),
+                                    modifier = Modifier.padding(start = 58.dp, end = 15.dp),
                                     color = Ink.border.copy(alpha = .46f), thickness = .5.dp)
                                 SettingRouteRow(page = entry, detail = when(entry.id) {
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待检查"
@@ -144,14 +144,14 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
             .clickable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 70.dp).padding(horizontal = 17.dp, vertical = 11.dp),
+            .heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Surface(modifier = Modifier.size(42.dp), shape = CircleShape,
+        Surface(modifier = Modifier.size(34.dp), shape = CircleShape,
             color = Ink.canvas, border = BorderStroke(1.dp, tone.copy(alpha = .33f))) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(page.icon, null, modifier = Modifier.size(22.dp), tint = tone)
+                Icon(page.icon, null, modifier = Modifier.size(19.dp), tint = tone)
             }
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -160,7 +160,7 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
             Text(page.subtitle, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (detail.isNotBlank()) Text(detail, color = Ink.muted,
+        if (detail.isNotBlank() && page.id == "diagnostics") Text(detail, color = Ink.muted,
             style = MaterialTheme.typography.labelMedium, maxLines = 1)
         Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
             modifier = Modifier.size(21.dp))
@@ -198,16 +198,40 @@ private fun AppearanceSettingToggle(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceActionsSheet(
-    onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false
+    onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false,
+    imageCount: Int = 0, importing: Boolean = false, onPickImage: (() -> Unit)? = null
 ) {
+    fun openTool(route: String) {
+        // The hosting page completes the route change after this window is removed.
+        onDismiss()
+        navigate(route)
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
             .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("工作区工具", style = MaterialTheme.typography.headlineSmall)
+            Text(if (onPickImage == null) "工作区工具" else "任务工具与附件",
+                style = MaterialTheme.typography.headlineSmall)
             Text("文件与终端随时可用；代码审查和任务队列需要选中会话。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            if (onPickImage != null) {
+                Text("添加附件", style = MaterialTheme.typography.titleMedium)
+                OutlinedButton(
+                    onClick = { onDismiss(); onPickImage() },
+                    enabled = !importing && imageCount < LocalImageAttachments.MAX_FILES,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)
+                        .testTag("attachment-pick-image")
+                ) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("从相册或文件选择图片")
+                }
+                if (imageCount >= LocalImageAttachments.MAX_FILES)
+                    Text("最多添加三张图片，移除已有附件后可继续。",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                HorizontalDivider(color = Ink.border)
+            }
             NavigationPolicy.quickToolRoutes.chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { id ->
@@ -215,7 +239,7 @@ fun WorkspaceActionsSheet(
                         val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
                         Surface(
                             modifier = Modifier.weight(1f).testTag("quick-$id")
-                                .clickable { onDismiss(); navigate(if(allowed) id else "threads") },
+                                .clickable { openTool(if(allowed) id else "threads") },
                             shape = RoundedCornerShape(20.dp),
                             border = BorderStroke(1.dp, if(allowed) Ink.border else Ink.copperDim),
                             color = Ink.canvas
@@ -234,7 +258,7 @@ fun WorkspaceActionsSheet(
                     }
                 }
             }
-            if (!hasThread) OutlinedButton(onClick = { onDismiss(); navigate("threads") },
+            if (!hasThread) OutlinedButton(onClick = { openTool("threads") },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Icon(Icons.Outlined.History, null)
                 Spacer(Modifier.width(8.dp))

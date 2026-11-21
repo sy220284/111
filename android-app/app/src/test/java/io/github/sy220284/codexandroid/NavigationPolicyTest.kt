@@ -7,8 +7,6 @@ class NavigationPolicyTest {
     @Test fun commonNavigationRemainsCompact() {
         assertEquals(listOf("home", "chat", "threads", "files", "approvals", "settings"),
             NavigationPolicy.sidebarRoutes)
-        assertEquals(listOf("home", "chat", "files", "threads", "settings"),
-            NavigationPolicy.primaryRoutes)
         assertTrue(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("review"))
         assertTrue(NavigationPolicy.isSettingsChild("plugins"))

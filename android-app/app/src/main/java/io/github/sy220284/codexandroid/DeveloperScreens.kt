@@ -409,7 +409,6 @@ fun TerminalPage(vm: CodexViewModel) {
     var command by rememberSaveable { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
-    var showProcess by remember { mutableStateOf(false) }
     val session by vm.terminalSession.collectAsState()
     val errors by vm.errors.collectAsState()
 
@@ -418,7 +417,7 @@ fun TerminalPage(vm: CodexViewModel) {
             "运行本机工作区命令。执行期间可以查看实时输出、输入内容或主动停止。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("Android 进程级隔离", style = MaterialTheme.typography.titleMedium)
-            Text("工作区：" + vm.workingDirectory, color = Ink.muted,
+            Text("执行位置：本机工作区", color = Ink.muted,
                 style = MaterialTheme.typography.labelMedium)
             Text("命令可能修改应用工作区。执行前显示完整内容并请你确认。", color = Ink.muted)
             OutlinedTextField(command, { command = it },
@@ -499,14 +498,6 @@ fun TerminalPage(vm: CodexViewModel) {
                     CodexNotice("已保留终端最近 128KiB 输出，较早日志已从界面移出。",
                         NoticeTone.Warning)
                 }
-                TextButton(onClick = { showProcess = !showProcess }) {
-                    Text(if (showProcess) "隐藏会话标识" else "查看会话标识")
-                }
-                if (showProcess) {
-                    Text(session.processId, color = Ink.muted,
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelSmall)
-                }
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("标准输出", style = MaterialTheme.typography.titleMedium)
@@ -533,7 +524,7 @@ fun TerminalPage(vm: CodexViewModel) {
     if (confirm) CodexConfirmDialog(
         title = "确认执行命令",
         message = "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
-        detail = command + "\n\n执行目录：" + vm.workingDirectory,
+        detail = command + "\n\n执行位置：本机工作区",
         confirmLabel = "确认执行",
         destructive = true,
         onConfirm = {

@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
@@ -28,7 +27,6 @@ fun ThreadContextTools(
     onDismiss: () -> Unit
 ) {
     val current by vm.activeThread.collectAsState()
-    val activeTurn by vm.activeTurn.collectAsState()
     val running by vm.running.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -42,6 +40,11 @@ fun ThreadContextTools(
         }
     }
     val busy = "threadFork" in loading || "threadCompact" in loading
+    fun openSubpage(route: String) {
+        // The parent owns the pending destination and opens it after this sheet is removed.
+        onDismiss()
+        navigate(route)
+    }
     val forkId = data["threadFork"]?.optJSONObject("thread")?.optString("id")
         ?.takeIf { it.isNotBlank() }
     ModalBottomSheet(
@@ -57,22 +60,17 @@ fun ThreadContextTools(
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
             SectionIntro("THREAD / OPERATIONS", "会话工具",
-                "在保留当前工程上下文的前提下复制分支，或整理长任务的历史内容。")
+                "管理当前任务的历史、资料和审查；复制分支与上下文整理位于下方。")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Forum, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text("当前会话", style = MaterialTheme.typography.titleMedium)
-                        Text(threadId ?: "尚未创建", color = Ink.muted,
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodySmall)
+                        Text(if (threadId.isNullOrBlank()) "尚未创建" else "本机工作区",
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                     StatusPill(if (running) "执行中" else "可操作", !running)
-                }
-                activeTurn?.takeIf { it.isNotBlank() }?.let {
-                    Text("当前执行轮次：" + it, color = Ink.muted,
-                        style = MaterialTheme.typography.bodySmall)
                 }
                 TextButton(onClick = {
                     threadId?.let {
@@ -83,12 +81,48 @@ fun ThreadContextTools(
                 }) { Text(if (showDetail) "隐藏会话信息" else "查看会话信息") }
                 CodexReveal(showDetail) {
                     data["threadContext"]?.let { payload ->
-                        androidx.compose.foundation.text.selection.SelectionContainer {
-                            Text(payload.optJSONObject("thread")?.toString(2) ?: payload.toString(2),
-                                color = Ink.muted, fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
+                        val info = payload.optJSONObject("thread")
+                        val title = PresentationPolicy.threadTitle(
+                            info?.optString("name"), info?.optString("preview"))
+                        Text("会话名称：$title", style = MaterialTheme.typography.bodyMedium)
+                        Text("已保存回合：" + (info?.optJSONArray("turns")?.length() ?: 0),
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
+                }
+            }
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
+                Text("和此会话相关的目标、队列与历史操作集中管理。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.Flag, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("管理任务目标")
+                }
+                OutlinedButton(onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.ViewList, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("待办队列（实验）")
+                }
+                OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.History, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("回合历史与回退")
+                }
+                OutlinedButton(onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.Attachment, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("会话关联资料")
+                }
+                OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.FactCheck, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("代码审查")
                 }
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -107,9 +141,9 @@ fun ThreadContextTools(
                 forkId?.let { fork ->
                     CodexNotice("服务端已建立新的会话分支。", NoticeTone.Success)
                     OutlinedButton(onClick = {
-                        vm.chooseThread(fork); onDismiss(); navigate("chat")
+                        vm.chooseThread(fork); openSubpage("chat")
                     }, enabled = !running) {
-                        Text("打开分支 · " + fork.take(12))
+                        Text("打开新建分支")
                     }
                 }
             }
@@ -133,60 +167,7 @@ fun ThreadContextTools(
             listOf("threadFork", "threadCompact", "threadContext").forEach { key ->
                 errors[key]?.let { ErrorText(it) }
             }
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
-                Text("和此会话相关的目标、队列与历史操作集中管理。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("goals")
-                }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.Flag, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("管理任务目标")
-                }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("queue")
-                }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.ViewList, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("待办队列（实验）")
-                }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("history-tools")
-                }, enabled = !threadId.isNullOrBlank() && !running,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.History, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("回合历史与回退")
-                }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("thread-attachments")
-                }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.Attachment, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("会话关联资料")
-                }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("review")
-                }, enabled = !threadId.isNullOrBlank() && !running,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.FactCheck, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("代码审查")
-                }
-            }
-            TextButton(onClick = {
-                onDismiss()
-                navigate("threads")
-            }, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { openSubpage("threads") }, modifier = Modifier.fillMaxWidth()) {
                 Text("前往会话资料库，管理名称与归档")
             }
             Spacer(Modifier.height(12.dp))
@@ -199,7 +180,7 @@ fun ThreadContextTools(
             message = if (kind == "fork")
                 "内核将复制当前会话，生成一个新线程，原会话保持不变。"
             else "内核会压缩当前会话的历史上下文。处理后的上下文摘要可能省略部分细节。",
-            detail = "会话：${threadId ?: "未选择"}",
+            detail = if (threadId.isNullOrBlank()) "请先选择会话" else "操作将作用于当前会话",
             confirmLabel = if (kind == "fork") "确认创建" else "确认整理",
             onConfirm = {
                 if (threadId != null) {
