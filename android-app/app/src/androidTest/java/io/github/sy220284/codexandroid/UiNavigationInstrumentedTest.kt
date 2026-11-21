@@ -180,7 +180,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("选择登录方式").assertExists()
         rule.onNodeWithText("设备码登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("浏览器登录").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("查看协议数据").assertExists()
+        rule.onNodeWithText("查看账号授权与安全设置").assertExists()
         rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
@@ -309,6 +309,52 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
         rule.onNodeWithText("插件源", substring = false).assertExists()
         capture("plugins-android35.png")
+    }
+
+    @Test fun secondarySettingsPagesHaveActualDeviceScreenshots() {
+        // Every captured screen comes from the current Android Activity and real navigation.
+        val routeScreens = listOf(
+            "providers", "skills", "apps", "mcp", "hooks",
+            "environments", "security", "config", "diagnostics", "queue"
+        )
+        routeScreens.forEach { route ->
+            openSettingRoute(route)
+            rule.onNodeWithTag("screen-title")
+                .assertTextEquals(pages.first { it.id == route }.title)
+            rule.waitForIdle()
+            capture("audit-" + route + "-android35.png")
+        }
+    }
+
+    @Test fun approvalsAndChildEditorsHaveReadableStates() {
+        openDrawerRoute("approvals")
+        rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
+        capture("audit-approvals-android35.png")
+
+        openSettingRoute("providers")
+        rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
+        rule.onNodeWithText("服务地址（HTTP / HTTPS）").assertExists()
+        capture("audit-provider-editor-android35.png")
+
+        openSettingRoute("config")
+        rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithText("设置值（JSON）").assertExists()
+        capture("audit-config-editor-android35.png")
+
+        openSettingRoute("environments")
+        rule.onNodeWithText("添加外部执行环境").performScrollTo().performClick()
+        rule.onNodeWithText("执行服务 WebSocket URL").assertExists()
+        capture("audit-environment-editor-android35.png")
+    }
+
+    @Test fun expandedSecurityAndAboutViewsAreCaptured() {
+        openSettingRoute("security")
+        rule.onNodeWithText("可用权限方案").performScrollTo()
+        capture("audit-security-profiles-android35.png")
+
+        openSettingRoute("about")
+        rule.onNodeWithText("关于 Codex Android").assertExists()
+        captureOverlay("audit-about-android35.png")
     }
 
     @Test fun toolbarQuickActionsCanOpenProjectTools() {
