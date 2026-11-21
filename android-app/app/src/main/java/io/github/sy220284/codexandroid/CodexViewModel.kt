@@ -66,35 +66,51 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun refresh(key: String, method: String, params: JSONObject = JSONObject()) {
+    /**
+     * 同一结果键只接受最后发起的请求，避免较早的慢响应覆盖新结果。
+     * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
+     */
+    private val latestRequests = LatestRequestGate()
+
+    private fun request(
+        key: String,
+        method: String,
+        params: JSONObject,
+        onSuccess: ((JSONObject) -> Unit)?
+    ) {
+        val ticket = latestRequests.begin(key)
+        data.value = data.value - key
+        errors.value = errors.value - key
+        loading.value = loading.value + key
         viewModelScope.launch {
-            loading.value = loading.value + key
             try {
                 val response = bridge.request(method, params)
-                data.value = data.value + (key to response)
-                errors.value = errors.value - key
+                if (latestRequests.isLatest(key, ticket)) {
+                    data.value = data.value + (key to response)
+                    errors.value = errors.value - key
+                    onSuccess?.invoke(response)
+                }
             } catch (failure: Exception) {
-                errors.value = errors.value + (key to (failure.message ?: "请求失败"))
+                if (latestRequests.isLatest(key, ticket)) {
+                    errors.value = errors.value + (key to (failure.message ?: "请求失败"))
+                }
             } finally {
-                loading.value = loading.value - key
+                if (latestRequests.complete(key, ticket)) {
+                    loading.value = loading.value - key
+                }
             }
         }
     }
 
+    fun refresh(
+        key: String,
+        method: String,
+        params: JSONObject = JSONObject(),
+        onSuccess: ((JSONObject) -> Unit)? = null
+    ) = request(key, method, params, onSuccess)
+
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
-        viewModelScope.launch {
-            loading.value = loading.value + key
-            try {
-                val response = bridge.request(method, params)
-                data.value = data.value + (key to response)
-                errors.value = errors.value - key
-                after?.invoke()
-            } catch (failure: Exception) {
-                errors.value = errors.value + (key to (failure.message ?: "请求失败"))
-            } finally {
-                loading.value = loading.value - key
-            }
-        }
+        request(key, method, params, if (after == null) null else { _ -> after() })
     }
 
     fun chooseThread(id: String) {
