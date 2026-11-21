@@ -271,8 +271,10 @@ class UiNavigationInstrumentedTest {
         openSettingRoute("account")
         rule.onNodeWithText("账号与工作区切换（实验）").performScrollTo().performClick()
         rule.onNodeWithText("账号与工作区切换", substring = false).assertExists()
-        rule.onNodeWithText("刷新账号与工作区", substring = false)
-            .assertExists() // 引擎连接后才读取，离线展示连接动作
+        val connected = rule.onAllNodesWithText("刷新账号与工作区", substring = false)
+            .fetchSemanticsNodes().isNotEmpty()
+        if (connected) rule.onNodeWithText("刷新账号与工作区").assertExists()
+        else rule.onNodeWithText("连接本机内核").assertExists()
         captureOverlay("account-sessions-android35.png")
     }
 
