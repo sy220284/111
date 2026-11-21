@@ -195,7 +195,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel) {
+fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val servers = records(data["mcp"])
@@ -203,6 +203,7 @@ fun McpServicesPage(vm: CodexViewModel) {
     var selected by remember { mutableStateOf("") }
     var confirmLogin by remember { mutableStateOf("") }
     var resourceSelection by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
+    var toolSelection by remember { mutableStateOf<Triple<String, String, JSONObject>?>(null) }
     val currentThread by vm.activeThread.collectAsState()
     LaunchedEffect(Unit) {
         val args = JSONObject().put("detail", "full")
@@ -252,8 +253,20 @@ fun McpServicesPage(vm: CodexViewModel) {
                 CodexReveal(selected == name) {
                     Column {
                         val keys = tools.keys().asSequence().toList()
-                        keys.forEach { key ->
-                            Text("· " + key, style = MaterialTheme.typography.bodyMedium)
+                        keys.forEach { toolName ->
+                            OutlinedButton(
+                                onClick = {
+                                    toolSelection = Triple(
+                                        name, toolName, tools.optJSONObject(toolName) ?: JSONObject()
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            ) {
+                                Icon(Icons.Outlined.Build, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(toolName, modifier = Modifier.weight(1f), maxLines = 2)
+                                Icon(Icons.Outlined.ChevronRight, null)
+                            }
                         }
                         if (resources.length() > 0) {
                             Spacer(Modifier.height(8.dp))
@@ -295,6 +308,11 @@ fun McpServicesPage(vm: CodexViewModel) {
     resourceSelection?.let { (name, resource) ->
         McpResourceSheet(serverName = name, resource = resource, vm = vm,
             onDismiss = { resourceSelection = null })
+    }
+    toolSelection?.let { (name, toolName, metadata) ->
+        McpToolCallSheet(vm, name, toolName, metadata,
+            onDismiss = { toolSelection = null },
+            onOpenThreads = { toolSelection = null; navigate("threads") })
     }
     if (confirmLogin.isNotBlank()) CodexConfirmDialog(
         title = "授权 MCP 服务",
