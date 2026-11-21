@@ -99,6 +99,7 @@ fun CodexShell(vm: CodexViewModel) {
     var showReview by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
     var showMode by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
     val move: (String) -> Unit = move@{ destination ->
         when (destination) {
             "review" -> {
@@ -119,6 +120,14 @@ fun CodexShell(vm: CodexViewModel) {
             }
             "modes" -> {
                 showMode = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "history-tools" -> {
+                if (activeThread == null) {
+                    selected = "threads"
+                    backHistory = (backHistory + "threads").takeLast(18)
+                } else showHistory = true
                 scope.launch { drawer.close() }
                 return@move
             }
@@ -303,6 +312,7 @@ fun CodexShell(vm: CodexViewModel) {
             vm, onDismiss = { showGoal = false }
         )
         if (showMode) ModeChoiceSurface(vm) { showMode = false }
+        if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
     }
 }
 

@@ -155,6 +155,24 @@ fun ThreadContextTools(
                     Spacer(Modifier.width(8.dp))
                     Text("待办队列（实验）")
                 }
+                OutlinedButton(onClick = {
+                    onDismiss()
+                    navigate("history-tools")
+                }, enabled = !threadId.isNullOrBlank() && !running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.History, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("回合历史与回退")
+                }
+                OutlinedButton(onClick = {
+                    onDismiss()
+                    navigate("review")
+                }, enabled = !threadId.isNullOrBlank() && !running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.FactCheck, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("代码审查")
+                }
             }
             TextButton(onClick = {
                 onDismiss()
