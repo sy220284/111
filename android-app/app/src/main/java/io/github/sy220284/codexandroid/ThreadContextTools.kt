@@ -133,6 +133,29 @@ fun ThreadContextTools(
             listOf("threadFork", "threadCompact", "threadContext").forEach { key ->
                 errors[key]?.let { ErrorText(it) }
             }
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
+                Text("和此会话相关的目标、队列与历史操作集中管理。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = {
+                    onDismiss()
+                    navigate("goals")
+                }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.Flag, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("管理任务目标")
+                }
+                OutlinedButton(onClick = {
+                    onDismiss()
+                    navigate("queue")
+                }, enabled = !threadId.isNullOrBlank(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Icon(Icons.Outlined.ViewList, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("待办队列（实验）")
+                }
+            }
             TextButton(onClick = {
                 onDismiss()
                 navigate("threads")
