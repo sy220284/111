@@ -198,16 +198,35 @@ private fun AppearanceSettingToggle(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceActionsSheet(
-    onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false
+    onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false,
+    imageCount: Int = 0, importing: Boolean = false, onPickImage: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
             .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("工作区工具", style = MaterialTheme.typography.headlineSmall)
+            Text(if (onPickImage == null) "工作区工具" else "任务工具与附件",
+                style = MaterialTheme.typography.headlineSmall)
             Text("文件与终端随时可用；代码审查和任务队列需要选中会话。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            if (onPickImage != null) {
+                Text("添加附件", style = MaterialTheme.typography.titleMedium)
+                OutlinedButton(
+                    onClick = { onDismiss(); onPickImage() },
+                    enabled = !importing && imageCount < LocalImageAttachments.MAX_FILES,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)
+                        .testTag("attachment-pick-image")
+                ) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("从相册或文件选择图片")
+                }
+                if (imageCount >= LocalImageAttachments.MAX_FILES)
+                    Text("最多添加三张图片，移除已有附件后可继续。",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                HorizontalDivider(color = Ink.border)
+            }
             NavigationPolicy.quickToolRoutes.chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { id ->
