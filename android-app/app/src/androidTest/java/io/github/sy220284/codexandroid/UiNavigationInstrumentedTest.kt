@@ -30,6 +30,7 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("settings-search").assertExists()
         }
         rule.waitForIdle()
+        rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
         val search = rule.onNodeWithTag("settings-search")
         search.performTextClearance()
