@@ -520,10 +520,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
     }
     if (showAttachmentTools) {
-        AttachmentActionsSheet(
-            imageCount = attachedImages.size,
-            importing = attachmentBusy,
+        WorkspaceActionsSheet(
             onDismiss = { showAttachmentTools = false },
+            navigate = navigate, hasThread = thread != null,
+            imageCount = attachedImages.size, importing = attachmentBusy,
             onPickImage = { imagePicker.launch("image/*") }
         )
     }
