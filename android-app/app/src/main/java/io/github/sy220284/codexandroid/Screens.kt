@@ -42,6 +42,7 @@ import org.json.JSONObject
 fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     when (id) {
         "home" -> HomePage(vm, navigate)
+        "settings" -> SettingsHubPage(vm, navigate)
         "chat" -> ConversationPage(vm, navigate)
         "threads" -> ThreadLibraryPage(vm, navigate)
         "files" -> WorkspacePage(vm)

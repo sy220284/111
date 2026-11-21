@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -74,7 +75,8 @@ val pages = listOf(
     Page("limits", "使用限额", "设置与账户", "限额和重置时间", Icons.Outlined.Speed, "account/rateLimits/read"),
     Page("appearance", "外观与交互", "设置与账户", "显示密度、材质和动效", Icons.Outlined.Palette),
     Page("diagnostics", "诊断与日志", "设置与账户", "本机连接与运行状态", Icons.Outlined.BugReport, "server/diagnostics", true),
-    Page("about", "关于项目", "设置与账户", "版本、源码与隐私", Icons.Outlined.Info)
+    Page("about", "关于项目", "设置与账户", "版本、源码与隐私", Icons.Outlined.Info),
+    Page("settings", "设置", "通用", "账户、功能、主机与外观", Icons.Outlined.Settings)
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
@@ -92,6 +94,7 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+    var showQuickTools by rememberSaveable { mutableStateOf(false) }
     val move: (String) -> Unit = { destination ->
         if (page.id != destination) {
             backHistory = (backHistory + destination).takeLast(18)
@@ -109,11 +112,18 @@ fun CodexShell(vm: CodexViewModel) {
         keyboard?.hide()
         scope.launch { drawer.close() }
     }
+    val goBack: () -> Unit = {
+        if (backHistory.size > 1) {
+            backHistory = backHistory.dropLast(1)
+            selected = backHistory.last()
+            focusManager.clearFocus()
+            keyboard?.hide()
+        } else {
+            move("settings")
+        }
+    }
     BackHandler(enabled = drawer.currentValue == DrawerValue.Closed && backHistory.size > 1) {
-        backHistory = backHistory.dropLast(1)
-        selected = backHistory.last()
-        focusManager.clearFocus()
-        keyboard?.hide()
+        goBack()
     }
 
     BoxWithConstraints(
@@ -128,7 +138,7 @@ fun CodexShell(vm: CodexViewModel) {
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 bottomBar = {
-                    if (!wide && !imeVisible) {
+                    if (!wide && !imeVisible && selected != "chat") {
                         NavigationBar(
                             containerColor = Ink.recessed,
                             tonalElevation = 0.dp,
@@ -145,19 +155,13 @@ fun CodexShell(vm: CodexViewModel) {
                                         "home" -> "首页"
                                         "chat" -> "对话"
                                         "files" -> "文件"
-                                        else -> "会话"
+                                        "threads" -> "会话"
+                                        else -> "设置"
                                     }) },
                                     alwaysShowLabel = true
                                 )
                             }
-                            NavigationBarItem(
-                                selected = NavigationPolicy.isMoreSelected(selected),
-                                onClick = { scope.launch { drawer.open() } },
-                                modifier = Modifier.testTag("bottom-more"),
-                                icon = { Icon(Icons.Outlined.Apps, contentDescription = "更多功能") },
-                                label = { Text("更多") },
-                                alwaysShowLabel = true
-                            )
+
                         }
                     }
                 },
@@ -170,11 +174,24 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         navigationIcon = {
-                            if (!wide) IconButton(onClick = { scope.launch { drawer.open() } }) {
-                                Icon(Icons.Outlined.Menu, "打开侧边导航")
+                            if (!wide) {
+                                val isNested = NavigationPolicy.isSettingsChild(selected)
+                                IconButton(
+                                    onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
+                                    modifier = Modifier.padding(start = 6.dp).size(45.dp)
+                                        .border(1.dp, Ink.border, CircleShape)
+                                ) {
+                                    Icon(if (isNested) Icons.Outlined.ArrowBack else Icons.Outlined.Menu,
+                                        if (isNested) "返回上一页" else "打开侧边导航")
+                                }
                             }
                         },
                         actions = {
+                            if (selected in setOf("home", "chat", "files")) {
+                                IconButton(onClick = { showQuickTools = true }) {
+                                    Icon(Icons.Outlined.Widgets, contentDescription = "快捷工具")
+                                }
+                            }
                             IconButton(
                                 onClick = { vm.newThread(); move("chat") },
                                 enabled = !running
@@ -215,7 +232,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 )
                             }
                         },
-                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Ink.canvas.copy(alpha = .92f))
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Ink.canvas)
                     )
                 }
             ) { inset ->
@@ -259,136 +276,95 @@ fun CodexShell(vm: CodexViewModel) {
 
 @Composable
 private fun Sidebar(
-    modifier: Modifier, selected: String, onSelect: (String) -> Unit, status: EngineStatus, approvals: Int
+    modifier: Modifier, selected: String, onSelect: (String) -> Unit,
+    status: EngineStatus, approvals: Int
 ) {
-    var filter by rememberSaveable { mutableStateOf("") }
-    var expandedGroup by rememberSaveable { mutableStateOf("工作台") }
-    var revealAdvanced by rememberSaveable { mutableStateOf(false) }
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    LaunchedEffect(selected) {
-        pages.firstOrNull { it.id == selected }?.let {
-            expandedGroup = it.section
-            if (!NavigationPolicy.visible(it.id, revealAdvanced = false, searching = false)) {
-                revealAdvanced = true
+    Column(
+        modifier.background(Ink.canvas).padding(horizontal = 18.dp, vertical = 15.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 15.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(49.dp), shape = CircleShape, color = Ink.canvas,
+                border = BorderStroke(1.dp, Ink.copperDim)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null,
+                        tint = Ink.copper, modifier = Modifier.size(23.dp))
+                }
             }
-        }
-    }
-    Column(modifier.background(Ink.recessed).padding(horizontal = 14.dp, vertical = 12.dp)) {
-        Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 8.dp, bottom = 15.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = Ink.canvas, shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, Ink.copperDim)) {
-                Icon(Icons.Outlined.Code, null, tint = Ink.copper, modifier = Modifier.padding(12.dp))
-            }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(13.dp))
             Column {
                 Text("CODEX", style = MaterialTheme.typography.titleLarge)
-                Text("移动开发工作台", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                Text("你的移动工作台", color = Ink.muted,
+                    style = MaterialTheme.typography.labelMedium)
             }
         }
-        OutlinedTextField(filter, { filter = it },
-            modifier = Modifier.fillMaxWidth().testTag("navigation-search"), singleLine = true,
-            leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            placeholder = { Text("搜索功能与设置") },
-            trailingIcon = {
-                if (filter.isNotEmpty()) IconButton(onClick = { filter = "" }) {
-                    Icon(Icons.Outlined.Close, "清除搜索")
-                }
-            },
-            shape = RoundedCornerShape(14.dp), textStyle = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(
-                Triple("chat", "对话", Icons.Outlined.ChatBubbleOutline),
-                Triple("files", "文件", Icons.Outlined.FolderOpen),
-                Triple("approvals", if (approvals > 0) "审批 $approvals" else "审批", Icons.Outlined.GppGood)
-            ).forEach { (id, title, icon) ->
-                OutlinedButton(onClick = { onSelect(id) },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {
-                    Icon(icon, null, modifier = Modifier.size(17.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(title, maxLines = 1)
-                }
-            }
-        }
-        TextButton(
-            onClick = { revealAdvanced = !revealAdvanced },
-            modifier = Modifier.fillMaxWidth().testTag("navigation-advanced-toggle")
-        ) {
-            Icon(if (revealAdvanced) Icons.Outlined.ExpandLess else Icons.Outlined.Tune,
-                contentDescription = null, modifier = Modifier.size(19.dp))
-            Spacer(Modifier.width(7.dp))
-            Text(if (revealAdvanced) "收起高级功能" else "显示全部 ${pages.size} 项功能")
-        }
-        DividerLine()
+        Text("常用入口", modifier = Modifier.padding(start = 10.dp, top = 12.dp),
+            style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            for (group in pages.map { it.section }.distinct()) {
-                val entries = pages.filter {
-                    it.section == group &&
-                        NavigationPolicy.matches(filter, it.title, it.subtitle, it.id) &&
-                        NavigationPolicy.visible(it.id, revealAdvanced, filter.isNotBlank())
-                }
-                if (entries.isNotEmpty()) item(key = "group-$group") {
-                    Column {
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { expandedGroup = if (expandedGroup == group) "" else group }
-                                .heightIn(min = 49.dp).padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(group, modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                            Text(entries.size.toString(), style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                            Spacer(Modifier.width(7.dp))
-                            Icon(if (filter.isNotBlank() || expandedGroup == group)
-                                Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                                contentDescription = null, tint = Ink.muted, modifier = Modifier.size(19.dp))
+            items(NavigationPolicy.sidebarRoutes, key = { it }) { id ->
+                val page = pages.first { it.id == id }
+                val active = selected == id ||
+                    (id == "settings" && NavigationPolicy.isSettingsChild(selected))
+                NavigationDrawerItem(
+                    label = {
+                        Text(
+                            when (id) {
+                                "home" -> "首页"
+                                "chat" -> "任务对话"
+                                "threads" -> "会话历史"
+                                "files" -> "工作区文件"
+                                "approvals" -> "待审批操作"
+                                else -> "设置"
+                            },
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    },
+                    selected = active,
+                    onClick = { onSelect(id) },
+                    icon = { Icon(page.icon, contentDescription = null,
+                        modifier = Modifier.size(23.dp)) },
+                    badge = {
+                        if (id == "approvals" && approvals > 0) {
+                            StatusPill(approvals.toString(), tone = StatusTone.Danger)
+                        } else if (id == "settings") {
+                            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
                         }
-                        AnimatedVisibility(
-                            visible = filter.isNotBlank() || expandedGroup == group,
-                            enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))) +
-                                fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))),
-                            exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))) +
-                                fadeOut(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion)))
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                entries.forEach { entry ->
-                                    NavigationDrawerItem(
-                                        label = { Text(entry.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                        selected = entry.id == selected, onClick = { onSelect(entry.id) },
-                                        icon = { Icon(entry.icon, null, modifier = Modifier.size(21.dp)) },
-                                        badge = { if (entry.id == "approvals" && approvals > 0)
-                                            Text(approvals.toString(), color = Ink.copper) },
-                                        modifier = Modifier.heightIn(min = 51.dp).testTag("nav-${entry.id}"),
-                                        shape = RoundedCornerShape(13.dp),
-                                        colors = NavigationDrawerItemDefaults.colors(
-                                            selectedContainerColor = Ink.canvas,
-                                            selectedIconColor = Ink.copper, selectedTextColor = Ink.copper,
-                                            unselectedContainerColor = Color.Transparent,
-                                            unselectedIconColor = Ink.muted, unselectedTextColor = Ink.parchment
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                    },
+                    modifier = Modifier.testTag("nav-$id").heightIn(min = 58.dp),
+                    shape = RoundedCornerShape(19.dp),
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Ink.canvas,
+                        selectedIconColor = Ink.copper, selectedTextColor = Ink.copper,
+                        unselectedContainerColor = Ink.canvas,
+                        unselectedIconColor = Ink.muted, unselectedTextColor = Ink.parchment
+                    )
+                )
             }
         }
-        DividerLine()
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth().clickable { onSelect("diagnostics") }
-            .heightIn(min = 53.dp).padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            StatusPill(if (status == EngineStatus.Connected) "引擎已连接" else "连接状态待检查",
-                status == EngineStatus.Connected)
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Outlined.ChevronRight, "查看诊断", tint = Ink.muted)
+        HorizontalDivider(color = Ink.border)
+        Row(
+            Modifier.fillMaxWidth().clickable { onSelect("settings") }
+                .heightIn(min = 59.dp).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.RadioButtonChecked, contentDescription = null,
+                tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red,
+                modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text("本机引擎", style = MaterialTheme.typography.bodyMedium)
+                Text(if (status == EngineStatus.Connected) "运行正常" else "查看连接和配置",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Ink.muted)
         }
     }
 }
