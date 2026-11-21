@@ -191,7 +191,7 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         detail = listOf(
             "操作：" + when {
                 command.isNotBlank() -> command
-                reason.isNotBlank() -> reason
+                prompt.params.optString("reason").isNotBlank() -> prompt.params.optString("reason")
                 else -> "当前文件或工具操作"
             },
             "工作区：" + PresentationPolicy.workspaceName(prompt.params.optString("cwd"))
