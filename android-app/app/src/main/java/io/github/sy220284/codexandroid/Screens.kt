@@ -734,6 +734,8 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
+    val running by vm.running.collectAsState()
+    val activeThread by vm.activeThread.collectAsState()
     ScreenColumn {
         SectionIntro("SEARCH / THREADS", "全文检索", "通过 Codex 的历史检索定位旧任务。")
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -741,8 +743,9 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Button(onClick = { vm.refresh("search", "thread/search", JSONObject().put("searchTerm", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
         errors["search"]?.let { ErrorText(it) }
         records(data["search"]).forEach { entry ->
-            ThreadRow(entry) {
-                vm.chooseThread(entry.optString("id"))
+            ThreadRow(entry, enabled = ThreadDisplayPolicy.canOpenThread(
+                running, activeThread, entry.optString("id"))) {
+                if (!running) vm.chooseThread(entry.optString("id"))
                 navigate("chat")
             }
         }
