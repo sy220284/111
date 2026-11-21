@@ -143,8 +143,8 @@ class UiNavigationInstrumentedTest {
     @Test
     fun accountPageExposesNarrowScreenDeviceLoginActions() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNode(hasSetTextAction()).performTextInput("账号登录")
-        rule.onNode(hasText("账号登录") and !hasSetTextAction()).performClick()
+        rule.onNodeWithTag("navigation-search").performTextInput("账号登录")
+        rule.onNodeWithTag("nav-account").performClick()
         rule.onNodeWithText("选择登录方式").assertExists()
         rule.onNodeWithText("设备码登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("浏览器登录").performScrollTo().assertIsDisplayed()
@@ -153,6 +153,8 @@ class UiNavigationInstrumentedTest {
         // Preserve a clear screenshot of the top-level login choices.
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
+        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
     }
 
     @Test
@@ -239,6 +241,35 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(10_000L) {
             rule.onAllNodesWithText(name, substring = false).fetchSemanticsNodes().isEmpty()
         }
+    }
+
+    @Test
+    fun frequentBottomDestinationsAndAdvancedSearchRemainReachable() {
+        rule.onNodeWithTag("main-bottom-navigation").assertExists()
+        rule.onNodeWithTag("bottom-chat").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
+        rule.onNodeWithTag("bottom-files").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("bottom-threads").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
+        rule.onNodeWithTag("bottom-more").performClick()
+        rule.onNodeWithTag("navigation-advanced-toggle").assertExists()
+        val search = rule.onNodeWithTag("navigation-search")
+        search.performTextInput("诊断")
+        rule.onNodeWithTag("nav-diagnostics").assertExists()
+        rule.onNodeWithTag("nav-diagnostics").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
+    }
+
+    @Test
+    fun installedPluginManagementAndCatalogStayReachable() {
+        rule.onNodeWithTag("bottom-more").performClick()
+        rule.onNodeWithTag("navigation-search").performTextInput("插件")
+        rule.onNodeWithTag("nav-plugins").performClick()
+        rule.onNodeWithTag("plugins-tab-installed").assertExists()
+        rule.onNodeWithTag("plugins-tab-catalog").performClick()
+        rule.onNodeWithText("插件源", substring = false).assertExists()
+        capture("plugins-android35.png")
     }
 
     private fun captureOverlay(fileName: String) {

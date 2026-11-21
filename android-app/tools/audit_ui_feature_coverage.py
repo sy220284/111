@@ -26,7 +26,7 @@ METHOD = re.compile(r'"([A-Za-z][A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)"')
 OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9]+(?:/[A-Za-z0-9]+)+)"\s*\{')
 
 
-def audit(sources: Path, protocol: Path) -> dict:
+def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
     directory = sources.resolve()
     files = {path.name: path.read_text(encoding="utf-8")
              for path in sorted(directory.rglob("*.kt"))}
@@ -61,6 +61,26 @@ def audit(sources: Path, protocol: Path) -> dict:
     official = set(OFFICIAL.findall(protocol.read_text(encoding="utf-8")))
     if len(official) < 100:
         raise ValueError("官方 App Server 请求表解析异常")
+    surfaces = {}
+    if policy is not None:
+        payload = json.loads(policy.read_text(encoding="utf-8"))
+        surfaces = payload.get("methods", {})
+        if not isinstance(surfaces, dict):
+            raise ValueError("UI 接口分层清单缺少 methods 对象")
+        missing_policy = sorted(official - surfaces.keys())
+        removed_methods = sorted(surfaces.keys() - official)
+        if missing_policy or removed_methods:
+            raise ValueError(
+                f"UI 接口分层需要同步最新官方协议：新增/未归类 {missing_policy}；"
+                f"已经删除但仍记录 {removed_methods}"
+            )
+        allowed_surfaces = {"直接操作", "上下文操作", "高级按需", "后台内部", "平台不适用"}
+        invalid = sorted(
+            name for name, entry in surfaces.items()
+            if not isinstance(entry, dict) or entry.get("surface") not in allowed_surfaces
+        )
+        if invalid:
+            raise ValueError(f"UI 接口分层缺少有效分类：{invalid}")
     called: dict[str, list[str]] = {}
     for filename, code in files.items():
         for name in METHOD.findall(code):
@@ -87,6 +107,7 @@ def audit(sources: Path, protocol: Path) -> dict:
         "referencedRequests": len(called),
         "pages": entries,
         "referencedMethodSources": dict(sorted(called.items())),
+        "surfacePolicy": dict(sorted(surfaces.items())),
         "missingRoutes": missing,
         "unknownRoutes": unknown,
         "undefinedHandlers": unimplemented,
@@ -121,6 +142,17 @@ def report_markdown(result: dict) -> str:
     ]
     for method, sources in result["referencedMethodSources"].items():
         lines.append(f"| `{method}` | {', '.join(sources)} |")
+    if result["surfacePolicy"]:
+        lines += [
+            "", "## 用户可见与后台能力分层（锁定的官方全量接口）", "",
+            "| 官方方法 | UI 层级 | 业务归属 | Android 源码引用 |",
+            "| --- | --- | --- | --- |",
+        ]
+        for method, entry in result["surfacePolicy"].items():
+            lines.append(
+                f"| `{method}` | {entry['surface']} | {entry['owner']} | "
+                f"{'已引用' if method in result['referencedMethodSources'] else '尚未直接引用'} |"
+            )
     lines.extend(["", "## 缺失/冲突", ""])
     for title, field in [
         ("没有页面路由", "missingRoutes"),
@@ -137,11 +169,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sources", type=Path, required=True)
     parser.add_argument("--protocol", type=Path, required=True)
+    parser.add_argument("--policy", type=Path)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--json-report", type=Path, required=True)
     args = parser.parse_args()
     try:
-        result = audit(args.sources, args.protocol)
+        result = audit(args.sources, args.protocol, args.policy)
     except (OSError, ValueError) as failure:
         print(f"UI 审计失败：{failure}", file=sys.stderr)
         return 1

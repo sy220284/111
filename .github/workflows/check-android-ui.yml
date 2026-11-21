@@ -61,6 +61,7 @@ jobs:
           python3 android-app/tools/audit_ui_feature_coverage.py \
             --sources android-app/app/src/main/java \
             --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
+            --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
       - name: 验证 Compose、协议测试与静态检查
@@ -131,7 +132,7 @@ jobs:
             grep -Fq 'OK (' ui-instrument-result.log
             # All listed pages must have screenshots from the current tested screen width.
             # Missing image evidence fails the job even if the navigation tests pass.
-            for SCREEN in home sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
+            for SCREEN in home sidebar chat account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader plugins; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
             test -s ui-screenshots/home-android35.png
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
