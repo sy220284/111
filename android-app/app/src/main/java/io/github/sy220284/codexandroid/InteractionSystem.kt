@@ -122,20 +122,22 @@ fun ProtocolFeedback(
 ) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
+    val connection by vm.bridge.status.collectAsState()
     if (keys.any { it in loading }) {
         LinearProgressIndicator(Modifier.fillMaxWidth())
     }
-    keys.mapNotNull { errors[it] }
-        .map(PresentationPolicy::readableError)
-        .distinct()
-        .forEach { error ->
-            CodexNotice(
-                message = error,
-                tone = NoticeTone.Error,
-                actionLabel = if (onRetry == null) null else "重新加载",
-                onAction = { onRetry?.invoke() }
-            )
-        }
+    PresentationPolicy.visibleErrors(errors, keys).forEach { error ->
+        CodexNotice(
+            message = error,
+            tone = NoticeTone.Error,
+            actionLabel = if (onRetry == null) null else
+                if (connection == EngineStatus.Connected) "重新加载" else "重新连接",
+            onAction = {
+                if (connection == EngineStatus.Connected) onRetry?.invoke()
+                else vm.connect()
+            }
+        )
+    }
 }
 
 @Composable
