@@ -389,7 +389,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("会话工具").performClick()
         rule.onNodeWithText("复制会话分支").assertExists()
         captureOverlay("audit-thread-context-android35.png")
-        rule.onNodeWithText("回合历史与回退").performClick()
+        rule.onNodeWithText("回合历史与回退").performScrollTo().performClick()
         rule.waitForIdle()
         captureOverlay("audit-thread-history-transition-android35.png")
         rule.waitUntil(5_000L) {
@@ -404,7 +404,7 @@ class UiNavigationInstrumentedTest {
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
         rule.onNodeWithContentDescription("会话工具").performClick()
-        rule.onNodeWithText("会话关联资料").performClick()
+        rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
         rule.activity.onBackPressedDispatcher.onBackPressed()
