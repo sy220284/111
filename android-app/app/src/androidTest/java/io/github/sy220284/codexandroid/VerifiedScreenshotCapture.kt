@@ -1,28 +1,47 @@
 package io.github.sy220284.codexandroid
 
 import android.graphics.Bitmap
+import android.os.ParcelFileDescriptor
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 
 /**
- * 所有“全屏/弹层”真实截图的单一采集入口。
- *
- * Compose 语义测试可以正确通过，即使无关系统进程的 ANR 警告浮在截图上；
- * 所以截图证据必须在采集前后证明当前焦点窗口属于被测 APP。
- * 避免系统错误提示被错误保存在合格 UI 证据中。
+ * 所有全屏弹层截图共用这个验证入口。判据是 WindowManager 当前焦点窗口，
+ * 能识别跨应用的系统 ANR 对话框；无障碍节点树只作为读不到焦点信息时的补充。
+ * Android 35 某些屏宽下 getRootInActiveWindow() 会暂时返回 null，
+ * 因此单独依赖该接口会错误拒绝正常的 Compose 弹层。
  */
 internal fun captureVerifiedDisplayScreenshot(fileName: String) {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val automation = instrumentation.uiAutomation
     val target = instrumentation.targetContext
+
+    fun focusedWindow(): String {
+        val descriptor = requireNotNull(automation.executeShellCommand("dumpsys window")) {
+            "WindowManager 无法查询前台窗口：$fileName"
+        }
+        val dump = ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader()
+            .use { it.readText() }
+        val current = dump.lineSequence()
+            .map(String::trim)
+            .lastOrNull { it.startsWith("mCurrentFocus=") }
+            ?.substringAfter("mCurrentFocus=")?.trim().orEmpty()
+        if (current.isNotBlank() && current != "null") return current
+        // 某些模拟器在瞬时焦点交接期不会生成 mCurrentFocus；检查当前无障碍焦点。
+        val accessible = automation.rootInActiveWindow?.packageName?.toString().orEmpty()
+        check(accessible.isNotBlank()) {
+            "系统未提供有效前台窗口信息：$fileName"
+        }
+        return accessible
+    }
+
     fun checkOwner() {
-        val foreground = requireNotNull(automation.rootInActiveWindow) {
-            "无法识别前台窗口，截图未经过可信验证：$fileName"
-        }.packageName?.toString()
-        check(foreground == target.packageName) {
-            "截图被其他程序或系统窗口遮挡：$fileName；前台=$foreground"
+        val focus = focusedWindow()
+        check(focus.contains(target.packageName)) {
+            "截图被其他程序或系统窗口遮挡：$fileName；当前前台=$focus"
         }
     }
+
     checkOwner()
     val image = requireNotNull(automation.takeScreenshot()) {
         "Android 全屏截图失败：$fileName"
