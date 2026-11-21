@@ -93,7 +93,6 @@ fun CodexShell(vm: CodexViewModel) {
     val pending by vm.bridge.prompts.collectAsState()
     val terminalSession by vm.terminalSession.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     var showQuickTools by rememberSaveable { mutableStateOf(false) }
     val move: (String) -> Unit = { destination ->
         if (page.id != destination) {
@@ -237,17 +236,12 @@ fun CodexShell(vm: CodexViewModel) {
                 }
             ) { inset ->
                 Box(Modifier.padding(inset).fillMaxSize()) {
-                    AnimatedContent(
-                        targetState = selected,
-                        transitionSpec = {
-                            if (reducedMotion) fadeIn(tween(0)).togetherWith(fadeOut(tween(0)))
-                            else (fadeIn(tween(CodexMotion.reveal)) + slideInHorizontally(tween(CodexMotion.navigation)) { it / 10 })
-                                .togetherWith(fadeOut(tween(CodexMotion.feedback)) + slideOutHorizontally(tween(CodexMotion.feedback)) { -it / 14 })
-                        },
-                        label = "section_switch"
-                    ) { screen ->
-                        CompositionLocalProvider(LocalWorkPageTitle provides (pages.firstOrNull { it.id == screen }?.title ?: "")) {
-                            PageContent(screen, vm, move)
+                    // Only the current page participates in semantics and input.
+                    // This prevents stale search fields and buttons from remaining
+                    // interactive during rapid settings / feature navigation.
+                    key(selected) {
+                        CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
+                            PageContent(selected, vm, move)
                         }
                     }
                 }

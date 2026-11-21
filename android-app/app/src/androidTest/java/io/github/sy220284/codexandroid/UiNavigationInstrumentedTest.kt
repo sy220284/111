@@ -24,6 +24,8 @@ class UiNavigationInstrumentedTest {
 
     private fun openSettingRoute(id: String) {
         rule.onNodeWithTag("bottom-settings").performClick()
+        rule.waitForIdle()
+        rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
         val search = rule.onNodeWithTag("settings-search")
         search.performTextClearance()
         search.performTextInput(pages.first { it.id == id }.title)
@@ -36,7 +38,7 @@ class UiNavigationInstrumentedTest {
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").assertExists()
-        rule.onNodeWithText("设置", substring = false).assertExists()
+        rule.onNodeWithTag("nav-settings").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         capture("sidebar-android35.png")
         rule.onNodeWithTag("nav-chat").performClick()
@@ -95,8 +97,10 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsGroupsAndAppearancePage() {
         openDrawerRoute("settings")
         rule.onNodeWithText("账户与模型").assertExists()
-        rule.onNodeWithText("扩展能力").assertExists()
         capture("settings-hub-android35.png")
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasText("扩展能力"))
+        rule.onNodeWithText("扩展能力").assertIsDisplayed()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
         rule.onNodeWithTag("settings-search").performTextInput("外观")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-appearance"))
         rule.onNodeWithTag("settings-appearance").performClick()
