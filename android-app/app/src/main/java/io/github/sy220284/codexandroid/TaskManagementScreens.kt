@@ -179,11 +179,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 label = { Text("下一步要做什么") },
                 placeholder = { Text("描述明确任务及完成条件") })
             Button(onClick = {
+                val originalDraft = draft
                 val args = JSONObject().put("threadId", active)
                     .put("clientUserMessageId", UUID.randomUUID().toString())
                     .put("input", JSONArray().put(JSONObject().put("type", "text").put("text", draft.trim())))
-                vm.rpc("queueWrite", "thread/queue/add", args, after = { refreshQueue() })
-                draft = ""
+                vm.rpc("queueWrite", "thread/queue/add", args, after = {
+                    draft = ThreadDisplayPolicy.afterAcceptedDraft(draft, originalDraft)
+                    refreshQueue()
+                })
             }, enabled = draft.isNotBlank() && "queueWrite" !in loading,
                 modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.Add, null)
