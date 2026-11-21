@@ -95,61 +95,81 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
     val hasAccount = data["account"]?.optJSONObject("account") != null
-    var showStatus by rememberSaveable { mutableStateOf(false) }
 
     ScreenColumn {
-        SectionIntro("WORKSPACE / LIVE", "继续你的工程",
-            "最近任务、工作文件和需要你确认的事项，集中在这里。")
-        if (prompts.isNotEmpty()) {
-            CodexNotice("有 ${prompts.size} 项操作正在等待批准", NoticeTone.Warning,
-                actionLabel = "处理审批", onAction = { navigate("approvals") })
+        Spacer(Modifier.height(30.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("继续你的工程", style = MaterialTheme.typography.headlineSmall)
+            Text("今天想做什么？", style = MaterialTheme.typography.bodyLarge,
+                color = Ink.muted)
+            StatusPill(
+                text = if (status == EngineStatus.Connected) "本机引擎已连接" else "本机引擎待连接",
+                tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning
+            )
         }
+        if (prompts.isNotEmpty()) CodexNotice(
+            "有 " + prompts.size + " 项操作等待审批", NoticeTone.Warning,
+            actionLabel = "去处理", onAction = { navigate("approvals") }
+        )
         if (status != EngineStatus.Connected) {
-            CodexNotice("本机 Codex 内核尚未连接", NoticeTone.Info,
-                actionLabel = "重新连接", onAction = { vm.connect() })
+            CodexNotice("内核尚未连接，可以前往设置检查连接。", NoticeTone.Info,
+                actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         } else if (data["account"] != null && !hasAccount) {
-            CodexNotice("尚未登录 ChatGPT，可登录账号或配置模型服务商。",
-                NoticeTone.Info, actionLabel = "账号登录",
-                onAction = { navigate("account") })
+            CodexNotice("尚未登录，可在设置中完成账号或服务商配置。",
+                NoticeTone.Info, actionLabel = "去登录", onAction = { navigate("account") })
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas) {
-                    Icon(if (running) Icons.Outlined.PlayCircleOutline else Icons.Outlined.AutoAwesome,
-                        null, tint = Ink.copper, modifier = Modifier.padding(13.dp).size(25.dp))
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(if (running) "返回正在执行的任务" else "开始新任务",
-                        style = MaterialTheme.typography.titleLarge)
-                    Text(if (running) "查看实时步骤和待处理事项" else "描述需求，Codex 将在本机工作区执行",
-                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            CodexPrimaryButton(onClick = {
-                if (!running) vm.newThread()
-                navigate("chat")
-            }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                shape = RoundedCornerShape(13.dp)) {
-                Icon(if (running) Icons.Outlined.PlayArrow else Icons.Outlined.Add, null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (running) "继续当前任务" else "新建 Codex 会话")
-            }
+        CodexPrimaryButton(
+            onClick = { if (!running) vm.newThread(); navigate("chat") },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Icon(if (running) Icons.Outlined.PlayArrow else Icons.Outlined.Add, null)
+            Spacer(Modifier.width(9.dp))
+            Text(if (running) "继续当前任务" else "开启新对话")
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("继续最近工作", style = MaterialTheme.typography.titleLarge,
+        Text("从这里开始", style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 5.dp, top = 11.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            WelcomeActionCard(
+                title = "查看工作区", subtitle = "浏览文件与项目",
+                icon = Icons.Outlined.FolderOpen, tone = Ink.jade,
+                onClick = { navigate("files") }, modifier = Modifier.weight(1f)
+            )
+            WelcomeActionCard(
+                title = "写个小脚本", subtitle = "在对话中描述目标",
+                icon = Icons.Outlined.Code, tone = Ink.copper,
+                onClick = { navigate("chat") }, modifier = Modifier.weight(1f)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            WelcomeActionCard(
+                title = "检查修改", subtitle = "查看本轮代码差异",
+                icon = Icons.Outlined.Difference, tone = Ink.copper,
+                onClick = { navigate("diff") }, modifier = Modifier.weight(1f)
+            )
+            WelcomeActionCard(
+                title = "运行命令", subtitle = "打开工作区终端",
+                icon = Icons.Outlined.Terminal, tone = Ink.jade,
+                onClick = { navigate("terminal") }, modifier = Modifier.weight(1f)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("最近工作", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
         }
         if (threads.isEmpty()) {
-            CodexEmptyState(
-                "还没有可恢复的会话",
-                "完成第一个任务后，这里会展示最近工作。历史记录由本机 Codex 内核读取。",
-                actionLabel = "打开会话",
-                onAction = { navigate("threads") }
-            )
+            Text("完成首个任务后，最近的会话会出现在这里。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         } else {
-            threads.take(3).forEach { item ->
+            threads.take(2).forEach { item ->
                 ThreadRow(item, enabled = !running ||
                     vm.activeThread.value == item.optString("id")) {
                     val id = item.optString("id")
@@ -158,39 +178,13 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        Text("工作区快捷操作", style = MaterialTheme.typography.titleLarge)
-        CodexActionTile("工作区文件", "导入、查看或编辑工程文件",
-            Icons.Outlined.FolderOpen, onClick = { navigate("files") },
-            modifier = Modifier.fillMaxWidth())
-        CodexActionTile("代码差异", "检查本轮改动并发起审查",
-            Icons.Outlined.Difference, onClick = { navigate("diff") },
-            modifier = Modifier.fillMaxWidth())
-        TextButton(onClick = { showStatus = !showStatus },
-            modifier = Modifier.fillMaxWidth()) {
-            Icon(if (showStatus) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
-            Spacer(Modifier.width(7.dp))
-            Text(if (showStatus) "收起运行状态" else "查看运行状态与统计")
-        }
-        CodexReveal(showStatus) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SmallStat("本机内核",
-                        if (status == EngineStatus.Connected) "已连接" else "待连接",
-                        Icons.Outlined.Memory, Modifier.weight(1f))
-                    SmallStat("待审批", prompts.size.toString(),
-                        Icons.Outlined.GppGood, Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SmallStat("当前已读取会话", threads.size.toString(),
-                        Icons.Outlined.History, Modifier.weight(1f))
-                    SmallStat("工作目录", "本地存储",
-                        Icons.Outlined.Folder, Modifier.weight(1f))
-                }
-                OutlinedButton(onClick = { navigate("diagnostics") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Text("查看引擎诊断")
-                }
-            }
+        OutlinedButton(
+            onClick = { navigate("settings") },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)
+        ) {
+            Icon(Icons.Outlined.Tune, null)
+            Spacer(Modifier.width(8.dp))
+            Text("更多功能与设置")
         }
     }
 }
@@ -248,6 +242,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
+    var showAttachmentTools by remember { mutableStateOf(false) }
     val attachmentContext = LocalContext.current
     var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var attachmentBusy by remember { mutableStateOf(false) }
@@ -300,10 +295,13 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(if (thread == null) "新的工作会话" else "进行中的任务", style = MaterialTheme.typography.titleMedium)
-                Text(thread?.take(18) ?: "请选择模型并输入任务", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                Text(if (thread == null) "新的工作会话" else "进行中的任务",
+                    style = MaterialTheme.typography.titleMedium)
+                Text(thread?.take(18) ?: "本机工作区",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
             IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
@@ -312,7 +310,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
-        Row(
+        if (thread != null || items.isNotEmpty()) Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(horizontal = 13.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -343,24 +341,44 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (items.isEmpty()) {
-                val shortViewport = maxHeight < 210.dp
+                val shortViewport = maxHeight < 345.dp
                 Column(
-                    modifier = Modifier.align(Alignment.Center)
-                        .padding(horizontal = 18.dp, vertical = if (shortViewport) 6.dp else 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxWidth().align(Alignment.Center)
+                        .padding(horizontal = 19.dp, vertical = if (shortViewport) 5.dp else 15.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 10.dp)
                 ) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = Ink.copper,
-                        modifier = Modifier.size(if (shortViewport) 26.dp else 38.dp))
-                    Spacer(Modifier.height(if (shortViewport) 8.dp else 16.dp))
-                    Text("从一个具体目标开始",
-                        style = if (shortViewport) MaterialTheme.typography.titleMedium
-                            else MaterialTheme.typography.titleLarge,
-                        maxLines = 2, textAlign = TextAlign.Center)
-                    if (!shortViewport) {
-                        Spacer(Modifier.height(6.dp))
-                        Text("Codex 将按会话、步骤与工具执行呈现过程。",
-                            style = MaterialTheme.typography.bodyMedium, color = Ink.muted,
-                            textAlign = TextAlign.Center)
+                    Text("今天想做什么？",
+                        style = if (shortViewport) MaterialTheme.typography.titleLarge
+                            else MaterialTheme.typography.headlineSmall,
+                        color = Ink.parchment, textAlign = TextAlign.Center)
+                    Text("描述一个目标，或从快捷任务开始",
+                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center)
+                    if (!shortViewport && !busy) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            WelcomeActionCard(
+                                "浏览文件", "打开工作区", Icons.Outlined.FolderOpen,
+                                Ink.jade, onClick = { navigate("files") }, modifier = Modifier.weight(1f)
+                            )
+                            WelcomeActionCard(
+                                "写个脚本", "先描述需求", Icons.Outlined.Code,
+                                Ink.copper, onClick = { draft = "帮我写一个脚本，目标是：" },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            WelcomeActionCard(
+                                "新建项目", "整理初始化步骤", Icons.Outlined.CreateNewFolder,
+                                Ink.copper, onClick = { draft = "请协助初始化一个新项目，需求是：" },
+                                modifier = Modifier.weight(1f)
+                            )
+                            WelcomeActionCard(
+                                "代码审查", "检查修改质量", Icons.Outlined.FactCheck,
+                                Ink.jade, onClick = { navigate("review") }, modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
@@ -402,12 +420,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 mode = selectedMode,
                 connected = status == EngineStatus.Connected,
                 running = busy,
-                importingImage = attachmentBusy,
-                imageCount = attachedImages.size,
                 onModel = { showModels = true },
                 onMode = { showModes = true },
-                onDiagnostics = { navigate("diagnostics") },
-                onImage = { imagePicker.launch("image/*") }
+                onDiagnostics = { navigate("diagnostics") }
             )
             if (!busy && status != EngineStatus.Connected) {
                 Text("内核未连接，点击右侧状态图标查看诊断",
@@ -431,13 +446,29 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
             }
-            OutlinedTextField(
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    modifier = Modifier.size(49.dp),
+                    shape = RoundedCornerShape(17.dp), color = Ink.canvas,
+                    border = BorderStroke(1.dp, Ink.border)
+                ) {
+                    IconButton(
+                        onClick = { showAttachmentTools = true },
+                        modifier = Modifier.testTag("composer-plus")
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = "添加附件与工具",
+                            tint = Ink.copper)
+                    }
+                }
+                OutlinedTextField(
                 value = draft, onValueChange = { draft = it },
-                modifier = Modifier.fillMaxWidth(), minLines = 1, maxLines = 5,
+                modifier = Modifier.weight(1f), minLines = 1, maxLines = 5,
                 placeholder = { Text(if (busy) "任务运行中，可以补充要求或修正方向…" else "描述目标、文件及验收要求…") },
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
-            )
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = { vm.interrupt() },
@@ -480,6 +511,13 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     if (showContextTools) {
         ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
+    }
+    if (showAttachmentTools) {
+        WorkspaceActionsSheet(
+            onDismiss = { showAttachmentTools = false },
+            navigate = navigate,
+            onChooseImage = { imagePicker.launch("image/*") }
+        )
     }
     if (showModels) {
         val available = records(models["models"]).filter { !it.optBoolean("hidden") }.take(80)

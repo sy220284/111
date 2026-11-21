@@ -271,6 +271,12 @@ fun CodexShell(vm: CodexViewModel) {
                 }
             ) { content() }
         }
+        if (showQuickTools) {
+            WorkspaceActionsSheet(
+                onDismiss = { showQuickTools = false },
+                navigate = move
+            )
+        }
     }
 }
 
