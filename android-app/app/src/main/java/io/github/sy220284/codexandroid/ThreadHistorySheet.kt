@@ -4,6 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -68,12 +69,13 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 LazyColumn(modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 20.dp)) {
-                    items(turns, key = { it.optString("id") }) { turn ->
+                    itemsIndexed(turns, key = { _, item -> item.optString("id") }) { index, turn ->
                         val id = turn.optString("id")
                         MaterialPanel(Modifier.fillMaxWidth()) {
-                            Text("回合 " + id.take(18), style = MaterialTheme.typography.titleMedium)
+                            Text("第 ${turns.size - index} 回合", style = MaterialTheme.typography.titleMedium)
                             turn.optString("status").takeIf { it.isNotBlank() }?.let {
-                                StatusPill(it, good = !it.contains("fail", ignoreCase = true))
+                                val status = PresentationPolicy.timelineStatus(it)
+                                if (status.isNotEmpty()) StatusPill(status, good = status != "失败")
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = {
@@ -112,7 +114,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                                                 .put("itemIds", JSONArray().put(itemId)))
                                                     }, modifier = Modifier.fillMaxWidth(),
                                                     enabled = detailKey !in loading
-                                                ) { Text("读取条目 " + itemId.take(12) + " 的完整输出") }
+                                                ) { Text("读取完整执行内容") }
                                                 if (detailKey in loading)
                                                     LinearProgressIndicator(Modifier.fillMaxWidth())
                                                 errors[detailKey]?.let { ErrorText(it) }
@@ -149,7 +151,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         CodexConfirmDialog(
             title = "确认回退会话历史",
             message = "所选回合及其之后的所有会话内容将从持久记录中删除。已经修改的本地文件仍保持现状。请先备份重要内容。",
-            detail = "会话：${thread.orEmpty()}\n从回合开始删除：$turnId",
+            detail = "将从所选回合开始移除后续会话内容。已修改的本机文件会保留。",
             confirmLabel = "确认删除该回合及之后历史", destructive = true,
             onConfirm = {
                 thread?.let { id ->
