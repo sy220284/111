@@ -31,9 +31,10 @@ fun PluginDetailSheet(
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
-    var rawOpen by remember(name) { mutableStateOf(false) }
-    var readerText by remember(name) { mutableStateOf<String?>(null) }
-    var readerTitle by remember(name) { mutableStateOf("") }
+    var rawOpen by remember(name, marketName) { mutableStateOf(false) }
+    var readerText by remember(name, marketName) { mutableStateOf<String?>(null) }
+    var readerTitle by remember(name, marketName) { mutableStateOf("") }
+    var readerProblem by remember(name, marketName) { mutableStateOf("") }
     val detail = data[key]?.optJSONObject("plugin")
 
     fun refresh() {
@@ -124,19 +125,25 @@ fun PluginDetailSheet(
                                 if (field == "skills" && skillId.isNotBlank() &&
                                     remoteId.isNotBlank() && marketName.isNotBlank()) {
                                     val skillKey = "pluginSkill:" + remoteId + ":" + skillId
-                                    TextButton(onClick = {
-                                        readerTitle = title
-                                        vm.refresh(skillKey, "plugin/skill/read", JSONObject()
-                                            .put("remoteMarketplaceName", marketName)
-                                            .put("remotePluginId", remoteId)
-                                            .put("skillName", skillId))
-                                    }) { Text("阅读") }
-                                    data[skillKey]?.optString("contents")
-                                        ?.takeIf { it.isNotBlank() }?.let { contents ->
-                                            TextButton(onClick = {
-                                                readerTitle = title; readerText = contents
-                                            }) { Text("全文") }
-                                        }
+                                    TextButton(
+                                        onClick = {
+                                            readerTitle = title
+                                            readerText = null
+                                            readerProblem = ""
+                                            vm.refresh(skillKey, "plugin/skill/read", JSONObject()
+                                                .put("remoteMarketplaceName", marketName)
+                                                .put("remotePluginId", remoteId)
+                                                .put("skillName", skillId),
+                                                onSuccess = { response ->
+                                                    val contents = response.optString("contents")
+                                                    if (contents.isBlank())
+                                                        readerProblem = "当前内核未返回该技能的正文内容"
+                                                    else readerText = contents
+                                                })
+                                        },
+                                        enabled = skillKey !in loading
+                                    ) { Text(if (skillKey in loading) "读取中" else "阅读") }
+                                    errors[skillKey]?.let { ErrorText(it) }
                                 }
                             }
                         }
@@ -161,6 +168,7 @@ fun PluginDetailSheet(
                     }
                 }
             }
+            if (readerProblem.isNotBlank()) ErrorText(readerProblem)
             Spacer(Modifier.height(12.dp))
         }
     }
