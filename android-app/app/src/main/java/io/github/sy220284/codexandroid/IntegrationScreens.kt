@@ -244,24 +244,21 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("可通过 Codex 配置页设置服务，或通过插件安装所需服务。", color = Ink.muted)
         }
         servers.forEach { server ->
-            val name = server.optString("name")
+            val name = PresentationPolicy.meaningful(server.optString("name")).ifEmpty { "未命名服务" }
             val tools = server.optJSONObject("tools") ?: JSONObject()
             val resources = server.optJSONArray("resources") ?: JSONArray()
-            val auth = server.opt("authStatus")?.toString() ?: "未知"
+            val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    StatusPill(server.opt("runtimeStatus")?.toString() ?: "尚未启动",
-                        !server.isNull("runtimeStatus") && !server.opt("runtimeStatus").toString().contains("failed", true))
+                    val serviceState = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
+                    StatusPill(serviceState, serviceState == "已连接")
                 }
                 Text("工具 " + tools.length() + " 项 · 资源 " + resources.length() + " 项",
                     color = Ink.muted)
                 Text("授权：" + auth, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                server.optString("httpOrigin").takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = Ink.muted)
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { selected = if (selected == name) "" else name }) {
                         Text(if (selected == name) "收起详情" else "查看工具")
@@ -299,7 +296,8 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 ) {
                                     Icon(Icons.Outlined.Description, null)
                                     Spacer(Modifier.width(9.dp))
-                                    Text(resource.optString("name").ifBlank { uri },
+                                    Text(PresentationPolicy.meaningful(resource.optString("name"))
+                                        .ifEmpty { "服务资源 ${index + 1}" },
                                         modifier = Modifier.weight(1f), maxLines = 2)
                                     Icon(Icons.Outlined.ChevronRight, null)
                                 }
@@ -307,8 +305,6 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                         val error = server.optString("toolsError")
                         if (error.isNotBlank()) ErrorText(error)
-                        Text(server.toString(2), fontFamily = FontFamily.Monospace,
-                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
