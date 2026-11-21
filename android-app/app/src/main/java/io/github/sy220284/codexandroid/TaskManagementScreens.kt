@@ -140,6 +140,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     var pageCount by remember(active) { mutableIntStateOf(0) }
     var draft by rememberSaveable(active) { mutableStateOf("") }
     var pendingDelete by remember(active) { mutableStateOf<JSONObject?>(null) }
+    var pendingEdit by remember(active) { mutableStateOf<JSONObject?>(null) }
+    var editText by rememberSaveable(active) { mutableStateOf("") }
     val result = data[rootKey]
     val all = records(result) + (1..pageCount).flatMap {
         records(data[rootKey + ":page:" + it])
@@ -230,7 +232,18 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     }, enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading) {
                         Icon(Icons.Outlined.ArrowDownward, "下移")
                     }
-                    IconButton(onClick = { pendingDelete = item }) {
+                    IconButton(
+                        onClick = {
+                            pendingEdit = item
+                            editText = input.optJSONObject(0)?.optString("text").orEmpty()
+                        },
+                        enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
+                            "queueWrite" !in loading
+                    ) {
+                        Icon(Icons.Outlined.Edit, "编辑文本任务")
+                    }
+                    IconButton(onClick = { pendingDelete = item },
+                        enabled = "queueWrite" !in loading) {
                         Icon(Icons.Outlined.DeleteOutline, "删除")
                     }
                 }
@@ -251,6 +264,35 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         errors[currentKey]?.let { ErrorText(it) }
         errors["queueWrite"]?.let { ErrorText(it) }
     }
+    pendingEdit?.let { item ->
+        AlertDialog(
+            onDismissRequest = { pendingEdit = null },
+            title = { Text("编辑排队任务") },
+            text = {
+                OutlinedTextField(
+                    value = editText, onValueChange = { editText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("任务内容") }, minLines = 2, maxLines = 6
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        active?.let { id ->
+                            vm.rpc("queueWrite", "thread/queue/update",
+                                ThreadQueueUpdateContract.build(id, item.optString("id"), editText),
+                                after = { refreshQueue() })
+                        }
+                        pendingEdit = null
+                    },
+                    enabled = active != null && item.optString("id").isNotBlank() &&
+                        editText.isNotBlank() && "queueWrite" !in loading
+                ) { Text("保存修改") }
+            },
+            dismissButton = { TextButton(onClick = { pendingEdit = null }) { Text("取消") } }
+        )
+    }
+
     pendingDelete?.let { item ->
         CodexConfirmDialog(
             title = "删除排队任务",
