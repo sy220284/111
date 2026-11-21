@@ -32,6 +32,8 @@ fun PluginDetailSheet(
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var rawOpen by remember(name) { mutableStateOf(false) }
+    var readerText by remember(name) { mutableStateOf<String?>(null) }
+    var readerTitle by remember(name) { mutableStateOf("") }
     val detail = data[key]?.optJSONObject("plugin")
 
     fun refresh() {
@@ -117,6 +119,25 @@ fun PluginDetailSheet(
                                 Spacer(Modifier.width(8.dp))
                                 Text(title, style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f))
+                                val skillId = obj?.optString("name").orEmpty()
+                                val remoteId = entry.optString("id")
+                                if (field == "skills" && skillId.isNotBlank() &&
+                                    remoteId.isNotBlank() && marketName.isNotBlank()) {
+                                    val skillKey = "pluginSkill:" + remoteId + ":" + skillId
+                                    TextButton(onClick = {
+                                        readerTitle = title
+                                        vm.refresh(skillKey, "plugin/skill/read", JSONObject()
+                                            .put("remoteMarketplaceName", marketName)
+                                            .put("remotePluginId", remoteId)
+                                            .put("skillName", skillId))
+                                    }) { Text("阅读") }
+                                    data[skillKey]?.optString("contents")
+                                        ?.takeIf { it.isNotBlank() }?.let { contents ->
+                                            TextButton(onClick = {
+                                                readerTitle = title; readerText = contents
+                                            }) { Text("全文") }
+                                        }
+                                }
                             }
                         }
                     }
@@ -131,13 +152,19 @@ fun PluginDetailSheet(
                             Text(raw.take(14000), fontFamily = FontFamily.Monospace,
                                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                         }
-                        if (raw.length > 14000)
-                            Text("预览已截取前 14,000 个字符。",
-                                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                        if (raw.length > 14000) {
+                            OutlinedButton(onClick = {
+                                readerTitle = "插件完整协议记录"
+                                readerText = raw
+                            }) { Text("查看全文") }
+                        }
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
         }
+    }
+    readerText?.let {
+        FullTextReaderDialog(readerTitle, it) { readerText = null }
     }
 }
