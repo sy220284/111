@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
+import kotlinx.coroutines.launch
 
 /**
  * High-value thread actions are deliberately separated from prompt composition.
@@ -40,13 +41,22 @@ fun ThreadContextTools(
         }
     }
     val busy = "threadFork" in loading || "threadCompact" in loading
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    fun openSubpage(route: String) {
+        scope.launch {
+            sheetState.hide()
+            onDismiss()
+            navigate(route)
+        }
+    }
     val forkId = data["threadFork"]?.optJSONObject("thread")?.optString("id")
         ?.takeIf { it.isNotBlank() }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = Ink.recessed,
         contentColor = Ink.parchment,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = sheetState
     ) {
         Column(
             Modifier.fillMaxWidth().heightIn(max = 690.dp)
@@ -101,7 +111,7 @@ fun ThreadContextTools(
                 forkId?.let { fork ->
                     CodexNotice("服务端已建立新的会话分支。", NoticeTone.Success)
                     OutlinedButton(onClick = {
-                        vm.chooseThread(fork); onDismiss(); navigate("chat")
+                        vm.chooseThread(fork); openSubpage("chat")
                     }, enabled = !running) {
                         Text("打开新建分支")
                     }
@@ -131,56 +141,38 @@ fun ThreadContextTools(
                 Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
                 Text("和此会话相关的目标、队列与历史操作集中管理。",
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("goals")
-                }, enabled = !threadId.isNullOrBlank(),
+                OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
                     Icon(Icons.Outlined.Flag, null)
                     Spacer(Modifier.width(8.dp))
                     Text("管理任务目标")
                 }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("queue")
-                }, enabled = !threadId.isNullOrBlank(),
+                OutlinedButton(onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
                     Icon(Icons.Outlined.ViewList, null)
                     Spacer(Modifier.width(8.dp))
                     Text("待办队列（实验）")
                 }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("history-tools")
-                }, enabled = !threadId.isNullOrBlank() && !running,
+                OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
                     Icon(Icons.Outlined.History, null)
                     Spacer(Modifier.width(8.dp))
                     Text("回合历史与回退")
                 }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("thread-attachments")
-                }, enabled = !threadId.isNullOrBlank(),
+                OutlinedButton(onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
                     Icon(Icons.Outlined.Attachment, null)
                     Spacer(Modifier.width(8.dp))
                     Text("会话关联资料")
                 }
-                OutlinedButton(onClick = {
-                    onDismiss()
-                    navigate("review")
-                }, enabled = !threadId.isNullOrBlank() && !running,
+                OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
                     Icon(Icons.Outlined.FactCheck, null)
                     Spacer(Modifier.width(8.dp))
                     Text("代码审查")
                 }
             }
-            TextButton(onClick = {
-                onDismiss()
-                navigate("threads")
-            }, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { openSubpage("threads") }, modifier = Modifier.fillMaxWidth()) {
                 Text("前往会话资料库，管理名称与归档")
             }
             Spacer(Modifier.height(12.dp))
