@@ -257,6 +257,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]
+    val permissionProfiles = records(data["permissionProfiles"])
+    var showRawRequirements by remember { mutableStateOf(false) }
     val effectiveApproval = current?.optString("approvalPolicy").orEmpty()
     val effectiveSandbox = current?.optString("sandboxMode").orEmpty()
     var draftApproval by remember { mutableStateOf<String?>(null) }
@@ -272,6 +274,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     LaunchedEffect(Unit) {
         vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
         vm.refresh("securityRequirements", "configRequirements/read")
+        vm.refresh("permissionProfiles", "permissionProfile/list",
+            JSONObject().put("cwd", vm.workingDirectory))
     }
 
     ScreenColumn {
@@ -315,10 +319,42 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         errors["config"]?.let { ErrorText(it) }
         errors["securityRequirements"]?.let { ErrorText(it) }
         errors["securitySave"]?.let { ErrorText(it) }
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("可用权限方案", style = MaterialTheme.typography.titleMedium)
+            Text("从当前 Codex 内核读取，显示哪些方案被运行策略允许。新任务默认继承上方生效设置。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            if (data["permissionProfiles"] != null && permissionProfiles.isEmpty()) {
+                Text("没有额外权限方案可供选择。", color = Ink.muted)
+            }
+            if ("permissionProfiles" in vm.loading.collectAsState().value) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            errors["permissionProfiles"]?.let { ErrorText(it) }
+            permissionProfiles.forEach { profile ->
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(profile.optString("id"), style = MaterialTheme.typography.titleSmall)
+                        profile.optString("description").takeIf { it.isNotBlank() }?.let {
+                            Text(it, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    StatusPill(if (profile.optBoolean("allowed")) "可用" else "受策略限制",
+                        profile.optBoolean("allowed"))
+                }
+            }
+        }
         if (requirements != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("组织限制与允许的策略", style = MaterialTheme.typography.titleMedium)
-            Text(requirements.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
-                style = MaterialTheme.typography.labelMedium)
+            Text("组织规则与执行边界", style = MaterialTheme.typography.titleMedium)
+            Text("如需诊断权限设置，可展开查看来自内核的完整策略要求。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { showRawRequirements = !showRawRequirements }) {
+                Text(if (showRawRequirements) "收起原始策略" else "查看原始策略")
+            }
+            CodexReveal(showRawRequirements) {
+                Text(requirements.toString(2), fontFamily = FontFamily.Monospace,
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
         }
     }
     if (confirm) CodexConfirmDialog(
