@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -433,7 +434,7 @@ fun TerminalPage(vm: CodexViewModel) {
                 }
                 session.error?.let { ErrorText(it) }
                 if (session.outputTruncated) {
-                    CodexNotice("终端输出已达到本机安全显示上限，后续内容已截断。",
+                    CodexNotice("已保留终端最近 128KiB 输出，较早日志已从界面移出。",
                         NoticeTone.Warning)
                 }
                 TextButton(onClick = { showProcess = !showProcess }) {
@@ -448,17 +449,21 @@ fun TerminalPage(vm: CodexViewModel) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("标准输出", style = MaterialTheme.typography.titleMedium)
                 DividerLine()
-                Text(session.stdoutText.takeLast(16_000).ifBlank {
-                    if (session.running) "等待命令输出…" else "(无标准输出)"
-                }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.testTag("terminal-stdout"))
+                SelectionContainer {
+                    Text(session.stdoutText.takeLast(16_000).ifBlank {
+                        if (session.running) "等待命令输出…" else "(无标准输出)"
+                    }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.testTag("terminal-stdout"))
+                }
                 if (session.stderrBytes.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Text("错误输出", style = MaterialTheme.typography.titleMedium)
-                    Text(session.stderrText.takeLast(16_000),
-                        fontFamily = FontFamily.Monospace, color = Ink.red,
-                        style = MaterialTheme.typography.bodySmall)
+                    SelectionContainer {
+                        Text(session.stderrText.takeLast(16_000),
+                            fontFamily = FontFamily.Monospace, color = Ink.red,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }
