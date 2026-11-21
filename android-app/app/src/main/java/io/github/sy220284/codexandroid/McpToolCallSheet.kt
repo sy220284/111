@@ -28,6 +28,7 @@ fun McpToolCallSheet(
     var argsText by remember(server, tool) { mutableStateOf("{}") }
     var confirming by remember { mutableStateOf(false) }
     var showRaw by remember { mutableStateOf(false) }
+    var submitted by remember(server, tool, thread) { mutableStateOf(false) }
     val args = remember(argsText) { runCatching { JSONObject(argsText) }.getOrNull() }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -62,9 +63,9 @@ fun McpToolCallSheet(
                     Text("核对并调用工具")
                 }
             }
-            if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            errors[key]?.let { ErrorText(it) }
-            data[key]?.let { response ->
+            if (submitted && key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (submitted) errors[key]?.let { ErrorText(it) }
+            if (submitted) data[key]?.let { response ->
                 val isError = response.optBoolean("isError")
                 CodexNotice(
                     if (isError) "工具返回了错误结果，请检查原始响应。" else "工具已返回结果。",
@@ -83,6 +84,8 @@ fun McpToolCallSheet(
             detail = "服务：$server\n工具：$tool\n会话：$thread\n参数：$argsText",
             confirmLabel = "确认调用",
             onConfirm = {
+                submitted = true
+                showRaw = false
                 vm.rpc(key, "mcpServer/tool/call", JSONObject()
                     .put("server", server).put("tool", tool)
                     .put("threadId", thread).put("arguments", args))
