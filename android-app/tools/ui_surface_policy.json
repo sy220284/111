@@ -1,0 +1,966 @@
+{
+  "schemaVersion": 1,
+  "note": "每项官方请求必须明确归类。更新上游时需要同步评审新增/删除接口。此清单为产品分层决策，非接口成功状态。",
+  "methods": {
+    "server/diagnostics": {
+      "surface": "后台内部",
+      "owner": "诊断",
+      "flag": "实验"
+    },
+    "userVerification/status": {
+      "surface": "后台内部",
+      "owner": "身份验证后台",
+      "flag": "实验"
+    },
+    "userVerification/enroll": {
+      "surface": "后台内部",
+      "owner": "身份验证后台",
+      "flag": "实验"
+    },
+    "userVerification/delete": {
+      "surface": "后台内部",
+      "owner": "身份验证后台",
+      "flag": "实验"
+    },
+    "userVerification/verify": {
+      "surface": "后台内部",
+      "owner": "身份验证后台",
+      "flag": "实验"
+    },
+    "userVerification/cancel": {
+      "surface": "后台内部",
+      "owner": "身份验证后台",
+      "flag": "实验"
+    },
+    "thread/start": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/resume": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/fork": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/sample": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/sample/cancel": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/archive": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/delete": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/unsubscribe": {
+      "surface": "后台内部",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/name/set": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/prediction/request": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/goal/set": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/goal/get": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/goal/clear": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/queue/add": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/queue/list": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/queue/update": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/queue/delete": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/queue/reorder": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/queue/start": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/metadata/update": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/attachment/add": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/attachment/list": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/attachmentOwner/list": {
+      "surface": "后台内部",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/attachment/remove": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/section/move": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/settings/update": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/memoryMode/set": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/memory/read": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "memory/status": {
+      "surface": "高级按需",
+      "owner": "记忆后台",
+      "flag": "实验"
+    },
+    "memory/reset": {
+      "surface": "高级按需",
+      "owner": "记忆后台",
+      "flag": "实验"
+    },
+    "rollout/compress": {
+      "surface": "后台内部",
+      "owner": "历史后台",
+      "flag": "实验"
+    },
+    "thread/unarchive": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/compact/start": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/shellCommand": {
+      "surface": "后台内部",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/approveGuardianDeniedAction": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/backgroundTerminals/clean": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/backgroundTerminals/list": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/backgroundTerminals/terminate": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/revert": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/list": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "project/list": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "project/read": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "project/create": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "project/import": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "project/update": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "project/move": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "project/delete": {
+      "surface": "高级按需",
+      "owner": "项目管理（实验）",
+      "flag": "实验"
+    },
+    "threadSection/list": {
+      "surface": "上下文操作",
+      "owner": "会话历史",
+      "flag": "常规/内部"
+    },
+    "threadSection/create": {
+      "surface": "上下文操作",
+      "owner": "会话历史",
+      "flag": "常规/内部"
+    },
+    "threadSection/update": {
+      "surface": "上下文操作",
+      "owner": "会话历史",
+      "flag": "常规/内部"
+    },
+    "threadSection/delete": {
+      "surface": "上下文操作",
+      "owner": "会话历史",
+      "flag": "常规/内部"
+    },
+    "thread/search": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/search/stream": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/search/cancel": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/search/stream/cancel": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/searchOccurrences": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/loaded/list": {
+      "surface": "后台内部",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/read": {
+      "surface": "直接操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/readState/update": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/turns/list": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/items/list": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "常规/内部"
+    },
+    "thread/items/read": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/guardianReview": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/prepareApprovedPlan": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "skills/list": {
+      "surface": "直接操作",
+      "owner": "技能",
+      "flag": "常规/内部"
+    },
+    "skills/extraRoots/set": {
+      "surface": "后台内部",
+      "owner": "技能",
+      "flag": "常规/内部"
+    },
+    "hooks/list": {
+      "surface": "高级按需",
+      "owner": "触发钩子",
+      "flag": "常规/内部"
+    },
+    "marketplace/add": {
+      "surface": "高级按需",
+      "owner": "插件/市场",
+      "flag": "常规/内部"
+    },
+    "marketplace/remove": {
+      "surface": "高级按需",
+      "owner": "插件/市场",
+      "flag": "常规/内部"
+    },
+    "marketplace/upgrade": {
+      "surface": "高级按需",
+      "owner": "插件/市场",
+      "flag": "常规/内部"
+    },
+    "plugin/list": {
+      "surface": "直接操作",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/search": {
+      "surface": "上下文操作",
+      "owner": "插件",
+      "flag": "实验"
+    },
+    "plugin/installed": {
+      "surface": "直接操作",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/reconcile": {
+      "surface": "高级按需",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/read": {
+      "surface": "直接操作",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/skill/read": {
+      "surface": "上下文操作",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/share/save": {
+      "surface": "高级按需",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/share/updateTargets": {
+      "surface": "高级按需",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/share/list": {
+      "surface": "高级按需",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/share/checkout": {
+      "surface": "高级按需",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/share/delete": {
+      "surface": "高级按需",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "app/read": {
+      "surface": "直接操作",
+      "owner": "连接应用",
+      "flag": "常规/内部"
+    },
+    "app/list": {
+      "surface": "直接操作",
+      "owner": "连接应用",
+      "flag": "常规/内部"
+    },
+    "app/installed": {
+      "surface": "直接操作",
+      "owner": "连接应用",
+      "flag": "常规/内部"
+    },
+    "fs/readFile": {
+      "surface": "上下文操作",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/writeFile": {
+      "surface": "上下文操作",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/createDirectory": {
+      "surface": "上下文操作",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/getMetadata": {
+      "surface": "后台内部",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/readDirectory": {
+      "surface": "上下文操作",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/remove": {
+      "surface": "上下文操作",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/copy": {
+      "surface": "上下文操作",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/watch": {
+      "surface": "后台内部",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "fs/unwatch": {
+      "surface": "后台内部",
+      "owner": "工作区文件",
+      "flag": "常规/内部"
+    },
+    "skills/config/write": {
+      "surface": "直接操作",
+      "owner": "技能",
+      "flag": "常规/内部"
+    },
+    "plugin/install": {
+      "surface": "直接操作",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "plugin/uninstall": {
+      "surface": "直接操作",
+      "owner": "插件",
+      "flag": "常规/内部"
+    },
+    "turn/start": {
+      "surface": "直接操作",
+      "owner": "任务对话",
+      "flag": "常规/内部"
+    },
+    "turn/settings/update": {
+      "surface": "后台内部",
+      "owner": "任务对话",
+      "flag": "实验"
+    },
+    "turn/steer": {
+      "surface": "上下文操作",
+      "owner": "任务对话",
+      "flag": "常规/内部"
+    },
+    "turn/interrupt": {
+      "surface": "直接操作",
+      "owner": "任务对话",
+      "flag": "常规/内部"
+    },
+    "thread/realtime/start": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/realtime/appendAudio": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/realtime/appendText": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/realtime/appendSpeech": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/realtime/stop": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/timeline/list": {
+      "surface": "上下文操作",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/realtime/list": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "thread/realtime/listVoices": {
+      "surface": "高级按需",
+      "owner": "会话/对话",
+      "flag": "实验"
+    },
+    "review/start": {
+      "surface": "直接操作",
+      "owner": "代码审查",
+      "flag": "常规/内部"
+    },
+    "model/list": {
+      "surface": "直接操作",
+      "owner": "模型选择",
+      "flag": "常规/内部"
+    },
+    "account/gatewayOAuth/read": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/gatewayOAuth/login": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/gatewayOAuth/cancel": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "modelProvider/list": {
+      "surface": "直接操作",
+      "owner": "模型服务商",
+      "flag": "常规/内部"
+    },
+    "modelProvider/config/write": {
+      "surface": "上下文操作",
+      "owner": "模型服务商",
+      "flag": "常规/内部"
+    },
+    "modelProvider/default/set": {
+      "surface": "直接操作",
+      "owner": "模型服务商",
+      "flag": "常规/内部"
+    },
+    "modelProvider/capabilities/read": {
+      "surface": "上下文操作",
+      "owner": "模型服务商",
+      "flag": "常规/内部"
+    },
+    "experimentalFeature/list": {
+      "surface": "高级按需",
+      "owner": "引擎配置高级",
+      "flag": "常规/内部"
+    },
+    "permissionProfile/list": {
+      "surface": "直接操作",
+      "owner": "权限与安全",
+      "flag": "常规/内部"
+    },
+    "experimentalFeature/enablement/set": {
+      "surface": "高级按需",
+      "owner": "引擎配置高级",
+      "flag": "常规/内部"
+    },
+    "remoteControl/enable": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "remoteControl/disable": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "remoteControl/status/read": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "remoteControl/pairing/start": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "remoteControl/pairing/status": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "remoteControl/client/list": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "remoteControl/client/revoke": {
+      "surface": "高级按需",
+      "owner": "远程控制高级",
+      "flag": "实验"
+    },
+    "collaborationMode/list": {
+      "surface": "直接操作",
+      "owner": "协作模式",
+      "flag": "实验"
+    },
+    "mock/experimentalMethod": {
+      "surface": "后台内部",
+      "owner": "调试",
+      "flag": "实验"
+    },
+    "environment/add": {
+      "surface": "上下文操作",
+      "owner": "执行环境",
+      "flag": "实验"
+    },
+    "environment/info": {
+      "surface": "上下文操作",
+      "owner": "执行环境",
+      "flag": "实验"
+    },
+    "environment/status": {
+      "surface": "上下文操作",
+      "owner": "执行环境",
+      "flag": "实验"
+    },
+    "mcpServer/oauth/login": {
+      "surface": "直接操作",
+      "owner": "MCP 服务/审批",
+      "flag": "常规/内部"
+    },
+    "config/mcpServer/reload": {
+      "surface": "高级按需",
+      "owner": "引擎配置/安全",
+      "flag": "常规/内部"
+    },
+    "mcpServerStatus/list": {
+      "surface": "直接操作",
+      "owner": "MCP 服务",
+      "flag": "常规/内部"
+    },
+    "mcpServer/resource/read": {
+      "surface": "直接操作",
+      "owner": "MCP 服务/审批",
+      "flag": "常规/内部"
+    },
+    "mcpServer/event/stream/start": {
+      "surface": "高级按需",
+      "owner": "MCP 服务/审批",
+      "flag": "实验"
+    },
+    "mcpServer/event/stream/stop": {
+      "surface": "高级按需",
+      "owner": "MCP 服务/审批",
+      "flag": "实验"
+    },
+    "mcpServer/tool/call": {
+      "surface": "上下文操作",
+      "owner": "MCP 服务/审批",
+      "flag": "常规/内部"
+    },
+    "windowsSandbox/setupStart": {
+      "surface": "平台不适用",
+      "owner": "Windows 专用",
+      "flag": "常规/内部"
+    },
+    "windowsSandbox/readiness": {
+      "surface": "平台不适用",
+      "owner": "Windows 专用",
+      "flag": "常规/内部"
+    },
+    "account/login/start": {
+      "surface": "直接操作",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/bedrock/discover": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "实验"
+    },
+    "account/bedrock/setup": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "实验"
+    },
+    "account/gcp/setup": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "实验"
+    },
+    "account/bedrock/checkGovCloudRequirements": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "实验"
+    },
+    "account/login/cancel": {
+      "surface": "直接操作",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "accountSession/list": {
+      "surface": "上下文操作",
+      "owner": "账号高级",
+      "flag": "实验"
+    },
+    "accountSession/switch": {
+      "surface": "上下文操作",
+      "owner": "账号高级",
+      "flag": "实验"
+    },
+    "account/logout": {
+      "surface": "直接操作",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/securitySetup/read": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/rateLimits/read": {
+      "surface": "直接操作",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/rateLimitResetCredit/consume": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/usage/read": {
+      "surface": "直接操作",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/workspaceMessages/read": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "account/sendAddCreditsNudgeEmail": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "feedback/upload": {
+      "surface": "后台内部",
+      "owner": "诊断后台",
+      "flag": "常规/内部"
+    },
+    "feedback/save": {
+      "surface": "后台内部",
+      "owner": "诊断后台",
+      "flag": "常规/内部"
+    },
+    "command/exec": {
+      "surface": "上下文操作",
+      "owner": "终端",
+      "flag": "常规/内部"
+    },
+    "command/exec/write": {
+      "surface": "上下文操作",
+      "owner": "终端",
+      "flag": "常规/内部"
+    },
+    "command/exec/terminate": {
+      "surface": "上下文操作",
+      "owner": "终端",
+      "flag": "常规/内部"
+    },
+    "command/exec/resize": {
+      "surface": "上下文操作",
+      "owner": "终端",
+      "flag": "常规/内部"
+    },
+    "process/spawn": {
+      "surface": "高级按需",
+      "owner": "终端高级",
+      "flag": "实验"
+    },
+    "process/writeStdin": {
+      "surface": "高级按需",
+      "owner": "终端高级",
+      "flag": "实验"
+    },
+    "process/kill": {
+      "surface": "高级按需",
+      "owner": "终端高级",
+      "flag": "实验"
+    },
+    "process/resizePty": {
+      "surface": "高级按需",
+      "owner": "终端高级",
+      "flag": "实验"
+    },
+    "config/read": {
+      "surface": "直接操作",
+      "owner": "引擎配置/安全",
+      "flag": "常规/内部"
+    },
+    "externalAgentConfig/detect": {
+      "surface": "高级按需",
+      "owner": "诊断与导入",
+      "flag": "常规/内部"
+    },
+    "externalAgentConfig/import": {
+      "surface": "高级按需",
+      "owner": "诊断与导入",
+      "flag": "常规/内部"
+    },
+    "externalAgentConfig/import/recordHistory": {
+      "surface": "高级按需",
+      "owner": "诊断与导入",
+      "flag": "常规/内部"
+    },
+    "externalAgentConfig/import/readHistories": {
+      "surface": "高级按需",
+      "owner": "诊断与导入",
+      "flag": "常规/内部"
+    },
+    "config/value/write": {
+      "surface": "直接操作",
+      "owner": "引擎配置/安全",
+      "flag": "常规/内部"
+    },
+    "config/batchWrite": {
+      "surface": "直接操作",
+      "owner": "引擎配置/安全",
+      "flag": "常规/内部"
+    },
+    "configRequirements/read": {
+      "surface": "直接操作",
+      "owner": "权限与安全",
+      "flag": "常规/内部"
+    },
+    "account/read": {
+      "surface": "直接操作",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "fuzzyFileSearch/sessionStart": {
+      "surface": "后台内部",
+      "owner": "检索后台",
+      "flag": "实验"
+    },
+    "fuzzyFileSearch/sessionUpdate": {
+      "surface": "后台内部",
+      "owner": "检索后台",
+      "flag": "实验"
+    },
+    "fuzzyFileSearch/sessionStop": {
+      "surface": "后台内部",
+      "owner": "检索后台",
+      "flag": "实验"
+    },
+    "item/commandExecution/requestApproval": {
+      "surface": "后台内部",
+      "owner": "审批事件后台",
+      "flag": "常规/内部"
+    },
+    "item/fileChange/requestApproval": {
+      "surface": "后台内部",
+      "owner": "审批事件后台",
+      "flag": "常规/内部"
+    },
+    "item/tool/requestUserInput": {
+      "surface": "后台内部",
+      "owner": "审批事件后台",
+      "flag": "常规/内部"
+    },
+    "mcpServer/elicitation/request": {
+      "surface": "后台内部",
+      "owner": "MCP 服务/审批",
+      "flag": "常规/内部"
+    },
+    "item/permissions/requestApproval": {
+      "surface": "后台内部",
+      "owner": "审批事件后台",
+      "flag": "常规/内部"
+    },
+    "item/tool/call": {
+      "surface": "后台内部",
+      "owner": "审批事件后台",
+      "flag": "常规/内部"
+    },
+    "account/chatgptAuthTokens/refresh": {
+      "surface": "后台内部",
+      "owner": "账号/额度",
+      "flag": "常规/内部"
+    },
+    "attestation/generate": {
+      "surface": "后台内部",
+      "owner": "可信证明后台",
+      "flag": "常规/内部"
+    }
+  }
+}
