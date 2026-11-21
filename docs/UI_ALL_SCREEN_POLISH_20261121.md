@@ -2,7 +2,7 @@
 
 ## 范围
 
-沿用已合并的 PR #26 桌面式侧栏、典雅白和 30 个注册路由。基于 Android 35 的 360/393/411dp 截图、四项最新技能（finesse-ui、finesse-brief、frame-smith、finesse-term）和本仓 195 项接口契约审计，集中处理所有共享页面的基础构图、导航反馈、状态展示，以及安全与接口来源模块的实际交互。
+沿用已合并的 PR #26 桌面式侧栏、典雅白和 29 个注册路由。基于 Android 35 的 360/393/411dp 截图、四项最新技能（finesse-ui、finesse-brief、frame-smith、finesse-term）和本仓 195 项接口契约审计，集中处理所有共享页面的基础构图、导航反馈、状态展示，以及安全与接口来源模块的实际交互。
 
 ## 本次落地
 
@@ -28,6 +28,6 @@
 
 ## 验收方式
 
-代码构建、Kotlin 单测、Android Lint、30 路由 UI 导航及模拟器截图由仓库现有 `check-android-ui.yml` 执行。每次修改后以对应分支最新提交的 CI 结果和截图产物为验收依据；离线 UI 数据用于检查形状与状态，不冒充运行核心联调。
+代码构建、Kotlin 单测、Android Lint、29 路由 UI 导航及模拟器截图由仓库现有 `check-android-ui.yml` 执行。每次修改后以对应分支最新提交的 CI 结果和截图产物为验收依据；离线 UI 数据用于检查形状与状态，不冒充运行核心联调。
 
 Figma 设计基线：`K4FEMoNdmQbcnJZCHWr8c7`。当前连接的 Starter MCP 额度已达到上限，画板同步需在调用额度恢复后进行；代码侧仍按本仓最新截图收敛。
