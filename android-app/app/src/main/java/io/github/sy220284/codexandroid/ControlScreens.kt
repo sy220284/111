@@ -260,7 +260,6 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]
     val permissionProfiles = records(data["permissionProfiles"])
-    var showRawRequirements by remember { mutableStateOf(false) }
     val effectiveApproval = current?.optString("approvalPolicy").orEmpty()
     val effectiveSandbox = current?.optString("sandboxMode").orEmpty()
     var draftApproval by remember { mutableStateOf<String?>(null) }
@@ -284,8 +283,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         SectionIntro("TRUST / EXECUTION", "运行权限与安全", "先读取 Codex 实际生效设置，再明确修改审批与文件访问范围。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("当前生效权限", style = MaterialTheme.typography.titleMedium)
-            Text("审批策略：" + effectiveApproval.ifBlank { "等待引擎读取" }, color = Ink.muted)
-            Text("隔离策略：" + effectiveSandbox.ifBlank { "等待引擎读取" }, color = Ink.muted)
+            Text("审批方式：" + PresentationPolicy.approvalMode(effectiveApproval), color = Ink.muted)
+            Text("文件访问：" + PresentationPolicy.sandboxMode(effectiveSandbox), color = Ink.muted)
             DividerLine()
             Text("审批方式", style = MaterialTheme.typography.titleMedium)
             listOf("untrusted" to "只执行可信操作", "on-request" to "每当需要时请求批准",
@@ -336,8 +335,10 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text(profile.optString("id"), style = MaterialTheme.typography.titleSmall)
-                        profile.optString("description").takeIf { it.isNotBlank() }?.let {
+                        Text(PresentationPolicy.permissionProfile(profile.optString("id")),
+                            style = MaterialTheme.typography.titleSmall)
+                        PresentationPolicy.meaningful(profile.optString("description"))
+                            .takeIf { it.isNotBlank() && it != "null" && it.any { c -> c in '\u4e00'..'\u9fff' } }?.let {
                             Text(it, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                         }
                     }
@@ -346,23 +347,14 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        if (requirements != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("组织规则与执行边界", style = MaterialTheme.typography.titleMedium)
-            Text("如需诊断权限设置，可展开查看来自内核的完整策略要求。",
-                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { showRawRequirements = !showRawRequirements }) {
-                Text(if (showRawRequirements) "收起原始策略" else "查看原始策略")
-            }
-            CodexReveal(showRawRequirements) {
-                Text(requirements.toString(2), fontFamily = FontFamily.Monospace,
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
-        }
+        if (requirements != null) CodexNotice(
+            "此运行环境还有额外安全规则，授权操作将遵循实际生效的限制。", NoticeTone.Info
+        )
     }
     if (confirm) CodexConfirmDialog(
         title = "确认更新运行权限",
         message = "更改会影响后续命令审批及工作区文件访问。",
-        detail = "审批：$effectiveApproval → $selectedApproval\n文件访问：$effectiveSandbox → $selectedSandbox",
+        detail = "审批：${PresentationPolicy.approvalMode(effectiveApproval)} → ${PresentationPolicy.approvalMode(selectedApproval)}\n文件访问：${PresentationPolicy.sandboxMode(effectiveSandbox)} → ${PresentationPolicy.sandboxMode(selectedSandbox)}",
         confirmLabel = "确认保存",
         destructive = true,
         onConfirm = {
