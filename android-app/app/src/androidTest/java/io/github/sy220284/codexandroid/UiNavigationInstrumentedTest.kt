@@ -268,7 +268,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-plugins").performClick()
         rule.onNodeWithTag("plugins-tab-installed").assertExists()
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
-        rule.onNodeWithTag("plugins-tab-catalog").assertIsSelected()
+        rule.onNodeWithText("插件源", substring = false).assertExists()
         capture("plugins-android35.png")
     }
 
