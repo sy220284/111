@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import android.content.Context
+import androidx.lifecycle.ViewModelProvider
+import org.json.JSONObject
+import org.json.JSONArray
 import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -355,6 +358,62 @@ class UiNavigationInstrumentedTest {
         openSettingRoute("about")
         rule.onNodeWithText("关于 Codex Android").assertExists()
         captureOverlay("audit-about-android35.png")
+    }
+
+    @Test fun permissionApprovalExplainsActualScope() {
+        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        openDrawerRoute("approvals")
+        val permissions = JSONObject()
+            .put("network", JSONObject().put("enabled", true))
+            .put("fileSystem", JSONObject().put("write",
+                JSONArray().put("/data/user/0/io.github.sy220284.codexandroid/files/projects")))
+        rule.runOnUiThread {
+            vm.bridge.prompts.value = listOf(
+                ServerPrompt("ci-approval", "item/permissions/requestApproval",
+                    JSONObject().put("permissions", permissions))
+            )
+        }
+        rule.onNodeWithText("允许访问网络").assertExists()
+        rule.onNodeWithText("修改：本机工作区").assertExists()
+        capture("audit-permission-request-android35.png")
+        rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
+    }
+
+    @Test fun taskSpecificSheetsAreReachableAndReadable() {
+        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        rule.runOnUiThread {
+            vm.activeThread.value = "ci-selected-session"
+            vm.running.value = false
+        }
+        openDrawerRoute("chat")
+        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithText("复制会话分支").assertExists()
+        captureOverlay("audit-thread-context-android35.png")
+        rule.onNodeWithText("回合历史与回退").performClick()
+        rule.onNodeWithText("查看完整时间线（实验）").assertExists()
+        captureOverlay("audit-thread-history-android35.png")
+        rule.onNodeWithText("查看完整时间线（实验）").performClick()
+        rule.onNodeWithText("会话时间线").assertExists()
+        captureOverlay("audit-advanced-timeline-android35.png")
+        rule.onNodeWithContentDescription("返回回合历史").performClick()
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithText("会话关联资料").performClick()
+        rule.onNodeWithText("添加文本备注").assertExists()
+        captureOverlay("audit-thread-attachments-android35.png")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-review").performClick()
+        rule.onNodeWithText("审查范围").assertExists()
+        captureOverlay("audit-review-sheet-android35.png")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-goals").performClick()
+        rule.onNodeWithText("设置新目标").assertExists()
+        captureOverlay("audit-goals-sheet-android35.png")
     }
 
     @Test fun toolbarQuickActionsCanOpenProjectTools() {
