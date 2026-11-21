@@ -390,6 +390,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("复制会话分支").assertExists()
         captureOverlay("audit-thread-context-android35.png")
         rule.onNodeWithText("回合历史与回退").performClick()
+        rule.waitForIdle()
+        captureOverlay("audit-thread-history-transition-android35.png")
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithText("查看完整时间线（实验）").fetchSemanticsNodes().isNotEmpty()
         }
