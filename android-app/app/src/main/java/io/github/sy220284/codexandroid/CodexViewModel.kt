@@ -70,7 +70,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 同一结果键只接受最后发起的请求，避免较早的慢响应覆盖新结果。
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
-    private val latestRequests = mutableMapOf<String, Any>()
+    private val latestRequests = LatestRequestGate()
 
     private fun request(
         key: String,
@@ -78,26 +78,24 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         params: JSONObject,
         onSuccess: ((JSONObject) -> Unit)?
     ) {
-        val ticket = Any()
-        latestRequests[key] = ticket
+        val ticket = latestRequests.begin(key)
         data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
                 val response = bridge.request(method, params)
-                if (latestRequests[key] === ticket) {
+                if (latestRequests.isLatest(key, ticket)) {
                     data.value = data.value + (key to response)
                     errors.value = errors.value - key
                     onSuccess?.invoke(response)
                 }
             } catch (failure: Exception) {
-                if (latestRequests[key] === ticket) {
+                if (latestRequests.isLatest(key, ticket)) {
                     errors.value = errors.value + (key to (failure.message ?: "请求失败"))
                 }
             } finally {
-                if (latestRequests[key] === ticket) {
-                    latestRequests.remove(key)
+                if (latestRequests.complete(key, ticket)) {
                     loading.value = loading.value - key
                 }
             }
