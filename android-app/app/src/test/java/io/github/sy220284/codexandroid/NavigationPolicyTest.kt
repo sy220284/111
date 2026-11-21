@@ -11,6 +11,15 @@ class NavigationPolicyTest {
             NavigationPolicy.primaryRoutes)
         assertTrue(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("review"))
+        assertTrue(NavigationPolicy.isSettingsChild("plugins"))
+        assertFalse(NavigationPolicy.isSettingsChild("terminal"))
+        assertFalse(NavigationPolicy.isSettingsChild("review"))
+        assertFalse(NavigationPolicy.isSettingsChild("threads"))
+        assertTrue(NavigationPolicy.isDetailPage("terminal"))
+        assertTrue(NavigationPolicy.isDetailPage("diff"))
+        assertTrue(NavigationPolicy.isDetailPage("plugins"))
+        assertFalse(NavigationPolicy.isDetailPage("home"))
+        assertFalse(NavigationPolicy.isDetailPage("settings"))
     }
 
     @Test fun allTwentyEightRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
