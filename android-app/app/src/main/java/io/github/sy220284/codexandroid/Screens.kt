@@ -98,9 +98,9 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val hasAccount = data["account"]?.optJSONObject("account") != null
 
     ScreenColumn {
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(5.dp))
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -212,10 +212,10 @@ internal fun ThreadRow(item: JSONObject, enabled: Boolean, onClick: () -> Unit) 
             Spacer(Modifier.width(13.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    item.optString("name").ifBlank { item.optString("preview").ifBlank { "未命名会话" } },
+                    PresentationPolicy.threadTitle(item.optString("name"), item.optString("preview")),
                     style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis
                 )
-                Text(item.optString("cwd").ifBlank { item.optString("id") }, color = Ink.muted,
+                Text(PresentationPolicy.workspaceName(item.optString("cwd")), color = Ink.muted,
                     maxLines = 1, style = MaterialTheme.typography.labelMedium)
             }
             if (!enabled) {
@@ -251,6 +251,11 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var attachmentError by remember { mutableStateOf("") }
 
     val selectedMode by vm.selectedMode.collectAsState()
+    val currentTitle = thread?.let { threadId ->
+        records(models["threads"]).firstOrNull { it.optString("id") == threadId }?.let {
+            PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
+        }
+    }
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -300,9 +305,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(if (thread == null) "新的工作会话" else "进行中的任务",
+                Text(if (thread == null) "新的工作会话" else currentTitle ?: "当前任务",
                     style = MaterialTheme.typography.titleMedium)
-                Text(thread?.take(18) ?: "本机工作区",
+                Text("本机工作区",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
@@ -543,17 +548,7 @@ private fun TimelineStepCard(item: TimelineItem) {
         user -> Ink.copper
         else -> Ink.jade
     }
-    val title = when (item.kind) {
-        "user" -> "你的指令"
-        "agentMessage" -> "Codex 回复"
-        "reasoning", "reasoningSummaryTextDelta" -> "推理与分析"
-        "plan" -> "任务计划"
-        "commandExecution" -> "命令执行"
-        "fileChange" -> "文件变更"
-        "mcpToolCall" -> "外部工具调用"
-        "error" -> "执行异常"
-        else -> item.kind
-    }
+    val title = PresentationPolicy.timelineKind(item.kind)
     val icon = when (item.kind) {
         "user" -> Icons.Outlined.PersonOutline
         "commandExecution" -> Icons.Outlined.Terminal
@@ -586,19 +581,13 @@ private fun TimelineStepCard(item: TimelineItem) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f))
-                    if (item.status.isNotBlank()) {
-                        Text(
-                            when (item.status.lowercase()) {
-                                "completed" -> "已完成"
-                                "inprogress", "in_progress", "running", "streaming" -> "执行中"
-                                "failed" -> "失败"
-                                "declined" -> "已拒绝"
-                                else -> item.status
-                            },
-                            style = MaterialTheme.typography.labelMedium, color = tone)
+                    val statusLabel = PresentationPolicy.timelineStatus(item.status)
+                    if (statusLabel.isNotEmpty()) {
+                        Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
                     }
                 }
-                Text(item.text.ifBlank { "等待执行内容…" },
+                Text(item.text.takeUnless { it == item.kind || PresentationPolicy.meaningful(it).isEmpty() }
+                    ?: "正在处理…",
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
                 if (item.evidence.isNotBlank()) {
