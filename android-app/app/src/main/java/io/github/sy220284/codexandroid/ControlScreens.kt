@@ -198,55 +198,104 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
 }
 
 @Composable
-fun ConfigPage(vm: CodexViewModel) {
+fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
-    var path by remember { mutableStateOf("") }
-    var value by remember { mutableStateOf("") }
+    val loading by vm.loading.collectAsState()
+    var advanced by rememberSaveable { mutableStateOf(false) }
+    var path by rememberSaveable { mutableStateOf("") }
+    var value by rememberSaveable { mutableStateOf("") }
     var showConfirm by remember { mutableStateOf(false) }
     var parsed by remember { mutableStateOf<Any?>(null) }
+    val ready = data["config"] != null
+
     ScreenColumn {
-        SectionIntro("RUNTIME / PREFERENCES", "引擎配置", "使用官方 config/read 与 config/value/write，配置直接写入 Codex 本机设置。")
-        Row {
-            OutlinedButton(onClick = { vm.refresh("config", "config/read", JSONObject().put("includeLayers", true)) }) {
-                Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text("读取生效配置")
+        SectionIntro("RUNTIME / PREFERENCES", "引擎配置",
+            "常用配置已经归入对应功能页面，其他选项可在下方自定义调整。")
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.SettingsSuggest, null, tint = Ink.copper)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("当前配置", style = MaterialTheme.typography.titleMedium)
+                    Text(if (ready) "已读取本机配置" else "等待读取",
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                }
+                IconButton(onClick = {
+                    vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+                }, enabled = "config" !in loading) {
+                    Icon(Icons.Outlined.Refresh, "读取生效配置")
+                }
             }
+            if ("config" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text("配置保存在当前设备，修改成功后影响后续任务。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("编辑配置项", style = MaterialTheme.typography.titleMedium)
-            Text("每次修改一个键。值采用 JSON 格式，如 true、15 或带双引号的字符串。", color = Ink.muted)
-            OutlinedTextField(path, { path = it }, modifier = Modifier.fillMaxWidth(),
-                label = { Text("键路径，如 approval_policy") }, singleLine = true)
-            OutlinedTextField(value, { value = it }, modifier = Modifier.fillMaxWidth(), label = { Text("JSON 值") },
-                placeholder = { Text("\"on-request\"") }, minLines = 2)
-            OutlinedButton(onClick = {
-                try {
-                    require(path.isNotBlank() && value.isNotBlank()) { "请填写键路径和值" }
-                    parsed = JSONTokener(value).nextValue()
-                    showConfirm = true
-                } catch (failure: Exception) {
-                    vm.errors.value = vm.errors.value + ("config" to (failure.message ?: "JSON 值无效"))
+            Text("按功能管理", style = MaterialTheme.typography.titleMedium)
+            listOf(
+                Triple("security", "权限与安全", "审批方式和工作区文件访问"),
+                Triple("providers", "模型服务商", "默认服务商和接入配置"),
+                Triple("models", "模型目录", "任务模型及思考能力")
+            ).forEach { (id, title, summary) ->
+                OutlinedButton(onClick = { navigate(id) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                        Text(title, style = MaterialTheme.typography.bodyLarge)
+                        Text(summary, color = Ink.muted,
+                            style = MaterialTheme.typography.labelMedium)
+                    }
+                    Icon(Icons.Outlined.ChevronRight, null)
                 }
-            }) { Text("检查并保存") }
+            }
         }
         errors["config"]?.let { ErrorText(it) }
-        data["config"]?.let {
+        TextButton(
+            onClick = { advanced = !advanced },
+            modifier = Modifier.fillMaxWidth().testTag("config-advanced-toggle")
+        ) {
+            Icon(if (advanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
+            Spacer(Modifier.width(6.dp))
+            Text(if (advanced) "收起高级配置" else "高级自定义配置")
+        }
+        CodexReveal(advanced) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("当前生效配置", style = MaterialTheme.typography.titleMedium)
-                Text(it.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
-                    style = MaterialTheme.typography.bodyMedium)
+                Text("自定义配置", style = MaterialTheme.typography.titleMedium)
+                Text("适用于已经了解目标设置项的用户。修改前核对名称和值；每次只提交一项。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(path, { path = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("设置项名称") }, singleLine = true,
+                    placeholder = { Text("approval_policy") })
+                OutlinedTextField(value, { value = it }, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("设置值（JSON）") }, minLines = 2,
+                    placeholder = { Text("\\\"on-request\\\"") })
+                OutlinedButton(onClick = {
+                    try {
+                        require(path.isNotBlank() && value.isNotBlank()) { "请填写设置名称和值" }
+                        parsed = JSONTokener(value).nextValue()
+                        showConfirm = true
+                    } catch (failure: Exception) {
+                        vm.errors.value = vm.errors.value +
+                            ("config" to (failure.message ?: "配置值格式不正确"))
+                    }
+                }, enabled = path.isNotBlank() && value.isNotBlank()) {
+                    Text("检查并保存")
+                }
             }
         }
     }
     if (showConfirm) CodexConfirmDialog(
-        title = "保存 Codex 配置",
-        message = "本次修改会写入本机 config.toml。请核对键和值。",
-        detail = "键：$path\n值：$value",
-        confirmLabel = "确认写入",
+        title = "保存本机设置",
+        message = "本次操作将更新 Codex 在当前设备中的运行配置。",
+        detail = "设置项：$path\n设置值：$value",
+        confirmLabel = "确认保存",
         onConfirm = {
-            vm.rpc("config", "config/value/write", JSONObject().put("keyPath", path)
-                .put("value", parsed).put("mergeStrategy", "replace"),
-                after = { vm.refresh("config", "config/read") })
+            vm.rpc("config", "config/value/write",
+                JSONObject().put("keyPath", path)
+                    .put("value", parsed).put("mergeStrategy", "replace"),
+                after = {
+                    vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+                })
             showConfirm = false
         },
         onDismiss = { showConfirm = false }
