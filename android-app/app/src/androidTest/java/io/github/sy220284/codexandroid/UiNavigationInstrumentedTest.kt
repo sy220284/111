@@ -267,6 +267,23 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 
+    @Test fun accountSessionsExperimentHasClearOfflineState() {
+        openSettingRoute("account")
+        rule.onNodeWithText("账号与工作区切换（实验）").performScrollTo().performClick()
+        rule.onNodeWithText("账号与工作区切换", substring = false).assertExists()
+        rule.onNodeWithText("刷新账号与工作区", substring = false)
+            .assertExists() // 引擎连接后才读取，离线展示连接动作
+        captureOverlay("account-sessions-android35.png")
+    }
+
+    @Test fun pluginDiscoveryCanOpenSearchWithoutInventedResults() {
+        openSettingRoute("plugins")
+        rule.onNodeWithTag("plugins-tab-catalog").performClick()
+        rule.onNodeWithText("搜索插件（实验）").assertExists()
+        rule.onNodeWithText("插件名称或关键字").assertExists()
+        capture("plugin-search-android35.png")
+    }
+
     @Test fun installedPluginManagementAndCatalogStayReachable() {
         openSettingRoute("plugins")
         rule.onNodeWithTag("plugins-tab-installed").assertExists()

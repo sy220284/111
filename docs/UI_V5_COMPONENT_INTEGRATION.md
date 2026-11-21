@@ -42,6 +42,8 @@
 | `McpToolCallSheet` | `mcpServer/tool/call` | 指定服务/工具/会话和 JSON 参数，显式确认后执行 |
 | `McpResourceSheet` + `FullTextReaderDialog` | `mcpServer/resource/read` | 短资源预览，长资源全文检索与复制 |
 | `PluginDetailSheet` | `plugin/read`、`plugin/skill/read` | 插件元数据及按需技能正文 |
+| `PluginSearchContract` + `PluginsPage` | `plugin/search`（实验） | 插件发现页按关键字搜索，携来源安装与详情，真实游标分页、错误提示 |
+| `AccountSessionsSheet` | `accountSession/list`、`accountSession/switch`（实验） | 账号面板列出可切换工作区，准确会话/工作区标识确认切换，按需外部 SSO 授权 |
 | `ProvidersPage` | `modelProvider/list/default/set/config/write/capabilities/read` | 切默认、保存 customGateway 补丁、查询真实能力 |
 | `AboutInfoSheet` | 本机版本、内核状态 | 设置内底部信息层，保留旧页面路由 |
 
