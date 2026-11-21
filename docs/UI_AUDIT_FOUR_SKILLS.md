@@ -65,3 +65,7 @@
 ## 六、复用规则
 
 后续新增页面只需复用 `CodexTheme / MaterialPanel / SectionIntro / CodexNotice / CodexEmptyState / CodexChoiceSheet / CodexEvidenceSheet / CodexConfirmDialog / CodexReveal / CodexActionTile` 及 `CodexMotion`。业务页面只提供准确的操作对象、风险和回调，不重复声明阴影、颜色、弹窗结构或动效时长。所有操作保留真实数据源与错误路径。
+
+## 2026-11-21 典雅白全局升级
+
+以上主要记录历史石墨暖铜版本。当前生效的设计方案以 [典雅白 V3](DESIGN_SYSTEM.md) 为准：全部页面、强调背景、选择态、按钮和弹层统一白底，重要操作通过文字图标与描边表达；对话工具栏采用单行并保留 48dp 图标触控，弱化重复的英文眉题，新增语义化状态标签。

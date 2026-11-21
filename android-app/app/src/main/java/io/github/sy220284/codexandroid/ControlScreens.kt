@@ -153,10 +153,10 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") },
                 modifier = Modifier.heightIn(min = 48.dp)) { Text("拒绝") }
             if (normal) {
-                Button(onClick = { vm.answerApproval(prompt, "accept") },
+                OutlinedButton(onClick = { vm.answerApproval(prompt, "accept") },
                     modifier = Modifier.heightIn(min = 48.dp)) { Text("仅本次允许") }
             } else if (permission) {
-                Button(onClick = { grantPermissions = true },
+                OutlinedButton(onClick = { grantPermissions = true },
                     modifier = Modifier.heightIn(min = 48.dp)) { Text("授权本轮") }
             } else if (question) {
                 val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
@@ -164,7 +164,7 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     val id = questions.optJSONObject(it)?.optString("id") ?: ""
                     answers[id]?.isNotBlank() == true
                 }
-                Button(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
+                OutlinedButton(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
                     enabled = allAnswered && questions.length() > 0,
                     modifier = Modifier.heightIn(min = 48.dp)) { Text("提交全部回答") }
             }
@@ -206,7 +206,7 @@ fun ConfigPage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("RUNTIME / PREFERENCES", "引擎配置", "使用官方 config/read 与 config/value/write，配置直接写入 Codex 本机设置。")
         Row {
-            Button(onClick = { vm.refresh("config", "config/read", JSONObject().put("includeLayers", true)) }) {
+            OutlinedButton(onClick = { vm.refresh("config", "config/read", JSONObject().put("includeLayers", true)) }) {
                 Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text("读取生效配置")
             }
         }
@@ -217,7 +217,7 @@ fun ConfigPage(vm: CodexViewModel) {
                 label = { Text("键路径，如 approval_policy") }, singleLine = true)
             OutlinedTextField(value, { value = it }, modifier = Modifier.fillMaxWidth(), label = { Text("JSON 值") },
                 placeholder = { Text("\"on-request\"") }, minLines = 2)
-            Button(onClick = {
+            OutlinedButton(onClick = {
                 try {
                     require(path.isNotBlank() && value.isNotBlank()) { "请填写键路径和值" }
                     parsed = JSONTokener(value).nextValue()
@@ -305,7 +305,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text(title)
                 }
             }
-            Button(onClick = { confirm = true }, enabled = hasChanges, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { confirm = true }, enabled = hasChanges, modifier = Modifier.fillMaxWidth()) {
                 Text("保存本次权限调整")
             }
             Text("Android 应用私有空间由系统隔离；Codex 的沙箱与网络策略仍由实际运行环境执行。",
@@ -390,26 +390,26 @@ fun AppearancePage() {
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
     val softMaterial by UiPreferences.softMaterial.collectAsState()
     ScreenColumn {
-        SectionIntro("DESIGN / SURFACES", "外观与交互", "深石墨界面、暖铜操作重点、柔雾层次与精简动效。")
+        SectionIntro("DESIGN / SURFACES", "外观与交互", "全局典雅白底，暖铜文字与边框强调操作，支持轻阴影和精简动效。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("界面材料", style = MaterialTheme.typography.titleMedium)
-            Text("石墨雾面 / 细金属边 / 低反差分层", color = Ink.muted)
+            Text("典雅白底 / 柔和细边 / 清晰文字层级", color = Ink.muted)
             DividerLine()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("紧凑信息密度")
                     Text("缩小面板间距，让代码和数据占据更多空间", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Switch(compact, onCheckedChange = UiPreferences::setCompact)
+                WhiteSwitch(compact, onCheckedChange = UiPreferences::setCompact)
             }
             DividerLine()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("柔雾层次材质")
-                    Text("通过低对比渐层强调内容层级；关闭后使用纯色面板",
+                    Text("开启后增加轻微卡片阴影；关闭后保留白底和细边框",
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Switch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
+                WhiteSwitch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
             }
             DividerLine()
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -417,7 +417,7 @@ fun AppearancePage() {
                     Text("减弱页面动效")
                     Text("缩短或关闭转场动画，保留状态反馈", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Switch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
+                WhiteSwitch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
             }
         }
         CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", Icons.Outlined.TouchApp,
@@ -427,10 +427,10 @@ fun AppearancePage() {
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("颜色职责", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatusPill("主要操作", true)
-                StatusPill("风险确认", false)
+                StatusPill("主要操作", tone = StatusTone.Info)
+                StatusPill("风险确认", tone = StatusTone.Danger)
             }
-            Text("冷灰作为主要承载面；暖铜只用于执行入口、活动项和关键选择。", color = Ink.muted)
+            Text("页面、卡片、选中态和按钮均使用白色背景；暖铜用于关键文字、图标和边框。", color = Ink.muted)
         }
     }
 }

@@ -108,7 +108,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                             LinearProgressIndicator(
                                 progress = { tokens.toFloat().div(maxTokens).coerceIn(0f, 1f) },
                                 modifier = Modifier.weight(1f).height(8.dp),
-                                color = Ink.copper, trackColor = Ink.elevated)
+                                color = Ink.copper, trackColor = Ink.border)
                             Spacer(Modifier.width(9.dp))
                             Text(formatMetricNumber(tokens), style = MaterialTheme.typography.labelMedium)
                         }
@@ -197,7 +197,7 @@ private fun LimitBucketCard(title: String, snapshot: JSONObject) {
             LinearProgressIndicator(progress = { used / 100f },
                 modifier = Modifier.fillMaxWidth().height(9.dp),
                 color = if (used >= 100) Ink.red else Ink.copper,
-                trackColor = Ink.elevated)
+                trackColor = Ink.border)
             val duration = window.optLong("windowDurationMins", -1L)
             val until = window.optLong("resetsAt", -1L)
             if (duration > 0) Text("窗口 " + duration + " 分钟",

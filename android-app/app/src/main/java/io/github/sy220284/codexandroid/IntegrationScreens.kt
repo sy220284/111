@@ -119,7 +119,7 @@ fun ConnectedAppsPage(vm: CodexViewModel) {
             val installUrl = app.optString("installUrl")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(15.dp), color = Ink.copper.copy(alpha = .16f),
+                    Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
                         border = BorderStroke(1.dp, Ink.copperDim)) {
                         Icon(Icons.Outlined.Apps, null, tint = Ink.copper,
                             modifier = Modifier.padding(12.dp).size(22.dp))
@@ -285,7 +285,7 @@ fun McpServicesPage(vm: CodexViewModel) {
         if (login.startsWith("https://") || login.startsWith("http://127.0.0.1")) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请在浏览器完成 MCP 授权", style = MaterialTheme.typography.titleMedium)
-                Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login))) }) {
+                OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login))) }) {
                     Icon(Icons.Outlined.OpenInNew, null); Text("继续授权")
                 }
             }
@@ -331,7 +331,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             OutlinedTextField(environmentId, { environmentId = it }, label = { Text("环境 ID") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     vm.refresh("envStatus", "environment/status",
                         JSONObject().put("environmentId", environmentId))
                 }, enabled = environmentId.isNotBlank()) { Text("检查状态") }
@@ -362,7 +362,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 OutlinedTextField(endpoint, { endpoint = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("执行服务 WebSocket URL") },
                     placeholder = { Text("wss://example.com/exec") }, singleLine = true)
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     vm.rpc("environmentAdd", "environment/add",
                         JSONObject().put("environmentId", environmentId)
                             .put("execServerUrl", endpoint),

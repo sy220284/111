@@ -92,7 +92,7 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                 label = { Text("Token 上限（可留空）") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
             if (!safeBudget) Text("Token 上限必须是正整数", color = Ink.red)
-            Button(
+            OutlinedButton(
                 onClick = {
                     val params = JSONObject().put("threadId", active)
                         .put("origin", "user")
@@ -164,7 +164,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 
     ScreenColumn {
         SectionIntro("TASK / QUEUE", "任务队列", "任务按顺序等待执行，支持新增、修改文本、删除、排序与分页浏览。")
-        StatusPill("上游实验接口", false)
+        StatusPill("上游实验接口", tone = StatusTone.Neutral)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先打开一个任务会话", style = MaterialTheme.typography.titleMedium)
@@ -178,7 +178,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 minLines = 2, maxLines = 6,
                 label = { Text("下一步要做什么") },
                 placeholder = { Text("描述明确任务及完成条件") })
-            Button(onClick = {
+            OutlinedButton(onClick = {
                 val originalDraft = draft
                 val args = JSONObject().put("threadId", active)
                     .put("clientUserMessageId", UUID.randomUUID().toString())
@@ -279,7 +279,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 )
             },
             confirmButton = {
-                Button(
+                OutlinedButton(
                     onClick = {
                         active?.let { id ->
                             vm.rpc("queueWrite", "thread/queue/update",

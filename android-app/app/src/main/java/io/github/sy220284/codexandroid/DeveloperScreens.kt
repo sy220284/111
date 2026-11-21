@@ -119,7 +119,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         Spacer(Modifier.width(5.dp))
                         Text("上一级")
                     }
-                    Button(onClick = { picker.launch(arrayOf("*/*")) },
+                    OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) },
                         enabled = !actionBusy) {
                         Icon(Icons.Outlined.FileUpload, null)
                         Spacer(Modifier.width(6.dp))
@@ -149,7 +149,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 OutlinedTextField(createName, { createName = it },
                     label = { Text(if (createKind == "file") "文件名（如 README.md）" else "文件夹名称") },
                     modifier = Modifier.fillMaxWidth().testTag("workspace-new-name"), singleLine = true)
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     try {
                         val created = if (createKind == "file")
                             WorkspaceFileActions.createTextFile(root, folder, createName)
@@ -249,7 +249,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         actionBusy = true
                         fileAction = null
                         scope.launch {
@@ -319,7 +319,7 @@ private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                 Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
                 Text("本地文件编辑", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            Button(onClick = {
+            OutlinedButton(onClick = {
                 scope.launch {
                     try {
                         withContext(Dispatchers.IO) {
@@ -364,7 +364,7 @@ fun TerminalPage(vm: CodexViewModel) {
                 label = { Text("Shell 命令") }, placeholder = { Text("pwd && ls -la") },
                 modifier = Modifier.fillMaxWidth(), maxLines = 5,
                 enabled = !session.running)
-            Button(onClick = { confirm = true },
+            OutlinedButton(onClick = { confirm = true },
                 enabled = command.isNotBlank() && !session.running,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Icon(Icons.Outlined.PlayArrow, null)
@@ -398,7 +398,8 @@ fun TerminalPage(vm: CodexViewModel) {
                     }
                     StatusPill(
                         if (session.running) "运行中" else if (session.exitCode == 0) "完成" else "异常",
-                        !session.running && session.exitCode == 0
+                        !session.running && session.exitCode == 0,
+                        tone = if (session.running) StatusTone.Info else if (session.exitCode == 0) StatusTone.Success else StatusTone.Danger
                     )
                 }
                 if (session.running) {
@@ -411,7 +412,7 @@ fun TerminalPage(vm: CodexViewModel) {
                     )
                     Row(Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = {
+                        OutlinedButton(onClick = {
                             val submitted = input
                             vm.sendTerminalInput(submitted) {
                                 input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
@@ -505,7 +506,7 @@ fun ReviewPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (selection != "uncommittedChanges") OutlinedTextField(value, { value = it },
                 label = { Text(if (selection == "baseBranch") "基线分支" else if (selection == "commit") "Commit SHA" else "审查说明") },
                 modifier = Modifier.fillMaxWidth())
-            Button(onClick = { confirm = true }, enabled = active != null &&
+            OutlinedButton(onClick = { confirm = true }, enabled = active != null &&
                 (selection == "uncommittedChanges" || value.isNotBlank())) {
                 Icon(Icons.Outlined.FactCheck, null); Spacer(Modifier.width(8.dp)); Text("发起审查")
             }
@@ -533,7 +534,7 @@ fun ReviewPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         fontFamily = FontFamily.Monospace,
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
-                Button(onClick = { navigate("chat") },
+                OutlinedButton(onClick = { navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.Chat, null)
                     Spacer(Modifier.width(7.dp))

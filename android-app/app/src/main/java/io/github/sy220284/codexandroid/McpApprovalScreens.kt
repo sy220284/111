@@ -59,7 +59,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 when (type) {
                     "boolean" -> Row(verticalAlignment = Alignment.CenterVertically) {
                         val checked = answers[name] == "true"
-                        Switch(checked = checked, onCheckedChange = { answers[name] = it.toString() })
+                        WhiteSwitch(checked = checked, onCheckedChange = { answers[name] = it.toString() })
                         Spacer(Modifier.width(10.dp))
                         Text(if (checked) "允许" else "关闭", color = Ink.muted)
                     }
@@ -130,7 +130,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             val link = params.optString("url")
             Text("请在浏览器完成外部服务验证，返回后再确认。", color = Ink.muted)
             if (link.startsWith("https://") || link.startsWith("http://127.0.0.1:")) {
-                Button(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }) {
+                OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }) {
                     Icon(Icons.Outlined.OpenInBrowser, null); Text("打开授权页面")
                 }
             } else ErrorText("服务端提供了不安全的跳转地址")
@@ -146,7 +146,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             if ((kind in listOf("form", "openai/form", "openaiForm") && fields != null)
                 || (kind == "url" && (params.optString("url").startsWith("https://")
                     || params.optString("url").startsWith("http://127.0.0.1:")))) {
-                Button(onClick = { confirmation = true }) { Text("核对并提交") }
+                OutlinedButton(onClick = { confirmation = true }) { Text("核对并提交") }
             }
         }
     }

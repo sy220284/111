@@ -166,7 +166,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("分组服务暂不可用：$it", color = Ink.muted,
                         style = MaterialTheme.typography.bodySmall)
                 }
-                Button(onClick = { vm.newThread(); navigate("chat") },
+                OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     enabled = !running) {
                     Icon(Icons.Outlined.Add, null)
@@ -212,7 +212,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = Ink.copper.copy(alpha = .12f),
+                        color = Ink.canvas,
                         shape = RoundedCornerShape(13.dp)
                     ) {
                         Icon(if (archived) Icons.Outlined.Inventory2 else Icons.Outlined.Forum,
@@ -273,7 +273,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("恢复会话")
                     }
                 } else {
-                    Button(onClick = { vm.chooseThread(id); navigate("chat") },
+                    OutlinedButton(onClick = { vm.chooseThread(id); navigate("chat") },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = !running && id.isNotBlank()) {
                         Icon(Icons.Outlined.PlayArrow, null)
@@ -293,7 +293,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Text("上一页")
                     }
-                    Button(onClick = {
+                    OutlinedButton(onClick = {
                         history = history + cursor
                         cursor = nextCursor
                     }, enabled = nextCursor != null && key !in loading,
@@ -316,7 +316,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     modifier = Modifier.fillMaxWidth())
             },
             confirmButton = {
-                Button(
+                OutlinedButton(
                     enabled = sectionDraft.trim().isNotEmpty() &&
                         sectionDraft.trim().length <= 120 && "sectionEdit" !in loading,
                     onClick = {
@@ -393,7 +393,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             },
             confirmButton = {
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     vm.rpc("threadLibraryAction", "thread/name/set",
                         JSONObject().put("threadId", id).put("name", newName.trim()),
                         after = {
