@@ -123,7 +123,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             )
                         }
                     }
-                    else -> Text("此字段类型需要专用组件：" + type, color = Ink.red)
+                    else -> Text("当前服务使用了尚未支持的表单字段，请联系服务提供方。", color = Ink.red)
                 }
             }
         } else if (kind == "url") {
