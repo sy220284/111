@@ -63,6 +63,16 @@ class TerminalSessionContractTest {
         assertEquals("x".repeat(TerminalSessionState.MAX_STREAM_BYTES), s.stdoutText)
     }
 
+    @Test fun laterOutputRemainsVisibleAfterBufferLimit() {
+        val first = "A".repeat(TerminalSessionState.MAX_STREAM_BYTES)
+        val state = TerminalSessionState.start("a", "tail")
+            .append(delta("a", "stdout", first))
+            .append(delta("a", "stdout", "LATEST"))
+        assertEquals(TerminalSessionState.MAX_STREAM_BYTES, state.stdoutBytes.size)
+        assertTrue(state.stdoutText.endsWith("LATEST"))
+        assertTrue(state.outputTruncated)
+    }
+
     @Test fun stdinAndStopUseExactSessionId() {
         val stdin = TerminalSessionContract.write("session-a", "第一行")
         assertEquals("session-a", stdin.getString("processId"))
