@@ -244,6 +244,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
     var showAttachmentTools by remember { mutableStateOf(false) }
+    var pendingContextRoute by remember { mutableStateOf<String?>(null) }
+    var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
+    var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
     val attachmentContext = LocalContext.current
     var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
@@ -275,6 +278,27 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         attachmentBusy = false
                     }
                 }
+            }
+        }
+    }
+    // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
+    LaunchedEffect(showContextTools, pendingContextRoute) {
+        if (!showContextTools) {
+            pendingContextRoute?.let { destination ->
+                pendingContextRoute = null
+                navigate(destination)
+            }
+        }
+    }
+    LaunchedEffect(showAttachmentTools, pendingAttachmentRoute, pendingImagePick) {
+        if (!showAttachmentTools) {
+            pendingAttachmentRoute?.let { destination ->
+                pendingAttachmentRoute = null
+                navigate(destination)
+            }
+            if (pendingImagePick) {
+                pendingImagePick = false
+                imagePicker.launch("image/*")
             }
         }
     }
@@ -517,14 +541,27 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     if (showContextTools) {
-        ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
+        ThreadContextTools(
+            vm = vm,
+            navigate = { destination ->
+                pendingContextRoute = destination
+                showContextTools = false
+            },
+            onDismiss = { showContextTools = false }
+        )
     }
     if (showAttachmentTools) {
         WorkspaceActionsSheet(
             onDismiss = { showAttachmentTools = false },
-            navigate = navigate, hasThread = thread != null,
+            navigate = { destination ->
+                pendingAttachmentRoute = destination
+                showAttachmentTools = false
+            }, hasThread = thread != null,
             imageCount = attachedImages.size, importing = attachmentBusy,
-            onPickImage = { imagePicker.launch("image/*") }
+            onPickImage = {
+                pendingImagePick = true
+                showAttachmentTools = false
+            }
         )
     }
     if (showModels) ModelChoiceSurface(vm) { showModels = false }
