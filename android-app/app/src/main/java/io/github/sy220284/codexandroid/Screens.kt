@@ -244,6 +244,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
     var showAttachmentTools by remember { mutableStateOf(false) }
+    var showEngineStatus by remember { mutableStateOf(false) }
     val attachmentContext = LocalContext.current
     var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var attachmentBusy by remember { mutableStateOf(false) }
@@ -308,7 +309,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
                 Icon(Icons.Outlined.MoreHoriz, "会话工具")
             }
-            IconButton(onClick = { navigate("diff") }) { Icon(Icons.Outlined.Difference, "查看代码差异") }
+            IconButton(onClick = { navigate("diff") }, enabled = thread != null) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
         if (thread != null || items.isNotEmpty()) Row(
@@ -377,7 +378,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             )
                             WelcomeActionCard(
                                 "代码审查", "检查修改质量", Icons.Outlined.FactCheck,
-                                Ink.jade, onClick = { navigate("review") }, modifier = Modifier.weight(1f)
+                                Ink.jade, onClick = { navigate(if (thread == null) "threads" else "review") }, modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -423,10 +424,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 running = busy,
                 onModel = { showModels = true },
                 onMode = { showModes = true },
-                onDiagnostics = { navigate("diagnostics") }
+                onDiagnostics = { showEngineStatus = true }
             )
             if (!busy && status != EngineStatus.Connected) {
-                Text("内核未连接，点击右侧状态图标查看诊断",
+                Text("内核未连接，点击右侧状态图标查看运行状态",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             if (attachmentBusy) {
@@ -458,7 +459,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         onClick = { showAttachmentTools = true },
                         modifier = Modifier.testTag("composer-plus")
                     ) {
-                        Icon(Icons.Outlined.Add, contentDescription = "添加附件与工具",
+                        Icon(Icons.Outlined.Add, contentDescription = "添加附件",
                             tint = Ink.copper)
                     }
                 }
@@ -514,42 +515,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
     }
     if (showAttachmentTools) {
-        WorkspaceActionsSheet(
+        AttachmentActionsSheet(
+            imageCount = attachedImages.size,
+            importing = attachmentBusy,
             onDismiss = { showAttachmentTools = false },
-            navigate = navigate,
-            onChooseImage = { imagePicker.launch("image/*") }
+            onPickImage = { imagePicker.launch("image/*") }
         )
     }
-    if (showModels) {
-        val available = records(models["models"]).filter { !it.optBoolean("hidden") }.take(80)
-        CodexChoiceSheet(
-            title = "选择运行模型", description = "影响后续任务，已经启动的任务继续使用原设置。",
-            choices = if (available.isEmpty()) listOf(
-                CodexChoice("__reload", "刷新模型目录", "读取 Codex 内核支持的模型")
-            ) else available.map {
-                val id = it.optString("id").ifBlank { it.optString("model") }
-                CodexChoice(id, it.optString("displayName").ifBlank { id }, it.optString("description"))
-            }.distinctBy { it.id },
-            selectedId = vm.modelId.collectAsState().value,
-            onSelect = { id ->
-                if (id == "__reload") vm.refresh("models", "model/list") else vm.modelId.value = id
-                showModels = false
-            },
-            onDismiss = { showModels = false }
-        )
-    }
-    if (showModes) {
-        CodexChoiceSheet(
-            title = "选择协作方式", description = "直接执行或先规划步骤；运行中不能切换。",
-            choices = listOf(
-                CodexChoice("default", "直接执行", "按任务要求执行并报告进度"),
-                CodexChoice("plan", "先制定计划", "先明确步骤，再由你决定下一步")
-            ),
-            selectedId = selectedMode,
-            onSelect = { vm.selectedMode.value = it; showModes = false },
-            onDismiss = { showModes = false }
-        )
-    }
+    if (showModels) ModelChoiceSurface(vm) { showModels = false }
+    if (showModes) ModeChoiceSurface(vm) { showModes = false }
+    if (showEngineStatus) EngineStatusSheet(
+        vm, onDismiss = { showEngineStatus = false }, navigate = navigate
+    )
 }
 
 /** Every tool step retains the source payload for verification while keeping the chat readable. */
