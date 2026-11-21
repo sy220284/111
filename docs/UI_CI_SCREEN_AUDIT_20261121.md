@@ -2,11 +2,11 @@
 
 ## 范围和证据
 
-本次审计以 GitHub PR #26 的 Android 源码、实际 UI 测试路径和 Android 35 模拟器截图为依据，逐一覆盖功能目录中全部 29 个注册路由，以及对话、审批、插件、MCP、工作区和历史操作的核心子页面与弹层。截图通过真实 Compose 页面与系统窗口捕获；需要内核在线的数据由独立、明确标注的**协议形状测试样本**验证填充态。样本验证布局和数据呈现，业务 RPC 正确性另由协议测试、运行核心集成测试负责。
+本次审计以 GitHub PR #26 的 Android 源码、实际 UI 测试路径和 Android 35 模拟器截图为依据，逐一覆盖功能目录中全部 30 个注册路由（28 个既有业务路由、设置及更新入口），以及对话、审批、插件、MCP、工作区和历史操作的核心子页面与弹层。截图通过真实 Compose 页面与系统窗口捕获；需要内核在线的数据由独立、明确标注的**协议形状测试样本**验证填充态。样本验证布局和数据呈现，业务 RPC 正确性另由协议测试、运行核心集成测试负责。
 
 功能入口来源：`UiFeatureCatalog.kt`、`NavigationPolicy.kt`；页面分发来源：`Screens.kt`、`AppNavigation.kt`；实际截图与严格检查来源：`UiNavigationInstrumentedTest.kt`、`UiPopulatedSubpagesInstrumentedTest.kt`、`CodexOverlayInstrumentedTest.kt`、`.github/workflows/check-android-ui.yml`。
 
-## 逐页检查与处置（共29个路由）
+## 逐页检查与处置（共30个路由）
 
 | 页面或路由 | CI 截图名（省略 -android35.png） | 重点检查与处理 |
 | --- | --- | --- |
@@ -39,6 +39,7 @@
 | 诊断 diagnostics | audit-diagnostics、engine-status | 主界面先展示连接状态和排查动作；启动日志需主动展开，私有目录隐藏 |
 | 关于 about | audit-about | 应用版本、核心来源、许可信息与平台条件集中呈现 |
 | 设置 settings | settings-hub、sidebar | 仅侧栏一个主导航；二级配置按功能分组，保持搜索和真实返回路径 |
+| 应用更新 update | settings-hub | 更新状态、版本、下载确认归入设置；保留真实更新管理器与签名检查 |
 
 ## 子页面和复合交互
 
