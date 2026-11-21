@@ -116,8 +116,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             items(hiddenMatches, key = { "extra-" + it.id }) { entry ->
                 SettingRouteRow(entry, detail = "前往功能") {
                     when(entry.id) {
-                        "modes" -> navigate("chat")
-                        "limits" -> navigate("usage")
+                        "modes" -> navigate("modes")
+                        "limits" -> navigate("limits")
                         "search" -> navigate("threads")
                         else -> navigate(entry.id)
                     }
