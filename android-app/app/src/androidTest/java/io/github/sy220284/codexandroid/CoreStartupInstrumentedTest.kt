@@ -3,8 +3,16 @@ package io.github.sy220284.codexandroid
 import android.os.Build
 import java.io.File
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -97,4 +105,90 @@ class CoreStartupInstrumentedTest {
             bridge.close()
         }
     }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
 }
