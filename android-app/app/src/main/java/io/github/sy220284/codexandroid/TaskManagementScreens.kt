@@ -59,7 +59,8 @@ fun ThreadGoalPage(vm: CodexViewModel) {
             } else {
                 Text(goal.optString("objective"), style = MaterialTheme.typography.titleLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    StatusPill(goal.optString("status"), goal.optString("status") == "active")
+                    StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
+                        goal.optString("status") == "active")
                     goal.opt("tokenBudget")?.takeIf { it != JSONObject.NULL }?.let {
                         Text("额度：" + it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
