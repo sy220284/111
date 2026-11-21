@@ -76,6 +76,27 @@ object PresentationPolicy {
         else -> ""
     }
 
+    fun serviceState(raw: String?): String {
+        val value = meaningful(raw).lowercase()
+        return when {
+            value.contains("failed") || value.contains("error") -> "连接失败"
+            value.contains("running") || value.contains("ready") ||
+                value.contains("connected") -> "已连接"
+            value.contains("starting") || value.contains("connecting") -> "正在连接"
+            else -> "未连接"
+        }
+    }
+
+    fun authorizationState(raw: String?): String {
+        val value = meaningful(raw).lowercase()
+        return when {
+            value.contains("authorized") || value.contains("authenticated") -> "已授权"
+            value.contains("unauthorized") || value.contains("required") ||
+                value.contains("notlogged") -> "需要授权"
+            else -> "待确认"
+        }
+    }
+
     fun readableSkillSummary(description: String?): String {
         val detail = meaningful(description)
         return if (detail.any { it in '\u4e00'..'\u9fff' }) detail.take(100)
