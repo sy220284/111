@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Android 11 及更早系统亦不备份私有工作区、配置或账号信息。 -->
+    <exclude domain="root" path="." />
+</full-backup-content>

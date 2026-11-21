@@ -81,13 +81,45 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         )
         if invalid:
             raise ValueError(f"UI 接口分层缺少有效分类：{invalid}")
+    # 接口声明目录只是元数据，不得误算成实际功能接入。
+    declaration_files = {"UiProtocolMatrix.kt", "UiFeatureCatalog.kt", "AppNavigation.kt"}
     called: dict[str, list[str]] = {}
     for filename, code in files.items():
+        if filename in declaration_files:
+            continue
         for name in METHOD.findall(code):
             if name in official:
                 called.setdefault(name, [])
                 if filename not in called[name]:
                     called[name].append(filename)
+
+    equivalents: dict[str, dict] = {}
+    user_facing: set[str] = set()
+    if policy is not None:
+        payload = json.loads(policy.read_text(encoding="utf-8"))
+        equivalents = payload.get("implementationEquivalents", {})
+        if not isinstance(equivalents, dict):
+            raise ValueError("implementationEquivalents 必须为 JSON 对象")
+        user_facing = {
+            method for method, entry in surfaces.items()
+            if entry["surface"] in {"直接操作", "上下文操作"}
+        }
+        for method, entry in equivalents.items():
+            if method not in user_facing:
+                raise ValueError(f"等效实现引用了未知或非用户可见接口：{method}")
+            if not isinstance(entry, dict) or entry.get("kind") not in {"local", "conditional"}:
+                raise ValueError(f"等效实现缺少有效类别：{method}")
+            source_name = entry.get("source")
+            evidence = entry.get("evidence")
+            reason = entry.get("reason")
+            if (not isinstance(source_name, str) or source_name not in files
+                    or not isinstance(evidence, str) or not evidence
+                    or evidence not in files[source_name]
+                    or not isinstance(reason, str) or not reason):
+                raise ValueError(f"等效实现缺少代码证据或说明：{method}")
+        unmapped = sorted(user_facing - set(called) - set(equivalents))
+        if unmapped:
+            raise ValueError("用户可见请求缺少实际代码引用或等效路径：" + ", ".join(unmapped))
 
     missing = sorted(set(ids) - set(routes))
     unknown = sorted(set(routes) - set(ids))
@@ -105,6 +137,9 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         "routedCount": len(catalog) - len(missing),
         "officialRequests": len(official),
         "referencedRequests": len(called),
+        "userFacingRequests": len(user_facing),
+        "equivalentRequests": len(equivalents),
+        "implementationEquivalents": dict(sorted(equivalents.items())),
         "pages": entries,
         "referencedMethodSources": dict(sorted(called.items())),
         "surfacePolicy": dict(sorted(surfaces.items())),
@@ -121,7 +156,9 @@ def report_markdown(result: dict) -> str:
         f"- 已定义页面：**{result['pageCount']}**",
         f"- 已映射路由：**{result['routedCount']}**",
         f"- 官方请求总数：**{result['officialRequests']}**",
-        f"- Android 源码显式引用的官方请求：**{result['referencedRequests']}**",
+        f"- Android 非声明目录代码中显式引用的官方请求：**{result['referencedRequests']}**",
+        f"- 用户可见请求总数：**{result['userFacingRequests']}**",
+        f"- 已核对的本地等效/条件实现：**{result['equivalentRequests']}**",
         "",
         "说明：以上是源码可达性及协议名称核对；页面导航、真实操作成功和设备兼容性须使用 Android 设备测试验证。",
         "",

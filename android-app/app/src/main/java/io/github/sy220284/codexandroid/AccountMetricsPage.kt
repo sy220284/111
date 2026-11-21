@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontFamily
@@ -24,15 +25,24 @@ import java.util.Locale
  */
 @Composable
 fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
+    var selectedTab by rememberSaveable(id) { mutableStateOf(if (id == "limits") "limits" else "usage") }
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
-    val result = data[id]
-    val usage = id == "usage"
+    val result = data[selectedTab]
+    val usage = selectedTab == "usage"
     val method = if (usage) "account/usage/read" else "account/rateLimits/read"
-    var showRaw by remember(id) { mutableStateOf(false) }
-    LaunchedEffect(id) { vm.refresh(id, method) }
+    var showRaw by remember(selectedTab) { mutableStateOf(false) }
+    LaunchedEffect(selectedTab) { vm.refresh(selectedTab, method) }
     ScreenColumn {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = selectedTab == "usage",
+                onClick = { selectedTab = "usage" }, label = { Text("用量") },
+                modifier = Modifier.weight(1f))
+            FilterChip(selected = selectedTab == "limits",
+                onClick = { selectedTab = "limits" }, label = { Text("额度") },
+                modifier = Modifier.weight(1f))
+        }
         SectionIntro(if (usage) "ACCOUNT / USAGE" else "ACCOUNT / LIMITS",
             if (usage) "使用量" else "使用限额",
             if (usage) "查看服务端累计用量与最近使用节奏。"
@@ -48,14 +58,14 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                     Text("由已登录的 Codex 账号实时提供",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
-                IconButton(onClick = { vm.refresh(id, method) }, enabled = id !in loading) {
+                IconButton(onClick = { vm.refresh(selectedTab, method) }, enabled = selectedTab !in loading) {
                     Icon(Icons.Outlined.Refresh, "刷新数据")
                 }
             }
-            if (id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (selectedTab in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         }
-        errors[id]?.let { ErrorText(it) }
-        if (result == null && id !in loading && id !in errors) {
+        errors[selectedTab]?.let { ErrorText(it) }
+        if (result == null && selectedTab !in loading && selectedTab !in errors) {
             CodexEmptyState("等待账号数据", "请检查账号是否已经登录，并刷新当前页面。",
                 actionLabel = "前往账号登录",
                 onAction = { navigate("account") })

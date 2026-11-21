@@ -89,12 +89,51 @@ fun CodexShell(vm: CodexViewModel) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val running by vm.running.collectAsState()
+    val activeThread by vm.activeThread.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val terminalSession by vm.terminalSession.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     var showQuickTools by rememberSaveable { mutableStateOf(false) }
-    val move: (String) -> Unit = { destination ->
+    var showStatus by remember { mutableStateOf(false) }
+    var showReview by remember { mutableStateOf(false) }
+    var showGoal by remember { mutableStateOf(false) }
+    var showMode by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
+    var showAttachments by remember { mutableStateOf(false) }
+    val move: (String) -> Unit = move@{ destination ->
+        when (destination) {
+            "review" -> {
+                if (activeThread == null) {
+                    selected = "threads"
+                    backHistory = (backHistory + "threads").takeLast(18)
+                } else showReview = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "goals" -> {
+                if (activeThread == null) {
+                    selected = "threads"
+                    backHistory = (backHistory + "threads").takeLast(18)
+                } else showGoal = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "modes" -> {
+                showMode = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "history-tools", "thread-attachments" -> {
+                if (activeThread == null) {
+                    selected = "threads"
+                    backHistory = (backHistory + "threads").takeLast(18)
+                } else if (destination == "history-tools") showHistory = true
+                else showAttachments = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+        }
         if (page.id != destination) {
             backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
@@ -137,7 +176,7 @@ fun CodexShell(vm: CodexViewModel) {
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 bottomBar = {
-                    if (!wide && !imeVisible && selected != "chat") {
+                    if (!wide && !imeVisible && selected in NavigationPolicy.primaryRoutes && selected != "chat") {
                         NavigationBar(
                             containerColor = Ink.recessed,
                             tonalElevation = 0.dp,
@@ -146,7 +185,7 @@ fun CodexShell(vm: CodexViewModel) {
                             NavigationPolicy.primaryRoutes.forEach { id ->
                                 val entry = pages.first { it.id == id }
                                 NavigationBarItem(
-                                    selected = selected == id,
+                                    selected = selected == id || (id == "settings" && NavigationPolicy.isSettingsChild(selected)),
                                     onClick = { move(id) },
                                     modifier = Modifier.testTag("bottom-$id"),
                                     icon = { Icon(entry.icon, contentDescription = entry.title) },
@@ -191,12 +230,13 @@ fun CodexShell(vm: CodexViewModel) {
                                     Icon(Icons.Outlined.Widgets, contentDescription = "快捷工具")
                                 }
                             }
-                            IconButton(
-                                onClick = { vm.newThread(); move("chat") },
-                                enabled = !running
-                            ) {
-                                Icon(Icons.Outlined.AddCircleOutline,
-                                    if (running) "执行中，请先完成当前任务" else "新建任务")
+                            if (selected == "threads") {
+                                IconButton(
+                                    onClick = { vm.newThread(); move("chat") },
+                                    enabled = !running
+                                ) {
+                                    Icon(Icons.Outlined.AddCircleOutline, "新建任务")
+                                }
                             }
                             if (pending.isNotEmpty()) {
                                 BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
@@ -206,28 +246,13 @@ fun CodexShell(vm: CodexViewModel) {
                                     IconButton(onClick = { move("approvals") }) { Icon(Icons.Outlined.GppGood, "待审批") }
                                 }
                             }
-                            // One persistent status action: a running terminal takes
-                            // precedence over diagnostics without adding a crowded icon.
-                            IconButton(onClick = {
-                                when {
-                                    terminalSession.running -> move("terminal")
-                                    status == EngineStatus.Connected -> move("diagnostics")
-                                    else -> vm.connect()
-                                }
-                            }) {
+                            IconButton(onClick = { showStatus = true },
+                                modifier = Modifier.testTag("engine-status-open")) {
                                 Icon(
-                                    when {
-                                        terminalSession.running -> Icons.Outlined.Terminal
-                                        status == EngineStatus.Connected -> Icons.Outlined.CheckCircle
-                                        else -> Icons.Outlined.SyncProblem
-                                    },
-                                    when {
-                                        terminalSession.running -> "终端命令运行中，返回终端"
-                                        status == EngineStatus.Connected -> "查看内核诊断"
-                                        else -> "连接内核"
-                                    },
-                                    tint = if (terminalSession.running) Ink.copper
-                                        else if (status == EngineStatus.Connected) Ink.jade else Ink.red
+                                    if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle
+                                    else Icons.Outlined.SyncProblem,
+                                    contentDescription = "查看运行状态",
+                                    tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
                                 )
                             }
                         },
@@ -249,7 +274,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
         if (wide) {
             Row(Modifier.fillMaxSize()) {
-                Sidebar(Modifier.width(288.dp), selected, move, status, pending.size)
+                Sidebar(Modifier.width(288.dp), selected,
+                    { id -> if (id == "status") showStatus = true else move(id) },
+                    status, pending.size)
                 Box(Modifier.weight(1f)) { content() }
             }
         } else {
@@ -261,16 +288,34 @@ fun CodexShell(vm: CodexViewModel) {
                         modifier = Modifier.widthIn(max = 318.dp),
                         drawerContainerColor = Ink.recessed,
                         drawerContentColor = Ink.parchment
-                    ) { Sidebar(Modifier.fillMaxHeight(), selected, move, status, pending.size) }
+                    ) { Sidebar(Modifier.fillMaxHeight(), selected,
+                        { id ->
+                            if (id == "status") {
+                                showStatus = true
+                                scope.launch { drawer.close() }
+                            } else move(id)
+                        }, status, pending.size) }
                 }
             ) { content() }
         }
         if (showQuickTools) {
             WorkspaceActionsSheet(
                 onDismiss = { showQuickTools = false },
-                navigate = move
+                navigate = move, hasThread = activeThread != null
             )
         }
+        if (showStatus) {
+            EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
+        }
+        if (showReview) ReviewScopeSheet(
+            vm, onDismiss = { showReview = false }, navigate = move
+        )
+        if (showGoal) ThreadGoalSheet(
+            vm, onDismiss = { showGoal = false }
+        )
+        if (showMode) ModeChoiceSurface(vm) { showMode = false }
+        if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
+        if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
     }
 }
 
@@ -351,7 +396,7 @@ private fun Sidebar(
         }
         HorizontalDivider(color = Ink.border)
         Row(
-            Modifier.fillMaxWidth().clickable { onSelect("settings") }
+            Modifier.fillMaxWidth().clickable { onSelect("status") }
                 .heightIn(min = 59.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

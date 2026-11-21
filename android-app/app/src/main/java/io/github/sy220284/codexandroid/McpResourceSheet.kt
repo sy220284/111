@@ -30,6 +30,8 @@ fun McpResourceSheet(
     val key = "mcpResource:" + serverName + ":" + uri
     val payload = data[key]
     var showRaw by remember(uri) { mutableStateOf(false) }
+    var fullText by remember(uri) { mutableStateOf<String?>(null) }
+    var fullTitle by remember(uri) { mutableStateOf("") }
 
     LaunchedEffect(serverName, uri) {
         if (uri.isNotBlank() && serverName.isNotBlank()) {
@@ -110,7 +112,10 @@ fun McpResourceSheet(
                                     color = Ink.parchment)
                             }
                             if (contentText.length > shown.length) {
-                                CodexNotice("资源内容较长，预览展示前 16,000 个字符。")
+                                OutlinedButton(onClick = {
+                                    fullTitle = "资源片段 " + (index + 1)
+                                    fullText = contentText
+                                }) { Text("打开全文阅读器（${contentText.length} 字符）") }
                             }
                         } else {
                             Text("该片段为非文本资源，可在原始记录中核对元数据。",
@@ -131,13 +136,19 @@ fun McpResourceSheet(
                                 style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                         }
                         if (raw.length > 16000) {
-                            Text("原始响应过长，仅展示前 16,000 个字符。",
-                                color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                            OutlinedButton(onClick = {
+                                fullTitle = "原始 MCP 响应"
+                                fullText = raw
+                            }) { Text("阅读完整响应") }
                         }
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
         }
+    }
+    fullText?.let { body ->
+        FullTextReaderDialog(title = fullTitle, text = body,
+            onDismiss = { fullText = null })
     }
 }

@@ -19,7 +19,7 @@ fun ConversationControlBar(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        ModelControl(modelName, connected, onModel, Modifier.weight(1.12f))
+        ModelControl(modelName, onModel, Modifier.weight(1.12f))
         ModeControl(mode, !running, onMode, Modifier.weight(.88f))
         IconButton(onClick = onDiagnostics, modifier = Modifier.size(48.dp)) {
             Icon(if (connected) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
@@ -30,11 +30,10 @@ fun ConversationControlBar(
 }
 
 @Composable
-private fun ModelControl(modelName: String, enabled: Boolean,
+private fun ModelControl(modelName: String,
     onClick: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
-        enabled = enabled, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp),
-        colors = ButtonDefaults.outlinedButtonColors(disabledContentColor = Ink.muted)) {
+        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {
         Text(modelName.ifBlank { "默认模型" }, modifier = Modifier.weight(1f, fill = false),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         Icon(Icons.Outlined.ArrowDropDown, null, modifier = Modifier.size(15.dp))

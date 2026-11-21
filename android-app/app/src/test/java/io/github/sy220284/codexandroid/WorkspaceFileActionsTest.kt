@@ -51,6 +51,45 @@ class WorkspaceFileActionsTest {
         assertEquals("Original", a.readText())
     }
 
+    @Test fun copyingFilesAndFoldersKeepsOriginalAndCreatesIndependentCopy() {
+        val root = files.newFolder("projects")
+        val folder = WorkspaceFileActions.createFolder(root, root, "demo")
+        val nested = WorkspaceFileActions.createFolder(root, folder, "docs")
+        val file = WorkspaceFileActions.createTextFile(root, nested, "README.md")
+        WorkspaceFileActions.saveText(root, file, "原始内容")
+        val duplicated = WorkspaceFileActions.copy(root, folder, root, "demo-copy")
+        assertEquals("原始内容", File(duplicated, "docs/README.md").readText())
+        val duplicateFile = WorkspaceFileActions.copy(root, file, nested, "README-copy.md")
+        WorkspaceFileActions.saveText(root, duplicateFile, "独立副本")
+        assertEquals("原始内容", file.readText())
+        assertEquals("独立副本", duplicateFile.readText())
+    }
+
+    @Test fun copyingNeverOverwritesExistingTargetsOrTraversesLinks() {
+        val root = files.newFolder("projects")
+        val original = WorkspaceFileActions.createTextFile(root, root, "data.txt")
+        WorkspaceFileActions.saveText(root, original, "保留原始内容")
+        val existing = WorkspaceFileActions.createTextFile(root, root, "protected.txt")
+        WorkspaceFileActions.saveText(root, existing, "不允许覆盖")
+        try {
+            WorkspaceFileActions.copy(root, original, root, "protected.txt")
+            fail("复制不能覆盖已有文件")
+        } catch (_: IllegalArgumentException) {}
+        assertEquals("不允许覆盖", existing.readText())
+        val outside = files.newFolder("outside")
+        File(outside, "secret.txt").writeText("私有")
+        val folder = WorkspaceFileActions.createFolder(root, root, "links")
+        Files.createSymbolicLink(File(folder, "secret").toPath(),
+            File(outside, "secret.txt").toPath())
+        try {
+            WorkspaceFileActions.copy(root, folder, root, "links-copy")
+            fail("来源中的符号链接必须被拒绝")
+        } catch (_: IllegalArgumentException) {}
+        assertFalse(File(root, "links-copy").exists())
+        assertEquals("私有", File(outside, "secret.txt").readText())
+        assertEquals("保留原始内容", original.readText())
+    }
+
     @Test fun doNotDeleteThroughLinkPointingOutsideWorkspace() {
         val root = files.newFolder("projects")
         val outside = files.newFolder("private-files")

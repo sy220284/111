@@ -51,6 +51,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showRaw by remember { mutableStateOf(false) }
     var copied by remember(deviceCode) { mutableStateOf(false) }
     var logoutConfirm by remember { mutableStateOf(false) }
+    var showSessions by remember { mutableStateOf(false) }
 
     val openAuthorization: (String) -> Unit = { url ->
         try {
@@ -191,6 +192,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("账号与额度", style = MaterialTheme.typography.titleMedium)
             Text("登录状态、使用记录和额度窗口来自同一账号，可从此处集中查看。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { showSessions = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.SupervisorAccount, null, modifier = Modifier.size(19.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("账号与工作区切换（实验）")
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = { navigate("usage") },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
@@ -351,6 +358,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
+    if (showSessions) AccountSessionsSheet(vm) { showSessions = false }
     if (logoutConfirm) CodexConfirmDialog(
         title = "退出 Codex 账号",
         message = "退出会清除本机 Codex 核心的登录状态。之后可以重新登录。",

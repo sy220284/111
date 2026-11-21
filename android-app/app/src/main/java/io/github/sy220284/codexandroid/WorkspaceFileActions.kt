@@ -80,6 +80,57 @@ object WorkspaceFileActions {
         })
     }
 
+    /** 复制使用同目录暂存，完成后一次性改名；不跟随符号链接或覆盖既有目标。 */
+    fun copy(root: File, target: File, destinationFolder: File, newName: String): File {
+        val validated = source(root, target).canonicalFile
+        require(!Files.isSymbolicLink(target.toPath())) { "不能复制符号链接" }
+        require(validated.isFile || validated.isDirectory) { "只支持复制普通文件或目录" }
+        val destination = child(root, destinationFolder, newName)
+        require(!destination.exists()) { "目标名称已经存在" }
+        if (validated.isDirectory) require(!destination.toPath().startsWith(validated.toPath())) {
+            "目录不能复制到自身内部"
+        }
+        val parent = destination.parentFile.toPath()
+        val stage = if (validated.isDirectory)
+            Files.createTempDirectory(parent, ".codex-copy-")
+        else Files.createTempFile(parent, ".codex-copy-", ".part")
+        try {
+            if (validated.isDirectory) {
+                val sourceRoot = validated.toPath()
+                Files.walkFileTree(sourceRoot, object : SimpleFileVisitor<Path>() {
+                    override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                        require(!attrs.isSymbolicLink) { "来源包含符号链接目录" }
+                        if (dir != sourceRoot)
+                            Files.createDirectory(stage.resolve(sourceRoot.relativize(dir)))
+                        return FileVisitResult.CONTINUE
+                    }
+                    override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                        require(attrs.isRegularFile && !attrs.isSymbolicLink) {
+                            "来源包含特殊文件或符号链接"
+                        }
+                        Files.copy(file, stage.resolve(sourceRoot.relativize(file)),
+                            StandardCopyOption.COPY_ATTRIBUTES)
+                        return FileVisitResult.CONTINUE
+                    }
+                })
+            } else {
+                Files.copy(validated.toPath(), stage, StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.COPY_ATTRIBUTES)
+            }
+            Files.move(stage, destination.toPath())
+            return destination
+        } catch (failure: Exception) {
+            if (Files.exists(stage)) {
+                try {
+                    delete(root, stage.toFile())
+                } catch (cleanup: Exception) {
+                    failure.addSuppressed(cleanup)
+                }
+            }
+            throw failure
+        }
+    }
+
     /** A save either replaces the full file or keeps the original byte-for-byte. */
     fun saveText(root: File, file: File, text: String) {
         val validated = source(root, file)

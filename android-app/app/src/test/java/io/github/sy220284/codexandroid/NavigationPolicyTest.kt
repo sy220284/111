@@ -1,46 +1,41 @@
 package io.github.sy220284.codexandroid
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
-    private val originalRoutes = listOf(
-        "home", "chat", "threads", "search", "goals", "queue",
-        "files", "diff", "terminal", "review",
-        "models", "modes", "skills", "plugins", "apps", "mcp", "hooks", "environments",
-        "account", "providers", "config", "security", "approvals", "usage",
-        "limits", "appearance", "diagnostics", "about"
-    )
-
-    @Test fun compactNavigationContainsOnlyEverydayRoutes() {
+    @Test fun commonNavigationRemainsCompact() {
         assertEquals(listOf("home", "chat", "threads", "files", "approvals", "settings"),
             NavigationPolicy.sidebarRoutes)
         assertEquals(listOf("home", "chat", "files", "threads", "settings"),
             NavigationPolicy.primaryRoutes)
-        assertFalse(NavigationPolicy.isCommon("terminal"))
         assertTrue(NavigationPolicy.isCommon("approvals"))
+        assertFalse(NavigationPolicy.isCommon("review"))
     }
 
-    @Test fun settingsGroupsCoverAllNonCommonFeaturesExactlyOnce() {
-        assertEquals(23, NavigationPolicy.settingsRoutes.size)
-        assertEquals(23, NavigationPolicy.settingsRoutes.distinct().size)
-        val original = NavigationPolicy.sidebarRoutes.filter { it != "settings" } +
-            NavigationPolicy.settingsRoutes
-        assertEquals(28, original.size)
-        assertEquals(originalRoutes.toSet(), original.toSet())
+    @Test fun allTwentyEightRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
+        assertEquals(28, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(28, UiFeatureCatalog.legacyRoutes.distinct().size)
+        assertEquals(4, NavigationPolicy.featureGroups.size)
+        val settings = NavigationPolicy.settingsRoutes
+        assertEquals(15, settings.size)
+        assertEquals(settings.size, settings.distinct().size)
+        assertTrue(settings.containsAll(listOf("models","appearance","about","update")))
+        assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal") })
+        assertEquals(28, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
-    @Test fun quickToolsExposeOnlyExistingFeatureRoutes() {
-        assertEquals(listOf("files", "diff", "terminal", "review", "goals", "queue"),
+    @Test fun quickToolsAreTaskScopedAndAllTargetsExist() {
+        assertEquals(listOf("files","diff","terminal","review","goals","queue"),
             NavigationPolicy.quickToolRoutes)
-        assertTrue(NavigationPolicy.quickToolRoutes.all { it in originalRoutes })
+        assertTrue(NavigationPolicy.quickToolRoutes.all { it in UiFeatureCatalog.byRoute })
+        assertTrue(UiFeatureCatalog.requiresThread("review"))
+        assertTrue(UiFeatureCatalog.requiresThread("queue"))
+        assertFalse(UiFeatureCatalog.requiresThread("terminal"))
     }
 
-    @Test fun searchMatchesTitlesDescriptionsAndRouteIds() {
+    @Test fun contextSearchMatchesExactNamesAndDescriptions() {
         assertTrue(NavigationPolicy.matches("审批", "待审批操作", "审批详情", "approvals"))
-        assertTrue(NavigationPolicy.matches("approvals", "待审批操作", "审批详情", "approvals"))
         assertTrue(NavigationPolicy.matches("  权限 ", "权限与安全", "执行范围", "security"))
         assertFalse(NavigationPolicy.matches("文件", "账号登录", "会话", "account"))
     }

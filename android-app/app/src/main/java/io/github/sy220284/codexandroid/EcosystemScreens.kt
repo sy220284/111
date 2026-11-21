@@ -105,6 +105,12 @@ fun ProvidersPage(vm: CodexViewModel) {
     val entries = records(data["providers"])
     val defaultId = data["providers"]?.optString("defaultProviderId") ?: ""
     var toSelect by remember { mutableStateOf<JSONObject?>(null) }
+    var showCustomEditor by remember { mutableStateOf(false) }
+    var customName by remember { mutableStateOf("") }
+    var customUrl by remember { mutableStateOf("") }
+    var customEnvKey by remember { mutableStateOf("") }
+    var confirmCustom by remember { mutableStateOf(false) }
+    var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.refresh("providers", "modelProvider/list") }
     ScreenColumn {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
@@ -114,6 +120,54 @@ fun ProvidersPage(vm: CodexViewModel) {
             Text("不同服务商拥有独立目录与认证配置。", color = Ink.muted)
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("服务商配置", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { showCustomEditor = !showCustomEditor }) {
+                    Text(if (showCustomEditor) "收起" else "添加自定义服务商")
+                }
+            }
+            CodexReveal(showCustomEditor) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(customName, { customName = it },
+                        modifier = Modifier.fillMaxWidth(), label = { Text("服务商名称") },
+                        singleLine = true)
+                    OutlinedTextField(customUrl, { customUrl = it },
+                        modifier = Modifier.fillMaxWidth(), label = { Text("服务地址（HTTP / HTTPS）") },
+                        singleLine = true)
+                    OutlinedTextField(customEnvKey, { customEnvKey = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("密钥环境变量名称（可选）") },
+                        singleLine = true)
+                    Text("密钥值由本机环境管理；这里仅填写变量名称。",
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    OutlinedButton(
+                        onClick = { confirmCustom = true },
+                        enabled = customName.isNotBlank() &&
+                            (customUrl.startsWith("https://") || customUrl.startsWith("http://"))
+                    ) { Text("保存自定义服务商") }
+                }
+            }
+            TextButton(onClick = {
+                showCapabilities = !showCapabilities
+                if (showCapabilities) vm.refresh("providerCapabilities",
+                    "modelProvider/capabilities/read")
+            }) { Text(if (showCapabilities) "收起能力信息" else "查看服务商能力") }
+            CodexReveal(showCapabilities) {
+                val caps = data["providerCapabilities"]
+                if (caps != null) {
+                    Text("联网搜索：" + if (caps.optBoolean("webSearch")) "支持" else "未声明",
+                        color = Ink.muted)
+                    Text("图片生成：" + if (caps.optBoolean("imageGeneration")) "支持" else "未声明",
+                        color = Ink.muted)
+                } else Text("正在读取服务能力…", color = Ink.muted)
+                val errors by vm.errors.collectAsState()
+                errors["providerCapabilities"]?.let { ErrorText(it) }
+            }
+            val errors by vm.errors.collectAsState()
+            errors["providerWrite"]?.let { ErrorText(it) }
+        }
         entries.forEach { item ->
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,6 +193,26 @@ fun ProvidersPage(vm: CodexViewModel) {
         }
         if (entries.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("未取得模型服务商列表。", color = Ink.muted) }
     }
+    if (confirmCustom) CodexConfirmDialog(
+        title = "保存自定义模型服务商",
+        message = "会在当前内核中新增自定义网关配置。请核对地址和密钥变量名称。",
+        detail = "名称：$customName\n服务地址：$customUrl\n密钥变量：$customEnvKey",
+        confirmLabel = "确认保存",
+        onConfirm = {
+            val patch = JSONObject().put("type", "customGateway")
+                .put("name", customName.trim()).put("baseUrl", customUrl.trim())
+            if (customEnvKey.isNotBlank()) patch.put("envKey", customEnvKey.trim())
+            vm.rpc("providerWrite", "modelProvider/config/write",
+                JSONObject().put("settings", patch),
+                after = {
+                    vm.refresh("providers", "modelProvider/list")
+                    vm.refresh("models", "model/list")
+                    showCustomEditor = false
+                    customName = ""; customUrl = ""; customEnvKey = ""
+                })
+            confirmCustom = false
+        }, onDismiss = { confirmCustom = false }
+    )
     toSelect?.let { item ->
         CodexConfirmDialog(
             title = "切换默认模型服务商",
@@ -221,6 +295,20 @@ fun PluginsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
+    var searchDraft by remember { mutableStateOf("") }
+    var searchSubmitted by remember { mutableStateOf("") }
+    var searchPage by remember { mutableIntStateOf(0) }
+    val searchActive = !installedOnly && searchSubmitted.isNotBlank()
+    val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
+    val searchKey = searchPrefix + searchPage
+    val found = if (searchActive) (0..searchPage)
+        .flatMap { PluginSearchContract.entries(data[searchPrefix + it]) }
+        .distinctBy { it.marketplace.optString("name") + ":" +
+            it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
+        else emptyList()
+    val searchCursor = if (searchActive)
+        data[searchKey]?.optString("nextCursor").orEmpty()
+    else ""
     LaunchedEffect(installedOnly) {
         if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
             JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
@@ -237,6 +325,38 @@ fun PluginsPage(vm: CodexViewModel) {
             FilterChip(selected = !installedOnly, onClick = { installedOnly = false },
                 modifier = Modifier.testTag("plugins-tab-catalog"),
                 label = { Text("发现插件") })
+        }
+        if (!installedOnly) {
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("搜索插件（实验）", style = MaterialTheme.typography.titleMedium)
+                Text("按照名称或用途搜索可用插件，结果来自当前运行内核。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = searchDraft, onValueChange = { searchDraft = it },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    label = { Text("插件名称或关键字") },
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val term = searchDraft.trim()
+                            searchSubmitted = term
+                            searchPage = 0
+                            vm.refresh("pluginSearch:" + term + ":0",
+                                "plugin/search", PluginSearchContract.params(term))
+                        },
+                        enabled = searchDraft.isNotBlank() &&
+                            "pluginSearch:" + searchSubmitted + ":0" !in busy,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    ) {
+                        Text("搜索插件")
+                    }
+                    TextButton(onClick = {
+                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
+                    }, modifier = Modifier.heightIn(min = 48.dp)) { Text("清除") }
+                }
+            }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -261,7 +381,57 @@ fun PluginsPage(vm: CodexViewModel) {
                 JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
             else vm.refresh("plugins", "plugin/list")
         }
-        marketplaces.forEach { market ->
+        if (searchActive) {
+            Text("插件搜索结果 · ${found.size} 项",
+                style = MaterialTheme.typography.titleMedium)
+            if (searchKey in busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            errors[searchKey]?.let { ErrorText("插件搜索失败：$it。可以改用常规插件目录。") }
+            if (searchKey !in busy && found.isEmpty() && searchKey !in errors) {
+                CodexEmptyState("没有搜索结果",
+                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。")
+            }
+            found.forEach { hit ->
+                val market = hit.marketplace
+                val item = hit.plugin
+                val display = item.optJSONObject("interface")?.optString("displayName")
+                    .orEmpty().ifBlank { item.optString("name") }
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                        Spacer(Modifier.width(9.dp))
+                        Text(display, style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        if (item.optBoolean("installed")) StatusPill("已安装", true)
+                    }
+                    Text("来源：" + market.optString("name"), color = Ink.muted,
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(item.optJSONObject("interface")?.optString("shortDescription")
+                        .orEmpty().ifBlank { item.optString("description") },
+                        color = Ink.muted)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!item.optBoolean("installed")) {
+                            OutlinedButton(onClick = { action = Triple(market, item, true) },
+                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE") {
+                                Text("安装插件")
+                            }
+                        }
+                        TextButton(onClick = { selectedPlugin = market to item }) {
+                            Text("查看详情")
+                        }
+                    }
+                }
+            }
+            if (searchCursor.isNotBlank()) {
+                OutlinedButton(onClick = {
+                    val next = searchPage + 1
+                    searchPage = next
+                    vm.refresh(searchPrefix + next, "plugin/search",
+                        PluginSearchContract.params(searchSubmitted, searchCursor))
+                }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    enabled = searchKey !in busy) { Text("加载更多结果") }
+            }
+        }
+        if (!searchActive) marketplaces.forEach { market ->
             val plugins = market.optJSONArray("plugins")?.objects() ?: emptyList()
             Text(market.optJSONObject("interface")?.optString("displayName")
                 ?.ifBlank { market.optString("name") } ?: market.optString("name"),
@@ -294,7 +464,7 @@ fun PluginsPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (data[activeKey] != null && marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
+        if (!searchActive && data[activeKey] != null && marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
             CodexEmptyState(
                 if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
                 if (installedOnly) "从插件市场安装后，可在这里集中管理。"

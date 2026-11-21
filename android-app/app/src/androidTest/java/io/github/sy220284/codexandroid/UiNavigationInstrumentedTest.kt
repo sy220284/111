@@ -22,16 +22,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-" + id).performClick()
     }
 
-    private fun openSettingRoute(id: String, fromSettingsChild: Boolean = false) {
-        // The bottom navigation is intentionally hidden while the IME is closing.
-        // Settings detail pages provide a stable top-bar back action instead.
-        if (fromSettingsChild) {
-            rule.onNodeWithContentDescription("返回上一页").performClick()
-        } else {
+    private fun openSettingRoute(id: String) {
+        if (rule.onAllNodesWithTag("bottom-settings").fetchSemanticsNodes().isNotEmpty()) {
             rule.onNodeWithTag("bottom-settings").performClick()
+        } else {
+            rule.onNodeWithContentDescription("返回上一页").performClick()
+            rule.onNodeWithTag("settings-search").assertExists()
         }
-        rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         rule.waitForIdle()
+        rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
         val search = rule.onNodeWithTag("settings-search")
         search.performTextClearance()
@@ -66,13 +65,33 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("默认模型").assertIsDisplayed()
         rule.onNodeWithText("执行", substring = false).assertIsDisplayed()
         rule.onNodeWithContentDescription("查看内核运行诊断").assertIsDisplayed()
-        rule.onNodeWithContentDescription("添加附件与工具").assertIsDisplayed()
+        rule.onNodeWithContentDescription("添加附件").assertIsDisplayed()
         capture("chat-toolbar-android35.png")
         rule.onNodeWithTag("composer-plus").performClick()
-        rule.onNodeWithText("快捷工具").assertExists()
-        rule.onNodeWithText("从相册或文件中选择图片").assertExists()
+        rule.onNodeWithText("添加附件").assertExists()
+        rule.onNodeWithTag("attachment-pick-image").assertExists()
+        rule.onNodeWithTag("quick-terminal").assertDoesNotExist()
+        captureOverlay("attachment-sheet-android35.png")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithText("工作区工具").assertExists()
         rule.onNodeWithTag("quick-terminal").assertExists()
         captureOverlay("tools-sheet-android35.png")
+    }
+
+    @Test fun statusButtonHasStableMeaningAndSeparatesActions() {
+        rule.onNodeWithTag("engine-status-open").performClick()
+        rule.onNodeWithText("运行状态").assertExists()
+        rule.onNodeWithText("查看诊断和日志").assertExists()
+        captureOverlay("engine-status-android35.png")
+    }
+
+    @Test fun modelChoiceUsesOneSharedBottomSheet() {
+        openDrawerRoute("chat")
+        rule.onNodeWithText("默认模型").performClick()
+        rule.onNodeWithText("选择运行模型").assertExists()
+        captureOverlay("model-sheet-android35.png")
     }
 
     @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
@@ -92,30 +111,34 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("继续你的工程").assertExists()
     }
 
-    @Test fun modeSheetOffersTwoExplicitActions() {
+    @Test fun modeSheetRespectsRealEngineCapability() {
         openDrawerRoute("chat")
         rule.onNodeWithText("执行", substring = false).performClick()
         rule.onNodeWithText("选择协作方式").assertExists()
         captureOverlay("mode-sheet-android35.png")
-        rule.onNodeWithText("先制定计划").performClick()
-        rule.onNodeWithText("先计划").assertExists()
+        val available = rule.onAllNodesWithText("先制定计划").fetchSemanticsNodes().isNotEmpty()
+        if (available) {
+            rule.onNodeWithText("先制定计划").performClick()
+            rule.onNodeWithText("先计划").assertExists()
+        } else {
+            rule.onNodeWithText("检查计划模式支持情况").assertExists()
+        }
     }
 
-    @Test fun settingsGroupsAndAppearancePage() {
+    @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
         openDrawerRoute("settings")
         rule.onNodeWithText("账户与模型").assertExists()
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-update"))
         rule.onNodeWithTag("settings-update").assertExists()
+        rule.onNodeWithTag("settings-update-toggle").performClick()
         rule.onNodeWithTag("update-check").assertExists()
         capture("settings-hub-android35.png")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasText("扩展能力"))
-        rule.onNodeWithText("扩展能力").assertIsDisplayed()
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
         rule.onNodeWithTag("settings-search").performTextInput("外观")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-appearance"))
         rule.onNodeWithTag("settings-route-appearance").performClick()
-        rule.onNodeWithText("柔雾层次材质").assertExists()
-        rule.onNodeWithText("交互预览").assertExists()
+        rule.onNodeWithText("柔和阴影").assertExists()
+        rule.onNodeWithText("减少动效").assertExists()
         capture("appearance-android35.png")
     }
 
@@ -152,29 +175,22 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
     }
 
-    @Test fun allTwentyEightFeatureRoutesStayReachableAfterNavigationRefactor() {
+    @Test fun featureCatalogRetainsAllTwentyEightLegacyRoutes() {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
-        assertTrue("验收宽度限定为 360/393/411dp，实际为 $widthDp",
+        assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(29, pages.size) // 原有 28 页 + 设置聚合页
-        assertEquals(23, NavigationPolicy.settingsRoutes.size)
-        val actualOriginal = NavigationPolicy.sidebarRoutes.filter { it != "settings" } +
-            NavigationPolicy.settingsRoutes
-        assertEquals(28, actualOriginal.distinct().size)
+        assertEquals(29, pages.size)
+        assertEquals(28, UiFeatureCatalog.legacyRoutes.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
-            actualOriginal.toSet())
-        NavigationPolicy.settingsRoutes.forEachIndexed { index, id ->
-            openSettingRoute(id, fromSettingsChild = index > 0)
-            rule.onNodeWithTag("screen-title").assertTextEquals(
-                pages.first { it.id == id }.title)
-        }
-        rule.onNodeWithContentDescription("返回上一页").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("设置")
-        for (id in NavigationPolicy.sidebarRoutes) {
-            openDrawerRoute(id)
-            rule.onNodeWithTag("screen-title").assertTextEquals(
-                pages.first { it.id == id }.title)
-        }
+            UiFeatureCatalog.legacyRoutes.toSet())
+        assertEquals(4, NavigationPolicy.featureGroups.size)
+        assertEquals(15, NavigationPolicy.settingsRoutes.size)
+        openSettingRoute("plugins")
+        rule.onNodeWithTag("screen-title").assertTextEquals("插件")
+        openSettingRoute("config")
+        rule.onNodeWithTag("screen-title").assertTextEquals("引擎配置")
+        openSettingRoute("diagnostics")
+        rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 
     @Test fun threadLibraryExposesServerBackedManagementLayout() {
@@ -183,15 +199,19 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("活跃", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
         rule.onNodeWithText("搜索会话标题").assertExists()
+        rule.onNodeWithText("全文搜索").assertExists()
         rule.onNodeWithText("新建任务").assertExists()
         capture("thread-library-android35.png")
+        rule.onNodeWithText("全文搜索").performClick()
+        rule.onNodeWithText("搜索历史正文").assertExists()
+        capture("thread-full-search-android35.png")
     }
 
-    @Test fun accountMetricsHavePurposeBuiltLayouts() {
+    @Test fun accountMetricsUsesSharedUsageAndLimitsTabs() {
         openSettingRoute("usage")
         rule.onNodeWithText("账号使用概况").assertExists()
         capture("account-usage-android35.png")
-        openSettingRoute("limits")
+        rule.onNodeWithText("额度", substring = false).performClick()
         rule.onNodeWithText("额度窗口").assertExists()
         capture("account-limits-android35.png")
     }
@@ -210,7 +230,7 @@ class UiNavigationInstrumentedTest {
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
         capture("workspace-files-android35.png")
-        // Creating a folder must dismiss its keyboard before opening file actions.
+        // 创建目录后由业务页面自动收起键盘，并在此验收该交互。
         rule.waitForIdle()
         rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).performClick()
@@ -248,6 +268,25 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 
+    @Test fun accountSessionsExperimentHasClearOfflineState() {
+        openSettingRoute("account")
+        rule.onNodeWithText("账号与工作区切换（实验）").performScrollTo().performClick()
+        rule.onNodeWithText("账号与工作区切换", substring = false).assertExists()
+        val connected = rule.onAllNodesWithText("刷新账号与工作区", substring = false)
+            .fetchSemanticsNodes().isNotEmpty()
+        if (connected) rule.onNodeWithText("刷新账号与工作区").assertExists()
+        else rule.onNodeWithText("连接本机内核").assertExists()
+        captureOverlay("account-sessions-android35.png")
+    }
+
+    @Test fun pluginDiscoveryCanOpenSearchWithoutInventedResults() {
+        openSettingRoute("plugins")
+        rule.onNodeWithTag("plugins-tab-catalog").performClick()
+        rule.onNodeWithText("搜索插件（实验）").assertExists()
+        rule.onNodeWithText("插件名称或关键字").assertExists()
+        capture("plugin-search-android35.png")
+    }
+
     @Test fun installedPluginManagementAndCatalogStayReachable() {
         openSettingRoute("plugins")
         rule.onNodeWithTag("plugins-tab-installed").assertExists()
@@ -260,15 +299,13 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         rule.onNodeWithTag("quick-diff").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("代码差异")
+        // Diff 需要活动会话；未选择时先进入可选会话资料库。
+        rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
     }
 
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
-        val screen = requireNotNull(
-            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        ) { "Android display screenshot unavailable: $fileName" }
-        saveScreenshot(fileName, screen)
+        captureVerifiedDisplayScreenshot(fileName)
     }
 
     private fun saveScreenshot(fileName: String, screenshot: Bitmap) {

@@ -113,7 +113,9 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
-          target: google_apis
+          # 使用 AOSP 系统镜像，避免不参与测试的 Pixel Launcher 进程
+          # 在动态切换 360/393/411dp 后产生 ANR 系统弹窗，污染证据截图。
+          target: default
           disable-animations: true
           emulator-boot-timeout: 900
           script: |
@@ -132,7 +134,7 @@ jobs:
             grep -Fq 'OK (' ui-instrument-result.log
             # All listed pages must have screenshots from the current tested screen width.
             # Missing image evidence fails the job even if the navigation tests pass.
-            for SCREEN in home sidebar chat settings-hub tools-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library account-usage account-limits workspace-files chat-toolbar diff-reader plugins; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
+            for SCREEN in home sidebar chat settings-hub tools-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
             test -s ui-screenshots/home-android35.png
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图

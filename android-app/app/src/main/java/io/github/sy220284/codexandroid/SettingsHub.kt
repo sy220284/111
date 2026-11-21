@@ -19,120 +19,139 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** 搜索与分组共用唯一的功能目录，避免侧栏、设置页维护两套入口。 */
+/** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
+    var showModels by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
+    var showAppearance by rememberSaveable { mutableStateOf(false) }
     val status by vm.bridge.status.collectAsState()
-    val pending by vm.bridge.prompts.collectAsState()
-    val showUpdate = query.isBlank() ||
-        NavigationPolicy.matches(query, "应用更新", "检查更新 自动下载 增量更新 安装", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
-        group to group.routes.mapNotNull { id -> pages.firstOrNull { it.id == id } }
-            .filter { NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
-    }.filter { it.second.isNotEmpty() }
-
+        group to group.routes.mapNotNull { id ->
+            pages.firstOrNull { it.id == id && NavigationPolicy.matches(
+                query, it.title, it.subtitle, it.id) }
+        }
+    }.filter { it.second.isNotEmpty() ||
+        (it.first.title == "通用与外观" && (query.isBlank() ||
+            NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update"))) }
+    val managed = NavigationPolicy.settingsRoutes.toSet()
+    val hiddenMatches = if (query.isBlank()) emptyList() else
+        pages.filter { it.id !in managed && it.id != "settings" &&
+            NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
+    val showUpdate = query.isBlank() ||
+        NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item(key = "intro") {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("简单设置，专注创作", style = MaterialTheme.typography.titleLarge)
-                Text("按用途整理全部功能；常用操作留在侧边栏。",
+                Text("设置与管理", style = MaterialTheme.typography.titleLarge)
+                Text("常用操作在对话和工作区；这里集中管理账号、扩展和主机。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             }
         }
         item(key = "search") {
-            OutlinedTextField(
-                value = query, onValueChange = { query = it },
+            OutlinedTextField(value = query, onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth().testTag("settings-search"),
-                placeholder = { Text("搜索模型、插件、终端或设置") },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                placeholder = { Text("搜索配置、扩展或功能名称") },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 trailingIcon = {
                     if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "清除搜索")
+                        Icon(Icons.Outlined.Close, "清除搜索")
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(22.dp)
-            )
+                }, singleLine = true, shape = RoundedCornerShape(22.dp))
         }
-        if (showUpdate) {
-            item(key = "app-update") { AppUpdateCard() }
-        }
-        if (groups.isEmpty() && !showUpdate) {
-            item(key = "empty") {
-                CodexEmptyState("没有匹配的功能", "试试功能名称或关键字。",
-                    actionLabel = "清除搜索", onAction = { query = "" })
-            }
+        if (groups.isEmpty() && hiddenMatches.isEmpty()) {
+            item { CodexEmptyState("未找到相关功能", "可以按名称或关键字重新查询。",
+                actionLabel = "清除搜索", onAction = { query = "" }) }
         }
         items(groups, key = { it.first.title }) { (group, entries) ->
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(group.title,
-                    modifier = Modifier.padding(start = 8.dp, top = 9.dp),
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 9.dp),
                     color = Ink.muted, style = MaterialTheme.typography.titleMedium)
-                Surface(
-                    shape = RoundedCornerShape(25.dp),
-                    color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.border.copy(alpha = .72f)),
-                    shadowElevation = 2.dp,
-                    tonalElevation = 0.dp
-                ) {
-                    Column {
-                        entries.forEachIndexed { index, entry ->
-                            if (index > 0) HorizontalDivider(
-                                modifier = Modifier.padding(start = 74.dp, end = 18.dp),
-                                color = Ink.border.copy(alpha = .45f), thickness = .5.dp)
-                            SettingRouteRow(
-                                page = entry, onClick = { navigate(entry.id) },
-                                detail = when (entry.id) {
+                if (entries.isNotEmpty()) {
+                    Surface(shape = RoundedCornerShape(25.dp), color = Ink.canvas,
+                        border = BorderStroke(1.dp, Ink.border.copy(alpha = .72f)),
+                        shadowElevation = 2.dp, tonalElevation = 0.dp) {
+                        Column {
+                            entries.forEachIndexed { index, entry ->
+                                if (index > 0) HorizontalDivider(
+                                    modifier = Modifier.padding(start = 74.dp, end = 18.dp),
+                                    color = Ink.border.copy(alpha = .46f), thickness = .5.dp)
+                                SettingRouteRow(page = entry, detail = when(entry.id) {
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待检查"
                                     "security" -> "执行授权"
+                                    "models" -> "选择模型"
                                     "appearance" -> "典雅白"
-                                    "usage", "limits" -> "查看数据"
-                                    else -> ""
+                                    else -> if (entry.experimental) "实验" else ""
+                                }) {
+                                    when(entry.id) {
+                                        "models" -> showModels = true
+                                        "appearance" -> showAppearance = !showAppearance
+                                        "about" -> showAbout = true
+                                        else -> navigate(entry.id)
+                                    }
                                 }
-                            )
+                                if (entry.id == "appearance" && showAppearance) {
+                                    HorizontalDivider(color = Ink.border)
+                                    AppearanceInlineControls()
+                                }
+                            }
                         }
+                    }
+                }
+                if (group.title == "通用与外观" && showUpdate) {
+                    AppUpdateCard()
+                }
+            }
+        }
+        if (hiddenMatches.isNotEmpty()) {
+            item(key = "search-extra-title") {
+                Text("功能搜索结果", modifier = Modifier.padding(start = 8.dp, top = 6.dp),
+                    style = MaterialTheme.typography.titleMedium, color = Ink.muted)
+            }
+            items(hiddenMatches, key = { "extra-" + it.id }) { entry ->
+                SettingRouteRow(entry, detail = "前往功能") {
+                    when(entry.id) {
+                        "modes" -> navigate("modes")
+                        "limits" -> navigate("limits")
+                        "search" -> navigate("threads")
+                        else -> navigate(entry.id)
                     }
                 }
             }
         }
         item(key = "footer") {
-            Text("功能来源于本机 Codex 与当前可用服务，按实际状态展示。",
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            Text("运行状态与能力来自实际内核，实验功能按当前服务可用性执行。",
+                modifier = Modifier.padding(vertical = 12.dp),
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
     }
+    if (showModels) ModelChoiceSurface(vm) { showModels = false }
+    if (showAbout) AboutInfoSheet(vm) { showAbout = false }
 }
 
 @Composable
 private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
-    val tone = when (page.section) {
+    val tone = when(page.section) {
         "能力与扩展" -> Ink.copper
         "项目与代码" -> Ink.jade
-        "设置与账户" -> Color(0xFF5874A0)
         else -> Ink.copper
     }
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
             .clickable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 70.dp)
-            .padding(horizontal = 17.dp, vertical = 11.dp),
+            .heightIn(min = 70.dp).padding(horizontal = 17.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        Surface(
-            modifier = Modifier.size(42.dp),
-            shape = CircleShape,
-            color = Ink.canvas,
-            border = BorderStroke(1.dp, tone.copy(alpha = .27f))
-        ) {
+        Surface(modifier = Modifier.size(42.dp), shape = CircleShape,
+            color = Ink.canvas, border = BorderStroke(1.dp, tone.copy(alpha = .33f))) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(page.icon, contentDescription = null,
-                    modifier = Modifier.size(22.dp), tint = tone)
+                Icon(page.icon, null, modifier = Modifier.size(22.dp), tint = tone)
             }
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -141,85 +160,87 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
             Text(page.subtitle, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (detail.isNotBlank()) {
-            Text(detail, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Ink.muted,
+        if (detail.isNotBlank()) Text(detail, color = Ink.muted,
+            style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
             modifier = Modifier.size(21.dp))
     }
 }
 
-/** 类似参考图的底部工具抽屉，只提供真实实现的操作。 */
+@Composable
+fun AppearanceInlineControls() {
+    val compact by UiPreferences.compact.collectAsState()
+    val softMaterial by UiPreferences.softMaterial.collectAsState()
+    val lessMotion by UiPreferences.reducedMotion.collectAsState()
+    Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
+        AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
+        AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
+    }
+}
+
+@Composable
+private fun AppearanceSettingToggle(
+    title: String, description: String, value: Boolean, onChange: (Boolean) -> Unit
+) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 62.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(description, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+        }
+        WhiteSwitch(value, onCheckedChange = onChange)
+    }
+}
+
+/** 与输入框附件菜单分离：这里只呈现工作区和当前会话工具。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceActionsSheet(
-    onDismiss: () -> Unit,
-    navigate: (String) -> Unit,
-    onChooseImage: (() -> Unit)? = null
+    onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.canvas,
-        contentColor = Ink.parchment,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }
-    ) {
-        Column(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text("快捷工具", style = MaterialTheme.typography.titleLarge)
-            Text("选择要打开的工具或工作内容。",
-                style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-            if (onChooseImage != null) {
-                Surface(shape = RoundedCornerShape(20.dp), color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.border)) {
-                    Row(Modifier.fillMaxWidth().clickable {
-                        onDismiss()
-                        onChooseImage()
-                    }.heightIn(min = 60.dp).padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.AddPhotoAlternate, null, tint = Ink.copper)
-                        Spacer(Modifier.width(12.dp))
-                        Text("从相册或文件中选择图片", modifier = Modifier.weight(1f))
-                        Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
-                    }
-                }
-            }
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
+            .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("工作区工具", style = MaterialTheme.typography.headlineSmall)
+            Text("文件与终端随时可用；代码审查和任务队列需要选中会话。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             NavigationPolicy.quickToolRoutes.chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { id ->
                         val item = pages.first { it.id == id }
+                        val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
                         Surface(
                             modifier = Modifier.weight(1f).testTag("quick-$id")
-                                .clickable { onDismiss(); navigate(id) },
+                                .clickable { onDismiss(); navigate(if(allowed) id else "threads") },
                             shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, Ink.border),
+                            border = BorderStroke(1.dp, if(allowed) Ink.border else Ink.copperDim),
                             color = Ink.canvas
                         ) {
-                            Column(
-                                modifier = Modifier.padding(vertical = 15.dp, horizontal = 6.dp),
+                            Column(Modifier.padding(vertical = 15.dp, horizontal = 6.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(7.dp)
-                            ) {
-                                Icon(item.icon, null, tint = Ink.copper,
+                                verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                Icon(item.icon, null, tint = if (allowed) Ink.copper else Ink.muted,
                                     modifier = Modifier.size(23.dp))
                                 Text(item.title, maxLines = 1,
                                     style = MaterialTheme.typography.labelMedium)
+                                if (!allowed) Text("先选会话",
+                                    style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                             }
                         }
                     }
                 }
             }
-            OutlinedButton(
-                onClick = { onDismiss(); navigate("settings") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            ) {
-                Icon(Icons.Outlined.Settings, null)
+            if (!hasThread) OutlinedButton(onClick = { onDismiss(); navigate("threads") },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.History, null)
                 Spacer(Modifier.width(8.dp))
-                Text("查看全部设置与功能")
+                Text("选择会话后使用任务工具")
             }
+            Spacer(Modifier.height(10.dp))
         }
     }
 }

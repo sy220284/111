@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "每项官方请求必须明确归类。更新上游时需要同步评审新增/删除接口。此清单为产品分层决策，非接口成功状态。",
+  "note": "所有官方请求必须归类。用户可见请求必须有真实业务源码引用或带代码证据的等效与条件路径，声明目录不计为接入。",
   "methods": {
     "server/diagnostics": {
       "surface": "后台内部",
@@ -976,6 +976,50 @@
       "surface": "后台内部",
       "owner": "可信证明后台",
       "flag": "常规/内部"
+    }
+  },
+  "implementationEquivalents": {
+    "fs/readFile": {
+      "kind": "local",
+      "source": "DeveloperScreens.kt",
+      "evidence": "file.readText()",
+      "reason": "工作区文件编辑器直接读取本机文件"
+    },
+    "fs/writeFile": {
+      "kind": "local",
+      "source": "WorkspaceFileActions.kt",
+      "evidence": "fun saveText(",
+      "reason": "工作区采用原子保存及路径限制"
+    },
+    "fs/createDirectory": {
+      "kind": "local",
+      "source": "WorkspaceFileActions.kt",
+      "evidence": "fun createFolder(",
+      "reason": "文件管理提供新建文件夹"
+    },
+    "fs/readDirectory": {
+      "kind": "local",
+      "source": "DeveloperScreens.kt",
+      "evidence": "folder.listFiles()",
+      "reason": "文件浏览器读取当前目录"
+    },
+    "fs/remove": {
+      "kind": "local",
+      "source": "WorkspaceFileActions.kt",
+      "evidence": "fun delete(",
+      "reason": "文件管理经危险操作确认后删除"
+    },
+    "fs/copy": {
+      "kind": "local",
+      "source": "WorkspaceFileActions.kt",
+      "evidence": "fun copy(",
+      "reason": "文件管理复制独立副本，不覆盖现有目标并拒绝符号链接"
+    },
+    "command/exec/resize": {
+      "kind": "conditional",
+      "source": "TerminalSessionContract.kt",
+      "evidence": "\"streamStdin\", true",
+      "reason": "当前终端采用流式命令执行，未创建可调尺寸PTY；仅在支持PTY且能测量行列数时显示尺寸控制"
     }
   }
 }

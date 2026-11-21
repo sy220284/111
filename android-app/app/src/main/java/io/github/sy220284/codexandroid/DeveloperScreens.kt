@@ -47,6 +47,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createKind by remember { mutableStateOf("file") }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
+    var copyName by remember { mutableStateOf("") }
     var actionBusy by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -105,7 +106,7 @@ fun WorkspacePage(vm: CodexViewModel) {
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item { SectionIntro("LOCAL / FILES", "工作区文件",
-            "本机工程与文件统一管理，支持文件夹、导入、重命名与安全删除。") }
+            "本机工程与文件统一管理，支持新建、导入、复制、重命名与安全删除。") }
         item {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("当前目录", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
@@ -227,6 +228,15 @@ fun WorkspacePage(vm: CodexViewModel) {
                                     renameName = file.name
                                     fileAction = "rename" to file
                                 })
+                            DropdownMenuItem(text = { Text("复制") },
+                                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                                onClick = {
+                                    optionsOpen = false
+                                    copyName = if (file.isDirectory) file.name + "-副本"
+                                        else file.nameWithoutExtension + "-副本" +
+                                            (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                                    fileAction = "copy" to file
+                                })
                             DropdownMenuItem(text = { Text("删除") },
                                 leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red) },
                                 onClick = {
@@ -273,6 +283,51 @@ fun WorkspacePage(vm: CodexViewModel) {
                         }
                     }, enabled = renameName.isNotBlank() && !actionBusy) {
                         Text("保存名称")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { fileAction = null }) { Text("取消") }
+                }
+            )
+        } else if (kind == "copy") {
+            AlertDialog(
+                onDismissRequest = { fileAction = null },
+                title = { Text("复制到当前目录") },
+                containerColor = Ink.elevated,
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("来源：" + target.relativeTo(root).path,
+                            color = Ink.muted)
+                        OutlinedTextField(copyName, { copyName = it },
+                            label = { Text("新文件或文件夹名称") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
+                        Text("创建独立副本；如已存在同名文件则停止操作。",
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                },
+                confirmButton = {
+                    OutlinedButton(onClick = {
+                        val finalName = copyName.trim()
+                        val finalFolder = folder
+                        actionBusy = true
+                        fileAction = null
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        scope.launch {
+                            try {
+                                val copied = withContext(Dispatchers.IO) {
+                                    WorkspaceFileActions.copy(root, target, finalFolder, finalName)
+                                }
+                                notice = "已复制：" + copied.name
+                                refresh++
+                            } catch (failure: Exception) {
+                                notice = "复制失败：" + (failure.message ?: "未知错误")
+                            } finally {
+                                actionBusy = false
+                            }
+                        }
+                    }, enabled = copyName.isNotBlank() && !actionBusy) {
+                        Text("确认复制")
                     }
                 },
                 dismissButton = {
@@ -491,89 +546,8 @@ fun TerminalPage(vm: CodexViewModel) {
 
 @Composable
 fun ReviewPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val active by vm.activeThread.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val response by vm.data.collectAsState()
-    var selection by remember { mutableStateOf("uncommittedChanges") }
-    var value by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf(false) }
-    var showReviewRaw by remember { mutableStateOf(false) }
     ScreenColumn {
-        SectionIntro("CODE / QUALITY", "代码审查", "使用 Codex 原生 reviewer，对变更给出可追踪的问题。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("审查范围", style = MaterialTheme.typography.titleMedium)
-            listOf("uncommittedChanges" to "尚未提交的改动", "baseBranch" to "相对基线分支",
-                "commit" to "指定提交", "custom" to "自定义目标").forEach { (key, text) ->
-                Row(Modifier.fillMaxWidth().clickable { selection = key }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = selection == key, onClick = { selection = key })
-                    Text(text)
-                }
-            }
-            if (selection != "uncommittedChanges") OutlinedTextField(value, { value = it },
-                label = { Text(if (selection == "baseBranch") "基线分支" else if (selection == "commit") "Commit SHA" else "审查说明") },
-                modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = { confirm = true }, enabled = active != null &&
-                (selection == "uncommittedChanges" || value.isNotBlank())) {
-                Icon(Icons.Outlined.FactCheck, null); Spacer(Modifier.width(8.dp)); Text("发起审查")
-            }
-        }
-        if (active == null) Text("先在任务对话中打开一个会话。", color = Ink.muted)
-        errors["review"]?.let { ErrorText(it) }
-        response["review"]?.let { result ->
-            val reviewTurn = result.optJSONObject("turn")
-            val status = reviewTurn?.optString("status").orEmpty()
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.FactCheck, null, tint = Ink.copper)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("审查任务已创建", style = MaterialTheme.typography.titleMedium)
-                        Text("内核已接收审查请求，结果在会话任务流中继续更新。",
-                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (status.isNotBlank()) StatusPill(
-                        status, !status.contains("fail", ignoreCase = true))
-                }
-                val turnId = reviewTurn?.optString("id").orEmpty()
-                if (turnId.isNotBlank()) {
-                    Text("审查轮次：" + turnId,
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                }
-                OutlinedButton(onClick = { navigate("chat") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Chat, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text("查看会话中的审查过程")
-                }
-                TextButton(onClick = { showReviewRaw = !showReviewRaw }) {
-                    Text(if (showReviewRaw) "收起原始结果" else "查看原始结果")
-                }
-                CodexReveal(showReviewRaw) {
-                    androidx.compose.foundation.text.selection.SelectionContainer {
-                        Text(result.toString(2), fontFamily = FontFamily.Monospace,
-                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
+        SectionIntro("CODE / QUALITY", "代码审查", "选择范围并提交给当前会话。")
+        ReviewScopePanel(vm, onStarted = { navigate("chat") }, onSelectThread = { navigate("threads") })
     }
-    if (confirm) CodexConfirmDialog(
-        title = "发起代码审查",
-        message = "在当前会话中提交审查请求，结果将显示在任务流。",
-        detail = "目标：$selection\n补充：$value",
-        confirmLabel = "开始审查",
-        onConfirm = {
-            val target = JSONObject().put("type", selection)
-            when (selection) {
-                "baseBranch" -> target.put("branch", value)
-                "commit" -> target.put("sha", value)
-                "custom" -> target.put("instructions", value)
-            }
-            vm.rpc("review", "review/start", JSONObject().put("threadId", active)
-                .put("delivery", "inline").put("target", target))
-            confirm = false
-        },
-        onDismiss = { confirm = false }
-    )
 }
