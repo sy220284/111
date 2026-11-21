@@ -59,7 +59,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 when (type) {
                     "boolean" -> Row(verticalAlignment = Alignment.CenterVertically) {
                         val checked = answers[name] == "true"
-                        Switch(checked = checked, onCheckedChange = { answers[name] = it.toString() })
+                        WhiteSwitch(checked = checked, onCheckedChange = { answers[name] = it.toString() })
                         Spacer(Modifier.width(10.dp))
                         Text(if (checked) "允许" else "关闭", color = Ink.muted)
                     }

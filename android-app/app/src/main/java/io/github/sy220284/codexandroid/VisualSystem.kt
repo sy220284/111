@@ -146,6 +146,32 @@ fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
             disabledContentColor = Ink.muted), content = content)
 }
 
+/** 所有开关轨道保持白色，状态通过边框与滑块辨认。 */
+@Composable
+fun WhiteSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedTrackColor = Ink.canvas,
+            uncheckedTrackColor = Ink.canvas,
+            disabledCheckedTrackColor = Ink.canvas,
+            disabledUncheckedTrackColor = Ink.canvas,
+            checkedThumbColor = Ink.copper,
+            uncheckedThumbColor = Ink.muted,
+            checkedBorderColor = Ink.copper,
+            uncheckedBorderColor = Ink.border
+        )
+    )
+}
+
 @Composable
 fun DividerLine() {
     HorizontalDivider(color = Ink.border.copy(alpha = .5f), thickness = 1.dp)

@@ -178,7 +178,7 @@ fun SkillsPage(vm: CodexViewModel) {
                             Text(skill.optString("path"), maxLines = 2, overflow = TextOverflow.Ellipsis,
                                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                         }
-                        Switch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
+                        WhiteSwitch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
                             confirmation = skill to enabled
                         })
                     }

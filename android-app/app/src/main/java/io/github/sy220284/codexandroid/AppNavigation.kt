@@ -183,7 +183,10 @@ fun CodexShell(vm: CodexViewModel) {
                                     if (running) "执行中，请先完成当前任务" else "新建任务")
                             }
                             if (pending.isNotEmpty()) {
-                                BadgedBox(badge = { Badge { Text(pending.size.toString()) } }) {
+                                BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
+                                        modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {
+                                        Text(pending.size.toString())
+                                    } }) {
                                     IconButton(onClick = { move("approvals") }) { Icon(Icons.Outlined.GppGood, "待审批") }
                                 }
                             }

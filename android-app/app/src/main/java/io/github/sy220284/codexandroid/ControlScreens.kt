@@ -400,7 +400,7 @@ fun AppearancePage() {
                     Text("紧凑信息密度")
                     Text("缩小面板间距，让代码和数据占据更多空间", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Switch(compact, onCheckedChange = UiPreferences::setCompact)
+                WhiteSwitch(compact, onCheckedChange = UiPreferences::setCompact)
             }
             DividerLine()
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -409,7 +409,7 @@ fun AppearancePage() {
                     Text("开启后增加轻微卡片阴影；关闭后保留白底和细边框",
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Switch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
+                WhiteSwitch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
             }
             DividerLine()
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -417,7 +417,7 @@ fun AppearancePage() {
                     Text("减弱页面动效")
                     Text("缩短或关闭转场动画，保留状态反馈", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Switch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
+                WhiteSwitch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
             }
         }
         CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", Icons.Outlined.TouchApp,
