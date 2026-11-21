@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -10,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +29,7 @@ object Ink {
     val copper = Color(0xFF805A3F)
     val copperDim = Color(0xFFB8A18D)
     val jade = Color(0xFF246F54)
+    val warning = Color(0xFF8A6437)
     val red = Color(0xFFAC363A)
 }
 
@@ -108,13 +111,28 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 
 val LocalWorkPageTitle = compositionLocalOf { "" }
 
+/** 页面正文共享的导语：顶栏已有标题时保留层次，而不重复大标题。 */
 @Composable
 fun SectionIntro(eyebrow: String, title: String, subtitle: String = "") {
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        if (title != LocalWorkPageTitle.current) {
-            Text(title, color = Ink.parchment, style = MaterialTheme.typography.headlineSmall)
+    val showTitle = title != LocalWorkPageTitle.current
+    if (showTitle || subtitle.isNotBlank()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                Modifier.width(3.dp).height(if (showTitle) 44.dp else 32.dp)
+                    .background(Ink.copper.copy(alpha = .76f), RoundedCornerShape(3.dp))
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                if (showTitle) {
+                    Text(title, color = Ink.parchment, style = MaterialTheme.typography.headlineSmall)
+                }
+                if (subtitle.isNotBlank()) {
+                    Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
-        if (subtitle.isNotBlank()) Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -126,7 +144,8 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
         StatusTone.Neutral -> Ink.muted
         StatusTone.Info -> Ink.copper
         StatusTone.Success -> Ink.jade
-        StatusTone.Warning, StatusTone.Danger -> Ink.red
+        StatusTone.Warning -> Ink.warning
+        StatusTone.Danger -> Ink.red
     }
     Surface(color = Ink.canvas, border = BorderStroke(1.dp, color.copy(alpha = .46f)),
         shape = RoundedCornerShape(99.dp)) {

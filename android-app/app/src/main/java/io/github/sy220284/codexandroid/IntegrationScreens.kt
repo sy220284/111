@@ -22,13 +22,7 @@ import org.json.JSONObject
 
 @Composable
 private fun IntegrationState(vm: CodexViewModel, key: String, retry: () -> Unit) {
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    if (loading.contains(key)) LinearProgressIndicator(Modifier.fillMaxWidth())
-    errors[key]?.let {
-        ErrorText(it)
-        TextButton(onClick = retry) { Text("重试连接") }
-    }
+    ProtocolFeedback(vm, listOf(key), onRetry = retry)
 }
 
 @Composable
@@ -105,8 +99,10 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 vm.refresh("appInstalled", "app/installed")
             }) { Icon(Icons.Outlined.Refresh, null); Text("刷新连接状态") }
         }
-        IntegrationState(vm, "apps") { vm.refresh("apps", "app/list") }
-        IntegrationState(vm, "appInstalled") { vm.refresh("appInstalled", "app/installed") }
+        ProtocolFeedback(vm, listOf("apps", "appInstalled"), onRetry = {
+            vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
+            vm.refresh("appInstalled", "app/installed")
+        })
         if (apps.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
             Text("检查登录状态，或进入插件管理查看可用的扩展。",
@@ -317,7 +313,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        IntegrationState(vm, "mcpLogin") { }
+        ProtocolFeedback(vm, listOf("mcpLogin"))
     }
     resourceSelection?.let { (name, resource) ->
         McpResourceSheet(serverName = name, resource = resource, vm = vm,

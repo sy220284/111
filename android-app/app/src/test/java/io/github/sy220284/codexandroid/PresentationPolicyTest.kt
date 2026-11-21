@@ -67,6 +67,19 @@ class PresentationPolicyTest {
             PresentationPolicy.permissionDetails(null).single())
     }
 
+    @Test fun duplicateBackendErrorsAreMergedWithinOnePage() {
+        val errors = mapOf(
+            "apps" to "Codex 内核尚未连接",
+            "appInstalled" to "Codex 内核尚未连接",
+            "mcp" to "连接已超时"
+        )
+        assertEquals(
+            listOf("Codex 内核尚未连接", "连接已超时"),
+            PresentationPolicy.visibleErrors(errors, listOf("apps", "appInstalled", "mcp"))
+        )
+        assertEquals(emptyList<String>(), PresentationPolicy.visibleErrors(errors, listOf("models")))
+    }
+
     @Test fun readableErrorKeepsMeaningAndHidesInternalIdentifiers() {
         val source = "访问失败：/data/user/0/io.github.sy220284.codexandroid/files/projects"
         val shown = PresentationPolicy.readableError(source)

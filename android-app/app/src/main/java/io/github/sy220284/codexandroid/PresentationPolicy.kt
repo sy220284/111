@@ -139,6 +139,12 @@ object PresentationPolicy {
         }
     }
 
+    /** 同页去重；保留不同接口返回的不同失败原因。 */
+    fun visibleErrors(errors: Map<String, String>, keys: List<String>): List<String> =
+        keys.mapNotNull { errors[it] }
+            .map(::readableError)
+            .distinct()
+
     fun readableError(value: String?): String {
         val raw = meaningful(value)
         if (raw.isEmpty()) return "当前操作没有返回详细原因"

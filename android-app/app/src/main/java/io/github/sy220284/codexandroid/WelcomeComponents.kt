@@ -38,7 +38,7 @@ fun WelcomeActionCard(
         color = Ink.canvas,
         shape = RoundedCornerShape(22.dp),
         border = BorderStroke(1.dp, if (pressed) tone else Ink.border),
-        shadowElevation = 2.dp,
+        shadowElevation = 0.dp,
         tonalElevation = 0.dp
     ) {
         Column(

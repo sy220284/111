@@ -54,7 +54,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun drawerOpensAndNavigatesToConversation() {
-        rule.onNodeWithText("继续你的工程").assertIsDisplayed()
+        rule.onNodeWithText("从一项任务开始").assertIsDisplayed()
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithText("任务对话").assertExists()
@@ -132,7 +132,7 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
-        rule.onNodeWithText("继续你的工程").assertExists()
+        rule.onNodeWithText("从一项任务开始").assertExists()
     }
 
     @Test fun modeSheetRespectsRealEngineCapability() {
@@ -333,6 +333,11 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("screen-title")
                 .assertTextEquals(pages.first { it.id == route }.title)
             rule.waitForIdle()
+            if (route == "apps" || route == "security") {
+                // 同页不同接口可能同时断连；用户只看到一条相同原因。
+                assertTrue(rule.onAllNodesWithText("Codex 内核尚未连接")
+                    .fetchSemanticsNodes().size <= 1)
+            }
             capture("audit-" + route + "-android35.png")
         }
     }

@@ -80,12 +80,16 @@ fun ScreenColumn(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val compact by UiPreferences.compact.collectAsState()
-    Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = if (compact) 12.dp else 18.dp, vertical = if (compact) 12.dp else 20.dp),
-        verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 16.dp),
-        content = content
-    )
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = if (compact) 12.dp else 18.dp,
+                    vertical = if (compact) 12.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 16.dp),
+            content = content
+        )
+    }
 }
 
 @Composable
@@ -98,19 +102,18 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val hasAccount = data["account"]?.optJSONObject("account") != null
 
     ScreenColumn {
-        Spacer(Modifier.height(5.dp))
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("继续你的工程", style = MaterialTheme.typography.headlineSmall)
-            Text("今天想做什么？", style = MaterialTheme.typography.bodyLarge,
-                color = Ink.muted)
-            StatusPill(
-                text = if (status == EngineStatus.Connected) "本机引擎已连接" else "本机引擎待连接",
-                tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning
-            )
+            Text(if (running) "继续当前工作" else "从一项任务开始",
+                style = MaterialTheme.typography.headlineSmall)
+            Text("描述目标，或从现有工作区继续。",
+                style = MaterialTheme.typography.bodyLarge, color = Ink.muted)
+            if (status == EngineStatus.Connected) {
+                StatusPill("本机引擎已连接", tone = StatusTone.Success)
+            }
         }
         if (prompts.isNotEmpty()) CodexNotice(
             "有 " + prompts.size + " 项操作等待审批", NoticeTone.Warning,
@@ -605,7 +608,11 @@ private fun TimelineStepCard(item: TimelineItem) {
     ) {
         Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 13.dp, bottom = 13.dp)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(color = tone.copy(alpha = .14f), shape = RoundedCornerShape(12.dp)) {
+                Surface(
+                    color = Ink.canvas,
+                    border = BorderStroke(1.dp, tone.copy(alpha = .32f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Icon(icon, null, tint = tone, modifier = Modifier.padding(10.dp).size(18.dp))
                 }
                 if (!user) {
@@ -677,6 +684,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     val result by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
     val payload = result[page.id]
     val entries = records(payload)
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
@@ -716,7 +724,17 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
         } else if (payload != null && page.id !in loading && page.id !in errors) {
             CodexEmptyState("暂无可展示内容", "已完成读取，当前没有需要处理的项目。")
         } else if (page.id !in loading && page.id !in errors) {
-            Text("正在准备当前功能…", color = Ink.muted)
+            CodexEmptyState(
+                title = if (engineStatus == EngineStatus.Connected) "等待读取结果" else "运行核心尚未连接",
+                description = if (engineStatus == EngineStatus.Connected)
+                    "当前没有收到数据，可以重新加载。" else "连接本机内核后才能读取当前功能。",
+                actionLabel = if (engineStatus == EngineStatus.Connected) "重新加载" else "重新连接",
+                onAction = {
+                    if (engineStatus == EngineStatus.Connected) {
+                        page.rpc?.let { vm.refresh(page.id, it) }
+                    } else vm.connect()
+                }
+            )
         }
     }
 }
