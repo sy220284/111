@@ -59,7 +59,8 @@ fun ThreadGoalPage(vm: CodexViewModel) {
             } else {
                 Text(goal.optString("objective"), style = MaterialTheme.typography.titleLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    StatusPill(goal.optString("status"), goal.optString("status") == "active")
+                    StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
+                        goal.optString("status") == "active")
                     goal.opt("tokenBudget")?.takeIf { it != JSONObject.NULL }?.let {
                         Text("额度：" + it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
@@ -300,7 +301,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         CodexConfirmDialog(
             title = "删除排队任务",
             message = "任务会从当前会话的待执行队列中移除。",
-            detail = item.optString("summary").ifBlank { item.optString("id") },
+            detail = PresentationPolicy.meaningful(item.optString("summary"))
+                .ifEmpty { "将删除当前选择的待执行任务" },
             confirmLabel = "确认删除",
             destructive = true,
             onConfirm = {

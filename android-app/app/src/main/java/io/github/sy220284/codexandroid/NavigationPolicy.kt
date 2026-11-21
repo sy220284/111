@@ -5,7 +5,6 @@ data class FeatureGroup(val title: String, val routes: List<String>)
 
 object NavigationPolicy {
     val sidebarRoutes get() = UiFeatureCatalog.sidebarRoutes
-    val primaryRoutes get() = UiFeatureCatalog.bottomRoutes
     val quickToolRoutes get() = UiFeatureCatalog.workspaceTools
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }

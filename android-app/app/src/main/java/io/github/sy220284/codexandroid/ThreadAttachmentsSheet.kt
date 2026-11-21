@@ -56,7 +56,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Text("添加文本备注", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(noteKey, { noteKey = it }, singleLine = true,
-                        label = { Text("资料标识") }, modifier = Modifier.fillMaxWidth())
+                        label = { Text("备注名称") }, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(noteText, { noteText = it }, minLines = 2, maxLines = 5,
                         label = { Text("备注内容") }, modifier = Modifier.fillMaxWidth())
                     OutlinedButton(onClick = {
@@ -99,14 +99,19 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 Icon(Icons.Outlined.Attachment, null, tint = Ink.copper)
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(item.optString("identityKey"),
+                                    Text(PresentationPolicy.meaningful(item.optString("identityKey"))
+                                        .ifEmpty { "未命名资料" },
                                         style = MaterialTheme.typography.titleMedium)
-                                    Text(item.optString("attachmentType"),
+                                    Text(if (item.optString("attachmentType") == "note") "文本备注" else "关联资料",
                                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { reader = item.toString(2) },
+                                OutlinedButton(onClick = {
+                                    reader = PresentationPolicy.meaningful(
+                                        item.optJSONObject("payload")?.optString("text"))
+                                        .ifEmpty { "此资料没有可展示的文本内容。" }
+                                },
                                     modifier = Modifier.weight(1f)) { Text("查看详情") }
                                 OutlinedButton(onClick = { removeTarget = item },
                                     modifier = Modifier.weight(1f),
@@ -134,7 +139,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         CodexConfirmDialog(
             title = "删除会话关联资料",
             message = "所选资料会从当前会话的关联记录中删除。任务正文和本地文件保留。",
-            detail = "类型：${item.optString("attachmentType")}\n标识：${item.optString("identityKey")}",
+            detail = "将删除「${PresentationPolicy.meaningful(item.optString("identityKey")).ifEmpty { "当前资料" }}」",
             confirmLabel = "确认删除资料", destructive = true,
             onConfirm = {
                 active?.let { id ->

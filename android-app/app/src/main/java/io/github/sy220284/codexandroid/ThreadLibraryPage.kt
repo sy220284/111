@@ -244,9 +244,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         items(entries, key = { it.optString("id") }) { thread ->
             val id = thread.optString("id")
-            val title = thread.optString("name").ifBlank {
-                thread.optString("preview").ifBlank { "未命名会话" }
-            }
+            val title = PresentationPolicy.threadTitle(
+                thread.optString("name"), thread.optString("preview")
+            )
             val canManage = !(running && activeId == id) && !busy
             var menu by remember(id) { mutableStateOf(false) }
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -262,7 +262,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(title, style = MaterialTheme.typography.titleMedium,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(thread.optString("cwd").ifBlank { id },
+                        Text(PresentationPolicy.workspaceName(thread.optString("cwd")),
                             style = MaterialTheme.typography.labelSmall,
                             maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
                     }
@@ -454,7 +454,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     action?.let { (kind, thread) ->
         val id = thread.optString("id")
-        val title = thread.optString("name").ifBlank { id }
+        val title = PresentationPolicy.threadTitle(thread.optString("name"), thread.optString("preview"))
         val label = when (kind) {
             "delete" -> "永久删除"
             "archive" -> "归档"
@@ -463,11 +463,11 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         CodexConfirmDialog(
             title = label + "会话",
             message = when (kind) {
-                "delete" -> "会话历史会被永久删除，无法撤销。请核对记录名称和 ID。"
+                "delete" -> "会话历史会被永久删除，无法撤销。请核对会话名称。"
                 "archive" -> "会话将从活跃列表移到归档，可随时恢复。"
                 else -> "会话将返回活跃列表，可以继续任务。"
             },
-            detail = "名称：$title\nID：$id",
+            detail = "会话：$title",
             confirmLabel = "确认" + label,
             destructive = kind == "delete",
             onConfirm = {

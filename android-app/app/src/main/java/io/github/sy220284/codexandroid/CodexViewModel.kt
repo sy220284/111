@@ -478,14 +478,34 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val id = item.optString("id", "item-" + System.nanoTime())
                 val kind = item.optString("type", "event")
                 val description = when (kind) {
+                    "userMessage" -> {
+                        val parts = item.optJSONArray("content") ?: JSONArray()
+                        (0 until parts.length()).mapNotNull {
+                            parts.optJSONObject(it)?.optString("text")
+                        }.filter { it.isNotBlank() }.joinToString("\n")
+                    }
                     "commandExecution" -> item.optString("command")
-                    "fileChange" -> "文件变更：" + item.optJSONObject("changes")?.length().toString() + " 个文件"
+                    "fileChange" -> "文件变更：" +
+                        (item.optJSONObject("changes")?.length() ?: 0) + " 个文件"
                     "mcpToolCall" -> item.optString("tool")
-                    else -> item.optString("text", kind)
+                    else -> item.optString("text")
                 }
                 val all = timeline.value.toMutableList()
-                val pos = all.indexOfLast { it.id == id }
-                val entry = TimelineItem(id, kind, description, item.optString("status"), item.toString(2))
+                // 本地发送时已经加入用户消息，正式事件到达后合并，避免一条指令显示两次。
+                val sameId = all.indexOfLast { it.id == id }
+                val optimistic = if (kind == "userMessage" && description.isNotBlank()) {
+                    all.indexOfLast {
+                        it.kind == "user" && (it.text == description ||
+                            it.text.startsWith(description + "\n图片附件："))
+                    }
+                } else -1
+                val pos = if (sameId >= 0) sameId else optimistic
+                val displayedKind = if (kind == "userMessage") "user" else kind
+                val displayedText = description.ifBlank {
+                    if (pos >= 0) all[pos].text else "正在处理…"
+                }
+                val entry = TimelineItem(id, displayedKind, displayedText,
+                    item.optString("status"), if (displayedKind == "user") "" else item.toString(2))
                 if (pos < 0) all += entry else all[pos] = entry
                 timeline.value = all
             }

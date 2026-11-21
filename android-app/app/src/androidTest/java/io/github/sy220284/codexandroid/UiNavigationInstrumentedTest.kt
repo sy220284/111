@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import android.content.Context
+import androidx.lifecycle.ViewModelProvider
+import org.json.JSONObject
+import org.json.JSONArray
 import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -23,9 +26,7 @@ class UiNavigationInstrumentedTest {
     }
 
     private fun openSettingRoute(id: String) {
-        // 此函数仅准备被测功能的前置页面。底部导航交互由独立测试覆盖。
-        // 联合运行全部 28 项测试时，依赖偶然存在的底栏可能在页面状态交接期
-        // 读到旧的“总览”标题。改用始终可识别的侧栏入口或嵌套页返回路径。
+        // 从侧栏进入设置，子页返回后等待搜索框出现；不依赖重复的底栏入口。
         if (rule.onAllNodesWithContentDescription("返回上一页").fetchSemanticsNodes().isNotEmpty()) {
             rule.onNodeWithContentDescription("返回上一页").performClick()
         } else {
@@ -75,7 +76,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithText("添加附件").assertExists()
         rule.onNodeWithTag("attachment-pick-image").assertExists()
-        rule.onNodeWithTag("quick-terminal").assertDoesNotExist()
+        rule.onNodeWithTag("quick-terminal").assertExists()
         captureOverlay("attachment-sheet-android35.png")
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
@@ -182,7 +183,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("选择登录方式").assertExists()
         rule.onNodeWithText("设备码登录").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("浏览器登录").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("查看协议数据").assertExists()
+        rule.onNodeWithText("查看账号授权与安全设置").assertExists()
         rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
@@ -233,7 +234,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
         val name = "ui-folder-" + System.currentTimeMillis()
-        rule.onNodeWithTag("bottom-files").performClick()
+        openDrawerRoute("files")
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-folder-mode"))
         rule.onNodeWithTag("workspace-folder-mode").performClick()
@@ -267,16 +268,19 @@ class UiNavigationInstrumentedTest {
         }
     }
 
-    @Test fun frequentBottomDestinationsAndSettingsSearchStayReachable() {
-        rule.onNodeWithTag("main-bottom-navigation").assertExists()
-        rule.onNodeWithTag("bottom-chat").performClick()
+    @Test fun desktopStyleSidebarIsTheOnlyPrimaryNavigation() {
+        rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("工作台", substring = false).assertExists()
+        rule.onNodeWithText("工作区", substring = false).assertExists()
+        rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
-        rule.onNodeWithTag("bottom-threads").performClick()
+        openDrawerRoute("threads")
         rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
-        rule.onNodeWithTag("bottom-settings").performClick()
+        openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
         rule.onNodeWithTag("settings-route-diagnostics").performClick()
@@ -308,6 +312,113 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
         rule.onNodeWithText("插件源", substring = false).assertExists()
         capture("plugins-android35.png")
+    }
+
+    @Test fun secondarySettingsPagesHaveActualDeviceScreenshots() {
+        // Every captured screen comes from the current Android Activity and real navigation.
+        val routeScreens = listOf(
+            "providers", "skills", "apps", "mcp", "hooks",
+            "environments", "security", "config", "diagnostics", "queue"
+        )
+        routeScreens.forEach { route ->
+            openSettingRoute(route)
+            rule.onNodeWithTag("screen-title")
+                .assertTextEquals(pages.first { it.id == route }.title)
+            rule.waitForIdle()
+            capture("audit-" + route + "-android35.png")
+        }
+    }
+
+    @Test fun approvalsAndChildEditorsHaveReadableStates() {
+        openDrawerRoute("approvals")
+        rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
+        capture("audit-approvals-android35.png")
+
+        openSettingRoute("providers")
+        rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
+        rule.onNodeWithText("服务地址（HTTP / HTTPS）").assertExists()
+        capture("audit-provider-editor-android35.png")
+
+        openSettingRoute("config")
+        rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithText("设置值（JSON）").assertExists()
+        capture("audit-config-editor-android35.png")
+
+        openSettingRoute("environments")
+        rule.onNodeWithText("添加外部执行环境").performScrollTo().performClick()
+        rule.onNodeWithText("执行服务 WebSocket URL").assertExists()
+        capture("audit-environment-editor-android35.png")
+    }
+
+    @Test fun expandedSecurityAndAboutViewsAreCaptured() {
+        openSettingRoute("security")
+        rule.onNodeWithText("可用权限方案").performScrollTo()
+        capture("audit-security-profiles-android35.png")
+
+        openSettingRoute("about")
+        rule.onNodeWithText("关于应用").assertExists()
+        captureOverlay("audit-about-android35.png")
+    }
+
+    @Test fun permissionApprovalExplainsActualScope() {
+        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        openDrawerRoute("approvals")
+        val permissions = JSONObject()
+            .put("network", JSONObject().put("enabled", true))
+            .put("fileSystem", JSONObject().put("write",
+                JSONArray().put("/data/user/0/io.github.sy220284.codexandroid/files/projects")))
+        rule.runOnUiThread {
+            vm.bridge.prompts.value = listOf(
+                ServerPrompt("ci-approval", "item/permissions/requestApproval",
+                    JSONObject().put("permissions", permissions))
+            )
+        }
+        rule.onNodeWithText("允许访问网络", substring = true).assertExists()
+        rule.onNodeWithText("修改：本机工作区", substring = true).assertExists()
+        capture("audit-permission-request-android35.png")
+        rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
+    }
+
+    @Test fun taskSpecificSheetsAreReachableAndReadable() {
+        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        rule.runOnUiThread {
+            vm.activeThread.value = "ci-selected-session"
+            vm.running.value = false
+        }
+        openDrawerRoute("chat")
+        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithText("复制会话分支").assertExists()
+        captureOverlay("audit-thread-context-android35.png")
+        rule.onNodeWithText("回合历史与回退").performScrollTo().performClick()
+        rule.waitForIdle()
+        captureOverlay("audit-thread-history-transition-android35.png")
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("查看完整时间线（实验）").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText("查看完整时间线（实验）").assertExists()
+        captureOverlay("audit-thread-history-android35.png")
+        rule.onNodeWithText("查看完整时间线（实验）").performClick()
+        rule.onNodeWithText("会话时间线").assertExists()
+        captureOverlay("audit-advanced-timeline-android35.png")
+        rule.onNodeWithContentDescription("返回回合历史").performClick()
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
+        rule.onNodeWithText("添加文本备注").assertExists()
+        captureOverlay("audit-thread-attachments-android35.png")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-review").performClick()
+        rule.onNodeWithText("审查范围").assertExists()
+        captureOverlay("audit-review-sheet-android35.png")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-goals").performClick()
+        rule.onNodeWithText("设置新目标").assertExists()
+        captureOverlay("audit-goals-sheet-android35.png")
     }
 
     @Test fun toolbarQuickActionsCanOpenProjectTools() {

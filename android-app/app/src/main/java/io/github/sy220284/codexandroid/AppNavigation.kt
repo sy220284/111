@@ -26,9 +26,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -95,6 +95,7 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     var showQuickTools by rememberSaveable { mutableStateOf(false) }
+    var pendingQuickRoute by remember { mutableStateOf<String?>(null) }
     var showStatus by remember { mutableStateOf(false) }
     var showReview by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
@@ -150,6 +151,15 @@ fun CodexShell(vm: CodexViewModel) {
         keyboard?.hide()
         scope.launch { drawer.close() }
     }
+    LaunchedEffect(showQuickTools, pendingQuickRoute) {
+        if (!showQuickTools) {
+            pendingQuickRoute?.let { destination ->
+                pendingQuickRoute = null
+                move(destination)
+            }
+        }
+    }
+
     val goBack: () -> Unit = {
         if (backHistory.size > 1) {
             backHistory = backHistory.dropLast(1)
@@ -169,42 +179,13 @@ fun CodexShell(vm: CodexViewModel) {
             .fillMaxSize()
             .background(Ink.canvas)
     ) {
-        val wide = maxWidth >= 850.dp
-        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        val wide = maxWidth >= 720.dp
         val content: @Composable () -> Unit = {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
-                bottomBar = {
-                    if (!wide && !imeVisible && selected in NavigationPolicy.primaryRoutes && selected != "chat") {
-                        NavigationBar(
-                            containerColor = Ink.recessed,
-                            tonalElevation = 0.dp,
-                            modifier = Modifier.testTag("main-bottom-navigation")
-                        ) {
-                            NavigationPolicy.primaryRoutes.forEach { id ->
-                                val entry = pages.first { it.id == id }
-                                NavigationBarItem(
-                                    selected = selected == id || (id == "settings" && NavigationPolicy.isSettingsChild(selected)),
-                                    onClick = { move(id) },
-                                    modifier = Modifier.testTag("bottom-$id"),
-                                    icon = { Icon(entry.icon, contentDescription = entry.title) },
-                                    label = { Text(when (id) {
-                                        "home" -> "首页"
-                                        "chat" -> "对话"
-                                        "files" -> "文件"
-                                        "threads" -> "会话"
-                                        else -> "设置"
-                                    }) },
-                                    alwaysShowLabel = true
-                                )
-                            }
-
-                        }
-                    }
-                },
                 topBar = {
-                    CenterAlignedTopAppBar(
+                    TopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
@@ -256,7 +237,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 )
                             }
                         },
-                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Ink.canvas)
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Ink.canvas)
                     )
                 }
             ) { inset ->
@@ -274,9 +255,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
         if (wide) {
             Row(Modifier.fillMaxSize()) {
-                Sidebar(Modifier.width(288.dp), selected,
+                Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size)
+                    status, pending.size, running, { vm.newThread(); move("chat") })
                 Box(Modifier.weight(1f)) { content() }
             }
         } else {
@@ -285,7 +266,8 @@ fun CodexShell(vm: CodexViewModel) {
                 gesturesEnabled = true,
                 drawerContent = {
                     ModalDrawerSheet(
-                        modifier = Modifier.widthIn(max = 318.dp),
+                        modifier = Modifier.widthIn(max = 318.dp)
+                            .then(if (drawer.isOpen) Modifier else Modifier.clearAndSetSemantics {}),
                         drawerContainerColor = Ink.recessed,
                         drawerContentColor = Ink.parchment
                     ) { Sidebar(Modifier.fillMaxHeight(), selected,
@@ -294,14 +276,17 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size) }
+                        }, status, pending.size, running, { vm.newThread(); move("chat") }) }
                 }
             ) { content() }
         }
         if (showQuickTools) {
             WorkspaceActionsSheet(
                 onDismiss = { showQuickTools = false },
-                navigate = move, hasThread = activeThread != null
+                navigate = { destination ->
+                    pendingQuickRoute = destination
+                    showQuickTools = false
+                }, hasThread = activeThread != null
             )
         }
         if (showStatus) {
@@ -322,94 +307,108 @@ fun CodexShell(vm: CodexViewModel) {
 @Composable
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
-    status: EngineStatus, approvals: Int
+    status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit
 ) {
     Column(
-        modifier.background(Ink.canvas).padding(horizontal = 18.dp, vertical = 15.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 15.dp, bottom = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                modifier = Modifier.size(49.dp), shape = CircleShape, color = Ink.canvas,
-                border = BorderStroke(1.dp, Ink.copperDim)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null,
-                        tint = Ink.copper, modifier = Modifier.size(23.dp))
-                }
-            }
-            Spacer(Modifier.width(13.dp))
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null,
+                tint = Ink.copper, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(12.dp))
             Column {
-                Text("CODEX", style = MaterialTheme.typography.titleLarge)
-                Text("你的移动工作台", color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
+                Text("Codex", style = MaterialTheme.typography.titleLarge)
+                Text("本机工作区", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
         }
-        Text("常用入口", modifier = Modifier.padding(start = 10.dp, top = 12.dp),
-            style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+        CodexPrimaryButton(
+            onClick = onNewThread,
+            enabled = !running,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            shape = RoundedCornerShape(15.dp)
+        ) {
+            Icon(Icons.Outlined.Add, null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("新建任务")
+        }
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(NavigationPolicy.sidebarRoutes, key = { it }) { id ->
-                val page = pages.first { it.id == id }
-                val active = selected == id ||
-                    (id == "settings" && NavigationPolicy.isSettingsChild(selected))
-                NavigationDrawerItem(
-                    label = {
-                        Text(
-                            when (id) {
-                                "home" -> "首页"
-                                "chat" -> "任务对话"
-                                "threads" -> "会话历史"
-                                "files" -> "工作区文件"
-                                "approvals" -> "待审批操作"
-                                else -> "设置"
-                            },
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    },
-                    selected = active,
-                    onClick = { onSelect(id) },
-                    icon = { Icon(page.icon, contentDescription = null,
-                        modifier = Modifier.size(23.dp)) },
-                    badge = {
-                        if (id == "approvals" && approvals > 0) {
-                            StatusPill(approvals.toString(), tone = StatusTone.Danger)
-                        } else if (id == "settings") {
-                            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
-                        }
-                    },
-                    modifier = Modifier.testTag("nav-$id").heightIn(min = 58.dp),
-                    shape = RoundedCornerShape(19.dp),
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Ink.canvas,
-                        selectedIconColor = Ink.copper, selectedTextColor = Ink.copper,
-                        unselectedContainerColor = Ink.canvas,
-                        unselectedIconColor = Ink.muted, unselectedTextColor = Ink.parchment
-                    )
-                )
+            item { Text("工作台", modifier = Modifier.padding(start = 12.dp, top = 16.dp, bottom = 6.dp),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted) }
+            items(listOf("home", "chat", "threads")) { id ->
+                SidebarRoute(id, selected, approvals, onSelect)
+            }
+            item { Text("工作区", modifier = Modifier.padding(start = 12.dp, top = 17.dp, bottom = 6.dp),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted) }
+            items(listOf("files", "approvals")) { id ->
+                SidebarRoute(id, selected, approvals, onSelect)
             }
         }
         HorizontalDivider(color = Ink.border)
+        SidebarRoute("settings", selected, approvals, onSelect)
         Row(
             Modifier.fillMaxWidth().clickable { onSelect("status") }
-                .heightIn(min = 59.dp).padding(horizontal = 8.dp),
+                .heightIn(min = 48.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Outlined.RadioButtonChecked, contentDescription = null,
                 tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red,
-                modifier = Modifier.size(18.dp))
+                modifier = Modifier.size(17.dp))
             Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text("本机引擎", style = MaterialTheme.typography.bodyMedium)
-                Text(if (status == EngineStatus.Connected) "运行正常" else "查看连接和配置",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Ink.muted)
+            Text(
+                if (status == EngineStatus.Connected) "内核已连接" else "检查运行状态",
+                style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f)
+            )
+            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
+                modifier = Modifier.size(18.dp))
         }
     }
+}
+
+@Composable
+private fun SidebarRoute(
+    id: String, selected: String, approvals: Int, onSelect: (String) -> Unit
+) {
+    val page = pages.first { it.id == id }
+    val active = selected == id || (id == "settings" && NavigationPolicy.isSettingsChild(selected))
+    NavigationDrawerItem(
+        label = {
+            Text(
+                when (id) {
+                    "home" -> "首页"
+                    "chat" -> "任务对话"
+                    "threads" -> "会话历史"
+                    "files" -> "工作区文件"
+                    "approvals" -> "待审批操作"
+                    else -> "设置"
+                },
+                style = MaterialTheme.typography.bodyLarge
+            )
+        },
+        selected = active,
+        onClick = { onSelect(id) },
+        icon = { Icon(page.icon, null, modifier = Modifier.size(21.dp)) },
+        badge = {
+            if (id == "approvals" && approvals > 0)
+                StatusPill(approvals.toString(), tone = StatusTone.Danger)
+        },
+        modifier = Modifier.testTag("nav-$id").heightIn(min = 49.dp)
+            .then(if (active) Modifier.border(1.dp, Ink.copperDim, RoundedCornerShape(14.dp))
+                  else Modifier),
+        shape = RoundedCornerShape(14.dp),
+        colors = NavigationDrawerItemDefaults.colors(
+            selectedContainerColor = Ink.canvas,
+            selectedIconColor = Ink.copper,
+            selectedTextColor = Ink.copper,
+            unselectedContainerColor = Ink.canvas,
+            unselectedIconColor = Ink.muted,
+            unselectedTextColor = Ink.parchment
+        )
+    )
 }

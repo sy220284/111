@@ -99,6 +99,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
+      - name: 检出截图采集器
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            /android-app/tools/collect_ui_screenshots.py
+          sparse-checkout-cone-mode: false
       - name: 取回 UI APK
         uses: actions/download-artifact@v4
         with:
@@ -130,12 +137,12 @@ jobs:
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
             mkdir -p ui-screenshots
-            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            # The emulator runner executes each script line separately.
+            # A single Python process collects all screenshots even after test failure.
+            python3 android-app/tools/collect_ui_screenshots.py
             grep -Fq 'OK (' ui-instrument-result.log
-            # All listed pages must have screenshots from the current tested screen width.
-            # Missing image evidence fails the job even if the navigation tests pass.
-            for SCREEN in home sidebar chat settings-hub tools-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search; do adb pull "/sdcard/Android/data/io.github.sy220284.codexandroid/files/${SCREEN}-android35.png" "ui-screenshots/${SCREEN}-android35.png" && test -s "ui-screenshots/${SCREEN}-android35.png" || exit 1; done
-            test -s ui-screenshots/home-android35.png
+            test ! -s ui-screenshots/missing.txt
             file ui-screenshots/*.png
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()

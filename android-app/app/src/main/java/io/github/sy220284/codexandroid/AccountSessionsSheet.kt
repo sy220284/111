@@ -118,9 +118,14 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(workspace.optString("name").ifBlank { aid },
+                                    Text(PresentationPolicy.meaningful(workspace.optString("name"))
+                                        .ifEmpty { "未命名工作区" },
                                         style = MaterialTheme.typography.bodyLarge)
-                                    Text(workspace.optString("kind").ifBlank { "工作区" },
+                                    Text(when (workspace.optString("kind").lowercase()) {
+                                        "personal" -> "个人工作区"
+                                        "team", "organization" -> "团队工作区"
+                                        else -> "工作区"
+                                    },
                                         color = Ink.muted,
                                         style = MaterialTheme.typography.labelMedium)
                                 }
@@ -128,7 +133,8 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 else OutlinedButton(
                                     onClick = {
                                         target = Triple(sid, aid,
-                                            workspace.optString("name").ifBlank { aid })
+                                            PresentationPolicy.meaningful(workspace.optString("name"))
+                                                .ifEmpty { "未命名工作区" })
                                     }, enabled = "accountSessionSwitch" !in loading) {
                                     Text("切换")
                                 }
@@ -143,7 +149,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         CodexConfirmDialog(
             title = "切换账号工作区",
             message = "后续模型、用量及任务授权将使用选择的工作区，请核对目标。",
-            detail = "工作区：$title\n会话：$sid\n工作区标识：$aid",
+            detail = "将切换到：$title",
             confirmLabel = "确认切换",
             onConfirm = {
                 vm.rpc("accountSessionSwitch", "accountSession/switch",

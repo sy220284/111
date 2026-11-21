@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
@@ -30,7 +29,6 @@ fun ReviewScopePanel(
     var selection by remember { mutableStateOf("uncommittedChanges") }
     var value by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
-    var showRaw by remember { mutableStateOf(false) }
     var submitted by remember(active) { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -86,24 +84,21 @@ fun ReviewScopePanel(
             val status = response.optJSONObject("turn")?.optString("status").orEmpty()
             CodexNotice("内核已受理代码审查。审查过程和结果将在会话任务流中更新。",
                 NoticeTone.Success, actionLabel = "返回任务", onAction = onStarted)
-            if (status.isNotBlank()) StatusPill(status,
-                good = !status.contains("fail", ignoreCase = true))
-            TextButton(onClick = { showRaw = !showRaw }) {
-                Text(if (showRaw) "收起审查响应" else "查看原始响应")
-            }
-            CodexReveal(showRaw) {
-                androidx.compose.foundation.text.selection.SelectionContainer {
-                    Text(response.toString(2), fontFamily = FontFamily.Monospace,
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-            }
+            val readableStatus = PresentationPolicy.timelineStatus(status)
+            if (readableStatus.isNotEmpty()) StatusPill(readableStatus,
+                good = readableStatus != "失败")
         }
     }
     if (confirm && active != null) {
         CodexConfirmDialog(
             title = "发起代码审查",
             message = "内核将在当前会话中创建审查任务；结果返回任务流。",
-            detail = "会话：${active}\n范围：$selection\n附加：$value",
+            detail = "审查范围：" + when (selection) {
+                "uncommittedChanges" -> "尚未提交的改动"
+                "baseBranch" -> "相对分支：" + value
+                "commit" -> "指定提交：" + value
+                else -> "自定义要求：" + value
+            },
             confirmLabel = "开始审查",
             onConfirm = {
                 val target = JSONObject().put("type", selection)
@@ -113,7 +108,6 @@ fun ReviewScopePanel(
                     "custom" -> target.put("instructions", value.trim())
                 }
                 submitted = true
-                showRaw = false
                 vm.rpc("review", "review/start", JSONObject()
                     .put("threadId", active)
                     .put("delivery", "inline")

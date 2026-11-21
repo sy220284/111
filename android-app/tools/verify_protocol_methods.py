@@ -5,6 +5,7 @@ Requires no network, external packages, or generated global config.
 Use the snapshot's codex-rs/app-server-protocol/src/protocol/common.rs as the authority.
 """
 import argparse
+import mimetypes
 from pathlib import Path
 import re
 import sys
@@ -23,9 +24,11 @@ INTERNAL_EVENTS = {"local/unsupportedServerRequest"}
 # Method-shaped enum variants from official v2/mcp.rs; these are payload
 # discriminators, not request methods.
 PROTOCOL_VARIANTS = {"openai/form", "openai/userVerification"}
-# The Android document picker validates MIME literals. These are content types,
-# not app-server methods; only exact supported formats are exempted.
-SUPPORTED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+# All standard MIME types (e.g. text/plain, application/json, image/webp) are
+# content formats, not app-server methods. Use the Python standard-library type
+# registry so adding a resource reader never requires another hard-coded exception.
+def is_standard_mime(value: str) -> bool:
+    return mimetypes.guess_extension(value, strict=False) is not None
 METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9_]+(?:/[a-zA-Z0-9_]+)+\b')
 EXPLICIT_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\{')
 
@@ -56,7 +59,7 @@ def main() -> int:
                     used.add(method)
                 elif (method not in SERVER_NOTIFICATIONS and method not in INTERNAL_EVENTS
                       and method not in PROTOCOL_VARIANTS
-                      and method not in SUPPORTED_IMAGE_MIME_TYPES):
+                      and not is_standard_mime(method)):
                     unknown.append((file, number, method))
     print(f"已读取官方请求方法 {len(known)} 项；核查 Kotlin 文件 {len(source_files)} 个；使用到的有效请求 {len(used)} 项。")
     for file, number, method in unknown:

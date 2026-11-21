@@ -57,13 +57,13 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "plugins" -> PluginsPage(vm)
         "hooks" -> HooksPage(vm)
         "modes" -> CollaborationModesPage(vm)
-        "apps" -> ConnectedAppsPage(vm)
+        "apps" -> ConnectedAppsPage(vm, navigate)
         "mcp" -> McpServicesPage(vm, navigate)
         "environments" -> EnvironmentsPage(vm)
         "diagnostics" -> EngineDiagnosticsPage(vm)
         "usage", "limits" -> AccountMetricsPage(id, vm, navigate)
         "account" -> AccountPage(vm, navigate)
-        "config" -> ConfigPage(vm)
+        "config" -> ConfigPage(vm, navigate)
         "appearance" -> AppearancePage()
         "security" -> SecurityPage(vm, navigate)
         "about" -> AboutPage(vm)
@@ -98,9 +98,9 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val hasAccount = data["account"]?.optJSONObject("account") != null
 
     ScreenColumn {
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(5.dp))
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -212,10 +212,10 @@ internal fun ThreadRow(item: JSONObject, enabled: Boolean, onClick: () -> Unit) 
             Spacer(Modifier.width(13.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    item.optString("name").ifBlank { item.optString("preview").ifBlank { "未命名会话" } },
+                    PresentationPolicy.threadTitle(item.optString("name"), item.optString("preview")),
                     style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis
                 )
-                Text(item.optString("cwd").ifBlank { item.optString("id") }, color = Ink.muted,
+                Text(PresentationPolicy.workspaceName(item.optString("cwd")), color = Ink.muted,
                     maxLines = 1, style = MaterialTheme.typography.labelMedium)
             }
             if (!enabled) {
@@ -244,6 +244,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
     var showAttachmentTools by remember { mutableStateOf(false) }
+    var pendingContextRoute by remember { mutableStateOf<String?>(null) }
+    var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
+    var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
     val attachmentContext = LocalContext.current
     var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
@@ -251,6 +254,11 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var attachmentError by remember { mutableStateOf("") }
 
     val selectedMode by vm.selectedMode.collectAsState()
+    val currentTitle = thread?.let { threadId ->
+        records(models["threads"]).firstOrNull { it.optString("id") == threadId }?.let {
+            PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
+        }
+    }
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -270,6 +278,27 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         attachmentBusy = false
                     }
                 }
+            }
+        }
+    }
+    // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
+    LaunchedEffect(showContextTools, pendingContextRoute) {
+        if (!showContextTools) {
+            pendingContextRoute?.let { destination ->
+                pendingContextRoute = null
+                navigate(destination)
+            }
+        }
+    }
+    LaunchedEffect(showAttachmentTools, pendingAttachmentRoute, pendingImagePick) {
+        if (!showAttachmentTools) {
+            pendingAttachmentRoute?.let { destination ->
+                pendingAttachmentRoute = null
+                navigate(destination)
+            }
+            if (pendingImagePick) {
+                pendingImagePick = false
+                imagePicker.launch("image/*")
             }
         }
     }
@@ -300,9 +329,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(if (thread == null) "新的工作会话" else "进行中的任务",
+                Text(if (thread == null) "新的工作会话" else currentTitle ?: "当前任务",
                     style = MaterialTheme.typography.titleMedium)
-                Text(thread?.take(18) ?: "本机工作区",
+                Text("本机工作区",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
@@ -512,14 +541,27 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     if (showContextTools) {
-        ThreadContextTools(vm = vm, navigate = navigate, onDismiss = { showContextTools = false })
+        ThreadContextTools(
+            vm = vm,
+            navigate = { destination ->
+                pendingContextRoute = destination
+                showContextTools = false
+            },
+            onDismiss = { showContextTools = false }
+        )
     }
     if (showAttachmentTools) {
-        AttachmentActionsSheet(
-            imageCount = attachedImages.size,
-            importing = attachmentBusy,
+        WorkspaceActionsSheet(
             onDismiss = { showAttachmentTools = false },
-            onPickImage = { imagePicker.launch("image/*") }
+            navigate = { destination ->
+                pendingAttachmentRoute = destination
+                showAttachmentTools = false
+            }, hasThread = thread != null,
+            imageCount = attachedImages.size, importing = attachmentBusy,
+            onPickImage = {
+                pendingImagePick = true
+                showAttachmentTools = false
+            }
         )
     }
     if (showModels) ModelChoiceSurface(vm) { showModels = false }
@@ -543,17 +585,7 @@ private fun TimelineStepCard(item: TimelineItem) {
         user -> Ink.copper
         else -> Ink.jade
     }
-    val title = when (item.kind) {
-        "user" -> "你的指令"
-        "agentMessage" -> "Codex 回复"
-        "reasoning", "reasoningSummaryTextDelta" -> "推理与分析"
-        "plan" -> "任务计划"
-        "commandExecution" -> "命令执行"
-        "fileChange" -> "文件变更"
-        "mcpToolCall" -> "外部工具调用"
-        "error" -> "执行异常"
-        else -> item.kind
-    }
+    val title = PresentationPolicy.timelineKind(item.kind)
     val icon = when (item.kind) {
         "user" -> Icons.Outlined.PersonOutline
         "commandExecution" -> Icons.Outlined.Terminal
@@ -586,19 +618,13 @@ private fun TimelineStepCard(item: TimelineItem) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f))
-                    if (item.status.isNotBlank()) {
-                        Text(
-                            when (item.status.lowercase()) {
-                                "completed" -> "已完成"
-                                "inprogress", "in_progress", "running", "streaming" -> "执行中"
-                                "failed" -> "失败"
-                                "declined" -> "已拒绝"
-                                else -> item.status
-                            },
-                            style = MaterialTheme.typography.labelMedium, color = tone)
+                    val statusLabel = PresentationPolicy.timelineStatus(item.status)
+                    if (statusLabel.isNotEmpty()) {
+                        Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
                     }
                 }
-                Text(item.text.ifBlank { "等待执行内容…" },
+                Text(item.text.takeUnless { it == item.kind || PresentationPolicy.meaningful(it).isEmpty() }
+                    ?: "正在处理…",
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
                 if (item.evidence.isNotBlank()) {
@@ -640,7 +666,8 @@ fun ErrorText(error: String) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.ErrorOutline, null, tint = Ink.red)
             Spacer(Modifier.width(8.dp))
-            Text(error, color = Ink.red, style = MaterialTheme.typography.bodyMedium)
+            Text(PresentationPolicy.readableError(error), color = Ink.red,
+                style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -652,21 +679,16 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     val loading by vm.loading.collectAsState()
     val payload = result[page.id]
     val entries = records(payload)
-    var expanded by remember { mutableStateOf(false) }
-    var operation by remember(page.id) { mutableStateOf(page.rpc ?: "") }
-    var arguments by remember(page.id) { mutableStateOf("{}") }
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
     ScreenColumn {
-        SectionIntro("CODEX / " + page.section, page.title, page.subtitle)
-        if (page.experimental) StatusPill("上游实验接口", tone = StatusTone.Neutral)
+        SectionIntro("", page.title, page.subtitle)
+        if (page.experimental) StatusPill("实验功能", tone = StatusTone.Neutral)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(page.icon, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("实时服务数据", style = MaterialTheme.typography.titleMedium)
-                    Text(page.rpc ?: "本地功能", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
+                Text("当前状态", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
                 IconButton(onClick = { page.rpc?.let { vm.refresh(page.id, it) } }) {
                     Icon(Icons.Outlined.Refresh, "刷新")
                 }
@@ -674,51 +696,27 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
             if (page.id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             errors[page.id]?.let { ErrorText(it) }
         }
-        if (entries.isNotEmpty()) entries.forEachIndexed { idx, entry ->
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        entry.optString("displayName")
-                            .ifBlank { entry.optString("name") }
-                            .ifBlank { entry.optString("title") }
-                            .ifBlank { entry.optString("id") }
-                            .ifBlank { "记录 " + (idx + 1) },
-                        style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)
-                    )
-                    entry.optString("status").takeIf { it.isNotBlank() }?.let { StatusPill(it) }
-                }
-                Text(entry.optString("description").ifBlank { entry.optString("summary") },
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                var showDetail by remember { mutableStateOf(false) }
-                TextButton(onClick = { showDetail = !showDetail }) { Text(if (showDetail) "收起详情" else "查看详情") }
-                CodexReveal(showDetail) {
-                    Text(entry.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
-                        style = MaterialTheme.typography.labelMedium)
+        if (entries.isNotEmpty()) {
+            entries.forEachIndexed { index, entry ->
+                val display = sequenceOf("displayName", "name", "title").map {
+                    PresentationPolicy.meaningful(entry.optString(it))
+                }.firstOrNull { it.isNotEmpty() } ?: "记录 ${index + 1}"
+                val summary = PresentationPolicy.meaningful(entry.optString("description"))
+                    .ifEmpty { PresentationPolicy.meaningful(entry.optString("summary")) }
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Text(display, style = MaterialTheme.typography.titleMedium)
+                    val status = PresentationPolicy.timelineStatus(entry.optString("status"))
+                    if (status.isNotEmpty()) StatusPill(status)
+                    if (summary.isNotEmpty()) {
+                        Text(summary, color = Ink.muted,
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
-        } else if (payload != null) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("服务返回", style = MaterialTheme.typography.titleMedium)
-                Text(payload.toString(2), fontFamily = FontFamily.Monospace, color = Ink.muted,
-                    style = MaterialTheme.typography.bodyMedium)
-            }
+        } else if (payload != null && page.id !in loading && page.id !in errors) {
+            CodexEmptyState("暂无可展示内容", "已完成读取，当前没有需要处理的项目。")
         } else if (page.id !in loading && page.id !in errors) {
-            MaterialPanel(Modifier.fillMaxWidth()) { Text("从运行核心读取数据后将在此显示。", color = Ink.muted) }
-        }
-        TextButton(onClick = { expanded = !expanded }) {
-            Icon(Icons.Outlined.Terminal, null); Spacer(Modifier.width(7.dp)); Text("高级协议操作")
-        }
-        CodexReveal(expanded) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("调用官方 App Server 接口", style = MaterialTheme.typography.titleMedium)
-                Text("请求参数采用 JSON，异常会显示在本页。修改或删除操作需明确输入对应方法。", color = Ink.muted)
-                OutlinedTextField(operation, { operation = it }, label = { Text("method") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(arguments, { arguments = it }, label = { Text("params JSON") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                OutlinedButton(onClick = {
-                    try { vm.rpc(page.id, operation.trim(), JSONObject(arguments)) }
-                    catch (failure: Exception) { vm.errors.value = vm.errors.value + (page.id to (failure.message ?: "JSON 格式不正确")) }
-                }, enabled = operation.isNotBlank()) { Text("发送请求") }
-            }
+            Text("正在准备当前功能…", color = Ink.muted)
         }
     }
 }
@@ -742,7 +740,19 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
                 Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text("读取当前会话")
             }
             errors[id]?.let { ErrorText(it) }
-            payload[id]?.let { MaterialPanel(Modifier.fillMaxWidth()) { Text(it.toString(2), fontFamily = FontFamily.Monospace) } }
+            payload[id]?.let { response ->
+                val rows = records(response)
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Text(if (rows.isEmpty()) "当前任务没有更多可显示内容"
+                        else "已读取 ${rows.size} 条任务记录",
+                        style = MaterialTheme.typography.bodyMedium)
+                    rows.take(10).forEach { entry ->
+                        val description = PresentationPolicy.meaningful(entry.optString("title"))
+                            .ifEmpty { PresentationPolicy.meaningful(entry.optString("text")) }
+                        if (description.isNotEmpty()) Text(description)
+                    }
+                }
+            }
         }
     }
 }

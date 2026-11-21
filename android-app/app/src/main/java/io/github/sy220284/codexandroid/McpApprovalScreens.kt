@@ -123,7 +123,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             )
                         }
                     }
-                    else -> Text("此字段类型需要专用组件：" + type, color = Ink.red)
+                    else -> Text("当前服务使用了尚未支持的表单字段，请联系服务提供方。", color = Ink.red)
                 }
             }
         } else if (kind == "url") {
@@ -137,8 +137,8 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         } else {
             Text("当前类型需设备级专门验证，暂可拒绝或取消。",
                 color = Ink.muted)
-            Text(params.toString(2), style = MaterialTheme.typography.labelMedium,
-                fontFamily = FontFamily.Monospace, color = Ink.muted)
+            Text("请确认请求来源，或联系服务提供方检查授权方式。",
+                style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") }) { Text("拒绝") }

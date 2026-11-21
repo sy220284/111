@@ -333,29 +333,11 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
 
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                TextButton(
-                    onClick = { showRaw = !showRaw },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                ) {
-                    Text("查看协议数据", modifier = Modifier.weight(1f),
-                        color = Ink.muted)
-                    Icon(if (showRaw) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                        contentDescription = if (showRaw) "收起协议数据" else "展开协议数据")
-                }
-                CodexReveal(showRaw) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("来自 Codex account/read 的原始响应",
-                            style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                        SelectionContainer {
-                            Text(payload?.toString(2) ?: "内核尚未返回账号资料",
-                                color = Ink.muted, fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-            }
+        OutlinedButton(onClick = { navigate("security") },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Outlined.Security, null)
+            Spacer(Modifier.width(8.dp))
+            Text("查看账号授权与安全设置")
         }
     }
     if (showSessions) AccountSessionsSheet(vm) { showSessions = false }
