@@ -14,6 +14,9 @@ class PresentationPolicyTest {
         assertEquals("本机工作区", PresentationPolicy.workspaceName("null"))
         assertEquals("my-project", PresentationPolicy.workspaceName("/work/my-project"))
         assertEquals("未命名技能", PresentationPolicy.skillName("null"))
+        assertEquals("未命名服务商", PresentationPolicy.providerName(null))
+        assertEquals("未命名服务商", PresentationPolicy.providerName("null"))
+        assertEquals("服务商一", PresentationPolicy.providerName("服务商一"))
         assertEquals("Canva instagram post", PresentationPolicy.skillName("canva:canva-instagram-post"))
     }
 

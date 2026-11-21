@@ -188,8 +188,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Dns, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
-                    Text(PresentationPolicy.meaningful(item.optString("name"))
-                        .ifEmpty { "未命名服务商" },
+                    Text(PresentationPolicy.providerName(item.optString("name")),
                         style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     if (defaultId == item.optString("id")) StatusPill("当前默认")
                 }
@@ -232,7 +231,8 @@ fun ProvidersPage(vm: CodexViewModel) {
     toSelect?.let { item ->
         CodexConfirmDialog(
             title = "切换默认模型服务商",
-            message = "将新会话的默认服务商切换为：" + item.optString("name", item.optString("id")),
+            message = "将新会话的默认服务商切换为：" +
+                PresentationPolicy.providerName(item.optString("name")),
             confirmLabel = "确认切换",
             onConfirm = {
                 vm.rpc("providers", "modelProvider/default/set",
