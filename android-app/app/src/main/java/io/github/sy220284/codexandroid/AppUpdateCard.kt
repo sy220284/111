@@ -1,6 +1,6 @@
 package io.github.sy220284.codexandroid
 
-import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,7 +9,6 @@ import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
@@ -17,7 +16,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun AppUpdateCard() {
     val status by AppUpdateManager.state.collectAsState()
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     val busy = status.phase in setOf(
         UpdatePhase.CHECKING, UpdatePhase.DOWNLOADING, UpdatePhase.PATCHING
     )

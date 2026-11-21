@@ -37,6 +37,7 @@ jobs:
           set -euo pipefail
           grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-111\.[0-9]+$' .github/release-version
           bash -n .github/scripts/prepare-release-assets.sh
+          bash -n .github/scripts/prepare-android-patcher.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
 
@@ -50,6 +51,7 @@ jobs:
         with:
           sparse-checkout: |
             android-app
+            .github/scripts
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -75,6 +77,9 @@ jobs:
           echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE" >> "$GITHUB_ENV"
           echo "CODEX_RELEASE_PASSWORD=ci-only-password" >> "$GITHUB_ENV"
           echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
+      - name: 校验并装配正式版增量恢复组件
+        shell: bash
+        run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a
       - name: 真实编译并验证 ARM64 手机签名 Release APK
         shell: bash
         run: |
@@ -86,6 +91,7 @@ jobs:
             -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
           test -s "$APK"
+          unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
           test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
           BADGE="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | sed -n '1p')"

@@ -109,6 +109,12 @@ internal object AppUpdateManager {
                     throw IOException("无法创建更新缓存目录")
                 }
                 val output = File(outputDir, "codex-update-${manifest.targetVersion}.apk")
+                outputDir.listFiles()?.filter { file ->
+                    file.isFile && file.name.startsWith("codex-update-") &&
+                        file.name.endsWith(".apk") && file != output
+                }?.forEach { stale ->
+                    if (!stale.delete()) throw IOException("无法清理过期的安装包缓存")
+                }
                 temporary = File(outputDir, "update-download.part")
                 recovered = File(outputDir, "update-reconstructed.part")
                 temporary.delete()
