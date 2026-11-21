@@ -99,6 +99,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
+      - name: 检出截图采集器
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            /android-app/tools/collect_ui_screenshots.py
+          sparse-checkout-cone-mode: false
       - name: 取回 UI APK
         uses: actions/download-artifact@v4
         with:
