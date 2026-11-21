@@ -320,7 +320,6 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]
     val permissionProfiles = records(data["permissionProfiles"])
@@ -345,6 +344,15 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
     ScreenColumn {
         SectionIntro("TRUST / EXECUTION", "运行权限与安全", "先读取 Codex 实际生效设置，再明确修改审批与文件访问范围。")
+        ProtocolFeedback(
+            vm, listOf("config", "securityRequirements", "securitySave", "permissionProfiles"),
+            onRetry = {
+                vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+                vm.refresh("securityRequirements", "configRequirements/read")
+                vm.refresh("permissionProfiles", "permissionProfile/list",
+                    JSONObject().put("cwd", vm.workingDirectory))
+            }
+        )
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("当前生效权限", style = MaterialTheme.typography.titleMedium)
             Text("审批方式：" + PresentationPolicy.approvalMode(effectiveApproval), color = Ink.muted)
@@ -370,7 +378,17 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text(title)
                 }
             }
-            OutlinedButton(onClick = { confirm = true }, enabled = hasChanges, modifier = Modifier.fillMaxWidth()) {
+            if (hasChanges) {
+                TextButton(onClick = {
+                    draftApproval = null
+                    draftSandbox = null
+                }) { Text("放弃本次修改") }
+            }
+            CodexPrimaryButton(
+                onClick = { confirm = true },
+                enabled = hasChanges,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            ) {
                 Text("保存本次权限调整")
             }
             Text("Android 应用私有空间由系统隔离；Codex 的沙箱与网络策略仍由实际运行环境执行。",
@@ -381,9 +399,6 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("查看待审批操作")
         }
-        errors["config"]?.let { ErrorText(it) }
-        errors["securityRequirements"]?.let { ErrorText(it) }
-        errors["securitySave"]?.let { ErrorText(it) }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("可用权限方案", style = MaterialTheme.typography.titleMedium)
             Text("从当前 Codex 内核读取，显示哪些方案被运行策略允许。新任务默认继承上方生效设置。",
@@ -391,10 +406,6 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (data["permissionProfiles"] != null && permissionProfiles.isEmpty()) {
                 Text("没有额外权限方案可供选择。", color = Ink.muted)
             }
-            if ("permissionProfiles" in vm.loading.collectAsState().value) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-            }
-            errors["permissionProfiles"]?.let { ErrorText(it) }
             permissionProfiles.forEach { profile ->
                 Row(verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {

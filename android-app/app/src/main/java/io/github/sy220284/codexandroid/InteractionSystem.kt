@@ -65,7 +65,7 @@ data class CodexChoice(
     val description: String = ""
 )
 
-enum class NoticeTone { Info, Success, Warning }
+enum class NoticeTone { Info, Success, Warning, Error }
 
 /** Kept in the screen hierarchy so screen readers encounter live status near the action. */
 @Composable
@@ -79,12 +79,14 @@ fun CodexNotice(
     val color = when (tone) {
         NoticeTone.Info -> Ink.copper
         NoticeTone.Success -> Ink.jade
-        NoticeTone.Warning -> Ink.red
+        NoticeTone.Warning -> Ink.warning
+        NoticeTone.Error -> Ink.red
     }
     val icon = when (tone) {
         NoticeTone.Info -> Icons.Outlined.Info
         NoticeTone.Success -> Icons.Outlined.CheckCircle
         NoticeTone.Warning -> Icons.Outlined.WarningAmber
+        NoticeTone.Error -> Icons.Outlined.ErrorOutline
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -99,11 +101,41 @@ fun CodexNotice(
         ) {
             Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
             Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            if (actionLabel != null) TextButton(onClick = onAction) {
+            if (actionLabel != null) TextButton(
+                onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)
+            ) {
                 Text(actionLabel, color = color)
             }
         }
     }
+}
+
+/**
+ * 同一业务页面的协议反馈：以真实 ViewModel 为数据来源，将相同错误合并展示。
+ * 保留不同错误的原始含义，重试回到该页面的实际请求。
+ */
+@Composable
+fun ProtocolFeedback(
+    vm: CodexViewModel,
+    keys: List<String>,
+    onRetry: (() -> Unit)? = null
+) {
+    val errors by vm.errors.collectAsState()
+    val loading by vm.loading.collectAsState()
+    if (keys.any { it in loading }) {
+        LinearProgressIndicator(Modifier.fillMaxWidth())
+    }
+    keys.mapNotNull { errors[it] }
+        .map(PresentationPolicy::readableError)
+        .distinct()
+        .forEach { error ->
+            CodexNotice(
+                message = error,
+                tone = NoticeTone.Error,
+                actionLabel = if (onRetry == null) null else "重新加载",
+                onAction = { onRetry?.invoke() }
+            )
+        }
 }
 
 @Composable
@@ -147,7 +179,7 @@ fun CodexChoiceSheet(
         contentColor = Ink.parchment,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
             Text(title, style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(5.dp))
             Text(description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)

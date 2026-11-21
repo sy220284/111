@@ -25,13 +25,7 @@ private fun JSONArray.objects(): List<JSONObject> =
 
 @Composable
 private fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    errors[key]?.let { ErrorText(it) }
-    if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (key !in errors && key !in loading) {
-        // Each caller also supplies its real empty-state message when data is absent.
-    }
+    ProtocolFeedback(vm, listOf(key), onRetry = retry)
 }
 
 @Composable

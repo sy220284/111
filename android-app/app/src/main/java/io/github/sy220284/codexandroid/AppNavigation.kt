@@ -233,7 +233,7 @@ fun CodexShell(vm: CodexViewModel) {
                                     if (status == EngineStatus.Connected) Icons.Outlined.CheckCircle
                                     else Icons.Outlined.SyncProblem,
                                     contentDescription = "查看运行状态",
-                                    tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red
+                                    tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning
                                 )
                             }
                         },
@@ -358,7 +358,7 @@ private fun Sidebar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Outlined.RadioButtonChecked, contentDescription = null,
-                tint = if (status == EngineStatus.Connected) Ink.jade else Ink.red,
+                tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning,
                 modifier = Modifier.size(17.dp))
             Spacer(Modifier.width(10.dp))
             Text(

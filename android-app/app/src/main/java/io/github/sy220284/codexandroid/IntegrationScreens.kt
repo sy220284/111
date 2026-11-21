@@ -22,13 +22,7 @@ import org.json.JSONObject
 
 @Composable
 private fun IntegrationState(vm: CodexViewModel, key: String, retry: () -> Unit) {
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    if (loading.contains(key)) LinearProgressIndicator(Modifier.fillMaxWidth())
-    errors[key]?.let {
-        ErrorText(it)
-        TextButton(onClick = retry) { Text("重试连接") }
-    }
+    ProtocolFeedback(vm, listOf(key), onRetry = retry)
 }
 
 @Composable
