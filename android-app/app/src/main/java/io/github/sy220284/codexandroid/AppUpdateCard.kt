@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.dp
 internal fun AppUpdateCard() {
     val status by AppUpdateManager.state.collectAsState()
     val activity = LocalActivity.current
+    val currentVersion = remember(activity) {
+        activity?.packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty()
+    }
     val busy = status.phase in setOf(
         UpdatePhase.CHECKING, UpdatePhase.DOWNLOADING, UpdatePhase.PATCHING
     )
@@ -39,6 +42,8 @@ internal fun AppUpdateCard() {
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
             }
+            Text("当前版本：${currentVersion.ifBlank { "未知" }}", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
             Text(status.message, color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag("update-status"))
             if (status.phase == UpdatePhase.DOWNLOADING) {

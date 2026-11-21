@@ -438,10 +438,14 @@ fun AppearancePage() {
 @Composable
 fun AboutPage(vm: CodexViewModel) {
     val status by vm.bridge.status.collectAsState()
+    val appContext = LocalContext.current
+    val version = remember(appContext) {
+        appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName.orEmpty()
+    }
     ScreenColumn {
         SectionIntro("CODEX / OPEN SOURCE", "关于 Codex Android", "官方运行核心 + 原生 Android 操作界面")
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("0.1.0 · Android 29+", style = MaterialTheme.typography.titleLarge)
+            Text("v$version · Android 29+", style = MaterialTheme.typography.titleLarge)
             Text("上游官方项目：openai/codex", color = Ink.muted)
             Text("本项目仓库：sy220284/111", color = Ink.muted)
             Text("运行核心：Codex app-server（独立本地进程）", color = Ink.muted)
@@ -451,6 +455,7 @@ fun AboutPage(vm: CodexViewModel) {
             Text("工程文件和 Codex 配置默认存储于 Android 应用私有目录。网络请求由 Codex 核心和用户启用的插件处理。账号密钥由官方运行核心管理。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             Text("源码来源的 Apache-2.0 许可及 NOTICE 保存在 upstream/codex/ 目录。", color = Ink.muted)
+            Text("增量更新使用 HDiffPatch（MIT），许可文本随 APK 附带。", color = Ink.muted)
         }
     }
 }

@@ -51,6 +51,32 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun nativeDeltaPatcherRestoresRealWindowZstdFixture() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val app = instrumentation.targetContext.applicationContext
+        val assets = instrumentation.context.assets
+        val root = File(app.cacheDir, "update-real-delta-test").apply { mkdirs() }
+        val source = File(root, "old.apk")
+        val patch = File(root, "delta.hpatch")
+        val target = File(root, "new.apk")
+        try {
+            assets.open("update-old.bin").use { source.writeBytes(it.readBytes()) }
+            assets.open("update-delta.hpatch").use { patch.writeBytes(it.readBytes()) }
+            val expected = assets.open("update-new.bin").use { it.readBytes() }
+            val code = com.github.sisong.HPatch.patch(
+                source.absolutePath, patch.absolutePath, target.absolutePath,
+                8L * 1024 * 1024, 2, true
+            )
+            assertEquals("HDiffPatch -WD zstd xxh128 restore returned $code", 0, code)
+            org.junit.Assert.assertArrayEquals("Reconstructed content must match the release target",
+                expected, target.readBytes())
+        } finally {
+            source.delete()
+            patch.delete()
+            target.delete()
+        }
+    }
+
     @Test fun bundledCoreCanPrintVersionOnAndroid() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val binary = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
