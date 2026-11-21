@@ -23,9 +23,7 @@ class UiNavigationInstrumentedTest {
     }
 
     private fun openSettingRoute(id: String) {
-        // 此函数仅准备被测功能的前置页面。底部导航交互由独立测试覆盖。
-        // 联合运行全部 28 项测试时，依赖偶然存在的底栏可能在页面状态交接期
-        // 读到旧的“总览”标题。改用始终可识别的侧栏入口或嵌套页返回路径。
+        // 从侧栏进入设置，子页返回后等待搜索框出现；不依赖重复的底栏入口。
         if (rule.onAllNodesWithContentDescription("返回上一页").fetchSemanticsNodes().isNotEmpty()) {
             rule.onNodeWithContentDescription("返回上一页").performClick()
         } else {
@@ -233,7 +231,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
         val name = "ui-folder-" + System.currentTimeMillis()
-        rule.onNodeWithTag("bottom-files").performClick()
+        openDrawerRoute("files")
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-folder-mode"))
         rule.onNodeWithTag("workspace-folder-mode").performClick()
@@ -267,16 +265,19 @@ class UiNavigationInstrumentedTest {
         }
     }
 
-    @Test fun frequentBottomDestinationsAndSettingsSearchStayReachable() {
-        rule.onNodeWithTag("main-bottom-navigation").assertExists()
-        rule.onNodeWithTag("bottom-chat").performClick()
+    @Test fun desktopStyleSidebarIsTheOnlyPrimaryNavigation() {
+        rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithText("工作台", substring = false).assertExists()
+        rule.onNodeWithText("工作区", substring = false).assertExists()
+        rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
-        rule.onNodeWithTag("bottom-threads").performClick()
+        openDrawerRoute("threads")
         rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
-        rule.onNodeWithTag("bottom-settings").performClick()
+        openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
         rule.onNodeWithTag("settings-route-diagnostics").performClick()
