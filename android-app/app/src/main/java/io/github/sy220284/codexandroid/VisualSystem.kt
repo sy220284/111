@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -105,10 +106,14 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
     }
 }
 
+val LocalWorkPageTitle = compositionLocalOf { "" }
+
 @Composable
 fun SectionIntro(eyebrow: String, title: String, subtitle: String = "") {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(title, color = Ink.parchment, style = MaterialTheme.typography.headlineSmall)
+        if (title != LocalWorkPageTitle.current) {
+            Text(title, color = Ink.parchment, style = MaterialTheme.typography.headlineSmall)
+        }
         if (subtitle.isNotBlank()) Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
     }
 }

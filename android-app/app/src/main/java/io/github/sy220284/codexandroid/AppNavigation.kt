@@ -226,7 +226,9 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         label = "section_switch"
                     ) { screen ->
-                        PageContent(screen, vm, move)
+                        CompositionLocalProvider(LocalWorkPageTitle provides (pages.firstOrNull { it.id == screen }?.title ?: "")) {
+                            PageContent(screen, vm, move)
+                        }
                     }
                 }
             }

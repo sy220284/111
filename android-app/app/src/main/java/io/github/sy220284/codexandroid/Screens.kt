@@ -382,7 +382,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             }
                         },
                     shape = RoundedCornerShape(99.dp),
-                    color = Ink.copper,
+                    color = Ink.canvas,
                     border = BorderStroke(1.dp, Ink.copper),
                     shadowElevation = 1.dp
                 ) {
