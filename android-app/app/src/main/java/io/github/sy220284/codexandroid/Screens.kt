@@ -629,7 +629,8 @@ fun ErrorText(error: String) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.ErrorOutline, null, tint = Ink.red)
             Spacer(Modifier.width(8.dp))
-            Text(error, color = Ink.red, style = MaterialTheme.typography.bodyMedium)
+            Text(PresentationPolicy.readableError(error), color = Ink.red,
+                style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
