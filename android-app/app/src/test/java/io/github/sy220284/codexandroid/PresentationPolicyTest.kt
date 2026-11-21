@@ -27,6 +27,12 @@ class PresentationPolicyTest {
         assertEquals("任务进展", PresentationPolicy.timelineKind("serverInternalEvent"))
         assertEquals("", PresentationPolicy.timelineStatus("internal_code"))
         assertEquals("执行中", PresentationPolicy.timelineStatus("in_progress"))
+        assertEquals("权限申请时", PresentationPolicy.hookEvent("permissionRequest"))
+        assertEquals("工具运行后", PresentationPolicy.hookEvent("postToolUse"))
+        assertEquals("其他触发事件", PresentationPolicy.hookEvent("unknownInternalEvent"))
+        assertEquals("纯文本", PresentationPolicy.resourceFormat("text/plain"))
+        assertEquals("结构化数据", PresentationPolicy.resourceFormat("application/json"))
+
         assertEquals("已连接", PresentationPolicy.serviceState("connected"))
         assertEquals("连接失败", PresentationPolicy.serviceState("failed"))
         assertEquals("需要授权", PresentationPolicy.authorizationState("required"))
@@ -46,6 +52,14 @@ class PresentationPolicyTest {
         assertTrue(summary.contains("允许访问网络"))
         assertTrue(summary.contains("读取：本机工作区"))
         assertTrue(summary.contains("修改：story"))
+        val rootAccess = JSONObject().put("fileSystem", JSONObject()
+            .put("entries", JSONArray().put(JSONObject()
+                .put("access", "write")
+                .put("path", JSONObject().put("type", "special")
+                    .put("value", JSONObject().put("kind", "root"))))))
+        assertTrue(PresentationPolicy.permissionDetails(rootAccess)
+            .contains("修改：整个文件系统"))
+
         assertEquals("内核没有提供可核对的授权范围",
             PresentationPolicy.permissionDetails(null).single())
     }
