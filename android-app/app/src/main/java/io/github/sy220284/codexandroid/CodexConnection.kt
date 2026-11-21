@@ -175,13 +175,20 @@ class CodexConnection(private val appContext: Context) {
         waiting.clear()
     }
 
-    suspend fun request(method: String, params: JSONObject = JSONObject()): JSONObject {
+    suspend fun request(
+        method: String,
+        params: JSONObject = JSONObject(),
+        timeoutMillis: Long? = 45_000L
+    ): JSONObject {
         val id = sequence.getAndIncrement()
         val deferred = CompletableDeferred<JSONObject>()
         waiting[id] = deferred
         try {
             write(JSONObject().put("method", method).put("id", id).put("params", params))
-            val response = withTimeout(45_000L) { deferred.await() }
+            // Long-running terminal sessions have a user-visible Stop action.
+            // All ordinary RPCs retain the bounded 45-second timeout.
+            val response = if (timeoutMillis == null) deferred.await()
+                else withTimeout(timeoutMillis) { deferred.await() }
             if (response.has("error") && !response.isNull("error")) {
                 val info = response.optJSONObject("error")
                 throw IllegalStateException(method + "：" + (info?.optString("message") ?: "服务端错误"))
