@@ -318,7 +318,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun sendTerminalInput(line: String) {
+    fun sendTerminalInput(line: String, afterSent: () -> Unit = {}) {
         val state = terminalSession.value
         if (!state.running || state.terminating) return
         val args = TerminalSessionContract.write(state.processId, line)
@@ -326,6 +326,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 bridge.request("command/exec/write", args)
                 errors.value = errors.value - "terminalInput"
+                afterSent()
             } catch (failure: Exception) {
                 errors.value = errors.value + ("terminalInput" to
                     (failure.message ?: "终端输入失败"))
