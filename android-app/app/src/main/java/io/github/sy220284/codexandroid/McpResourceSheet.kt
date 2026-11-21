@@ -88,7 +88,7 @@ fun McpResourceSheet(
             if (entries != null) {
                 for (index in 0 until entries.length()) {
                     val entry = entries.optJSONObject(index) ?: continue
-                    val mimeType = entry.optString("mimeType").ifBlank { "未标明内容类型" }
+                    val mimeType = PresentationPolicy.resourceFormat(entry.optString("mimeType"))
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.Description, null, tint = Ink.copper)
