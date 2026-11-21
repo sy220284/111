@@ -373,8 +373,8 @@ class UiNavigationInstrumentedTest {
                     JSONObject().put("permissions", permissions))
             )
         }
-        rule.onNodeWithText("允许访问网络").assertExists()
-        rule.onNodeWithText("修改：本机工作区").assertExists()
+        rule.onNodeWithText("允许访问网络", substring = true).assertExists()
+        rule.onNodeWithText("修改：本机工作区", substring = true).assertExists()
         capture("audit-permission-request-android35.png")
         rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
     }
@@ -414,6 +414,86 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("quick-goals").performClick()
         rule.onNodeWithText("设置新目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
+    }
+
+    @Test fun mcpToolAndResourceSubpagesUseReadableFields() {
+        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        rule.runOnUiThread { vm.activeThread.value = "ci-mcp-session" }
+        openSettingRoute("mcp")
+
+        val parameters = JSONObject().put("type", "object")
+            .put("required", JSONArray().put("project"))
+            .put("properties", JSONObject()
+                .put("project", JSONObject().put("type", "string")
+                    .put("title", "项目名称").put("description", "要检查的项目"))
+                .put("dryRun", JSONObject().put("type", "boolean")
+                    .put("title", "仅检查")))
+        val server = JSONObject().put("name", "CI 工具服务")
+            .put("runtimeStatus", "connected")
+            .put("authStatus", "authorized")
+            .put("tools", JSONObject().put("inspect", JSONObject()
+                .put("title", "检查项目")
+                .put("description", "读取项目检查结果")
+                .put("inputSchema", parameters)))
+            .put("resources", JSONArray().put(JSONObject().put("name", "帮助文档")
+                .put("uri", "docs://help").put("description", "服务使用说明")))
+        rule.runOnUiThread {
+            vm.data.value = vm.data.value + ("mcp" to JSONObject()
+                .put("data", JSONArray().put(server)))
+            vm.errors.value = vm.errors.value - "mcp"
+        }
+        rule.onNodeWithText("查看工具").performClick()
+        rule.onNodeWithText("inspect").performClick()
+        rule.onNodeWithText("核对并调用工具").assertExists()
+        captureOverlay("audit-mcp-tool-form-android35.png")
+        rule.activity.onBackPressedDispatcher.onBackPressed()
+        rule.waitForIdle()
+        rule.onNodeWithText("帮助文档").performClick()
+        rule.runOnUiThread {
+            vm.data.value = vm.data.value + ("mcpResource:CI 工具服务:docs://help" to
+                JSONObject().put("contents", JSONArray().put(JSONObject()
+                    .put("mimeType", "text/plain")
+                    .put("text", "阅读工具使用说明与权限要求。"))))
+            vm.errors.value = vm.errors.value - "mcpResource:CI 工具服务:docs://help"
+        }
+        rule.onNodeWithText("资源片段 1").assertExists()
+        captureOverlay("audit-mcp-resource-android35.png")
+    }
+
+    @Test fun elicitationAndPluginDetailsAreCapturedFromComponentData() {
+        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        openDrawerRoute("approvals")
+        val fields = JSONObject().put("title", JSONObject().put("type", "string")
+            .put("title", "文档标题"))
+        val params = JSONObject().put("serverName", "CI 工具服务")
+            .put("type", "form")
+            .put("message", "请填写文档标题")
+            .put("requestedSchema", JSONObject().put("type", "object")
+                .put("required", JSONArray().put("title"))
+                .put("properties", fields))
+        rule.runOnUiThread {
+            vm.bridge.prompts.value = listOf(ServerPrompt("ci-elicitation",
+                "mcpServer/elicitation/request", params))
+        }
+        rule.onNodeWithText("MCP 服务请求用户操作").assertExists()
+        capture("audit-mcp-elicitation-android35.png")
+        rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
+
+        openSettingRoute("plugins")
+        val plugin = JSONObject().put("name", "fixture")
+            .put("id", "fixture-id").put("installed", true)
+            .put("interface", JSONObject().put("displayName", "项目检查")
+                .put("shortDescription", "帮助检查工作区中的任务"))
+        val marketplace = JSONObject().put("name", "样例插件源")
+            .put("plugins", JSONArray().put(plugin))
+        rule.runOnUiThread {
+            vm.data.value = vm.data.value + ("installedPlugins" to JSONObject()
+                .put("marketplaces", JSONArray().put(marketplace)))
+            vm.errors.value = vm.errors.value - "installedPlugins"
+        }
+        rule.onNodeWithText("查看插件详情").performClick()
+        rule.onNodeWithText("刷新插件详情").assertExists()
+        captureOverlay("audit-plugin-detail-android35.png")
     }
 
     @Test fun toolbarQuickActionsCanOpenProjectTools() {
