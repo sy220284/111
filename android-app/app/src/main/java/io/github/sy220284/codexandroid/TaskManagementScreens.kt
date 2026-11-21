@@ -163,7 +163,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     }
 
     ScreenColumn {
-        SectionIntro("TASK / QUEUE", "任务队列", "任务可以逐条排队执行，支持新增、删除、调整顺序与分页浏览。")
+        SectionIntro("TASK / QUEUE", "任务队列", "任务按顺序等待执行，支持新增、修改文本、删除、排序与分页浏览。")
         StatusPill("上游实验接口", false)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
