@@ -294,7 +294,7 @@ fun PluginsPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
+        if (data[activeKey] != null && marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
             CodexEmptyState(
                 if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
                 if (installedOnly) "从插件市场安装后，可在这里集中管理。"
