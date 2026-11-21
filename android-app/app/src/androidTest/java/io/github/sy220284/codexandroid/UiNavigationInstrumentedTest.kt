@@ -153,6 +153,8 @@ class UiNavigationInstrumentedTest {
         // Preserve a clear screenshot of the top-level login choices.
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
+        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
     }
 
     @Test
