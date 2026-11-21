@@ -107,6 +107,16 @@ class UiNavigationInstrumentedTest {
         capture("diff-reader-android35.png")
     }
 
+    @Test fun workspaceToolBackNavigatesToWorkspaceRatherThanSettings() {
+        openDrawerRoute("files")
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-terminal").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("终端")
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+    }
+
     @Test fun androidBackReturnsToPreviousScreen() {
         openDrawerRoute("chat")
         rule.onNodeWithText("新的工作会话").assertExists()

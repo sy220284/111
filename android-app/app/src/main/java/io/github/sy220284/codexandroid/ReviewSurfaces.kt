@@ -31,6 +31,7 @@ fun ReviewScopePanel(
     var value by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
     var showRaw by remember { mutableStateOf(false) }
+    var submitted by remember(active) { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (active == null) {
@@ -79,9 +80,9 @@ fun ReviewScopePanel(
                 Text("发起代码审查")
             }
         }
-        if ("review" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        errors["review"]?.let { ErrorText(it) }
-        data["review"]?.let { response ->
+        if (submitted && "review" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (submitted) errors["review"]?.let { ErrorText(it) }
+        if (submitted) data["review"]?.let { response ->
             val status = response.optJSONObject("turn")?.optString("status").orEmpty()
             CodexNotice("内核已受理代码审查。审查过程和结果将在会话任务流中更新。",
                 NoticeTone.Success, actionLabel = "返回任务", onAction = onStarted)
@@ -111,6 +112,8 @@ fun ReviewScopePanel(
                     "commit" -> target.put("sha", value.trim())
                     "custom" -> target.put("instructions", value.trim())
                 }
+                submitted = true
+                showRaw = false
                 vm.rpc("review", "review/start", JSONObject()
                     .put("threadId", active)
                     .put("delivery", "inline")

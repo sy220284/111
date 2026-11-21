@@ -213,7 +213,7 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         navigationIcon = {
                             if (!wide) {
-                                val isNested = NavigationPolicy.isSettingsChild(selected)
+                                val isNested = NavigationPolicy.isDetailPage(selected)
                                 IconButton(
                                     onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
                                     modifier = Modifier.padding(start = 6.dp).size(45.dp)
