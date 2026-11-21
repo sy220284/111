@@ -32,7 +32,6 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     val result = data[selectedTab]
     val usage = selectedTab == "usage"
     val method = if (usage) "account/usage/read" else "account/rateLimits/read"
-    var showRaw by remember(selectedTab) { mutableStateOf(false) }
     LaunchedEffect(selectedTab) { vm.refresh(selectedTab, method) }
     ScreenColumn {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -150,21 +149,6 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 CodexEmptyState("未提供限额窗口", "当前服务端没有返回可展示的限额信息。")
             }
         }
-        if (result != null) {
-            TextButton(onClick = { showRaw = !showRaw }) {
-                Icon(Icons.Outlined.DataObject, null)
-                Spacer(Modifier.width(7.dp))
-                Text(if (showRaw) "收起原始数据" else "查看原始协议数据")
-            }
-            CodexReveal(showRaw) {
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    androidx.compose.foundation.text.selection.SelectionContainer {
-                        Text(result.toString(2), fontFamily = FontFamily.Monospace,
-                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -186,11 +170,11 @@ private fun LimitBucketCard(title: String, snapshot: JSONObject) {
     MaterialPanel(Modifier.fillMaxWidth()) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         val plan = snapshot.optString("planType")
-        if (plan.isNotBlank()) Text("计划：" + plan, color = Ink.muted,
+        if (plan.isNotBlank()) Text("账号计划已读取", color = Ink.muted,
             style = MaterialTheme.typography.bodySmall)
         val reached = snapshot.optString("rateLimitReachedType")
         if (reached.isNotBlank() && reached != "null") {
-            CodexNotice("限额状态：" + reached, NoticeTone.Warning)
+            CodexNotice("当前账号已达到相应额度限制。", NoticeTone.Warning)
         }
         val windows = listOf("primary" to "主要窗口", "secondary" to "次要窗口")
         var shown = 0
