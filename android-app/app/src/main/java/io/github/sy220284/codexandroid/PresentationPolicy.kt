@@ -98,6 +98,23 @@ object PresentationPolicy {
         }
     }
 
+    fun reasoningLabel(value: String?): String = when (meaningful(value).lowercase()) {
+        "minimal" -> "极简"
+        "low" -> "较快"
+        "medium" -> "均衡"
+        "high" -> "深入"
+        "xhigh" -> "深度"
+        else -> "默认"
+    }
+
+    fun goalStatus(value: String?): String = when (meaningful(value)) {
+        "active" -> "进行中"
+        "paused" -> "已暂停"
+        "blocked" -> "遇到阻碍"
+        "complete" -> "已完成"
+        else -> "未设置"
+    }
+
     fun readableSkillSummary(description: String?): String {
         val detail = meaningful(description)
         return if (detail.any { it in '\u4e00'..'\u9fff' }) detail.take(100)
