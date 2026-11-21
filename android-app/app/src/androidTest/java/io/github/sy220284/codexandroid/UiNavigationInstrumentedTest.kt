@@ -261,6 +261,17 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 
+    @Test
+    fun installedPluginManagementAndCatalogStayReachable() {
+        rule.onNodeWithTag("bottom-more").performClick()
+        rule.onNodeWithTag("navigation-search").performTextInput("插件")
+        rule.onNodeWithTag("nav-plugins").performClick()
+        rule.onNodeWithTag("plugins-tab-installed").assertExists()
+        rule.onNodeWithTag("plugins-tab-catalog").performClick()
+        rule.onNodeWithTag("plugins-tab-catalog").assertIsSelected()
+        capture("plugins-android35.png")
+    }
+
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         val screen = requireNotNull(
