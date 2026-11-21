@@ -1,5 +1,7 @@
 package io.github.sy220284.codexandroid
 
+import org.json.JSONObject
+
 /**
  * 唯一的用户可见文本边界。原始 ID、路径及协议值仍由 ViewModel 和 RPC 保存，
  * 页面只消费能帮助用户识别任务、工作区、权限与操作状态的名称。
@@ -96,6 +98,62 @@ object PresentationPolicy {
             value.contains("authorized") || value.contains("authenticated") -> "已授权"
             else -> "待确认"
         }
+    }
+
+    /**
+     * Read the official AdditionalPermissionProfile schema without exposing RPC keys.
+     * Requested paths are reduced to recognizable names when they live in app-private storage.
+     */
+    fun permissionDetails(value: JSONObject?): List<String> {
+        if (value == null) return listOf("内核没有提供可核对的授权范围")
+        val result = mutableListOf<String>()
+        val network = value.optJSONObject("network")
+        if (network?.optBoolean("enabled") == true)
+            result += "允许访问网络"
+        else if (network != null)
+            result += "网络权限保持当前限制"
+
+        val fileSystem = value.optJSONObject("fileSystem")
+        if (fileSystem != null) {
+            for ((key, label) in listOf("read" to "读取", "write" to "修改")) {
+                val paths = fileSystem.optJSONArray(key)
+                if (paths != null) {
+                    for (i in 0 until paths.length()) {
+                        val path = meaningful(paths.optString(i))
+                        if (path.isNotEmpty())
+                            result += "$label：" + workspaceName(path)
+                    }
+                }
+            }
+            val entries = fileSystem.optJSONArray("entries")
+            if (entries != null) {
+                for (i in 0 until entries.length()) {
+                    val entry = entries.optJSONObject(i) ?: continue
+                    val access = when (entry.optString("access")) {
+                        "read" -> "读取"
+                        "write" -> "修改"
+                        "deny" -> "禁止访问"
+                        else -> "文件访问"
+                    }
+                    val target = entry.optJSONObject("path")
+                    val name = when (target?.optString("type")) {
+                        "path" -> workspaceName(target.optString("path"))
+                        "glob_pattern" -> "匹配范围：" +
+                            meaningful(target.optString("pattern")).ifEmpty { "指定文件" }
+                        "special" -> "指定系统位置"
+                        else -> "指定文件"
+                    }
+                    result += "$access：$name"
+                }
+            }
+            if (fileSystem.has("globScanMaxDepth")) {
+                result += "文件搜索深度：" + fileSystem.optInt("globScanMaxDepth")
+            }
+        }
+        val unrecognized = value.keys().asSequence()
+            .any { it != "network" && it != "fileSystem" }
+        if (unrecognized) result += "包含其他权限要求，请谨慎决定"
+        return if (result.isEmpty()) listOf("没有新增权限范围") else result.distinct()
     }
 
     fun reasoningLabel(value: String?): String = when (meaningful(value).lowercase()) {
