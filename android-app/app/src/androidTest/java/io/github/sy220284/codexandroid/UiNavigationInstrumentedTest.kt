@@ -23,13 +23,18 @@ class UiNavigationInstrumentedTest {
     }
 
     private fun openSettingRoute(id: String) {
-        if (rule.onAllNodesWithTag("bottom-settings").fetchSemanticsNodes().isNotEmpty()) {
-            rule.onNodeWithTag("bottom-settings").performClick()
-        } else {
+        // 此函数仅准备被测功能的前置页面。底部导航交互由独立测试覆盖。
+        // 联合运行全部 28 项测试时，依赖偶然存在的底栏可能在页面状态交接期
+        // 读到旧的“总览”标题。改用始终可识别的侧栏入口或嵌套页返回路径。
+        if (rule.onAllNodesWithContentDescription("返回上一页").fetchSemanticsNodes().isNotEmpty()) {
             rule.onNodeWithContentDescription("返回上一页").performClick()
-            rule.onNodeWithTag("settings-search").assertExists()
+        } else {
+            openDrawerRoute("settings")
         }
-        rule.waitForIdle()
+        // 等待真实目标页面出现在语义树中，避免 Compose 重组尚未生效时断言旧标题。
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("settings-search").fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
         val search = rule.onNodeWithTag("settings-search")
