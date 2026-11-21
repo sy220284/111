@@ -96,7 +96,33 @@ fun CodexShell(vm: CodexViewModel) {
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     var showQuickTools by rememberSaveable { mutableStateOf(false) }
     var showStatus by remember { mutableStateOf(false) }
-    val move: (String) -> Unit = { destination ->
+    var showReview by remember { mutableStateOf(false) }
+    var showGoal by remember { mutableStateOf(false) }
+    var showMode by remember { mutableStateOf(false) }
+    val move: (String) -> Unit = move@{ destination ->
+        when (destination) {
+            "review" -> {
+                if (activeThread == null) {
+                    selected = "threads"
+                    backHistory = (backHistory + "threads").takeLast(18)
+                } else showReview = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "goals" -> {
+                if (activeThread == null) {
+                    selected = "threads"
+                    backHistory = (backHistory + "threads").takeLast(18)
+                } else showGoal = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "modes" -> {
+                showMode = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+        }
         if (page.id != destination) {
             backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
@@ -270,6 +296,13 @@ fun CodexShell(vm: CodexViewModel) {
         if (showStatus) {
             EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
         }
+        if (showReview) ReviewScopeSheet(
+            vm, onDismiss = { showReview = false }, navigate = move
+        )
+        if (showGoal) ThreadGoalSheet(
+            vm, onDismiss = { showGoal = false }
+        )
+        if (showMode) ModeChoiceSurface(vm) { showMode = false }
     }
 }
 
