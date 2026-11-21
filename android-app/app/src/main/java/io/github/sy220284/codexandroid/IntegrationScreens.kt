@@ -355,12 +355,12 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             Text("Android 本机执行", style = MaterialTheme.typography.titleMedium)
             Text("默认在 Android 应用私有工作区运行，文件仅存储在设备本地。", color = Ink.muted)
             StatusPill("默认环境", true)
-            Text("目录：" + vm.workingDirectory, fontFamily = FontFamily.Monospace,
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            Text("当前工作区：本机工作区", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("查询执行服务状态", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(environmentId, { environmentId = it }, label = { Text("环境 ID") },
+            OutlinedTextField(environmentId, { environmentId = it }, label = { Text("环境名称") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = {
@@ -379,7 +379,13 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Text(when(key) { "envStatus" -> "状态"; "envInfo" -> "环境详情"; else -> "新增结果" },
                         style = MaterialTheme.typography.titleMedium)
-                    Text(response.toString(2), color = Ink.muted, fontFamily = FontFamily.Monospace)
+                    val state = PresentationPolicy.serviceState(response.optString("status"))
+                    Text(if (key == "environmentAdd") "已发送环境接入请求"
+                        else "运行状态：$state",
+                        style = MaterialTheme.typography.bodyMedium)
+                    PresentationPolicy.meaningful(response.optString("displayName")).takeIf {
+                        it.isNotEmpty()
+                    }?.let { Text(it, color = Ink.muted) }
                 }
             }
         }
