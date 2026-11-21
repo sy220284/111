@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
@@ -28,7 +27,6 @@ fun ThreadContextTools(
     onDismiss: () -> Unit
 ) {
     val current by vm.activeThread.collectAsState()
-    val activeTurn by vm.activeTurn.collectAsState()
     val running by vm.running.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -64,15 +62,10 @@ fun ThreadContextTools(
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text("当前会话", style = MaterialTheme.typography.titleMedium)
-                        Text(threadId ?: "尚未创建", color = Ink.muted,
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodySmall)
+                        Text(if (threadId.isNullOrBlank()) "尚未创建" else "本机工作区",
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                     StatusPill(if (running) "执行中" else "可操作", !running)
-                }
-                activeTurn?.takeIf { it.isNotBlank() }?.let {
-                    Text("当前执行轮次：" + it, color = Ink.muted,
-                        style = MaterialTheme.typography.bodySmall)
                 }
                 TextButton(onClick = {
                     threadId?.let {
@@ -83,11 +76,12 @@ fun ThreadContextTools(
                 }) { Text(if (showDetail) "隐藏会话信息" else "查看会话信息") }
                 CodexReveal(showDetail) {
                     data["threadContext"]?.let { payload ->
-                        androidx.compose.foundation.text.selection.SelectionContainer {
-                            Text(payload.optJSONObject("thread")?.toString(2) ?: payload.toString(2),
-                                color = Ink.muted, fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
+                        val info = payload.optJSONObject("thread")
+                        val title = PresentationPolicy.threadTitle(
+                            info?.optString("name"), info?.optString("preview"))
+                        Text("会话名称：$title", style = MaterialTheme.typography.bodyMedium)
+                        Text("已保存回合：" + (info?.optJSONArray("turns")?.length() ?: 0),
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -109,7 +103,7 @@ fun ThreadContextTools(
                     OutlinedButton(onClick = {
                         vm.chooseThread(fork); onDismiss(); navigate("chat")
                     }, enabled = !running) {
-                        Text("打开分支 · " + fork.take(12))
+                        Text("打开新建分支")
                     }
                 }
             }
@@ -199,7 +193,7 @@ fun ThreadContextTools(
             message = if (kind == "fork")
                 "内核将复制当前会话，生成一个新线程，原会话保持不变。"
             else "内核会压缩当前会话的历史上下文。处理后的上下文摘要可能省略部分细节。",
-            detail = "会话：${threadId ?: "未选择"}",
+            detail = if (threadId.isNullOrBlank()) "请先选择会话" else "操作将作用于当前会话",
             confirmLabel = if (kind == "fork") "确认创建" else "确认整理",
             onConfirm = {
                 if (threadId != null) {
