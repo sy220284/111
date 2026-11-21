@@ -178,6 +178,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (key in loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         errors[key]?.let { item { ErrorText(it) } }
         errors["threadLibraryAction"]?.let { item { ErrorText("会话操作失败：$it") } }
+        errors["sectionEdit"]?.let { item { ErrorText("会话分组失败：$it") } }
+        errors["sectionMove"]?.let { item { ErrorText("移动会话失败：$it") } }
         if (response != null) item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(if (archived) "归档记录" else "最近会话",
@@ -377,8 +379,6 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onDismiss = { threadToMove = null }
         )
     }
-    errors["sectionEdit"]?.let { ErrorText(it) }
-    errors["sectionMove"]?.let { ErrorText(it) }
     rename?.let { thread ->
         val id = thread.optString("id")
         AlertDialog(
