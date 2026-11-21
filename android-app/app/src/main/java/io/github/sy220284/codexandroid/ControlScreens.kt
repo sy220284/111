@@ -81,6 +81,9 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val normal = method == "item/commandExecution/requestApproval" ||
         method == "item/fileChange/requestApproval"
     val permission = method == "item/permissions/requestApproval"
+    val permissionScope = remember(prompt.id.toString()) {
+        PresentationPolicy.permissionDetails(prompt.params.optJSONObject("permissions"))
+    }
     val question = method == "item/tool/requestUserInput"
     val answers = remember(prompt.id.toString()) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
     var grantSession by remember(prompt.id.toString()) { mutableStateOf(false) }
@@ -109,12 +112,15 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             Text(command, fontFamily = FontFamily.Monospace, color = Ink.parchment)
         }
         prompt.params.optString("cwd").takeIf { it.isNotBlank() }?.let {
-            Text("工作目录：" + it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            Text("工作区：" + PresentationPolicy.workspaceName(it),
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
         if (permission) {
             Text("正在请求以下权限", style = MaterialTheme.typography.titleMedium)
-            Text((prompt.params.optJSONObject("permissions") ?: JSONObject()).toString(2),
-                fontFamily = FontFamily.Monospace, color = Ink.parchment)
+            permissionScope.forEach { description ->
+                Text("· " + description, color = Ink.parchment,
+                    style = MaterialTheme.typography.bodyMedium)
+            }
             Text("允许仅对当前任务轮次生效；拒绝不会授予任何新增权限。", color = Ink.muted)
         }
         if (question) {
@@ -181,7 +187,14 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     if (grantSession) CodexConfirmDialog(
         title = "确认本会话授权",
         message = "授权会覆盖当前会话中后续符合条件的同类操作，请核对执行内容和路径。",
-        detail = prompt.params.toString(2),
+        detail = listOf(
+            "操作：" + when {
+                command.isNotBlank() -> command
+                reason.isNotBlank() -> reason
+                else -> "当前文件或工具操作"
+            },
+            "工作区：" + PresentationPolicy.workspaceName(prompt.params.optString("cwd"))
+        ).joinToString("\n"),
         confirmLabel = "本会话允许",
         destructive = true,
         onConfirm = { grantSession = false; vm.answerApproval(prompt, "acceptForSession") },
@@ -190,7 +203,7 @@ private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     if (grantPermissions) CodexConfirmDialog(
         title = "确认额外权限",
         message = "这些权限会授予当前任务轮次。请先检查权限范围。",
-        detail = (prompt.params.optJSONObject("permissions") ?: JSONObject()).toString(2),
+        detail = permissionScope.joinToString("\n"),
         confirmLabel = "授权本轮",
         destructive = true,
         onConfirm = { grantPermissions = false; vm.answerApproval(prompt, "accept") },
