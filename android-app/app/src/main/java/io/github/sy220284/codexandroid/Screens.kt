@@ -93,62 +93,99 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
+    val hasAccount = data["account"]?.optJSONObject("account") != null
+    var showStatus by rememberSaveable { mutableStateOf(false) }
+
     ScreenColumn {
-        SectionIntro("WORKSPACE / LIVE", "继续你的工程", "从任务、文件到执行结果，都在这一个工作台。")
+        SectionIntro("WORKSPACE / LIVE", "继续你的工程",
+            "最近任务、工作文件和需要你确认的事项，集中在这里。")
         if (prompts.isNotEmpty()) {
-            CodexNotice("有 ${prompts.size} 项操作需要人工确认", NoticeTone.Warning,
-                actionLabel = "立即处理", onAction = { navigate("approvals") })
-        } else if (status != EngineStatus.Connected) {
-            CodexNotice("本机 Codex 引擎尚未连接", NoticeTone.Info,
-                actionLabel = "连接", onAction = { vm.connect() })
+            CodexNotice("有 ${prompts.size} 项操作正在等待批准", NoticeTone.Warning,
+                actionLabel = "处理审批", onAction = { navigate("approvals") })
+        }
+        if (status != EngineStatus.Connected) {
+            CodexNotice("本机 Codex 内核尚未连接", NoticeTone.Info,
+                actionLabel = "重新连接", onAction = { vm.connect() })
+        } else if (data["account"] != null && !hasAccount) {
+            CodexNotice("尚未登录 ChatGPT，可登录账号或配置模型服务商。",
+                NoticeTone.Info, actionLabel = "账号登录",
+                onAction = { navigate("account") })
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(shape = RoundedCornerShape(15.dp), color = Ink.copper.copy(alpha = .17f)) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = Ink.copper, modifier = Modifier.padding(13.dp).size(25.dp))
+                    Icon(if (running) Icons.Outlined.PlayCircleOutline else Icons.Outlined.AutoAwesome,
+                        null, tint = Ink.copper, modifier = Modifier.padding(13.dp).size(25.dp))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("开始新任务", style = MaterialTheme.typography.titleLarge)
-                    Text("输入需求，查看执行、变更与结果", color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                    Text(if (running) "返回正在执行的任务" else "开始新任务",
+                        style = MaterialTheme.typography.titleLarge)
+                    Text(if (running) "查看实时步骤和待处理事项" else "描述需求，Codex 将在本机工作区执行",
+                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            Button(onClick = { vm.newThread(); navigate("chat") },
-                enabled = !running, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
-                Icon(Icons.Outlined.Add, null)
+            Spacer(Modifier.height(14.dp))
+            Button(onClick = {
+                if (!running) vm.newThread()
+                navigate("chat")
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                shape = RoundedCornerShape(13.dp)) {
+                Icon(if (running) Icons.Outlined.PlayArrow else Icons.Outlined.Add, null)
                 Spacer(Modifier.width(8.dp))
-                Text("新建 Codex 会话")
+                Text(if (running) "继续当前任务" else "新建 Codex 会话")
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SmallStat("本机内核", if (status == EngineStatus.Connected) "已连接" else "待连接", Icons.Outlined.Memory, Modifier.weight(1f))
-            SmallStat("待审批", prompts.size.toString(), Icons.Outlined.GppGood, Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SmallStat("历史会话", threads.size.toString(), Icons.Outlined.History, Modifier.weight(1f))
-            SmallStat("工作目录", "本地存储", Icons.Outlined.Folder, Modifier.weight(1f))
-        }
-        if (running) CodexNotice("当前任务仍在执行中，请先处理运行中的会话",
-            NoticeTone.Info, actionLabel = "返回任务", onAction = { navigate("chat") })
-        Text("常用工作入口", style = MaterialTheme.typography.titleLarge)
-        CodexActionTile("工作区文件", "查看与编辑本机工程", Icons.Outlined.FolderOpen,
-            onClick = { navigate("files") }, modifier = Modifier.fillMaxWidth())
-        CodexActionTile("代码差异", "检查当前任务改动", Icons.Outlined.Difference,
-            onClick = { navigate("diff") }, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("继续最近工作", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text("继续最近工作", style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f))
             TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
         }
         if (threads.isEmpty()) {
-            CodexEmptyState("还没有可恢复的会话",
-                "创建第一个任务后，后续可以从这里继续工作。",
-                actionLabel = if (running) "返回任务" else "新建任务",
-                onAction = { if (!running) vm.newThread(); navigate("chat") })
+            CodexEmptyState(
+                "还没有可恢复的会话",
+                "完成第一个任务后，这里会展示最近工作。历史记录由本机 Codex 内核读取。",
+                actionLabel = "打开会话",
+                onAction = { navigate("threads") }
+            )
         } else {
-            threads.take(5).forEach { item ->
+            threads.take(3).forEach { item ->
                 ThreadRow(item) {
                     vm.chooseThread(item.optString("id"))
                     navigate("chat")
+                }
+            }
+        }
+        Text("工作区快捷操作", style = MaterialTheme.typography.titleLarge)
+        CodexActionTile("工作区文件", "导入、查看或编辑工程文件",
+            Icons.Outlined.FolderOpen, onClick = { navigate("files") },
+            modifier = Modifier.fillMaxWidth())
+        CodexActionTile("代码差异", "检查本轮改动并发起审查",
+            Icons.Outlined.Difference, onClick = { navigate("diff") },
+            modifier = Modifier.fillMaxWidth())
+        TextButton(onClick = { showStatus = !showStatus },
+            modifier = Modifier.fillMaxWidth()) {
+            Icon(if (showStatus) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
+            Spacer(Modifier.width(7.dp))
+            Text(if (showStatus) "收起运行状态" else "查看运行状态与统计")
+        }
+        CodexReveal(showStatus) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SmallStat("本机内核",
+                        if (status == EngineStatus.Connected) "已连接" else "待连接",
+                        Icons.Outlined.Memory, Modifier.weight(1f))
+                    SmallStat("待审批", prompts.size.toString(),
+                        Icons.Outlined.GppGood, Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SmallStat("当前已读取会话", threads.size.toString(),
+                        Icons.Outlined.History, Modifier.weight(1f))
+                    SmallStat("工作目录", "本地存储",
+                        Icons.Outlined.Folder, Modifier.weight(1f))
+                }
+                OutlinedButton(onClick = { navigate("diagnostics") },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    Text("查看引擎诊断")
                 }
             }
         }
