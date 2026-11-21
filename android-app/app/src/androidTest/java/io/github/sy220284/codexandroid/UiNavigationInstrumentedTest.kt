@@ -97,6 +97,9 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsGroupsAndAppearancePage() {
         openDrawerRoute("settings")
         rule.onNodeWithText("账户与模型").assertExists()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-update"))
+        rule.onNodeWithTag("settings-update").assertExists()
+        rule.onNodeWithTag("update-check").assertExists()
         capture("settings-hub-android35.png")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasText("扩展能力"))
         rule.onNodeWithText("扩展能力").assertIsDisplayed()

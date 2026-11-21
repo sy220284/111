@@ -126,6 +126,9 @@ jobs:
             sha256sum "$TARGET/libcodex_server.so"
           done
           head -n 1 CODEX_UPSTREAM_COMMIT
+      - name: 下载并校验官方安卓增量恢复组件
+        shell: bash
+        run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a x86_64
       - name: 编译 APK 并验证审批协议测试
         run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true --no-daemon --stacktrace
       - name: 验证 ARM64 / x86_64 独立 APK 的内核与 ABI

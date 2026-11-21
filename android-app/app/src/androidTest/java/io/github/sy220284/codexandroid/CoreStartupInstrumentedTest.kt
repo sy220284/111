@@ -28,6 +28,29 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
+    @Test fun nativeDeltaPatcherLoadsAndRejectsCorruptPatch() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val library = File(app.applicationInfo.nativeLibraryDir, "libhpatchz.so")
+        org.junit.Assert.assertTrue("HDiffPatch JNI missing: ${library.path}", library.isFile)
+        val root = File(app.cacheDir, "update-patcher-test").apply { mkdirs() }
+        val original = File(root, "original")
+        val invalid = File(root, "invalid.hpatch")
+        val output = File(root, "output")
+        try {
+            original.writeText("old-111-release")
+            invalid.writeText("invalid patch payload")
+            val result = com.github.sisong.HPatch.patch(
+                original.absolutePath, invalid.absolutePath, output.absolutePath,
+                1024 * 1024L, 1, true
+            )
+            org.junit.Assert.assertTrue("Corrupt delta was accepted", result != 0)
+        } finally {
+            original.delete()
+            invalid.delete()
+            output.delete()
+        }
+    }
+
     @Test fun bundledCoreCanPrintVersionOnAndroid() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val binary = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")

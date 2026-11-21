@@ -57,6 +57,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 shape = RoundedCornerShape(22.dp)
             )
         }
+        if (query.isBlank() || NavigationPolicy.matches(query, "应用更新", "检查更新 自动下载 增量更新 安装", "update")) {
+            item(key = "app-update") { AppUpdateCard() }
+        }
         if (groups.isEmpty()) {
             item(key = "empty") {
                 CodexEmptyState("没有匹配的功能", "试试功能名称或关键字。",

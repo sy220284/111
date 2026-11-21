@@ -45,7 +45,9 @@ keytool -genkeypair -v -keystore 111-release.jks -storetype PKCS12 \
 - `update-manifest.json`：schema 2，仅记录 ARM64 手机 APK 和增量包。
 - `delta-<旧版>-to-<新版>-arm64-v8a.hpatch`：仅在成功生成、校验并满足体积阈值时提供。
 
-`update-manifest.json` 目前只作为发布元数据，应用内自动更新能力需另行接入消费端。在这一点实现之前，安装请使用完整 APK。
+`update-manifest.json` 是 App 内检查更新的正式元数据。设置中心点击“检查更新”后，客户端读取最新正式版，优先下载与当前已安装 APK SHA-256 精确匹配的增量包，由 HDiffPatch 恢复并校验最终 APK；没有匹配增量或恢复失败时自动切换到完整 APK。下载完成后打开 Android 系统安装确认界面，首次需要允许此 App 安装更新。系统按原签名进行升级认证。
+
+独立 UI 验收包和日常 Actions 调试包使用调试签名，无法覆盖正式签名版本；首次使用正式版前请先备份数据并安装 Releases 中的正式签名 APK。HDiffPatch 安卓恢复组件使用上游 v5.1.3 官方 SDK ZIP，CI 校验固定 SHA-256 后装配。
 
 Actions 现有的调试包签名与正式包签名不同。第一次由调试包切换至正式包时可能需要卸载调试包，卸载前应导出应用数据。
 
