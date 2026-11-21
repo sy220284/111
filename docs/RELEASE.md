@@ -45,11 +45,17 @@ keytool -genkeypair -v -keystore 111-release.jks -storetype PKCS12 \
 - `update-manifest.json`：schema 2，仅记录 ARM64 手机 APK 和增量包。
 - `delta-<旧版>-to-<新版>-arm64-v8a.hpatch`：仅在成功生成、校验并满足体积阈值时提供。
 
-`update-manifest.json` 目前只作为发布元数据，应用内自动更新能力需另行接入消费端。在这一点实现之前，安装请使用完整 APK。
+`update-manifest.json` 是 App 内检查更新的正式元数据。设置中心点击“检查更新”后，客户端读取最新正式版，优先下载与当前已安装 APK SHA-256 精确匹配的增量包，由 HDiffPatch 恢复并校验最终 APK；没有匹配增量或恢复失败时自动切换到完整 APK。下载完成后打开 Android 系统安装确认界面，首次需要允许此 App 安装更新。系统按原签名进行升级认证。
+
+独立 UI 验收包和日常 Actions 调试包使用调试签名，无法覆盖正式签名版本；首次使用正式版前请先备份数据并安装 Releases 中的正式签名 APK。HDiffPatch 安卓恢复组件使用上游 v5.1.3 官方 SDK ZIP，CI 校验固定 SHA-256 后装配。
 
 Actions 现有的调试包签名与正式包签名不同。第一次由调试包切换至正式包时可能需要卸载调试包，卸载前应导出应用数据。
 
 ## 验收与故障定位
+
+- Android 设备完整构建会使用与正式发布一致的 `-WD / zstd / xxh128` 参数生成小型增量测试包，在 Android 35 模拟器上用应用实际打包的 `libhpatchz.so` 重建并逐字节比对；同时测试损坏补丁被拒绝。
+- 更新器显示当前已安装版本，并优先进行增量恢复；旧缓存按版本清理。HDiffPatch v5.1.3 的 MIT 及第三方许可文本随 APK 放在 `assets/licenses/HDiffPatch-LICENSE.txt`。
+
 
 - 在 PR 中发布工作流会执行中文更新说明、手机 APK 产物清单测试、Release 签名构建及 Shell 语法检查，不生成正式 Release。
 - 原生内核采用统一的复用校验：上游源码目录树、`CODEX_UPSTREAM_COMMIT` 记录的源码版本、Android 编译修补器以及原生构建的编译步骤一致；工作流触发条件、编译前缓存判断和产物上传保留期变化不会让内核失效。原生编译产物保留 90 天，过期后自动进入重新编译流程。

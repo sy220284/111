@@ -25,6 +25,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
+    val showUpdate = query.isBlank() ||
+        NavigationPolicy.matches(query, "应用更新", "检查更新 自动下载 增量更新 安装", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id -> pages.firstOrNull { it.id == id } }
             .filter { NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
@@ -57,7 +59,10 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 shape = RoundedCornerShape(22.dp)
             )
         }
-        if (groups.isEmpty()) {
+        if (showUpdate) {
+            item(key = "app-update") { AppUpdateCard() }
+        }
+        if (groups.isEmpty() && !showUpdate) {
             item(key = "empty") {
                 CodexEmptyState("没有匹配的功能", "试试功能名称或关键字。",
                     actionLabel = "清除搜索", onAction = { query = "" })

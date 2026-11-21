@@ -10,6 +10,11 @@ import androidx.activity.viewModels
 class MainActivity : ComponentActivity() {
     private val model by viewModels<CodexViewModel>()
 
+    override fun onResume() {
+        super.onResume()
+        AppUpdateManager.resumeInstall(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         UiPreferences.initialize(applicationContext)
