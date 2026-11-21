@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,31 +50,31 @@ val pages = listOf(
     Page("home", "总览", "工作台", "任务、连接与待决事项", Icons.Outlined.Home),
     Page("chat", "任务对话", "工作台", "会话、流式生成与输入", Icons.Outlined.Chat),
     Page("threads", "会话历史", "工作台", "继续、检索和归档任务", Icons.Outlined.History, "thread/list"),
+    Page("approvals", "待审批操作", "工作台", "待确认命令、修改与权限", Icons.Outlined.GppGood),
     Page("search", "全文检索", "工作台", "定位历史会话", Icons.Outlined.Search, "thread/search"),
     Page("goals", "任务目标", "工作台", "线程目标与上下文", Icons.Outlined.Flag, "thread/goal/get"),
     Page("queue", "任务队列", "工作台", "待处理步骤与顺序", Icons.Outlined.ViewList, "thread/queue/list", true),
-    Page("files", "工作区文件", "开发工具", "导入、打开和编辑工程文件", Icons.Outlined.FolderOpen),
-    Page("diff", "代码差异", "开发工具", "当前任务的改动追踪", Icons.Outlined.Code),
-    Page("terminal", "终端", "开发工具", "在设备沙箱中执行命令", Icons.Outlined.Terminal),
-    Page("review", "代码审查", "开发工具", "发起 Codex 审查", Icons.Outlined.FactCheck, "review/start"),
-    Page("models", "模型目录", "Codex 生态", "可用模型与思考能力", Icons.Outlined.AutoAwesome, "model/list"),
-    Page("modes", "协作模式", "Codex 生态", "计划、编码与协作模式", Icons.Outlined.PeopleOutline, "collaborationMode/list"),
-    Page("skills", "技能", "Codex 生态", "发现并管理技能", Icons.Outlined.School, "skills/list"),
-    Page("plugins", "插件", "Codex 生态", "安装状态与能力", Icons.Outlined.Extension, "plugin/list"),
-    Page("apps", "连接应用", "Codex 生态", "应用连接与权限", Icons.Outlined.Apps, "app/list"),
-    Page("mcp", "MCP 服务", "Codex 生态", "工具服务状态", Icons.Outlined.Hub, "mcpServerStatus/list"),
-    Page("hooks", "触发钩子", "Codex 生态", "运行时钩子与事件", Icons.Outlined.Bolt, "hooks/list"),
-    Page("environments", "执行环境", "Codex 生态", "设备和远端环境", Icons.Outlined.Dns, "environment/status", true),
-    Page("account", "账号登录", "偏好与设置", "ChatGPT 登录与会话", Icons.Outlined.AccountCircle, "account/read"),
-    Page("providers", "模型服务商", "偏好与设置", "供应商及默认项", Icons.Outlined.Tune, "modelProvider/list"),
-    Page("config", "引擎配置", "偏好与设置", "逐项读取和写入官方配置", Icons.Outlined.Settings, "config/read"),
-    Page("security", "权限与安全", "偏好与设置", "审批、沙箱和网络策略", Icons.Outlined.Security, "configRequirements/read"),
-    Page("approvals", "待审批操作", "偏好与设置", "命令与文件变更确认", Icons.Outlined.GppGood),
-    Page("usage", "使用量", "偏好与设置", "额度与调用统计", Icons.Outlined.Insights, "account/usage/read"),
-    Page("limits", "使用限额", "偏好与设置", "限额和重置时间", Icons.Outlined.Speed, "account/rateLimits/read"),
-    Page("appearance", "外观与交互", "偏好与设置", "显示密度、材质和动效", Icons.Outlined.Palette),
-    Page("diagnostics", "诊断与日志", "偏好与设置", "本机连接与运行状态", Icons.Outlined.BugReport, "server/diagnostics", true),
-    Page("about", "关于项目", "偏好与设置", "版本、源码与隐私", Icons.Outlined.Info)
+    Page("files", "工作区文件", "项目与代码", "导入、打开和编辑工程文件", Icons.Outlined.FolderOpen),
+    Page("diff", "代码差异", "项目与代码", "当前任务的改动追踪", Icons.Outlined.Code),
+    Page("terminal", "终端", "项目与代码", "在设备沙箱中执行命令", Icons.Outlined.Terminal),
+    Page("review", "代码审查", "项目与代码", "发起 Codex 审查", Icons.Outlined.FactCheck, "review/start"),
+    Page("models", "模型目录", "能力与扩展", "可用模型与思考能力", Icons.Outlined.AutoAwesome, "model/list"),
+    Page("modes", "协作模式", "能力与扩展", "计划、编码与协作模式", Icons.Outlined.PeopleOutline, "collaborationMode/list"),
+    Page("skills", "技能", "能力与扩展", "发现并管理技能", Icons.Outlined.School, "skills/list"),
+    Page("plugins", "插件", "能力与扩展", "安装状态与能力", Icons.Outlined.Extension, "plugin/list"),
+    Page("apps", "连接应用", "能力与扩展", "应用连接与权限", Icons.Outlined.Apps, "app/list"),
+    Page("mcp", "MCP 服务", "能力与扩展", "工具服务状态", Icons.Outlined.Hub, "mcpServerStatus/list"),
+    Page("hooks", "触发钩子", "能力与扩展", "运行时钩子与事件", Icons.Outlined.Bolt, "hooks/list"),
+    Page("environments", "执行环境", "能力与扩展", "设备和远端环境", Icons.Outlined.Dns, "environment/status", true),
+    Page("account", "账号登录", "设置与账户", "ChatGPT 登录与会话", Icons.Outlined.AccountCircle, "account/read"),
+    Page("providers", "模型服务商", "设置与账户", "供应商及默认项", Icons.Outlined.Tune, "modelProvider/list"),
+    Page("config", "引擎配置", "设置与账户", "逐项读取和写入官方配置", Icons.Outlined.Settings, "config/read"),
+    Page("security", "权限与安全", "设置与账户", "审批、沙箱和网络策略", Icons.Outlined.Security, "configRequirements/read"),
+    Page("usage", "使用量", "设置与账户", "额度与调用统计", Icons.Outlined.Insights, "account/usage/read"),
+    Page("limits", "使用限额", "设置与账户", "限额和重置时间", Icons.Outlined.Speed, "account/rateLimits/read"),
+    Page("appearance", "外观与交互", "设置与账户", "显示密度、材质和动效", Icons.Outlined.Palette),
+    Page("diagnostics", "诊断与日志", "设置与账户", "本机连接与运行状态", Icons.Outlined.BugReport, "server/diagnostics", true),
+    Page("about", "关于项目", "设置与账户", "版本、源码与隐私", Icons.Outlined.Info)
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
@@ -120,10 +121,45 @@ fun CodexShell(vm: CodexViewModel) {
             .background(Brush.verticalGradient(listOf(Ink.canvas, Color(0xFF171E24), Ink.canvas)))
     ) {
         val wide = maxWidth >= 850.dp
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         val content: @Composable () -> Unit = {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
+                bottomBar = {
+                    if (!wide && !imeVisible) {
+                        NavigationBar(
+                            containerColor = Ink.recessed,
+                            tonalElevation = 0.dp,
+                            modifier = Modifier.testTag("main-bottom-navigation")
+                        ) {
+                            NavigationPolicy.primaryRoutes.forEach { id ->
+                                val entry = pages.first { it.id == id }
+                                NavigationBarItem(
+                                    selected = selected == id,
+                                    onClick = { move(id) },
+                                    modifier = Modifier.testTag("bottom-$id"),
+                                    icon = { Icon(entry.icon, contentDescription = entry.title) },
+                                    label = { Text(when (id) {
+                                        "home" -> "首页"
+                                        "chat" -> "对话"
+                                        "files" -> "文件"
+                                        else -> "会话"
+                                    }) },
+                                    alwaysShowLabel = true
+                                )
+                            }
+                            NavigationBarItem(
+                                selected = NavigationPolicy.isMoreSelected(selected),
+                                onClick = { scope.launch { drawer.open() } },
+                                modifier = Modifier.testTag("bottom-more"),
+                                icon = { Icon(Icons.Outlined.Apps, contentDescription = "更多功能") },
+                                label = { Text("更多") },
+                                alwaysShowLabel = true
+                            )
+                        }
+                    }
+                },
                 topBar = {
                     CenterAlignedTopAppBar(
                         title = {
@@ -201,9 +237,15 @@ private fun Sidebar(
 ) {
     var filter by rememberSaveable { mutableStateOf("") }
     var expandedGroup by rememberSaveable { mutableStateOf("工作台") }
+    var revealAdvanced by rememberSaveable { mutableStateOf(false) }
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     LaunchedEffect(selected) {
-        pages.firstOrNull { it.id == selected }?.let { expandedGroup = it.section }
+        pages.firstOrNull { it.id == selected }?.let {
+            expandedGroup = it.section
+            if (!NavigationPolicy.visible(it.id, revealAdvanced = false, searching = false)) {
+                revealAdvanced = true
+            }
+        }
     }
     Column(modifier.background(Ink.recessed).padding(horizontal = 14.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 8.dp, bottom = 15.dp),
@@ -244,7 +286,15 @@ private fun Sidebar(
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        TextButton(
+            onClick = { revealAdvanced = !revealAdvanced },
+            modifier = Modifier.fillMaxWidth().testTag("navigation-advanced-toggle")
+        ) {
+            Icon(if (revealAdvanced) Icons.Outlined.ExpandLess else Icons.Outlined.Tune,
+                contentDescription = null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(7.dp))
+            Text(if (revealAdvanced) "收起高级功能" else "显示全部 ${pages.size} 项功能")
+        }
         DividerLine()
         LazyColumn(
             modifier = Modifier.weight(1f),
@@ -253,8 +303,9 @@ private fun Sidebar(
         ) {
             for (group in pages.map { it.section }.distinct()) {
                 val entries = pages.filter {
-                    it.section == group && (filter.isBlank() ||
-                        (it.title + it.subtitle + it.id).contains(filter, ignoreCase = true))
+                    it.section == group &&
+                        NavigationPolicy.matches(filter, it.title, it.subtitle, it.id) &&
+                        NavigationPolicy.visible(it.id, revealAdvanced, filter.isNotBlank())
                 }
                 if (entries.isNotEmpty()) item(key = "group-$group") {
                     Column {
