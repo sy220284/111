@@ -306,7 +306,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         errors.value = errors.value - "terminal"
         viewModelScope.launch {
             try {
-                val result = bridge.request("command/exec", args)
+                val result = bridge.request("command/exec", args, timeoutMillis = null)
                 val active = terminalSession.value
                 if (active.processId == id) terminalSession.value = active.finish(result)
             } catch (failure: Exception) {
