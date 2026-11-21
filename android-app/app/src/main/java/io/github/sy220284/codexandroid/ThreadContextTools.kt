@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
-import kotlinx.coroutines.launch
 
 /**
  * High-value thread actions are deliberately separated from prompt composition.
@@ -41,14 +40,10 @@ fun ThreadContextTools(
         }
     }
     val busy = "threadFork" in loading || "threadCompact" in loading
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
     fun openSubpage(route: String) {
-        scope.launch {
-            sheetState.hide()
-            onDismiss()
-            navigate(route)
-        }
+        // The parent owns the pending destination and opens it after this sheet is removed.
+        onDismiss()
+        navigate(route)
     }
     val forkId = data["threadFork"]?.optJSONObject("thread")?.optString("id")
         ?.takeIf { it.isNotBlank() }
@@ -56,7 +51,7 @@ fun ThreadContextTools(
         onDismissRequest = onDismiss,
         containerColor = Ink.recessed,
         contentColor = Ink.parchment,
-        sheetState = sheetState
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
         Column(
             Modifier.fillMaxWidth().heightIn(max = 690.dp)
