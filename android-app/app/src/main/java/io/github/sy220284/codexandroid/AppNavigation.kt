@@ -26,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
@@ -255,7 +256,8 @@ fun CodexShell(vm: CodexViewModel) {
                 gesturesEnabled = true,
                 drawerContent = {
                     ModalDrawerSheet(
-                        modifier = Modifier.widthIn(max = 318.dp),
+                        modifier = Modifier.widthIn(max = 318.dp)
+                            .then(if (drawer.isOpen) Modifier else Modifier.clearAndSetSemantics {}),
                         drawerContainerColor = Ink.recessed,
                         drawerContentColor = Ink.parchment
                     ) { Sidebar(Modifier.fillMaxHeight(), selected,
