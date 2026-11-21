@@ -60,7 +60,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "environments" -> EnvironmentsPage(vm)
         "diagnostics" -> EngineDiagnosticsPage(vm)
         "usage", "limits" -> AccountMetricsPage(id, vm, navigate)
-        "account" -> AccountPage(vm)
+        "account" -> AccountPage(vm, navigate)
         "config" -> ConfigPage(vm)
         "appearance" -> AppearancePage()
         "security" -> SecurityPage(vm, navigate)
