@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
 
 data class TimelineItem(
     val id: String,
@@ -36,6 +37,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeLoginId = MutableStateFlow("")
     val loginBusy = MutableStateFlow(false)
     val steerBusy = MutableStateFlow(false)
+    val terminalSession = MutableStateFlow(TerminalSessionState())
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
@@ -96,6 +98,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun chooseThread(id: String) {
+        if (!ThreadDisplayPolicy.canOpenThread(running.value, activeThread.value, id)) {
+            errors.value = errors.value + ("conversation" to
+                "当前任务仍在执行，请先结束任务再切换其他会话")
+            return
+        }
+        // Returning to the same running thread must not clear its live timeline.
+        if (running.value) return
         viewModelScope.launch {
             try {
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
@@ -285,6 +294,65 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Terminal commands are always launched from an explicitly confirmed UI action. */
+    fun startTerminalCommand(command: String) {
+        if (terminalSession.value.running) {
+            errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
+            return
+        }
+        val id = UUID.randomUUID().toString()
+        val args = TerminalSessionContract.execute(command, workingDirectory, id)
+        terminalSession.value = TerminalSessionState.start(id, command)
+        errors.value = errors.value - "terminal"
+        viewModelScope.launch {
+            try {
+                val result = bridge.request("command/exec", args)
+                val active = terminalSession.value
+                if (active.processId == id) terminalSession.value = active.finish(result)
+            } catch (failure: Exception) {
+                val active = terminalSession.value
+                if (active.processId == id) {
+                    terminalSession.value = active.fail(failure.message ?: "终端命令执行失败")
+                }
+            }
+        }
+    }
+
+    fun sendTerminalInput(line: String) {
+        val state = terminalSession.value
+        if (!state.running || state.terminating) return
+        val args = TerminalSessionContract.write(state.processId, line)
+        viewModelScope.launch {
+            try {
+                bridge.request("command/exec/write", args)
+                errors.value = errors.value - "terminalInput"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("terminalInput" to
+                    (failure.message ?: "终端输入失败"))
+            }
+        }
+    }
+
+    fun stopTerminalCommand() {
+        val active = terminalSession.value
+        if (!active.running || active.terminating) return
+        terminalSession.value = active.copy(terminating = true)
+        viewModelScope.launch {
+            try {
+                bridge.request("command/exec/terminate",
+                    TerminalSessionContract.terminate(active.processId))
+                errors.value = errors.value - "terminalStop"
+            } catch (failure: Exception) {
+                val current = terminalSession.value
+                if (current.processId == active.processId && current.running) {
+                    terminalSession.value = current.copy(terminating = false)
+                    errors.value = errors.value + ("terminalStop" to
+                        (failure.message ?: "无法停止终端命令"))
+                }
+            }
+        }
+    }
+
     fun startLogin() = beginLogin("chatgpt")
 
     fun startDeviceLogin() = beginLogin("chatgptDeviceCode")
@@ -361,6 +429,19 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         } else if (method == "account/updated") {
             refresh("account", "account/read")
         }
+        if (method == "command/exec/outputDelta") {
+            val active = terminalSession.value
+            if (active.processId.isNotEmpty() &&
+                params.optString("processId") == active.processId && active.running) {
+                try {
+                    terminalSession.value = active.append(params)
+                } catch (failure: Exception) {
+                    terminalSession.value = active.copy(error =
+                        "终端输出解码失败：" + (failure.message ?: "非法输出"))
+                }
+            }
+            return
+        }
         if (method == "thread/started" || method == "thread/archived") {
             refresh("threads", "thread/list", JSONObject().put("limit", 30))
         }
@@ -398,6 +479,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             "turn/completed" -> {
                 running.value = false
+                refresh("threads", "thread/list", JSONObject().put("limit", 30))
                 val finishedImages = imagePathsForActiveTurn
                 imagePathsForActiveTurn = emptyList()
                 if (finishedImages.isNotEmpty()) viewModelScope.launch {
