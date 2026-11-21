@@ -105,6 +105,12 @@ fun ProvidersPage(vm: CodexViewModel) {
     val entries = records(data["providers"])
     val defaultId = data["providers"]?.optString("defaultProviderId") ?: ""
     var toSelect by remember { mutableStateOf<JSONObject?>(null) }
+    var showCustomEditor by remember { mutableStateOf(false) }
+    var customName by remember { mutableStateOf("") }
+    var customUrl by remember { mutableStateOf("") }
+    var customEnvKey by remember { mutableStateOf("") }
+    var confirmCustom by remember { mutableStateOf(false) }
+    var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.refresh("providers", "modelProvider/list") }
     ScreenColumn {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
@@ -114,6 +120,54 @@ fun ProvidersPage(vm: CodexViewModel) {
             Text("不同服务商拥有独立目录与认证配置。", color = Ink.muted)
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("服务商配置", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { showCustomEditor = !showCustomEditor }) {
+                    Text(if (showCustomEditor) "收起" else "添加自定义服务商")
+                }
+            }
+            CodexReveal(showCustomEditor) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(customName, { customName = it },
+                        modifier = Modifier.fillMaxWidth(), label = { Text("服务商名称") },
+                        singleLine = true)
+                    OutlinedTextField(customUrl, { customUrl = it },
+                        modifier = Modifier.fillMaxWidth(), label = { Text("服务地址（HTTP / HTTPS）") },
+                        singleLine = true)
+                    OutlinedTextField(customEnvKey, { customEnvKey = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("密钥环境变量名称（可选）") },
+                        singleLine = true)
+                    Text("密钥值由本机环境管理；这里仅填写变量名称。",
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    OutlinedButton(
+                        onClick = { confirmCustom = true },
+                        enabled = customName.isNotBlank() &&
+                            (customUrl.startsWith("https://") || customUrl.startsWith("http://"))
+                    ) { Text("保存自定义服务商") }
+                }
+            }
+            TextButton(onClick = {
+                showCapabilities = !showCapabilities
+                if (showCapabilities) vm.refresh("providerCapabilities",
+                    "modelProvider/capabilities/read")
+            }) { Text(if (showCapabilities) "收起能力信息" else "查看服务商能力") }
+            CodexReveal(showCapabilities) {
+                val caps = data["providerCapabilities"]
+                if (caps != null) {
+                    Text("联网搜索：" + if (caps.optBoolean("webSearch")) "支持" else "未声明",
+                        color = Ink.muted)
+                    Text("图片生成：" + if (caps.optBoolean("imageGeneration")) "支持" else "未声明",
+                        color = Ink.muted)
+                } else Text("正在读取服务能力…", color = Ink.muted)
+                val errors by vm.errors.collectAsState()
+                errors["providerCapabilities"]?.let { ErrorText(it) }
+            }
+            val errors by vm.errors.collectAsState()
+            errors["providerWrite"]?.let { ErrorText(it) }
+        }
         entries.forEach { item ->
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,6 +193,26 @@ fun ProvidersPage(vm: CodexViewModel) {
         }
         if (entries.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("未取得模型服务商列表。", color = Ink.muted) }
     }
+    if (confirmCustom) CodexConfirmDialog(
+        title = "保存自定义模型服务商",
+        message = "会在当前内核中新增自定义网关配置。请核对地址和密钥变量名称。",
+        detail = "名称：$customName\n服务地址：$customUrl\n密钥变量：$customEnvKey",
+        confirmLabel = "确认保存",
+        onConfirm = {
+            val patch = JSONObject().put("type", "customGateway")
+                .put("name", customName.trim()).put("baseUrl", customUrl.trim())
+            if (customEnvKey.isNotBlank()) patch.put("envKey", customEnvKey.trim())
+            vm.rpc("providerWrite", "modelProvider/config/write",
+                JSONObject().put("settings", patch),
+                after = {
+                    vm.refresh("providers", "modelProvider/list")
+                    vm.refresh("models", "model/list")
+                    showCustomEditor = false
+                    customName = ""; customUrl = ""; customEnvKey = ""
+                })
+            confirmCustom = false
+        }, onDismiss = { confirmCustom = false }
+    )
     toSelect?.let { item ->
         CodexConfirmDialog(
             title = "切换默认模型服务商",
