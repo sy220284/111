@@ -24,6 +24,9 @@ class PresentationPolicyTest {
         assertEquals("任务进展", PresentationPolicy.timelineKind("serverInternalEvent"))
         assertEquals("", PresentationPolicy.timelineStatus("internal_code"))
         assertEquals("执行中", PresentationPolicy.timelineStatus("in_progress"))
+        assertEquals("已连接", PresentationPolicy.serviceState("connected"))
+        assertEquals("连接失败", PresentationPolicy.serviceState("failed"))
+        assertEquals("需要授权", PresentationPolicy.authorizationState("required"))
         assertEquals("可在任务对话中使用，按需启用或停用",
             PresentationPolicy.readableSkillSummary("Create editable Canva instagram posts"))
     }
