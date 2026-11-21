@@ -22,8 +22,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-" + id).performClick()
     }
 
-    private fun openSettingRoute(id: String) {
-        rule.onNodeWithTag("bottom-settings").performClick()
+    private fun openSettingRoute(id: String, fromSettingsChild: Boolean = false) {
+        // The bottom navigation is intentionally hidden while the IME is closing.
+        // Settings detail pages provide a stable top-bar back action instead.
+        if (fromSettingsChild) {
+            rule.onNodeWithContentDescription("返回上一页").performClick()
+        } else {
+            rule.onNodeWithTag("bottom-settings").performClick()
+        }
+        rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         rule.waitForIdle()
         rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
         val search = rule.onNodeWithTag("settings-search")
@@ -156,12 +163,12 @@ class UiNavigationInstrumentedTest {
         assertEquals(28, actualOriginal.distinct().size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             actualOriginal.toSet())
-        for (id in NavigationPolicy.settingsRoutes) {
-            openSettingRoute(id)
+        NavigationPolicy.settingsRoutes.forEachIndexed { index, id ->
+            openSettingRoute(id, fromSettingsChild = index > 0)
             rule.onNodeWithTag("screen-title").assertTextEquals(
                 pages.first { it.id == id }.title)
         }
-        rule.onNodeWithTag("bottom-settings").performClick()
+        rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         for (id in NavigationPolicy.sidebarRoutes) {
             openDrawerRoute(id)
