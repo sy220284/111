@@ -73,7 +73,7 @@ fun ModelsPage(vm: CodexViewModel) {
             Surface(
                 modifier = Modifier.fillMaxWidth().clickable { vm.modelId.value = id }.animateContentSize(),
                 shape = RoundedCornerShape(18.dp),
-                color = if (chosenNow) Ink.copper.copy(alpha = .14f) else Ink.panel,
+                color = Ink.canvas,
                 border = BorderStroke(1.dp, if (chosenNow) Ink.copper else Ink.border)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -130,7 +130,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     Text("可在原生配置页修改具体参数。", color = Ink.muted)
                 }
                 if (defaultId != item.optString("id")) {
-                    Button(onClick = { toSelect = item }, enabled = data["providers"]?.optBoolean("canChangeDefault") == true) {
+                    OutlinedButton(onClick = { toSelect = item }, enabled = data["providers"]?.optBoolean("canChangeDefault") == true) {
                         Text("设为默认服务商")
                     }
                 }
@@ -281,7 +281,7 @@ fun PluginsPage(vm: CodexViewModel) {
                         if (item.optBoolean("installed")) {
                             OutlinedButton(onClick = { action = Triple(market, item, false) }) { Text("卸载") }
                         } else {
-                            Button(onClick = { action = Triple(market, item, true) },
+                            OutlinedButton(onClick = { action = Triple(market, item, true) },
                                 enabled = item.optString("installPolicy") != "NOT_AVAILABLE") { Text("安装插件") }
                         }
                     }
@@ -411,7 +411,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 OutlinedButton(onClick = { vm.bridge.close(); vm.connect() }) {
                     Icon(Icons.Outlined.RestartAlt, null); Text("重启连接")
                 }
-                Button(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
+                OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
                     enabled = status == EngineStatus.Connected) { Text("读取官方诊断") }
             }
         }

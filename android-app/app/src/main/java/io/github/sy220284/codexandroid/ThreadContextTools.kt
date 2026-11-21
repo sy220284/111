@@ -99,7 +99,7 @@ fun ThreadContextTools(
                 }
                 Text("保留当前会话记录，生成新的独立分支，适合尝试另一种解决路线。",
                     color = Ink.muted)
-                Button(onClick = { action = "fork" },
+                OutlinedButton(onClick = { action = "fork" },
                     enabled = !running && !busy && !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text("创建分支")
