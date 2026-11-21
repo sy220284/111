@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
@@ -201,8 +202,17 @@ fun WorkspaceActionsSheet(
     onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false,
     imageCount: Int = 0, importing: Boolean = false, onPickImage: (() -> Unit)? = null
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    fun openTool(route: String) {
+        scope.launch {
+            sheetState.hide()
+            onDismiss()
+            navigate(route)
+        }
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
             .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -213,7 +223,7 @@ fun WorkspaceActionsSheet(
             if (onPickImage != null) {
                 Text("添加附件", style = MaterialTheme.typography.titleMedium)
                 OutlinedButton(
-                    onClick = { onDismiss(); onPickImage() },
+                    onClick = { scope.launch { sheetState.hide(); onDismiss(); onPickImage() } },
                     enabled = !importing && imageCount < LocalImageAttachments.MAX_FILES,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)
                         .testTag("attachment-pick-image")
@@ -234,7 +244,7 @@ fun WorkspaceActionsSheet(
                         val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
                         Surface(
                             modifier = Modifier.weight(1f).testTag("quick-$id")
-                                .clickable { onDismiss(); navigate(if(allowed) id else "threads") },
+                                .clickable { openTool(if(allowed) id else "threads") },
                             shape = RoundedCornerShape(20.dp),
                             border = BorderStroke(1.dp, if(allowed) Ink.border else Ink.copperDim),
                             color = Ink.canvas
@@ -253,7 +263,7 @@ fun WorkspaceActionsSheet(
                     }
                 }
             }
-            if (!hasThread) OutlinedButton(onClick = { onDismiss(); navigate("threads") },
+            if (!hasThread) OutlinedButton(onClick = { openTool("threads") },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Icon(Icons.Outlined.History, null)
                 Spacer(Modifier.width(8.dp))
