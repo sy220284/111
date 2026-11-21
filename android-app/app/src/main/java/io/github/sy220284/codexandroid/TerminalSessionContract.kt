@@ -42,7 +42,7 @@ object TerminalSessionContract {
 /**
  * Each notification belongs to one client-created process id. The raw UTF-8
  * bytes are kept until decoding so a Unicode character split between chunks
- * is not damaged. A hard per-stream limit prevents unbounded UI memory use.
+ * is not damaged. A rolling per-stream limit preserves recent logs without unbounded UI memory.
  */
 data class TerminalSessionState(
     val processId: String = "",
@@ -72,11 +72,16 @@ data class TerminalSessionState(
         require(stream == "stdout" || stream == "stderr") { "终端输出类型不支持：$stream" }
         val chunk = Base64.getDecoder().decode(params.getString("deltaBase64"))
         val previous = if (stream == "stdout") stdoutBytes else stderrBytes
-        val room = (MAX_STREAM_BYTES - previous.size).coerceAtLeast(0)
-        val copied = previous + chunk.copyOf(minOf(chunk.size, room))
-        val truncated = outputTruncated || chunk.size > room || params.optBoolean("capReached")
-        return if (stream == "stdout") copy(stdoutBytes = copied, outputTruncated = truncated)
-        else copy(stderrBytes = copied, outputTruncated = truncated)
+        val combined = previous + chunk
+        val truncated = outputTruncated || combined.size > MAX_STREAM_BYTES ||
+            params.optBoolean("capReached")
+        // A long-running terminal must keep showing its newest lines. Preserve
+        // the latest bounded bytes rather than freezing after the first 128 KiB.
+        val kept = if (combined.size > MAX_STREAM_BYTES)
+            combined.copyOfRange(combined.size - MAX_STREAM_BYTES, combined.size)
+        else combined
+        return if (stream == "stdout") copy(stdoutBytes = kept, outputTruncated = truncated)
+        else copy(stderrBytes = kept, outputTruncated = truncated)
     }
 
     fun finish(result: JSONObject): TerminalSessionState {
