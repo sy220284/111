@@ -74,4 +74,30 @@ class PresentationPolicyTest {
             "01a1fdcb-d65d-76d2-8abc-123456789abc").contains("01a1fdcb"))
     }
 
+    @Test fun evidenceSummarizesRealOutputWithoutShowingProtocolFields() {
+        val sections = PresentationPolicy.evidenceSections(
+            """{"type":"commandExecution","status":"completed","exitCode":0,"stdout":"done","threadId":"01a1fdcb-d65d-76d2-8abc-123456789abc"}"""
+        )
+        assertTrue(sections.contains("执行状态" to "已完成"))
+        assertTrue(sections.contains("执行结果" to "执行成功"))
+        assertTrue(sections.contains("执行输出" to "done"))
+        assertTrue(sections.none { (label, value) ->
+            "threadId" in label || "exitCode" in label || "stdout" in label ||
+                "01a1fdcb" in value
+        })
+
+        val withPath = PresentationPolicy.evidenceSections(
+            """{"command":"ls /data/user/0/app/files/projects","stderr":"failed","exitCode":1}"""
+        )
+        assertTrue(withPath.any { it.first == "执行命令" &&
+            it.second.contains("应用私有目录") && !it.second.contains("/data/user/") })
+        assertTrue(withPath.contains("执行结果" to "执行结束，返回码 1"))
+        assertTrue(withPath.contains("错误输出" to "failed"))
+
+        assertEquals(listOf("执行内容" to "terminal output"),
+            PresentationPolicy.evidenceSections("terminal output"))
+        assertEquals(listOf("执行详情" to "记录了 2 项执行结果"),
+            PresentationPolicy.evidenceSections("""[{"id":1},{"id":2}]"""))
+    }
+
 }

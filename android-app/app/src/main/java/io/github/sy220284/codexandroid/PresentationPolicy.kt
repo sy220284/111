@@ -228,6 +228,60 @@ object PresentationPolicy {
         else -> "未设置"
     }
 
+    /** Convert protocol-shaped execution evidence into labels and real task output. */
+    fun evidenceSections(source: String): List<Pair<String, String>> {
+        val raw = source.trim()
+        if (raw.isEmpty()) return listOf("执行详情" to "当前操作没有更多可阅读内容")
+        if (raw.startsWith("[")) {
+            val events = try { org.json.JSONArray(raw).length() }
+                catch (failure: org.json.JSONException) { null }
+            if (events != null) return listOf("执行详情" to "记录了 $events 项执行结果")
+        }
+        val record = try { JSONObject(raw) }
+            catch (failure: org.json.JSONException) {
+                return listOf("执行内容" to safeEvidenceText(raw))
+            }
+        val sections = mutableListOf<Pair<String, String>>()
+        fun add(key: String, label: String) {
+            val value = safeEvidenceText(record.optString(key))
+            if (value.isNotEmpty()) sections += label to value
+        }
+        val status = timelineStatus(record.optString("status"))
+        if (status.isNotEmpty()) sections += "执行状态" to status
+        if (record.has("exitCode") && !record.isNull("exitCode")) {
+            val exitCode = record.optInt("exitCode")
+            sections += "执行结果" to
+                if (exitCode == 0) "执行成功" else "执行结束，返回码 $exitCode"
+        }
+        add("command", "执行命令")
+        add("summary", "结果摘要")
+        add("text", "执行内容")
+        val changes = record.optJSONArray("changes")?.length()
+            ?: record.optJSONObject("changes")?.length()
+        if (changes != null) sections += "文件变更" to "涉及 $changes 个文件"
+        val output = sequenceOf("aggregatedOutput", "stdout", "output")
+            .map { safeEvidenceText(record.optString(it)) }
+            .firstOrNull { it.isNotEmpty() }
+        if (output != null) sections += "执行输出" to output
+        add("stderr", "错误输出")
+        val error = record.optJSONObject("error")?.optString("message")
+            ?: record.optString("error").takeUnless { it.startsWith("{") }
+        val errorText = safeEvidenceText(error.orEmpty())
+        if (errorText.isNotEmpty()) sections += "错误说明" to errorText
+        return sections.ifEmpty { listOf("执行详情" to "操作已记录，当前没有更多可阅读内容") }
+    }
+
+    /** Preserve useful command output without leaking app-private paths or session identifiers. */
+    private fun safeEvidenceText(value: String): String = meaningful(value)
+        .replace(
+            Regex("""/data/(?:user/[0-9]+|data)/[^\s\n,;)}]+"""),
+            "应用私有目录"
+        )
+        .replace(
+            Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
+            "任务标识"
+        ).take(16_000)
+
     fun readableSkillSummary(description: String?): String {
         val detail = meaningful(description)
         return if (detail.any { it in '\u4e00'..'\u9fff' }) detail.take(100)

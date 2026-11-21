@@ -12,7 +12,7 @@ class CodexOverlayInstrumentedTest {
     @get:Rule val rule = createComposeRule()
 
     @Test
-    fun evidenceSheetShowsRawPayloadAndCloses() {
+    fun evidenceSheetShowsReadableResultAndCloses() {
         rule.setContent {
             CodexTheme {
                 var visible by remember { mutableStateOf(true) }
@@ -28,7 +28,10 @@ class CodexOverlayInstrumentedTest {
         rule.onNodeWithText("命令执行 · 执行依据").assertExists()
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot("evidence-sheet-android35.png")
-        rule.onNodeWithText("复制原始记录").performClick()
+        rule.onNodeWithText("执行成功").assertExists()
+        rule.onNodeWithText("done").assertExists()
+        rule.onNodeWithText("exitCode", substring = true).assertDoesNotExist()
+        rule.onNodeWithText("复制执行详情").performClick()
         rule.onNodeWithText("关闭").performClick()
         rule.waitForIdle()
         rule.onNodeWithText("命令执行 · 执行依据").assertDoesNotExist()
