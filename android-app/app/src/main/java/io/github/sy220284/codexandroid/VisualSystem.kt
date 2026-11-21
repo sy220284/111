@@ -132,8 +132,9 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
 /** 重点操作以白底、暖铜文字和较强描边呈现。 */
 @Composable
 fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
-    enabled: Boolean = true, content: @Composable RowScope.() -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled,
+    enabled: Boolean = true, shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(13.dp),
+    content: @Composable RowScope.() -> Unit) {
+    OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape,
         border = BorderStroke(1.5.dp, if (enabled) Ink.copper else Ink.border),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Ink.canvas,
             contentColor = Ink.copper, disabledContainerColor = Ink.canvas,

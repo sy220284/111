@@ -62,8 +62,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithText("默认模型").assertIsDisplayed()
         rule.onNodeWithText("执行", substring = false).assertIsDisplayed()
-        rule.onNodeWithText("内核状态").assertIsDisplayed()
-        rule.onNodeWithText("添加图片").assertIsDisplayed()
+        rule.onNodeWithContentDescription("查看内核运行诊断").assertIsDisplayed()
+        rule.onNodeWithContentDescription("添加本地图片").assertIsDisplayed()
         capture("chat-toolbar-android35.png")
     }
 
