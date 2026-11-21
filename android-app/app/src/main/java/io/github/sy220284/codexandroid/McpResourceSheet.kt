@@ -29,7 +29,6 @@ fun McpResourceSheet(
     val loading by vm.loading.collectAsState()
     val key = "mcpResource:" + serverName + ":" + uri
     val payload = data[key]
-    var showRaw by remember(uri) { mutableStateOf(false) }
     var fullText by remember(uri) { mutableStateOf<String?>(null) }
     var fullTitle by remember(uri) { mutableStateOf("") }
 
@@ -61,10 +60,8 @@ fun McpResourceSheet(
                     Spacer(Modifier.width(10.dp))
                     Text(serverName, style = MaterialTheme.typography.titleMedium)
                 }
-                SelectionContainer {
-                    Text(uri, fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                }
+                Text("资源来源：$serverName",
+                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                 resource.optString("description").takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
                 }
@@ -118,28 +115,8 @@ fun McpResourceSheet(
                                 }) { Text("打开全文阅读器（${contentText.length} 字符）") }
                             }
                         } else {
-                            Text("该片段为非文本资源，可在原始记录中核对元数据。",
+                            Text("该资源包含文件或其他非文本内容，可从来源服务查看。",
                                 color = Ink.muted)
-                        }
-                    }
-                }
-            }
-            if (payload != null) {
-                TextButton(onClick = { showRaw = !showRaw }) {
-                    Text(if (showRaw) "收起原始响应" else "查看原始响应")
-                }
-                CodexReveal(showRaw) {
-                    MaterialPanel(Modifier.fillMaxWidth()) {
-                        val raw = payload.toString(2)
-                        SelectionContainer {
-                            Text(raw.take(16000), fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                        }
-                        if (raw.length > 16000) {
-                            OutlinedButton(onClick = {
-                                fullTitle = "原始 MCP 响应"
-                                fullText = raw
-                            }) { Text("阅读完整响应") }
                         }
                     }
                 }
