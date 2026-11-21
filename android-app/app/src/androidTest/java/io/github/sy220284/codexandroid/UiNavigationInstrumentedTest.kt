@@ -6,6 +6,7 @@ import org.json.JSONObject
 import org.json.JSONArray
 import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
+import android.view.KeyEvent
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -19,6 +20,13 @@ import org.junit.Test
 /** 参考布局验收：侧栏只出现常用入口，所有原有功能归入设置或快捷菜单。 */
 class UiNavigationInstrumentedTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+
+    /** Send Back to the focused Android window so Dialog/ModalBottomSheet receives it. */
+    private fun pressSystemBack() {
+        rule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        rule.waitForIdle()
+    }
 
     private fun openDrawerRoute(id: String) {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
@@ -78,8 +86,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("attachment-pick-image").assertExists()
         rule.onNodeWithTag("quick-terminal").assertExists()
         captureOverlay("attachment-sheet-android35.png")
-        rule.activity.onBackPressedDispatcher.onBackPressed()
-        rule.waitForIdle()
+        pressSystemBack()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithText("工作区工具").assertExists()
         rule.onNodeWithTag("quick-terminal").assertExists()
@@ -401,20 +409,21 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("会话时间线").assertExists()
         captureOverlay("audit-advanced-timeline-android35.png")
         rule.onNodeWithContentDescription("返回回合历史").performClick()
-        rule.activity.onBackPressedDispatcher.onBackPressed()
-        rule.waitForIdle()
+        rule.onNodeWithText("查看完整时间线（实验）").assertExists()
+        pressSystemBack()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
         rule.onNodeWithContentDescription("会话工具").performClick()
         rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
-        rule.activity.onBackPressedDispatcher.onBackPressed()
-        rule.waitForIdle()
+        pressSystemBack()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-review").performClick()
         rule.onNodeWithText("审查范围").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
-        rule.activity.onBackPressedDispatcher.onBackPressed()
-        rule.waitForIdle()
+        pressSystemBack()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务对话")
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-goals").performClick()
         rule.onNodeWithText("设置新目标").assertExists()
