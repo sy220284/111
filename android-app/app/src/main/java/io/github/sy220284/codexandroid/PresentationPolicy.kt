@@ -108,7 +108,7 @@ object PresentationPolicy {
         val raw = meaningful(value)
         if (raw.isEmpty()) return "当前操作没有返回详细原因"
         return raw.replace(
-            Regex("/data/(?:user/[0-9]+|data)/[^\\\\s\\\\n,;)}]+"),
+            Regex("""/data/(?:user/[0-9]+|data)/[^\s\n,;)}]+"""),
             "应用私有目录"
         ).replace(
             Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
