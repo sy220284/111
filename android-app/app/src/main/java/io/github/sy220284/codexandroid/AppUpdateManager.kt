@@ -45,8 +45,10 @@ internal data class AppUpdateState(
  * 只访问固定仓库的正式 Release，并以发布清单中的 SHA-256 校验每个文件。
  */
 internal object AppUpdateManager {
-    private const val REPO = "sy220284/111"
-    private const val LATEST = "https://api.github.com/repos/$REPO/releases/latest"
+    private const val REPO_OWNER = "sy220284"
+    private const val REPO_NAME = "111"
+    private val repo = "$REPO_OWNER/$REPO_NAME"
+    private val latest = "https://api.github.com/repos/$repo/releases/latest"
     private const val MAX_JSON_BYTES = 1024 * 1024
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutableState = MutableStateFlow(AppUpdateState())
@@ -76,7 +78,7 @@ internal object AppUpdateManager {
                     throw IOException("当前为调试签名版本，请先导出数据并安装正式签名版，之后可直接在线升级。")
                 }
                 set(UpdatePhase.CHECKING, "正在检查 GitHub 正式发布版本…")
-                val release = JSONObject(readSmall(URL(LATEST)))
+                val release = JSONObject(readSmall(URL(latest)))
                 require(!release.optBoolean("draft") && !release.optBoolean("prerelease")) {
                     "最新发布尚未开放"
                 }
@@ -88,7 +90,7 @@ internal object AppUpdateManager {
                         val name = entry.getString("name")
                         if (!name.matches(Regex("[A-Za-z0-9._-]+"))) continue
                         val url = entry.getString("browser_download_url")
-                        val expected = "https://github.com/$REPO/releases/download/$tag/$name"
+                        val expected = "https://github.com/$repo/releases/download/$tag/$name"
                         if (url == expected) put(name, URL(url))
                     }
                 }

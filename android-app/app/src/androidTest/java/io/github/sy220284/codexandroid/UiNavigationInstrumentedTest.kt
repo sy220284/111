@@ -29,8 +29,8 @@ class UiNavigationInstrumentedTest {
         val search = rule.onNodeWithTag("settings-search")
         search.performTextClearance()
         search.performTextInput(pages.first { it.id == id }.title)
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-" + id))
-        rule.onNodeWithTag("settings-" + id).performClick()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-" + id))
+        rule.onNodeWithTag("settings-route-" + id).performClick()
     }
 
     @Test fun drawerOpensAndNavigatesToConversation() {
@@ -105,8 +105,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("扩展能力").assertIsDisplayed()
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
         rule.onNodeWithTag("settings-search").performTextInput("外观")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-appearance"))
-        rule.onNodeWithTag("settings-appearance").performClick()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-appearance"))
+        rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithText("柔雾层次材质").assertExists()
         rule.onNodeWithText("交互预览").assertExists()
         capture("appearance-android35.png")
@@ -203,12 +203,26 @@ class UiNavigationInstrumentedTest {
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
         capture("workspace-files-android35.png")
+        // Close the IME before opening the popup so its actions remain on-screen.
+        rule.runOnUiThread {
+            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
+            rule.activity.currentFocus?.clearFocus()
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("删除", substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("删除", substring = false).performClick()
         rule.onNodeWithText("确认删除文件夹").assertExists()
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
         rule.onNodeWithTag("workspace-menu-" + name).performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("删除", substring = false).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText("删除", substring = false).performClick()
         rule.onNodeWithText("永久删除").performClick()
         rule.waitUntil(10_000L) {
@@ -227,8 +241,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
         rule.onNodeWithTag("bottom-settings").performClick()
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-diagnostics"))
-        rule.onNodeWithTag("settings-diagnostics").performClick()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
+        rule.onNodeWithTag("settings-route-diagnostics").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 

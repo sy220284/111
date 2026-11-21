@@ -115,7 +115,7 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
         else -> Ink.copper
     }
     Row(
-        modifier = Modifier.fillMaxWidth().testTag("settings-${page.id}")
+        modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
             .clickable(role = Role.Button, onClick = onClick)
             .heightIn(min = 70.dp)
             .padding(horizontal = 17.dp, vertical = 11.dp),
