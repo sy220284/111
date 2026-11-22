@@ -364,6 +364,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
+        if (thread != null) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -379,6 +380,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { navigate("diff") }, enabled = thread != null) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
+        }
         // 会话导航统一归入侧边栏，正文只保留与当前任务有关的快捷动作。
         if (latestDiff.isNotBlank()) Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
