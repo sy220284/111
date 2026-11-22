@@ -100,13 +100,6 @@ fun CodexShell(vm: CodexViewModel) {
     val operationSnacks = remember { SnackbarHostState() }
     val app = LocalContext.current.applicationContext as CodexApplication
     val pendingDeepLink by app.pendingDeepLink.collectAsState()
-    LaunchedEffect(status, selected, drawer.currentValue) {
-        if (status == EngineStatus.Connected &&
-            (selected == "chat" || drawer.currentValue == DrawerValue.Open)) {
-            vm.refresh("sidebarThreads", "thread/list",
-                org.json.JSONObject().put("limit", 100))
-        }
-    }
     LaunchedEffect(vm) {
         vm.actionFeedback.collect { receipt ->
             operationSnacks.showSnackbar(

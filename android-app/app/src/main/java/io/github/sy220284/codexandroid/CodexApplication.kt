@@ -27,7 +27,12 @@ class CodexApplication : Application() {
             idleRelease?.cancel()
             idleRelease = null
         }
-        override fun onActivityResumed(activity: Activity) {}
+        override fun onActivityResumed(activity: Activity) {
+            // Resume a verified install at the process boundary; the Activity only
+            // renders UI and never owns the long-running download/patch operation.
+            AppUpdateManager.resumeInstall(activity)
+            if (holder.isInitialized()) holder.value.reconnectIfNeeded()
+        }
         override fun onActivityPaused(activity: Activity) {}
         override fun onActivityStopped(activity: Activity) {
             activityCount = (activityCount - 1).coerceAtLeast(0)

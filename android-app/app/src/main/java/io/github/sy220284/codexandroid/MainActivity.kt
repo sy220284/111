@@ -16,12 +16,6 @@ class MainActivity : ComponentActivity() {
     private val model: CodexViewModel
         get() = (application as CodexApplication).session
 
-    override fun onResume() {
-        super.onResume()
-        AppUpdateManager.resumeInstall(this)
-        model.reconnectIfNeeded()
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

@@ -166,6 +166,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     data.value = data.value + (key to response)
                     errors.value = errors.value - key
                     onSuccess?.invoke(response)
+                    if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
                     if (userAction) actionFeedback.emit(
                         ActionFeedbackCopy.success(method, response))
                 }
