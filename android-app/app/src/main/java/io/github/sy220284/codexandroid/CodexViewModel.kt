@@ -33,7 +33,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     /** All running threads, including tasks no longer visible on the current page. */
-    val threadExecutions = MutableStateFlow<Map<String, ThreadExecution>>(emptyMap())
+    internal val threadExecutions = MutableStateFlow<Map<String, ThreadExecution>>(emptyMap())
     val threadFailures = MutableStateFlow<Map<String, String>>(emptyMap())
     /** The first RPC must create a real thread ID before we can switch away. */
     val firstThreadStarting = MutableStateFlow(false)
@@ -426,6 +426,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             threadExecutions.value = ThreadExecutionPolicy.reserve(
                 threadExecutions.value, submittedThread, images)
+            threadFailures.value = threadFailures.value - submittedThread
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, submittedThread, ThreadActivity.Running)
         }
@@ -489,6 +490,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     newlyCreatedThreadId = createdId
                     threadExecutions.value = ThreadExecutionPolicy.reserve(
                         threadExecutions.value, createdId, images)
+                    threadFailures.value = threadFailures.value - createdId
                     threadActivities.value = ThreadActivityPolicy.updated(
                         threadActivities.value, createdId, ThreadActivity.Running)
                     firstTurnImages = emptyList()
@@ -507,7 +509,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 turnRequestDispatched = true
                 val response = bridge.request("turn/start", params)
                 val acceptedTurn = response.optJSONObject("turn")?.optString("id")
-                threadFailures.value = threadFailures.value - id
                 if (id in threadExecutions.value) {
                     threadExecutions.value = ThreadExecutionPolicy.started(
                         threadExecutions.value, id, acceptedTurn)
@@ -553,8 +554,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             (recoveryFailure.message ?: "请到会话资料库核查")
                     }
                 }
-                if (activeThread.value == submittedId) {
-                    running.value = !definiteFailure && submittedId in threadExecutions.value
+                if (activeThread.value == submittedId ||
+                    (submittedThread == null && activeThread.value == null)) {
+                    running.value = !definiteFailure && submittedId != null &&
+                        submittedId in threadExecutions.value
                     if (definiteFailure) activeTurn.value = null
                     timeline.value = timeline.value.filterNot { it.id == pendingId }
                 }
