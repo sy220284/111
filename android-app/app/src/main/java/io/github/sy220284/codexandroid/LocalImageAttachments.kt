@@ -103,6 +103,7 @@ fun LocalImageAttachmentStrip(
     onRemove: (String) -> Unit
 ) {
     if (paths.isEmpty()) return
+    var previewPath by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text("待发送图片 · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
             style = MaterialTheme.typography.labelMedium, color = Ink.muted)
@@ -125,12 +126,16 @@ fun LocalImageAttachmentStrip(
                         border = BorderStroke(1.dp, Ink.border)) {
                         Row(Modifier.padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (thumbnail != null) {
-                                Image(thumbnail!!, contentDescription = "附件图片 ${idx + 1}",
-                                    modifier = Modifier.size(43.dp).clip(RoundedCornerShape(9.dp)),
+                                Image(thumbnail!!, contentDescription = "预览附件图片 ${idx + 1}",
+                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
+                                        .clickable { previewPath = path },
                                     contentScale = ContentScale.Crop)
                             } else {
-                                Icon(Icons.Outlined.PhotoIcon, contentDescription = null,
-                                    modifier = Modifier.size(43.dp), tint = Ink.copper)
+                                IconButton(onClick = { previewPath = path },
+                                    modifier = Modifier.size(48.dp)) {
+                                    Icon(Icons.Outlined.PhotoIcon, contentDescription = "预览图片 ${idx + 1}",
+                                        tint = Ink.copper)
+                                }
                             }
                             Spacer(Modifier.width(7.dp))
                             Column {
@@ -138,7 +143,7 @@ fun LocalImageAttachmentStrip(
                                 Text("${File(path).length() / 1024} KB",
                                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                             }
-                            IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(43.dp)) {
+                            IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
                                 Icon(Icons.Outlined.Close, contentDescription = "移除图片 ${idx + 1}",
                                     tint = Ink.red)
                             }
@@ -146,6 +151,40 @@ fun LocalImageAttachmentStrip(
                     }
                 }
             }
+        }
+        previewPath?.let { path ->
+            val enlarged by produceState<ImageBitmap?>(initialValue = null, path) {
+                value = withContext(Dispatchers.IO) {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(path, bounds)
+                    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+                    val scale = maxOf(1, maxOf(bounds.outWidth, bounds.outHeight) / 1400)
+                    BitmapFactory.decodeFile(path,
+                        BitmapFactory.Options().apply { inSampleSize = scale })?.asImageBitmap()
+                }
+            }
+            AlertDialog(
+                onDismissRequest = { previewPath = null },
+                title = { Text("图片预览") },
+                text = {
+                    if (enlarged == null) {
+                        Text("正在载入图片…", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        Image(enlarged!!, contentDescription = "当前附件的大图预览",
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp),
+                            contentScale = ContentScale.Fit)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { previewPath = null }) { Text("关闭") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        onRemove(path)
+                        previewPath = null
+                    }) { Text("移除这张", color = Ink.red) }
+                }
+            )
         }
     }
 }
