@@ -7,6 +7,13 @@ import org.json.JSONObject
  * All Codex app-server request results consumed by this client use typed objects.
  * A missing/null/wrong-type result must not be interpreted as a successful {}.
  */
+/** Only a validated server error is an explicit RPC rejection. */
+internal class RpcServerRejection(
+    val method: String,
+    val code: Number,
+    val serverMessage: String
+) : IllegalStateException("$method：$serverMessage（错误代码：$code）")
+
 internal object RpcResponseContract {
     fun requireResult(method: String, envelope: JSONObject): JSONObject {
         val hasResult = envelope.has("result")
@@ -23,7 +30,7 @@ internal object RpcResponseContract {
             check(code is Number && message.isNotBlank()) {
                 "$method：内核错误缺少有效的代码或说明"
             }
-            throw IllegalStateException("$method：$message（错误代码：$code）")
+            throw RpcServerRejection(method, code, message)
         }
 
         return envelope.optJSONObject("result")
