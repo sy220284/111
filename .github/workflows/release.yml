@@ -26,7 +26,8 @@ permissions:
 
 concurrency:
   group: android-release-${{ github.repository }}-${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
-  cancel-in-progress: false
+  # Only supersede outdated PR signing checks; keep published releases serialized.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   preflight:
