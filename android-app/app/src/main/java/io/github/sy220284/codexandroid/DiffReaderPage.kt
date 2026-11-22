@@ -96,7 +96,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     else "当前会话尚未上报代码修改。可以返回任务继续工作。",
                     actionLabel = "返回任务",
                     onAction = { navigate("chat") },
-                    icon = Icons.Outlined.Code
+                    icon = Icons.Outlined.Code,
+                    artworkRes = R.drawable.ic_empty_diff
                 )
             }
         } else {
