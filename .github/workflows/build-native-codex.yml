@@ -6,8 +6,8 @@ on:
     paths:
       - ".github/workflows/build-native-codex.yml"
       - ".github/scripts/select_native_artifacts.py"
-      - "CODEX_UPSTREAM_COMMIT"
-      - "upstream/codex/**"
+      - "upstream/codex/codex-rs/**"
+      - "upstream/codex/.cargo/**"
       - "android-app/tools/prepare_android_mxc.py"
       - "android-app/tools/prepare_android_code_mode.py"
       - "android-app/tools/prepare_android_v8.sh"
@@ -16,6 +16,9 @@ on:
   pull_request:
     paths:
       - ".github/workflows/build-native-codex.yml"
+      - "upstream/codex/codex-rs/**"
+      - "upstream/codex/.cargo/**"
+      - "android-app/tools/prepare_android_mxc.py"
       - "android-app/tools/prepare_android_code_mode.py"
       - "android-app/tools/prepare_android_v8.sh"
       - "android-app/tools/adapt_android_v8_build.py"
@@ -58,7 +61,7 @@ jobs:
           set -euo pipefail
           RESULT=0
           python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --branch "${{ github.head_ref || github.ref_name }}" \
+            --repo "$GITHUB_REPOSITORY" \
             --abis arm64-v8a \
             > "$RUNNER_TEMP/reused-native-run" || RESULT=$?
           if [ "$RESULT" -eq 0 ]; then
