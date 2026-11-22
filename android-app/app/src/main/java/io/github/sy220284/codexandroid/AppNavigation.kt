@@ -90,6 +90,7 @@ fun CodexShell(vm: CodexViewModel) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val running by vm.running.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val status by vm.bridge.status.collectAsState()
@@ -256,9 +257,9 @@ fun CodexShell(vm: CodexViewModel) {
                             if (selected == "threads") {
                                 IconButton(
                                     onClick = { vm.newThread(); move("chat") },
-                                    enabled = !running && !switching,
-                                    modifier = Modifier.explainDisabled(running || switching,
-                                        if (running) "正在执行任务，请先停止或完成后新建" else "正在切换会话")
+                                    enabled = !firstThreadStarting && !switching,
+                                    modifier = Modifier.explainDisabled(firstThreadStarting || switching,
+                                        if (firstThreadStarting) "正在创建会话，创建完成后可新建" else "正在切换会话")
                                 ) {
                                     Icon(Icons.Outlined.AddCircleOutline, "新建任务")
                                 }
@@ -301,7 +302,7 @@ fun CodexShell(vm: CodexViewModel) {
             Row(Modifier.fillMaxSize()) {
                 Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size, running || switching,
+                    status, pending.size, firstThreadStarting || switching,
                     { vm.newThread(); move("chat") }, vm,
                     { id -> if (activeThread != id) vm.chooseThread(id); move("chat") },
                     sidebarState)
@@ -323,7 +324,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size, running || switching,
+                        }, status, pending.size, firstThreadStarting || switching,
                         { vm.newThread(); move("chat") }, vm,
                         { id -> if (activeThread != id) vm.chooseThread(id); move("chat") },
                         sidebarState) }
