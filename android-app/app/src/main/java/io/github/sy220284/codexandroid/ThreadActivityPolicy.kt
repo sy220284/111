@@ -42,7 +42,7 @@ internal object ThreadActivityPolicy {
         previous: Map<String, ThreadActivity>, id: String, status: ThreadActivity
     ): Map<String, ThreadActivity> {
         require(id.isNotBlank()) { "会话编号不能为空" }
-        return ((previous - id) + (id to status)).entries.takeLast(MAX_RECENT)
-            .associate { it.key to it.value }
+        return ((previous - id) + (id to status)).entries.toList()
+            .takeLast(MAX_RECENT).associate { it.key to it.value }
     }
 }
