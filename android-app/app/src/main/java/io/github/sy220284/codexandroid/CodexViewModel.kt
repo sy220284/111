@@ -595,8 +595,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun interruptThread(threadId: String) {
         val turn = threadExecutions.value[threadId]?.turnId ?: return
-        rpc("interrupt:" + threadId, "turn/interrupt",
-            JSONObject().put("threadId", threadId).put("turnId", turn))
+        rpc(if (threadId == activeThread.value) "interrupt" else "interrupt:" + threadId,
+            "turn/interrupt", JSONObject().put("threadId", threadId).put("turnId", turn))
     }
 
     fun answerApproval(prompt: ServerPrompt, action: ApprovalAction) {
@@ -759,37 +759,61 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         if (method == "thread/started" || method == "thread/archived") {
             syncRecentThreads()
         }
+        // Apply turn lifecycle to every thread before filtering display events to
+        // the visible timeline. An offscreen task must still finish and free images.
+        if (threadId.isNotBlank() && method == "turn/started") {
+            val turnId = params.optJSONObject("turn")?.optString("id")
+            threadExecutions.value = ThreadExecutionPolicy.started(
+                threadExecutions.value, threadId, turnId)
+            threadActivities.value = ThreadActivityPolicy.updated(
+                threadActivities.value, threadId, ThreadActivity.Running)
+            if (threadId == activeThread.value) {
+                activeTurn.value = threadExecutions.value[threadId]?.turnId
+                running.value = true
+            }
+        }
+        if (threadId.isNotBlank() && method == "turn/completed") {
+            val completedId = params.optJSONObject("turn")?.optString("id")
+            val execution = threadExecutions.value[threadId]
+            val validCompletion = execution?.turnId.isNullOrBlank() ||
+                completedId.isNullOrBlank() || execution?.turnId == completedId
+            if (!validCompletion) return
+            threadExecutions.value = ThreadExecutionPolicy.finish(
+                threadExecutions.value, threadId)
+            val completed = params.optJSONObject("turn")?.optString("status") == "completed"
+            threadActivities.value = ThreadActivityPolicy.updated(
+                threadActivities.value, threadId,
+                if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
+            if (threadId == activeThread.value) {
+                running.value = false
+                activeTurn.value = null
+            }
+            syncRecentThreads()
+            val finishedImages = execution?.images.orEmpty()
+            if (finishedImages.isNotEmpty()) viewModelScope.launch {
+                for (path in finishedImages) {
+                    try {
+                        if (AttachmentRetentionPolicy.canRelease(
+                                path, composerDrafts.value.values,
+                                threadExecutions.value.values.flatMap { it.images }
+                            )) LocalImageAttachments.release(getApplication(), path)
+                    } catch (failure: Exception) {
+                        errors.value = errors.value + ("attachments" to
+                            (failure.message ?: "无法清理已完成任务的图片"))
+                    }
+                }
+            }
+        }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
             "item/agentMessage/delta", "item/plan/delta",
             "item/reasoning/summaryTextDelta", "item/started", "item/completed" ->
                 timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/started" -> {
-                activeTurn.value = params.optJSONObject("turn")?.optString("id")
-                running.value = true
-            }
             "turn/completed" -> {
-                running.value = false
-                activeTurn.value = null
                 timeline.value = timeline.value.map { item ->
                     if (item.id.startsWith("pending-") && item.status == "sending")
                         item.copy(status = "") else item
-                }
-                syncRecentThreads()
-                val finishedImages = imagePathsForActiveTurn
-                imagePathsForActiveTurn = emptyList()
-                if (finishedImages.isNotEmpty()) viewModelScope.launch {
-                    for (path in finishedImages) {
-                        try {
-                            if (AttachmentRetentionPolicy.canRelease(
-                                    path, composerDrafts.value.values, emptyList()
-                                )) LocalImageAttachments.release(getApplication(), path)
-                        } catch (failure: Exception) {
-                            errors.value = errors.value + ("attachments" to
-                                (failure.message ?: "无法清理已完成任务的图片"))
-                        }
-                    }
                 }
                 val turn = params.optJSONObject("turn")
                 if (turn?.optString("status") != "completed") {
