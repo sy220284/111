@@ -23,6 +23,37 @@ if [ "$actual" != "$COMMIT" ]; then
   echo "Pinned Git source mismatch: expected $COMMIT, got $actual" >&2
   exit 1
 fi
+# Git 2.52 uses POSIX thread cancellation around fork. Android Bionic has
+# pthread_sigmask but intentionally does not expose pthread_setcancelstate.
+# Keep Git's normal pthread support, and omit only unavailable cancellation
+# calls for the pinned Android target. Verify every upstream pattern strictly.
+python3 - "$SOURCE/run-command.c" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text()
+edits = (
+    (
+        "#ifndef NO_PTHREADS\n\tint cs;\n#endif",
+        "#if !defined(NO_PTHREADS) && !defined(__ANDROID__)\n\tint cs;\n#endif",
+    ),
+    (
+        '\tCHECK_BUG(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &as->cs),\n\t\t"disabling cancellation");',
+        '#ifndef __ANDROID__\n\tCHECK_BUG(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &as->cs),\n\t\t"disabling cancellation");\n#endif',
+    ),
+    (
+        '\tCHECK_BUG(pthread_setcancelstate(as->cs, NULL),\n\t\t"re-enabling cancellation");',
+        '#ifndef __ANDROID__\n\tCHECK_BUG(pthread_setcancelstate(as->cs, NULL),\n\t\t"re-enabling cancellation");\n#endif',
+    ),
+)
+for original, replacement in edits:
+    if source.count(original) != 1:
+        raise SystemExit(f"Pinned Git 2.52 source does not match Android cancellation adaptation: {original!r}")
+    source = source.replace(original, replacement)
+path.write_text(source)
+print("Pinned Git 2.52 Android Bionic pthread adaptation verified")
+PY
 # Local Git operations run under the Android app UID. Keep required zlib,
 # but do not add unverified bundled curl/OpenSSL dynamic libraries.
 # Git's Makefile uses SHELL_PATH for build-time generators AND target runtime.
