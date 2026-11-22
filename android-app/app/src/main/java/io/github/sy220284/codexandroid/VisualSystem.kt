@@ -24,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-object Ink {
+private object InkLight {
     val canvas = Color(0xFFFFFFFF)
     val recessed = Color(0xFFFFFFFF)
     val panel = Color(0xFFFFFFFF)
@@ -41,10 +41,45 @@ object Ink {
     val red = Color(0xFFAC363A)
 }
 
+private object InkDark {
+    val canvas = Color(0xFF111A22)
+    val recessed = Color(0xFF0D141B)
+    val panel = Color(0xFF19232C)
+    val elevated = Color(0xFF202D38)
+    val border = Color(0xFF344450)
+    val parchment = Color(0xFFF0F2F3)
+    val muted = Color(0xFFB3C0C8)
+    val coral = Color(0xFFFF9386)
+    val coralSoft = Color(0xFFFFAE9F)
+    val copper = Color(0xFFE4B08D)
+    val copperDim = Color(0xFFB5927B)
+    val jade = Color(0xFF80D0AA)
+    val warning = Color(0xFFE4C080)
+    val red = Color(0xFFFF8C93)
+}
+
+object Ink {
+    val canvas: Color get() = if (UiPreferences.darkMode.value) InkDark.canvas else InkLight.canvas
+    val recessed: Color get() = if (UiPreferences.darkMode.value) InkDark.recessed else InkLight.recessed
+    val panel: Color get() = if (UiPreferences.darkMode.value) InkDark.panel else InkLight.panel
+    val elevated: Color get() = if (UiPreferences.darkMode.value) InkDark.elevated else InkLight.elevated
+    val border: Color get() = if (UiPreferences.darkMode.value) InkDark.border else InkLight.border
+    val parchment: Color get() = if (UiPreferences.darkMode.value) InkDark.parchment else InkLight.parchment
+    val muted: Color get() = if (UiPreferences.darkMode.value) InkDark.muted else InkLight.muted
+    val coral: Color get() = if (UiPreferences.darkMode.value) InkDark.coral else InkLight.coral
+    val coralSoft: Color get() = if (UiPreferences.darkMode.value) InkDark.coralSoft else InkLight.coralSoft
+    val copper: Color get() = if (UiPreferences.darkMode.value) InkDark.copper else InkLight.copper
+    val copperDim: Color get() = if (UiPreferences.darkMode.value) InkDark.copperDim else InkLight.copperDim
+    val jade: Color get() = if (UiPreferences.darkMode.value) InkDark.jade else InkLight.jade
+    val warning: Color get() = if (UiPreferences.darkMode.value) InkDark.warning else InkLight.warning
+    val red: Color get() = if (UiPreferences.darkMode.value) InkDark.red else InkLight.red
+}
+
 @Composable
 fun CodexTheme(content: @Composable () -> Unit) {
     val fontScale by UiPreferences.fontScale.collectAsState()
-    val scheme = lightColorScheme(
+    val darkMode by UiPreferences.darkMode.collectAsState()
+    val scheme = if (darkMode) darkColorScheme(
         primary = Ink.coral,
         onPrimary = Ink.canvas,
         primaryContainer = Ink.canvas,
@@ -73,16 +108,44 @@ fun CodexTheme(content: @Composable () -> Unit) {
         outline = Ink.border,
         secondary = Ink.jade,
         error = Ink.red
-    )
-    MaterialTheme(
+    ) else lightColorScheme(
+        primary = Ink.coral,
+        onPrimary = Ink.canvas,
+        primaryContainer = Ink.canvas,
+        onPrimaryContainer = Ink.parchment,
+        secondaryContainer = Ink.canvas,
+        onSecondaryContainer = Ink.parchment,
+        tertiaryContainer = Ink.canvas,
+        onTertiaryContainer = Ink.parchment,
+        background = Ink.canvas,
+        onBackground = Ink.parchment,
+        surface = Ink.recessed,
+        surfaceVariant = Ink.canvas,
+        surfaceTint = Color.Transparent,
+        surfaceDim = Ink.canvas,
+        surfaceBright = Ink.canvas,
+        surfaceContainerLowest = Ink.canvas,
+        surfaceContainerLow = Ink.canvas,
+        surfaceContainer = Ink.canvas,
+        surfaceContainerHigh = Ink.canvas,
+        surfaceContainerHighest = Ink.canvas,
+        outlineVariant = Ink.border,
+        errorContainer = Ink.canvas,
+        onErrorContainer = Ink.red,
+        onSurface = Ink.parchment,
+        onSurfaceVariant = Ink.muted,
+        outline = Ink.border,
+        secondary = Ink.jade,
+        error = Ink.red
+    )    MaterialTheme(
         colorScheme = scheme,
         typography = Typography(
             displaySmall = androidx.compose.ui.text.TextStyle(fontSize = (34 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp),
             headlineSmall = androidx.compose.ui.text.TextStyle(fontSize = (26 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
             titleLarge = androidx.compose.ui.text.TextStyle(fontSize = (20 * fontScale).sp, fontWeight = FontWeight.SemiBold),
             titleMedium = androidx.compose.ui.text.TextStyle(fontSize = (16 * fontScale).sp, fontWeight = FontWeight.SemiBold),
-            bodyLarge = androidx.compose.ui.text.TextStyle(fontSize = (15 * fontScale).sp, lineHeight = 23.sp),
-            bodyMedium = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = 21.sp),
+            bodyLarge = androidx.compose.ui.text.TextStyle(fontSize = (15 * fontScale).sp, lineHeight = (23 * fontScale).sp),
+            bodyMedium = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (21 * fontScale).sp),
             labelMedium = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, fontWeight = FontWeight.Medium),
             labelSmall = androidx.compose.ui.text.TextStyle(fontSize = (11 * fontScale).sp),
             bodySmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp),

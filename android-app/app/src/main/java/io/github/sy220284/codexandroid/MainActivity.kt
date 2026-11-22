@@ -6,6 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 
 class MainActivity : ComponentActivity() {
@@ -41,6 +44,19 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         )
         setContent {
+            val dark by UiPreferences.darkMode.collectAsState()
+            SideEffect {
+                enableEdgeToEdge(
+                    statusBarStyle = if (dark)
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    else SystemBarStyle.light(android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT),
+                    navigationBarStyle = if (dark)
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    else SystemBarStyle.light(android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT)
+                )
+            }
             CodexTheme {
                 CodexShell(model)
             }

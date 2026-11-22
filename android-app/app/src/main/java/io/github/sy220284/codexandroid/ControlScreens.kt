@@ -31,6 +31,7 @@ object UiPreferences {
     val reducedMotion = MutableStateFlow(false)
     val softMaterial = MutableStateFlow(true)
     val fontScale = MutableStateFlow(1f)
+    val darkMode = MutableStateFlow(false)
 
     fun initialize(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
@@ -39,6 +40,7 @@ object UiPreferences {
         reducedMotion.value = prefs.getBoolean("reducedMotion", false)
         softMaterial.value = prefs.getBoolean("softMaterial", true)
         fontScale.value = prefs.getFloat("fontScale", 1f).coerceIn(.9f, 1.25f)
+        darkMode.value = prefs.getBoolean("darkMode", false)
     }
     fun setCompact(value: Boolean) {
         compact.value = value
@@ -51,6 +53,10 @@ object UiPreferences {
     fun setSoftMaterial(value: Boolean) {
         softMaterial.value = value
         storage?.edit()?.putBoolean("softMaterial", value)?.apply()
+    }
+    fun setDarkMode(value: Boolean) {
+        darkMode.value = value
+        storage?.edit()?.putBoolean("darkMode", value)?.apply()
     }
     fun setFontScale(value: Float) {
         val selected = value.coerceIn(.9f, 1.25f)
