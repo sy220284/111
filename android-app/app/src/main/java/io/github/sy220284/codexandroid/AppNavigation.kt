@@ -96,6 +96,13 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val operationSnacks = remember { SnackbarHostState() }
+    LaunchedEffect(status, selected, drawer.currentValue) {
+        if (status == EngineStatus.Connected &&
+            (selected == "chat" || drawer.currentValue == DrawerValue.Open)) {
+            vm.refresh("sidebarThreads", "thread/list",
+                org.json.JSONObject().put("limit", 30))
+        }
+    }
     LaunchedEffect(vm) {
         vm.actionFeedback.collect { receipt ->
             operationSnacks.showSnackbar(
@@ -280,7 +287,9 @@ fun CodexShell(vm: CodexViewModel) {
             Row(Modifier.fillMaxSize()) {
                 Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size, running || switching, { vm.newThread(); move("chat") })
+                    status, pending.size, running || switching,
+                    { vm.newThread(); move("chat") }, vm,
+                    { id -> if (activeThread != id) vm.chooseThread(id); move("chat") })
                 Box(Modifier.weight(1f)) { content() }
             }
         } else {
@@ -299,7 +308,9 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size, running || switching, { vm.newThread(); move("chat") }) }
+                        }, status, pending.size, running || switching,
+                        { vm.newThread(); move("chat") }, vm,
+                        { id -> if (activeThread != id) vm.chooseThread(id); move("chat") }) }
                 }
             ) { content() }
         }
@@ -330,7 +341,8 @@ fun CodexShell(vm: CodexViewModel) {
 @Composable
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
-    status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit
+    status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit,
+    vm: CodexViewModel, onOpenThread: (String) -> Unit
 ) {
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 14.dp),
@@ -367,6 +379,7 @@ private fun Sidebar(
             items(listOf("home", "chat", "threads")) { id ->
                 SidebarRoute(id, selected, approvals, onSelect)
             }
+            item { SidebarSessions(vm, onOpenThread) }
             item { Text("工作区", modifier = Modifier.padding(start = 12.dp, top = 17.dp, bottom = 6.dp),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted) }
             items(listOf("files", "approvals")) { id ->
