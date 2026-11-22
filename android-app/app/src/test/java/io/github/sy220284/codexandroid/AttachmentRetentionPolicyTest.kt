@@ -28,6 +28,15 @@ class AttachmentRetentionPolicyTest {
             folder.deleteRecursively()
         }
     }
+    @Test fun editingAnotherDraftOrRemovingWhileTaskRunsNeverDeletesLiveImage() {
+        val saved = listOf(ComposerDraft("新指令", listOf("image-A")))
+        assertFalse(AttachmentRetentionPolicy.canRelease("image-A", saved, emptyList()))
+        assertFalse(AttachmentRetentionPolicy.canRelease(
+            "image-B", emptyList(), listOf("image-B")))
+        assertTrue(AttachmentRetentionPolicy.canRelease("image-C", saved, listOf("image-B")))
+        assertTrue(AttachmentRetentionPolicy.canRelease("image-A", emptyList(), emptyList()))
+    }
+
     @Test fun missingDirectoryIsNoOp() {
         val root = Files.createTempDirectory("codex-root").toFile()
         try { assertEquals(0, AttachmentRetentionPolicy.prune(

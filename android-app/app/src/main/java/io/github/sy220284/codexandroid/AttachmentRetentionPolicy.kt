@@ -6,6 +6,10 @@ import java.io.File
 internal object AttachmentRetentionPolicy {
     const val ORPHAN_TTL_MILLIS = 24L * 60 * 60 * 1000
 
+    fun canRelease(
+        path: String, draftItems: Collection<ComposerDraft>, activeImages: Collection<String>
+    ): Boolean = path !in activeImages && draftItems.none { path in it.images }
+
     fun prune(root: File, referenced: Set<String>,
               nowMillis: Long = System.currentTimeMillis()): Int {
         if (!root.exists()) return 0
