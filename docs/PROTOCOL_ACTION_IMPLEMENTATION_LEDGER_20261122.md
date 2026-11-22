@@ -44,6 +44,14 @@
 - **可复核产物**：`wire-fixtures-audit.json`、`app/build/protocol-fixtures/requests.json` 随独立 Android UI CI 保存。报告明确区分“稳定 DTO 结构检查数量”“真实 Kotlin 请求场景数量”“已有样例的协议方法数量”“缺少样例的方法”和“真实 Rust 内核联调数量（仍为 0）”。
 - **范围界限**：这次完成的是一批关键路径请求的字段级自动校验，不等于 187 项请求全部完成真实运行回读；真实会话、文件、终端、Host、外部账号及 MCP 端到端验收仍需独立推进。对后台接口维持智能体调用，不增加普通 UI 入口。
 
+## JSON-RPC 响应结果完整性修复（2026-11-22）
+
+- 已定位真实运行缺口：旧版 `CodexConnection.request()` 对缺失、空值或类型错误的 `result` 统一返回空 `JSONObject()`，可能把无效响应传递到业务成功路径。
+- 新增 `RpcResponseContract`，集中检查 `result` 和 `error` 互斥、合法错误代码与消息、成功结果对象类型。只有真实、合法的服务端成功对象才能继续驱动 UI 状态更新。
+- `RpcResponseContractTest` 覆盖正常成功、空结果、错误类型、成功错误并存、错误代码或消息缺失；`RpcProcessChannelTest` 从进程帧读入后验证相同拒绝路径。
+- `RpcEnvelopeRouter` 还识别缺失或错误类型的响应 ID，并在接收通道将其转换成可见的连接错误，唤醒所有待响应请求，不再把无效响应作为普通事件丢弃。
+- 本项属于 **RPC 返回封套级** 修复。所有方法的返回 DTO 完整字段、分页及通知 reducer 和真实 ARM64 核心联调仍需单独验收。
+
 ## 已查出的差异与落实任务
 
 | ID | 已查证事实 | 应落地处理 | 验收证据 |

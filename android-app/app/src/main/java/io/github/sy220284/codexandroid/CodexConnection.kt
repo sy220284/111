@@ -155,6 +155,9 @@ class CodexConnection(private val appContext: Context) {
                         RpcEnvelopeKind.Response -> {
                             waiting.remove((id as Number).toLong())?.complete(message)
                         }
+                        RpcEnvelopeKind.MalformedResponse -> {
+                            throw IllegalStateException("内核响应缺少有效的数字请求编号")
+                        }
                         RpcEnvelopeKind.HostRequest -> {
                             prompts.value = prompts.value + ServerPrompt(
                                 id, method,
@@ -217,11 +220,7 @@ class CodexConnection(private val appContext: Context) {
             // All ordinary RPCs retain the bounded 45-second timeout.
             val response = if (timeoutMillis == null) deferred.await()
                 else withTimeout(timeoutMillis) { deferred.await() }
-            if (response.has("error") && !response.isNull("error")) {
-                val info = response.optJSONObject("error")
-                throw IllegalStateException(method + "：" + (info?.optString("message") ?: "服务端错误"))
-            }
-            return response.optJSONObject("result") ?: JSONObject()
+            return RpcResponseContract.requireResult(method, response)
         } finally {
             waiting.remove(id)
         }
