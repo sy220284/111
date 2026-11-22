@@ -101,7 +101,7 @@
 | 89 | D | backup_rules 数据类别逐项验收 | 已有部分改动 | LocalDataArchive.kt |
 | 90 | D | stderr 缓冲威胁模型与清理策略 | 已有部分改动 | StderrSanitizer.kt |
 | 91 | D | Renovate 替代 dependabot 误报 | 尚待实施 | 待定位 |
-| 92 | D | 上游快照升级演练脚本（MXC 补丁适用性自动验证） | 已提交待专项验收 | rehearse_upstream_upgrade.py · test_rehearse_upstream_upgrade.py · rehearse-android-upgrade.yml；先校验补丁再执行原生编译 |
+| 92 | D | 上游快照升级演练脚本（MXC 补丁适用性自动验证） | 已提交待专项验收 | rehearse_upstream_upgrade.py · test_rehearse_upstream_upgrade.py · rehearse-android-upgrade.yml；只拉取锁定版本 MXC 提交而非全量 Cargo 依赖，先校验补丁再编译 |
 | 93 | D | 11 项设备测试升 release 强制 gate | 已提交待专项验收 | .github/workflows/release.yml |
 | 94 | D | changelog 从提交自动生成 | 已提交待专项验收 | .github/scripts/generate-release-notes.py |
 | 95 | D | crash 本地收集+诊断页入口 | 已提交待专项验收 | LocalCrashReporter.kt |

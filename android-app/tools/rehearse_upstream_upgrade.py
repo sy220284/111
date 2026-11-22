@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Read-only preflight for an upstream Codex Android compatibility upgrade.
 
-After cargo fetch --locked --target aarch64-linux-android, validate MXC's pinned
-source and both Code Mode Host adaptations without modifying any tracked files
-or Cargo checkouts, before the expensive native compilation starts.
+Download only the exact locked MXC Git revision, then validate its Android
+compatibility patch and both Code Mode Host adapters. This avoids a costly
+full-workspace cargo fetch and does not alter source files.
 """
 import argparse
 import re
@@ -14,7 +14,9 @@ from prepare_android_mxc import AUDIT_CALL, OS_GUARD, UPSTREAM_COMMIT_PREFIX, fi
 from prepare_android_code_mode import adapt_discovery, adapt_host
 
 
-def rehearse(codex_rs: Path, cargo_home: Path) -> dict:
+def rehearse(
+    codex_rs: Path, cargo_home: Path, mxc_dispatch: Path | None = None
+) -> dict:
     codex_rs = codex_rs.resolve()
     cargo_home = cargo_home.expanduser().resolve()
     for relative in ("Cargo.toml", "Cargo.lock", "app-server/Cargo.toml"):
@@ -29,7 +31,10 @@ def rehearse(codex_rs: Path, cargo_home: Path) -> dict:
     )
     if len(revisions) != 1 or not revisions[0].startswith(UPSTREAM_COMMIT_PREFIX):
         raise RuntimeError("候选 MXC 依赖修订与 Android 适配器固定版本不一致，请先审计升级补丁")
-    dispatch = find_source(cargo_home)
+    dispatch = (mxc_dispatch.resolve() if mxc_dispatch is not None
+                else find_source(cargo_home))
+    if not dispatch.is_file():
+        raise RuntimeError(f"缺少锁定版本 MXC dispatch.rs：{dispatch}")
     original = dispatch.read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory(prefix="codex-mxc-rehearsal-") as tmp:
         scratch = Path(tmp) / "dispatch.rs"
@@ -71,10 +76,12 @@ def rehearse(codex_rs: Path, cargo_home: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex-rs", type=Path, default=Path("upstream/codex/codex-rs"))
-    parser.add_argument("--cargo-home", type=Path, required=True)
+    parser.add_argument("--cargo-home", type=Path, default=Path.home() / ".cargo")
+    parser.add_argument("--mxc-dispatch", type=Path,
+                        help="已验证为 Cargo.toml 锁定 Git 提交的 MXC dispatch.rs")
     args = parser.parse_args()
     try:
-        result = rehearse(args.codex_rs, args.cargo_home)
+        result = rehearse(args.codex_rs, args.cargo_home, args.mxc_dispatch)
     except (OSError, RuntimeError, ValueError) as error:
         parser.exit(1, f"Android 上游升级预演失败：{error}\n")
     print("上游 Android 兼容预演通过：MXC 审计点",

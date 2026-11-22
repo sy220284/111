@@ -51,6 +51,18 @@ class UpgradeRehearsalTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "固定版本不一致"):
             rehearse(self.codex, self.cargo)
 
+    def test_explicit_verified_dispatch_does_not_need_cargo_home(self):
+        self.cargo.rename(self.cargo.with_name("moved"))
+        moved = self.cargo.with_name("moved")
+        target = (moved / "git/checkouts/mxc-test/c662018/src/"
+                  "mxc-sdk/src/core/mxc_engine/dispatch.rs")
+        result = rehearse(self.codex, self.cargo, target)
+        self.assertEqual(3, result["guarded_mxc_calls"])
+
+    def test_explicit_dispatch_path_must_exist(self):
+        with self.assertRaisesRegex(RuntimeError, "缺少锁定版本 MXC"):
+            rehearse(self.codex, self.cargo, Path(self.temp.name) / "missing.rs")
+
     def test_rejects_unpinned_mxc_revision(self):
         self.mxc.rename(self.mxc.with_name("old.rs"))
         with self.assertRaisesRegex(RuntimeError, "uniquely pinned"):

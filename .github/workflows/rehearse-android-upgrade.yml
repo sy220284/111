@@ -38,15 +38,31 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: 检验升级预演逻辑的正常和异常场景
         run: python3 -m unittest discover -s android-app/tools -p 'test_rehearse_upstream_upgrade.py'
-      - name: 安装固定的 Rust 版本
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.99.1"
-      - name: 下载 ARM64 编译依赖但跳过原生编译
-        working-directory: upstream/codex/codex-rs
-        run: cargo fetch --locked --target aarch64-linux-android
-      - name: 校验实际候选源码兼容锚点
+      - name: 只检出候选 Cargo.toml 固定的 MXC 提交
+        shell: bash
+        run: |
+          set -euo pipefail
+          MXC_REV="$(python3 - <<'PY'
+          import pathlib
+          import re
+          text = pathlib.Path("upstream/codex/codex-rs/Cargo.toml").read_text()
+          found = re.findall(
+              r'(?m)^\s*mxc-sdk\s*=\s*\{\s*git\s*=\s*"https://github.com/microsoft/mxc"\s*,\s*rev\s*=\s*"([0-9a-f]{40})"',
+              text,
+          )
+          if len(found) != 1:
+              raise SystemExit("候选 MXC 版本缺失或不唯一")
+          print(found[0])
+          PY
+          )"
+          git init -q "$RUNNER_TEMP/mxc-source"
+          git -C "$RUNNER_TEMP/mxc-source" -c protocol.version=2 fetch --depth=1 \
+            https://github.com/microsoft/mxc.git "$MXC_REV"
+          git -C "$RUNNER_TEMP/mxc-source" checkout --detach -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/mxc-source" rev-parse HEAD)" = "$MXC_REV"
+          test -s "$RUNNER_TEMP/mxc-source/src/mxc-sdk/src/core/mxc_engine/dispatch.rs"
+      - name: 校验真实候选源码与补丁兼容性
         run: |
           python3 android-app/tools/rehearse_upstream_upgrade.py \
             --codex-rs upstream/codex/codex-rs \
-            --cargo-home "${CARGO_HOME:-$HOME/.cargo}"
+            --mxc-dispatch "$RUNNER_TEMP/mxc-source/src/mxc-sdk/src/core/mxc_engine/dispatch.rs"
