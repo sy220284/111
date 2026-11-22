@@ -172,6 +172,12 @@ jobs:
         self.assertEqual("fix/android-code-mode-host-bundle-20261122",
             runner.last_workflow_query[index + 1])
 
+    def test_main_can_reuse_matching_ancestor_pr_artifact(self):
+        runner = FakeRunner(missing_abi=True, run_conclusion="cancelled")
+        self.assertEqual(ArtifactSelector(runner).find(
+            "owner/repo", "HEAD", ["arm64-v8a"], branch="main"), "21")
+        self.assertNotIn("--branch", runner.last_workflow_query)
+
     def test_fallback_to_older_unexpired_artifacts(self):
         runner = FakeRunner(expired_first=True)
         self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
