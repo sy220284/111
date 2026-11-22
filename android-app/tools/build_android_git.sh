@@ -56,6 +56,8 @@ print("Pinned Git 2.52 Android Bionic pthread adaptation verified")
 PY
 # Local Git operations run under the Android app UID. Keep required zlib,
 # but do not add unverified bundled curl/OpenSSL dynamic libraries.
+# Android Bionic exposes pthread APIs in libc, so pass an empty PTHREAD_LIBS
+# to prevent Git's upstream Makefile from linking unavailable -lpthread.
 # Git's Makefile uses SHELL_PATH for build-time generators AND target runtime.
 # Build generators must execute on Linux, while compiled paths and scripts must
 # retain Android's /system/bin/sh. Supply both target quoting variables explicitly.
@@ -63,7 +65,7 @@ make -C "$SOURCE" -j 2 git \
   "CC=$CC" "AR=$AR" "RANLIB=$RANLIB" \
   "SHELL_PATH=/bin/sh" "SHELL_PATH_SQ=/system/bin/sh" \
   'SHELL_PATH_CQ_SQ="/system/bin/sh"' \
-  "DEFAULT_EDITOR=vi" "DEFAULT_PAGER=cat" \
+  "DEFAULT_EDITOR=vi" "DEFAULT_PAGER=cat" "PTHREAD_LIBS=" \
   "CFLAGS=-O2 -fPIC" \
   "LDFLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384" \
   NO_CURL=YesPlease NO_EXPAT=YesPlease NO_GETTEXT=YesPlease \
