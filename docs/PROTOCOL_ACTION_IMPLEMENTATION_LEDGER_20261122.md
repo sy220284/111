@@ -11,11 +11,19 @@
 | 协议方法合计 | 195 | Rust 与 Kotlin 目录及 JSON 分类名称对应 |
 | 直接操作 | 40 | 页面/快捷入口，由用户执行 |
 | 上下文操作 | 44 | 选中对象后用菜单、Sheet 或行内动作 |
-| 高级按需 | 70 | 能力探测后显示，不替代稳定主流程 |
-| 后台内部 | 39 | 后台同步或服务端主动请求，UI 只显示结果 |
+| 高级按需 | 71 | 能力探测后显示，不替代稳定主流程 |
+| 后台内部 | 38 | 后台同步或服务端主动请求，UI 只显示结果 |
 | 平台不适用 | 2 | Windows Sandbox；Android 不生成入口 |
 
 **重点说明**：`initialize`、`initialized` 属于连接握手，不在上述 195 项带斜杠方法中；通知事件也不在这 195 项请求中。校验脚本还须覆盖握手、通知、服务端主动请求和返回结构。
+
+## PR #39 代码整改进度（以合并前 CI 为准）
+
+- 校验层：现已将官方 187 项客户端请求、8 项 Host 请求、84 项通知、初始化握手、DTO 类型、业务归属、实验标签、稳定 JSON Schema 与 Kotlin 接入点分开校验；包含实验性的 `thread/start.projectId` 与 `turn/start.collaborationMode`。
+- 协议分类：`server/diagnostics` 已改为高级按需；`command/exec/resize` 已移除过期的条件等效记录。
+- 交互层：受限 Host 能力返回实际原因并显示在首页/任务页；MCP 工具表单按类型校验且数值项调用数字键盘，失败时保留输入。
+- 审计口径：单独统计协议字符串出现、可识别 RPC 调用表达式、真实设备行为。静态源码引用不再称为功能验收通过。
+- 剩余设备验收：本 PR 最终提交的编译、单测、Lint、Android 模拟器实测，以及真实账号/MCP/ARM64 核心交互，均须以同一代码版本的运行证据确认。
 
 ## 已查出的差异与落实任务
 
@@ -273,7 +281,7 @@
 
 | 方法 | 方向 | 用途/动作 | 官方请求/响应类型 | 展示责任 | 推荐精确组件 | 具体实现路径 | 源码/验证状态 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `server/diagnostics` | Android→服务端 | 读取服务端运行诊断 | `ServerDiagnosticsParams → ServerDiagnosticsResponse` | 后台处理：高级诊断 | 高级诊断按钮/数据分组卡 | 后台事件/缓存/权限/同步管理；不新增独立按钮 | 已定位 Android RPC 引用；待端到端实测 | P2 |
+| `server/diagnostics` | Android→服务端 | 读取服务端运行诊断 | `ServerDiagnosticsParams → ServerDiagnosticsResponse` | 高级按需：高级诊断 | 高级诊断按钮/数据分组卡 | 诊断页主动请求→只读诊断状态→按需展开详情并显式提示错误 | 已定位 Android RPC 引用；待端到端实测 | P2 |
 | `userVerification/status` | Android→服务端 | 查看用户身份核验状态 | `UserVerificationStatusParams → UserVerificationStatusResponse` | 后台处理：后台安全流程 | 详情阅读 Sheet / 状态卡 | 后台事件/缓存/权限/同步管理；不新增独立按钮 | 待逐项验证调用入口/响应/实测 | P2 |
 | `userVerification/enroll` | Android→服务端 | 登记用户身份核验方式 | `UserVerificationEnrollParams → UserVerificationEnrollResponse` | 后台处理：后台安全流程 | 按需输入 Sheet＋校验 | 后台事件/缓存/权限/同步管理；不新增独立按钮 | 待逐项验证调用入口/响应/实测 | P2 |
 | `userVerification/delete` | Android→服务端 | 删除身份核验登记 | `UserVerificationDeleteParams → UserVerificationDeleteResponse` | 后台处理：后台安全流程 | 危险动作确认 Dialog＋回执 | 后台事件/缓存/权限/同步管理；不新增独立按钮 | 待逐项验证调用入口/响应/实测 | P2 |

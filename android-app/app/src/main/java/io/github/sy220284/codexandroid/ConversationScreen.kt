@@ -224,6 +224,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
+        errors["protocol"]?.let { reason ->
+            CodexNotice(reason, NoticeTone.Warning,
+                Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
+        }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (switching) {
                 ConversationLoadingSkeleton(Modifier.fillMaxSize())

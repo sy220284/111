@@ -9,8 +9,8 @@ class UiProtocolMatrixTest {
         assertEquals(195, UiProtocolMatrix.byMethod.size)
         assertEquals(40, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
         assertEquals(44, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
-        assertEquals(70, UiProtocolMatrix.advanced.size)
-        assertEquals(41, UiProtocolMatrix.systemOnly.size)
+        assertEquals(71, UiProtocolMatrix.advanced.size)
+        assertEquals(40, UiProtocolMatrix.systemOnly.size)
     }
 
     @Test fun newSurfacesAreUniqueAndKeepAllExistingRoutes() {

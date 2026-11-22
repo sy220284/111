@@ -26,6 +26,26 @@ class RpcEnvelopeRouterTest {
         }
     }
 
+    @Test fun everyOfficialHostRequestHasAnExplicitPolicy() {
+        val expected = setOf(
+            "item/commandExecution/requestApproval",
+            "item/fileChange/requestApproval",
+            "item/permissions/requestApproval",
+            "item/tool/requestUserInput",
+            "mcpServer/elicitation/request",
+            "item/tool/call",
+            "account/chatgptAuthTokens/refresh",
+            "attestation/generate"
+        )
+        assertEquals(expected, RpcEnvelopeRouter.officialHostRequests)
+        for (method in RpcEnvelopeRouter.gatedHostRequests) {
+            assertEquals(RpcEnvelopeKind.UnsupportedHostRequest,
+                RpcEnvelopeRouter.classify(JSONObject().put("id", 7)
+                    .put("method", method)))
+            org.junit.Assert.assertTrue(RpcEnvelopeRouter.unsupportedReason(method).isNotBlank())
+        }
+    }
+
     @Test fun unknownHostMethodReceivesExplicitUnsupportedResponse() {
         assertEquals(RpcEnvelopeKind.UnsupportedHostRequest,
             RpcEnvelopeRouter.classify(JSONObject().put("id", 7)

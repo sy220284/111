@@ -53,11 +53,11 @@
 |---|---:|---|
 | 直接操作 | 40 | 由用户明示的业务入口触发 |
 | 上下文操作 | 44 | 需要当前会话/文件/服务或审批对象 |
-| 高级按需 | 70 | 按当前内核支持能力开放；无服务支持不显示危险执行入口 |
-| 后台内部 | 39 | 只展示可读状态、错误或审批反馈 |
+| 高级按需 | 71 | 按当前内核支持能力开放；无服务支持不显示危险执行入口 |
+| 后台内部 | 38 | 只展示可读状态、错误或审批反馈 |
 | 平台不适用 | 2 | 不出普通 Android 操作入口 |
 
-以下属于不应简单新增执行按钮的场景：`fs/readFile/writeFile/createDirectory/readDirectory/remove/copy` 对应当前 Android 工作区的真实本地文件操作；`thread/items/read` 与 `thread/timeline/list` 为高级按条件读取，已有条目分页和全文阅读能力；`command/exec/resize` 需真实 PTY 网格才能正确使用；`plugin/search`、`accountSession/list/switch` 等实验能力需完成正式协议字段和当前服务可用性确认后启用。全部保留在 195 项分类中，并未伪装成已支持按钮。
+以下属于不应简单新增执行按钮的场景：`fs/readFile/writeFile/createDirectory/readDirectory/remove/copy` 对应当前 Android 工作区的真实本地文件操作；`thread/items/read` 与 `thread/timeline/list` 为高级按条件读取，已有条目分页和全文阅读能力；`command/exec/resize` 已通过真实 PTY 行列设置进行调用，按运行状态和尺寸校验控制入口；`plugin/search`、`accountSession/list/switch` 等实验能力需完成正式协议字段和当前服务可用性确认后启用。全部保留在 195 项分类中，并未伪装成已支持按钮。
 
 ## 五、真实验收清单
 
