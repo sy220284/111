@@ -131,6 +131,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      # Jobs have separate workspaces. The APK and its audit script are both
+      # required; the upload artifact contains only the APK, not repository files.
+      - name: 检出 APK 安全检查脚本
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            /.github/scripts/audit_apk_contents.py
+          sparse-checkout-cone-mode: false
       - name: 取回 ARM64 原生 APK
         uses: actions/download-artifact@v4
         with:
