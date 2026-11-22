@@ -66,6 +66,13 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
+      - name: 三方核验上游协议、Android 方法目录与界面层级
+        run: |
+          python3 android-app/tools/check_ui_protocol_matrix.py \
+            --matrix android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt \
+            --policy android-app/tools/ui_surface_policy.json \
+            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
+          python3 android-app/tools/test_check_ui_protocol_matrix.py
       - name: 检查 Kotlin 源文件体量并阻断超大文件回归
         run: |
           python3 android-app/tools/check_kotlin_file_budget.py \
