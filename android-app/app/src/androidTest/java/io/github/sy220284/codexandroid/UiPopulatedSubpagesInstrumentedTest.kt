@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
@@ -26,6 +27,53 @@ class UiPopulatedSubpagesInstrumentedTest {
     private fun capture(name: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(name)
+    }
+
+    @Test fun sidebarSessionRendersRealThreadAndOpensSelectedId() {
+        val item = JSONObject().put("id", "ci-thread-001")
+            .put("name", "检查工作区代码")
+            .put("cwd", "/data/user/0/ci/projects")
+        var opened = ""
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionRow(
+                    item = item, active = true, running = false, enabled = true,
+                    onClick = { opened = item.optString("id") }
+                )
+            }
+        }
+        rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsDisplayed()
+        rule.onNodeWithText("检查工作区代码").assertExists()
+        rule.onNodeWithContentDescription("当前会话").assertExists()
+        capture("audit-sidebar-thread-android35.png")
+        rule.onNodeWithTag("sidebar-thread-ci-thread-001").performClick()
+        rule.runOnIdle { assertEquals("ci-thread-001", opened) }
+    }
+
+    @Test fun composerKeepsStopAndSteerReachableDuringActiveTurn() {
+        var sent = false
+        var stopped = false
+        rule.setContent {
+            CodexTheme {
+                ConversationComposer(
+                    draft = "检查这一轮修改", onDraftChange = {},
+                    attachedCount = 0, connected = true,
+                    running = true, stopping = false,
+                    canStop = true, canSend = true, sending = false,
+                    onAttach = {}, onStop = { stopped = true }, onSend = { sent = true }
+                )
+            }
+        }
+        rule.onNodeWithTag("composer-stop").assertIsDisplayed()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        rule.onNodeWithText("补充", substring = false).assertExists()
+        capture("audit-composer-running-android35.png")
+        rule.onNodeWithTag("composer-stop").performClick()
+        rule.onNodeWithTag("composer-send").performClick()
+        rule.runOnIdle {
+            assertEquals(true, stopped)
+            assertEquals(true, sent)
+        }
     }
 
     @Test fun conversationApprovalSheetRendersActualCommandAndDecision() {
