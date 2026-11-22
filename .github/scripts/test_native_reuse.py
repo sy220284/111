@@ -37,12 +37,14 @@ jobs:
 
 class FakeRunner:
     def __init__(self, *, changed_source=False, changed_recipe=False,
-                 expired_first=False, missing_abi=False, ancestor=True):
+                 expired_first=False, missing_abi=False, ancestor=True,
+                 changed_code_mode_adapter=False):
         self.changed_source = changed_source
         self.changed_recipe = changed_recipe
         self.expired_first = expired_first
         self.missing_abi = missing_abi
         self.ancestor = ancestor
+        self.changed_code_mode_adapter = changed_code_mode_adapter
         self.called_api = 0
 
     def __call__(self, args):
@@ -52,7 +54,11 @@ class FakeRunner:
             is_upstream = ref.endswith(":upstream/codex")
             if is_upstream and is_old and self.changed_source:
                 return "old-tree"
-            return "same-tree" if is_upstream else "same-patcher"
+            if is_upstream:
+                return "same-tree"
+            if ref.endswith(":android-app/tools/prepare_android_code_mode.py"):
+                return "old-adapter" if is_old and self.changed_code_mode_adapter else "same-adapter"
+            return "same-patcher"
         if args[:2] == ["git", "show"]:
             ref = args[2]
             if ref.endswith(":CODEX_UPSTREAM_COMMIT"):
@@ -125,6 +131,12 @@ class NativeReuseTests(unittest.TestCase):
         runner = FakeRunner(changed_recipe=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
+
+    def test_changed_code_mode_adapter_must_recompile(self):
+        runner = FakeRunner(changed_code_mode_adapter=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
 
     def test_unrelated_history_cannot_reuse(self):
         runner = FakeRunner(ancestor=False)
