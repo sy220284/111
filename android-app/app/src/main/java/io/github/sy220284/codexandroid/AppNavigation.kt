@@ -430,14 +430,21 @@ private fun Sidebar(
         }
         Row(
             Modifier.fillMaxWidth().heightIn(min = 36.dp)
-                .clickable { onSelect("status") }.padding(horizontal = 12.dp),
+                .clickable {
+                    if (status is EngineStatus.Unavailable) vm.connect()
+                    else onSelect("status")
+                }.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Outlined.RadioButtonChecked, null,
                 tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning,
                 modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(10.dp))
-            Text(if (status == EngineStatus.Connected) "内核已连接" else "查看连接状态",
+            Text(when (status) {
+                EngineStatus.Connected -> "内核已连接"
+                EngineStatus.Starting -> "正在连接本机内核"
+                is EngineStatus.Unavailable -> "连接已断开 · 点击重连"
+            },
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
