@@ -83,6 +83,24 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-thread-bulk-selection-android35.png")
     }
 
+    @Test fun approvalLogShowsPrivateHistoryAndConfirmsDeletion() {
+        var cleared = false
+        rule.setContent {
+            CodexTheme {
+                ApprovalAuditSection(
+                    listOf(ApprovalAuditRecord(1730000000000, "执行命令", "允许本次", "git status")),
+                    null, onClear = { cleared = true }
+                )
+            }
+        }
+        rule.onNodeWithTag("approval-audit-toggle").performClick()
+        rule.onNodeWithText("git status").assertIsDisplayed()
+        capture("audit-approval-history-android35.png")
+        rule.onNodeWithTag("approval-audit-clear").performClick()
+        rule.onNodeWithText("确认清除").performClick()
+        rule.runOnIdle { assertEquals(true, cleared) }
+    }
+
     @Test fun composerTextEditingUpdatesSendAvailability() {
         var text by mutableStateOf("")
         var submitted = ""
