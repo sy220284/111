@@ -34,6 +34,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val running = MutableStateFlow(false)
     /** All running threads, including tasks no longer visible on the current page. */
     val threadExecutions = MutableStateFlow<Map<String, ThreadExecution>>(emptyMap())
+    val threadFailures = MutableStateFlow<Map<String, String>>(emptyMap())
     /** The first RPC must create a real thread ID before we can switch away. */
     val firstThreadStarting = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
@@ -170,6 +171,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         onSuccess: ((JSONObject) -> Unit)?,
         userAction: Boolean = false
     ) {
+        if (method in setOf("thread/delete", "thread/archive") &&
+            params.optString("threadId") in threadExecutions.value) {
+            val reason = "所选会话仍有执行中的任务，请先停止或等待完成后再整理"
+            errors.value = errors.value + (key to reason)
+            if (userAction) viewModelScope.launch {
+                actionFeedback.emit(ActionFeedbackCopy.failure(method, reason))
+            }
+            return
+        }
         retainRecentQuery(key)
         val ticket = latestRequests.begin(key)
         data.value = data.value - key
@@ -335,6 +345,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val execution = threadExecutions.value[id]
                 running.value = execution != null
                 activeTurn.value = execution?.turnId
+                errors.value = errors.value - "conversation"
+                threadFailures.value[id]?.let { reason ->
+                    errors.value = errors.value + ("conversation" to reason)
+                }
                 latestDiff.value = ""
                 timeline.value = newest
             } catch (failure: Exception) {
@@ -364,6 +378,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         // Users can intentionally clear it in the input field.
         activeThread.value = null
         activeTurn.value = null
+        errors.value = errors.value - "conversation"
         timeline.value = emptyList()
         viewModelScope.launch { timelineWindow.clear() }
         latestDiff.value = ""
@@ -492,6 +507,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 turnRequestDispatched = true
                 val response = bridge.request("turn/start", params)
                 val acceptedTurn = response.optJSONObject("turn")?.optString("id")
+                threadFailures.value = threadFailures.value - id
                 if (id in threadExecutions.value) {
                     threadExecutions.value = ThreadExecutionPolicy.started(
                         threadExecutions.value, id, acceptedTurn)
@@ -544,12 +560,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val message = SubmissionFailurePolicy.message(
                     failure, turnRequestDispatched) + recoveryNote
+                if (submittedId != null) {
+                    threadFailures.value = ThreadExecutionPolicy.failureUpdated(
+                        threadFailures.value, submittedId, message)
+                }
                 if (activeThread.value == submittedId) {
                     errors.value = errors.value + ("conversation" to message)
                     timeline.value = timeline.value + TimelineItem(
                         "failure-" + UUID.randomUUID(), "error", message)
-                } else if (submittedId != null) {
-                    errors.value = errors.value + ("threadSubmit:" + submittedId to message)
                 }
             }
         }
@@ -781,6 +799,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             threadExecutions.value = ThreadExecutionPolicy.finish(
                 threadExecutions.value, threadId)
             val completed = params.optJSONObject("turn")?.optString("status") == "completed"
+            if (!completed) {
+                val reason = params.optJSONObject("turn")?.optJSONObject("error")
+                    ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }
+                threadFailures.value = ThreadExecutionPolicy.failureUpdated(
+                    threadFailures.value, threadId, reason)
+            } else threadFailures.value = threadFailures.value - threadId
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
