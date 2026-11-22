@@ -30,8 +30,10 @@ permissions:
 
 concurrency:
   # Keep independent branches from blocking each other; supersede stale PR builds.
-  group: android-native-codex-${{ github.event.pull_request.number || github.ref_name }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Native V8 compilation takes hours; keep builds of distinct revisions alive
+  # so fixing one ABI does not discard another ABI's expensive progress.
+  group: android-native-codex-${{ github.event.pull_request.number || github.ref_name }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   reuse:
