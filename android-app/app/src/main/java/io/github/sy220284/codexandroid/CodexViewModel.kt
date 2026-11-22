@@ -52,6 +52,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val loginBusy = MutableStateFlow(false)
     val steerBusy = MutableStateFlow(false)
     val terminalSession = MutableStateFlow(TerminalSessionState())
+    val terminalTranscript = TerminalTranscriptStore(File(application.filesDir, "terminal-transcript"))
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
@@ -527,7 +528,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         errors.value = errors.value - "terminal"
         viewModelScope.launch {
             try {
+                terminalTranscript.begin(id)
                 val result = bridge.request("command/exec", args, timeoutMillis = null)
+                terminalTranscript.appendTail(id, result)
                 val active = terminalSession.value
                 if (active.processId == id) terminalSession.value = active.finish(result)
             } catch (failure: Exception) {
@@ -632,7 +635,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun receive(message: JSONObject) {
+    private suspend fun receive(message: JSONObject) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
@@ -657,6 +660,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 params.optString("processId") == active.processId && active.running) {
                 try {
                     terminalSession.value = active.append(params)
+                    terminalTranscript.appendNotification(params)
                 } catch (failure: Exception) {
                     terminalSession.value = active.copy(error =
                         "终端输出解码失败：" + (failure.message ?: "非法输出"))

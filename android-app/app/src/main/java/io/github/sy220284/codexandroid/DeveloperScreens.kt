@@ -417,6 +417,36 @@ fun TerminalPage(vm: CodexViewModel) {
     var historyPosition by remember { mutableStateOf(TerminalHistoryPosition()) }
     var expandedOutput by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val transcriptAvailable by vm.terminalTranscript.available.collectAsState()
+    val transcriptError by vm.terminalTranscript.error.collectAsState()
+    var exportTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var exportBusy by remember { mutableStateOf(false) }
+    var exportStatus by remember { mutableStateOf("") }
+    val logPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val target = exportTarget
+        exportTarget = null
+        if (uri != null && target != null) {
+            exportBusy = true
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val out = context.contentResolver.openOutputStream(uri)
+                            ?: throw java.io.IOException("无法写入所选文件")
+                        out.use { vm.terminalTranscript.export(target.first, target.second, it) }
+                    }
+                    exportStatus = "终端日志已保存到所选位置"
+                } catch (failure: Exception) {
+                    exportStatus = "终端日志保存失败：" + (failure.message ?: "请检查保存位置")
+                } finally {
+                    exportBusy = false
+                }
+            }
+        }
+    }
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
@@ -562,9 +592,13 @@ fun TerminalPage(vm: CodexViewModel) {
                 }
                 session.error?.let { ErrorText(it) }
                 if (session.outputTruncated) {
-                    CodexNotice("已保留终端最近 128KiB 输出，较早日志已从界面移出。",
-                        NoticeTone.Warning)
+                    CodexNotice(
+                        if (transcriptAvailable) "界面仅显示最近 128KiB；可用下方按钮导出本机留存的执行日志。"
+                        else "界面仅保留最近 128KiB，较早日志已不可读取。",
+                        NoticeTone.Warning
+                    )
                 }
+                transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(
@@ -592,6 +626,26 @@ fun TerminalPage(vm: CodexViewModel) {
                         modifier = Modifier.heightIn(min = 48.dp)
                     ) { Text(if (expandedOutput) "收起" else "展开") }
                 }
+                if (transcriptAvailable) {
+                    OutlinedButton(
+                        onClick = {
+                            exportTarget = session.processId to session.command
+                            exportStatus = ""
+                            logPicker.launch("Codex-终端执行日志.txt")
+                        },
+                        enabled = !exportBusy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("terminal-export-log")
+                    ) {
+                        Icon(Icons.Outlined.SaveAlt, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(if (exportBusy) "正在保存…" else "导出本机执行日志（含错误输出）")
+                    }
+                }
+                if (exportStatus.isNotBlank())
+                    Text(exportStatus,
+                        color = if (exportStatus.contains("失败")) Ink.red else Ink.jade,
+                        style = MaterialTheme.typography.labelMedium)
                 DividerLine()
                 SelectionContainer {
                     Text(session.stdoutText.takeLast(if (expandedOutput) 128_000 else 16_000).ifBlank {
