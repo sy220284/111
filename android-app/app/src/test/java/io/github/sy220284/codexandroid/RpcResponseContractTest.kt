@@ -31,6 +31,7 @@ class RpcResponseContractTest {
             RpcResponseContract.requireResult("project/create", envelope)
             fail("服务端拒绝不应进入成功回调")
         } catch (failure: IllegalStateException) {
+            assertTrue(failure is RpcServerRejection)
             assertTrue(failure.message.orEmpty().contains("该能力尚未启用"))
             assertTrue(failure.message.orEmpty().contains("-32601"))
         }
