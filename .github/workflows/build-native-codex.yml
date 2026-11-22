@@ -207,11 +207,13 @@ jobs:
           # Link all ELF LOAD segments on 16 KB boundaries.
           RUST_LINK_FLAGS="-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"
           if [ "$TARGET" = "aarch64-linux-android" ]; then
-            # Sandbox V8 uses __clear_cache; Rust's -nodefaultlibs link needs
-            # the Android NDK compiler-rt runtime linked explicitly.
+            # ARM64 sandbox V8 needs the NDK compiler-rt cache-flush builtin.
             BUILTINS="$("$BIN/${{ matrix.clang }}" -print-file-name=libclang_rt.builtins-aarch64-android.a)"
             test -f "$BUILTINS"
-            "$BIN/llvm-nm" --defined-only "$BUILTINS" | grep -Eq ' [TW] __clear_cache
+            "$BIN/llvm-nm" --defined-only "$BUILTINS" | grep -E " __clear_cache"
+            RUST_LINK_FLAGS="$RUST_LINK_FLAGS -C link-arg=$BUILTINS"
+          fi
+          export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
           cargo build --locked --release \
             -p codex-app-server --bin codex-app-server \
