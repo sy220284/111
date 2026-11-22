@@ -8,10 +8,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -52,7 +48,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
+    private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
+    val composerDrafts = draftStorage.drafts
     private val attachmentController by lazy {
         AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors)
     }
@@ -90,19 +87,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             bridge.events.collect { receive(it) }
         }
-        viewModelScope.launch {
-            composerDrafts.collectLatest { snapshot ->
-                delay(350)
-                try {
-                    withContext(Dispatchers.IO) {
-                        DraftPersistence.save(application.applicationContext, snapshot)
-                    }
-                    errors.value = errors.value - "drafts"
-                } catch (failure: Exception) {
-                    errors.value = errors.value + ("drafts" to
-                        (failure.message ?: "未发送文字无法保存到本机"))
-                }
-            }
+        draftStorage.start { key, warning ->
+            errors.value = if (warning == null) errors.value - key
+                else errors.value + (key to warning)
         }
         viewModelScope.launch {
             bridge.status.collect { current ->
@@ -115,14 +102,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        viewModelScope.launch {
-            try {
-                LocalImageAttachments.cleanExpired(application.applicationContext)
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("attachments" to
-                    (failure.message ?: "附件缓存清理失败"))
-            }
-        }
+
         connect()
     }
 

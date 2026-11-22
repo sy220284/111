@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 8 项；有对应实现待专项验收 58 项；部分处理 23 项；待完整实施 9 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 8 项；有对应实现待专项验收 59 项；部分处理 22 项；待完整实施 9 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -43,7 +43,7 @@
 | 31 | B | VM.receive() 仍 250+ 行 if-else 大杂烩——事件分发应表驱动（TimelineReconciler 只接了一半） | 已有部分改动 | TimelineEventReducer.kt |
 | 32 | B | 连接策略多点暴露：诊断页/设置页各有手动连接入口——自动重连为主+手动兜底应单点化 | 已提交待专项验收 | ConnectionRestartController.kt |
 | 33 | B | 任务完成后的图片清理在 VM receive 协程，但 UI attachmentError 不感知清理结果——状态两处管 | 已提交待专项验收 | CodexViewModel.kt |
-| 34 | B | 草稿持久化时机由 UI 输入事件驱动写盘——防抖/合并策略应在持久层 | 已有部分改动 | DraftPersistence.kt |
+| 34 | B | 草稿持久化时机由 UI 输入事件驱动写盘——防抖/合并策略应在持久层 | 已提交待专项验收 | DraftStorageController.kt · DraftPersistence.kt；持久层统一负责350ms合并写盘、恢复和过期孤儿图片管理 |
 | 35 | B | 首回合拒绝后的空会话清理逻辑（thread/read 确认）埋在 VM 发送链——应独立恢复策略对象并测 | 专项验收通过 | FirstTurnRecoveryController.kt；3/3 单元测试通过 |
 | 36 | C | 通知图标用 android.R.drawable.ic_media_play（系统播放三角）——占位符级，语义错位 | 已提交待专项验收 | ic_codex_status.xml |
 | 37 | C | 通知无"停止任务"操作按钮——Android 媒体/下载类通知惯例带 action | 已提交待专项验收 | CodexForegroundService.kt |
@@ -73,7 +73,7 @@
 | 61 | D | R8 混淆+资源压缩未开（isMinifyEnabled=false）——143MB APK 瘦身第一刀 | **安全评估后跳过本轮启用** | app/build.gradle.kts · APK_SIZE_SAFETY_ASSESSMENT_20261122.md；缺失完整 ARM64 正式包运行验证与全页面回归 |
 | 62 | D | APK 继续瘦身：上游静态资源剔除、per-language split 评估 | **安全评估后跳过侵入式瘦身** | APK_SIZE_SAFETY_ASSESSMENT_20261122.md；保留运行依赖、离线及语言支持 |
 | 63 | D | timeline 进程级无界增长（session 长驻后加剧）——分页/窗口化裁剪 | 专项验收通过 | TimelineWindowStore.kt；2/2 长历史与分页单元测试通过 |
-| 64 | D | composerDrafts 无上限累积——LRU/超期清理 | 已提交待专项验收（改为无损空草稿清理） | ThreadComposerDrafts.kt · DraftPersistence.kt · 超过 128 条保留回归测试 |
+| 64 | D | composerDrafts 无上限累积——LRU/超期清理 | 已提交待专项验收（无损清理、未发送图片持久保存） | ThreadComposerDrafts.kt · DraftPersistence.kt · LocalImageAttachments.kt · AttachmentRetentionPolicy.kt；200条草稿保留、图片恢复与无损过期回归测试 |
 | 65 | D | errors map 无界（动态 key 残留）——TTL/上限 | 已有部分改动 | CodexViewModel.kt |
 | 66 | D | LazyColumn key 稳定性审计（id 稳定防全列表重组） | 已有部分改动 | ThreadLibraryPage.kt |
 | 67 | D | 图片导入串行 forEach——并行化+进度 | 已提交待专项验收 | AttachmentImportController.kt |
