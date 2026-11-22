@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,33 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
+/** Preserves the exact same drawer selection/search/scroll during width changes. */
+internal class SidebarUiState(
+    initialSearch: String = "",
+    initialSearching: Boolean = false,
+    initialMore: Boolean = false,
+    initialIndex: Int = 0,
+    initialOffset: Int = 0
+) {
+    var search by mutableStateOf(initialSearch)
+    var searching by mutableStateOf(initialSearching)
+    var more by mutableStateOf(initialMore)
+    val scroll = LazyListState(initialIndex, initialOffset)
+
+    companion object {
+        val Saver = Saver<SidebarUiState, List<Any>>(
+            save = {
+                listOf(it.search, it.searching, it.more,
+                    it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset)
+            },
+            restore = {
+                SidebarUiState(it[0] as String, it[1] as Boolean, it[2] as Boolean,
+                    it[3] as Int, it[4] as Int)
+            }
+        )
+    }
+}
+
 /**
  * 最近会话与工作台入口共享同一个抽屉。列表来自 thread/list，
  * 点击只提交真实会话 ID 给 ViewModel，不在界面伪造恢复成功。
@@ -32,8 +61,10 @@ internal fun SidebarSessions(
     vm: CodexViewModel,
     onOpenThread: (String) -> Unit,
     onViewAll: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    uiState: SidebarUiState? = null
 ) {
+    val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -60,7 +91,8 @@ internal fun SidebarSessions(
         onRefresh = {
             vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 100))
         },
-        onOpenThread = onOpenThread
+        onOpenThread = onOpenThread,
+        uiState = state
     )
 }
 
@@ -79,17 +111,19 @@ internal fun SidebarSessionsContent(
     switching: Boolean,
     onRefresh: () -> Unit,
     onOpenThread: (String) -> Unit,
-    pendingApprovals: Int = 0
+    pendingApprovals: Int = 0,
+    uiState: SidebarUiState? = null
 ) {
-    var searching by rememberSaveable { mutableStateOf(false) }
-    var search by rememberSaveable { mutableStateOf("") }
+    val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    val searching = state.searching
+    val search = state.search
     val matches = all.filter { item ->
         search.isBlank() || listOf(
             item.optString("name"), item.optString("preview"), item.optString("cwd")
         ).any { it.contains(search.trim(), ignoreCase = true) }
     }
 
-    val scroll = rememberLazyListState()
+    val scroll = state.scroll
     LaunchedEffect(search, searching) {
         scroll.scrollToItem(0)
     }
@@ -129,8 +163,8 @@ internal fun SidebarSessionsContent(
                     style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 IconButton(
                     onClick = {
-                        searching = !searching
-                        if (!searching) search = ""
+                        state.searching = !searching
+                        if (!state.searching) state.search = ""
                     },
                     modifier = Modifier.size(48.dp).testTag("sidebar-search-toggle")
                 ) {
@@ -151,7 +185,7 @@ internal fun SidebarSessionsContent(
         }
         if (searching) item(key = "session-search") {
             OutlinedTextField(
-                value = search, onValueChange = { search = it },
+                value = search, onValueChange = { state.search = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
                     .testTag("sidebar-search"),
                 placeholder = { Text("搜索当前会话") },
