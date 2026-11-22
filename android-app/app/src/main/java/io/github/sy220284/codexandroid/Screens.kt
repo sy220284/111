@@ -527,15 +527,16 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onStop = { stopRequested = true; vm.interrupt() },
                 onSend = {
                     val message = draft.trim()
+                    val submittedDraft = draft
                     if (busy) {
                         vm.steerPrompt(message) {
-                            vm.clearComposerAfterAccepted(thread, message, emptyList())
+                            vm.clearComposerAfterAccepted(thread, submittedDraft, emptyList())
                         }
                     } else {
                         val images = attachedImages.toList()
                         vm.sendPrompt(message, images) {
                             // 首条消息创建真实会话后，草稿已迁移到新 threadId。
-                            vm.clearComposerAfterAccepted(vm.activeThread.value, message, images)
+                            vm.clearComposerAfterAccepted(vm.activeThread.value, submittedDraft, images)
                         }
                     }
                 }
