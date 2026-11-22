@@ -28,7 +28,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
-    val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
+    private val workspaceRoot = application.filesDir.resolve("projects").apply { mkdirs() }.canonicalFile
+    val workingDirectory = workspaceRoot.absolutePath
+    private val workspacePreferences = application.getSharedPreferences("codex-workspace", 0)
+    private val restoredWorkspace = WorkspaceSelectionContract.restore(
+        workspaceRoot, workspacePreferences.getString("activeDirectory", null))
+    val activeWorkspace = MutableStateFlow(restoredWorkspace.directory.absolutePath)
+    val activeProjectId = MutableStateFlow<String?>(null)
+    val projectCatalogRevision = MutableStateFlow(0)
+    val planApprovalBusy = MutableStateFlow(false)
     val activeThread = MutableStateFlow<String?>(null)
     val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
@@ -53,9 +61,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val steerBusy = MutableStateFlow(false)
     val terminalSession = MutableStateFlow(TerminalSessionState())
     internal val terminalTranscript = TerminalTranscriptStore(File(application.filesDir, "terminal-transcript"))
+    private val workspaceTasks by lazy {
+        WorkspaceTaskOperations(this, workspaceRoot, workspacePreferences, viewModelScope)
+    }
+    private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
+        restoredWorkspace.warning?.let { warning ->
+            errors.value = errors.value + ("workspace" to warning)
+        }
         viewModelScope.launch {
             bridge.events.collect { receive(it) }
         }
@@ -284,7 +299,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                val threadDirectory = WorkspaceSelectionContract.validate(
+                    workspaceRoot, File(history.getJSONObject("thread").getString("cwd")))
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
+                activeWorkspace.value = threadDirectory.absolutePath
+                activeProjectId.value = history.getJSONObject("thread")
+                    .optString("projectId").takeIf { it.isNotBlank() }
+                workspacePreferences.edit()
+                    .putString("activeDirectory", threadDirectory.absolutePath).apply()
                 data.value = data.value + ("threadHistory" to history)
                 activeThread.value = id
                 running.value = false
@@ -297,6 +319,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /** Workspace and plan actions share the validated local project root. */
+    fun selectWorkspace(folder: File) = workspaceTasks.selectWorkspace(folder)
+    fun selectProject(projectId: String, folder: File) =
+        workspaceTasks.selectProject(projectId, folder)
+    fun approvePlan(markdown: String) = workspaceTasks.approvePlan(markdown)
 
     fun newThread() {
         if (threadSwitching.value) {
@@ -351,6 +379,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
+        val chosenWorkspace = activeWorkspace.value
+        val chosenProject = activeProjectId.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
             val pendingId = "pending-" + UUID.randomUUID()
@@ -379,8 +409,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 var id = activeThread.value
                 if (id == null) {
-                    val args = JSONObject().put("cwd", workingDirectory)
-                    if (chosenModel.isNotBlank()) args.put("model", chosenModel)
+                    val cwd = WorkspaceSelectionContract.validate(
+                        workspaceRoot, File(chosenWorkspace)).absolutePath
+                    val args = ProjectRequestContract.threadStart(
+                        File(cwd), chosenProject, chosenModel)
                     val createdId = bridge.request("thread/start", args)
                         .getJSONObject("thread").getString("id")
                     newlyCreatedThreadId = createdId
@@ -516,67 +548,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Terminal commands are always launched from an explicitly confirmed UI action. */
-    fun startTerminalCommand(command: String) {
-        if (terminalSession.value.running) {
-            errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
-            return
-        }
-        val id = UUID.randomUUID().toString()
-        val args = TerminalSessionContract.execute(command, workingDirectory, id)
-        terminalSession.value = TerminalSessionState.start(id, command)
-        errors.value = errors.value - "terminal"
-        viewModelScope.launch {
-            try {
-                terminalTranscript.begin(id)
-                val result = bridge.request("command/exec", args, timeoutMillis = null)
-                terminalTranscript.appendTail(id, result)
-                val active = terminalSession.value
-                if (active.processId == id) terminalSession.value = active.finish(result)
-            } catch (failure: Exception) {
-                val active = terminalSession.value
-                if (active.processId == id) {
-                    terminalSession.value = active.fail(failure.message ?: "终端命令执行失败")
-                }
-            }
-        }
-    }
-
-    fun sendTerminalInput(line: String, afterSent: () -> Unit = {}) {
-        val state = terminalSession.value
-        if (!state.running || state.terminating) return
-        val args = TerminalSessionContract.write(state.processId, line)
-        viewModelScope.launch {
-            try {
-                bridge.request("command/exec/write", args)
-                errors.value = errors.value - "terminalInput"
-                afterSent()
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("terminalInput" to
-                    (failure.message ?: "终端输入失败"))
-            }
-        }
-    }
-
-    fun stopTerminalCommand() {
-        val active = terminalSession.value
-        if (!active.running || active.terminating) return
-        terminalSession.value = active.copy(terminating = true)
-        viewModelScope.launch {
-            try {
-                bridge.request("command/exec/terminate",
-                    TerminalSessionContract.terminate(active.processId))
-                errors.value = errors.value - "terminalStop"
-            } catch (failure: Exception) {
-                val current = terminalSession.value
-                if (current.processId == active.processId && current.running) {
-                    terminalSession.value = current.copy(terminating = false)
-                    errors.value = errors.value + ("terminalStop" to
-                        (failure.message ?: "无法停止终端命令"))
-                }
-            }
-        }
-    }
+    fun startTerminalCommand(command: String, tty: Boolean = false) =
+        terminalTasks.startTerminalCommand(command, tty)
+    fun resizeTerminal(rows: Int, cols: Int) = terminalTasks.resizeTerminal(rows, cols)
+    fun sendTerminalInput(line: String, afterSent: () -> Unit = {}) =
+        terminalTasks.sendTerminalInput(line, afterSent)
+    fun stopTerminalCommand() = terminalTasks.stopTerminalCommand()
 
     fun startLogin() = beginLogin("chatgpt")
 
@@ -653,6 +630,22 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
+        }
+        if (method == "project/changed") {
+            val changedId = params.optString("projectId")
+            if (params.optString("changeType") == "deleted" &&
+                changedId == activeProjectId.value) activeProjectId.value = null
+            projectCatalogRevision.value += 1
+            return
+        }
+        if (method == "thread/project/updated") {
+            if (threadId == activeThread.value) {
+                activeProjectId.value = params.optString("projectId")
+                    .takeIf { it.isNotBlank() }
+            }
+            syncRecentThreads()
+            projectCatalogRevision.value += 1
+            return
         }
         if (method == "command/exec/outputDelta") {
             val active = terminalSession.value

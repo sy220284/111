@@ -2,6 +2,10 @@ package io.github.sy220284.codexandroid
 
 import android.os.Build
 import java.io.File
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -77,6 +81,119 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun bundledNativeGitCanTrackLocalProject() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bin = NativeToolInstaller.prepare(app)
+        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val folder = File(workspace, "git-android-verification").apply { mkdirs() }
+        val file = File(folder, "CODEX-VERIFIED.txt")
+        file.writeText("codex git android test")
+        val shell = "git init -q && git add CODEX-VERIFIED.txt && " +
+            "git -c user.name=Codex -c user.email=codex@example.invalid " +
+            "commit -qm verified && git status --porcelain && git log -1 --format=%s"
+        val process = ProcessBuilder("/system/bin/sh", "-c", shell)
+            .directory(folder)
+            .redirectErrorStream(true)
+            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .start()
+        try {
+            val ended = process.waitFor(30, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("Native Git did not finish", ended)
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals("Native Git failed: $output", 0, process.exitValue())
+            org.junit.Assert.assertTrue("No persisted commit: $output",
+                output.lines().any { it.trim() == "verified" })
+        } finally {
+            process.destroyForcibly()
+            WorkspaceFileActions.delete(workspace, folder)
+        }
+    }
+
+    @Test fun bundledRipgrepSearchesAndroidProjectWorkspace() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bin = NativeToolInstaller.prepare(app)
+        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val fixture = File(workspace, "rg-native-integration.txt")
+        fixture.writeText("codex-rg-native-confirmation\n")
+        val process = ProcessBuilder("/system/bin/sh", "-c",
+            "rg --no-config --line-number codex-rg-native-confirmation rg-native-integration.txt")
+            .directory(workspace)
+            .redirectErrorStream(true)
+            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .start()
+        try {
+            val finished = process.waitFor(30, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("ripgrep execution timed out", finished)
+            val result = process.inputStream.bufferedReader().readText()
+            assertEquals("ripgrep failed on Android: $result", 0, process.exitValue())
+            org.junit.Assert.assertTrue("ripgrep did not find the test file: $result",
+                result.contains("1:codex-rg-native-confirmation"))
+        } finally {
+            process.destroyForcibly()
+            fixture.delete()
+        }
+    }
+
+    @Test fun bundledCodeModeHostCanInitializeV8OnAndroid() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val host = File(app.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
+        org.junit.Assert.assertTrue("Missing Code Mode Host: ${host.path}", host.isFile)
+        val process = ProcessBuilder(host.absolutePath, "--android-v8-self-test")
+            .redirectErrorStream(true).start()
+        try {
+            val finished = process.waitFor(25, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("Host V8 initialization timed out", finished)
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals("Host failed to initialize Android V8: $output", 0, process.exitValue())
+            org.junit.Assert.assertTrue("No positive V8 initialization marker: $output",
+                output.contains("codex-android-v8-initialized"))
+            org.junit.Assert.assertTrue("Sandbox V8 was not enabled: $output",
+                output.contains("codex-android-v8-sandbox-enabled"))
+        } finally {
+            process.destroyForcibly()
+        }
+    }
+
+    @Test fun bundledCodeModeHostStartsAndServesHealthcheck() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val host = File(app.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
+        org.junit.Assert.assertTrue("Missing Code Mode Host: ${host.path}", host.isFile)
+        val port = ServerSocket(0).use { it.localPort }
+        val process = ProcessBuilder(host.absolutePath, "--listen", "grpc://127.0.0.1:$port")
+            .start()
+        try {
+            var healthy = false
+            var observation = "Host did not answer"
+            for (attempt in 0 until 40) {
+                if (!process.isAlive) {
+                    observation = "Host exited with code ${process.exitValue()}"
+                    break
+                }
+                try {
+                    Socket().use { socket ->
+                        socket.connect(InetSocketAddress("127.0.0.1", port), 300)
+                        socket.soTimeout = 1000
+                        socket.getOutputStream().write(
+                            "GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"
+                                .toByteArray(Charsets.US_ASCII)
+                        )
+                        val response = socket.getInputStream().bufferedReader().readLine()
+                        observation = response ?: "Empty HTTP health response"
+                        healthy = response?.contains(" 200 ") == true
+                    }
+                    if (healthy) break
+                } catch (error: IOException) {
+                    observation = error.message ?: error.javaClass.simpleName
+                }
+                Thread.sleep(200)
+            }
+            org.junit.Assert.assertTrue("Code Mode Host failed to start on Android: $observation", healthy)
+        } finally {
+            process.destroyForcibly()
+            process.waitFor(5, TimeUnit.SECONDS)
+        }
+    }
+
     @Test fun bundledCoreCanPrintVersionOnAndroid() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val binary = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
@@ -91,6 +208,88 @@ class CoreStartupInstrumentedTest {
             org.junit.Assert.assertTrue("No version text: " + output, output.isNotBlank())
         } finally {
             process.destroyForcibly()
+        }
+    }
+
+    @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val name = "Android 验证 " + UUID.randomUUID()
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val created = bridge.request("project/create",
+                    ProjectRequestContract.create(workspace, workspace, name))
+                val project = created.getJSONObject("project")
+                val projectId = project.getString("id")
+                assertEquals(name, project.getString("name"))
+                val read = bridge.request("project/read",
+                    ProjectRequestContract.read(projectId))
+                assertEquals(projectId, read.getJSONObject("project").getString("id"))
+                val started = bridge.request("thread/start",
+                    ProjectRequestContract.threadStart(workspace, projectId, ""))
+                assertEquals(projectId, started.getJSONObject("thread").getString("projectId"))
+                val updated = bridge.request("project/update",
+                    ProjectRequestContract.rename(projectId, "Android 修改验证"))
+                assertEquals("Android 修改验证",
+                    updated.getJSONObject("project").getString("name"))
+                val listed = bridge.request("project/list",
+                    JSONObject().put("limit", 100))
+                org.junit.Assert.assertTrue("Created project missing from registry",
+                    records(listed).any { it.optString("id") == projectId })
+                bridge.request("project/delete", ProjectRequestContract.read(projectId))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun androidPtySupportsInteractiveInputAndResize() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val id = UUID.randomUUID().toString()
+                val ready = CompletableDeferred<Unit>()
+                val resultText = CompletableDeferred<Unit>()
+                var state = TerminalSessionState.start(id, "PTY integration", tty = true)
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { message ->
+                        if (message.optString("method") != "command/exec/outputDelta") return@collect
+                        val params = message.optJSONObject("params") ?: return@collect
+                        if (params.optString("processId") != id) return@collect
+                        state = state.append(params)
+                        if (state.stdoutText.contains("pty-ready")) ready.complete(Unit)
+                        if (state.stdoutText.contains("pty-done")) resultText.complete(Unit)
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "if [ -t 0 ]; then printf pty-ready; read value; " +
+                                    "printf pty-done; else exit 7; fi",
+                                root.absolutePath, id, tty = true
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/resize",
+                        TerminalSessionContract.resize(id, 36, 105))
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(id, "confirmed"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { resultText.await() }
+                    assertEquals("PTY command failed: " + state.stdoutText,
+                        0, result.getInt("exitCode"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
         }
     }
 

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
@@ -77,6 +78,18 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var attachmentError by remember { mutableStateOf("") }
 
     val selectedMode by vm.selectedMode.collectAsState()
+    val selectedWorkspace by vm.activeWorkspace.collectAsState()
+    val planApprovalBusy by vm.planApprovalBusy.collectAsState()
+    var confirmPlan by remember { mutableStateOf(false) }
+    val lastPlanIndex = items.indexOfLast {
+        it.kind == "plan" && it.text.isNotBlank() &&
+            !it.status.contains("stream", ignoreCase = true)
+    }
+    val latestPlan = items.getOrNull(lastPlanIndex)
+    val planHasLaterUserInput = lastPlanIndex >= 0 &&
+        items.drop(lastPlanIndex + 1).any { it.kind == "user" }
+    val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
+        selectedMode == "plan" && !busy && !switching && thread != null
     val currentTitle = thread?.let { threadId ->
         (records(models["sidebarThreads"]) + records(models["threads"]))
             .firstOrNull { it.optString("id") == threadId }?.let {
@@ -182,7 +195,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(if (thread == null) "新的工作会话" else currentTitle ?: "当前任务",
                     style = MaterialTheme.typography.titleMedium)
-                Text("本机工作区",
+                Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
+                    .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
@@ -306,6 +320,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
+        if (offerPlanApproval) {
+            CodexNotice(
+                "计划已生成。核对计划内容后，可批准并开始执行。",
+                NoticeTone.Info,
+                Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                actionLabel = "批准方案并执行",
+                onAction = { confirmPlan = true }
+            )
+        }
+        errors["planApproval"]?.let { ErrorText(it) }
         errors["conversation"]?.let { reason ->
             CodexNotice(
                 reason, NoticeTone.Error,
@@ -431,6 +455,19 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 showContextTools = false
             },
             onDismiss = { showContextTools = false }
+        )
+    }
+    if (confirmPlan && latestPlan != null) {
+        CodexConfirmDialog(
+            title = "确认按计划执行",
+            message = "请核对上方方案，确认后会准备官方执行指令并切换到执行模式。",
+            detail = latestPlan.text.take(600),
+            confirmLabel = "开始按方案执行",
+            onConfirm = {
+                confirmPlan = false
+                vm.approvePlan(latestPlan.text)
+            },
+            onDismiss = { confirmPlan = false }
         )
     }
     if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }
