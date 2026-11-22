@@ -30,6 +30,7 @@ object UiPreferences {
     val compact = MutableStateFlow(false)
     val reducedMotion = MutableStateFlow(false)
     val softMaterial = MutableStateFlow(true)
+    val fontScale = MutableStateFlow(1f)
 
     fun initialize(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
@@ -37,6 +38,7 @@ object UiPreferences {
         compact.value = prefs.getBoolean("compact", false)
         reducedMotion.value = prefs.getBoolean("reducedMotion", false)
         softMaterial.value = prefs.getBoolean("softMaterial", true)
+        fontScale.value = prefs.getFloat("fontScale", 1f).coerceIn(.9f, 1.25f)
     }
     fun setCompact(value: Boolean) {
         compact.value = value
@@ -49,6 +51,11 @@ object UiPreferences {
     fun setSoftMaterial(value: Boolean) {
         softMaterial.value = value
         storage?.edit()?.putBoolean("softMaterial", value)?.apply()
+    }
+    fun setFontScale(value: Float) {
+        val selected = value.coerceIn(.9f, 1.25f)
+        fontScale.value = selected
+        storage?.edit()?.putFloat("fontScale", selected)?.apply()
     }
 }
 
@@ -67,7 +74,11 @@ fun ApprovalsPage(vm: CodexViewModel) {
                 icon = Icons.Outlined.GppGood,
                 artworkRes = R.drawable.ic_empty_approval)
         }
-        prompts.forEach { prompt ->
+        if (prompts.isNotEmpty())
+            Text("待处理 ${prompts.size} 项 · 请按顺序核对",
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+        prompts.forEachIndexed { index, prompt ->
+            StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
             key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
         }
         ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
@@ -110,7 +121,10 @@ internal fun ApprovalQuickSheetContent(
                     Text("返回当前任务")
                 }
             } else {
-                prompts.forEach { prompt ->
+                Text("待处理 ${prompts.size} 项", color = Ink.muted,
+                    style = MaterialTheme.typography.labelMedium)
+                prompts.forEachIndexed { index, prompt ->
+                    StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
                     key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
                 }
             }

@@ -173,11 +173,27 @@ fun AppearanceInlineControls() {
     val compact by UiPreferences.compact.collectAsState()
     val softMaterial by UiPreferences.softMaterial.collectAsState()
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
+    val fontScale by UiPreferences.fontScale.collectAsState()
     Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 7.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)) {
         AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
         AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
         AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
+        Text("文字大小", style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
+                .forEach { (scale, label) ->
+                    FilterChip(
+                        selected = kotlin.math.abs(fontScale - scale) < .01f,
+                        onClick = { UiPreferences.setFontScale(scale) },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+        }
+        Text("文字大小会随系统字体设置叠加调整。",
+            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
     }
 }
 

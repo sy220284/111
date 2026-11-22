@@ -1,5 +1,11 @@
 package io.github.sy220284.codexandroid
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -34,6 +40,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val running by vm.running.collectAsState()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
@@ -335,7 +342,14 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        if (selectionMode && entries.isNotEmpty()) item {
+        if (entries.isNotEmpty()) item(key = "bulk-toolbar") {
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = expandVertically(animationSpec = tween(CodexMotion.duration(180, reducedMotion))) +
+                    fadeIn(animationSpec = tween(CodexMotion.duration(160, reducedMotion))),
+                exit = shrinkVertically(animationSpec = tween(CodexMotion.duration(120, reducedMotion))) +
+                    fadeOut(animationSpec = tween(CodexMotion.duration(100, reducedMotion)))
+            ) {
             ThreadBulkToolbar(
                 selectedCount = selectedIds.size,
                 archived = archived,
@@ -348,6 +362,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onClear = { selectedIds = emptyList() },
                 onAction = { bulkConfirm = it }
             )
+            }
         }
         itemsIndexed(entries, key = { _, it -> it.optString("id") }) { index, thread ->
             val group = ThreadDisplayPolicy.dayGroup(
