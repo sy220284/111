@@ -14,7 +14,7 @@ internal object DraftPersistence {
             val item = source.getJSONObject(id)
             id to ComposerDraft(text = item.optString("text"))
         }.filter { it.second.text.isNotBlank() }.toList()
-        return all.takeLast(ThreadComposerDrafts.MAX_ACTIVE_DRAFTS).toMap()
+        return all.toMap()
     }
 
     fun encode(drafts: Map<String, ComposerDraft>): String {

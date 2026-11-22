@@ -73,7 +73,7 @@
 | 61 | D | R8 混淆+资源压缩未开（isMinifyEnabled=false）——143MB APK 瘦身第一刀 | 已提交待专项验收 | app/build.gradle.kts |
 | 62 | D | APK 继续瘦身：上游静态资源剔除、per-language split 评估 | **安全评估后跳过侵入式瘦身** | APK_SIZE_SAFETY_ASSESSMENT_20261122.md；保留运行依赖、离线及语言支持 |
 | 63 | D | timeline 进程级无界增长（session 长驻后加剧）——分页/窗口化裁剪 | 专项验收通过 | TimelineWindowStore.kt；2/2 长历史与分页单元测试通过 |
-| 64 | D | composerDrafts 无上限累积——LRU/超期清理 | 已提交待专项验收 | ThreadComposerDrafts.kt |
+| 64 | D | composerDrafts 无上限累积——LRU/超期清理 | 已提交待专项验收（改为无损空草稿清理） | ThreadComposerDrafts.kt · DraftPersistence.kt · 超过 128 条保留回归测试 |
 | 65 | D | errors map 无界（动态 key 残留）——TTL/上限 | 已有部分改动 | CodexViewModel.kt |
 | 66 | D | LazyColumn key 稳定性审计（id 稳定防全列表重组） | 已有部分改动 | ThreadLibraryPage.kt |
 | 67 | D | 图片导入串行 forEach——并行化+进度 | 已提交待专项验收 | AttachmentImportController.kt |

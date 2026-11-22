@@ -8,16 +8,13 @@ data class ComposerDraft(
 
 object ThreadComposerDrafts {
     const val NEW_THREAD = "__new_thread__"
-    // Bound the per-process draft cache. Edits update LRU order deterministically.
-    internal const val MAX_ACTIVE_DRAFTS = 128
-
-    private fun retainRecent(drafts: Map<String, ComposerDraft>): Map<String, ComposerDraft> =
-        if (drafts.size <= MAX_ACTIVE_DRAFTS) drafts
-        else drafts.entries.toList().takeLast(MAX_ACTIVE_DRAFTS).associate { it.key to it.value }
-
+    // Never evict an unsent draft: arbitrary LRU limits silently discard user text.
+    // Only remove empty entries, which contain no data the user needs to recover.
     private fun updated(
         previous: Map<String, ComposerDraft>, id: String, draft: ComposerDraft
-    ): Map<String, ComposerDraft> = retainRecent((previous - id) + (id to draft))
+    ): Map<String, ComposerDraft> =
+        if (draft.text.isBlank() && draft.images.isEmpty()) previous - id
+        else (previous - id) + (id to draft)
 
     fun key(threadId: String?): String = threadId?.takeIf { it.isNotBlank() } ?: NEW_THREAD
 
