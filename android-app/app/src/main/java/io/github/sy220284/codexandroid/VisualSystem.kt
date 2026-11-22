@@ -44,7 +44,7 @@ object Ink {
 @Composable
 fun CodexTheme(content: @Composable () -> Unit) {
     val scheme = lightColorScheme(
-        primary = Ink.copper,
+        primary = Ink.coral,
         onPrimary = Ink.canvas,
         primaryContainer = Ink.canvas,
         onPrimaryContainer = Ink.parchment,
