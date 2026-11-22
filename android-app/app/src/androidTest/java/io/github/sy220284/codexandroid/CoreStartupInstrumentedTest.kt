@@ -2,6 +2,10 @@ package io.github.sy220284.codexandroid
 
 import android.os.Build
 import java.io.File
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -74,6 +78,46 @@ class CoreStartupInstrumentedTest {
             source.delete()
             patch.delete()
             target.delete()
+        }
+    }
+
+    @Test fun bundledCodeModeHostStartsAndServesHealthcheck() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val host = File(app.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
+        org.junit.Assert.assertTrue("Missing Code Mode Host: ${host.path}", host.isFile)
+        val port = ServerSocket(0).use { it.localPort }
+        val process = ProcessBuilder(host.absolutePath, "--listen", "grpc://127.0.0.1:$port")
+            .start()
+        try {
+            var healthy = false
+            var observation = "Host did not answer"
+            for (attempt in 0 until 40) {
+                if (!process.isAlive) {
+                    observation = "Host exited with code ${process.exitValue()}"
+                    break
+                }
+                try {
+                    Socket().use { socket ->
+                        socket.connect(InetSocketAddress("127.0.0.1", port), 300)
+                        socket.soTimeout = 1000
+                        socket.getOutputStream().write(
+                            "GET /healthz HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n"
+                                .toByteArray(Charsets.US_ASCII)
+                        )
+                        val response = socket.getInputStream().bufferedReader().readLine()
+                        observation = response ?: "Empty HTTP health response"
+                        healthy = response?.contains(" 200 ") == true
+                    }
+                    if (healthy) break
+                } catch (error: IOException) {
+                    observation = error.message ?: error.javaClass.simpleName
+                }
+                Thread.sleep(200)
+            }
+            org.junit.Assert.assertTrue("Code Mode Host failed to start on Android: $observation", healthy)
+        } finally {
+            process.destroyForcibly()
+            process.waitFor(5, TimeUnit.SECONDS)
         }
     }
 
