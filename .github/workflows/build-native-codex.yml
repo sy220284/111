@@ -58,7 +58,8 @@ jobs:
           set -euo pipefail
           RESULT=0
           python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a \
+            --repo "$GITHUB_REPOSITORY" --branch "${{ github.head_ref || github.ref_name }}" \
+            --abis arm64-v8a \
             > "$RUNNER_TEMP/reused-native-run" || RESULT=$?
           if [ "$RESULT" -eq 0 ]; then
             echo "reuse=true" >> "$GITHUB_OUTPUT"
