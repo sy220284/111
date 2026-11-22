@@ -8,10 +8,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -52,9 +48,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
+    private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
+    val composerDrafts = draftStorage.drafts
     private val attachmentController by lazy {
-        AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors)
+        AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors) {
+            imagePathsForActiveTurn
+        }
     }
     val attachmentImport get() = attachmentController.state
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
@@ -90,19 +89,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             bridge.events.collect { receive(it) }
         }
-        viewModelScope.launch {
-            composerDrafts.collectLatest { snapshot ->
-                delay(350)
-                try {
-                    withContext(Dispatchers.IO) {
-                        DraftPersistence.save(application.applicationContext, snapshot)
-                    }
-                    errors.value = errors.value - "drafts"
-                } catch (failure: Exception) {
-                    errors.value = errors.value + ("drafts" to
-                        (failure.message ?: "未发送文字无法保存到本机"))
-                }
-            }
+        draftStorage.start { key, warning ->
+            errors.value = if (warning == null) errors.value - key
+                else errors.value + (key to warning)
         }
         viewModelScope.launch {
             bridge.status.collect { current ->
@@ -115,14 +104,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        viewModelScope.launch {
-            try {
-                LocalImageAttachments.cleanExpired(application.applicationContext)
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("attachments" to
-                    (failure.message ?: "附件缓存清理失败"))
-            }
-        }
+
         connect()
     }
 
@@ -402,6 +384,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         if ((prompt.isEmpty() && localImages.isEmpty()) || running.value) return
         val images = localImages.toList()
+        imagePathsForActiveTurn = images
         // Acquire turn ownership before dispatching the coroutine: rapid taps
         // cannot submit duplicate messages even while thread/start is pending.
         running.value = true
@@ -409,6 +392,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             CodexForegroundService.start(getApplication())
         } catch (failure: Exception) {
             running.value = false
+            imagePathsForActiveTurn = emptyList()
             errors.value = errors.value + ("conversation" to
                 ("无法启动后台任务保护：" + (failure.message ?: "系统拒绝启动前台服务")))
             return
@@ -467,10 +451,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 turnRequestDispatched = true
                 val response = bridge.request("turn/start", params)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
-                imagePathsForActiveTurn = images
                 errors.value = errors.value - "conversation"
                 afterAccepted()
             } catch (failure: Exception) {
+                // Keep images for ambiguous timeouts; the core may still be using
+                // them. Clear ownership only when no turn was sent or it rejected.
+                if (!turnRequestDispatched || FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
+                    imagePathsForActiveTurn = emptyList()
+                }
                 var recoveryNote = ""
                 val created = newlyCreatedThreadId
                 // Reclaim an empty newly created session only after an explicit
@@ -725,7 +713,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (finishedImages.isNotEmpty()) viewModelScope.launch {
                     for (path in finishedImages) {
                         try {
-                            LocalImageAttachments.release(getApplication(), path)
+                            if (AttachmentRetentionPolicy.canRelease(
+                                    path, composerDrafts.value.values, emptyList()
+                                )) LocalImageAttachments.release(getApplication(), path)
                         } catch (failure: Exception) {
                             errors.value = errors.value + ("attachments" to
                                 (failure.message ?: "无法清理已完成任务的图片"))

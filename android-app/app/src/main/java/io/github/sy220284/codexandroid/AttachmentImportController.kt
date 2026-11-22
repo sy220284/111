@@ -23,7 +23,8 @@ internal class AttachmentImportController(
     private val context: Context,
     private val scope: CoroutineScope,
     private val drafts: MutableStateFlow<Map<String, ComposerDraft>>,
-    private val errors: MutableStateFlow<Map<String, String>>
+    private val errors: MutableStateFlow<Map<String, String>>,
+    private val activeImages: () -> List<String>
 ) {
     val state = MutableStateFlow(AttachmentImportState())
     private var pickerOwner: String? = null
@@ -118,7 +119,11 @@ internal class AttachmentImportController(
         }
         scope.launch {
             try {
-                LocalImageAttachments.release(context, path)
+                // A removed draft photo may still be read by the currently
+                // executing Codex turn. The turn completion path releases it.
+                if (AttachmentRetentionPolicy.canRelease(
+                        path, drafts.value.values, activeImages()
+                    )) LocalImageAttachments.release(context, path)
                 errors.value = errors.value - "attachments"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("attachments" to

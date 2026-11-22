@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import android.app.Application
+import java.io.File
+import java.util.UUID
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -43,6 +45,41 @@ class UiPopulatedSubpagesInstrumentedTest {
     private fun capture(name: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(name)
+    }
+
+    @Test fun imageDraftSurvivesActualAndroidPreferenceRestoreAndPruning() {
+        // Device-protected private storage isolates this test from active user drafts.
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+            .createDeviceProtectedStorageContext()
+        val preferences = context.getSharedPreferences("codex-unsent-drafts", 0)
+        val original = preferences.getString("drafts", null)
+        val folder = LocalImageAttachments.directory(context).apply {
+            assertTrue(isDirectory || mkdirs())
+        }
+        val photo = File(folder, "${UUID.randomUUID()}.png").apply {
+            writeBytes(byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47))
+        }
+        try {
+            val key = "integration-unsent-image"
+            DraftPersistence.save(context, mapOf(
+                key to ComposerDraft("跨重启未发送文字", listOf(photo.canonicalPath))
+            ))
+            val restored = DraftPersistence.restore(context)
+            assertEquals(0, restored.missingImages)
+            assertEquals("跨重启未发送文字", restored.drafts[key]?.text)
+            assertEquals(listOf(photo.canonicalPath), restored.drafts[key]?.images)
+            val future = System.currentTimeMillis() +
+                3L * AttachmentRetentionPolicy.ORPHAN_TTL_MILLIS
+            assertEquals(0, AttachmentRetentionPolicy.prune(
+                folder, restored.drafts.values.flatMap { it.images }.toSet(), future))
+            assertTrue("Referenced unsent photo survives expiry cleanup", photo.isFile)
+            assertEquals(1, AttachmentRetentionPolicy.prune(folder, emptySet(), future))
+            assertTrue("Unreferenced file should be reclaimed", !photo.exists())
+        } finally {
+            if (original == null) assertTrue(preferences.edit().remove("drafts").commit())
+            else assertTrue(preferences.edit().putString("drafts", original).commit())
+            if (photo.exists()) assertTrue(photo.delete())
+        }
     }
 
     @Test fun rtlAndDoubleFontScaleKeepBulkActionsReadableAndReachable() {

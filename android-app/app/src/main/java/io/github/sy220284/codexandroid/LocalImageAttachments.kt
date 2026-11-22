@@ -28,7 +28,7 @@ import java.io.File
 import java.util.UUID
 
 /**
- * SAF content URIs are copied into the app-owned cache. The Codex native
+ * SAF content URIs are copied into persistent app-private storage. The Codex native
  * subprocess runs under the same UID and can read the resulting localImage path.
  */
 object LocalImageAttachments {
@@ -36,7 +36,7 @@ object LocalImageAttachments {
     private const val MAX_BYTES = 12L * 1024 * 1024
     private const val FOLDER = "codex-turn-images"
 
-    fun directory(context: Context): File = File(context.cacheDir, FOLDER)
+    fun directory(context: Context): File = File(context.filesDir, FOLDER)
 
     suspend fun importFrom(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
         val type = context.contentResolver.getType(uri)
@@ -77,23 +77,17 @@ object LocalImageAttachments {
         }
     }
 
-    /** One-time startup maintenance for files left after a process crash. */
-    suspend fun cleanExpired(context: Context) = withContext(Dispatchers.IO) {
-        val folder = directory(context)
-        if (folder.exists()) {
-            val files = folder.listFiles() ?: throw IllegalStateException("无法读取图片缓存目录")
-            val before = System.currentTimeMillis() - 24L * 60 * 60 * 1000
-            files.filter { it.isFile && it.lastModified() < before }.forEach { old ->
-                check(old.delete()) { "无法清理过期附件：" + old.name }
-            }
+    /** Prune unreferenced old files; unsent drafts always outlive maintenance. */
+    suspend fun cleanExpired(context: Context, referenced: Set<String>) =
+        withContext(Dispatchers.IO) {
+            AttachmentRetentionPolicy.prune(directory(context), referenced)
         }
-    }
 
     /** Deletes only files created inside the dedicated turn-image directory. */
     suspend fun release(context: Context, path: String) = withContext(Dispatchers.IO) {
         val folder = directory(context).canonicalFile
         val target = File(path).canonicalFile
-        require(target.parentFile == folder) { "图片路径不属于本应用的附件缓存" }
+        require(target.parentFile == folder) { "图片路径不属于本应用的私有附件目录" }
         if (target.exists()) check(target.delete()) { "无法清理图片附件" }
     }
 }
