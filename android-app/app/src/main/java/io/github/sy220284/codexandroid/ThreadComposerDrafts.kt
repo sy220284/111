@@ -35,7 +35,7 @@ object ThreadComposerDrafts {
         val id = key(threadId)
         val original = previous[id] ?: return previous
         val next = original.copy(
-            text = if (original.text.trim() == submittedText) "" else original.text,
+            text = if (original.text == submittedText) "" else original.text,
             images = if (original.images == submittedImages) emptyList() else original.images
         )
         return if (next.text.isBlank() && next.images.isEmpty()) previous - id
