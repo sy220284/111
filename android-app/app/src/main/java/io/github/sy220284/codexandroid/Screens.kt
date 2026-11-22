@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.AnimatedVisibility
@@ -280,34 +281,41 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            // 图片返回时始终归属于打开选择器的那条会话。
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
+    ) { selected ->
+        if (selected.isNotEmpty()) {
+            // The selection belongs to the thread that opened the picker.
             val owner = imagePickThread
-            val existing = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
-                ?.images.orEmpty()
-            if (existing.size >= LocalImageAttachments.MAX_FILES) {
-                attachmentError = "最多添加三张图片，请先移除一张"
-            } else {
-                attachmentBusy = true
-                scope.launch {
+            attachmentBusy = true
+            scope.launch {
+                val initial = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
+                    ?.images.orEmpty()
+                val room = (LocalImageAttachments.MAX_FILES - initial.size).coerceAtLeast(0)
+                var added = 0
+                val failures = mutableListOf<String>()
+                selected.take(room).forEach { uri ->
                     try {
                         val path = LocalImageAttachments.importFrom(attachmentContext, uri)
                         val current = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
                             ?.images.orEmpty()
-                        if (current.size >= LocalImageAttachments.MAX_FILES) {
-                            LocalImageAttachments.release(attachmentContext, path)
-                            attachmentError = "图片数量已满，请先移除一张"
-                        } else {
+                        if (current.size < LocalImageAttachments.MAX_FILES) {
                             vm.editComposerImages(owner, current + path)
-                            attachmentError = ""
+                            added++
+                        } else {
+                            LocalImageAttachments.release(attachmentContext, path)
                         }
                     } catch (failure: Exception) {
-                        attachmentError = failure.message ?: "无法读取所选图片"
-                    } finally {
-                        attachmentBusy = false
+                        failures += failure.message ?: "图片导入失败"
                     }
                 }
+                val skipped = (selected.size - room).coerceAtLeast(0)
+                attachmentError = when {
+                    failures.isNotEmpty() -> "已添加${added}张；${failures.distinct().joinToString("；")}"
+                    skipped > 0 -> "已添加${added}张，另有${skipped}张超过本次剩余名额"
+                    else -> ""
+                }
+                attachmentBusy = false
             }
         }
     }
@@ -328,7 +336,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             if (pendingImagePick) {
                 pendingImagePick = false
-                imagePicker.launch("image/*")
+                imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
         }
     }
@@ -414,7 +422,9 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
-            if (items.isEmpty()) {
+            if (switching) {
+                ConversationLoadingSkeleton(Modifier.fillMaxSize())
+            } else if (items.isEmpty()) {
                 val shortViewport = maxHeight < 345.dp
                 Column(
                     modifier = Modifier.fillMaxWidth().align(Alignment.Center)
@@ -492,7 +502,29 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        errors["conversation"]?.let { ErrorText(it) }
+        errors["conversation"]?.let { reason ->
+            CodexNotice(
+                reason, NoticeTone.Error,
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                actionLabel = when {
+                    status is EngineStatus.Unavailable -> "重新连接"
+                    !busy && !switching &&
+                        (draft.isNotBlank() || attachedImages.isNotEmpty()) -> "重试发送"
+                    else -> null
+                },
+                onAction = {
+                    if (status is EngineStatus.Unavailable) vm.connect()
+                    else if (!busy && !switching) {
+                        val originalText = draft
+                        val originalImages = attachedImages.toList()
+                        vm.sendPrompt(originalText, originalImages) {
+                            vm.clearComposerAfterAccepted(vm.activeThread.value,
+                                originalText, originalImages)
+                        }
+                    }
+                }
+            )
+        }
         errors["steer"]?.let { ErrorText(it) }
         errors["interrupt"]?.let { ErrorText(it) }
         DividerLine()
@@ -506,9 +538,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onMode = { showModes = true },
                 onDiagnostics = { showEngineStatus = true }
             )
-            if (!busy && status != EngineStatus.Connected) {
-                Text("内核未连接，点击右侧状态图标查看运行状态",
+            if (status is EngineStatus.Unavailable) {
+                CodexNotice(
+                    "运行核心连接中断，未发送文字已保留在本机。",
+                    NoticeTone.Warning, actionLabel = "重新连接",
+                    onAction = { vm.connect() }
+                )
+            } else if (status == EngineStatus.Starting) {
+                Text("正在连接本机运行核心…",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            errors["drafts"]?.let {
+                CodexNotice(it, NoticeTone.Error)
             }
             if (attachmentBusy) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())

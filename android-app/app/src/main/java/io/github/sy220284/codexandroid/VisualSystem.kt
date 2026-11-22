@@ -32,7 +32,8 @@ object Ink {
     val border = Color(0xFFD8DEE1)
     val parchment = Color(0xFF263139)
     val muted = Color(0xFF56646D)
-    val coral = Color(0xFFFF806F)
+    val coral = Color(0xFFC8483E) // Accessible foreground on white-icon actions (contrast 4.7:1)
+    val coralSoft = Color(0xFFFF806F) // Reference hue for non-text decoration
     val copper = Color(0xFF805A3F)
     val copperDim = Color(0xFFB8A18D)
     val jade = Color(0xFF246F54)
