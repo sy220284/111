@@ -4,7 +4,14 @@ on:
   push:
     branches: [main]
     paths:
-      - "android-app/**"
+      - "android-app/app/**"
+      - "android-app/build.gradle.kts"
+      - "android-app/settings.gradle.kts"
+      - "android-app/gradle.properties"
+      - "android-app/tools/package_native_runtime.sh"
+      - ".github/scripts/prepare-android-patcher.sh"
+      - ".github/scripts/create-android-update-fixture.sh"
+      - ".github/scripts/audit_apk_contents.py"
       - ".github/workflows/build-android.yml"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
@@ -60,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID="$(python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
             --abis arm64-v8a)" || {
             echo "::error::当前源码没有可复用的 ARM64 原生核心，请先完成自动触发的原生构建"
             exit 1
@@ -87,8 +94,8 @@ jobs:
       - name: 制作可在安卓端回放的真实增量更新样本
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
-      - name: 编译 APK 并验证审批协议测试
-        run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+      - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
+        run: gradle -p android-app :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
