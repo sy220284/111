@@ -212,7 +212,6 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 fun McpServicesPage(vm: CodexViewModel) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
     val servers = records(data["mcp"])
     val login = data["mcpLogin"]?.optString("authorizationUrl").orEmpty()
     var confirmLogin by remember { mutableStateOf("") }
@@ -289,7 +288,6 @@ fun McpServicesPage(vm: CodexViewModel) {
                 }
             }
         }
-        errors["mcpLogin"]?.let { ErrorText(it) }
         ProtocolFeedback(vm, listOf("mcpLogin"))
     }
     if (confirmLogin.isNotBlank()) CodexConfirmDialog(
