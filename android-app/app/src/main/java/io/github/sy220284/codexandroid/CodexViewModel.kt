@@ -52,7 +52,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val loginBusy = MutableStateFlow(false)
     val steerBusy = MutableStateFlow(false)
     val terminalSession = MutableStateFlow(TerminalSessionState())
-    val terminalTranscript = TerminalTranscriptStore(File(application.filesDir, "terminal-transcript"))
+    internal val terminalTranscript = TerminalTranscriptStore(File(application.filesDir, "terminal-transcript"))
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
