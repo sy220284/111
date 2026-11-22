@@ -23,8 +23,9 @@ permissions:
   actions: read
 
 concurrency:
-  group: android-native-codex
-  cancel-in-progress: false
+  # Keep independent branches from blocking each other; supersede stale PR builds.
+  group: android-native-codex-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   reuse:
