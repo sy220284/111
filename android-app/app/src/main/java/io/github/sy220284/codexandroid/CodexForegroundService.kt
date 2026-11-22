@@ -61,9 +61,10 @@ class CodexForegroundService : Service() {
 
         val session = (application as CodexApplication).session
         watch = scope.launch {
-            val activeCount = combine(session.running, session.threadExecutions) {
-                visibleRunning, executions ->
-                maxOf(executions.size, if (visibleRunning) 1 else 0)
+            val activeCount = combine(
+                session.running, session.threadExecutions, session.firstThreadStarting
+            ) { visibleRunning, executions, starting ->
+                executions.size + if (starting || (visibleRunning && executions.isEmpty())) 1 else 0
             }
             combine(
                 activeCount, session.bridge.prompts, session.bridge.status,
