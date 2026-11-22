@@ -51,6 +51,7 @@ class FakeRunner:
         self.changed_v8_host_adapter = changed_v8_host_adapter
         self.changed_git_builder = changed_git_builder
         self.called_api = 0
+        self.last_workflow_query = []
 
     def __call__(self, args):
         if args[:2] == ["git", "rev-parse"]:
@@ -89,6 +90,7 @@ class FakeRunner:
         if args[:2] == ["git", "merge-base"]:
             return args[2] if self.ancestor else "other-history"
         if args[:3] == ["gh", "run", "list"]:
+            self.last_workflow_query = list(args)
             return json.dumps([
                 {"databaseId": 21, "headSha": "old", "conclusion": "success"},
                 {"databaseId": 20, "headSha": "older", "conclusion": "success"},
@@ -124,6 +126,14 @@ class NativeReuseTests(unittest.TestCase):
         self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                        ["arm64-v8a", "x86_64"]), "21")
         self.assertEqual(runner.called_api, 1)
+
+    def test_feature_branch_is_scoped_to_its_own_native_build(self):
+        runner = FakeRunner()
+        self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
+            ["arm64-v8a", "x86_64"], branch="fix/android-code-mode-host-bundle-20261122"), "21")
+        index = runner.last_workflow_query.index("--branch")
+        self.assertEqual("fix/android-code-mode-host-bundle-20261122",
+            runner.last_workflow_query[index + 1])
 
     def test_fallback_to_older_unexpired_artifacts(self):
         runner = FakeRunner(expired_first=True)

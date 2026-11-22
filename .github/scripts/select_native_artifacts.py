@@ -68,11 +68,11 @@ class ArtifactSelector:
         # Not an error: candidates from a previous main history can be skipped.
         return self.run(["git", "merge-base", old, new]) == old
 
-    def find(self, repository, target, abis):
+    def find(self, repository, target, abis, branch="main"):
         current_signature = self.signature(target)
         runs = json.loads(self.run([
             "gh", "run", "list", "--repo", repository,
-            "--workflow", "build-native-codex.yml", "--branch", "main",
+            "--workflow", "build-native-codex.yml", "--branch", branch,
             "--limit", "200", "--json", "databaseId,headSha,conclusion",
         ]))
         expected = {f"codex-android-native-{abi}" for abi in abis}
@@ -106,10 +106,11 @@ def main():
     parser.add_argument("--abis", nargs="+", required=True,
                         choices=("arm64-v8a", "x86_64"))
     parser.add_argument("--target", default="HEAD")
+    parser.add_argument("--branch", default="main")
     args = parser.parse_args()
     try:
         selector = ArtifactSelector()
-        run_id = selector.find(args.repo, args.target, args.abis)
+        run_id = selector.find(args.repo, args.target, args.abis, branch=args.branch)
         if run_id:
             print(run_id)
             print(f"复用原生核心构建 {run_id}（同源码、编译配置、有效产物：{', '.join(args.abis)}）",

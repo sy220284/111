@@ -246,3 +246,23 @@ jobs:
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/git
           if-no-files-found: error
           retention-days: 90
+
+  verify-pr-apk:
+    name: 完成 PR 原生构建后触发同提交 APK 与模拟器验收
+    if: github.event_name == 'pull_request'
+    needs: native
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: 触发同一 PR 分支完整 Android APK 验收
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          test -n "$PR_BRANCH"
+          gh workflow run build-android.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
+          echo "PR $PR_BRANCH 已提交完整双 ABI APK 与 Android 35 设备验收"

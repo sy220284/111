@@ -60,7 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID="$(python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a x86_64)" || {
+            --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME" \
+            --abis arm64-v8a x86_64)" || {
             echo "::error::当前源码没有可复用的完整 ARM64 / x86_64 原生内核，请先完成自动触发的原生构建"
             exit 1
           }
