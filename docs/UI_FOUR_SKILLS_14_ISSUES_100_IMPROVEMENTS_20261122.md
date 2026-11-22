@@ -46,7 +46,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
 
-本次复查统计：完成 14，部分 29，未完成 50，待验 7。源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+本次复查统计：完成 12，部分 30，未完成 51，待验 7。源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
 
 | # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
 |---:|---|---|---|
@@ -74,7 +74,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 22 | 未完成 | 会话搜索保留最近五个查询 | ThreadLibraryPage 未见最近查询持久列表 |
 | 23 | 部分 | 侧栏未读和执行中角标 | SidebarSessions 显示运行状态；缺完整未读计数 |
 | 24 | 部分 | configRequirements 枚举化表单 | ConfigInputParser 支持文字/开关/数字/JSON；未按配置要求动态生成全量字段 |
-| 25 | 完成 | 更新进度显示下载百分比 | AppUpdateManager 与 AppUpdateCard 有下载进度、修补、校验状态；包大小展示仍可优化 |
+| 25 | 部分 | 更新进度显示下载百分比 | AppUpdateManager 与 AppUpdateCard 有下载进度、修补、校验状态；包大小展示仍可优化 |
 | 26 | 未完成 | 首次启动三步引导 | 未见登录→模型→首任务的完整引导状态机 |
 | 27 | 部分 | 失败类型到建议动作术语表 | ActionFeedbackCopy/PresentationPolicy 有用户文案；缺覆盖全量错误的映射表及测试 |
 | 28 | 部分 | Screens 拆分并设置超长文件 CI 门禁 | ConversationScreen 已拆出；CI 尚未检查单文件行数 |
@@ -114,7 +114,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 62 | 部分 | 终端命令注入风险提示与检查 | 执行前需确认且显示风险提示；尚缺明确的转义/特殊符号检查 |
 | 63 | 未完成 | 更新清单数字签名链 | UpdateManifest/AppUpdateManager 使用 SHA-256；还没有独立签名真实性验证 |
 | 64 | 部分 | 禁止明文网络的独立安全配置 | Manifest usesCleartextTraffic=false；没有显式 networkSecurityConfig XML |
-| 65 | 完成 | 用户数据清除一键入口 | 此项未在已核查设置页面发现；状态按未完成处理 |
+| 65 | 未完成 | 用户数据清除一键入口 | 此项未在已核查设置页面发现；状态按未完成处理 |
 | 66 | 部分 | 备份敏感数据排除 | Manifest allowBackup=false 且配备 backup_rules/data_extraction_rules；数据类别逐项验收仍缺 |
 | 67 | 未完成 | stderr 环形缓冲明文隐私风险评估 | 未见独立威胁模型与清理策略验证 |
 | 68 | 部分 | CodexConnection 分流直接单测 | RpcEnvelopeRouter 已拆出并有测试；尚未注入真实流/MockProcess 压测 |
