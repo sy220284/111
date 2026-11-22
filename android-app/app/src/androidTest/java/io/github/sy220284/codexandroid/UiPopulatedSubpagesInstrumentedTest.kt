@@ -31,16 +31,23 @@ class UiPopulatedSubpagesInstrumentedTest {
     }
 
     @Test fun sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection() {
-        val vm = viewModel()
-        vm.activeThread.value = "ci-selected"
-        vm.data.value = vm.data.value + ("sidebarThreads" to JSONObject()
-            .put("threads", JSONArray()
-                .put(JSONObject().put("id", "ci-selected")
-                    .put("name", "修复工作区登录").put("cwd", "/projects/a"))
-                .put(JSONObject().put("id", "ci-build")
-                    .put("name", "检查构建流水线").put("cwd", "/projects/b"))))
+        val response = JSONObject().put("threads", JSONArray()
+            .put(JSONObject().put("id", "ci-selected")
+                .put("name", "修复工作区登录").put("cwd", "/projects/a"))
+            .put(JSONObject().put("id", "ci-build")
+                .put("name", "检查构建流水线").put("cwd", "/projects/b")))
+        // 绘制数据与内核连接拆开；真实内核启动也不会覆盖本测试的固定数据。
+        val sessions = records(response)
         rule.setContent {
-            CodexTheme { Column { SidebarSessions(vm, onOpenThread = {}) } }
+            CodexTheme {
+                Column {
+                    SidebarSessionsContent(
+                        all = sessions, hasResponse = true, connected = true,
+                        loading = false, hasError = false, activeId = "ci-selected",
+                        running = false, switching = false, onRefresh = {}, onOpenThread = {}
+                    )
+                }
+            }
         }
         rule.onNodeWithText("修复工作区登录").assertExists()
         rule.onNodeWithText("检查构建流水线").assertExists()
