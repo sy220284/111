@@ -42,7 +42,7 @@ internal fun ChatWorkTopBar(
                 IconButton(
                     onClick = onMenu,
                     modifier = Modifier.size(48.dp)
-                        .background(Color(0xFFF8F8F8), CircleShape)
+                        .background(Ink.recessed, CircleShape)
                         .testTag("drawer-toggle")
                 ) {
                     Icon(Icons.Outlined.Menu, "打开侧边导航", tint = Ink.parchment)
@@ -81,6 +81,8 @@ internal fun ChatWorkTopBar(
                 modifier = Modifier.size(48.dp)
                     .background(Color(0xFFF8F8F8), CircleShape)
                     .testTag("top-new-chat")
+                    .explainDisabled(running || switching,
+                        if (running) "当前任务执行中，请先完成或停止任务" else "正在切换会话")
             ) {
                 Icon(Icons.Outlined.ChatBubbleOutline, "新建聊天",
                     tint = if (running || switching) Ink.muted else Ink.parchment)

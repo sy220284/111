@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
@@ -28,6 +29,23 @@ class UiPopulatedSubpagesInstrumentedTest {
     private fun capture(name: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(name)
+    }
+
+    @Test fun disabledBatchActionsExplainTheirStateToScreenReaders() {
+        rule.setContent {
+            CodexTheme {
+                ThreadBulkToolbar(
+                    selectedCount = 0, archived = false, enabled = true,
+                    onSelectAll = {}, onClear = {}, onAction = {}
+                )
+            }
+        }
+        rule.onNodeWithTag("thread-bulk-delete")
+            .assert(SemanticsMatcher.expectValue(
+                SemanticsProperties.StateDescription, "请先选择需要删除的会话"))
+        rule.onNodeWithTag("thread-bulk-archive")
+            .assert(SemanticsMatcher.expectValue(
+                SemanticsProperties.StateDescription, "请先选择会话"))
     }
 
     @Test fun sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection() {

@@ -23,12 +23,15 @@ internal fun ThreadBulkToolbar(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 onClick = onSelectAll,
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    .explainDisabled(!enabled, "任务运行或会话正在切换，暂不能全选"),
                 enabled = enabled
             ) { Text("全选本页") }
             OutlinedButton(
                 onClick = onClear,
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    .explainDisabled(!enabled || selectedCount == 0,
+                        if (!enabled) "任务运行或会话正在切换" else "还未选中会话"),
                 enabled = enabled && selectedCount > 0
             ) { Text("清空选择") }
         }
@@ -36,13 +39,17 @@ internal fun ThreadBulkToolbar(
             OutlinedButton(
                 onClick = { onAction(if (archived) "unarchive" else "archive") },
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                    .testTag("thread-bulk-archive"),
+                    .testTag("thread-bulk-archive")
+                    .explainDisabled(!enabled || selectedCount == 0,
+                        if (!enabled) "任务运行或会话正在切换" else "请先选择会话"),
                 enabled = enabled && selectedCount > 0
             ) { Text(if (archived) "批量恢复" else "批量归档") }
             OutlinedButton(
                 onClick = { onAction("delete") },
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                    .testTag("thread-bulk-delete"),
+                    .testTag("thread-bulk-delete")
+                    .explainDisabled(!enabled || selectedCount == 0,
+                        if (!enabled) "任务运行或会话正在切换" else "请先选择需要删除的会话"),
                 enabled = enabled && selectedCount > 0
             ) { Text("批量删除", color = Ink.red) }
         }

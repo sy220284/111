@@ -264,7 +264,9 @@ fun CodexShell(vm: CodexViewModel) {
                             if (selected == "threads") {
                                 IconButton(
                                     onClick = { vm.newThread(); move("chat") },
-                                    enabled = !running && !switching
+                                    enabled = !running && !switching,
+                                    modifier = Modifier.explainDisabled(running || switching,
+                                        if (running) "正在执行任务，请先停止或完成后新建" else "正在切换会话")
                                 ) {
                                     Icon(Icons.Outlined.AddCircleOutline, "新建任务")
                                 }
@@ -423,7 +425,8 @@ private fun Sidebar(
             Button(
                 onClick = onNewThread, enabled = !running,
                 shape = RoundedCornerShape(27.dp),
-                modifier = Modifier.height(51.dp).testTag("sidebar-new-chat"),
+                modifier = Modifier.heightIn(min = 51.dp).testTag("sidebar-new-chat")
+                    .explainDisabled(running, "正在执行任务，请先完成或停止后再新建"),
                 contentPadding = PaddingValues(horizontal = 14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Ink.coral, contentColor = Color.White,

@@ -177,6 +177,8 @@ internal fun SidebarSessionsContent(
                     onClick = onRefresh,
                     enabled = connected && !loading,
                     modifier = Modifier.size(48.dp).testTag("sidebar-refresh")
+                        .explainDisabled(!connected || loading,
+                            if (!connected) "运行核心未连接，暂不能刷新会话" else "会话正在刷新")
                 ) {
                     Icon(Icons.Outlined.Refresh, contentDescription = "刷新侧栏会话",
                         modifier = Modifier.size(19.dp), tint = Ink.muted)
