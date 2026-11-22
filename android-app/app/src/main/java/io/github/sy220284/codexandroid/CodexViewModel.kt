@@ -112,7 +112,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             bridge.connect()
             // A new native process invalidates ephemeral status from the old session.
             threadActivities.value = emptyMap()
-            errors.value = errors.value - "engine"
+            errors.value = errors.value - "engine" - "protocol"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
@@ -626,6 +626,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
+        if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
         if (method == "account/login/completed") {
             val result = AccountLoginContract.completion(params, activeLoginId.value)
             if (result != null) {

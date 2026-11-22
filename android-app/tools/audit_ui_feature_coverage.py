@@ -12,6 +12,8 @@ from pathlib import Path
 import re
 import sys
 
+from protocol_contract import parse_contracts
+
 PAGE = re.compile(
     r'^\s*Page\(\s*"(?P<id>[a-z]+)"\s*,\s*"(?P<title>[^"]+)"\s*,\s*"(?P<section>[^"]+)"',
     re.M,
@@ -24,6 +26,24 @@ NAME = re.compile(r'"([a-z]+)"')
 FUNCTION = re.compile(r'\bfun\s+([A-Za-z]\w*)\s*\(')
 METHOD = re.compile(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"')
 OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
+
+
+# Count identifiable RPC expressions separately from strings in descriptors.
+# A static callsite is not proof of a successful device interaction.
+RPC_CALL = re.compile(
+    r'\b(?:(?:bridge|vm)\.)?(?:request|rpc|refresh|ensureCatalog)\s*\(\s*'
+    r'(?:(?:"[^"\n]*"|[A-Za-z_]\w*)\s*,\s*)?'
+    r'"(?P<method>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"',
+    re.M,
+)
+
+
+def find_rpc_calls(code: str, official: set[str]) -> set[str]:
+    return {
+        match.group("method") for match in RPC_CALL.finditer(code)
+        if match.group("method") in official
+    }
+
 
 
 def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
@@ -58,9 +78,11 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         for match in FUNCTION.finditer(code):
             defined.setdefault(match.group(1), filename)
 
-    official = set(OFFICIAL.findall(protocol.read_text(encoding="utf-8")))
-    if len(official) < 100:
-        raise ValueError("官方 App Server 请求表解析异常")
+    contracts = parse_contracts(protocol.read_text(encoding="utf-8"))
+    official = set(contracts)
+    client_requests = {name for name, entry in contracts.items()
+                       if entry.direction == "client_request"}
+    host_requests = official - client_requests
     surfaces = {}
     if policy is not None:
         payload = json.loads(policy.read_text(encoding="utf-8"))
@@ -88,10 +110,17 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         if filename in declaration_files:
             continue
         for name in METHOD.findall(code):
-            if name in official:
+            if name in client_requests:
                 called.setdefault(name, [])
                 if filename not in called[name]:
                     called[name].append(filename)
+
+    call_sites: dict[str, list[str]] = {}
+    for filename, source in files.items():
+        if filename in declaration_files:
+            continue
+        for method in find_rpc_calls(source, client_requests):
+            call_sites.setdefault(method, []).append(filename)
 
     equivalents: dict[str, dict] = {}
     user_facing: set[str] = set()
@@ -136,7 +165,13 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         "pageCount": len(catalog),
         "routedCount": len(catalog) - len(missing),
         "officialRequests": len(official),
+        "clientRequests": len(client_requests),
+        "hostRequests": len(host_requests),
+        "hostRequestMethods": sorted(host_requests),
         "referencedRequests": len(called),
+        "rpcCallsiteRequests": len(call_sites),
+        "rpcCallsiteSources": dict(sorted(call_sites.items())),
+        "methodOnlyReferences": sorted(set(called) - set(call_sites)),
         "userFacingRequests": len(user_facing),
         "equivalentRequests": len(equivalents),
         "implementationEquivalents": dict(sorted(equivalents.items())),
@@ -155,12 +190,15 @@ def report_markdown(result: dict) -> str:
         "",
         f"- 已定义页面：**{result['pageCount']}**",
         f"- 已映射路由：**{result['routedCount']}**",
-        f"- 官方请求总数：**{result['officialRequests']}**",
+        f"- 官方协议方法总数：**{result['officialRequests']}**", 
+        f"- Android 可主动请求：**{result['clientRequests']}**", 
+        f"- 内核向 Android 发起的 Host 请求：**{result['hostRequests']}**", 
         f"- Android 非声明目录代码中显式引用的官方请求：**{result['referencedRequests']}**",
+        f"- Android 静态 RPC 调用表达式所涉及方法：**{result['rpcCallsiteRequests']}**",
         f"- 用户可见请求总数：**{result['userFacingRequests']}**",
         f"- 已核对的本地等效/条件实现：**{result['equivalentRequests']}**",
         "",
-        "说明：以上是源码可达性及协议名称核对；页面导航、真实操作成功和设备兼容性须使用 Android 设备测试验证。",
+        "说明：方法名称引用与静态调用表达式单独统计。静态表达式仍可能被条件分支阻断；页面点击和实际运行成功须经 Android 设备验证。", 
         "",
         "| 分组 | 页面 | ID | 实际组件 | 源文件 |",
         "| --- | --- | --- | --- | --- |",
@@ -172,7 +210,7 @@ def report_markdown(result: dict) -> str:
         )
     lines += [
         "",
-        "## 官方请求实际引用",
+        "## Android 客户端请求的源码引用（静态证据）",
         "",
         "| 方法 | Kotlin 来源 |",
         "| --- | --- |",
