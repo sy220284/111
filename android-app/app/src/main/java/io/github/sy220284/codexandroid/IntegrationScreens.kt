@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
@@ -88,7 +87,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         vm.refresh("appInstalled", "app/installed", JSONObject())
     }
     ScreenColumn {
-        SectionIntro("CONNECTORS / APPS", "已连接应用", "清楚区分发现、配置启用和当前可调用状态。")
+        SectionIntro("CONNECTORS / APPS", "已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("应用目录", style = MaterialTheme.typography.titleMedium)
             Text(if (data["apps"] != null) "已发现 ${apps.size} 个应用" else "等待同步可用应用", color = Ink.copper)
@@ -126,7 +125,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text(if (active?.optBoolean("callable") == true) "已经可以调用" else
+                        Text(if (active?.optBoolean("callable") == true) "可供智能体使用" else
                             if (active?.optBoolean("enabled") == true) "已启用，等待工具就绪" else
                             if (app.optBoolean("isAccessible")) "可访问" else "尚未授权或不可用",
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
