@@ -69,6 +69,8 @@ class CodexConnection(private val appContext: Context) {
             require(codeModeHost.isFile) {
                 "APK 缺少当前设备 ABI 的 Code Mode Host，请安装包含完整运行组件的版本。"
             }
+            val toolsDir = NativeToolInstaller.prepare(appContext)
+            builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
             val child = builder.start()
             process = child
             writer = BufferedWriter(OutputStreamWriter(child.outputStream, Charsets.UTF_8))

@@ -208,7 +208,13 @@ jobs:
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
             --target "$TARGET"
-          for NAME in codex-app-server codex-code-mode-host; do
+          # Package native ripgrep for Codex local project searching.
+          # Cargo verifies the immutable crates.io release against its registry checksum.
+          cargo install ripgrep --version 15.2.0 --locked --no-default-features \
+            --target "$TARGET" --root "$RUNNER_TEMP/ripgrep-install" --jobs 2
+          test -s "$RUNNER_TEMP/ripgrep-install/bin/rg"
+          cp "$RUNNER_TEMP/ripgrep-install/bin/rg" "target/$TARGET/release/rg"
+          for NAME in codex-app-server codex-code-mode-host rg; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
             file "$CORE"
@@ -231,5 +237,6 @@ jobs:
           path: |
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-app-server
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-code-mode-host
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/rg
           if-no-files-found: error
           retention-days: 90

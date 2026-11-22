@@ -81,6 +81,31 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun bundledRipgrepSearchesAndroidProjectWorkspace() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bin = NativeToolInstaller.prepare(app)
+        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val fixture = File(workspace, "rg-native-integration.txt")
+        fixture.writeText("codex-rg-native-confirmation\n")
+        val process = ProcessBuilder("/system/bin/sh", "-c",
+            "rg --no-config --line-number codex-rg-native-confirmation rg-native-integration.txt")
+            .directory(workspace)
+            .redirectErrorStream(true)
+            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .start()
+        try {
+            val finished = process.waitFor(30, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("ripgrep execution timed out", finished)
+            val result = process.inputStream.bufferedReader().readText()
+            assertEquals("ripgrep failed on Android: $result", 0, process.exitValue())
+            org.junit.Assert.assertTrue("ripgrep did not find the test file: $result",
+                result.contains("1:codex-rg-native-confirmation"))
+        } finally {
+            process.destroyForcibly()
+            fixture.delete()
+        }
+    }
+
     @Test fun bundledCodeModeHostCanInitializeV8OnAndroid() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val host = File(app.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")

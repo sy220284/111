@@ -365,6 +365,7 @@ jobs:
           test -n "$CERT"
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_server.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_code_mode_host.so'
+          unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_rg.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
           unzip -Z1 "$APK" | grep -Fxq 'classes.dex'
           if unzip -Z1 "$APK" | grep -Fxq 'lib/x86_64/libcodex_server.so'; then

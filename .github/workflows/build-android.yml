@@ -108,10 +108,11 @@ jobs:
             unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-filelist-$ABI"
             grep -Fxq "lib/$ABI/libcodex_server.so" "$RUNNER_TEMP/apk-filelist-$ABI"
             grep -Fxq "lib/$ABI/libcodex_code_mode_host.so" "$RUNNER_TEMP/apk-filelist-$ABI"
+            grep -Fxq "lib/$ABI/libcodex_rg.so" "$RUNNER_TEMP/apk-filelist-$ABI"
             grep -Fxq 'classes.dex' "$RUNNER_TEMP/apk-filelist-$ABI"
             OTHER="x86_64"
             if [ "$ABI" = x86_64 ]; then OTHER="arm64-v8a"; fi
-            if grep -Eq "^lib/$OTHER/libcodex_(server|code_mode_host)\.so$" "$RUNNER_TEMP/apk-filelist-$ABI"; then
+            if grep -Eq "^lib/$OTHER/libcodex_(server|code_mode_host|rg)\.so$" "$RUNNER_TEMP/apk-filelist-$ABI"; then
               echo "$ABI APK 包含了另一架构的核心，拆包失败" >&2
               exit 1
             fi
