@@ -70,7 +70,7 @@ class ProtocolMatrixTests(unittest.TestCase):
             "hooks/list": {"surface": "后台内部"},
             "mcpServerStatus/list": {"surface": "直接操作"}
         }}, ensure_ascii=False)
-        pages = ('Page("mcp", "MCP 服务", "能力", "连接管理", Icons.Hub, "mcpServerStatus/list"),\\n'
+        pages = ('Page("mcp", "MCP 服务", "能力", "连接管理", Icons.Hub, "mcpServerStatus/list"),\n'
                  'Page("hooks", "运行时钩子", "能力", "引擎内部", Icons.Bolt, "hooks/list"),')
         features = 'UiFeature("mcp", FeatureSurface.Page), UiFeature("hooks", FeatureSurface.Page)'
         errors = verify_ui_entrypoints(pages, features, policy)
@@ -82,7 +82,7 @@ class ProtocolMatrixTests(unittest.TestCase):
             "mcpServerStatus/list": {"surface": "直接操作"}
         }}, ensure_ascii=False)
         pages = 'Page("mcp", "MCP 服务", "能力", "连接管理", Icons.Hub, "mcpServerStatus/list"),'
-        features = ('UiFeature("mcp", FeatureSurface.Page),\\n'
+        features = ('UiFeature("mcp", FeatureSurface.Page),\n'
                     'UiFeature("update", FeatureSurface.Inline)')
         self.assertEqual([], verify_ui_entrypoints(pages, features, policy))
 
