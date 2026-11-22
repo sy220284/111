@@ -40,7 +40,7 @@
 | `AccountMetricsPage` | `account/usage/read`、`account/rateLimits/read` | 用量/额度双标签和真实配额信息 |
 | `AppUpdateCard` | `AppUpdateManager` | 设置行折叠；真实检查下载、增量校验、进度、取消、系统安装 |
 | `McpServiceStatusCard` | `mcpServerStatus/list`、`mcpServer/oauth/login` | 用户只管理 MCP 服务的连接状态和授权；智能体自主调用工具 |
-| `McpToolCallSheet`、`McpResourceSheet` | `mcpServer/tool/call`、`mcpServer/resource/read` | 保留内部协议测试组件，普通 MCP 设置页不提供手动工具/资源入口 |
+| MCP 工具调用与资源读取 | `mcpServer/tool/call`、`mcpServer/resource/read` | 只保留 Android RPC 能力；智能体自动使用，无手动工具表单、资源浏览入口 |
 | `PluginDetailSheet` | `plugin/read`、`plugin/skill/read` | 插件元数据及按需技能正文 |
 | `PluginSearchContract` + `PluginsPage` | `plugin/search`（实验） | 插件发现页按关键字搜索，携来源安装与详情，真实游标分页、错误提示 |
 | `AccountSessionsSheet` | `accountSession/list`、`accountSession/switch`（实验） | 账号面板列出可切换工作区，准确会话/工作区标识确认切换，按需外部 SSO 授权 |
