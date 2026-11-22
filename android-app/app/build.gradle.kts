@@ -114,3 +114,10 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+/** Generate reproducible protocol request fixtures from the same Kotlin unit-test run. */
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    val fixtureOutput = layout.buildDirectory.file("protocol-fixtures/requests.json")
+    systemProperty("codex.protocolFixturesOutput", fixtureOutput.get().asFile.absolutePath)
+    outputs.file(fixtureOutput)
+}
