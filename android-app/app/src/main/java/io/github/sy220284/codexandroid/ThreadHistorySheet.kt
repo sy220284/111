@@ -1,5 +1,7 @@
 package io.github.sy220284.codexandroid
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,10 +13,16 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
 
 /** 历史分页、回合条目与明确范围回退；全部使用官方线程请求。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,6 +38,32 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     var inspected by remember(thread) { mutableStateOf<String?>(null) }
     var fullReader by remember(thread) { mutableStateOf<String?>(null) }
     var showAdvanced by remember(thread) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var exportMarkdown by remember(thread) { mutableStateOf<String?>(null) }
+    var exportBusy by remember(thread) { mutableStateOf(false) }
+    var exportStatus by remember(thread) { mutableStateOf("") }
+    val exportFilePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/markdown")
+    ) { uri ->
+        val snapshot = exportMarkdown
+        if (uri != null && snapshot != null) {
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val output = context.contentResolver.openOutputStream(uri)
+                            ?: throw IOException("无法创建导出文件")
+                        output.bufferedWriter(Charsets.UTF_8).use { it.write(snapshot) }
+                    }
+                    exportStatus = "会话 Markdown 文件已保存"
+                } catch (failure: Exception) {
+                    exportStatus = "保存失败：" + (failure.message ?: "请选择其他保存位置")
+                } finally {
+                    exportMarkdown = null
+                }
+            }
+        } else exportMarkdown = null
+    }
     val prefix = "turnHistory:" + (thread ?: "none") + ":"
     val pages = (0..page).mapNotNull { data[prefix + it] }
     val turns = pages.flatMap { records(it) }.distinctBy { it.optString("id") }
@@ -57,6 +91,44 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text("查看完整时间线（实验）")
             }
+            OutlinedButton(
+                onClick = {
+                    val target = thread
+                    if (!target.isNullOrBlank()) {
+                        exportBusy = true
+                        exportStatus = ""
+                        scope.launch {
+                            try {
+                                val payload = vm.bridge.request("thread/read", JSONObject()
+                                    .put("threadId", target).put("includeTurns", true))
+                                val markdown = withContext(Dispatchers.Default) {
+                                    ThreadMarkdownExporter.render(payload)
+                                }
+                                exportMarkdown = markdown
+                                exportFilePicker.launch("Codex-会话记录.md")
+                            } catch (failure: Exception) {
+                                exportStatus = "导出失败：" +
+                                    (failure.message ?: "请检查会话连接")
+                            } finally {
+                                exportBusy = false
+                            }
+                        }
+                    }
+                },
+                enabled = !exportBusy && thread != null,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("thread-export-markdown")
+            ) {
+                Icon(Icons.Outlined.SaveAlt, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (exportBusy) "正在整理会话记录…" else "导出会话 Markdown")
+            }
+            if (exportBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (exportStatus.isNotBlank()) Text(
+                exportStatus, style = MaterialTheme.typography.bodySmall,
+                color = if (exportStatus.startsWith("导出失败") ||
+                    exportStatus.startsWith("保存失败")) Ink.red else Ink.jade
+            )
             if (thread == null) RequiresThreadPanel("回合历史") { onDismiss() }
             else {
                 if (key in loading || prefix + "0" in loading)
