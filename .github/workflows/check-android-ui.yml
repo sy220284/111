@@ -95,6 +95,8 @@ jobs:
             --source android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt \
             --spec docs/DESIGN_SYSTEM.md
           python3 android-app/tools/test_check_design_system_tokens.py
+      - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
+        run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 保存测试与 Lint 报告
