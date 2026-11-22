@@ -32,7 +32,9 @@ internal class DraftStorageController(
                 }
             }
         }
-        scope.launch {
+        // If the original draft index is unreadable, preserve every image for
+        // recovery: without its references no image can safely be called orphaned.
+        if (initial.warning == null) scope.launch {
             try {
                 LocalImageAttachments.cleanExpired(
                     context, drafts.value.values.flatMap { it.images }.toSet()
