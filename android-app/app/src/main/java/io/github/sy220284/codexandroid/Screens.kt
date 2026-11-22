@@ -234,6 +234,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -369,8 +370,11 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        CodexReveal(visible = prompts.isNotEmpty() || busy) {
-            if (prompts.isNotEmpty()) {
+        CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
+            if (switching) {
+                CodexNotice("正在载入会话及执行记录，请稍候…",
+                    NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
+            } else if (prompts.isNotEmpty()) {
                 CodexNotice(
                     "当前任务有 ${prompts.size} 项待审批操作，确认后才能继续。",
                     NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
@@ -546,7 +550,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             }
                         }
                     },
-                    enabled = status == EngineStatus.Connected && !attachmentBusy &&
+                    enabled = status == EngineStatus.Connected && !switching && !attachmentBusy &&
                         (if (busy) draft.isNotBlank() && thread != null &&
                             !activeTurn.isNullOrBlank() && !steering
                          else draft.isNotBlank() || attachedImages.isNotEmpty()),

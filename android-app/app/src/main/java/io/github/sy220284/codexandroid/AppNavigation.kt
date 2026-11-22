@@ -89,6 +89,7 @@ fun CodexShell(vm: CodexViewModel) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
@@ -236,7 +237,7 @@ fun CodexShell(vm: CodexViewModel) {
                             if (selected == "threads") {
                                 IconButton(
                                     onClick = { vm.newThread(); move("chat") },
-                                    enabled = !running
+                                    enabled = !running && !switching
                                 ) {
                                     Icon(Icons.Outlined.AddCircleOutline, "新建任务")
                                 }
@@ -279,7 +280,7 @@ fun CodexShell(vm: CodexViewModel) {
             Row(Modifier.fillMaxSize()) {
                 Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size, running, { vm.newThread(); move("chat") })
+                    status, pending.size, running || switching, { vm.newThread(); move("chat") })
                 Box(Modifier.weight(1f)) { content() }
             }
         } else {
@@ -298,7 +299,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size, running, { vm.newThread(); move("chat") }) }
+                        }, status, pending.size, running || switching, { vm.newThread(); move("chat") }) }
                 }
             ) { content() }
         }

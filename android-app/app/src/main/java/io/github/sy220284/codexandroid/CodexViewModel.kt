@@ -23,6 +23,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val bridge = CodexConnection(application.applicationContext)
     val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
     val activeThread = MutableStateFlow<String?>(null)
+    val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
@@ -124,6 +125,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun chooseThread(id: String) {
+        // Serialize resume requests: multiple rapid taps must not race the active session.
+        if (threadSwitching.value) return
         if (!ThreadDisplayPolicy.canOpenThread(running.value, activeThread.value, id)) {
             errors.value = errors.value + ("conversation" to
                 "当前任务仍在执行，请先结束任务再切换其他会话")
@@ -131,6 +134,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Returning to the same running thread must not clear its live timeline.
         if (running.value) return
+        threadSwitching.value = true
+        errors.value = errors.value - "conversation"
         viewModelScope.launch {
             try {
                 // Read and reconstruct the destination before changing the active core session.
@@ -170,11 +175,17 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 timeline.value = restored
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
+            } finally {
+                threadSwitching.value = false
             }
         }
     }
 
     fun newThread() {
+        if (threadSwitching.value) {
+            errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后再新建任务")
+            return
+        }
         if (running.value) {
             errors.value = errors.value + ("conversation" to "请先中断或完成当前任务，再新建会话")
             return
@@ -188,6 +199,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
         val prompt = text.trim()
+        if (threadSwitching.value) {
+            errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
+            return
+        }
         if ((prompt.isEmpty() && localImages.isEmpty()) || running.value) return
         val images = localImages.toList()
         // Acquire turn ownership before dispatching the coroutine: rapid taps
