@@ -36,6 +36,15 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn(":app:assembleDebugAndroidTest", build)
         self.assertIn("test_native_reuse.py", ui)
 
+    def test_stale_pr_native_checks_cannot_retrigger_latest_apk(self):
+        native = workflow("build-native-codex.yml")
+        android = workflow("build-android.yml")
+        self.assertIn('CURRENT_HEAD="$(gh api', native)
+        self.assertIn('if [ "$CURRENT_HEAD" != "$PR_HEAD_SHA" ]; then', native)
+        self.assertIn('-f expected_sha="$PR_HEAD_SHA"', native)
+        self.assertIn("inputs.expected_sha == github.sha", android)
+        self.assertIn("inputs.expected_sha == ''", android)
+
     def test_import_requires_manual_action_and_uses_reviewed_pr(self):
         contents = workflow("import-codex.yml")
         self.assertIn("  workflow_dispatch:", contents)
