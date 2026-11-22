@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -22,12 +23,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val bridge = CodexConnection(application.applicationContext)
     val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
     val activeThread = MutableStateFlow<String?>(null)
+    val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
+    /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
+    val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
     val latestDiff = MutableStateFlow("")
     val modelId = MutableStateFlow("")
     val selectedMode = MutableStateFlow("default")
@@ -58,6 +62,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun connect() = viewModelScope.launch {
         try {
             bridge.connect()
+            errors.value = errors.value - "engine"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             refresh("threads", "thread/list", JSONObject().put("limit", 30))
@@ -76,7 +81,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         key: String,
         method: String,
         params: JSONObject,
-        onSuccess: ((JSONObject) -> Unit)?
+        onSuccess: ((JSONObject) -> Unit)?,
+        userAction: Boolean = false
     ) {
         val ticket = latestRequests.begin(key)
         data.value = data.value - key
@@ -89,10 +95,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     data.value = data.value + (key to response)
                     errors.value = errors.value - key
                     onSuccess?.invoke(response)
+                    if (userAction) actionFeedback.emit(
+                        ActionFeedbackCopy.success(method, response))
                 }
             } catch (failure: Exception) {
                 if (latestRequests.isLatest(key, ticket)) {
-                    errors.value = errors.value + (key to (failure.message ?: "请求失败"))
+                    val reason = failure.message ?: "请求失败"
+                    errors.value = errors.value + (key to reason)
+                    if (userAction) actionFeedback.emit(
+                        ActionFeedbackCopy.failure(method, reason))
                 }
             } finally {
                 if (latestRequests.complete(key, ticket)) {
@@ -110,10 +121,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     ) = request(key, method, params, onSuccess)
 
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
-        request(key, method, params, if (after == null) null else { _ -> after() })
+        request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
     }
 
     fun chooseThread(id: String) {
+        // Serialize resume requests: multiple rapid taps must not race the active session.
+        if (threadSwitching.value) return
         if (!ThreadDisplayPolicy.canOpenThread(running.value, activeThread.value, id)) {
             errors.value = errors.value + ("conversation" to
                 "当前任务仍在执行，请先结束任务再切换其他会话")
@@ -121,16 +134,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Returning to the same running thread must not clear its live timeline.
         if (running.value) return
+        threadSwitching.value = true
+        errors.value = errors.value - "conversation"
         viewModelScope.launch {
             try {
-                bridge.request("thread/resume", JSONObject().put("threadId", id))
-                activeThread.value = id
-                running.value = false
-                timeline.value = emptyList()
-                latestDiff.value = ""
+                // Read and reconstruct the destination before changing the active core session.
                 val history = bridge.request("thread/read", JSONObject()
                     .put("threadId", id).put("includeTurns", true))
-                data.value = data.value + ("threadHistory" to history)
                 val turns = history.optJSONObject("thread")?.optJSONArray("turns") ?: JSONArray()
                 val restored = mutableListOf<TimelineItem>()
                 for (turnIndex in 0 until turns.length()) {
@@ -157,14 +167,25 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                bridge.request("thread/resume", JSONObject().put("threadId", id))
+                data.value = data.value + ("threadHistory" to history)
+                activeThread.value = id
+                running.value = false
+                latestDiff.value = ""
                 timeline.value = restored
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
+            } finally {
+                threadSwitching.value = false
             }
         }
     }
 
     fun newThread() {
+        if (threadSwitching.value) {
+            errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后再新建任务")
+            return
+        }
         if (running.value) {
             errors.value = errors.value + ("conversation" to "请先中断或完成当前任务，再新建会话")
             return
@@ -178,6 +199,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
         val prompt = text.trim()
+        if (threadSwitching.value) {
+            errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
+            return
+        }
         if ((prompt.isEmpty() && localImages.isEmpty()) || running.value) return
         val images = localImages.toList()
         // Acquire turn ownership before dispatching the coroutine: rapid taps

@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,10 +14,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -156,13 +162,32 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
 /** 重点操作以白底、暖铜文字和较强描边呈现。 */
 @Composable
 fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
-    enabled: Boolean = true, shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(13.dp),
+    enabled: Boolean = true, busy: Boolean = false,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(13.dp),
     content: @Composable RowScope.() -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape,
-        border = BorderStroke(1.5.dp, if (enabled) Ink.copper else Ink.border),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = Ink.canvas,
-            contentColor = Ink.copper, disabledContainerColor = Ink.canvas,
-            disabledContentColor = Ink.muted), content = content)
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (enabled && !busy && pressed && !reduced) .985f else 1f,
+        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduced)),
+        label = "primary-action-press"
+    )
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+        enabled = enabled && !busy, shape = shape, interactionSource = press,
+        border = BorderStroke(1.5.dp, if (enabled && !busy) Ink.copper else Ink.border),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Ink.canvas, contentColor = Ink.copper,
+            disabledContainerColor = Ink.canvas, disabledContentColor = Ink.muted)
+    ) {
+        if (busy) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Ink.muted)
+            Spacer(Modifier.width(9.dp))
+            Text("正在处理…")
+        } else content()
+    }
 }
 
 /** 所有开关轨道保持白色，状态通过边框与滑块辨认。 */

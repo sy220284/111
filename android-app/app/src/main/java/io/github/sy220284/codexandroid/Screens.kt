@@ -95,6 +95,7 @@ fun ScreenColumn(
 @Composable
 private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
@@ -128,6 +129,8 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         CodexPrimaryButton(
             onClick = { if (!running) vm.newThread(); navigate("chat") },
+            enabled = !switching,
+            busy = switching,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             shape = RoundedCornerShape(24.dp)
         ) {
@@ -169,13 +172,16 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
         }
-        if (threads.isEmpty()) {
+        if (threads.isEmpty() && data["threads"] != null) {
             Text("完成首个任务后，最近的会话会出现在这里。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        } else if (threads.isEmpty()) {
+            Text("等待连接并同步最近的会话。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         } else {
             threads.take(2).forEach { item ->
-                ThreadRow(item, enabled = !running ||
-                    vm.activeThread.value == item.optString("id")) {
+                ThreadRow(item, enabled = !switching && (!running ||
+                    vm.activeThread.value == item.optString("id"))) {
                     val id = item.optString("id")
                     if (!running) vm.chooseThread(id)
                     navigate("chat")
@@ -234,8 +240,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
+    val loading by vm.loading.collectAsState()
     val items by vm.timeline.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
@@ -251,6 +259,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
+    var showApprovalQuick by remember { mutableStateOf(false) }
+    var stopRequested by remember(activeTurn) { mutableStateOf(false) }
+    val stopping = busy && (("interrupt" in loading) ||
+        (stopRequested && errors["interrupt"] == null))
     val attachmentContext = LocalContext.current
     var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var attachmentBusy by remember { mutableStateOf(false) }
@@ -364,14 +376,24 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        CodexReveal(visible = prompts.isNotEmpty()) {
-            CodexNotice("本次任务有 ${prompts.size} 项待审批操作",
-                NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                actionLabel = "查看", onAction = { navigate("approvals") })
-        }
-        CodexReveal(visible = busy) {
-            CodexNotice("任务执行中 · 已记录 ${items.size} 步 · ${items.lastOrNull()?.text?.trim()?.replace("\n", " ")?.take(35).orEmpty()}",
-                NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
+        CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
+            if (switching) {
+                CodexNotice("正在载入会话及执行记录，请稍候…",
+                    NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
+            } else if (prompts.isNotEmpty()) {
+                CodexNotice(
+                    "当前任务有 ${prompts.size} 项待审批操作，确认后才能继续。",
+                    NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                    actionLabel = "立即处理", onAction = { showApprovalQuick = true }
+                )
+            } else if (busy) {
+                CodexNotice(
+                    if (stopping) "已请求停止任务，正在等待内核确认。"
+                    else "执行中 · ${items.size} 步 · " +
+                        PresentationPolicy.timelineKind(items.lastOrNull()?.kind.orEmpty()),
+                    NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+                )
+            }
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (items.isEmpty()) {
@@ -447,6 +469,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         errors["conversation"]?.let { ErrorText(it) }
         errors["steer"]?.let { ErrorText(it) }
+        errors["interrupt"]?.let { ErrorText(it) }
         DividerLine()
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             ConversationControlBar(
@@ -505,15 +528,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
-                    onClick = { vm.interrupt() },
-                    enabled = busy,
+                    onClick = { stopRequested = true; vm.interrupt() },
+                    enabled = busy && !activeTurn.isNullOrBlank() && !stopping,
                     modifier = Modifier.weight(.38f).heightIn(min = 50.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
                     contentPadding = PaddingValues(horizontal = 9.dp)
                 ) {
-                    Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
+                    if (stopping) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp,
+                            color = Ink.red)
+                    } else Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text("停止")
+                    Text(if (stopping) "停止中" else "停止")
                 }
                 CodexPrimaryButton(
                     onClick = {
@@ -530,10 +556,11 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             }
                         }
                     },
-                    enabled = status == EngineStatus.Connected && !attachmentBusy &&
+                    enabled = status == EngineStatus.Connected && !switching && !attachmentBusy &&
                         (if (busy) draft.isNotBlank() && thread != null &&
                             !activeTurn.isNullOrBlank() && !steering
                          else draft.isNotBlank() || attachedImages.isNotEmpty()),
+                    busy = steering || (busy && activeTurn.isNullOrBlank()),
                     modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
                 ) {
                     Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
@@ -567,6 +594,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         )
     }
+    if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }
     if (showModels) ModelChoiceSurface(vm) { showModels = false }
     if (showModes) ModeChoiceSurface(vm) { showModes = false }
     if (showEngineStatus) EngineStatusSheet(
@@ -697,9 +725,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                 Spacer(Modifier.width(12.dp))
                 Text("当前状态", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                IconButton(onClick = { page.rpc?.let { vm.refresh(page.id, it) } }) {
-                    Icon(Icons.Outlined.Refresh, "刷新")
-                }
+                CodexRefreshIcon(busy = page.id in loading,
+                    onRefresh = { page.rpc?.let { vm.refresh(page.id, it) } },
+                    label = "刷新${page.title}")
             }
             if (page.id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             errors[page.id]?.let { ErrorText(it) }
@@ -781,15 +809,36 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     ScreenColumn {
         SectionIntro("SEARCH / THREADS", "全文检索", "通过 Codex 的历史检索定位旧任务。")
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("搜索词") }, leadingIcon = { Icon(Icons.Outlined.Search, null) })
-        OutlinedButton(onClick = { vm.refresh("search", "thread/search", JSONObject().put("searchTerm", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
-        errors["search"]?.let { ErrorText(it) }
+        CodexPrimaryButton(
+            onClick = { vm.refresh("search", "thread/search",
+                JSONObject().put("searchTerm", query.trim())) },
+            enabled = query.isNotBlank() && "search" !in loading,
+            busy = "search" in loading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Outlined.Search, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(7.dp))
+            Text("查找历史会话")
+        }
+        ProtocolFeedback(vm, listOf("search"), onRetry = {
+            vm.refresh("search", "thread/search",
+                JSONObject().put("searchTerm", query.trim()))
+        })
+        if (data["search"] != null && records(data["search"]).isEmpty() &&
+            "search" !in loading && errors["search"] == null) {
+            CodexEmptyState("没有找到相关会话",
+                "尝试换一个关键词，或返回会话历史查看全部记录。",
+                actionLabel = "查看全部会话", onAction = { navigate("threads") })
+        }
         records(data["search"]).forEach { entry ->
-            ThreadRow(entry, enabled = ThreadDisplayPolicy.canOpenThread(
+            ThreadRow(entry, enabled = !switching && ThreadDisplayPolicy.canOpenThread(
                 running, activeThread, entry.optString("id"))) {
                 if (!running) vm.chooseThread(entry.optString("id"))
                 navigate("chat")

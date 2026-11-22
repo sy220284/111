@@ -40,7 +40,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     LaunchedEffect(engine) {
         if (engine == EngineStatus.Connected) {
             vm.refresh("accountSessions", "accountSession/list",
-                JSONObject().put("refreshWorkspaceMetadata", false))
+                CatalogRequestContract.accountSessions())
         }
     }
 
@@ -56,7 +56,8 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             OutlinedButton(
                 onClick = {
                     if (engine == EngineStatus.Connected)
-                        vm.refresh("accountSessions", "accountSession/list", JSONObject())
+                        vm.refresh("accountSessions", "accountSession/list",
+                            CatalogRequestContract.accountSessions())
                     else vm.connect()
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 enabled = "accountSessions" !in loading
@@ -85,7 +86,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             LazyColumn(Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 25.dp)) {
-                if (entries.isEmpty() && "accountSessions" !in loading) {
+                if (entries.isEmpty() && payload != null && "accountSessions" !in loading) {
                     item {
                         CodexEmptyState("暂无可切换的账号", "该能力需要当前内核支持多个账号会话。")
                     }
@@ -155,7 +156,8 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 vm.rpc("accountSessionSwitch", "accountSession/switch",
                     JSONObject().put("sessionId", sid).put("accountId", aid)
                         .put("allowBrowserLogin", false), after = {
-                        vm.refresh("accountSessions", "accountSession/list", JSONObject())
+                        vm.refresh("accountSessions", "accountSession/list",
+                            CatalogRequestContract.accountSessions())
                         vm.refresh("account", "account/read", JSONObject())
                         vm.refresh("models", "model/list", JSONObject())
                     })

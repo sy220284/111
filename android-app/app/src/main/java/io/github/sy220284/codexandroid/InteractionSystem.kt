@@ -123,20 +123,23 @@ fun ProtocolFeedback(
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val connection by vm.bridge.status.collectAsState()
-    if (keys.any { it in loading }) {
-        LinearProgressIndicator(Modifier.fillMaxWidth())
+    CodexReveal(keys.any { it in loading }) {
+        LinearProgressIndicator(Modifier.fillMaxWidth(), color = Ink.copper)
     }
-    PresentationPolicy.visibleErrors(errors, keys).forEach { error ->
+    val visible = PresentationPolicy.visibleErrors(errors, keys)
+    if (visible.isNotEmpty() && connection != EngineStatus.Connected) {
         CodexNotice(
-            message = error,
-            tone = NoticeTone.Error,
-            actionLabel = if (onRetry == null) null else
-                if (connection == EngineStatus.Connected) "重新加载" else "重新连接",
-            onAction = {
-                if (connection == EngineStatus.Connected) onRetry?.invoke()
-                else vm.connect()
-            }
+            message = if (connection == EngineStatus.Starting)
+                "正在连接本机运行核心，连接完成后即可加载内容。"
+            else "本机运行核心尚未连接。重新连接后可继续使用当前功能。",
+            tone = NoticeTone.Warning,
+            actionLabel = if (connection is EngineStatus.Unavailable) "重新连接" else null,
+            onAction = { vm.connect() }
         )
+    } else visible.forEach { error ->
+        CodexNotice(message = error, tone = NoticeTone.Error,
+            actionLabel = if (onRetry == null) null else "重新加载",
+            onAction = { onRetry?.invoke() })
     }
 }
 
@@ -150,16 +153,41 @@ fun CodexEmptyState(
     onAction: () -> Unit = {}
 ) {
     MaterialPanel(modifier.fillMaxWidth()) {
-        Icon(icon, contentDescription = null, tint = Ink.copper, modifier = Modifier.size(29.dp))
-        Spacer(Modifier.height(8.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(description, style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-        if (actionLabel != null) {
-            Spacer(Modifier.height(7.dp))
-            OutlinedButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(actionLabel)
+        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Surface(color = Ink.canvas, border = BorderStroke(1.dp, Ink.copperDim),
+                shape = RoundedCornerShape(18.dp)) {
+                Icon(icon, contentDescription = null, tint = Ink.copper,
+                    modifier = Modifier.padding(14.dp).size(28.dp))
+            }
+            Text(title, style = MaterialTheme.typography.titleMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(description, style = MaterialTheme.typography.bodyMedium,
+                color = Ink.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (actionLabel != null) {
+                Spacer(Modifier.height(2.dp))
+                CodexPrimaryButton(onClick = onAction,
+                    modifier = Modifier.heightIn(min = 48.dp)) { Text(actionLabel) }
             }
         }
+    }
+}
+
+/** Refresh actions share touch area, pending animation and disabled state. */
+@Composable
+fun CodexRefreshIcon(
+    busy: Boolean,
+    onRefresh: () -> Unit,
+    label: String = "刷新"
+) {
+    IconButton(
+        onClick = onRefresh, enabled = !busy,
+        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+    ) {
+        if (busy) CircularProgressIndicator(
+            Modifier.size(19.dp), strokeWidth = 2.dp, color = Ink.copper
+        ) else Icon(Icons.Outlined.Refresh, contentDescription = label)
     }
 }
 

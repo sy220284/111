@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -55,6 +56,7 @@ private fun DetailToggle(value: JSONObject, label: String = "查看服务信息"
 fun ModelsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val chosen by vm.modelId.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsState()
     val items = records(data["models"])
     LaunchedEffect(Unit) { vm.refresh("models", "model/list") }
     ScreenColumn {
@@ -66,7 +68,7 @@ fun ModelsPage(vm: CodexViewModel) {
             OutlinedButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
         }
         SourceState(vm, "models") { vm.refresh("models", "model/list") }
-        if (items.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
+        if (items.isEmpty() && data["models"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("暂无可显示的模型。先在账号设置中完成认证，再刷新目录。", color = Ink.muted)
             TextButton(onClick = { vm.refresh("models", "model/list") }) { Text("重新加载") }
         }
@@ -75,7 +77,8 @@ fun ModelsPage(vm: CodexViewModel) {
             val title = item.optString("displayName").ifBlank { item.optString("model", id) }
             val chosenNow = chosen == id
             Surface(
-                modifier = Modifier.fillMaxWidth().clickable { vm.modelId.value = id }.animateContentSize(),
+                modifier = Modifier.fillMaxWidth().clickable { vm.modelId.value = id }
+                    .animateContentSize(animationSpec = tween(CodexMotion.duration(180, reduced))),
                 shape = RoundedCornerShape(18.dp),
                 color = Ink.canvas,
                 border = BorderStroke(1.dp, if (chosenNow) Ink.copper else Ink.border)
@@ -200,7 +203,9 @@ fun ProvidersPage(vm: CodexViewModel) {
                 DetailToggle(item)
             }
         }
-        if (entries.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("未取得模型服务商列表。", color = Ink.muted) }
+        if (entries.isEmpty() && data["providers"] != null) {
+            CodexEmptyState("暂无可用模型服务商", "当前内核没有返回已配置的服务商。")
+        }
     }
     if (confirmCustom) CodexConfirmDialog(
         title = "保存自定义模型服务商",
@@ -244,10 +249,11 @@ fun SkillsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val groups = records(data["skills"])
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
-    LaunchedEffect(Unit) { vm.refresh("skills", "skills/list", JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))) }
+    LaunchedEffect(Unit) { vm.refresh("skills", "skills/list", CatalogRequestContract.workspace(vm.workingDirectory)) }
     ScreenColumn {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
-        SourceState(vm, "skills") { vm.refresh("skills", "skills/list") }
+        SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
+            CatalogRequestContract.workspace(vm.workingDirectory)) }
         groups.forEach { group ->
             Text("工作区技能", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             group.optJSONArray("skills")?.objects()?.forEach { skill ->
@@ -286,7 +292,13 @@ fun SkillsPage(vm: CodexViewModel) {
                 ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
             }
         }
-        if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("目录中暂时没有技能。", color = Ink.muted) }
+        if (groups.isEmpty() && data["skills"] != null) {
+            CodexEmptyState("当前工作区没有可用技能",
+                "可以安装技能包并刷新目录，启用后即可在对话中使用。",
+                icon = Icons.Outlined.School, actionLabel = "重新读取技能",
+                onAction = { vm.refresh("skills", "skills/list",
+                    CatalogRequestContract.workspace(vm.workingDirectory)) })
+        }
     }
     confirmation?.let { (skill, enabled) ->
         CodexConfirmDialog(
@@ -298,7 +310,7 @@ fun SkillsPage(vm: CodexViewModel) {
                 vm.rpc("skills", "skills/config/write",
                     JSONObject().put("path", skill.optString("path")).put("enabled", enabled),
                     after = { vm.refresh("skills", "skills/list",
-                        JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))) })
+                        CatalogRequestContract.workspace(vm.workingDirectory)) })
                 confirmation = null
             },
             onDismiss = { confirmation = null }
@@ -332,9 +344,9 @@ fun PluginsPage(vm: CodexViewModel) {
     else ""
     LaunchedEffect(installedOnly) {
         if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-            JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+            CatalogRequestContract.workspace(vm.workingDirectory))
         else vm.refresh("plugins", "plugin/list",
-            JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+            CatalogRequestContract.workspace(vm.workingDirectory))
     }
     ScreenColumn {
         SectionIntro("CODEX / MARKETPLACE", "插件",
@@ -388,9 +400,9 @@ fun PluginsPage(vm: CodexViewModel) {
                 }
                 IconButton(onClick = {
                     if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-                        JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+                        CatalogRequestContract.workspace(vm.workingDirectory))
                     else vm.refresh("plugins", "plugin/list",
-                        JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))
+                        CatalogRequestContract.workspace(vm.workingDirectory)
                             .put("forceRefetch", true))
                 }) {
                     Icon(Icons.Outlined.Refresh, "刷新插件列表")
@@ -399,8 +411,9 @@ fun PluginsPage(vm: CodexViewModel) {
         }
         SourceState(vm, activeKey) {
             if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-                JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
-            else vm.refresh("plugins", "plugin/list")
+                CatalogRequestContract.workspace(vm.workingDirectory))
+            else vm.refresh("plugins", "plugin/list",
+                CatalogRequestContract.workspace(vm.workingDirectory))
         }
         if (searchActive) {
             Text("插件搜索结果 · ${found.size} 项",
@@ -519,14 +532,14 @@ fun PluginsPage(vm: CodexViewModel) {
                         after = {
                             vm.refresh("plugins", "plugin/list")
                             vm.refresh("installedPlugins", "plugin/installed",
-                                JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+                                CatalogRequestContract.workspace(vm.workingDirectory))
                         })
                 } else {
                     vm.rpc("plugins", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
                         after = {
                             vm.refresh("plugins", "plugin/list")
                             vm.refresh("installedPlugins", "plugin/installed",
-                                JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+                                CatalogRequestContract.workspace(vm.workingDirectory))
                         })
                 }
                 action = null
@@ -541,11 +554,12 @@ fun HooksPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val groups = records(data["hooks"])
     LaunchedEffect(Unit) {
-        vm.refresh("hooks", "hooks/list", JSONObject().put("cwds", JSONArray().put(vm.workingDirectory)))
+        vm.refresh("hooks", "hooks/list", CatalogRequestContract.workspace(vm.workingDirectory))
     }
     ScreenColumn {
         SectionIntro("RUNTIME / HOOKS", "触发钩子", "查看执行时机、来源、权限与托管状态。")
-        SourceState(vm, "hooks") { vm.refresh("hooks", "hooks/list") }
+        SourceState(vm, "hooks") { vm.refresh("hooks", "hooks/list",
+            CatalogRequestContract.workspace(vm.workingDirectory)) }
         groups.forEach { group ->
             Text("工作区触发器", color = Ink.muted)
             group.optJSONArray("hooks")?.objects()?.forEach { hook ->
@@ -568,7 +582,11 @@ fun HooksPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("尚未载入运行钩子。", color = Ink.muted) }
+        if (groups.isEmpty() && data["hooks"] != null) {
+            CodexEmptyState("没有可用的运行钩子",
+                "当前工作区没有注册可显示的触发器。",
+                icon = Icons.Outlined.Bolt)
+        }
     }
 }
 

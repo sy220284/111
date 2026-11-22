@@ -28,6 +28,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
     var archived by rememberSaveable { mutableStateOf(false) }
     var searchText by rememberSaveable { mutableStateOf("") }
@@ -87,12 +88,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("按标题或全文检索真实会话记录", color = Ink.muted,
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    IconButton(onClick = {
-                        if (fullText && fullSubmitted.isNotBlank()) vm.refresh(fullKey, "thread/search",
-                            JSONObject().put("searchTerm", fullSubmitted)) else load(cursor)
-                    }, enabled = key !in loading && !fullPending) {
-                        Icon(Icons.Outlined.Refresh, "刷新列表")
-                    }
+                    CodexRefreshIcon(busy = key in loading || fullPending,
+                        onRefresh = {
+                            if (fullText && fullSubmitted.isNotBlank()) vm.refresh(fullKey,
+                                "thread/search", JSONObject().put("searchTerm", fullSubmitted))
+                            else load(cursor)
+                        }, label = "刷新会话列表")
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = !fullText, onClick = {
@@ -192,7 +193,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = !running) {
+                    enabled = !running && !switching) {
                     Icon(Icons.Outlined.Add, null)
                     Spacer(Modifier.width(7.dp))
                     Text("新建任务")
@@ -209,7 +210,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 item { CodexEmptyState("没有全文检索结果", "尝试减少关键词或切回标题搜索。") }
             }
             items(fullResults, key = { "full-" + it.optString("id") }) { thread ->
-                ThreadRow(thread, enabled = !running || activeId == thread.optString("id")) {
+                ThreadRow(thread, enabled = !switching && (!running || activeId == thread.optString("id"))) {
                     if (!running) vm.chooseThread(thread.optString("id"))
                     navigate("chat")
                 }
@@ -315,7 +316,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 } else {
                     OutlinedButton(onClick = { vm.chooseThread(id); navigate("chat") },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        enabled = !running && id.isNotBlank()) {
+                        enabled = !running && !switching && id.isNotBlank()) {
                         Icon(Icons.Outlined.PlayArrow, null)
                         Spacer(Modifier.width(7.dp))
                         Text("继续会话")

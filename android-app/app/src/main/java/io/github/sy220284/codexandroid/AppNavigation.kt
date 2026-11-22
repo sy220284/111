@@ -89,10 +89,22 @@ fun CodexShell(vm: CodexViewModel) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val terminalSession by vm.terminalSession.collectAsState()
+    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val operationSnacks = remember { SnackbarHostState() }
+    LaunchedEffect(vm) {
+        vm.actionFeedback.collect { receipt ->
+            operationSnacks.showSnackbar(
+                message = receipt.message,
+                withDismissAction = receipt.isError,
+                duration = if (receipt.isError) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+        }
+    }
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
     var showQuickTools by rememberSaveable { mutableStateOf(false) }
     var pendingQuickRoute by remember { mutableStateOf<String?>(null) }
@@ -184,11 +196,22 @@ fun CodexShell(vm: CodexViewModel) {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
+                snackbarHost = { SnackbarHost(operationSnacks) },
                 topBar = {
                     TopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                                AnimatedContent(
+                                    targetState = page.title,
+                                    transitionSpec = {
+                                        fadeIn(tween(CodexMotion.duration(180, reduceMotion))) togetherWith
+                                            fadeOut(tween(CodexMotion.duration(100, reduceMotion)))
+                                    }, label = "page-title"
+                                ) { label ->
+                                    Text(label, modifier = Modifier.testTag("screen-title"), maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.titleMedium)
+                                }
                                 // 顶栏保留当前页面，正文只呈现一次功能介绍。
                             }
                         },
@@ -214,7 +237,7 @@ fun CodexShell(vm: CodexViewModel) {
                             if (selected == "threads") {
                                 IconButton(
                                     onClick = { vm.newThread(); move("chat") },
-                                    enabled = !running
+                                    enabled = !running && !switching
                                 ) {
                                     Icon(Icons.Outlined.AddCircleOutline, "新建任务")
                                 }
@@ -257,7 +280,7 @@ fun CodexShell(vm: CodexViewModel) {
             Row(Modifier.fillMaxSize()) {
                 Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size, running, { vm.newThread(); move("chat") })
+                    status, pending.size, running || switching, { vm.newThread(); move("chat") })
                 Box(Modifier.weight(1f)) { content() }
             }
         } else {
@@ -276,7 +299,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size, running, { vm.newThread(); move("chat") }) }
+                        }, status, pending.size, running || switching, { vm.newThread(); move("chat") }) }
                 }
             ) { content() }
         }

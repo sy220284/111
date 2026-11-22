@@ -28,6 +28,25 @@ class UiPopulatedSubpagesInstrumentedTest {
         captureVerifiedDisplayScreenshot(name)
     }
 
+    @Test fun conversationApprovalSheetRendersActualCommandAndDecision() {
+        val vm = viewModel()
+        val request = ServerPrompt("ci-approval", "item/commandExecution/requestApproval",
+            JSONObject().put("command", "git status")
+                .put("reason", "确认本机工作区当前改动")
+                .put("cwd", "/data/user/0/ci/projects"))
+        vm.bridge.prompts.value = listOf(request)
+        rule.setContent {
+            CodexTheme {
+                ApprovalQuickSheet(vm, onDismiss = {})
+            }
+        }
+        rule.onNodeWithText("处理当前任务的审批").assertExists()
+        rule.onNodeWithText("命令执行确认").assertExists()
+        rule.onNodeWithText("git status").assertExists()
+        rule.onNodeWithText("仅本次允许").assertExists()
+        capture("audit-conversation-approval-android35.png")
+    }
+
     @Test fun mcpToolInputRendersActualSchemaFields() {
         val vm = viewModel()
         vm.activeThread.value = "ci-fixture-session"

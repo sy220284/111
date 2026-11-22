@@ -70,8 +70,44 @@ fun ApprovalsPage(vm: CodexViewModel) {
     }
 }
 
+/** Same validated approval flow, directly accessible from the active conversation. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
+fun ApprovalQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
+    val prompts by vm.bridge.prompts.collectAsState()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Ink.canvas, contentColor = Ink.parchment
+    ) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = 580.dp)
+                .verticalScroll(rememberScrollState()).navigationBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("处理当前任务的审批", style = MaterialTheme.typography.headlineSmall)
+            Text("请根据具体命令、文件和权限范围作出决定。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            if (prompts.isEmpty()) {
+                CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
+                    icon = Icons.Outlined.GppGood)
+                OutlinedButton(onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("返回当前任务")
+                }
+            } else {
+                prompts.forEach { prompt ->
+                    key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val method = prompt.method
     if (method == "mcpServer/elicitation/request") {
         McpElicitationRequestCard(vm, prompt)
@@ -320,6 +356,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
+    val loading by vm.loading.collectAsState()
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]
     val permissionProfiles = records(data["permissionProfiles"])
@@ -386,7 +423,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             CodexPrimaryButton(
                 onClick = { confirm = true },
-                enabled = hasChanges,
+                enabled = hasChanges && "securitySave" !in loading,
+                busy = "securitySave" in loading,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 Text("保存本次权限调整")
