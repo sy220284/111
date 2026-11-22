@@ -49,6 +49,7 @@
 - 已定位真实运行缺口：旧版 `CodexConnection.request()` 对缺失、空值或类型错误的 `result` 统一返回空 `JSONObject()`，可能把无效响应传递到业务成功路径。
 - 新增 `RpcResponseContract`，集中检查 `result` 和 `error` 互斥、合法错误代码与消息、成功结果对象类型。只有真实、合法的服务端成功对象才能继续驱动 UI 状态更新。
 - `RpcResponseContractTest` 覆盖正常成功、空结果、错误类型、成功错误并存、错误代码或消息缺失；`RpcProcessChannelTest` 从进程帧读入后验证相同拒绝路径。
+- `RpcEnvelopeRouter` 还识别缺失或错误类型的响应 ID，并在接收通道将其转换成可见的连接错误，唤醒所有待响应请求，不再把无效响应作为普通事件丢弃。
 - 本项属于 **RPC 返回封套级** 修复。所有方法的返回 DTO 完整字段、分页及通知 reducer 和真实 ARM64 核心联调仍需单独验收。
 
 ## 已查出的差异与落实任务
