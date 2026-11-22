@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /** Protocol-envelope classification shared by runtime transport and pure unit tests. */
 internal enum class RpcEnvelopeKind {
-    Response, HostRequest, UnsupportedHostRequest, RequestResolved, Event
+    Response, MalformedResponse, HostRequest, UnsupportedHostRequest, RequestResolved, Event
 }
 
 /**
@@ -45,7 +45,9 @@ internal object RpcEnvelopeRouter {
         val id = message.opt("id")
         val method = message.optString("method")
         return when {
-            id is Number && method.isEmpty() -> RpcEnvelopeKind.Response
+            method.isEmpty() && (message.has("result") || message.has("error") ||
+                (id != null && id != JSONObject.NULL)) ->
+                if (id is Number) RpcEnvelopeKind.Response else RpcEnvelopeKind.MalformedResponse
             method.isNotEmpty() && id != null && id != JSONObject.NULL ->
                 if (method in supportedHostRequests) RpcEnvelopeKind.HostRequest
                 else RpcEnvelopeKind.UnsupportedHostRequest
