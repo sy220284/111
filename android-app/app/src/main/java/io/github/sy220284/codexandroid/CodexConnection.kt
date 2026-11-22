@@ -12,10 +12,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
-import java.io.BufferedWriter
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -35,7 +33,7 @@ class CodexConnection(private val appContext: Context) {
     private val sequence = AtomicLong(1)
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
     @Volatile private var process: Process? = null
-    @Volatile private var writer: BufferedWriter? = null
+    @Volatile private var wire: RpcProcessChannel? = null
     private val shutdownHook = Thread({ close() }, "codex-native-process-cleanup")
 
     init {
@@ -54,7 +52,7 @@ class CodexConnection(private val appContext: Context) {
         // Retire a failed/stale process before opening a new JSON-RPC stream.
         val stale = process
         process = null
-        writer = null
+        wire = null
         stale?.destroy()
         failWaiting("运行核心正在重新连接")
         prompts.value = emptyList()
@@ -85,8 +83,9 @@ class CodexConnection(private val appContext: Context) {
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
             val child = builder.start()
             process = child
-            writer = BufferedWriter(OutputStreamWriter(child.outputStream, Charsets.UTF_8))
-            scope.launch { listen(child) }
+            val channel = RpcProcessChannel(child)
+            wire = channel
+            scope.launch { listen(child, channel) }
             scope.launch {
                 val exitCode = child.waitFor()
                 if (process === child) {
@@ -115,7 +114,7 @@ class CodexConnection(private val appContext: Context) {
                         val reason = "Codex 错误输出通道读取失败：" +
                             (failure.message ?: failure.javaClass.simpleName)
                         process = null
-                        writer = null
+                        wire = null
                         status.value = EngineStatus.Unavailable(reason)
                         prompts.value = emptyList()
                         failWaiting(reason)
@@ -135,7 +134,7 @@ class CodexConnection(private val appContext: Context) {
             val failedProcess = process
             val exit = failedProcess?.takeIf { !it.isAlive }?.runCatching { exitValue() }?.getOrNull()
             process = null
-            writer = null
+            wire = null
             failedProcess?.destroy()
             val reason = (failure.message ?: "Codex 内核启动失败") +
                 (if (exit == null) "" else " (退出码 " + exit + ")")
@@ -146,11 +145,10 @@ class CodexConnection(private val appContext: Context) {
         }
     }
 
-    private suspend fun listen(child: Process) = withContext(Dispatchers.IO) {
+    private suspend fun listen(child: Process, channel: RpcProcessChannel) =
+        withContext(Dispatchers.IO) {
         try {
-            child.inputStream.bufferedReader(Charsets.UTF_8).useLines { lines ->
-                for (line in lines) {
-                    val message = JSONObject(line)
+            channel.readFrames { message ->
                     val id = message.opt("id")
                     val method = message.optString("method")
                     when (RpcEnvelopeRouter.classify(message)) {
@@ -179,7 +177,6 @@ class CodexConnection(private val appContext: Context) {
                         }
                         RpcEnvelopeKind.Event -> events.emit(message)
                     }
-                }
             }
             if (process === child) {
                 val code = child.takeIf { !it.isAlive }?.runCatching { exitValue() }?.getOrNull()
@@ -240,22 +237,20 @@ class CodexConnection(private val appContext: Context) {
     private suspend fun write(message: JSONObject) {
         writeMutex.withLock {
             withContext(Dispatchers.IO) {
-                val output = writer ?: throw IllegalStateException("Codex 内核尚未连接")
-                output.write(message.toString())
-                output.newLine()
-                output.flush()
+                val channel = wire ?: throw IllegalStateException("Codex 内核尚未连接")
+                channel.send(message)
             }
         }
     }
 
     fun close() {
         val current = process
-        val output = writer
+        val output = wire
         process = null
-        writer = null
+        wire = null
         // Close the protocol pipe, request a graceful exit, then reap the child.
         try {
-            output?.close()
+            output?.closeWriter()
         } catch (failure: IOException) {
             android.util.Log.w("CodexConnection", "关闭内核输入流失败", failure)
         }

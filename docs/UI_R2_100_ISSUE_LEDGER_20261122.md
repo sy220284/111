@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 6 项；有对应实现待专项验收 59 项；部分处理 23 项；待完整实施 10 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 6 项；有对应实现待专项验收 60 项；部分处理 23 项；待完整实施 9 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -83,7 +83,7 @@
 | 71 | D | 对话页 15 个 collectAsState 订阅重组剖析（derivedStateOf 合并机会） | 尚待实施 | 待定位 |
 | 72 | D | 冷启动 Macrobenchmark 基线 | 尚待实施 | 待定位 |
 | 73 | D | 启动期 syncRecentThreads 等 IO 后台化 | 已有部分改动 | CodexViewModel.kt |
-| 74 | D | CodexConnection 流抽象+MockProcess 单测 | 尚待实施 | 待定位 |
+| 74 | D | CodexConnection 流抽象+MockProcess 单测 | 已提交待专项验收 | RpcProcessChannel.kt · RpcProcessChannelTest.kt · CodexConnection.kt；模拟进程收发、审批/事件分类及损坏帧测试 |
 | 75 | D | sendPrompt 全路径状态机测试（成功/半失败/双失败/断连） | 已有部分改动 | SubmissionFailurePolicy.kt |
 | 76 | D | detekt/ktlint 接入 | 尚待实施 | 待定位 |
 | 77 | D | Kotlin 警告预算门禁 | 尚待实施 | 待定位 |
