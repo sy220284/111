@@ -16,10 +16,21 @@
 
 ## 颜色、字体、尺寸
 
-背景 #FFFFFF；主字 #263139；辅助文字 #56646D；线条 #D8DEE1；分段器底 #F0F0F0；主强调色 #FF806F；抽屉宽最大 318dp。实际 Android 字体、文本缩放及 360/393/411dp 响应式规则遵循 Compose 代码。
+背景 #FFFFFF；主字 #263139；辅助文字 #56646D；线条 #D8DEE1；分段器底 #F0F0F0；交互强调色 #C8483E（确保白色按钮文字可读），辅助暖珊瑚 #FF806F；抽屉宽最大 318dp。实际 Android 字体、文本缩放及 360/393/411dp 响应式规则遵循 Compose 代码。
 
 ## 文件与验收
 
-`ChatWorkTopBar.kt`、`AppNavigation.kt`、`SidebarSessions.kt`、`ConversationComposer.kt`、`Screens.kt`、`VisualSystem.kt`、`UiNavigationInstrumentedTest.kt`。
+`ChatWorkTopBar.kt`、`AppNavigation.kt`、`SidebarSessions.kt`、`ConversationComposer.kt`、`ConversationScreen.kt`、`ConversationLoadingSkeleton.kt`、`Screens.kt`、`VisualSystem.kt`、`UiNavigationInstrumentedTest.kt`。
 
 Figma 原设计 fileKey `K4FEMoNdmQbcnJZCHWr8c7`；本次 Figma MCP 返回 Starter 调用配额已满，暂未写入画板。这里保留可执行的同源布局规格，GitHub CI 和模拟器截图作为代码侧验收证据。
+
+## 四技能交叉审计与当前真实链路
+
+- UI 设计技能：全局文字层次、低对比边框、空态减噪、一体式输入、分区侧栏、48dp 触控区和主色对比度统一；复杂业务页面统一复用共享控件。
+- 工作台架构师：聊天/工作双入口、固定常用功能、次要功能折叠、历史会话独立按需渲染；保留真正的项目、审批、终端、代码审查、插件、模型与连接路径。
+- 视频审美动效技能：只提取「状态变化有原因、时间统一、动作反馈可复核」的方法；原生采用 Compose 轻量点击/展开/切换，不嵌入视频渲染或无业务价值的动态特效。
+- 术语技能：界面动作使用「聊天、工作、历史会话、添加附件、重试发送、重新连接」等后果清楚的中文；协议字段保留在专业配置及执行依据中。
+
+会话恢复：旧会话保持可追溯 ID，恢复时用骨架提示并延长读取/恢复超时到 120 秒；切回应用检查断线并恢复选中会话。长任务：应用持有会话，用户启动任务时以前台服务提供运行通知和入口，停止/完成后结束常驻服务。输入：文字草稿保留本机；发送失败移除准确的临时消息、显示可操作的重试；三张以内照片通过安卓系统选择器导入，多图出现个别失败时保留已导入结果。设置：普通文字值可直接填写，数字/开关选择输入类型，JSON 收到高级选项。
+
+以上为本次源码目标；是否完成运行验收应以 PR 同一 head 的两套 GitHub Actions（UI 验收与全量 APK 构建）及三档设备截图为准。
