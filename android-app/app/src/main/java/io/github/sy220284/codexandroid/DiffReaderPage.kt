@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,8 +28,13 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val diff by vm.latestDiff.collectAsState()
     val active by vm.activeThread.collectAsState()
     val files = remember(diff) { UnifiedDiff.parse(diff) }
-    var expanded by remember(diff) {
-        mutableStateOf(if (files.size == 1) setOf(0) else emptySet<Int>())
+    val context = LocalContext.current
+    var expanded by remember(active, diff) {
+        mutableStateOf(DiffExpansionPreferences.load(context, active, diff, files.size))
+    }
+    fun updateExpanded(next: Set<Int>) {
+        DiffExpansionPreferences.save(context, active, diff, next)
+        expanded = next
     }
     val clipboard = LocalClipboardManager.current
     var copied by remember(diff) { mutableStateOf(false) }
@@ -55,8 +61,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                     if (files.isNotEmpty()) {
                         TextButton(onClick = {
-                            expanded = if (expanded.size == files.size) emptySet()
-                            else files.indices.toSet()
+                            updateExpanded(if (expanded.size == files.size) emptySet()
+                            else files.indices.toSet())
                         }) {
                             Text(if (expanded.size == files.size) "全部收起" else "全部展开",
                                 maxLines = 1)
@@ -113,8 +119,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             }
                             TextButton(
                                 onClick = {
-                                    expanded = if (index in expanded) expanded - index
-                                    else expanded + index
+                                    updateExpanded(if (index in expanded) expanded - index
+                                    else expanded + index)
                                 },
                                 modifier = Modifier.heightIn(min = 48.dp)
                             ) {

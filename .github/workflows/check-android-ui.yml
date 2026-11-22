@@ -64,6 +64,10 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
+      - name: 检查 Kotlin 源文件体量并阻断超大文件回归
+        run: |
+          python3 android-app/tools/check_kotlin_file_budget.py \
+            --sources android-app/app/src/main/java --max-lines 760
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 保存测试与 Lint 报告

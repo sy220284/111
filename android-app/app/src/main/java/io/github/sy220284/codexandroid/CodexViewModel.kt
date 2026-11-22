@@ -36,6 +36,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
+    /** Successful IDs remain visible during partial failures so UI can keep only unfinished selections. */
+    val bulkCompletedThreadIds = MutableStateFlow<Set<String>>(emptySet())
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
     /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
@@ -176,6 +178,58 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
+    }
+
+    /**
+     * Batch management is serialized: every RPC must finish before the next begins.
+     * A partially failed batch reports exact progress; the user can retry remaining items.
+     */
+    fun bulkThreadAction(kind: String, ids: List<String>, after: () -> Unit) {
+        val method = try {
+            ThreadBulkActionPolicy.method(kind)
+        } catch (failure: IllegalArgumentException) {
+            errors.value = errors.value + ("threadLibraryBulk" to
+                (failure.message ?: "未知批量操作"))
+            return
+        }
+        val targets = ThreadBulkActionPolicy.uniqueIds(ids)
+        if (targets.isEmpty()) return
+        if (running.value || threadSwitching.value || "threadLibraryBulk" in loading.value) {
+            errors.value = errors.value + ("threadLibraryBulk" to
+                "当前任务仍在执行或已有整理操作，请完成后重试")
+            return
+        }
+        bulkCompletedThreadIds.value = emptySet()
+        errors.value = errors.value - "threadLibraryBulk"
+        loading.value = loading.value + "threadLibraryBulk"
+        viewModelScope.launch {
+            var completed = 0
+            try {
+                for (id in targets) {
+                    check(!running.value && !threadSwitching.value) {
+                        "批量处理期间启动了新任务，已停止后续操作"
+                    }
+                    bridge.request(method, JSONObject().put("threadId", id))
+                    completed++
+                    bulkCompletedThreadIds.value = bulkCompletedThreadIds.value + id
+                }
+                actionFeedback.emit(ActionFeedbackReceipt(
+                    "已${ThreadBulkActionPolicy.display(kind)} $completed 条会话"
+                ))
+            } catch (failure: Exception) {
+                val reason = "已完成 $completed/${targets.size} 条；" +
+                    (failure.message ?: "操作中断，请核对未完成项")
+                errors.value = errors.value + ("threadLibraryBulk" to reason)
+                actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true))
+            } finally {
+                if (activeThread.value in bulkCompletedThreadIds.value && !running.value) {
+                    newThread()
+                }
+                loading.value = loading.value - "threadLibraryBulk"
+                after()
+                syncRecentThreads()
+            }
+        }
     }
 
     /** 一次读取得到的最近会话同时更新首页和侧栏，避免同一事件触发双重网络请求。 */
