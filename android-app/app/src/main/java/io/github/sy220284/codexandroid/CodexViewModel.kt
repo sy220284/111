@@ -20,6 +20,7 @@ import java.util.UUID
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
+    internal val connectionRestarter by lazy { ConnectionRestartController(this) }
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
     val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
     val activeThread = MutableStateFlow<String?>(null)

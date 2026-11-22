@@ -598,6 +598,10 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
     var showLogs by remember { mutableStateOf(false) }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val taskRunning by vm.running.collectAsState()
+    val terminalRunning by vm.terminalSession.collectAsState()
+    val promptItems by vm.bridge.prompts.collectAsState()
     var showCrashes by remember { mutableStateOf(false) }
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
@@ -633,11 +637,26 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { vm.bridge.close(); vm.connect() }) {
-                    Icon(Icons.Outlined.RestartAlt, null); Text("重启连接")
+                OutlinedButton(
+                    onClick = { vm.connectionRestarter.restart() },
+                    enabled = !restarting && status != EngineStatus.Starting &&
+                        ConnectionRestartPolicy.canRestart(
+                            taskRunning, terminalRunning.running, promptItems.size),
+                    modifier = Modifier.testTag("diagnostics-restart")
+                        .explainDisabled(
+                            restarting || taskRunning || terminalRunning.running ||
+                                promptItems.isNotEmpty(),
+                            "有任务或待处理的审批，先完成后再重启内核")
+                ) {
+                    Icon(Icons.Outlined.RestartAlt, null)
+                    Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
                 OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
                     enabled = status == EngineStatus.Connected) { Text("读取官方诊断") }
+            }
+            if (taskRunning || terminalRunning.running || promptItems.isNotEmpty()) {
+                Text("运行期间保留当前内核进程，避免中断正在执行的任务。",
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
             }
         }
         errors["diagnostics"]?.let { ErrorText(it) }
