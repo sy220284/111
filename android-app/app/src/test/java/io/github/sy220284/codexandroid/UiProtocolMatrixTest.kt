@@ -9,14 +9,23 @@ class UiProtocolMatrixTest {
         assertEquals(195, UiProtocolMatrix.byMethod.size)
         assertEquals(40, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
         assertEquals(44, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
-        assertEquals(71, UiProtocolMatrix.advanced.size)
-        assertEquals(40, UiProtocolMatrix.systemOnly.size)
+        assertEquals(52, UiProtocolMatrix.advanced.size)
+        assertEquals(59, UiProtocolMatrix.systemOnly.size)
+    }
+
+    @Test fun agentTransportProtocolsRemainInternal() {
+        listOf("process/spawn", "process/writeStdin", "process/resizePty",
+            "thread/realtime/appendAudio", "mcpServer/event/stream/start",
+            "plugin/reconcile", "hooks/list").forEach { method ->
+            assertEquals(method, ApiExposure.Internal, UiProtocolMatrix.byMethod[method]?.exposure)
+        }
+        assertFalse("后台钩子不应自动成为设置入口", "hooks" in UiFeatureCatalog.byRoute)
     }
 
     @Test fun newSurfacesAreUniqueAndKeepAllExistingRoutes() {
-        assertEquals(30, UiFeatureCatalog.all.size)
-        assertEquals(30, UiFeatureCatalog.byRoute.size)
-        assertEquals(28, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(29, UiFeatureCatalog.all.size)
+        assertEquals(29, UiFeatureCatalog.byRoute.size)
+        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
         assertEquals(4, UiFeatureCatalog.settingsGroups.size)
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertFalse(UiFeatureCatalog.requiresThread("plugins"))
