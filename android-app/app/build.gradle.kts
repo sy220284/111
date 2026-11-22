@@ -71,6 +71,7 @@ android {
         jniLibs {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libcodex_server.so"
+            keepDebugSymbols += "**/libcodex_code_mode_host.so"
         }
     }
     // Enabled only in the native APK pipeline. Standalone UI verification keeps
