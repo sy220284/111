@@ -68,6 +68,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+      - name: 校验官方Rust协议方法、方向、DTO和通知清单
+        run: python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
       - name: 验证协议校验器正确区分请求与通知
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_protocol_methods.py'
       - name: 对照官方 Codex 接口清单，验证 UI 中所有协议方法
