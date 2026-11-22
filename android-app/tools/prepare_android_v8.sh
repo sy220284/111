@@ -68,7 +68,11 @@ SHA
     if [ ! -e "$SRC/build/rust/known-target-triples.txt" ]; then
       printf 'x86_64-linux-android\naarch64-linux-android\nx86_64-unknown-linux-gnu\n' > "$SRC/build/rust/known-target-triples.txt"
     fi
-    (cd "$SRC" && python3 build/linux/sysroot_scripts/install-sysroot.py --arch=amd64)
+    # For the x86_64 Android cross-build the target uses the NDK sysroot.
+    # The build host runs Linux tools from this runner, so it needs no separately
+    # downloaded Debian sysroot. Patch the pinned V8 build recipe explicitly,
+    # rather than letting its unconditional downloader block Android builds.
+    python3 "$GITHUB_WORKSPACE/android-app/tools/adapt_android_v8_build.py" "$SRC/build.rs"
     mkdir -p "$WRAPPER/src" "$WRAPPER/.cargo"
     printf 'fn main() {}\n' > "$WRAPPER/src/main.rs"
     cat > "$WRAPPER/Cargo.toml" <<'TOML'
