@@ -64,7 +64,8 @@ fun ApprovalsPage(vm: CodexViewModel) {
         if (prompts.isEmpty()) {
             CodexEmptyState("目前没有等待授权的操作",
                 "当任务需要执行命令、修改文件或申请权限时，确认请求会显示在这里。",
-                icon = Icons.Outlined.GppGood)
+                icon = Icons.Outlined.GppGood,
+                artworkRes = R.drawable.ic_empty_approval)
         }
         prompts.forEach { prompt ->
             key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
