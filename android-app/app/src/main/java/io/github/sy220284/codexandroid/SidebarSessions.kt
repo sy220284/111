@@ -73,6 +73,7 @@ internal fun SidebarSessions(
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
     val approvals by vm.bridge.prompts.collectAsState()
+    val liveActivities by vm.threadActivities.collectAsState()
     val sidebarResponse = data["sidebarThreads"] ?: data["threads"]
     val all = records(sidebarResponse).filter { it.optString("id").isNotBlank() }
         .distinctBy { it.optString("id") }
@@ -88,6 +89,7 @@ internal fun SidebarSessions(
         running = running,
         switching = switching,
         pendingApprovals = approvals.size,
+        liveActivities = liveActivities,
         onRefresh = {
             vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 100))
         },
@@ -112,6 +114,7 @@ internal fun SidebarSessionsContent(
     onRefresh: () -> Unit,
     onOpenThread: (String) -> Unit,
     pendingApprovals: Int = 0,
+    liveActivities: Map<String, ThreadActivity> = emptyMap(),
     uiState: SidebarUiState? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
@@ -123,12 +126,17 @@ internal fun SidebarSessionsContent(
         ).any { it.contains(search.trim(), ignoreCase = true) }
     }
 
+    val backgroundActive = all.count { entry ->
+        entry.optString("id") != activeId &&
+            ThreadActivityPolicy.isActive(ThreadActivityPolicy.effective(
+                entry, liveActivities[entry.optString("id")], false, 0))
+    }
     val scroll = state.scroll
     LaunchedEffect(search, searching) {
         if (searching || search.isNotBlank()) scroll.scrollToItem(0)
     }
     Column(modifier.fillMaxWidth()) {
-        if (running || pendingApprovals > 0) {
+        if (running || pendingApprovals > 0 || backgroundActive > 0) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
                     .testTag("sidebar-task-status"),
@@ -140,8 +148,11 @@ internal fun SidebarSessionsContent(
                     else Ink.jade.copy(alpha = .25f))
             ) {
                 Text(
-                    if (pendingApprovals > 0) "等待确认 · ${pendingApprovals} 项审批"
-                    else "当前会话正在执行，结束后可切换其他会话",
+                    when {
+                        pendingApprovals > 0 -> "等待确认 · ${pendingApprovals} 项审批"
+                        running -> "当前会话正在执行，结束后可切换其他会话"
+                        else -> "其他 ${backgroundActive} 条会话正在执行或等待回应"
+                    },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (pendingApprovals > 0) Ink.warning else Ink.jade
@@ -229,6 +240,7 @@ internal fun SidebarSessionsContent(
                 active = activeId == id,
                 running = running && activeId == id,
                 pendingApprovals = if (activeId == id) pendingApprovals else 0,
+                activity = liveActivities[id] ?: ThreadActivityPolicy.fromThread(entry),
                 enabled = connected && !switching && (!running || activeId == id),
                 onClick = { onOpenThread(id) }
             )
@@ -254,9 +266,15 @@ internal fun SidebarSessionRow(
     running: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
-    pendingApprovals: Int = 0
+    pendingApprovals: Int = 0,
+    activity: ThreadActivity = ThreadActivityPolicy.fromThread(item)
 ) {
     val id = item.optString("id")
+    val actual = when {
+        pendingApprovals > 0 -> ThreadActivity.WaitingApproval
+        running -> ThreadActivity.Running
+        else -> activity
+    }
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val surfaceColor by animateColorAsState(
         targetValue = if (active) Ink.coralSoft.copy(alpha = .105f) else Ink.canvas,
@@ -282,11 +300,21 @@ internal fun SidebarSessionRow(
                     item.optString("preview")),
                     style = MaterialTheme.typography.bodyMedium, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
-                Text(if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项"
-                    else if (running) "正在执行" else
-                    PresentationPolicy.workspaceName(item.optString("cwd")),
+                Text(when (actual) {
+                    ThreadActivity.WaitingApproval ->
+                        if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项" else "等待审批"
+                    ThreadActivity.WaitingAnswer -> "等待回答"
+                    ThreadActivity.Running -> "正在执行"
+                    ThreadActivity.Failed -> "任务运行异常"
+                    ThreadActivity.Idle -> PresentationPolicy.workspaceName(item.optString("cwd"))
+                },
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (pendingApprovals > 0) Ink.warning else if (running) Ink.jade else Ink.muted,
+                    color = when (actual) {
+                        ThreadActivity.WaitingApproval, ThreadActivity.WaitingAnswer -> Ink.warning
+                        ThreadActivity.Running -> Ink.jade
+                        ThreadActivity.Failed -> Ink.red
+                        else -> Ink.muted
+                    },
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (active) Icon(Icons.Outlined.CheckCircle, contentDescription = "当前会话",

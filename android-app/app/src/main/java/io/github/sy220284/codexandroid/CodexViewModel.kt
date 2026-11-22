@@ -32,6 +32,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val projectCatalogRevision = MutableStateFlow(0)
     val planApprovalBusy = MutableStateFlow(false)
     val activeThread = MutableStateFlow<String?>(null)
+    internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
@@ -665,6 +666,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             if (params.optString("changeType") == "deleted" &&
                 changedId == activeProjectId.value) activeProjectId.value = null
             projectCatalogRevision.value += 1
+            return
+        }
+        if (method == "thread/status/changed" && threadId.isNotBlank()) {
+            threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
+                threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
             return
         }
         if (method == "thread/project/updated") {

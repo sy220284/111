@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 4 项；有对应实现待专项验收 58 项；部分处理 25 项；待完整实施 11 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 4 项；有对应实现待专项验收 60 项；部分处理 23 项；待完整实施 11 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -20,7 +20,7 @@
 | 8 | A | 通知状态脱节：Service 不订阅 EngineStatus，内核崩溃后通知仍显示"正在执行任务" | 已提交待专项验收 | CodexForegroundService.kt |
 | 9 | A | 内核子进程无优雅关闭：进程被杀时无 shutdownHook/close 路径，codex 内核可能残留孤儿进程 | 已提交待专项验收 | CodexConnection.kt |
 | 10 | A | onCleared→bridge.close() 是死代码：Application 级 session 永不 onCleared | 已提交待专项验收 | CodexApplication.kt |
-| 11 | A | 非活跃会话无执行/审批标识：侧栏 running=running&&activeId==id，其他会话后台跑任务看不见 | 已有部分改动 | SidebarSessions.kt |
+| 11 | A | 非活跃会话无执行/审批标识：侧栏 running=running&&activeId==id，其他会话后台跑任务看不见 | 已提交待专项验收 | ThreadActivityPolicy.kt · SidebarSessions.kt · thread/status/changed 实时状态 · 单测 |
 | 12 | A | MainActivity.onResume 里 resumeInstall 主线程做安装恢复 IO，轻重未验 | 已提交待专项验收 | AppUpdateManager.kt · CodexApplication.kt |
 | 13 | A | stopRequested 以 remember(activeTurn) 键控——点停止瞬间恰逢 turn 换代则 stopping 态闪烁误判 | 已提交待专项验收 | ConversationScreen.kt |
 | 14 | A | 批量操作失败时已完成数与保留选择可能不同步（bulkCompleted 清理只含成功项，UI 无二次确认展示） | 已提交待专项验收 | ThreadLibraryPage.kt · CodexViewModel.kt |

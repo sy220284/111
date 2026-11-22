@@ -1,7 +1,7 @@
 package io.github.sy220284.codexandroid
 
 /** Strongly typed UI decisions. Wire protocol strings are owned by this policy. */
-internal enum class ApprovalAction {
+enum class ApprovalAction {
     Decline, Cancel, AllowOnce, AllowSession, GrantTurn
 }
 
