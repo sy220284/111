@@ -71,12 +71,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var action by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
     // Bind the result to the exact server query: switching filters or pages
     // must never display results from a previous selection.
-    val key = "library:" + archived + ":" + searchTerm + ":" + selectedSection + ":" + (cursor ?: "first")
+    val key = ThreadLibraryQuery.key(archived, searchTerm, selectedSection, cursor)
     val response = data[key]
     val entries = records(response)
     val nextCursor = response?.optString("nextCursor")?.takeIf { it.isNotBlank() }
     val busy = "threadLibraryAction" in loading || "threadLibraryBulk" in loading
-    val fullKey = "fullSearch:" + fullSubmitted
+    val fullKey = ThreadLibraryQuery.fullTextKey(fullSubmitted)
     val fullResults = if (fullSubmitted.isNotBlank()) records(data[fullKey]) else emptyList()
     val fullPending = fullSubmitted.isNotBlank() && fullKey in loading
 
@@ -105,7 +105,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         if (fullText) {
             fullSubmitted = submitted
-            if (submitted.isNotEmpty()) vm.refresh("fullSearch:" + submitted,
+            if (submitted.isNotEmpty()) vm.refresh(ThreadLibraryQuery.fullTextKey(submitted),
                 "thread/search", JSONObject().put("searchTerm", submitted))
         } else if (searchTerm == submitted && cursor == null) load(null)
         else {

@@ -55,7 +55,10 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Optimize Kotlin/Compose bytecode and remove unused Android resources.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (signingReady) {
                 signingConfig = signingConfigs.getByName("release")
             }

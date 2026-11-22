@@ -669,10 +669,11 @@ fun TerminalPage(vm: CodexViewModel) {
         }
     }
     if (confirm) CodexConfirmDialog(
-        title = "确认执行命令",
-        message = "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
+        title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
+        message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
         detail = command + "\n\n执行位置：本机工作区",
-        confirmLabel = "确认执行",
+        confirmLabel = if (TerminalCommandPolicy.evaluate(command).dangerous) "确认执行高风险命令" else "确认执行",
+        destructive = TerminalCommandPolicy.evaluate(command).dangerous,
         destructive = true,
         onConfirm = {
             val accepted = command.trim()
