@@ -276,11 +276,41 @@ class UiPopulatedSubpagesInstrumentedTest {
                 }
             }
         }
-        rule.onNodeWithText("其他 2 条会话正在执行或等待回应").assertExists()
+        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
         rule.onNodeWithText("等待审批").assertExists()
         rule.onNodeWithText("等待回答").assertExists()
         rule.onNodeWithContentDescription("当前会话").assertExists()
         capture("audit-sidebar-background-status-android35.png")
+    }
+
+    @Test fun sidebarTaskCenterSwitchesAndStopsOnlyTheSelectedThread() {
+        val entries = listOf(
+            JSONObject().put("id", "first").put("name", "任务甲"),
+            JSONObject().put("id", "second").put("name", "任务乙")
+        )
+        var opened = ""
+        var stopped = ""
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionsContent(
+                    all = entries, hasResponse = true, connected = true,
+                    loading = false, hasError = false, activeId = "first",
+                    running = true, switching = false, onRefresh = {},
+                    onOpenThread = { opened = it }, onStopThread = { stopped = it },
+                    liveExecutions = mapOf(
+                        "first" to ThreadExecution(turnId = "turn-one"),
+                        "second" to ThreadExecution(turnId = "turn-two")
+                    )
+                )
+            }
+        }
+        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
+        rule.onNodeWithTag("sidebar-task-open-second").performClick()
+        rule.runOnIdle { assertEquals("second", opened) }
+        rule.onNodeWithTag("sidebar-task-stop-first").performClick()
+        rule.runOnIdle { assertEquals("first", stopped) }
+        rule.onNodeWithTag("sidebar-thread-second").assertExists()
+        capture("audit-multi-thread-tasks-android35.png")
     }
 
     @Test fun questionApprovalRequiresAnswersAndHasNoInvalidDeclineButton() {
