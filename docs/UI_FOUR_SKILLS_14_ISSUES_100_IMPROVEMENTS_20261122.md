@@ -46,7 +46,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
 
-本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 21，部分 27，未完成 43，待验 9。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 22，部分 27，未完成 43，待验 8。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
 
 | # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
 |---:|---|---|---|
@@ -109,7 +109,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 57 | 未完成 | 按语言拆 APK 评估 | 构建仅按 ABI 分包 |
 | 58 | 未完成 | R8 fullMode 与资源压缩 | build.gradle.kts 当前 isMinifyEnabled=false |
 | 59 | 待验 | 启动读取历史 IO 完全后台化 | refresh 使用异步请求；缺冷启动主线程 trace 验证 |
-| 60 | 待验 | 审批决策持久化审计日志 | ApprovalAuditController 原子写入本机最近 100 条审批记录；ApprovalAuditSection 可浏览和确认清理，已有 Codec 单测与 Compose 点击测试，设备 CI 验收待确认 |
+| 60 | 完成 | 审批决策持久化审计日志 | ApprovalAuditController 原子持久化本机最近 100 条审批决定；ApprovalAuditSection 可查看与确认清理；Compose 设备测试 approvalLogShowsPrivateHistoryAndConfirmsDeletion 已在 #44988500821 的 Android 35 三档 UI 验收通过 |
 | 61 | 未完成 | 设备码复制后提醒剪贴板清除 | 未见设备码剪贴板过期清除机制 |
 | 62 | 部分 | 终端命令注入风险提示与检查 | 执行前需确认且显示风险提示；尚缺明确的转义/特殊符号检查 |
 | 63 | 未完成 | 更新清单数字签名链 | UpdateManifest/AppUpdateManager 使用 SHA-256；还没有独立签名真实性验证 |
@@ -160,7 +160,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 - 对应同一 `eccccd08` 源码：[Android UI / 协议 / Lint / 360、393、411dp 验收](https://github.com/sy220284/111/actions/runs/44982471832) 全部成功；[APK / 原生核心 Android 35 设备测试](https://github.com/sy220284/111/actions/runs/44982471857) 全部成功。
 - 此次门禁核验了页面能打开、基础控件与设备交互，以及原生内核运行；**真实账号、模型生成、长任务锁屏、异常网络、TalkBack、RTL、折叠屏与发布签名仍属于独立验收**。
-- `docs/DESIGN_SYSTEM.md` 原强调色仍写暖铜 `#805A3F`，PR #30 主操作已经采用珊瑚 `#C8483E`。需按源码统一文档；Figma 文件 `K4FEMoNdmQbcnJZCHWr8c7` 尚未同步，MCP 返回 Starter 额度耗尽。
+- 设计主题规范已在后续提交更新：`Ink.coral` 是 Compose 与 `docs/DESIGN_SYSTEM.md` 的一致主色，CI 防漂移检查已通过。Figma 原画板因 Starter MCP 调用额度限制仍未同步。
 
 ### 后续工作排序（按使用风险与完成依赖）
 
@@ -185,4 +185,11 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 - `TerminalHistoryNavigation.kt` 为硬键 ↑↓ 历史导航提供纯逻辑和单元测试，输入框仅在单行内容下接管方向键，保留多行编辑的正常光标操作。
 - `TerminalTranscriptStore.kt` 保存原始 stdout/stderr 字节、保留 UTF-8 跨事件边界并串行写入私有目录；UI 内存仍有 128KiB 上限，本机文件有 64MiB 上限、失败提示和文档选择器导出。长输出性能与系统存储紧张设备测试仍需补。
 - `docs/DESIGN_SYSTEM.md` 维护 Ink 颜色表；`android-app/tools/check_design_system_tokens.py` 在 CI 比对 Compose 实际值并阻断颜色偏移，`MaterialTheme.primary` 已统一为 `Ink.coral`。
-- 此处为源码核查状态，**以上新功能待 CI 同一提交成功后再标为完全验收**。原始 Figma 画板仍受 Starter MCP 调用额度限制。
+- **现有 CI 已完成同一代码版本验收**：`08de5bcd` 的 UI、单测、Lint、三档屏宽和 Android 原生核心作业全部成功，仍需真机/真实账号/极限输出专项测试；Figma 原画板仍受 Starter MCP 调用额度限制。
+
+### 本轮设备与源码验收完成 · 2026-11-22
+
+- 对照源码版本 `08de5bcd6f68942dfc9327188f01894e0aaaec09`：[UI 与协议工作流 #44988500821](https://github.com/sy220284/111/actions/runs/44988500821) **全部成功**，包含 Kotlin 单测、Lint、29/29 路由、195 方法目录匹配、3 项协议门禁测试及 4 项设计颜色测试；Android 35 的 **360/393/411dp 各 39 项 UI 仪器测试通过**。
+- [APK 与原生核心工作流 #44988500846](https://github.com/sy220284/111/actions/runs/44988500846) **全部成功**，包括双 ABI 构建和 Android 35 原生核心 **47 项设备测试通过**。
+- 393dp 真实模拟器截图记录已核查，涵盖首页、会话、侧栏、设置、权限审批、MCP、配置和终端确认；源文件来自 UI 工作流产物 `codex-android-ui-device-evidence-393dp`。
+- **边界**：模拟器测试没有替代 ARM64 物理机、真实 OAuth、远程模型长任务、折叠屏、TalkBack 和极限 64MiB 日志压力验收；键盘 ↑↓ 的单元测试通过，实际外接键盘还需专项验。
