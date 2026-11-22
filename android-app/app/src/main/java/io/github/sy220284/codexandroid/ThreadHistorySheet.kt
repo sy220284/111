@@ -63,7 +63,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 errors[key]?.let { ErrorText(it) }
                 errors["threadRevert"]?.let { ErrorText(it) }
-                if (turns.isEmpty() && key !in loading && prefix + "0" !in loading) {
+                if (turns.isEmpty() && pages.isNotEmpty() && key !in loading && prefix + "0" !in loading) {
                     CodexEmptyState("暂无历史回合", "该会话可能尚未执行任务。")
                 }
                 LazyColumn(modifier = Modifier.weight(1f),

@@ -10,6 +10,8 @@ object CatalogRequestContract {
         return JSONObject().put("cwds", JSONArray().put(cwd))
     }
 
+    fun accountSessions(): JSONObject = JSONObject().put("refreshWorkspaceMetadata", false)
+
     fun mcpStatus(threadId: String?): JSONObject = JSONObject()
         .put("detail", "full")
         .apply {

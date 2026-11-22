@@ -86,7 +86,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 LazyColumn(Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
                     contentPadding = PaddingValues(bottom = 20.dp)) {
-                    if (all.isEmpty() && currentKey !in loading) {
+                    if (all.isEmpty() && data[currentKey] != null && currentKey !in loading) {
                         item { CodexEmptyState("没有关联资料", "添加备注后将在此显示；图片附件仍在对话输入框管理。") }
                     }
                     items(all, key = {

@@ -133,11 +133,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         if (running.value) return
         viewModelScope.launch {
             try {
-                bridge.request("thread/resume", JSONObject().put("threadId", id))
-                // Keep the previous conversation visible until the new one is fully read.
+                // Read and reconstruct the destination before changing the active core session.
                 val history = bridge.request("thread/read", JSONObject()
                     .put("threadId", id).put("includeTurns", true))
-                data.value = data.value + ("threadHistory" to history)
                 val turns = history.optJSONObject("thread")?.optJSONArray("turns") ?: JSONArray()
                 val restored = mutableListOf<TimelineItem>()
                 for (turnIndex in 0 until turns.length()) {
@@ -164,6 +162,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                bridge.request("thread/resume", JSONObject().put("threadId", id))
+                data.value = data.value + ("threadHistory" to history)
                 activeThread.value = id
                 running.value = false
                 latestDiff.value = ""

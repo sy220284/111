@@ -16,6 +16,10 @@ class CatalogRequestContractTest {
         assertEquals("active-thread", request.getString("threadId"))
     }
 
+    @Test fun accountSessionRefreshKeepsInitialReadFlags() {
+        assertFalse(CatalogRequestContract.accountSessions().getBoolean("refreshWorkspaceMetadata"))
+    }
+
     @Test fun mcpRefreshWithoutThreadKeepsValidServerQuery() {
         val request = CatalogRequestContract.mcpStatus(null)
         assertEquals("full", request.getString("detail"))
