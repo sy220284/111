@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Select a previously verified Android native build with identical binary inputs.
 
-Never trust just CODEX_UPSTREAM_COMMIT or the newest successful run. Reuse is
-allowed only for an ancestor of the current commit, an identical source tree
-and compiler recipe, and all requested unexpired artifacts from that run.
+Ignore upstream documentation and unrelated platforms. Reuse only when the
+Android Rust source tree, inherited Cargo configuration, native build recipe,
+and platform adapters match an ancestor with a verified, unexpired artifact.
 """
 import argparse
 import json
@@ -60,8 +60,10 @@ class ArtifactSelector:
         self.run = runner
 
     def signature(self, sha, abi='arm64-v8a'):
-        # A tree object's SHA changes if ANY file in the bundled upstream changes.
-        upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex"])
+        # Changes to upstream SDKs, docs or archived CI do not alter Android ELF files.
+        upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
+        # Cargo reads parent .cargo configuration from the upstream root.
+        parent_cargo = self.run(["git", "ls-tree", sha, "--", "upstream/codex/.cargo"])
         patcher = self.run(["git", "rev-parse", f"{sha}:android-app/tools/prepare_android_mxc.py"])
         # Older valid builds predate the Android adapter. ls-tree returns an
         # empty match for those commits; the differing signature forces rebuild.
@@ -77,9 +79,8 @@ class ArtifactSelector:
         git_builder = self.run([
             "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
         ])
-        version = self.run(["git", "show", f"{sha}:CODEX_UPSTREAM_COMMIT"]).splitlines()[0]
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, version, native_recipe(workflow, abi))
+        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
 
     def is_ancestor(self, old, new):
         # Not an error: candidates from a previous main history can be skipped.
