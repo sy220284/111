@@ -479,46 +479,59 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         it.optString("id").isNotBlank()
                     }) { "计划模式需要先读取可用模型目录" }
                 }
-                var id = submittedThread
-                if (id == null) {
-                    val cwd = WorkspaceSelectionContract.validate(
-                        workspaceRoot, File(chosenWorkspace)).absolutePath
-                    val args = ProjectRequestContract.threadStart(
-                        File(cwd), chosenProject, chosenModel)
-                    val createdId = bridge.request("thread/start", args)
-                        .getJSONObject("thread").getString("id")
-                    newlyCreatedThreadId = createdId
-                    threadExecutions.value = ThreadExecutionPolicy.reserve(
-                        threadExecutions.value, createdId, images)
-                    threadFailures.value = threadFailures.value - createdId
-                    threadActivities.value = ThreadActivityPolicy.updated(
-                        threadActivities.value, createdId, ThreadActivity.Running)
-                    firstTurnImages = emptyList()
-                    firstThreadStarting.value = false
-                    composerDrafts.update {
-                        ThreadComposerDrafts.attachNewThread(it, createdId)
+                val outcome = TurnSubmissionCoordinator { method, params ->
+                    bridge.request(method, params)
+                }.submit(
+                    existingThreadId = submittedThread,
+                    createThreadParams = {
+                        val cwd = WorkspaceSelectionContract.validate(
+                            workspaceRoot, File(chosenWorkspace)).absolutePath
+                        ProjectRequestContract.threadStart(
+                            File(cwd), chosenProject, chosenModel)
+                    },
+                    turnParams = { id ->
+                        TurnRequestContract.build(
+                            threadId = id, text = prompt, modelId = chosenModel,
+                            mode = chosenMode, catalog = catalog, localImages = images
+                        )
+                    },
+                    onThreadCreated = { createdId ->
+                        newlyCreatedThreadId = createdId
+                        threadExecutions.value = ThreadExecutionPolicy.reserve(
+                            threadExecutions.value, createdId, images)
+                        threadFailures.value = threadFailures.value - createdId
+                        threadActivities.value = ThreadActivityPolicy.updated(
+                            threadActivities.value, createdId, ThreadActivity.Running)
+                        firstTurnImages = emptyList()
+                        firstThreadStarting.value = false
+                        composerDrafts.update {
+                            ThreadComposerDrafts.attachNewThread(it, createdId)
+                        }
+                        activeThread.value = createdId
+                        syncRecentThreads()
                     }
-                    id = createdId
-                    activeThread.value = createdId
-                    syncRecentThreads()
-                }
-                val params = TurnRequestContract.build(
-                    threadId = id, text = prompt, modelId = chosenModel,
-                    mode = chosenMode, catalog = catalog, localImages = images
                 )
-                turnRequestDispatched = true
-                val response = bridge.request("turn/start", params)
-                val acceptedTurn = response.optJSONObject("turn")?.optString("id")
-                if (id in threadExecutions.value) {
-                    threadExecutions.value = ThreadExecutionPolicy.started(
-                        threadExecutions.value, id, acceptedTurn)
-                    if (activeThread.value == id) {
-                        activeTurn.value = threadExecutions.value[id]?.turnId
-                        running.value = true
-                        errors.value = errors.value - "conversation"
+                when (outcome) {
+                    is TurnSubmissionOutcome.Accepted -> {
+                        turnRequestDispatched = true
+                        val id = outcome.threadId
+                        if (id in threadExecutions.value) {
+                            threadExecutions.value = ThreadExecutionPolicy.started(
+                                threadExecutions.value, id, outcome.turnId)
+                            if (activeThread.value == id) {
+                                activeTurn.value = threadExecutions.value[id]?.turnId
+                                running.value = true
+                                errors.value = errors.value - "conversation"
+                            }
+                        }
+                        afterAccepted(id)
+                    }
+                    is TurnSubmissionOutcome.Failed -> {
+                        newlyCreatedThreadId = outcome.newlyCreatedThreadId
+                        turnRequestDispatched = outcome.turnRequestDispatched
+                        throw outcome.failure
                     }
                 }
-                afterAccepted(id)
             } catch (failure: Exception) {
                 // An ambiguous timeout retains this thread's ownership and images:
                 // the core may have accepted the turn while its response was lost.
