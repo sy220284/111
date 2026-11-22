@@ -83,7 +83,6 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val installed = data["appInstalled"]?.optJSONArray("apps")
     var target by remember { mutableStateOf<JSONObject?>(null) }
     var desired by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
         vm.refresh("appInstalled", "app/installed", JSONObject())
@@ -138,18 +137,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Ink.muted)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        expanded = if (expanded == id) "" else id
-                        if (expanded == id) {
-                            vm.refresh("appDetail", "app/read",
-                                JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true))
-                        }
-                    }) { Text(if (expanded == id) "收起详情" else "查看工具与详情") }
-                    if (installUrl.startsWith("https://")) {
-                        TextButton(onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
-                        }) { Icon(Icons.Outlined.OpenInNew, null); Text("打开授权页") }
+                if (installUrl.startsWith("https://")) {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
+                    }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Icon(Icons.Outlined.OpenInNew, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("管理应用授权")
                     }
                 }
                 if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
@@ -158,30 +152,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(if (enable) "启用应用" else "停用应用")
                     }
                 }
-                CodexReveal(expanded == id) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IntegrationState(vm, "appDetail") { vm.refresh("appDetail", "app/read",
-                            JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true)) }
-                        data["appDetail"]?.let { response ->
-                            val details = records(response)
-                            val found = details.firstOrNull { it.optString("id") == id }
-                                ?: details.firstOrNull()
-                            val tools = found?.optJSONArray("tools")
-                            if (tools != null && tools.length() > 0) {
-                                Text("可调用的工具", style = MaterialTheme.typography.titleSmall)
-                                for (index in 0 until tools.length()) {
-                                    val tool = tools.optJSONObject(index) ?: continue
-                                    Text(PresentationPolicy.meaningful(tool.optString("name"))
-                                        .ifEmpty { "未命名工具" },
-                                        style = MaterialTheme.typography.bodyMedium)
-                                }
-                            } else {
-                                Text("暂未发现可直接调用的工具。",
-                                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
-                }
+
             }
         }
     }
