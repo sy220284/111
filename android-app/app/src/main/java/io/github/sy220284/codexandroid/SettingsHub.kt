@@ -85,7 +85,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待检查"
                                     "security" -> "执行授权"
                                     "models" -> "选择模型"
-                                    "appearance" -> "典雅白"
+                                    "appearance" -> if (UiPreferences.darkMode.value) "深色工作台" else "典雅白"
                                     else -> if (entry.experimental) "实验" else ""
                                 }) {
                                     when(entry.id) {
@@ -174,8 +174,22 @@ fun AppearanceInlineControls() {
     val softMaterial by UiPreferences.softMaterial.collectAsState()
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
     val fontScale by UiPreferences.fontScale.collectAsState()
+    val darkMode by UiPreferences.darkMode.collectAsState()
     Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 7.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text("界面配色", style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ThemePreviewCard(
+                title = "典雅白", background = Color(0xFFFFFFFF),
+                foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                selected = !darkMode, modifier = Modifier.weight(1f)
+            ) { UiPreferences.setDarkMode(false) }
+            ThemePreviewCard(
+                title = "深色工作台", background = Color(0xFF111A22),
+                foreground = Color(0xFFF0F2F3), accent = Color(0xFFFF9386),
+                selected = darkMode, modifier = Modifier.weight(1f)
+            ) { UiPreferences.setDarkMode(true) }
+        }
         AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
         AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
         AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
@@ -194,6 +208,37 @@ fun AppearanceInlineControls() {
         }
         Text("文字大小会随系统字体设置叠加调整。",
             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun ThemePreviewCard(
+    title: String, background: Color, foreground: Color, accent: Color,
+    selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier.heightIn(min = 104.dp)
+            .clickable(role = Role.RadioButton, onClick = onClick),
+        shape = RoundedCornerShape(16.dp), color = background,
+        border = BorderStroke(if (selected) 2.dp else 1.dp,
+            if (selected) accent else foreground.copy(alpha = .24f))
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(9.dp).background(accent, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text(title, color = foreground, style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f))
+                if (selected) Icon(Icons.Outlined.CheckCircle, "已选择", tint = accent,
+                    modifier = Modifier.size(17.dp))
+            }
+            Box(Modifier.fillMaxWidth(.82f).height(5.dp)
+                .background(foreground.copy(alpha = .56f), RoundedCornerShape(4.dp)))
+            Box(Modifier.fillMaxWidth(.60f).height(5.dp)
+                .background(foreground.copy(alpha = .25f), RoundedCornerShape(4.dp)))
+            Box(Modifier.fillMaxWidth(.42f).height(5.dp)
+                .background(accent.copy(alpha = .80f), RoundedCornerShape(4.dp)))
+        }
     }
 }
 
@@ -258,7 +303,7 @@ fun WorkspaceActionsSheet(
                         .padding(horizontal = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(Modifier.size(44.dp).background(Color(0xFFF0F0F0), CircleShape),
+                        Box(Modifier.size(44.dp).background(Ink.elevated, CircleShape),
                             contentAlignment = Alignment.Center) {
                             Icon(Icons.Outlined.AddPhotoAlternate, null,
                                 tint = if (imageAllowed) Ink.parchment else Ink.muted,
@@ -290,7 +335,7 @@ fun WorkspaceActionsSheet(
                         .padding(horizontal = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(Modifier.size(44.dp).background(Color(0xFFF0F0F0), CircleShape),
+                        Box(Modifier.size(44.dp).background(Ink.elevated, CircleShape),
                             contentAlignment = Alignment.Center) {
                             Icon(item.icon, null, tint = Ink.parchment,
                                 modifier = Modifier.size(23.dp))
