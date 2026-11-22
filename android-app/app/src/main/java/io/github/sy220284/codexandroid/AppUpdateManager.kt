@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
@@ -165,6 +167,7 @@ internal object AppUpdateManager {
                         manifest.targetVersion, false)
                     commit(temporary, output)
                 }
+                verifyInstalledSigner(app, output)
                 readyApk = output
                 readySha = manifest.apk.sha256
                 mutableState.value = AppUpdateState(
@@ -202,6 +205,7 @@ internal object AppUpdateManager {
                 if (!file.isFile || !sha256(file).equals(hash, ignoreCase = true)) {
                     throw IOException("安装包缓存校验失败，请重新检查更新")
                 }
+                verifyInstalledSigner(activity.applicationContext, file)
                 withContext(Dispatchers.Main) { requestSystemInstall(activity) }
             } catch (e: Exception) {
                 set(UpdatePhase.ERROR, "安装准备失败：${e.message}")
@@ -335,6 +339,26 @@ internal object AppUpdateManager {
             }
         } finally {
             conn.disconnect()
+        }
+    }
+
+    /**
+     * The downloaded APK must be signed by the same publisher as the installed
+     * application. Android verifies this again at installation time; checking
+     * now gives the user an actionable error before showing the system installer.
+     */
+    private fun verifyInstalledSigner(app: Context, apk: File) {
+        val pm = app.packageManager
+        val flags = PackageManager.GET_SIGNING_CERTIFICATES
+        val installed = pm.getPackageInfo(app.packageName, flags)
+        val incoming = pm.getPackageArchiveInfo(apk.absolutePath, flags)
+            ?: throw IOException("更新包无法识别或签名不完整")
+        val active = installed.signingInfo?.apkContentsSigners.orEmpty()
+            .map { hex(MessageDigest.getInstance("SHA-256").digest(it.toByteArray())) }.toSet()
+        val proposed = incoming.signingInfo?.apkContentsSigners.orEmpty()
+            .map { hex(MessageDigest.getInstance("SHA-256").digest(it.toByteArray())) }.toSet()
+        if (!InstallSignaturePolicy.accepts(app.packageName, incoming.packageName, active, proposed)) {
+            throw IOException("更新包应用身份或发布签名与当前安装版本不一致，请勿安装")
         }
     }
 
