@@ -88,9 +88,9 @@ def verify(matrix_source: str, policy_source: str, official_source: str) -> list
     return errors
 
 
-PAGE_LINE = re.compile(r'^\\s*Page\\("([^"]+)"', re.MULTILINE)
-FEATURE_LINE = re.compile(r'\\bUiFeature\\("([^"]+)"')
-UI_CALL = re.compile(r'\\bvm\\.(?:rpc|refresh)\\(\\s*"[^"]+"\\s*,\\s*"([^"]+)"', re.DOTALL)
+PAGE_LINE = re.compile(r'^\s*Page\("([^"]+)"', re.MULTILINE)
+FEATURE_LINE = re.compile(r'\bUiFeature\("([^"]+)"')
+UI_CALL = re.compile(r'\bvm\.(?:rpc|refresh)\(\s*"[^"]+"\s*,\s*"([^"]+)"', re.DOTALL)
 NON_UI_EXPOSURES = {"后台内部", "平台不适用"}
 
 
