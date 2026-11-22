@@ -15,7 +15,7 @@ END = '<!-- INK_TOKENS_END -->'
 def verify(source: str, spec: str) -> list[str]:
     errors: list[str] = []
     def object_block(name: str) -> str | None:
-        match = re.search(r'\\bobject\\s+' + re.escape(name) + r'\\s*\\{(.*?)\\n\\}', source, re.S)
+        match = re.search(r'\bobject\s+' + re.escape(name) + r'\s*\{(.*?)\n\}', source, re.S)
         return match.group(1) if match else None
 
     light_source = object_block('InkLight') or object_block('Ink') or ''
@@ -55,8 +55,8 @@ def verify(source: str, spec: str) -> list[str]:
             if dark_actual.get(name) != dark_wanted.get(name):
                 errors.append('深色 Ink.' + name + ' 颜色不一致')
         for name in actual:
-            getter = (r'\\bval\\s+' + re.escape(name) +
-                r'\\s*:\\s*Color\\s+get\\(\\)\\s*=\\s*if\\s*\\(UiPreferences\\.darkMode\\.value\\)')
+            getter = (r'\bval\s+' + re.escape(name) +
+                r'\s*:\s*Color\s+get\(\)\s*=\s*if\s*\(UiPreferences\.darkMode\.value\)')
             if not re.search(getter, source):
                 errors.append('Ink.' + name + ' 未绑定明暗主题')
         if 'darkColorScheme(' not in source:
