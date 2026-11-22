@@ -55,9 +55,10 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Full ARM64 runtime and all 29 UI pages have not yet been validated
+            // with R8. Keep the proven release behavior until device coverage exists.
+            isMinifyEnabled = false
+            isShrinkResources = false
             if (signingReady) {
                 signingConfig = signingConfigs.getByName("release")
             }

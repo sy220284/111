@@ -2,11 +2,11 @@
 
 ## 决策
 
-**功能完整优先。现阶段保持已启用且构建通过的 R8 与 Android 资源压缩，不再追加侵入式瘦身；原清单 #62 评估结案，跳过进一步删减。** 后续体积收益以完整 ARM64 Codex 运行 APK 的实际数据为准，所有变更必须通过 Codex 启动、终端、会话、Git、ripgrep、更新恢复和关键 UI 的运行级验收。
+**功能完整优先。#61 的 R8 / 资源压缩虽通过 Release 编译与签名 smoke，但在完整 ARM64 原生核心安装包、29 个页面和动态资源路径未经运行级验收前，本轮保留既有未混淆的 Release 行为；#62 跳过进一步删减。** 后续体积收益以完整 ARM64 Codex 运行 APK 的实际数据为准，所有变更必须通过 Codex 启动、终端、会话、Git、ripgrep、更新恢复和关键 UI 的运行级验收。
 
 ## 已核实的事实
 
-- `android-app/app/build.gradle.kts` 的 Release 已设置 `isMinifyEnabled=true`、`isShrinkResources=true`；正式发布通过 `codexReleaseTargetAbi=arm64-v8a` 仅构建 ARM64。调试包与 UI 专项验收不等于最终手机安装包。
+- `android-app/app/build.gradle.kts` 的 Release 维持 `isMinifyEnabled=false`、`isShrinkResources=false`；PR 曾验证混淆版能编译和签名，但未证明正式 ARM64 核心启动、动态资源和全页面行为正常，因此本轮回退该优化。正式发布通过 `codexReleaseTargetAbi=arm64-v8a` 仅构建 ARM64。调试包与 UI 专项验收不等于最终手机安装包。
 - `CodexConnection.kt` 通过 `applicationInfo.nativeLibraryDir/libcodex_server.so` + `ProcessBuilder` 启动 Codex 原生核心。该 ELF 文件必须存在、与设备 ABI 一致，并被 Android 解包（`useLegacyPackaging=true`，清单设置 `extractNativeLibs=true`）。
 - 完整运行包必须同时包含 `libcodex_server.so`、`libcodex_code_mode_host.so`、`libcodex_rg.so`、`libcodex_git.so`；仅保留 Server 会损失 Code Mode 和本机开发工具。
 - `libhpatchz.so` 是本机增量升级恢复组件。完整签名发布流程已经检查两个原生库和包签名。PR 内的 Release smoke 仅验证签名/构建与 `libhpatchz.so`，没有导入完整 Codex 内核，因此无法单凭该 smoke 判断核心运行能力。
@@ -17,7 +17,7 @@
 
 | 选项 | 处理方式 | 理由 |
 |---|---|---|
-| 当前 R8 与资源压缩 | **保留，等待完整核心端到端验收** | 当前 Release 编译、签名成功；仍需测试实际原生运行和动态引用资源 |
+| R8 与资源压缩 | **本轮跳过** | 编译/签名成功不足以排除实际核心运行、动态资源和全页面的功能退化；缺完整设备证据时保留原 Release 行为 |
 | 发布 ARM64 独立 APK | **保留** | 符合 Android 手机的发布 ABI，已有签名与 ABI 检查；调试/兼容流程仍可覆盖 x86_64 模拟器 |
 | 原生核心、Git/ripgrep 可执行代码继续 strip/删减 | **跳过进一步瘦身** | 这些文件承担核心能力，减少任何必需内容可能造成运行、诊断或动态加载异常 |
 | 删除上游静态资源、模型目录、技能文件、语言数据 | **跳过** | 文件可能在运行期间按路径被访问，R8 静态检查无法证明全部运行时依赖 |
