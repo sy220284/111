@@ -41,7 +41,9 @@ jobs:
           bash -n .github/scripts/create-android-update-fixture.sh
           python3 -m unittest discover -s .github/scripts -p 'test_*.py'
           python3 android-app/tools/prepare_android_code_mode.py --check \
-            upstream/codex/codex-rs/install-context/src/lib.rs
+            upstream/codex/codex-rs/install-context/src/lib.rs \
+            --host-source upstream/codex/codex-rs/code-mode-host/src/main.rs
+          python3 -m unittest discover -s android-app/tools -p 'test_prepare_android_code_mode.py'
           bash -n android-app/tools/package_native_runtime.sh
 
 
