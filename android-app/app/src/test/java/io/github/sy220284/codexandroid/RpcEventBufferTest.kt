@@ -20,17 +20,24 @@ class RpcEventBufferTest {
 
     @Test fun fullBufferSuspendsRatherThanDiscardingCriticalEvents() = runBlocking {
         val stream = RpcEventBuffer.create()
+        val firstEventConsumed = CompletableDeferred<Unit>()
         val releaseSlowConsumer = CompletableDeferred<Unit>()
         val observed = mutableListOf<Int>()
         val total = RpcEventBuffer.CAPACITY + 2
         val consumer = launch(start = CoroutineStart.UNDISPATCHED) {
             stream.take(total).collect { message ->
-                if (message.getInt("sequence") == 0) releaseSlowConsumer.await()
+                if (message.getInt("sequence") == 0) {
+                    firstEventConsumed.complete(Unit)
+                    releaseSlowConsumer.await()
+                }
                 observed += message.getInt("sequence")
             }
         }
         assertEquals(1, stream.subscriptionCount.value)
         stream.emit(event(0))
+        // Ensure event 0 has left the buffer before asserting the exact 512
+        // queued events. Scheduling of a SharedFlow consumer is asynchronous.
+        withTimeout(5_000) { firstEventConsumed.await() }
         repeat(RpcEventBuffer.CAPACITY) { index ->
             assertTrue("Queue must hold exactly the configured buffer capacity",
                 stream.tryEmit(event(index + 1)))
