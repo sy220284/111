@@ -22,7 +22,12 @@ data class TimelineItem(
 
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val bridge = CodexConnection(application.applicationContext)
-    val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
+    private val workspaceRoot = application.filesDir.resolve("projects").apply { mkdirs() }.canonicalFile
+    val workingDirectory = workspaceRoot.absolutePath
+    private val workspacePreferences = application.getSharedPreferences("codex-workspace", 0)
+    private val restoredWorkspace = WorkspaceSelectionContract.restore(
+        workspaceRoot, workspacePreferences.getString("activeDirectory", null))
+    val activeWorkspace = MutableStateFlow(restoredWorkspace.directory.absolutePath)
     val activeThread = MutableStateFlow<String?>(null)
     val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
@@ -47,6 +52,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
+        restoredWorkspace.warning?.let { warning ->
+            errors.value = errors.value + ("workspace" to warning)
+        }
         viewModelScope.launch {
             bridge.events.collect { receive(it) }
         }
@@ -176,7 +184,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                val threadDirectory = WorkspaceSelectionContract.validate(
+                    workspaceRoot, File(history.getJSONObject("thread").getString("cwd")))
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
+                activeWorkspace.value = threadDirectory.absolutePath
+                workspacePreferences.edit()
+                    .putString("activeDirectory", threadDirectory.absolutePath).apply()
                 data.value = data.value + ("threadHistory" to history)
                 activeThread.value = id
                 running.value = false
@@ -188,6 +201,19 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 threadSwitching.value = false
             }
         }
+    }
+
+    /** Switching project starts a new task context; old conversation remains in history. */
+    fun selectWorkspace(folder: File) {
+        require(!threadSwitching.value && !running.value && !terminalSession.value.running) {
+            "当前有任务或命令正在执行，请先结束后再切换项目"
+        }
+        val selected = WorkspaceSelectionContract.validate(workspaceRoot, folder)
+        if (selected.absolutePath == activeWorkspace.value && activeThread.value == null) return
+        if (activeThread.value != null) newThread()
+        activeWorkspace.value = selected.absolutePath
+        workspacePreferences.edit().putString("activeDirectory", selected.absolutePath).apply()
+        errors.value = errors.value - "workspace"
     }
 
     fun newThread() {
@@ -235,6 +261,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         running.value = true
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
+        val chosenWorkspace = activeWorkspace.value
         viewModelScope.launch {
             timeline.value = timeline.value + TimelineItem(
                 "user-" + System.nanoTime(), "user",
@@ -260,7 +287,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 var id = activeThread.value
                 if (id == null) {
-                    val args = JSONObject().put("cwd", workingDirectory)
+                    val cwd = WorkspaceSelectionContract.validate(
+                        workspaceRoot, File(chosenWorkspace)).absolutePath
+                    val args = JSONObject().put("cwd", cwd)
                     if (chosenModel.isNotBlank()) args.put("model", chosenModel)
                     val createdId = bridge.request("thread/start", args)
                         .getJSONObject("thread").getString("id")
@@ -371,8 +400,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
             return
         }
+        val cwd = try {
+            WorkspaceSelectionContract.validate(workspaceRoot, File(activeWorkspace.value))
+                .absolutePath
+        } catch (error: Exception) {
+            errors.value = errors.value + ("terminal" to
+                (error.message ?: "任务项目目录不可用，请重新选择"))
+            return
+        }
         val id = UUID.randomUUID().toString()
-        val args = TerminalSessionContract.execute(command, workingDirectory, id)
+        val args = TerminalSessionContract.execute(command, cwd, id)
         terminalSession.value = TerminalSessionState.start(id, command)
         errors.value = errors.value - "terminal"
         viewModelScope.launch {

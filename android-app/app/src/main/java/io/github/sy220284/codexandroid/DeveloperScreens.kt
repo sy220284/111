@@ -39,7 +39,12 @@ fun WorkspacePage(vm: CodexViewModel) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val root = remember { File(vm.workingDirectory).canonicalFile }
+    val selectedWorkspace by vm.activeWorkspace.collectAsState()
+    val activeThread by vm.activeThread.collectAsState()
+    val running by vm.running.collectAsState()
+    val terminal by vm.terminalSession.collectAsState()
     var folder by remember { mutableStateOf(root) }
+    var pendingWorkspace by remember { mutableStateOf<File?>(null) }
     var focus by remember { mutableStateOf<File?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     var notice by remember { mutableStateOf("") }
@@ -130,6 +135,31 @@ fun WorkspacePage(vm: CodexViewModel) {
                         Spacer(Modifier.width(6.dp))
                         Text("导入")
                     }
+                }
+            }
+        }
+        item {
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("当前任务项目", style = MaterialTheme.typography.titleMedium)
+                Text(File(selectedWorkspace).relativeTo(root).path.takeIf { it != "." }
+                    ?.let { "projects/" + it } ?: "projects/",
+                    color = Ink.muted, fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodyMedium)
+                Text("新对话和本机终端在此目录执行。切换项目会开启新的任务上下文。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                if (selectedWorkspace != folder.canonicalPath) {
+                    OutlinedButton(
+                        onClick = { pendingWorkspace = folder },
+                        enabled = !running && !terminal.running && !actionBusy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("workspace-select-current")
+                    ) {
+                        Icon(Icons.Outlined.FolderOpen, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("将当前目录设为任务项目")
+                    }
+                } else {
+                    StatusPill("正在使用此目录", true)
                 }
             }
         }
@@ -250,6 +280,28 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
 
+    pendingWorkspace?.let { target ->
+        CodexConfirmDialog(
+            title = "切换任务项目",
+            message = if (activeThread == null)
+                "后续新对话和本地终端将在选定目录工作。"
+            else "当前会话会保留在历史中，切换后将从新会话继续工作。",
+            detail = target.relativeTo(root).path.takeIf { it != "." }
+                ?.let { "projects/" + it } ?: "projects/",
+            confirmLabel = "确认使用此项目",
+            onConfirm = {
+                try {
+                    vm.selectWorkspace(target)
+                    notice = "已切换任务项目：" + target.name
+                    pendingWorkspace = null
+                } catch (error: Exception) {
+                    notice = "切换失败：" + (error.message ?: "目标目录不可用")
+                    pendingWorkspace = null
+                }
+            },
+            onDismiss = { pendingWorkspace = null }
+        )
+    }
     fileAction?.let { (kind, target) ->
         if (kind == "rename") {
             AlertDialog(
@@ -417,8 +469,11 @@ fun TerminalPage(vm: CodexViewModel) {
             "运行本机工作区命令。执行期间可以查看实时输出、输入内容或主动停止。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("Android 进程级隔离", style = MaterialTheme.typography.titleMedium)
-            Text("执行位置：本机工作区", color = Ink.muted,
-                style = MaterialTheme.typography.labelMedium)
+            val activeWorkspace by vm.activeWorkspace.collectAsState()
+            Text("执行位置：" + File(activeWorkspace).relativeTo(
+                File(vm.workingDirectory)).path.takeIf { it != "." }
+                ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             Text("命令可能修改应用工作区。执行前显示完整内容并请你确认。", color = Ink.muted)
             OutlinedTextField(command, { command = it },
                 label = { Text("Shell 命令") }, placeholder = { Text("pwd && ls -la") },
