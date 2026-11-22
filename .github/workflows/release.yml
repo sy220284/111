@@ -9,12 +9,14 @@ name: 111 Android 正式发布
       - '.github/scripts/test_release_assets.py'
       - '.github/scripts/audit_apk_contents.py'
       - '.github/scripts/test_audit_apk_contents.py'
+      - '.github/scripts/test_ci_scope.py'
       - '.github/scripts/prepare-release-assets.sh'
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
   workflow_run:
     workflows: ['安卓版本构建与验证', '安卓界面与协议独立验收']
     types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -29,6 +31,7 @@ concurrency:
 jobs:
   preflight:
     name: 发布脚本回归检查
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -95,7 +98,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
+          gradle -p android-app :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
@@ -115,11 +118,12 @@ jobs:
     name: 识别待发布源码与版本
     needs: preflight
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
+      always() &&
+      ((github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success') ||
+       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
+       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     outputs:
@@ -340,7 +344,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p android-app :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
+          gradle -p android-app :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \
