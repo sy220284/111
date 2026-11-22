@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.Intent
+import android.content.ClipData
 import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
@@ -240,15 +241,27 @@ internal object AppUpdateManager {
         try {
             val uri = FileProvider.getUriForFile(
                 activity, "${activity.packageName}.updateprovider", file)
-            val intent = Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            activity.startActivity(intent)
+            activity.startActivity(systemInstallIntent(uri))
             set(UpdatePhase.INSTALLING, "安装包已交给 Android 系统，请确认安装。")
         } catch (e: Exception) {
             set(UpdatePhase.READY, "系统安装界面打开失败：${e.message}，可重试。")
         }
     }
+
+    /**
+     * A self-update replaces and stops the process that owns the current Activity.
+     * Keep the system installer in its own task so its "Open" action does not rely
+     * on an activity stack belonging to the application being replaced.
+     */
+    internal fun systemInstallIntent(uri: Uri): Intent =
+        Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .apply { clipData = ClipData.newRawUri("verified-update", uri) }
+            .addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+            )
 
     private fun set(
         phase: UpdatePhase, message: String, progress: Int = 0,

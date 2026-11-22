@@ -184,6 +184,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/tools/collect_ui_screenshots.py
+            /android-app/tools/verify_self_update_open.py
           sparse-checkout-cone-mode: false
       - name: 取回 UI APK
         uses: actions/download-artifact@v4
@@ -218,13 +219,17 @@ jobs:
             mkdir -p ui-screenshots
             # Clipboard-copy validation creates an Android system preview overlay. Run it last
             # so the overlay cannot cover screenshots of later business pages.
-            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.SelfUpdateInstallerIntentInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
             # The emulator runner executes each script line separately.
             # A single Python process collects all screenshots even after test failure.
             python3 android-app/tools/collect_ui_screenshots.py
             grep -Fq 'OK (' ui-instrument-result.log
             test ! -s ui-screenshots/missing.txt
             file ui-screenshots/*.png
+            # Only the 393dp emulator replaces the running app, then presses the
+            # system installer's actual Install and Open buttons. Execute after
+            # screenshots: package replacement kills the old app process.
+            if [ "${{ matrix.width_dp }}" = "393" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk 2>&1 | tee self-update-open.log'; fi
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
         uses: actions/upload-artifact@v4
@@ -232,6 +237,7 @@ jobs:
           name: codex-android-ui-device-evidence-${{ matrix.width_dp }}dp
           path: |
             ui-instrument-result.log
+            self-update-open.log
             ui-screenshots/
           if-no-files-found: ignore
           retention-days: 14
