@@ -60,6 +60,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("任务对话").assertExists()
         rule.onNodeWithTag("nav-settings").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
+        rule.onNodeWithContentDescription("搜索侧栏会话").performClick()
+        rule.onNodeWithTag("sidebar-search").assertIsDisplayed()
+        rule.onNodeWithContentDescription("关闭会话搜索").performClick()
         capture("sidebar-android35.png")
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithText("新的工作会话").assertExists()
@@ -69,8 +73,12 @@ class UiNavigationInstrumentedTest {
 
     @Test fun chatKeepsStopAndSendControlsReachable() {
         openDrawerRoute("chat")
-        rule.onNodeWithText("停止").assertExists()
-        rule.onNodeWithText("发送给 Codex").assertExists()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("composer-input").assertIsDisplayed()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        rule.onNodeWithText("发送", substring = false).assertExists()
+        // 空闲时隐藏停止操作，避免把禁用按钮长期占在输入区。
+        rule.onNodeWithTag("composer-stop").assertDoesNotExist()
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
     }
 

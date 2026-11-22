@@ -250,7 +250,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    var draft by rememberSaveable { mutableStateOf("") }
+    val composerDrafts by vm.composerDrafts.collectAsState()
+    val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
+    val draft = snapshot.text
+    val attachedImages = snapshot.images
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
@@ -258,19 +261,20 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
+    var imagePickThread by remember { mutableStateOf<String?>(null) }
     var showEngineStatus by remember { mutableStateOf(false) }
     var showApprovalQuick by remember { mutableStateOf(false) }
     var stopRequested by remember(activeTurn) { mutableStateOf(false) }
     val stopping = busy && (("interrupt" in loading) ||
         (stopRequested && errors["interrupt"] == null))
     val attachmentContext = LocalContext.current
-    var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var attachmentBusy by remember { mutableStateOf(false) }
     var attachmentError by remember { mutableStateOf("") }
 
     val selectedMode by vm.selectedMode.collectAsState()
     val currentTitle = thread?.let { threadId ->
-        records(models["threads"]).firstOrNull { it.optString("id") == threadId }?.let {
+        (records(models["sidebarThreads"]) + records(models["threads"]))
+            .firstOrNull { it.optString("id") == threadId }?.let {
             PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
         }
     }
@@ -278,15 +282,26 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            if (attachedImages.size >= LocalImageAttachments.MAX_FILES) {
+            // 图片返回时始终归属于打开选择器的那条会话。
+            val owner = imagePickThread
+            val existing = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
+                ?.images.orEmpty()
+            if (existing.size >= LocalImageAttachments.MAX_FILES) {
                 attachmentError = "最多添加三张图片，请先移除一张"
             } else {
                 attachmentBusy = true
                 scope.launch {
                     try {
                         val path = LocalImageAttachments.importFrom(attachmentContext, uri)
-                        attachedImages = attachedImages + path
-                        attachmentError = ""
+                        val current = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
+                            ?.images.orEmpty()
+                        if (current.size >= LocalImageAttachments.MAX_FILES) {
+                            LocalImageAttachments.release(attachmentContext, path)
+                            attachmentError = "图片数量已满，请先移除一张"
+                        } else {
+                            vm.editComposerImages(owner, current + path)
+                            attachmentError = ""
+                        }
                     } catch (failure: Exception) {
                         attachmentError = failure.message ?: "无法读取所选图片"
                     } finally {
@@ -320,6 +335,14 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
     var unreadSteps by remember { mutableIntStateOf(0) }
+    // 会话恢复后的时间线从当前会话末尾开始，不沿用上一会话的未读数和滚动位置。
+    LaunchedEffect(thread) {
+        followTail = true
+        unreadSteps = 0
+        lastKnownStepCount = items.size
+        if (items.isNotEmpty()) scroll.scrollToItem(items.lastIndex)
+        else scroll.scrollToItem(0)
+    }
     LaunchedEffect(scroll) {
         snapshotFlow {
             val total = scroll.layoutInfo.totalItemsCount
@@ -356,25 +379,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { navigate("diff") }, enabled = thread != null) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
-        if (thread != null || items.isNotEmpty()) Row(
+        // 会话导航统一归入侧边栏，正文只保留与当前任务有关的快捷动作。
+        if (latestDiff.isNotBlank()) Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(horizontal = 13.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AssistChip(
-                onClick = { navigate("threads") },
-                label = { Text("会话历史") },
-                leadingIcon = { Icon(Icons.Outlined.History, null, modifier = Modifier.size(17.dp)) },
+                onClick = { navigate("diff") },
+                label = { Text("查看最新改动") },
+                leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
                 modifier = Modifier.heightIn(min = 46.dp)
             )
-            if (latestDiff.isNotBlank()) {
-                AssistChip(
-                    onClick = { navigate("diff") },
-                    label = { Text("查看最新改动") },
-                    leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
-                    modifier = Modifier.heightIn(min = 46.dp)
-                )
-            }
         }
         CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
             if (switching) {
@@ -420,14 +436,14 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             )
                             WelcomeActionCard(
                                 "写个脚本", "先描述需求", Icons.Outlined.Code,
-                                Ink.copper, onClick = { draft = "帮我写一个脚本，目标是：" },
+                                Ink.copper, onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
                                 modifier = Modifier.weight(1f)
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             WelcomeActionCard(
                                 "新建项目", "整理初始化步骤", Icons.Outlined.CreateNewFolder,
-                                Ink.copper, onClick = { draft = "请协助初始化一个新项目，需求是：" },
+                                Ink.copper, onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
                                 modifier = Modifier.weight(1f)
                             )
                             WelcomeActionCard(
@@ -493,8 +509,12 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 ErrorText(attachmentError)
             }
             errors["attachments"]?.let { ErrorText(it) }
+            if (busy && attachedImages.isNotEmpty()) {
+                Text("运行中仅支持补充文字；已选图片将在下一轮发送。",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
             LocalImageAttachmentStrip(attachedImages) { path ->
-                attachedImages = attachedImages - path
+                vm.editComposerImages(thread, attachedImages - path)
                 scope.launch {
                     try {
                         LocalImageAttachments.release(attachmentContext, path)
@@ -503,71 +523,37 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(
-                    modifier = Modifier.size(49.dp),
-                    shape = RoundedCornerShape(17.dp), color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.border)
-                ) {
-                    IconButton(
-                        onClick = { showAttachmentTools = true },
-                        modifier = Modifier.testTag("composer-plus")
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = "添加附件",
-                            tint = Ink.copper)
+            ConversationComposer(
+                draft = draft,
+                onDraftChange = { vm.editComposerText(thread, it) },
+                attachedCount = attachedImages.size,
+                connected = status == EngineStatus.Connected,
+                running = busy,
+                stopping = stopping,
+                canStop = busy && !activeTurn.isNullOrBlank(),
+                canSend = status == EngineStatus.Connected && !switching && !attachmentBusy &&
+                    (if (busy) draft.isNotBlank() && thread != null &&
+                        !activeTurn.isNullOrBlank() && !steering
+                     else draft.isNotBlank() || attachedImages.isNotEmpty()),
+                sending = steering || (busy && activeTurn.isNullOrBlank()),
+                onAttach = { showAttachmentTools = true },
+                onStop = { stopRequested = true; vm.interrupt() },
+                onSend = {
+                    val message = draft.trim()
+                    val submittedDraft = draft
+                    if (busy) {
+                        vm.steerPrompt(message) {
+                            vm.clearComposerAfterAccepted(thread, submittedDraft, emptyList())
+                        }
+                    } else {
+                        val images = attachedImages.toList()
+                        vm.sendPrompt(message, images) {
+                            // 首条消息创建真实会话后，草稿已迁移到新 threadId。
+                            vm.clearComposerAfterAccepted(vm.activeThread.value, submittedDraft, images)
+                        }
                     }
                 }
-                OutlinedTextField(
-                value = draft, onValueChange = { draft = it },
-                modifier = Modifier.weight(1f), minLines = 1, maxLines = 5,
-                placeholder = { Text(if (busy) "任务运行中，可以补充要求或修正方向…" else "描述目标、文件及验收要求…") },
-                shape = RoundedCornerShape(18.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = { stopRequested = true; vm.interrupt() },
-                    enabled = busy && !activeTurn.isNullOrBlank() && !stopping,
-                    modifier = Modifier.weight(.38f).heightIn(min = 50.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
-                    contentPadding = PaddingValues(horizontal = 9.dp)
-                ) {
-                    if (stopping) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp,
-                            color = Ink.red)
-                    } else Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (stopping) "停止中" else "停止")
-                }
-                CodexPrimaryButton(
-                    onClick = {
-                        val message = draft.trim()
-                        if (busy) {
-                            vm.steerPrompt(message) {
-                                if (draft.trim() == message) draft = ""
-                            }
-                        } else {
-                            val images = attachedImages.toList()
-                            vm.sendPrompt(message, images) {
-                                if (draft.trim() == message) draft = ""
-                                if (attachedImages == images) attachedImages = emptyList()
-                            }
-                        }
-                    },
-                    enabled = status == EngineStatus.Connected && !switching && !attachmentBusy &&
-                        (if (busy) draft.isNotBlank() && thread != null &&
-                            !activeTurn.isNullOrBlank() && !steering
-                         else draft.isNotBlank() || attachedImages.isNotEmpty()),
-                    busy = steering || (busy && activeTurn.isNullOrBlank()),
-                    modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
-                ) {
-                    Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text(if (busy) "补充指令" else "发送给 Codex", maxLines = 1)
-                }
-            }
+            )
         }
     }
     if (showContextTools) {
@@ -589,6 +575,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }, hasThread = thread != null,
             imageCount = attachedImages.size, importing = attachmentBusy,
             onPickImage = {
+                imagePickThread = thread
                 pendingImagePick = true
                 showAttachmentTools = false
             }
