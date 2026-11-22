@@ -358,6 +358,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         attachmentController.clearAfterAccepted(threadId, text, images)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
+        if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
         val prompt = text.trim()
         if (threadSwitching.value) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
@@ -547,6 +548,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
     fun startTerminalCommand(command: String) {
+        if (connectionRestarter.busy.value) { errors.value = errors.value + ("terminal" to "正在重新连接内核，请稍后执行命令"); return }
         if (terminalSession.value.running) {
             errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
             return

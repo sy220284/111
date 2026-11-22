@@ -38,6 +38,9 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
         if (!busy.compareAndSet(false, true)) return
         vm.viewModelScope.launch {
             try {
+                check(ConnectionRestartPolicy.canRestart(
+                    vm.running.value, vm.terminalSession.value.running,
+                    vm.bridge.prompts.value.size)) { "任务状态已变化，内核重启已取消" }
                 withContext(Dispatchers.IO) { vm.bridge.close() }
                 vm.connect().join()
                 vm.errors.value = vm.errors.value - "diagnostics"
