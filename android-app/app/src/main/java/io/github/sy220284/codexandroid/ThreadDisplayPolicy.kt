@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -28,6 +29,23 @@ object ThreadDisplayPolicy {
         }
         val epoch = parse(updatedAt) ?: parse(createdAt) ?: return null
         return display.withZone(zone).format(Instant.ofEpochSecond(epoch))
+    }
+
+    /** Date headings are based on real server timestamps in the device time zone. */
+    fun dayGroup(
+        updatedAt: Any?, createdAt: Any?,
+        today: LocalDate = LocalDate.now(),
+        zone: ZoneId = ZoneId.systemDefault()
+    ): String {
+        val value = updatedAt?.toString()?.trim()?.toLongOrNull()?.takeIf { it > 0L }
+            ?: createdAt?.toString()?.trim()?.toLongOrNull()?.takeIf { it > 0L }
+            ?: return "日期未知"
+        val day = Instant.ofEpochSecond(value).atZone(zone).toLocalDate()
+        return when {
+            day == today -> "今天"
+            day == today.minusDays(1) -> "昨天"
+            else -> "更早"
+        }
     }
 
     /** An active Codex turn owns its thread until it completes or is stopped. */
