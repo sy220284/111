@@ -34,17 +34,46 @@ internal fun SidebarSessions(
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
-    var searching by rememberSaveable { mutableStateOf(false) }
-    var search by rememberSaveable { mutableStateOf("") }
     val sidebarResponse = data["sidebarThreads"] ?: data["threads"]
     val all = records(sidebarResponse).filter { it.optString("id").isNotBlank() }
         .distinctBy { it.optString("id") }
+    SidebarSessionsContent(
+        all = all,
+        hasResponse = sidebarResponse != null,
+        connected = status == EngineStatus.Connected,
+        loading = "sidebarThreads" in loading,
+        hasError = errors["sidebarThreads"] != null,
+        activeId = activeId,
+        running = running,
+        switching = switching,
+        onRefresh = {
+            vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
+        },
+        onOpenThread = onOpenThread
+    )
+}
+
+/** 与连接副作用分离：同一界面可以用固定协议数据做稳定的搜索与选择测试。 */
+@Composable
+internal fun SidebarSessionsContent(
+    all: List<JSONObject>,
+    hasResponse: Boolean,
+    connected: Boolean,
+    loading: Boolean,
+    hasError: Boolean,
+    activeId: String?,
+    running: Boolean,
+    switching: Boolean,
+    onRefresh: () -> Unit,
+    onOpenThread: (String) -> Unit
+) {
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var search by rememberSaveable { mutableStateOf("") }
     val matches = all.filter { item ->
         search.isBlank() || listOf(
             item.optString("name"), item.optString("preview"), item.optString("cwd")
         ).any { it.contains(search.trim(), ignoreCase = true) }
     }.take(6)
-    val connected = status == EngineStatus.Connected
 
     Column(
         modifier = Modifier.fillMaxWidth().testTag("sidebar-thread-list"),
@@ -68,10 +97,8 @@ internal fun SidebarSessions(
                     modifier = Modifier.size(19.dp), tint = Ink.muted)
             }
             IconButton(
-                onClick = {
-                    vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
-                },
-                enabled = connected && "sidebarThreads" !in loading,
+                onClick = onRefresh,
+                enabled = connected && !loading,
                 modifier = Modifier.size(48.dp).testTag("sidebar-refresh")
             ) {
                 Icon(Icons.Outlined.Refresh, contentDescription = "刷新侧栏会话",
@@ -95,17 +122,17 @@ internal fun SidebarSessions(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
             }
-            "sidebarThreads" in loading && all.isEmpty() -> {
+            loading && all.isEmpty() -> {
                 LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 12.dp))
                 Text("正在同步会话…", modifier = Modifier.padding(horizontal = 12.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
             }
-            errors["sidebarThreads"] != null -> {
+            hasError -> {
                 Text("会话同步失败，可点击刷新重试",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.red)
             }
-            all.isEmpty() && sidebarResponse != null -> {
+            all.isEmpty() && hasResponse -> {
                 Text("暂无会话，开始首个任务后会显示在这里",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
