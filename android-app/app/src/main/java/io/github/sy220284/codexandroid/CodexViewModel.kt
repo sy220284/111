@@ -7,6 +7,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -21,6 +25,7 @@ data class TimelineItem(
 )
 
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
+    // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
     val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
     val activeThread = MutableStateFlow<String?>(null)
@@ -28,7 +33,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
-    val composerDrafts = MutableStateFlow<Map<String, ComposerDraft>>(emptyMap())
+    val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -51,6 +56,31 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             bridge.events.collect { receive(it) }
         }
         viewModelScope.launch {
+            composerDrafts.collectLatest { snapshot ->
+                delay(350)
+                try {
+                    withContext(Dispatchers.IO) {
+                        DraftPersistence.save(application.applicationContext, snapshot)
+                    }
+                    errors.value = errors.value - "drafts"
+                } catch (failure: Exception) {
+                    errors.value = errors.value + ("drafts" to
+                        (failure.message ?: "未发送文字无法保存到本机"))
+                }
+            }
+        }
+        viewModelScope.launch {
+            bridge.status.collect { current ->
+                if (current is EngineStatus.Unavailable && running.value) {
+                    running.value = false
+                    activeTurn.value = null
+                    timeline.value = timeline.value + TimelineItem(
+                        "disconnect-" + UUID.randomUUID(), "error",
+                        "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
+                }
+            }
+        }
+        viewModelScope.launch {
             try {
                 LocalImageAttachments.cleanExpired(application.applicationContext)
             } catch (failure: Exception) {
@@ -63,14 +93,21 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun connect() = viewModelScope.launch {
         try {
+            val previousThread = activeThread.value
             bridge.connect()
             errors.value = errors.value - "engine"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
+            // Rebuild visible history after a connection loss, without resending a task.
+            if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread)
         } catch (failure: Exception) {
             errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
         }
+    }
+
+    fun reconnectIfNeeded() {
+        if (bridge.status.value is EngineStatus.Unavailable) connect()
     }
 
     /**
@@ -128,7 +165,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 一次读取得到的最近会话同时更新首页和侧栏，避免同一事件触发双重网络请求。 */
     private fun syncRecentThreads() {
-        refresh("threads", "thread/list", JSONObject().put("limit", 30)) { response ->
+        refresh("threads", "thread/list", JSONObject().put("limit", 100)) { response ->
             data.value = data.value + ("sidebarThreads" to response)
         }
     }
@@ -199,8 +236,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "请先中断或完成当前任务，再新建会话")
             return
         }
-        // 新建任务清空新会话草稿；已存在会话的未发送输入继续保留。
-        composerDrafts.update { it - ThreadComposerDrafts.NEW_THREAD }
+        // Preserve unsent text in case New Chat is tapped accidentally.
+        // Users can intentionally clear it in the input field.
         activeThread.value = null
         activeTurn.value = null
         timeline.value = emptyList()
@@ -233,13 +270,23 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         // Acquire turn ownership before dispatching the coroutine: rapid taps
         // cannot submit duplicate messages even while thread/start is pending.
         running.value = true
+        try {
+            CodexForegroundService.start(getApplication())
+        } catch (failure: Exception) {
+            running.value = false
+            errors.value = errors.value + ("conversation" to
+                ("无法启动后台任务保护：" + (failure.message ?: "系统拒绝启动前台服务")))
+            return
+        }
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
         viewModelScope.launch {
+            val pendingId = "pending-" + UUID.randomUUID()
             timeline.value = timeline.value + TimelineItem(
-                "user-" + System.nanoTime(), "user",
+                pendingId, "user",
                 if (images.isEmpty()) prompt else
-                    listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"))
+                    listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"),
+                "sending")
             try {
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
@@ -282,9 +329,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 afterAccepted()
             } catch (failure: Exception) {
                 running.value = false
-                errors.value = errors.value + ("conversation" to (failure.message ?: "发送失败"))
+                // Retract only this specific optimistic item. Never match identical text.
+                timeline.value = timeline.value.filterNot { it.id == pendingId }
+                errors.value = errors.value + ("conversation" to
+                    (failure.message ?: "发送失败，原指令已保留，可重试"))
                 timeline.value = timeline.value + TimelineItem(
-                    "failure-" + System.nanoTime(), "error", failure.message ?: "发送失败")
+                    "failure-" + UUID.randomUUID(), "error",
+                    failure.message ?: "发送失败，原指令已保留")
             }
         }
     }
@@ -548,11 +599,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val all = timeline.value.toMutableList()
                 // 本地发送时已经加入用户消息，正式事件到达后合并，避免一条指令显示两次。
                 val sameId = all.indexOfLast { it.id == id }
-                val optimistic = if (kind == "userMessage" && description.isNotBlank()) {
-                    all.indexOfLast {
-                        it.kind == "user" && (it.text == description ||
-                            it.text.startsWith(description + "\n图片附件："))
-                    }
+                // One pending send at a time is guaranteed by running state. Only the
+                // client-generated pending ID may be replaced by its authoritative item.
+                val optimistic = if (kind == "userMessage") {
+                    all.indexOfFirst { it.id.startsWith("pending-") &&
+                        it.kind == "user" && it.status == "sending" }
                 } else -1
                 val pos = if (sameId >= 0) sameId else optimistic
                 val displayedKind = if (kind == "userMessage") "user" else kind
