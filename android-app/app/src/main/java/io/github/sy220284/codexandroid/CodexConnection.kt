@@ -155,6 +155,9 @@ class CodexConnection(private val appContext: Context) {
                         RpcEnvelopeKind.Response -> {
                             waiting.remove((id as Number).toLong())?.complete(message)
                         }
+                        RpcEnvelopeKind.MalformedResponse -> {
+                            throw IllegalStateException("内核响应缺少有效的数字请求编号")
+                        }
                         RpcEnvelopeKind.HostRequest -> {
                             prompts.value = prompts.value + ServerPrompt(
                                 id, method,
