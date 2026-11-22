@@ -49,6 +49,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectAsState()
     val items by vm.timeline.collectAsState()
+    val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -125,6 +126,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
+    var lastKnownTailId by remember { mutableStateOf<String?>(null) }
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
     // Reset only after thread/read and thread/resume have finished swapping the timeline.
@@ -134,6 +136,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             followTail = true
             unreadSteps = 0
             lastKnownStepCount = items.size
+            lastKnownTailId = items.lastOrNull()?.id
             scroll.scrollToItem(if (items.isEmpty()) 0 else items.lastIndex)
         }
     }
@@ -145,9 +148,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     LaunchedEffect(items.size, switching, thread) {
         if (switching || observedThread != thread) return@LaunchedEffect
-        val added = (items.size - lastKnownStepCount).coerceAtLeast(0)
+        // Reading older pages prepends items but does not create unread steps.
+        val tailId = items.lastOrNull()?.id
+        val tailChanged = tailId != lastKnownTailId
+        val added = if (tailChanged) (items.size - lastKnownStepCount).coerceAtLeast(0) else 0
+        lastKnownTailId = tailId
         lastKnownStepCount = items.size
-        if (items.isNotEmpty() && followTail) {
+        if (items.isNotEmpty() && followTail && tailChanged) {
             if (reducedMotion) scroll.scrollToItem(items.size - 1)
             else scroll.animateScrollToItem(items.size - 1)
         } else if (!followTail) {
@@ -256,6 +263,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (olderTimelineCount > 0 && thread != null) item(key = "timeline-older-pages") {
+                    OutlinedButton(
+                        onClick = { vm.loadEarlierTimeline() },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("timeline-load-older")
+                    ) {
+                        Text("加载更早记录 · 剩余 $olderTimelineCount 条")
+                    }
+                }
                 items(items, key = { it.id }) { item ->
                     TimelineStepCard(item)
                 }
@@ -283,6 +299,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         color = Ink.copper, style = MaterialTheme.typography.labelMedium)
                 }
             }
+        }
+        errors["timeline"]?.let { reason ->
+            CodexNotice(reason, NoticeTone.Warning,
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
         errors["conversation"]?.let { reason ->
             CodexNotice(

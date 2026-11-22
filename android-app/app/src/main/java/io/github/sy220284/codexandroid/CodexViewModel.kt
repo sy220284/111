@@ -27,6 +27,21 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
+    private val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
+    val olderTimelineCount get() = timelineWindow.olderCount
+    fun loadEarlierTimeline() {
+        val id = activeThread.value ?: return
+        viewModelScope.launch {
+            try {
+                val older = timelineWindow.readEarlier(id)
+                if (activeThread.value == id && older.isNotEmpty())
+                    timeline.value = older + timeline.value
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("timeline" to
+                    (failure.message ?: "无法加载更早的记录"))
+            }
+        }
+    }
     val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
     private val attachmentController by lazy {
         AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors)
@@ -282,11 +297,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
-                data.value = data.value + ("threadHistory" to history)
+                // The server history is authoritative; avoid retaining a second full
+                // JSON copy after materializing the bounded timeline window.
+                val newest = timelineWindow.replace(id, restored)
                 activeThread.value = id
                 running.value = false
                 latestDiff.value = ""
-                timeline.value = restored
+                timeline.value = newest
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
             } finally {
@@ -309,6 +326,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         activeThread.value = null
         activeTurn.value = null
         timeline.value = emptyList()
+        viewModelScope.launch { timelineWindow.clear() }
         latestDiff.value = ""
         running.value = false
     }
@@ -677,45 +695,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
-            "item/agentMessage/delta", "item/plan/delta", "item/reasoning/summaryTextDelta" -> {
-                val key = params.optString("itemId", "stream-" + method)
-                val delta = params.optString("delta")
-                val current = timeline.value.toMutableList()
-                val idx = current.indexOfLast { it.id == key }
-                if (idx == -1) current += TimelineItem(key, method.substringAfter("item/").substringBefore("/"), delta, "streaming")
-                else current[idx] = current[idx].copy(text = current[idx].text + delta)
-                timeline.value = current
-            }
-            "item/started", "item/completed" -> {
-                val item = params.optJSONObject("item") ?: return
-                val id = item.optString("id", "item-" + System.nanoTime())
-                val kind = item.optString("type", "event")
-                val description = when (kind) {
-                    "userMessage" -> {
-                        val parts = item.optJSONArray("content") ?: JSONArray()
-                        (0 until parts.length()).mapNotNull {
-                            parts.optJSONObject(it)?.optString("text")
-                        }.filter { it.isNotBlank() }.joinToString("\n")
-                    }
-                    "commandExecution" -> item.optString("command")
-                    "fileChange" -> "文件变更：" +
-                        (item.optJSONObject("changes")?.length() ?: 0) + " 个文件"
-                    "mcpToolCall" -> item.optString("tool")
-                    else -> item.optString("text")
-                }
-                val all = timeline.value.toMutableList()
-                // Authoritative item ID wins; unmatched user events consume only
-                // a unique pending send marker, never compare potentially identical text.
-                val pos = TimelineReconciler.position(all, id, kind)
-                val displayedKind = if (kind == "userMessage") "user" else kind
-                val displayedText = description.ifBlank {
-                    if (pos >= 0) all[pos].text else "正在处理…"
-                }
-                val entry = TimelineItem(id, displayedKind, displayedText,
-                    item.optString("status"), if (displayedKind == "user") "" else item.toString(2))
-                if (pos < 0) all += entry else all[pos] = entry
-                timeline.value = all
-            }
+            "item/agentMessage/delta", "item/plan/delta",
+            "item/reasoning/summaryTextDelta", "item/started", "item/completed" ->
+                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
             "turn/started" -> {
                 activeTurn.value = params.optJSONObject("turn")?.optString("id")
@@ -748,6 +730,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         turn?.optJSONObject("error")?.optString("message") ?: "任务已中断或失败"
                     )
                 }
+            }
+        }
+        if (timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+            try {
+                timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("timeline" to
+                    (failure.message ?: "会话历史无法暂存，当前记录仍保留在内存"))
             }
         }
     }
