@@ -46,7 +46,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
 
-本次复查统计：完成 12，部分 30，未完成 51，待验 7。源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+本次复查统计（本轮代码更新后）：完成 17，部分 30，未完成 46，待验 7。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
 
 | # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
 |---:|---|---|---|
@@ -66,18 +66,18 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 14 | 完成 | 系统选择器限制三张图片 | PickMultipleVisualMedia(MAX_FILES=3) |
 | 15 | 完成 | 图片超额保留已成功导入并提示 | ConversationScreen 按剩余名额导入，跳过/失败给出数量反馈 |
 | 16 | 完成 | 切换会话骨架屏 | ConversationLoadingSkeleton.kt |
-| 17 | 未完成 | Diff 展开状态记忆 | DiffReaderPage 的 remember(diff) 只保存当前组合状态，离开页面后不可持久恢复 |
+| 17 | 完成 | Diff 展开状态记忆 | DiffExpansionPreferences 在本机保存会话/差异指纹与展开集合；DiffReaderPage 离开页面后仍能恢复状态 |
 | 18 | 部分 | 终端 ↑ 键回溯历史命令 | DeveloperScreens 有可选历史命令菜单；未接硬件键盘 ↑ 事件 |
 | 19 | 部分 | 终端输出复制和长按自由选择 | 已有复制与展开；长按全文自由选取专项体验未核实 |
 | 20 | 未完成 | 审批弹层会话级记住命令 | 尚未见到按会话范围保存并实际生效的快捷审批规则 |
-| 21 | 未完成 | 会话库长按多选批量操作 | ThreadLibraryPage 当前以单条菜单归档/删除 |
-| 22 | 未完成 | 会话搜索保留最近五个查询 | ThreadLibraryPage 未见最近查询持久列表 |
+| 21 | 完成 | 会话库长按多选批量操作 | ThreadLibraryPage 长按、多选、全选、取消、批量归档/恢复/删除；CodexViewModel 串行 RPC 并保留部分失败进度；新增 Compose 点击测试 |
+| 22 | 完成 | 会话搜索保留最近五个查询 | RecentThreadSearches 分开记录标题/全文最近五条查询，SharedPreferences 持久保存；界面快捷再次搜索，附单元测试 |
 | 23 | 部分 | 侧栏未读和执行中角标 | SidebarSessions 显示运行状态；缺完整未读计数 |
 | 24 | 部分 | configRequirements 枚举化表单 | ConfigInputParser 支持文字/开关/数字/JSON；未按配置要求动态生成全量字段 |
 | 25 | 部分 | 更新进度显示下载百分比 | AppUpdateManager 与 AppUpdateCard 有下载进度、修补、校验状态；包大小展示仍可优化 |
 | 26 | 未完成 | 首次启动三步引导 | 未见登录→模型→首任务的完整引导状态机 |
 | 27 | 部分 | 失败类型到建议动作术语表 | ActionFeedbackCopy/PresentationPolicy 有用户文案；缺覆盖全量错误的映射表及测试 |
-| 28 | 部分 | Screens 拆分并设置超长文件 CI 门禁 | ConversationScreen 已拆出；CI 尚未检查单文件行数 |
+| 28 | 完成 | Screens 拆分并设置超长文件 CI 门禁 | ConversationScreen 已拆分；check_kotlin_file_budget.py 在 CI 强制限制单文件最多 760 行，避免再次膨胀 |
 | 29 | 部分 | 时间线执行状态颜色 | TimelineStepCard 按状态显示颜色；三色规范的视觉截图还缺 |
 | 30 | 未完成 | 深色主题全页回归 | VisualSystem 当前只有 lightColorScheme；无全页深色截图门禁 |
 | 31 | 部分 | 600dp 以上常驻双栏深化 | AppNavigation 有大屏常驻侧栏，但设计稿写的是 720dp 门槛；600–719dp 未覆盖 |
@@ -118,7 +118,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 66 | 部分 | 备份敏感数据排除 | Manifest allowBackup=false 且配备 backup_rules/data_extraction_rules；数据类别逐项验收仍缺 |
 | 67 | 未完成 | stderr 环形缓冲明文隐私风险评估 | 未见独立威胁模型与清理策略验证 |
 | 68 | 部分 | CodexConnection 分流直接单测 | RpcEnvelopeRouter 已拆出并有测试；尚未注入真实流/MockProcess 压测 |
-| 69 | 未完成 | sendPrompt 全路径状态机测试 | 已有消息对账与草稿测试；未覆盖全路径组合回归 |
+| 69 | 部分 | sendPrompt 全路径状态机测试 | FirstTurnRecoveryPolicy 与草稿回收单测已补；完整端到端发送状态机的成功/双失败/断连组合仍待覆盖 |
 | 70 | 部分 | UI 协议矩阵对上游名称 CI 校验 | verify_protocol_methods 与 audit_ui_feature_coverage 验证引用；UiProtocolMatrix 全量一一对应缺独立门禁 |
 | 71 | 未完成 | 上游快照升级兼容演练脚本 | prepare_android_mxc.py 固定断言；未见可复核的升级演练 |
 | 72 | 部分 | goal/queue/catalog 契约测试全覆盖 | 已有部分请求契约测试；未确认三个 contract 的全分支覆盖 |
@@ -138,7 +138,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 86 | 未完成 | 多会话并行和任务中心 | 当前 running/activeTurn 为单活动任务 |
 | 87 | 未完成 | MCP 添加服务一键向导 | 现有 MCP 浏览与登录；缺服务器创建全流程 |
 | 88 | 未完成 | 技能安装交互 | skills/list 已有；未发现 skills install 专项 UI 链路 |
-| 89 | 未完成 | 对话 Markdown 导出 | 缺导出当前会话的真实操作入口 |
+| 89 | 完成 | 对话 Markdown 导出 | ThreadHistorySheet 从 thread/read 的 turns 中导出用户/Codex 文本消息，Android 系统文件选择器创建 .md 文件，附测试 |
 | 90 | 部分 | 系统通知任务完成与审批等待 | CodexForegroundService 发运行中通知；缺结束通知与审批操作通知 |
 | 91 | 未完成 | 桌面快捷方式或 Widget | 未见桌面入口组件 |
 | 92 | 未完成 | 输入栏语音输入 | 当前输入以文字/图片为主 |
@@ -154,7 +154,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 ### 14 项原始缺陷复核后的真实收口边界
 
 - **已补代码，尚待特定真实设备组合验证**：#1 锁屏/厂商省电保护；#2 超时值；#3 重连；#5 同文消息对账；#6 多图导入；#10 动态键上限；#11 分组运行中守卫；#13 拼写已修；#14 RPC 分流覆盖有新增单测。
-- **仍部分处理**：#4 首轮 `thread/start` 成功而 `turn/start` 失败时，当前实现保留已创建的空线程（确保不误删未知状态），需要设计明确的恢复/清理动作；#7 已拆文件，但缺超长文件 CI 预算；#8 上游 MXC 版本更新仍会触发严格断言且没有兼容演练；#9 终端已有输出/历史菜单，PTY 和完整流式输出仍待设备验证；#12 输入类型化但未按 configRequirements 自动生成枚举表单。
+- **进一步完善**：#4 首条指令收到服务端明确拒绝时先读取确认空会话、删除空线程并恢复草稿；超时/断连保留会话避免误删真实执行；#7 已增加 Kotlin 行数预算门禁；#8 上游 MXC 更新仍缺兼容演练；#9 终端 PTY 和完整流式输出待设备验证；#12 输入已类型化并严格检查 JSON 完整性，但尚未按 configRequirements 自动生成枚举表单。
 
 ### 当轮 CI 证据与设计系统偏差
 
@@ -165,7 +165,17 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 ### 后续工作排序（按使用风险与完成依赖）
 
 1. **可靠性和安全先行**：#4 的首次发送失败空会话、#8/#71 上游兼容升级演练、#63 更新签名、#69 全路径状态测试、#60 审批日志、#53 终端输出完整性。
-2. **主要使用体验**：#17 Diff 状态记忆、#20 审批会话级记住、#21 批量会话操作、#22 搜索历史、#23 未读计数、#24 配置引导、#26 首次启动引导、#87 MCP 向导、#88 技能安装、#89 会话导出。
+2. **主要使用体验**：#20 审批会话级记住、#23 未读计数、#24 配置引导、#26 首次启动引导、#87 MCP 向导、#88 技能安装。
 3. **统一设计和设备适配**：#30 深色主题、#32 折叠屏、#33 触控热区、#36 字体放大、#40–49 无障碍和键盘、#93 设计系统同步、Figma 可编辑设计稿。
 4. **发布质量与长远能力**：#50–59 性能指标，#78–85 发布门禁，#86 并行任务中心，#90–92 通知/桌面/语音，#94–100 持续化审计工具。
 
+
+### 新增功能实现证据（2026-11-22，继续完善）
+
+- 新增 `ThreadBulkToolbar.kt`、`ThreadBulkActionPolicy.kt`，批量操作支持长按/多选/当前页全选/归档/恢复/删除；服务端逐条处理，失败时报告进度。`UiPopulatedSubpagesInstrumentedTest` 新增真实点击测试。
+- 新增 `RecentThreadSearches.kt`：标题和全文检索分别记住最近五条查询，本机存储；新建 `DiffExpansionPreferences.kt` 持久化同一会话和差异的展开选择。
+- 新增 `ThreadMarkdownExporter.kt`，在 `ThreadHistorySheet.kt` 中通过系统文件选择器保存 Markdown，排除工具内部记录；新增导出单测。
+- 首轮 `thread/start` 成功、随后 `turn/start` **明确拒绝**且查询证实无回合时，执行安全删除空会话和草稿迁回；传输超时/断连视为可能已经成功发送，保留会话。新增策略与草稿测试。
+- 新增 `check_kotlin_file_budget.py` 和 CI 行数门禁；`ConfigInputParser` 拒绝多余 JSON/数字尾随内容。
+- 这些改动的最新 GitHub Actions 结果请检查 [PR #30](https://github.com/sy220284/111/pull/30) 对应提交；此前 `eccccd08` 两套 CI 通过，**不借用旧提交结论替代本轮测试**。
+- Figma 源文件 `K4FEMoNdmQbcnJZCHWr8c7` 的 Starter MCP 额度已用尽，读取元数据和设计库均收到调用上限；原画板尚未改动。
