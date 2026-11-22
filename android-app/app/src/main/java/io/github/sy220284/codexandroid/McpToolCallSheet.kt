@@ -97,7 +97,9 @@ fun McpToolCallSheet(
                         val field = properties?.optJSONObject(name) ?: continue
                         val type = field.optString("type")
                         val title = PresentationPolicy.meaningful(field.optString("title"))
-                            .ifEmpty { "参数 ${index + 1}" }
+                            .ifEmpty {
+                                PresentationPolicy.skillName(name).ifEmpty { "参数 ${index + 1}" }
+                            }
                         val mandatory = name in requiredNames
                         val label = title + if (mandatory) "（必填）" else ""
                         val description = PresentationPolicy.meaningful(
@@ -144,8 +146,23 @@ fun McpToolCallSheet(
                         }
                     }
                 }
-                TextButton(onClick = { advanced = !advanced },
-                    enabled = supported) {
+                TextButton(onClick = {
+                    if (!advanced) {
+                        // Carry the visual form's exact typed arguments into expert editing.
+                        argsText = arguments?.toString(2) ?: "{}"
+                    } else {
+                        // Rehydrate visual fields after edits to the JSON object.
+                        val edited = runCatching { JSONObject(argsText) }.getOrNull()
+                        if (edited != null) {
+                            values.clear()
+                            names.forEach { name ->
+                                if (edited.has(name) && !edited.isNull(name))
+                                    values[name] = edited.opt(name).toString()
+                            }
+                        }
+                    }
+                    advanced = !advanced
+                }, enabled = supported) {
                     Icon(if (advanced) Icons.Outlined.ExpandLess
                         else Icons.Outlined.ExpandMore, null)
                     Spacer(Modifier.width(6.dp))
@@ -164,8 +181,9 @@ fun McpToolCallSheet(
                     Text("请完成必填参数，并检查输入的数值与格式。",
                         color = Ink.red, style = MaterialTheme.typography.bodySmall)
                 }
-                OutlinedButton(onClick = { confirming = true },
+                CodexPrimaryButton(onClick = { confirming = true },
                     enabled = arguments != null && key !in loading,
+                    busy = key in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)) {
                     Icon(Icons.Outlined.PlayArrow, null)
                     Spacer(Modifier.width(8.dp))

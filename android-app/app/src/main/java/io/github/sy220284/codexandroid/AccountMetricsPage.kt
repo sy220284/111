@@ -57,9 +57,9 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                     Text("由已登录的 Codex 账号实时提供",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
-                IconButton(onClick = { vm.refresh(selectedTab, method) }, enabled = selectedTab !in loading) {
-                    Icon(Icons.Outlined.Refresh, "刷新数据")
-                }
+                CodexRefreshIcon(busy = selectedTab in loading,
+                    onRefresh = { vm.refresh(selectedTab, method) },
+                    label = "刷新账号数据")
             }
             if (selectedTab in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         }

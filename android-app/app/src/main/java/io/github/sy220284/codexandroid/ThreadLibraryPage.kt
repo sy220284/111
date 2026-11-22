@@ -87,12 +87,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("按标题或全文检索真实会话记录", color = Ink.muted,
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    IconButton(onClick = {
-                        if (fullText && fullSubmitted.isNotBlank()) vm.refresh(fullKey, "thread/search",
-                            JSONObject().put("searchTerm", fullSubmitted)) else load(cursor)
-                    }, enabled = key !in loading && !fullPending) {
-                        Icon(Icons.Outlined.Refresh, "刷新列表")
-                    }
+                    CodexRefreshIcon(busy = key in loading || fullPending,
+                        onRefresh = {
+                            if (fullText && fullSubmitted.isNotBlank()) vm.refresh(fullKey,
+                                "thread/search", JSONObject().put("searchTerm", fullSubmitted))
+                            else load(cursor)
+                        }, label = "刷新会话列表")
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = !fullText, onClick = {

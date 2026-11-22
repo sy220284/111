@@ -697,9 +697,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                 Spacer(Modifier.width(12.dp))
                 Text("当前状态", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                IconButton(onClick = { page.rpc?.let { vm.refresh(page.id, it) } }) {
-                    Icon(Icons.Outlined.Refresh, "刷新")
-                }
+                CodexRefreshIcon(busy = page.id in loading,
+                    onRefresh = { page.rpc?.let { vm.refresh(page.id, it) } },
+                    label = "刷新${page.title}")
             }
             if (page.id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             errors[page.id]?.let { ErrorText(it) }
