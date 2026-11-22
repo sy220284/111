@@ -26,6 +26,18 @@ internal class AttachmentImportController(
     val state = MutableStateFlow(AttachmentImportState())
     private var pickerOwner: String? = null
 
+    fun editText(threadId: String?, text: String) {
+        drafts.update { ThreadComposerDrafts.text(it, threadId, text) }
+    }
+
+    fun editImages(threadId: String?, paths: List<String>) {
+        drafts.update { ThreadComposerDrafts.images(it, threadId, paths) }
+    }
+
+    fun clearAfterAccepted(threadId: String?, text: String, images: List<String>) {
+        drafts.update { ThreadComposerDrafts.accepted(it, threadId, text, images) }
+    }
+
     fun beginImageSelection(threadId: String?) {
         pickerOwner = threadId
     }
