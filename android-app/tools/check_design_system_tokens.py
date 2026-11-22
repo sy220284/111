@@ -14,7 +14,12 @@ END = '<!-- INK_TOKENS_END -->'
 
 def verify(source: str, spec: str) -> list[str]:
     errors: list[str] = []
-    found = list(TOKEN.finditer(source))
+    def object_block(name: str) -> str | None:
+        match = re.search(r'\\bobject\\s+' + re.escape(name) + r'\\s*\\{(.*?)\\n\\}', source, re.S)
+        return match.group(1) if match else None
+
+    light_source = object_block('InkLight') or object_block('Ink') or ''
+    found = list(TOKEN.finditer(light_source))
     actual = {m.group(1): m.group(2).upper() for m in found}
     if len(actual) < 12 or len(found) != len(actual):
         errors.append('Compose Ink 颜色项数量异常或有重复声明')
@@ -32,6 +37,43 @@ def verify(source: str, spec: str) -> list[str]:
     for name in sorted(actual.keys() & wanted.keys()):
         if actual[name] != wanted[name]:
             errors.append(f'Ink.{name} 颜色不一致：Compose #{actual[name]} / 规范 #{wanted[name]}')
+    dark_source = object_block('InkDark')
+    if dark_source is not None:
+        dark_found = list(TOKEN.finditer(dark_source))
+        dark_actual = {match.group(1): match.group(2).upper() for match in dark_found}
+        start = '<!-- INK_DARK_TOKENS_BEGIN -->'
+        end = '<!-- INK_DARK_TOKENS_END -->'
+        if spec.count(start) != 1 or spec.count(end) != 1:
+            errors.append('深色设计变量表缺失或重复')
+            dark_declared = []
+        else:
+            dark_declared = list(ROW.finditer(spec.split(start, 1)[1].split(end, 1)[0]))
+        dark_wanted = {match.group(1): match.group(2).upper() for match in dark_declared}
+        if set(dark_actual) != set(actual) or len(dark_found) != len(dark_actual):
+            errors.append('深色颜色项不完整或存在重复声明')
+        for name in sorted(set(dark_actual) | set(dark_wanted)):
+            if dark_actual.get(name) != dark_wanted.get(name):
+                errors.append('深色 Ink.' + name + ' 颜色不一致')
+        for name in actual:
+            getter = (r'\\bval\\s+' + re.escape(name) +
+                r'\\s*:\\s*Color\\s+get\\(\\)\\s*=\\s*if\\s*\\(UiPreferences\\.darkMode\\.value\\)')
+            if not re.search(getter, source):
+                errors.append('Ink.' + name + ' 未绑定明暗主题')
+        if 'darkColorScheme(' not in source:
+            errors.append('缺少 Material 深色主题')
+        def luminosity(hex_color: str) -> float:
+            values = [int(hex_color[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+            linear = [c / 12.92 if c <= .04045 else ((c + .055) / 1.055) ** 2.4 for c in values]
+            return linear[0] * .2126 + linear[1] * .7152 + linear[2] * .0722
+        for mode, palette in (('亮色', actual), ('深色', dark_actual)):
+            if not all(k in palette for k in ('canvas', 'parchment', 'muted', 'coral')):
+                continue
+            bg = luminosity(palette['canvas'])
+            for key in ('parchment', 'muted', 'coral'):
+                fg = luminosity(palette[key])
+                value = (max(fg, bg) + .05) / (min(fg, bg) + .05)
+                if value < 4.5:
+                    errors.append(mode + ' Ink.' + key + ' 对比度低于 4.5:1')
     if not re.search(r'\bprimary\s*=\s*Ink\.coral\b', source):
         errors.append('MaterialTheme.primary 应映射 Ink.coral')
     if not re.search(r'\bonPrimary\s*=\s*Ink\.canvas\b', source):

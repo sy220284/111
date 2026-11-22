@@ -20,3 +20,7 @@
 ## 已接入 App 的空态素材
 
 `app/src/main/res/drawable/` 新增 `ic_empty_diff.xml`、`ic_empty_approval.xml`、`ic_empty_connection.xml`，它们是源 SVG 的 Android 原生矢量形式。已在 `CodexEmptyState(artworkRes = ...)`、差异页、审批页和断连页面实际接入；通用组件根据是否指定素材切换原生图像和默认标准图标，保留单一组件与统一无障碍行为。
+
+### 双主题变量
+
+`tokens.json` 的 `modes.light` 与 `modes.dark` 使用同名 14 项语义颜色。Figma 中为同一变量集合建立两种模式；Android 设置页的双主题预览卡直接切换该集合，状态语义保持不变。
