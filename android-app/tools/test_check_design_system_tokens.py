@@ -48,6 +48,14 @@ class DesignTokenGateTests(unittest.TestCase):
         bad = SOURCE.replace('primary = Ink.coral', 'primary = Ink.copper')
         self.assertTrue(any('MaterialTheme.primary' in err for err in verify(bad, MARKDOWN)))
 
+    def test_dual_theme_requires_documented_dark_variables(self):
+        derived = SOURCE.replace('object Ink {', 'object InkLight {')
+        derived += '\nobject InkDark {\n    val canvas = Color(0xFF111A22)\n}\n'
+        derived += 'object Ink { val canvas: Color get() = Color(0xFFFFFFFF) }\n'
+        derived += 'fun example() = darkColorScheme(primary = Ink.coral)\n'
+        self.assertTrue(any('深色' in error or '未绑定' in error
+                            for error in verify(derived, MARKDOWN)))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -8,6 +8,13 @@ data class ComposerDraft(
 
 object ThreadComposerDrafts {
     const val NEW_THREAD = "__new_thread__"
+    // Never evict an unsent draft: arbitrary LRU limits silently discard user text.
+    // Only remove empty entries, which contain no data the user needs to recover.
+    private fun updated(
+        previous: Map<String, ComposerDraft>, id: String, draft: ComposerDraft
+    ): Map<String, ComposerDraft> =
+        if (draft.text.isBlank() && draft.images.isEmpty()) previous - id
+        else (previous - id) + (id to draft)
 
     fun key(threadId: String?): String = threadId?.takeIf { it.isNotBlank() } ?: NEW_THREAD
 
@@ -15,14 +22,14 @@ object ThreadComposerDrafts {
         previous: Map<String, ComposerDraft>, threadId: String?, value: String
     ): Map<String, ComposerDraft> {
         val id = key(threadId)
-        return previous + (id to (previous[id] ?: ComposerDraft()).copy(text = value))
+        return updated(previous, id, (previous[id] ?: ComposerDraft()).copy(text = value))
     }
 
     fun images(
         previous: Map<String, ComposerDraft>, threadId: String?, paths: List<String>
     ): Map<String, ComposerDraft> {
         val id = key(threadId)
-        return previous + (id to (previous[id] ?: ComposerDraft()).copy(images = paths.toList()))
+        return updated(previous, id, (previous[id] ?: ComposerDraft()).copy(images = paths.toList()))
     }
 
     /** 只清除服务器已经接收的原内容；提交期间输入的新文字或图片继续保留。 */
@@ -39,7 +46,7 @@ object ThreadComposerDrafts {
             images = if (original.images == submittedImages) emptyList() else original.images
         )
         return if (next.text.isBlank() && next.images.isEmpty()) previous - id
-            else previous + (id to next)
+            else updated(previous, id, next)
     }
 
     /**
@@ -58,7 +65,7 @@ object ThreadComposerDrafts {
                     .filter { it.isNotBlank() }.distinct().joinToString("\n"),
                 images = (concurrent.images + rejected.images).distinct()
             )
-        return (previous - createdThreadId) + (NEW_THREAD to recovered)
+        return updated(previous - createdThreadId, NEW_THREAD, recovered)
     }
 
     /** 首条指令创建真正 threadId 后，草稿跟随新会话迁移。 */
@@ -67,6 +74,6 @@ object ThreadComposerDrafts {
     ): Map<String, ComposerDraft> {
         require(createdThreadId.isNotBlank()) { "会话编号不能为空" }
         val snapshot = previous[NEW_THREAD] ?: return previous
-        return (previous - NEW_THREAD) + (createdThreadId to snapshot)
+        return updated(previous - NEW_THREAD, createdThreadId, snapshot)
     }
 }

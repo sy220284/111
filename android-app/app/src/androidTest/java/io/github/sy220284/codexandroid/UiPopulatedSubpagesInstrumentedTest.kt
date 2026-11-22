@@ -2,14 +2,29 @@ package io.github.sy220284.codexandroid
 
 import android.app.Application
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -28,6 +43,51 @@ class UiPopulatedSubpagesInstrumentedTest {
     private fun capture(name: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(name)
+    }
+
+    @Test fun rtlAndDoubleFontScaleKeepBulkActionsReadableAndReachable() {
+        rule.setContent {
+            CompositionLocalProvider(
+                LocalLayoutDirection provides LayoutDirection.Rtl,
+                LocalDensity provides Density(1f, fontScale = 2f)
+            ) {
+                CodexTheme {
+                    Box(Modifier.fillMaxSize()) {
+                        Column(Modifier.width(360.dp).fillMaxHeight()
+                            .verticalScroll(rememberScrollState())) {
+                            ThreadBulkToolbar(
+                                selectedCount = 3, archived = false, enabled = true,
+                                onSelectAll = {}, onClear = {}, onAction = {}
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        rule.onNodeWithTag("thread-bulk-archive").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("thread-bulk-delete").performScrollTo().assertIsDisplayed()
+        val archive = rule.onNodeWithTag("thread-bulk-archive").fetchSemanticsNode().boundsInRoot
+        val delete = rule.onNodeWithTag("thread-bulk-delete").fetchSemanticsNode().boundsInRoot
+        assertTrue("Large-font actions must stack vertically", delete.top > archive.top)
+        assertTrue("Touch targets remain at least 48dp tall", archive.height >= 48f && delete.height >= 48f)
+        capture("audit-rtl-200font-bulk-android35.png")
+    }
+
+    @Test fun disabledBatchActionsExplainTheirStateToScreenReaders() {
+        rule.setContent {
+            CodexTheme {
+                ThreadBulkToolbar(
+                    selectedCount = 0, archived = false, enabled = true,
+                    onSelectAll = {}, onClear = {}, onAction = {}
+                )
+            }
+        }
+        rule.onNodeWithTag("thread-bulk-delete")
+            .assert(SemanticsMatcher.expectValue(
+                SemanticsProperties.StateDescription, "请先选择需要删除的会话"))
+        rule.onNodeWithTag("thread-bulk-archive")
+            .assert(SemanticsMatcher.expectValue(
+                SemanticsProperties.StateDescription, "请先选择会话"))
     }
 
     @Test fun sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection() {

@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,17 +17,10 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-data class TimelineItem(
-    val id: String,
-    val kind: String,
-    val text: String,
-    val status: String = "",
-    val evidence: String = ""
-)
-
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
+    internal val connectionRestarter by lazy { ConnectionRestartController(this) }
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
     private val workspaceRoot = application.filesDir.resolve("projects").apply { mkdirs() }.canonicalFile
     val workingDirectory = workspaceRoot.absolutePath
@@ -42,11 +36,31 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
+    private val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
+    val olderTimelineCount get() = timelineWindow.olderCount
+    fun loadEarlierTimeline() {
+        val id = activeThread.value ?: return
+        viewModelScope.launch {
+            try {
+                val older = timelineWindow.readEarlier(id)
+                if (activeThread.value == id && older.isNotEmpty())
+                    timeline.value = older + timeline.value
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("timeline" to
+                    (failure.message ?: "无法加载更早的记录"))
+            }
+        }
+    }
     val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
+    private val attachmentController by lazy {
+        AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors)
+    }
+    val attachmentImport get() = attachmentController.state
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     /** Successful IDs remain visible during partial failures so UI can keep only unfinished selections. */
     val bulkCompletedThreadIds = MutableStateFlow<Set<String>>(emptySet())
+    val bulkActionSummary = MutableStateFlow("")
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
     /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
@@ -65,6 +79,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         WorkspaceTaskOperations(this, workspaceRoot, workspacePreferences, viewModelScope)
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
+    private val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
@@ -118,6 +133,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
+            catalogWarmup.connected()
             // Rebuild visible history after a connection loss, without resending a task.
             if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread)
         } catch (failure: Exception) {
@@ -168,6 +184,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     data.value = data.value + (key to response)
                     errors.value = errors.value - key
                     onSuccess?.invoke(response)
+                    if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
                     if (userAction) actionFeedback.emit(
                         ActionFeedbackCopy.success(method, response))
                 }
@@ -193,6 +210,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         onSuccess: ((JSONObject) -> Unit)? = null
     ) = request(key, method, params, onSuccess)
 
+    fun ensureCatalog(key: String, method: String, params: JSONObject = JSONObject()) =
+        catalogWarmup.ensure(key, method, params)
+
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
     }
@@ -217,6 +237,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         bulkCompletedThreadIds.value = emptySet()
+        bulkActionSummary.value = "正在处理 0/${targets.size} 项会话"
         errors.value = errors.value - "threadLibraryBulk"
         loading.value = loading.value + "threadLibraryBulk"
         viewModelScope.launch {
@@ -229,13 +250,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     bridge.request(method, JSONObject().put("threadId", id))
                     completed++
                     bulkCompletedThreadIds.value = bulkCompletedThreadIds.value + id
+                    bulkActionSummary.value = "正在处理 $completed/${targets.size} 项会话"
                 }
-                actionFeedback.emit(ActionFeedbackReceipt(
-                    "已${ThreadBulkActionPolicy.display(kind)} $completed 条会话"
-                ))
+                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} $completed 条会话，结果可在这里查看"
+                actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value))
             } catch (failure: Exception) {
                 val reason = "已完成 $completed/${targets.size} 条；" +
                     (failure.message ?: "操作中断，请核对未完成项")
+                bulkActionSummary.value = reason
                 errors.value = errors.value + ("threadLibraryBulk" to reason)
                 actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true))
             } finally {
@@ -307,11 +329,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     .optString("projectId").takeIf { it.isNotBlank() }
                 workspacePreferences.edit()
                     .putString("activeDirectory", threadDirectory.absolutePath).apply()
-                data.value = data.value + ("threadHistory" to history)
+                // The server history is authoritative; avoid retaining a second full
+                // JSON copy after materializing the bounded timeline window.
+                val newest = timelineWindow.replace(id, restored)
                 activeThread.value = id
                 running.value = false
                 latestDiff.value = ""
-                timeline.value = restored
+                timeline.value = newest
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
             } finally {
@@ -340,25 +364,34 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         activeThread.value = null
         activeTurn.value = null
         timeline.value = emptyList()
+        viewModelScope.launch { timelineWindow.clear() }
         latestDiff.value = ""
         running.value = false
     }
 
-    fun editComposerText(threadId: String?, text: String) {
-        composerDrafts.update { ThreadComposerDrafts.text(it, threadId, text) }
-    }
+    fun editComposerText(threadId: String?, text: String) =
+        attachmentController.editText(threadId, text)
 
-    fun editComposerImages(threadId: String?, paths: List<String>) {
-        composerDrafts.update { ThreadComposerDrafts.images(it, threadId, paths) }
-    }
+    fun editComposerImages(threadId: String?, paths: List<String>) =
+        attachmentController.editImages(threadId, paths)
 
-    fun clearComposerAfterAccepted(
-        threadId: String?, text: String, images: List<String>
-    ) {
-        composerDrafts.update { ThreadComposerDrafts.accepted(it, threadId, text, images) }
-    }
+    fun beginImageSelection(threadId: String?): Boolean =
+        attachmentController.beginImageSelection(threadId)
+
+    fun importPickedImages(selected: List<Uri>) =
+        attachmentController.importPickedImages(selected)
+
+    fun removeComposerImage(threadId: String?, path: String) =
+        attachmentController.removeComposerImage(threadId, path)
+
+    fun reportFullAttachmentSelection(threadId: String?) =
+        attachmentController.reportFullAttachmentSelection(threadId)
+
+    fun clearComposerAfterAccepted(threadId: String?, text: String, images: List<String>) =
+        attachmentController.clearAfterAccepted(threadId, text, images)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
+        if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
         val prompt = text.trim()
         if (threadSwitching.value) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
@@ -383,6 +416,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenProject = activeProjectId.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
+            var turnRequestDispatched = false
             val pendingId = "pending-" + UUID.randomUUID()
             timeline.value = timeline.value + TimelineItem(
                 pendingId, "user",
@@ -427,6 +461,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     threadId = id, text = prompt, modelId = chosenModel,
                     mode = chosenMode, catalog = catalog, localImages = images
                 )
+                turnRequestDispatched = true
                 val response = bridge.request("turn/start", params)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
                 imagePathsForActiveTurn = images
@@ -440,19 +475,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 // the server may already have accepted the turn.
                 if (created != null && FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
                     try {
-                        val checked = bridge.request("thread/read", JSONObject()
-                            .put("threadId", created).put("includeTurns", true),
-                            timeoutMillis = 20_000L)
-                        val turns = checked.optJSONObject("thread")?.optJSONArray("turns")
-                        if (turns != null && turns.length() == 0 &&
-                            activeThread.value == created && activeTurn.value.isNullOrBlank()) {
-                            bridge.request("thread/delete", JSONObject().put("threadId", created))
+                        recoveryNote = FirstTurnRecoveryController { method, params, timeout ->
+                            bridge.request(method, params, timeoutMillis = timeout)
+                        }.reclaim(created, { activeThread.value }, { activeTurn.value }) {
                             composerDrafts.update {
                                 ThreadComposerDrafts.reclaimRejectedNewThread(it, created)
                             }
                             activeThread.value = null
                             syncRecentThreads()
-                            recoveryNote = "；新建空会话已清理"
                         }
                     } catch (recoveryFailure: Exception) {
                         recoveryNote = "；新建会话检查失败：" +
@@ -461,8 +491,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 running.value = false
                 timeline.value = timeline.value.filterNot { it.id == pendingId }
-                val message = (failure.message ?: "发送失败") +
-                    "；原指令已保留，可重试" + recoveryNote
+                val message = SubmissionFailurePolicy.message(
+                    failure, turnRequestDispatched) + recoveryNote
                 errors.value = errors.value + ("conversation" to message)
                 timeline.value = timeline.value + TimelineItem(
                     "failure-" + UUID.randomUUID(), "error", message)
@@ -627,9 +657,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 else errors.value = errors.value + ("account" to
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
+                if (result.success) catalogWarmup.accountChanged()
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
+            catalogWarmup.accountChanged()
         }
         if (method == "project/changed") {
             val changedId = params.optString("projectId")
@@ -666,45 +698,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
-            "item/agentMessage/delta", "item/plan/delta", "item/reasoning/summaryTextDelta" -> {
-                val key = params.optString("itemId", "stream-" + method)
-                val delta = params.optString("delta")
-                val current = timeline.value.toMutableList()
-                val idx = current.indexOfLast { it.id == key }
-                if (idx == -1) current += TimelineItem(key, method.substringAfter("item/").substringBefore("/"), delta, "streaming")
-                else current[idx] = current[idx].copy(text = current[idx].text + delta)
-                timeline.value = current
-            }
-            "item/started", "item/completed" -> {
-                val item = params.optJSONObject("item") ?: return
-                val id = item.optString("id", "item-" + System.nanoTime())
-                val kind = item.optString("type", "event")
-                val description = when (kind) {
-                    "userMessage" -> {
-                        val parts = item.optJSONArray("content") ?: JSONArray()
-                        (0 until parts.length()).mapNotNull {
-                            parts.optJSONObject(it)?.optString("text")
-                        }.filter { it.isNotBlank() }.joinToString("\n")
-                    }
-                    "commandExecution" -> item.optString("command")
-                    "fileChange" -> "文件变更：" +
-                        (item.optJSONObject("changes")?.length() ?: 0) + " 个文件"
-                    "mcpToolCall" -> item.optString("tool")
-                    else -> item.optString("text")
-                }
-                val all = timeline.value.toMutableList()
-                // Authoritative item ID wins; unmatched user events consume only
-                // a unique pending send marker, never compare potentially identical text.
-                val pos = TimelineReconciler.position(all, id, kind)
-                val displayedKind = if (kind == "userMessage") "user" else kind
-                val displayedText = description.ifBlank {
-                    if (pos >= 0) all[pos].text else "正在处理…"
-                }
-                val entry = TimelineItem(id, displayedKind, displayedText,
-                    item.optString("status"), if (displayedKind == "user") "" else item.toString(2))
-                if (pos < 0) all += entry else all[pos] = entry
-                timeline.value = all
-            }
+            "item/agentMessage/delta", "item/plan/delta",
+            "item/reasoning/summaryTextDelta", "item/started", "item/completed" ->
+                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
             "turn/started" -> {
                 activeTurn.value = params.optJSONObject("turn")?.optString("id")
@@ -737,6 +733,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         turn?.optJSONObject("error")?.optString("message") ?: "任务已中断或失败"
                     )
                 }
+            }
+        }
+        if (timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+            try {
+                timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("timeline" to
+                    (failure.message ?: "会话历史无法暂存，当前记录仍保留在内存"))
             }
         }
     }

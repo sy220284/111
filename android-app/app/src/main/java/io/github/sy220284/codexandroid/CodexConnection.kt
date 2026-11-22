@@ -17,6 +17,7 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -36,6 +37,11 @@ class CodexConnection(private val appContext: Context) {
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
     @Volatile private var process: Process? = null
     @Volatile private var writer: BufferedWriter? = null
+    private val shutdownHook = Thread({ close() }, "codex-native-process-cleanup")
+
+    init {
+        Runtime.getRuntime().addShutdownHook(shutdownHook)
+    }
 
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
     val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 512)
@@ -98,7 +104,7 @@ class CodexConnection(private val appContext: Context) {
                         while (true) {
                             val line = stream.readLine() ?: break
                             if (process !== child) break
-                            recentStderr.value = (recentStderr.value + line.take(350))
+                            recentStderr.value = (recentStderr.value + StderrSanitizer.redact(line.take(350)))
                                 .takeLast(16)
                         }
                     }
@@ -245,11 +251,22 @@ class CodexConnection(private val appContext: Context) {
 
     fun close() {
         val current = process
+        val output = writer
         process = null
         writer = null
+        // Close the protocol pipe, request a graceful exit, then reap the child.
+        try {
+            output?.close()
+        } catch (failure: IOException) {
+            android.util.Log.w("CodexConnection", "关闭内核输入流失败", failure)
+        }
         current?.destroy()
+        if (current != null && !current.waitFor(400, TimeUnit.MILLISECONDS)) {
+            current.destroyForcibly()
+        }
         status.value = EngineStatus.Unavailable("连接已关闭")
         prompts.value = emptyList()
+        recentStderr.value = emptyList()
         failWaiting("连接已关闭")
     }
 }

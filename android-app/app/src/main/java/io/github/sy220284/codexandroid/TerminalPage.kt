@@ -84,6 +84,11 @@ fun TerminalPage(vm: CodexViewModel) {
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
     val errors by vm.errors.collectAsState()
+    var historicalStdout by remember(session.processId) { mutableStateOf("") }
+    var historicalOffset by remember(session.processId) { mutableStateOf<Long?>(null) }
+    var historicalMore by remember(session.processId) { mutableStateOf(true) }
+    var historicalLoading by remember(session.processId) { mutableStateOf(false) }
+    var historicalError by remember(session.processId) { mutableStateOf("") }
     val activeWorkspace by vm.activeWorkspace.collectAsState()
 
     ScreenColumn {
@@ -259,7 +264,7 @@ fun TerminalPage(vm: CodexViewModel) {
                 session.error?.let { ErrorText(it) }
                 if (session.outputTruncated) {
                     CodexNotice(
-                        if (transcriptAvailable) "界面仅显示最近 128KiB；可用下方按钮导出本机留存的执行日志。"
+                        if (transcriptAvailable) "正在查看最近 128KiB；可按需加载较早输出，或导出完整本机日志。"
                         else "界面仅保留最近 128KiB，较早日志已不可读取。",
                         NoticeTone.Warning
                     )
@@ -291,6 +296,48 @@ fun TerminalPage(vm: CodexViewModel) {
                         enabled = session.stdoutText.length > 16_000,
                         modifier = Modifier.heightIn(min = 48.dp)
                     ) { Text(if (expandedOutput) "收起" else "展开") }
+                }
+                if (transcriptAvailable && session.outputTruncated && historicalMore) {
+                    OutlinedButton(
+                        onClick = {
+                            val targetId = session.processId
+                            historicalLoading = true
+                            historicalError = ""
+                            scope.launch {
+                                try {
+                                    val page = vm.terminalTranscript.readStdoutBefore(
+                                        targetId, historicalOffset)
+                                    if (vm.terminalSession.value.processId == targetId) {
+                                        historicalOffset = page.beforeOffset
+                                        historicalMore = page.hasMore
+                                        historicalStdout = (page.text + historicalStdout).takeLast(256_000)
+                                    }
+                                } catch (failure: Exception) {
+                                    historicalError = failure.message ?: "无法读取更早的输出"
+                                } finally {
+                                    historicalLoading = false
+                                }
+                            }
+                        },
+                        enabled = !historicalLoading,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("terminal-load-older")
+                    ) {
+                        Icon(Icons.Outlined.History, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(if (historicalLoading) "正在读取…" else "加载更早输出（每次约 32KiB）")
+                    }
+                }
+                if (historicalError.isNotBlank()) ErrorText(historicalError)
+                if (historicalStdout.isNotBlank()) {
+                    Text("较早的标准输出（本机分页读取）",
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    SelectionContainer {
+                        Text(historicalStdout, color = Ink.parchment,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.testTag("terminal-older-stdout"))
+                    }
                 }
                 if (transcriptAvailable) {
                     OutlinedButton(
@@ -333,15 +380,15 @@ fun TerminalPage(vm: CodexViewModel) {
         }
     }
     if (confirm) CodexConfirmDialog(
-        title = "确认执行命令",
-        message = "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
+        title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
+        message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
         detail = command + "\n\n执行位置：" +
             File(activeWorkspace).relativeTo(File(vm.workingDirectory)).path
                 .takeIf { it != "." }?.let { "projects/" + it }.orEmpty()
                 .ifBlank { "projects/" } +
             if (interactive) "\n交互式 PTY 终端" else "\n流式命令",
-        confirmLabel = "确认执行",
-        destructive = true,
+        confirmLabel = if (TerminalCommandPolicy.evaluate(command).dangerous) "确认执行高风险命令" else "确认执行",
+        destructive = TerminalCommandPolicy.evaluate(command).dangerous,
         onConfirm = {
             val accepted = command.trim()
             if (accepted.isNotBlank()) {

@@ -8,18 +8,45 @@ from html import escape
 from pathlib import Path
 import subprocess
 import json
+import re
 
-REQUIRED_SCREENS = """home sidebar chat settings-hub tools-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-hooks audit-environments audit-security audit-config audit-diagnostics audit-queue audit-approvals audit-conversation-approval audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-tool-form audit-mcp-resource audit-mcp-elicitation audit-plugin-detail audit-sidebar-thread audit-sidebar-filtered audit-composer-running audit-composer-edit""".split()
+REQUIRED_SCREENS = """home sidebar chat settings-hub tools-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-hooks audit-environments audit-security audit-config audit-diagnostics audit-queue audit-approvals audit-conversation-approval audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-tool-form audit-mcp-resource audit-mcp-elicitation audit-plugin-detail audit-sidebar-thread audit-sidebar-filtered audit-composer-running audit-composer-edit audit-rtl-200font-bulk""".split()
 OPTIONAL_SCREENS = ["audit-thread-history-transition"]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")
+SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android35\.png$")
+
+
+def parse_discovered_screens(stdout: str) -> list[str]:
+    """Only accept screenshot basenames from the local Android evidence folder."""
+    discovered = set()
+    for raw in stdout.splitlines():
+        name = raw.strip()
+        if SCREEN_NAME.fullmatch(name):
+            discovered.add(name.removesuffix("-android35.png"))
+    return sorted(discovered)
+
+
+def discover_device_screens() -> list[str]:
+    result = subprocess.run(
+        ["adb", "shell", "ls", "-1", DEVICE_ROOT],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        print("SCREENSHOT_DISCOVERY_ERROR " + result.stderr.strip(), flush=True)
+        return []
+    return parse_discovered_screens(result.stdout)
+
 
 
 def main():
     DESTINATION.mkdir(parents=True, exist_ok=True)
     present = []
     missing = []
-    for screen in REQUIRED_SCREENS + OPTIONAL_SCREENS:
+    discovered = discover_device_screens()
+    # Required coverage still blocks regressions; new screenshots automatically
+    # enter the artifact gallery without hand-maintained names in this script.
+    for screen in sorted(set(REQUIRED_SCREENS + OPTIONAL_SCREENS + discovered)):
         name = f"{screen}-android35.png"
         result = subprocess.run(
             ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(DESTINATION / name)],
@@ -35,8 +62,9 @@ def main():
     (DESTINATION / "missing.txt").write_text(
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
     (DESTINATION / "manifest.json").write_text(
-        json.dumps({"required": REQUIRED_SCREENS, "present": present,
-                    "missing": missing}, ensure_ascii=False, indent=2),
+        json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
+                    "present": present, "missing": missing},
+                   ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     pngs = sorted(DESTINATION.glob("*.png"))

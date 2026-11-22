@@ -7,6 +7,8 @@ name: 111 Android 正式发布
       - '.github/scripts/generate-release-notes.py'
       - '.github/scripts/test_generate_release_notes.py'
       - '.github/scripts/test_release_assets.py'
+      - '.github/scripts/audit_apk_contents.py'
+      - '.github/scripts/test_audit_apk_contents.py'
       - '.github/scripts/prepare-release-assets.sh'
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
@@ -100,6 +102,7 @@ jobs:
             -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
           test -s "$APK"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
           test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
@@ -369,6 +372,7 @@ jobs:
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_rg.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_git.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full
           unzip -Z1 "$APK" | grep -Fxq 'classes.dex'
           if unzip -Z1 "$APK" | grep -Fxq 'lib/x86_64/libcodex_server.so'; then
             echo "::error::手机 APK 混入模拟器内核"; exit 1

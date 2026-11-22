@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.ZoneId
+import java.time.LocalDate
 
 class ThreadDisplayPolicyTest {
     @Test fun epochSecondsRenderAsReadableLocalDate() {
@@ -18,6 +19,17 @@ class ThreadDisplayPolicyTest {
     @Test fun nullOrBrokenTimestampsHaveNoFakeDate() {
         assertNull(ThreadDisplayPolicy.updatedAt("", 0, ZoneId.of("UTC")))
         assertNull(ThreadDisplayPolicy.updatedAt("invalid", null, ZoneId.of("UTC")))
+    }
+
+    @Test fun sessionDayGroupUsesServerEpochInTheSuppliedZone() {
+        val zone = ZoneId.of("Asia/Singapore")
+        val today = LocalDate.of(2026, 11, 22)
+        val midnight = today.atStartOfDay(zone).toEpochSecond()
+        assertEquals("今天", ThreadDisplayPolicy.dayGroup(midnight, null, today, zone))
+        assertEquals("昨天", ThreadDisplayPolicy.dayGroup(midnight - 1L, null, today, zone))
+        assertEquals("更早", ThreadDisplayPolicy.dayGroup(midnight - 2L * 86400L, null, today, zone))
+        assertEquals("日期未知", ThreadDisplayPolicy.dayGroup("not-a-time", null, today, zone))
+        assertEquals("今天", ThreadDisplayPolicy.dayGroup(null, midnight, today, zone))
     }
 
     @Test fun aRunningTaskCannotSwitchToAnotherHistoryThread() {

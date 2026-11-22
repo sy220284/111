@@ -30,6 +30,14 @@ internal object RecentThreadSearches {
         return decode(raw)
     }
 
+    fun clear(context: Context, fullText: Boolean): List<String> {
+        check(context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
+            .edit().remove(key(fullText)).commit()) {
+            "无法清除本机搜索记录"
+        }
+        return emptyList()
+    }
+
     fun record(context: Context, fullText: Boolean, query: String): List<String> {
         val normalized = query.trim()
         if (normalized.isBlank()) return load(context, fullText)

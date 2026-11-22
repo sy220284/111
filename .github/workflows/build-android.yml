@@ -107,6 +107,7 @@ jobs:
             echo "::error::ARM64 手机 APK 混入 x86_64 原生库"
             exit 1
           fi
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full
           sha256sum "$APK"
 
       - name: 上传 ARM64 安卓手机专用 APK
@@ -149,4 +150,5 @@ jobs:
             echo "::error::ARM64 手机安装包混入其他架构"
             exit 1
           fi
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full
           sha256sum "$APK"

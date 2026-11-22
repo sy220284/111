@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,33 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
+/** Preserves the exact same drawer selection/search/scroll during width changes. */
+internal class SidebarUiState(
+    initialSearch: String = "",
+    initialSearching: Boolean = false,
+    initialMore: Boolean = false,
+    initialIndex: Int = 0,
+    initialOffset: Int = 0
+) {
+    var search by mutableStateOf(initialSearch)
+    var searching by mutableStateOf(initialSearching)
+    var more by mutableStateOf(initialMore)
+    val scroll = LazyListState(initialIndex, initialOffset)
+
+    companion object {
+        val Saver = listSaver<SidebarUiState, Any>(
+            save = {
+                listOf(it.search, it.searching, it.more,
+                    it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset)
+            },
+            restore = {
+                SidebarUiState(it[0] as String, it[1] as Boolean, it[2] as Boolean,
+                    it[3] as Int, it[4] as Int)
+            }
+        )
+    }
+}
+
 /**
  * 最近会话与工作台入口共享同一个抽屉。列表来自 thread/list，
  * 点击只提交真实会话 ID 给 ViewModel，不在界面伪造恢复成功。
@@ -32,8 +61,10 @@ internal fun SidebarSessions(
     vm: CodexViewModel,
     onOpenThread: (String) -> Unit,
     onViewAll: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    uiState: SidebarUiState? = null
 ) {
+    val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -41,6 +72,7 @@ internal fun SidebarSessions(
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
+    val approvals by vm.bridge.prompts.collectAsState()
     val sidebarResponse = data["sidebarThreads"] ?: data["threads"]
     val all = records(sidebarResponse).filter { it.optString("id").isNotBlank() }
         .distinctBy { it.optString("id") }
@@ -55,10 +87,12 @@ internal fun SidebarSessions(
         activeId = activeId,
         running = running,
         switching = switching,
+        pendingApprovals = approvals.size,
         onRefresh = {
             vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 100))
         },
-        onOpenThread = onOpenThread
+        onOpenThread = onOpenThread,
+        uiState = state
     )
 }
 
@@ -76,23 +110,47 @@ internal fun SidebarSessionsContent(
     running: Boolean,
     switching: Boolean,
     onRefresh: () -> Unit,
-    onOpenThread: (String) -> Unit
+    onOpenThread: (String) -> Unit,
+    pendingApprovals: Int = 0,
+    uiState: SidebarUiState? = null
 ) {
-    var searching by rememberSaveable { mutableStateOf(false) }
-    var search by rememberSaveable { mutableStateOf("") }
+    val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    val searching = state.searching
+    val search = state.search
     val matches = all.filter { item ->
         search.isBlank() || listOf(
             item.optString("name"), item.optString("preview"), item.optString("cwd")
         ).any { it.contains(search.trim(), ignoreCase = true) }
     }
 
-    val scroll = rememberLazyListState()
+    val scroll = state.scroll
     LaunchedEffect(search, searching) {
-        scroll.scrollToItem(0)
+        if (searching || search.isNotBlank()) scroll.scrollToItem(0)
     }
+    Column(modifier.fillMaxWidth()) {
+        if (running || pendingApprovals > 0) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
+                    .testTag("sidebar-task-status"),
+                color = if (pendingApprovals > 0) Ink.warning.copy(alpha = .08f)
+                    else Ink.jade.copy(alpha = .07f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp,
+                    if (pendingApprovals > 0) Ink.warning.copy(alpha = .32f)
+                    else Ink.jade.copy(alpha = .25f))
+            ) {
+                Text(
+                    if (pendingApprovals > 0) "等待确认 · ${pendingApprovals} 项审批"
+                    else "当前会话正在执行，结束后可切换其他会话",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (pendingApprovals > 0) Ink.warning else Ink.jade
+                )
+            }
+        }
     LazyColumn(
         state = scroll,
-        modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
+        modifier = Modifier.fillMaxWidth().weight(1f).testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(5.dp),
         contentPadding = PaddingValues(bottom = 12.dp)
     ) {
@@ -105,8 +163,8 @@ internal fun SidebarSessionsContent(
                     style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 IconButton(
                     onClick = {
-                        searching = !searching
-                        if (!searching) search = ""
+                        state.searching = !searching
+                        if (!state.searching) state.search = ""
                     },
                     modifier = Modifier.size(48.dp).testTag("sidebar-search-toggle")
                 ) {
@@ -119,6 +177,8 @@ internal fun SidebarSessionsContent(
                     onClick = onRefresh,
                     enabled = connected && !loading,
                     modifier = Modifier.size(48.dp).testTag("sidebar-refresh")
+                        .explainDisabled(!connected || loading,
+                            if (!connected) "运行核心未连接，暂不能刷新会话" else "会话正在刷新")
                 ) {
                     Icon(Icons.Outlined.Refresh, contentDescription = "刷新侧栏会话",
                         modifier = Modifier.size(19.dp), tint = Ink.muted)
@@ -127,7 +187,7 @@ internal fun SidebarSessionsContent(
         }
         if (searching) item(key = "session-search") {
             OutlinedTextField(
-                value = search, onValueChange = { search = it },
+                value = search, onValueChange = { state.search = it },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
                     .testTag("sidebar-search"),
                 placeholder = { Text("搜索当前会话") },
@@ -136,11 +196,6 @@ internal fun SidebarSessionsContent(
                 singleLine = true, shape = RoundedCornerShape(14.dp),
                 textStyle = MaterialTheme.typography.bodyMedium
             )
-        }
-        if (running) item(key = "session-running-note") {
-            Text("当前会话正在执行，完成或停止后可切换其他会话。",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                style = MaterialTheme.typography.labelMedium, color = Ink.warning)
         }
         item(key = "session-list-status") {
             when {
@@ -173,6 +228,7 @@ internal fun SidebarSessionsContent(
                 item = entry,
                 active = activeId == id,
                 running = running && activeId == id,
+                pendingApprovals = if (activeId == id) pendingApprovals else 0,
                 enabled = connected && !switching && (!running || activeId == id),
                 onClick = { onOpenThread(id) }
             )
@@ -188,6 +244,7 @@ internal fun SidebarSessionsContent(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -196,7 +253,8 @@ internal fun SidebarSessionRow(
     active: Boolean,
     running: Boolean,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    pendingApprovals: Int = 0
 ) {
     val id = item.optString("id")
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
@@ -224,10 +282,11 @@ internal fun SidebarSessionRow(
                     item.optString("preview")),
                     style = MaterialTheme.typography.bodyMedium, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
-                Text(if (running) "正在执行" else
+                Text(if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项"
+                    else if (running) "正在执行" else
                     PresentationPolicy.workspaceName(item.optString("cwd")),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (running) Ink.jade else Ink.muted,
+                    color = if (pendingApprovals > 0) Ink.warning else if (running) Ink.jade else Ink.muted,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (active) Icon(Icons.Outlined.CheckCircle, contentDescription = "当前会话",

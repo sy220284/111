@@ -48,7 +48,7 @@ fun EngineStatusSheet(
             Text("状态只显示实际进程和会话信息；连接、诊断、终端分别执行独立动作。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             if (status != EngineStatus.Connected) {
-                OutlinedButton(onClick = { onDismiss(); vm.connect() },
+                OutlinedButton(onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.Refresh, null)
                     Spacer(Modifier.width(8.dp))

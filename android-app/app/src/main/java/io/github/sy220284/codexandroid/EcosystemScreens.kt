@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,7 +60,7 @@ fun ModelsPage(vm: CodexViewModel) {
     val chosen by vm.modelId.collectAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val items = records(data["models"])
-    LaunchedEffect(Unit) { vm.refresh("models", "model/list") }
+    LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
     ScreenColumn {
         SectionIntro("MODELS / SELECTION", "模型目录", "直接从官方模型目录选择新会话的运行模型。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -119,7 +121,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     var customEnvKey by remember { mutableStateOf("") }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.refresh("providers", "modelProvider/list") }
+    LaunchedEffect(Unit) { vm.ensureCatalog("providers", "modelProvider/list") }
     ScreenColumn {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -249,7 +251,10 @@ fun SkillsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val groups = records(data["skills"])
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
-    LaunchedEffect(Unit) { vm.refresh("skills", "skills/list", CatalogRequestContract.workspace(vm.workingDirectory)) }
+    LaunchedEffect(Unit) {
+        vm.ensureCatalog("skills", "skills/list",
+            CatalogRequestContract.workspace(vm.workingDirectory))
+    }
     ScreenColumn {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
@@ -596,6 +601,13 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
     var showLogs by remember { mutableStateOf(false) }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val taskRunning by vm.running.collectAsState()
+    val terminalRunning by vm.terminalSession.collectAsState()
+    val promptItems by vm.bridge.prompts.collectAsState()
+    var showCrashes by remember { mutableStateOf(false) }
+    var crashRevision by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
     ScreenColumn {
         SectionIntro("ENGINE / DIAGNOSTICS", "内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -628,11 +640,26 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { vm.bridge.close(); vm.connect() }) {
-                    Icon(Icons.Outlined.RestartAlt, null); Text("重启连接")
+                OutlinedButton(
+                    onClick = { vm.connectionRestarter.restart() },
+                    enabled = !restarting && status != EngineStatus.Starting &&
+                        ConnectionRestartPolicy.canRestart(
+                            taskRunning, terminalRunning.running, promptItems.size),
+                    modifier = Modifier.testTag("diagnostics-restart")
+                        .explainDisabled(
+                            restarting || taskRunning || terminalRunning.running ||
+                                promptItems.isNotEmpty(),
+                            "有任务或待处理的审批，先完成后再重启内核")
+                ) {
+                    Icon(Icons.Outlined.RestartAlt, null)
+                    Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
                 OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
                     enabled = status == EngineStatus.Connected) { Text("读取官方诊断") }
+            }
+            if (taskRunning || terminalRunning.running || promptItems.isNotEmpty()) {
+                Text("运行期间保留当前内核进程，避免中断正在执行的任务。",
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
             }
         }
         errors["diagnostics"]?.let { ErrorText(it) }
@@ -641,6 +668,34 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("诊断结果", style = MaterialTheme.typography.titleMedium)
                 DetailToggle(it, "查看诊断摘要")
+            }
+        }
+        MaterialPanel(Modifier.fillMaxWidth().testTag("diagnostics-crash-history")) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("本机崩溃记录", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { showCrashes = !showCrashes }) {
+                    Text(if (showCrashes) "收起" else "查看")
+                }
+            }
+            Text("仅保存异常类型、时间和代码调用位置；不会上传执行内容。",
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            if (showCrashes) {
+                val stored = remember(showCrashes, crashRevision) {
+                    LocalCrashReporter.read(context)
+                }
+                if (stored.isBlank()) {
+                    Text("尚无本机崩溃记录", color = Ink.muted)
+                } else {
+                    SelectionContainer {
+                        Text(stored, fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    }
+                    TextButton(onClick = {
+                        LocalCrashReporter.clear(context)
+                        crashRevision++
+                    }) { Text("清除本机崩溃记录", color = Ink.red) }
+                }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {

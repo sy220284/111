@@ -1,5 +1,11 @@
 package io.github.sy220284.codexandroid
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -8,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -33,9 +40,11 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val running by vm.running.collectAsState()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
+    val bulkSummary by vm.bulkActionSummary.collectAsState()
     val context = LocalContext.current
     var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
     var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
@@ -70,12 +79,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var action by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
     // Bind the result to the exact server query: switching filters or pages
     // must never display results from a previous selection.
-    val key = "library:" + archived + ":" + searchTerm + ":" + selectedSection + ":" + (cursor ?: "first")
+    val key = ThreadLibraryQuery.key(archived, searchTerm, selectedSection, cursor)
     val response = data[key]
     val entries = records(response)
     val nextCursor = response?.optString("nextCursor")?.takeIf { it.isNotBlank() }
     val busy = "threadLibraryAction" in loading || "threadLibraryBulk" in loading
-    val fullKey = "fullSearch:" + fullSubmitted
+    val fullKey = ThreadLibraryQuery.fullTextKey(fullSubmitted)
     val fullResults = if (fullSubmitted.isNotBlank()) records(data[fullKey]) else emptyList()
     val fullPending = fullSubmitted.isNotBlank() && fullKey in loading
 
@@ -104,7 +113,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         if (fullText) {
             fullSubmitted = submitted
-            if (submitted.isNotEmpty()) vm.refresh("fullSearch:" + submitted,
+            if (submitted.isNotEmpty()) vm.refresh(ThreadLibraryQuery.fullTextKey(submitted),
                 "thread/search", JSONObject().put("searchTerm", submitted))
         } else if (searchTerm == submitted && cursor == null) load(null)
         else {
@@ -174,7 +183,23 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 val recent = if (fullText) recentFull else recentTitle
                 if (recent.isNotEmpty()) {
-                    Text("最近搜索", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("最近搜索", modifier = Modifier.weight(1f),
+                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = {
+                            try {
+                                val cleared = RecentThreadSearches.clear(context, fullText)
+                                if (fullText) recentFull = cleared else recentTitle = cleared
+                                searchHistoryError = ""
+                            } catch (failure: Exception) {
+                                searchHistoryError = "无法清除搜索记录：" +
+                                    (failure.message ?: "设备存储不可用")
+                            }
+                        }, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("thread-search-clear")) {
+                            Text("清除记录", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(7.dp)
@@ -300,7 +325,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
                     enabled = !busy && !switching && !running && entries.isNotEmpty()
                 ) {
-                    Text(if (selectionMode) "退出多选" else "批量管理")
+                    Text(if (selectionMode) "完成选择" else "批量管理")
                 }
             }
         }
@@ -318,7 +343,28 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        if (selectionMode && entries.isNotEmpty()) item {
+        if (bulkSummary.isNotBlank()) item(key = "bulk-result") {
+            Surface(color = Ink.jade.copy(alpha = .07f),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Ink.jade.copy(alpha = .3f)),
+                modifier = Modifier.fillMaxWidth().testTag("bulk-result-persistent")) {
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(bulkSummary, modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
+                    TextButton(onClick = { vm.bulkActionSummary.value = "" },
+                        modifier = Modifier.heightIn(min = 48.dp)) { Text("关闭") }
+                }
+            }
+        }
+        if (entries.isNotEmpty()) item(key = "bulk-toolbar") {
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = expandVertically(animationSpec = tween(CodexMotion.duration(180, reducedMotion))) +
+                    fadeIn(animationSpec = tween(CodexMotion.duration(160, reducedMotion))),
+                exit = shrinkVertically(animationSpec = tween(CodexMotion.duration(120, reducedMotion))) +
+                    fadeOut(animationSpec = tween(CodexMotion.duration(100, reducedMotion)))
+            ) {
             ThreadBulkToolbar(
                 selectedCount = selectedIds.size,
                 archived = archived,
@@ -331,8 +377,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onClear = { selectedIds = emptyList() },
                 onAction = { bulkConfirm = it }
             )
+            }
         }
-        items(entries, key = { it.optString("id") }) { thread ->
+        itemsIndexed(entries, key = { _, it -> it.optString("id") }) { index, thread ->
+            val group = ThreadDisplayPolicy.dayGroup(
+                thread.opt("updatedAt"), thread.opt("createdAt"))
+            val previousGroup = entries.getOrNull(index - 1)?.let {
+                ThreadDisplayPolicy.dayGroup(it.opt("updatedAt"), it.opt("createdAt"))
+            }
+            if (index == 0 || group != previousGroup) {
+                Text(group, style = MaterialTheme.typography.labelMedium,
+                    color = Ink.muted, modifier = Modifier.padding(top = 8.dp, start = 5.dp))
+            }
             val id = thread.optString("id")
             val title = PresentationPolicy.threadTitle(
                 thread.optString("name"), thread.optString("preview")

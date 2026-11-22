@@ -10,10 +10,11 @@ internal object DraftPersistence {
 
     fun decode(raw: String): Map<String, ComposerDraft> {
         val source = JSONObject(raw)
-        return source.keys().asSequence().associateWith { id ->
+        val all = source.keys().asSequence().map { id ->
             val item = source.getJSONObject(id)
-            ComposerDraft(text = item.optString("text"))
-        }.filterValues { it.text.isNotBlank() }
+            id to ComposerDraft(text = item.optString("text"))
+        }.filter { it.second.text.isNotBlank() }.toList()
+        return all.toMap()
     }
 
     fun encode(drafts: Map<String, ComposerDraft>): String {

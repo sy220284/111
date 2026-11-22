@@ -6,6 +6,24 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ThreadComposerDraftsTest {
+    @Test fun unsentDraftsAreNeverEvictedWhenMoreThan128ThreadsExist() {
+        val source = (1..200).fold(emptyMap<String, ComposerDraft>()) { current, index ->
+            ThreadComposerDrafts.text(current, "thread-$index", "未发送指令 $index")
+        }
+        assertEquals(200, source.size)
+        assertEquals("未发送指令 1", source["thread-1"]?.text)
+        assertEquals("未发送指令 200", source["thread-200"]?.text)
+    }
+
+    @Test fun emptyDraftIsPrunedButImageOnlyDraftIsKept() {
+        val withText = ThreadComposerDrafts.text(emptyMap(), "A", "待发送")
+        assertFalse(ThreadComposerDrafts.text(withText, "A", "").containsKey("A"))
+        val withImage = ThreadComposerDrafts.images(emptyMap(), "B", listOf("image.png"))
+        val clearedText = ThreadComposerDrafts.text(withImage, "B", "")
+        assertEquals(listOf("image.png"), clearedText["B"]?.images)
+        assertFalse(ThreadComposerDrafts.images(clearedText, "B", emptyList()).containsKey("B"))
+    }
+
     @Test fun switchingSessionsKeepsPromptsAndAttachmentsIsolated() {
         var drafts = emptyMap<String, ComposerDraft>()
         drafts = ThreadComposerDrafts.text(drafts, "A", "修改登录流程")

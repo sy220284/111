@@ -3,7 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -51,6 +50,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectAsState()
     val items by vm.timeline.collectAsState()
+    val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -67,15 +67,17 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
-    var imagePickThread by remember { mutableStateOf<String?>(null) }
     var showEngineStatus by remember { mutableStateOf(false) }
     var showApprovalQuick by remember { mutableStateOf(false) }
-    var stopRequested by remember(activeTurn) { mutableStateOf(false) }
+    var stopRequestedForTurn by remember { mutableStateOf<String?>(null) }
     val stopping = busy && (("interrupt" in loading) ||
-        (stopRequested && errors["interrupt"] == null))
-    val attachmentContext = LocalContext.current
-    var attachmentBusy by remember { mutableStateOf(false) }
-    var attachmentError by remember { mutableStateOf("") }
+        (stopRequestedForTurn != null && stopRequestedForTurn == activeTurn &&
+            errors["interrupt"] == null))
+    val imported by vm.attachmentImport.collectAsState()
+    val attachmentBusy = imported.inProgress &&
+        imported.threadKey == ThreadComposerDrafts.key(thread)
+    val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
+        imported.message else ""
 
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
@@ -91,51 +93,23 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
         selectedMode == "plan" && !busy && !switching && thread != null
     val currentTitle = thread?.let { threadId ->
-        (records(models["sidebarThreads"]) + records(models["threads"]))
+        (records(models["threads"]) + records(models["sidebarThreads"]))
             .firstOrNull { it.optString("id") == threadId }?.let {
             PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
         }
     }
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val imagePicker = rememberLauncherForActivityResult(
+    // Pickers use the actual remaining quota, so no selected image silently vanishes.
+    val oneImagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> vm.importPickedImages(listOfNotNull(uri)) }
+    val twoImagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(2)
+    ) { selected -> vm.importPickedImages(selected) }
+    val threeImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
-    ) { selected ->
-        if (selected.isNotEmpty()) {
-            // The selection belongs to the thread that opened the picker.
-            val owner = imagePickThread
-            attachmentBusy = true
-            scope.launch {
-                val initial = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
-                    ?.images.orEmpty()
-                val room = (LocalImageAttachments.MAX_FILES - initial.size).coerceAtLeast(0)
-                var added = 0
-                val failures = mutableListOf<String>()
-                selected.take(room).forEach { uri ->
-                    try {
-                        val path = LocalImageAttachments.importFrom(attachmentContext, uri)
-                        val current = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
-                            ?.images.orEmpty()
-                        if (current.size < LocalImageAttachments.MAX_FILES) {
-                            vm.editComposerImages(owner, current + path)
-                            added++
-                        } else {
-                            LocalImageAttachments.release(attachmentContext, path)
-                        }
-                    } catch (failure: Exception) {
-                        failures += failure.message ?: "图片导入失败"
-                    }
-                }
-                val skipped = (selected.size - room).coerceAtLeast(0)
-                attachmentError = when {
-                    failures.isNotEmpty() -> "已添加${added}张；${failures.distinct().joinToString("；")}"
-                    skipped > 0 -> "已添加${added}张，另有${skipped}张超过本次剩余名额"
-                    else -> ""
-                }
-                attachmentBusy = false
-            }
-        }
-    }
+    ) { selected -> vm.importPickedImages(selected) }
     // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
     LaunchedEffect(showContextTools, pendingContextRoute) {
         if (!showContextTools) {
@@ -153,35 +127,47 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             if (pendingImagePick) {
                 pendingImagePick = false
-                imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                when ((LocalImageAttachments.MAX_FILES - attachedImages.size).coerceAtLeast(0)) {
+                    0 -> vm.reportFullAttachmentSelection(thread)
+                    1 -> oneImagePicker.launch(request)
+                    2 -> twoImagePicker.launch(request)
+                    else -> threeImagePicker.launch(request)
+                }
             }
         }
     }
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
+    var lastKnownTailId by remember { mutableStateOf<String?>(null) }
     var unreadSteps by remember { mutableIntStateOf(0) }
-    // 会话恢复后的时间线从当前会话末尾开始，不沿用上一会话的未读数和滚动位置。
-    LaunchedEffect(thread) {
-        followTail = true
-        unreadSteps = 0
-        lastKnownStepCount = items.size
-        if (items.isNotEmpty()) scroll.scrollToItem(items.lastIndex)
-        else scroll.scrollToItem(0)
+    var observedThread by remember { mutableStateOf<String?>(null) }
+    // Reset only after thread/read and thread/resume have finished swapping the timeline.
+    LaunchedEffect(thread, switching) {
+        if (!switching && observedThread != thread) {
+            observedThread = thread
+            followTail = true
+            unreadSteps = 0
+            lastKnownStepCount = items.size
+            lastKnownTailId = items.lastOrNull()?.id
+            scroll.scrollToItem(if (items.isEmpty()) 0 else items.lastIndex)
+        }
     }
     LaunchedEffect(scroll) {
-        snapshotFlow {
-            val total = scroll.layoutInfo.totalItemsCount
-            val tail = scroll.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            total <= 1 || tail >= total - 2
-        }.collect { atBottom ->
+        snapshotFlow { !scroll.canScrollForward }.collect { atBottom ->
             followTail = atBottom
             if (atBottom) unreadSteps = 0
         }
     }
-    LaunchedEffect(items.size) {
-        val added = (items.size - lastKnownStepCount).coerceAtLeast(0)
+    LaunchedEffect(items.size, switching, thread) {
+        if (switching || observedThread != thread) return@LaunchedEffect
+        // Reading older pages prepends items but does not create unread steps.
+        val tailId = items.lastOrNull()?.id
+        val tailChanged = tailId != lastKnownTailId
+        val added = if (tailChanged) (items.size - lastKnownStepCount).coerceAtLeast(0) else 0
+        lastKnownTailId = tailId
         lastKnownStepCount = items.size
-        if (items.isNotEmpty() && followTail) {
+        if (items.isNotEmpty() && followTail && tailChanged) {
             if (reducedMotion) scroll.scrollToItem(items.size - 1)
             else scroll.animateScrollToItem(items.size - 1)
         } else if (!followTail) {
@@ -193,7 +179,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(if (thread == null) "新的工作会话" else currentTitle ?: "当前任务",
+                Text(currentTitle ?: "当前任务",
                     style = MaterialTheme.typography.titleMedium)
                 Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
                     .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
@@ -203,7 +189,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
                 Icon(Icons.Outlined.MoreHoriz, "会话工具")
             }
-            IconButton(onClick = { navigate("diff") }, enabled = thread != null) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
         }
@@ -257,7 +242,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("描述一个目标，或从快捷任务开始",
                         color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center)
-                    if (!shortViewport && !busy) {
+                    if (!busy) {
                         Spacer(Modifier.height(4.dp))
                         Row(
                             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -292,6 +277,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (olderTimelineCount > 0 && thread != null) item(key = "timeline-older-pages") {
+                    OutlinedButton(
+                        onClick = { vm.loadEarlierTimeline() },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("timeline-load-older")
+                    ) {
+                        Text("加载更早记录 · 剩余 $olderTimelineCount 条")
+                    }
+                }
                 items(items, key = { it.id }) { item ->
                     TimelineStepCard(item)
                 }
@@ -330,6 +324,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             )
         }
         errors["planApproval"]?.let { ErrorText(it) }
+        errors["timeline"]?.let { reason ->
+            CodexNotice(reason, NoticeTone.Warning,
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        }
         errors["conversation"]?.let { reason ->
             CodexNotice(
                 reason, NoticeTone.Error,
@@ -381,7 +379,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             if (attachmentBusy) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text("正在导入图片…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                Text("正在导入图片 ${imported.imported}/${imported.requested}…",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             if (attachmentError.isNotBlank()) {
                 ErrorText(attachmentError)
@@ -392,14 +391,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             LocalImageAttachmentStrip(attachedImages) { path ->
-                vm.editComposerImages(thread, attachedImages - path)
-                scope.launch {
-                    try {
-                        LocalImageAttachments.release(attachmentContext, path)
-                    } catch (failure: Exception) {
-                        attachmentError = failure.message ?: "无法移除图片"
-                    }
-                }
+                vm.removeComposerImage(thread, path)
             }
             ConversationComposer(
                 draft = draft,
@@ -415,7 +407,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                      else draft.isNotBlank() || attachedImages.isNotEmpty()),
                 sending = steering || (busy && activeTurn.isNullOrBlank()),
                 onAttach = { showAttachmentTools = true },
-                onStop = { stopRequested = true; vm.interrupt() },
+                onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
                 onSend = {
                     val message = draft.trim()
                     val submittedDraft = draft
@@ -440,8 +432,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     showAttachmentTools = false
                 },
                 onPickImage = {
-                    imagePickThread = thread
-                    pendingImagePick = true
+                    if (vm.beginImageSelection(thread)) pendingImagePick = true
                     showAttachmentTools = false
                 }
             )

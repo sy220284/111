@@ -22,6 +22,10 @@ internal class TerminalTaskOperations(
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
     fun startTerminalCommand(command: String, tty: Boolean = false) {
+        if (vm.connectionRestarter.busy.value) {
+            errors.value = errors.value + ("terminal" to "正在重新连接内核，请稍后执行命令")
+            return
+        }
         if (terminalSession.value.running) {
             errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
             return

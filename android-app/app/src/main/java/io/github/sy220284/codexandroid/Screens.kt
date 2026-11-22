@@ -316,7 +316,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     if (engineStatus == EngineStatus.Connected) {
                         page.rpc?.let { vm.refresh(page.id, it) }
                     } else vm.connect()
-                }
+                },
+                artworkRes = if (engineStatus == EngineStatus.Connected) null
+                    else R.drawable.ic_empty_connection
             )
         }
     }

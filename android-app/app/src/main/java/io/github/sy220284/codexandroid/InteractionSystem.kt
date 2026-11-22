@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
@@ -150,19 +152,28 @@ fun CodexEmptyState(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Outlined.Inbox,
     actionLabel: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    artworkRes: Int? = null
 ) {
     Column(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 27.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Surface(
-            color = Ink.border.copy(alpha = .24f),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Icon(icon, null, tint = Ink.copper,
-                modifier = Modifier.padding(17.dp).size(27.dp))
+        if (artworkRes != null) {
+            Image(
+                painter = painterResource(artworkRes),
+                contentDescription = null,
+                modifier = Modifier.size(width = 152.dp, height = 116.dp)
+            )
+        } else {
+            Surface(
+                color = Ink.border.copy(alpha = .24f),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Icon(icon, null, tint = Ink.copper,
+                    modifier = Modifier.padding(17.dp).size(27.dp))
+            }
         }
         Text(title, style = MaterialTheme.typography.titleLarge,
             color = Ink.parchment,

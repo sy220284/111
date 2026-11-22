@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
@@ -85,6 +86,7 @@ fun CodexShell(vm: CodexViewModel) {
     var selected by rememberSaveable { mutableStateOf("home") }
     var backHistory by rememberSaveable { mutableStateOf(listOf("home")) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
+    val sidebarState = rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -96,13 +98,8 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val operationSnacks = remember { SnackbarHostState() }
-    LaunchedEffect(status, selected, drawer.currentValue) {
-        if (status == EngineStatus.Connected &&
-            (selected == "chat" || drawer.currentValue == DrawerValue.Open)) {
-            vm.refresh("sidebarThreads", "thread/list",
-                org.json.JSONObject().put("limit", 100))
-        }
-    }
+    val app = LocalContext.current.applicationContext as CodexApplication
+    val pendingDeepLink by app.pendingDeepLink.collectAsState()
     LaunchedEffect(vm) {
         vm.actionFeedback.collect { receipt ->
             operationSnacks.showSnackbar(
@@ -169,6 +166,14 @@ fun CodexShell(vm: CodexViewModel) {
         focusManager.clearFocus()
         keyboard?.hide()
         scope.launch { drawer.close() }
+    }
+    LaunchedEffect(pendingDeepLink, status) {
+        val id = pendingDeepLink
+        if (id != null && status == EngineStatus.Connected) {
+            app.pendingDeepLink.value = null
+            vm.chooseThread(id)
+            move("chat")
+        }
     }
     LaunchedEffect(showQuickTools, pendingQuickRoute) {
         if (!showQuickTools) {
@@ -252,7 +257,9 @@ fun CodexShell(vm: CodexViewModel) {
                             if (selected == "threads") {
                                 IconButton(
                                     onClick = { vm.newThread(); move("chat") },
-                                    enabled = !running && !switching
+                                    enabled = !running && !switching,
+                                    modifier = Modifier.explainDisabled(running || switching,
+                                        if (running) "正在执行任务，请先停止或完成后新建" else "正在切换会话")
                                 ) {
                                     Icon(Icons.Outlined.AddCircleOutline, "新建任务")
                                 }
@@ -297,7 +304,8 @@ fun CodexShell(vm: CodexViewModel) {
                     { id -> if (id == "status") showStatus = true else move(id) },
                     status, pending.size, running || switching,
                     { vm.newThread(); move("chat") }, vm,
-                    { id -> if (activeThread != id) vm.chooseThread(id); move("chat") })
+                    { id -> if (activeThread != id) vm.chooseThread(id); move("chat") },
+                    sidebarState)
                 Box(Modifier.weight(1f)) { content() }
             }
         } else {
@@ -318,7 +326,8 @@ fun CodexShell(vm: CodexViewModel) {
                             } else move(id)
                         }, status, pending.size, running || switching,
                         { vm.newThread(); move("chat") }, vm,
-                        { id -> if (activeThread != id) vm.chooseThread(id); move("chat") }) }
+                        { id -> if (activeThread != id) vm.chooseThread(id); move("chat") },
+                        sidebarState) }
                 }
             ) { content() }
         }
@@ -351,9 +360,10 @@ fun CodexShell(vm: CodexViewModel) {
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
     status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit,
-    vm: CodexViewModel, onOpenThread: (String) -> Unit
+    vm: CodexViewModel, onOpenThread: (String) -> Unit,
+    sidebarState: SidebarUiState
 ) {
-    var more by rememberSaveable { mutableStateOf(false) }
+    val more = sidebarState.more
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -374,7 +384,7 @@ private fun Sidebar(
         }
         Row(
             Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                .clickable { more = !more }.padding(horizontal = 16.dp),
+                .clickable { sidebarState.more = !more }.padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Outlined.MoreHoriz, null, tint = Ink.parchment,
@@ -397,7 +407,7 @@ private fun Sidebar(
             color = Ink.border.copy(alpha = .65f))
         Box(Modifier.fillMaxWidth().weight(1f)) {
             SidebarSessions(vm, onOpenThread, onViewAll = { onSelect("threads") },
-                modifier = Modifier.fillMaxSize())
+                modifier = Modifier.fillMaxSize(), uiState = sidebarState)
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))
         Row(
@@ -408,7 +418,8 @@ private fun Sidebar(
             Button(
                 onClick = onNewThread, enabled = !running,
                 shape = RoundedCornerShape(27.dp),
-                modifier = Modifier.height(51.dp).testTag("sidebar-new-chat"),
+                modifier = Modifier.heightIn(min = 51.dp).testTag("sidebar-new-chat")
+                    .explainDisabled(running, "正在执行任务，请先完成或停止后再新建"),
                 contentPadding = PaddingValues(horizontal = 14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Ink.coral, contentColor = Color.White,

@@ -189,7 +189,9 @@ internal fun ConversationComposer(
                     OutlinedButton(
                         onClick = onStop,
                         enabled = canStop && !stopping,
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("composer-stop"),
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("composer-stop")
+                            .explainDisabled(stopping || !canStop,
+                                if (stopping) "已发出停止请求，等待运行核心响应" else "当前任务尚无可停止的执行回合"),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
                         contentPadding = PaddingValues(horizontal = 10.dp)
                     ) {
@@ -207,6 +209,11 @@ internal fun ConversationComposer(
                     enabled = canSend && !sending,
                     modifier = Modifier.size(50.dp)
                         .testTag("composer-send")
+                        .explainDisabled(!canSend || sending, when {
+                            sending -> "正在发送指令，请勿重复提交"
+                            !connected -> "运行核心尚未连接"
+                            else -> "输入指令后即可发送"
+                        })
                         .semantics { contentDescription = if (running) "补充任务指令" else "发送给 Codex" },
                     shape = androidx.compose.foundation.shape.CircleShape,
                     contentPadding = PaddingValues(0.dp),
