@@ -33,10 +33,11 @@ class ThreadDisplayPolicyTest {
     }
 
     @Test fun switchingToAnotherThreadIsAllowedDuringBackgroundExecution() {
-        assertTrue(ThreadDisplayPolicy.canOpenThread("running", "another"))
-        assertFalse(ThreadDisplayPolicy.canOpenThread("running", "running"))
-        assertFalse(ThreadDisplayPolicy.canOpenThread("running", ""))
-        assertTrue(ThreadDisplayPolicy.canOpenThread(null, "another"))
+        assertTrue(ThreadDisplayPolicy.canOpenThread("running", "another", true))
+        assertFalse(ThreadDisplayPolicy.canOpenThread("running", "running", true))
+        assertTrue(ThreadDisplayPolicy.canOpenThread("running", "running", false))
+        assertFalse(ThreadDisplayPolicy.canOpenThread("running", "", false))
+        assertTrue(ThreadDisplayPolicy.canOpenThread(null, "another", false))
     }
 
     @Test fun onlySuccessfulSubmissionClearsMatchingDraft() {
