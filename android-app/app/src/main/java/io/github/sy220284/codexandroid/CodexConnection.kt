@@ -5,7 +5,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -42,7 +41,7 @@ class CodexConnection(private val appContext: Context) {
     }
 
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
-    val events = MutableSharedFlow<JSONObject>(extraBufferCapacity = 512)
+    val events = RpcEventBuffer.create()
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
     val recentStderr = MutableStateFlow<List<String>>(emptyList())
 
