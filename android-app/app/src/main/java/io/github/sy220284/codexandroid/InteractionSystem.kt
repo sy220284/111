@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,7 +75,8 @@ fun CodexNotice(
     tone: NoticeTone = NoticeTone.Info,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    artworkRes: Int? = null
 ) {
     val color = when (tone) {
         NoticeTone.Info -> Ink.copper
@@ -157,12 +159,20 @@ fun CodexEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Surface(
-            color = Ink.border.copy(alpha = .24f),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Icon(icon, null, tint = Ink.copper,
-                modifier = Modifier.padding(17.dp).size(27.dp))
+        if (artworkRes != null) {
+            Image(
+                painter = painterResource(artworkRes),
+                contentDescription = null,
+                modifier = Modifier.size(width = 152.dp, height = 116.dp)
+            )
+        } else {
+            Surface(
+                color = Ink.border.copy(alpha = .24f),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Icon(icon, null, tint = Ink.copper,
+                    modifier = Modifier.padding(17.dp).size(27.dp))
+            }
         }
         Text(title, style = MaterialTheme.typography.titleLarge,
             color = Ink.parchment,
