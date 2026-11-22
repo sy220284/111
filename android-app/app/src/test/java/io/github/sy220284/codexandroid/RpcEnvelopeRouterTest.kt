@@ -13,6 +13,22 @@ class RpcEnvelopeRouterTest {
             RpcEnvelopeRouter.classify(JSONObject().put("method", "turn/completed")))
     }
 
+    @Test fun malformedResponseIdsCannotDisappearAsUnrelatedEvents() {
+        val invalid = listOf(
+            JSONObject().put("id", "wrong-identifier").put("result", JSONObject()),
+            JSONObject().put("id", JSONObject.NULL).put("result", JSONObject()),
+            JSONObject().put("result", JSONObject()),
+            JSONObject().put("error", JSONObject().put("code", -32600)
+                .put("message", "missing id"))
+        )
+        invalid.forEach { response ->
+            assertEquals(RpcEnvelopeKind.MalformedResponse,
+                RpcEnvelopeRouter.classify(response))
+        }
+        assertEquals(RpcEnvelopeKind.Response,
+            RpcEnvelopeRouter.classify(JSONObject().put("id", 4)))
+    }
+
     @Test fun knownApprovalAndUserInputAreSupportedHostRequests() {
         for (method in listOf(
             "item/commandExecution/requestApproval",
