@@ -2,7 +2,7 @@
 import json
 import unittest
 
-from check_ui_protocol_matrix import verify
+from check_ui_protocol_matrix import verify, verify_ui_entrypoints
 
 METHODS = [f"test{i}/action" for i in range(110)]
 CLIENT = "client_request_definitions! {\n" + "\n".join(
@@ -64,6 +64,34 @@ class ProtocolMatrixTests(unittest.TestCase):
             'ProtocolSurface("host/approval", ApiExposure.Direct')
         self.assertTrue(any("Host 主动请求" in err
                             for err in verify(broken, POLICY, OFFICIAL)))
+
+    def test_internal_protocol_is_never_a_navigation_action(self):
+        policy = json.dumps({"methods": {
+            "hooks/list": {"surface": "后台内部"},
+            "mcpServerStatus/list": {"surface": "直接操作"}
+        }}, ensure_ascii=False)
+        pages = ('Page("mcp", "MCP 服务", "能力", "连接管理", Icons.Hub, "mcpServerStatus/list"),\\n'
+                 'Page("hooks", "运行时钩子", "能力", "引擎内部", Icons.Bolt, "hooks/list"),')
+        features = 'UiFeature("mcp", FeatureSurface.Page), UiFeature("hooks", FeatureSurface.Page)'
+        errors = verify_ui_entrypoints(pages, features, policy)
+        self.assertTrue(any("后台接口被放入 UI 页面" in error for error in errors))
+
+    def test_visible_service_settings_can_exist_without_tool_buttons(self):
+        policy = json.dumps({"methods": {
+            "hooks/list": {"surface": "后台内部"},
+            "mcpServerStatus/list": {"surface": "直接操作"}
+        }}, ensure_ascii=False)
+        pages = 'Page("mcp", "MCP 服务", "能力", "连接管理", Icons.Hub, "mcpServerStatus/list"),'
+        features = ('UiFeature("mcp", FeatureSurface.Page),\\n'
+                    'UiFeature("update", FeatureSurface.Inline)')
+        self.assertEqual([], verify_ui_entrypoints(pages, features, policy))
+
+    def test_page_missing_from_catalog_is_rejected(self):
+        policy = json.dumps({"methods": {}}, ensure_ascii=False)
+        errors = verify_ui_entrypoints(
+            'Page("mcp", "MCP 服务", Icons.Hub)',
+            'UiFeature("settings", FeatureSurface.Page)', policy)
+        self.assertTrue(any("页面与功能目录不一致" in error for error in errors))
 
     def test_unknown_policy_flag_is_detected(self):
         p = json.loads(POLICY)
