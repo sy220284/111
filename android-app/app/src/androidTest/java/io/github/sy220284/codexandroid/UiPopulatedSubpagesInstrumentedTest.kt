@@ -2,6 +2,10 @@ package io.github.sy220284.codexandroid
 
 import android.app.Application
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
@@ -48,17 +52,20 @@ class UiPopulatedSubpagesInstrumentedTest {
                 LocalDensity provides Density(1f, fontScale = 2f)
             ) {
                 CodexTheme {
-                    Box(Modifier.width(360.dp)) {
-                        ThreadBulkToolbar(
-                            selectedCount = 3, archived = false, enabled = true,
-                            onSelectAll = {}, onClear = {}, onAction = {}
-                        )
+                    Box(Modifier.fillMaxSize()) {
+                        Column(Modifier.width(360.dp).fillMaxHeight()
+                            .verticalScroll(rememberScrollState())) {
+                            ThreadBulkToolbar(
+                                selectedCount = 3, archived = false, enabled = true,
+                                onSelectAll = {}, onClear = {}, onAction = {}
+                            )
+                        }
                     }
                 }
             }
         }
-        rule.onNodeWithTag("thread-bulk-archive").assertIsDisplayed()
-        rule.onNodeWithTag("thread-bulk-delete").assertIsDisplayed()
+        rule.onNodeWithTag("thread-bulk-archive").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("thread-bulk-delete").performScrollTo().assertIsDisplayed()
         val archive = rule.onNodeWithTag("thread-bulk-archive").fetchSemanticsNode().boundsInRoot
         val delete = rule.onNodeWithTag("thread-bulk-delete").fetchSemanticsNode().boundsInRoot
         assertTrue("Large-font actions must stack vertically", delete.top > archive.top)
