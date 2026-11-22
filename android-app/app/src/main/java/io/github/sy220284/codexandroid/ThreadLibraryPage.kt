@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -174,7 +175,23 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 val recent = if (fullText) recentFull else recentTitle
                 if (recent.isNotEmpty()) {
-                    Text("最近搜索", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("最近搜索", modifier = Modifier.weight(1f),
+                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = {
+                            try {
+                                val cleared = RecentThreadSearches.clear(context, fullText)
+                                if (fullText) recentFull = cleared else recentTitle = cleared
+                                searchHistoryError = ""
+                            } catch (failure: Exception) {
+                                searchHistoryError = "无法清除搜索记录：" +
+                                    (failure.message ?: "设备存储不可用")
+                            }
+                        }, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("thread-search-clear")) {
+                            Text("清除记录", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(7.dp)
@@ -300,7 +317,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
                     enabled = !busy && !switching && !running && entries.isNotEmpty()
                 ) {
-                    Text(if (selectionMode) "退出多选" else "批量管理")
+                    Text(if (selectionMode) "完成选择" else "批量管理")
                 }
             }
         }
@@ -332,7 +349,16 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onAction = { bulkConfirm = it }
             )
         }
-        items(entries, key = { it.optString("id") }) { thread ->
+        itemsIndexed(entries, key = { _, it -> it.optString("id") }) { index, thread ->
+            val group = ThreadDisplayPolicy.dayGroup(
+                thread.opt("updatedAt"), thread.opt("createdAt"))
+            val previousGroup = entries.getOrNull(index - 1)?.let {
+                ThreadDisplayPolicy.dayGroup(it.opt("updatedAt"), it.opt("createdAt"))
+            }
+            if (index == 0 || group != previousGroup) {
+                Text(group, style = MaterialTheme.typography.labelMedium,
+                    color = Ink.muted, modifier = Modifier.padding(top = 8.dp, start = 5.dp))
+            }
             val id = thread.optString("id")
             val title = PresentationPolicy.threadTitle(
                 thread.optString("name"), thread.optString("preview")
