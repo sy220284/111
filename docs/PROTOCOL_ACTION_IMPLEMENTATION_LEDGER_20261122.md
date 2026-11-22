@@ -36,6 +36,14 @@
 - 审计口径：单独统计协议字符串出现、可识别 RPC 调用表达式、真实设备行为。静态源码引用不再称为功能验收通过。
 - 剩余设备验收：本 PR 最终提交的编译、单测、Lint、Android 模拟器实测，以及真实账号/MCP/ARM64 核心交互，均须以同一代码版本的运行证据确认。
 
+## P0 字段级验收新增证据（2026-11-22）
+
+- **真实 Android 请求样例**：`ProtocolWireFixtureExportTest.kt` 由 Android JUnit 实际运行 `ProjectRequestContract`、`TurnRequestContract`、`ThreadSectionContract`、`TerminalSessionContract`，导出 20 个请求体，不采用人为复制的 JSON 样例冒充运行结果。
+- **官方 Rust 契约交叉校验**：`check_protocol_wire_fixtures.py` 自动检查所有稳定客户端 DTO Schema 文档的结构及本地引用，并用 Draft-07 校验上述 Kotlin 实际请求的必填字段、字段类型、枚举和嵌套结构；对已声明实验的 `projectId`、`collaborationMode` 单独验证，对实验 `project/*` 请求从 Rust `project.rs` 推导字段及必填约束。
+- **错误自动拦截**：请求中出现未知字段、类型不匹配、必填遗漏、Rust 实验字段缺失、悬空 Schema 引用时 CI 失败；单测包含对应负向用例。
+- **可复核产物**：`wire-fixtures-audit.json`、`app/build/protocol-fixtures/requests.json` 随独立 Android UI CI 保存。报告明确区分“稳定 DTO 结构检查数量”“真实 Kotlin 请求场景数量”“已有样例的协议方法数量”“缺少样例的方法”和“真实 Rust 内核联调数量（仍为 0）”。
+- **范围界限**：这次完成的是一批关键路径请求的字段级自动校验，不等于 187 项请求全部完成真实运行回读；真实会话、文件、终端、Host、外部账号及 MCP 端到端验收仍需独立推进。对后台接口维持智能体调用，不增加普通 UI 入口。
+
 ## 已查出的差异与落实任务
 
 | ID | 已查证事实 | 应落地处理 | 验收证据 |

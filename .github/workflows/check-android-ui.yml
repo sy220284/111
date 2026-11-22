@@ -54,6 +54,7 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
       - name: 安装 JDK 17
@@ -126,6 +127,21 @@ jobs:
         run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+      - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
+        run: |
+          test -s android-app/app/build/protocol-fixtures/requests.json
+          python3 -m venv .ci-schema-venv
+          .ci-schema-venv/bin/python -m pip install --disable-pip-version-check 'jsonschema==4.26.0'
+          .ci-schema-venv/bin/python -m unittest discover \
+            -s android-app/tools -p 'test_check_protocol_wire_fixtures.py'
+          .ci-schema-venv/bin/python android-app/tools/check_protocol_wire_fixtures.py \
+            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
+            --schemas upstream/codex/codex-rs/app-server-protocol/schema/json/v2 \
+            --project-rust upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs \
+            --thread-rust upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs \
+            --turn-rust upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs \
+            --fixtures android-app/app/build/protocol-fixtures/requests.json \
+            --report wire-fixtures-audit.json
       - name: 保存测试与 Lint 报告
         if: always()
         uses: actions/upload-artifact@v4
@@ -138,6 +154,8 @@ jobs:
             ui-coverage.md
             ui-coverage.json
             protocol-contract-audit.json
+            wire-fixtures-audit.json
+            android-app/app/build/protocol-fixtures/requests.json
           if-no-files-found: ignore
           retention-days: 14
       - name: 保存独立编译的 UI 与设备测试安装包
