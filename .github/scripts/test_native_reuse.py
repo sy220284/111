@@ -39,7 +39,7 @@ class FakeRunner:
     def __init__(self, *, changed_source=False, changed_recipe=False,
                  expired_first=False, missing_abi=False, ancestor=True,
                  changed_code_mode_adapter=False,
-                 legacy_missing_adapter=False, changed_v8_builder=False):
+                 legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False):
         self.changed_source = changed_source
         self.changed_recipe = changed_recipe
         self.expired_first = expired_first
@@ -48,6 +48,7 @@ class FakeRunner:
         self.changed_code_mode_adapter = changed_code_mode_adapter
         self.legacy_missing_adapter = legacy_missing_adapter
         self.changed_v8_builder = changed_v8_builder
+        self.changed_v8_host_adapter = changed_v8_host_adapter
         self.called_api = 0
 
     def __call__(self, args):
@@ -62,6 +63,9 @@ class FakeRunner:
             return "same-patcher"
         if args[:2] == ["git", "ls-tree"]:
             sha = args[2]
+            if args[-1] == "android-app/tools/adapt_android_v8_build.py":
+                return ("old-v8-host" if sha.startswith(("old", "older")) and
+                        self.changed_v8_host_adapter else "same-v8-host")
             if args[-1] == "android-app/tools/prepare_android_v8.sh":
                 return ("old-builder" if sha.startswith(("old", "older")) and
                         self.changed_v8_builder else "same-builder")
@@ -157,6 +161,12 @@ class NativeReuseTests(unittest.TestCase):
 
     def test_changed_v8_builder_must_recompile(self):
         runner = FakeRunner(changed_v8_builder=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
+
+    def test_changed_v8_host_adapter_must_recompile(self):
+        runner = FakeRunner(changed_v8_host_adapter=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
         self.assertEqual(runner.called_api, 0)
