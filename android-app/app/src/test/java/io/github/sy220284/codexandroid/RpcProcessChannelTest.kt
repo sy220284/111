@@ -15,7 +15,8 @@ import java.io.OutputStream
 private class MockCodexProcess(lines: List<String>) : Process() {
     private val stdin = ByteArrayOutputStream()
     private val stdout = ByteArrayInputStream(
-        lines.joinToString(separator = "\n", postfix = "\n").toByteArray(Charsets.UTF_8))
+        (if (lines.isEmpty()) "" else lines.joinToString(separator = "\n", postfix = "\n"))
+            .toByteArray(Charsets.UTF_8))
     override fun getOutputStream(): OutputStream = stdin
     override fun getInputStream(): InputStream = stdout
     override fun getErrorStream(): InputStream = ByteArrayInputStream(byteArrayOf())
