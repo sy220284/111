@@ -7,7 +7,7 @@ internal object ThreadLibraryQuery {
     fun key(archived: Boolean, term: String, section: String, cursor: String?): String =
         "library:" + listOf(
             if (archived) "archived" else "active",
-            term, section, cursor ?: ""
+            term, section, cursor?.let { "CURSOR:$it" } ?: "FIRST_PAGE"
         ).joinToString("|", transform = ::encode)
 
     fun fullTextKey(term: String): String = "fullSearch:" + encode(term)

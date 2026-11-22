@@ -75,7 +75,7 @@ internal object AppUpdateManager {
                 val installedVersion = info.versionName.orEmpty()
                 val installedCode = info.longVersionCode
                 if ((app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
-                    throw IOException("当前为调试签名版本，请先导出数据并安装正式签名版，之后可直接在线升级。")
+                    throw IOException("当前为调试签名版本。请在设置页的「备份与恢复」导出数据，安装正式签名版后再从同一入口导入；恢复后重新登录账号。")
                 }
                 set(UpdatePhase.CHECKING, "正在检查 GitHub 正式发布版本…")
                 val release = JSONObject(readSmall(URL(latest)))
