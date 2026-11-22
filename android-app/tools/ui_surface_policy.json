@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "note": "所有官方请求必须归类。用户可见请求必须有真实业务源码引用或带代码证据的等效与条件路径，声明目录不计为接入。",
+  "note": "所有官方请求须按方向和UI归属分类。用户可见客户端请求必须有真实调用或明确记录的本地等效路径；已通过真实RPC实现的PTY尺寸调整不计为条件等效。",
   "methods": {
     "server/diagnostics": {
-      "surface": "后台内部",
+      "surface": "高级按需",
       "owner": "诊断",
       "flag": "实验"
     },
@@ -1014,12 +1014,6 @@
       "source": "WorkspaceFileActions.kt",
       "evidence": "fun copy(",
       "reason": "文件管理复制独立副本，不覆盖现有目标并拒绝符号链接"
-    },
-    "command/exec/resize": {
-      "kind": "conditional",
-      "source": "TerminalSessionContract.kt",
-      "evidence": "\"streamStdin\", true",
-      "reason": "当前终端采用流式命令执行，未创建可调尺寸PTY；仅在支持PTY且能测量行列数时显示尺寸控制"
     }
   }
 }
