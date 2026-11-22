@@ -42,6 +42,25 @@ object ThreadComposerDrafts {
             else previous + (id to next)
     }
 
+    /**
+     * A definitively rejected first turn may leave an empty server thread.
+     * Once that empty thread has been verified and deleted, restore its draft.
+     */
+    fun reclaimRejectedNewThread(
+        previous: Map<String, ComposerDraft>, createdThreadId: String
+    ): Map<String, ComposerDraft> {
+        require(createdThreadId.isNotBlank()) { "会话编号不能为空" }
+        val rejected = previous[createdThreadId] ?: return previous
+        val concurrent = previous[NEW_THREAD]
+        val recovered = if (concurrent == null || concurrent == rejected) rejected
+            else ComposerDraft(
+                text = listOf(concurrent.text, rejected.text)
+                    .filter { it.isNotBlank() }.distinct().joinToString("\n"),
+                images = (concurrent.images + rejected.images).distinct()
+            )
+        return (previous - createdThreadId) + (NEW_THREAD to recovered)
+    }
+
     /** 首条指令创建真正 threadId 后，草稿跟随新会话迁移。 */
     fun attachNewThread(
         previous: Map<String, ComposerDraft>, createdThreadId: String
