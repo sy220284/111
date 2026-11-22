@@ -105,9 +105,10 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(if (compact) 16.dp else 22.dp),
-        border = BorderStroke(1.dp, Ink.border.copy(alpha = 0.72f)),
+        border = BorderStroke(if (softMaterial) .8.dp else 1.dp,
+            Ink.border.copy(alpha = if (softMaterial) .5f else .72f)),
         color = Ink.panel,
-        shadowElevation = if (softMaterial) 2.dp else 0.dp,
+        shadowElevation = if (softMaterial) 1.dp else 0.dp,
         tonalElevation = 0.dp
     ) {
         Column(
@@ -124,21 +125,17 @@ val LocalWorkPageTitle = compositionLocalOf { "" }
 fun SectionIntro(eyebrow: String, title: String, subtitle: String = "") {
     val showTitle = title != LocalWorkPageTitle.current
     if (showTitle || subtitle.isNotBlank()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Box(
-                Modifier.width(3.dp).height(if (showTitle) 44.dp else 32.dp)
-                    .background(Ink.copper.copy(alpha = .76f), RoundedCornerShape(3.dp))
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                if (showTitle) {
-                    Text(title, color = Ink.parchment, style = MaterialTheme.typography.headlineSmall)
-                }
-                if (subtitle.isNotBlank()) {
-                    Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                }
+            if (showTitle) {
+                Text(title, color = Ink.parchment,
+                    style = MaterialTheme.typography.titleLarge)
+            }
+            if (subtitle.isNotBlank()) {
+                Text(subtitle, color = Ink.muted,
+                    style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -179,9 +176,9 @@ fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
         onClick = onClick,
         modifier = modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = scale; scaleY = scale },
         enabled = enabled && !busy, shape = shape, interactionSource = press,
-        border = BorderStroke(1.5.dp, if (enabled && !busy) Ink.copper else Ink.border),
+        border = BorderStroke(1.3.dp, if (enabled && !busy) Ink.coral else Ink.border),
         colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Ink.canvas, contentColor = Ink.copper,
+            containerColor = Ink.canvas, contentColor = Ink.coral,
             disabledContainerColor = Ink.canvas, disabledContentColor = Ink.muted)
     ) {
         if (busy) {

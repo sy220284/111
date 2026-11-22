@@ -152,23 +152,29 @@ fun CodexEmptyState(
     actionLabel: String? = null,
     onAction: () -> Unit = {}
 ) {
-    MaterialPanel(modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            Surface(color = Ink.canvas, border = BorderStroke(1.dp, Ink.copperDim),
-                shape = RoundedCornerShape(18.dp)) {
-                Icon(icon, contentDescription = null, tint = Ink.copper,
-                    modifier = Modifier.padding(14.dp).size(28.dp))
-            }
-            Text(title, style = MaterialTheme.typography.titleMedium,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            Text(description, style = MaterialTheme.typography.bodyMedium,
-                color = Ink.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            if (actionLabel != null) {
-                Spacer(Modifier.height(2.dp))
-                CodexPrimaryButton(onClick = onAction,
-                    modifier = Modifier.heightIn(min = 48.dp)) { Text(actionLabel) }
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 27.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Surface(
+            color = Ink.border.copy(alpha = .24f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Icon(icon, null, tint = Ink.copper,
+                modifier = Modifier.padding(17.dp).size(27.dp))
+        }
+        Text(title, style = MaterialTheme.typography.titleLarge,
+            color = Ink.parchment,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(description, style = MaterialTheme.typography.bodyMedium,
+            color = Ink.muted,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        if (actionLabel != null) {
+            Spacer(Modifier.height(2.dp))
+            CodexPrimaryButton(onClick = onAction,
+                modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(actionLabel)
             }
         }
     }
