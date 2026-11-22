@@ -100,7 +100,7 @@ fun CodexShell(vm: CodexViewModel) {
         if (status == EngineStatus.Connected &&
             (selected == "chat" || drawer.currentValue == DrawerValue.Open)) {
             vm.refresh("sidebarThreads", "thread/list",
-                org.json.JSONObject().put("limit", 30))
+                org.json.JSONObject().put("limit", 100))
         }
     }
     LaunchedEffect(vm) {
@@ -205,7 +205,15 @@ fun CodexShell(vm: CodexViewModel) {
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { SnackbarHost(operationSnacks) },
                 topBar = {
-                    TopAppBar(
+                    if (selected == "chat" || selected == "home") {
+                        ChatWorkTopBar(
+                            selected = selected, wide = wide, running = running,
+                            switching = switching,
+                            onMenu = { scope.launch { drawer.open() } },
+                            onNavigate = move,
+                            onNewThread = { vm.newThread(); move("chat") }
+                        )
+                    } else TopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 AnimatedContent(
@@ -338,69 +346,98 @@ fun CodexShell(vm: CodexViewModel) {
     }
 }
 
+/** 功能常驻、会话独立滚动，保持底部新会话和账号入口固定。 */
 @Composable
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
     status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit
 ) {
+    var more by rememberSaveable { mutableStateOf(false) }
     Column(
-        modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 9.dp),
+            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.AutoAwesome, contentDescription = null,
-                tint = Ink.copper, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text("Codex", style = MaterialTheme.typography.titleLarge)
-                Text("本机工作区", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            Text("Codex", modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
+            IconButton(onClick = { onSelect("threads") },
+                modifier = Modifier.size(48.dp).testTag("sidebar-global-search")) {
+                Icon(Icons.Outlined.Search, "搜索全部会话", tint = Ink.parchment)
             }
         }
-        CodexPrimaryButton(
-            onClick = onNewThread,
-            enabled = !running,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            shape = RoundedCornerShape(15.dp)
-        ) {
-            Icon(Icons.Outlined.Add, null, modifier = Modifier.size(19.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("新建任务")
+        listOf("chat","home","files","threads","approvals").forEach { id ->
+            SidebarRoute(id, selected, approvals, onSelect)
         }
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            item { Text("工作台", modifier = Modifier.padding(start = 12.dp, top = 16.dp, bottom = 6.dp),
-                style = MaterialTheme.typography.labelMedium, color = Ink.muted) }
-            items(listOf("home", "chat", "threads")) { id ->
-                SidebarRoute(id, selected, approvals, onSelect)
-            }
-            item { SidebarSessions(vm, onOpenThread) }
-            item { Text("工作区", modifier = Modifier.padding(start = 12.dp, top = 17.dp, bottom = 6.dp),
-                style = MaterialTheme.typography.labelMedium, color = Ink.muted) }
-            items(listOf("files", "approvals")) { id ->
-                SidebarRoute(id, selected, approvals, onSelect)
-            }
-        }
-        HorizontalDivider(color = Ink.border)
-        SidebarRoute("settings", selected, approvals, onSelect)
         Row(
-            Modifier.fillMaxWidth().clickable { onSelect("status") }
-                .heightIn(min = 48.dp).padding(horizontal = 12.dp),
+            Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .clickable { more = !more }.padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.RadioButtonChecked, contentDescription = null,
+            Icon(Icons.Outlined.MoreHoriz, null, tint = Ink.parchment,
+                modifier = Modifier.size(21.dp))
+            Spacer(Modifier.width(16.dp))
+            Text(if (more) "收起工具" else "查看更多",
+                style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Icon(if (more) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                null, tint = Ink.muted, modifier = Modifier.size(20.dp))
+        }
+        if (more) {
+            listOf("terminal","diff","review","skills","plugins","mcp").forEach { id ->
+                SidebarRoute(id, selected, approvals, onSelect)
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 7.dp),
+            color = Ink.border.copy(alpha = .65f))
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            SidebarSessions(vm, onOpenThread, onViewAll = { onSelect("threads") },
+                modifier = Modifier.fillMaxSize())
+        }
+        HorizontalDivider(color = Ink.border.copy(alpha = .65f))
+        Row(
+            Modifier.fillMaxWidth().height(74.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Button(
+                onClick = onNewThread, enabled = !running,
+                shape = RoundedCornerShape(27.dp),
+                modifier = Modifier.height(51.dp).testTag("sidebar-new-chat"),
+                contentPadding = PaddingValues(horizontal = 14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Ink.coral, contentColor = Color.White,
+                    disabledContainerColor = Ink.border, disabledContentColor = Ink.muted
+                )
+            ) {
+                Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("新建聊天")
+            }
+            IconButton(onClick = { onSelect("settings") },
+                modifier = Modifier.size(48.dp).testTag("nav-settings")) {
+                Icon(Icons.Outlined.Settings, "设置", tint = Ink.parchment)
+            }
+            IconButton(onClick = { onSelect("account") },
+                modifier = Modifier.size(48.dp).testTag("nav-account")) {
+                Icon(Icons.Outlined.AccountCircle, "账号", tint = Ink.parchment)
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 36.dp)
+                .clickable { onSelect("status") }.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.RadioButtonChecked, null,
                 tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning,
-                modifier = Modifier.size(17.dp))
+                modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(10.dp))
-            Text(
-                if (status == EngineStatus.Connected) "内核已连接" else "检查运行状态",
-                style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f)
-            )
+            Text(if (status == EngineStatus.Connected) "内核已连接" else "查看连接状态",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
                 modifier = Modifier.size(18.dp))
         }
@@ -417,12 +454,12 @@ private fun SidebarRoute(
         label = {
             Text(
                 when (id) {
-                    "home" -> "首页"
-                    "chat" -> "任务对话"
+                    "home" -> "工作"
+                    "chat" -> "聊天"
                     "threads" -> "会话历史"
-                    "files" -> "工作区文件"
-                    "approvals" -> "待审批操作"
-                    else -> "设置"
+                    "files" -> "项目文件"
+                    "approvals" -> "待审批"
+                    else -> page.title
                 },
                 style = MaterialTheme.typography.bodyLarge
             )
@@ -435,15 +472,14 @@ private fun SidebarRoute(
                 StatusPill(approvals.toString(), tone = StatusTone.Danger)
         },
         modifier = Modifier.testTag("nav-$id").heightIn(min = 49.dp)
-            .then(if (active) Modifier.border(1.dp, Ink.copperDim, RoundedCornerShape(14.dp))
-                  else Modifier),
+,
         shape = RoundedCornerShape(14.dp),
         colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = Ink.canvas,
-            selectedIconColor = Ink.copper,
-            selectedTextColor = Ink.copper,
+            selectedContainerColor = Color(0xFFF2F2F2),
+            selectedIconColor = Ink.parchment,
+            selectedTextColor = Ink.parchment,
             unselectedContainerColor = Ink.canvas,
-            unselectedIconColor = Ink.muted,
+            unselectedIconColor = Ink.parchment,
             unselectedTextColor = Ink.parchment
         )
     )
