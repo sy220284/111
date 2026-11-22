@@ -102,6 +102,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
     val hasAccount = data["account"]?.optJSONObject("account") != null
+    val errors by vm.errors.collectAsState()
 
     ScreenColumn {
         Column(
@@ -116,6 +117,10 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (status == EngineStatus.Connected) {
                 StatusPill("本机引擎已连接", tone = StatusTone.Success)
             }
+        }
+        errors["protocol"]?.let { reason ->
+            CodexNotice(reason, NoticeTone.Warning,
+                actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
         if (prompts.isNotEmpty()) CodexNotice(
             "有 " + prompts.size + " 项操作等待审批", NoticeTone.Warning,
