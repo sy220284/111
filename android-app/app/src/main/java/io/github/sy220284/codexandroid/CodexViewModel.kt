@@ -67,7 +67,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value - "engine"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
-            refresh("threads", "thread/list", JSONObject().put("limit", 30))
+            syncRecentThreads()
         } catch (failure: Exception) {
             errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
         }
@@ -124,6 +124,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
+    }
+
+    /** 一次读取得到的最近会话同时更新首页和侧栏，避免同一事件触发双重网络请求。 */
+    private fun syncRecentThreads() {
+        refresh("threads", "thread/list", JSONObject().put("limit", 30)) { response ->
+            data.value = data.value + ("sidebarThreads" to response)
+        }
     }
 
     fun chooseThread(id: String) {
@@ -262,8 +269,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     id = createdId
                     activeThread.value = createdId
-                    refresh("threads", "thread/list", JSONObject().put("limit", 30))
-                    refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
+                    syncRecentThreads()
                 }
                 val params = TurnRequestContract.build(
                     threadId = id, text = prompt, modelId = chosenModel,
@@ -509,7 +515,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (method == "thread/started" || method == "thread/archived") {
-            refresh("threads", "thread/list", JSONObject().put("limit", 30))
+            syncRecentThreads()
         }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
@@ -565,7 +571,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             "turn/completed" -> {
                 running.value = false
-                refresh("threads", "thread/list", JSONObject().put("limit", 30))
+                syncRecentThreads()
                 val finishedImages = imagePathsForActiveTurn
                 imagePathsForActiveTurn = emptyList()
                 if (finishedImages.isNotEmpty()) viewModelScope.launch {
