@@ -31,7 +31,6 @@ object UiFeatureCatalog {
         UiFeature("plugins", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("apps", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("mcp", FeatureSurface.Page, FeatureOwner.System, false),
-        UiFeature("hooks", FeatureSurface.Inline, FeatureOwner.System, false),
         UiFeature("environments", FeatureSurface.Page, FeatureOwner.System, true),
         UiFeature("account", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("providers", FeatureSurface.Page, FeatureOwner.Account, false),
@@ -50,7 +49,7 @@ object UiFeatureCatalog {
     val workspaceTools = listOf("files","diff","terminal","review","goals","queue")
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models")),
-        FeatureGroup("扩展能力", listOf("skills", "plugins", "apps", "mcp", "hooks")),
+        FeatureGroup("扩展能力", listOf("skills", "plugins", "apps", "mcp")),
         FeatureGroup("主机与安全", listOf("environments", "config", "security", "diagnostics")),
         FeatureGroup("通用与外观", listOf("appearance", "about", "update"))
     )

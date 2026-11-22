@@ -20,7 +20,7 @@
 1. **finesse-ui（审美与可用性）**：所有页面/卡片/强调背景纯白 `#FFFFFF`，深灰文字 `#263139`，次要文案 `#56646D`，边框 `#D8DEE1`；暖铜 `#805A3F`、青绿 `#246F54`、红 `#AC363A` 只用于字、图标、描边和进度；重要触控盒不小于 48dp。
 2. **finesse-brief（工作情境）**：侧栏六个常用入口；设置四组；会话特定操作从会话 ··· 触发；工作区工具不混入附件选择；保持原有 28 个路由用于旧链接与能力核查。
 3. **frame-smith（动效）**：卡片按压/边框反馈 110ms，短内容展开 210ms，页面切换 240ms；`UiPreferences.reducedMotion` 让自定义位移与缩放即时结束，仍保留静态按压反馈；进度严格来自真实数据，无伪造完成动画。
-4. **finesse-term（文案）**：按钮文字写操作后果，例如“检查并下载更新”“确认调用工具”“确认删除资料”，危险确认披露范围；错误说明修复方向；JSON 字段保留在阅读器或专业模式中。
+4. **finesse-term（文案）**：按钮文字写操作后果，例如“检查并下载更新”“确认授权服务”“确认删除资料”，危险确认披露范围；错误说明修复方向；JSON 字段保留在阅读器或专业模式中。
 
 ## 三、落地组件与真实功能
 
@@ -39,8 +39,8 @@
 | `ThreadLibraryPage` | `thread/list` / `thread/search` | 同一页标题/全文搜索；分组与会话管理保留 |
 | `AccountMetricsPage` | `account/usage/read`、`account/rateLimits/read` | 用量/额度双标签和真实配额信息 |
 | `AppUpdateCard` | `AppUpdateManager` | 设置行折叠；真实检查下载、增量校验、进度、取消、系统安装 |
-| `McpToolCallSheet` | `mcpServer/tool/call` | 指定服务/工具/会话和 JSON 参数，显式确认后执行 |
-| `McpResourceSheet` + `FullTextReaderDialog` | `mcpServer/resource/read` | 短资源预览，长资源全文检索与复制 |
+| `McpServiceStatusCard` | `mcpServerStatus/list`、`mcpServer/oauth/login` | 用户只管理 MCP 服务的连接状态和授权；智能体自主调用工具 |
+| MCP 工具调用与资源读取 | `mcpServer/tool/call`、`mcpServer/resource/read` | 只保留 Android RPC 能力；智能体自动使用，无手动工具表单、资源浏览入口 |
 | `PluginDetailSheet` | `plugin/read`、`plugin/skill/read` | 插件元数据及按需技能正文 |
 | `PluginSearchContract` + `PluginsPage` | `plugin/search`（实验） | 插件发现页按关键字搜索，携来源安装与详情，真实游标分页、错误提示 |
 | `AccountSessionsSheet` | `accountSession/list`、`accountSession/switch`（实验） | 账号面板列出可切换工作区，准确会话/工作区标识确认切换，按需外部 SSO 授权 |
@@ -69,3 +69,7 @@
 - 系统大字、TalkBack、弱动效、系统安装授权和真实设备登录另外保存独立设备证据。
 
 设计规则保存在本仓内容中，交付不依赖外部设计技能网页或未归档链接。
+
+> 2026-11-22：运行钩子列表、进程传输、实时语音分片、MCP 事件流等归为智能体/内核后台调用；不在设置导航中按协议方法自动生成页面。用户需要确认的权限仍由任务审批卡承担。
+
+> 连接应用页只提供服务状态、授权和启用/停用操作，内部工具清单由智能体按需使用；不再在普通设置页面暴露 `app/read.includeTools` 的工具名称。

@@ -88,11 +88,64 @@ def verify(matrix_source: str, policy_source: str, official_source: str) -> list
     return errors
 
 
+PAGE_LINE = re.compile(r'^\s*Page\("([^"]+)"', re.MULTILINE)
+FEATURE_LINE = re.compile(r'\bUiFeature\("([^"]+)"')
+UI_CALL = re.compile(r'\bvm\.(?:rpc|refresh)\(\s*"[^"]+"\s*,\s*"([^"]+)"', re.DOTALL)
+NON_UI_EXPOSURES = {"后台内部", "平台不适用"}
+
+
+def verify_ui_entrypoints(page_source: str, feature_source: str,
+                          policy_source: str, sources: Path | None = None) -> list[str]:
+    """Fail closed when internal/Host/transport methods gain a normal UI entry.
+
+    UI entrypoints are explicitly declared. An upstream method never becomes
+    an Android navigation action merely because it exists in the protocol.
+    """
+    errors: list[str] = []
+    policy = json.loads(policy_source)["methods"]
+    pages = PAGE_LINE.findall(page_source)
+    features = FEATURE_LINE.findall(feature_source)
+    if not pages or not features:
+        return ["没有找到可校验的页面/功能目录"]
+    if len(set(pages)) != len(pages):
+        errors.append("页面目录中存在重复路由")
+    if len(set(features)) != len(features):
+        errors.append("功能目录中存在重复路由")
+    if set(pages) != set(features) - {"update"}:
+        errors.append("可导航页面与功能目录不一致：" +
+                      str(sorted(set(pages) ^ (set(features) - {"update"}))))
+    for line in page_source.splitlines():
+        if not line.strip().startswith('Page("'):
+            continue
+        quoted = re.findall(r'"([^"]+)"', line)
+        route = quoted[0]
+        for method in quoted[1:]:
+            entry = policy.get(method)
+            if entry and entry["surface"] in NON_UI_EXPOSURES:
+                errors.append(f"后台接口被放入 UI 页面：{route} -> {method}")
+    if sources is not None:
+        for path in sources.rglob("*.kt"):
+            content = path.read_text(encoding="utf-8")
+            if "@Composable" not in content:
+                continue
+            for match in UI_CALL.finditer(content):
+                method = match.group(1)
+                entry = policy.get(method)
+                if entry is None and "/" in method:
+                    errors.append(f"UI 直接调用未登记协议：{path.name} -> {method}")
+                elif entry is not None and entry["surface"] in NON_UI_EXPOSURES:
+                    errors.append(f"UI 直接发起后台协议：{path.name} -> {method}")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--matrix", type=Path, required=True)
     parser.add_argument("--policy", type=Path, required=True)
     parser.add_argument("--protocol", type=Path, required=True)
+    parser.add_argument("--pages", type=Path)
+    parser.add_argument("--features", type=Path)
+    parser.add_argument("--sources", type=Path)
     args = parser.parse_args()
     try:
         errors = verify(
@@ -100,13 +153,19 @@ def main() -> int:
             args.policy.read_text(encoding="utf-8"),
             args.protocol.read_text(encoding="utf-8"),
         )
+        if args.pages is not None and args.features is not None:
+            errors += verify_ui_entrypoints(
+                args.pages.read_text(encoding="utf-8"),
+                args.features.read_text(encoding="utf-8"),
+                args.policy.read_text(encoding="utf-8"),
+                args.sources)
     except OSError as exc:
         parser.error(str(exc))
     if errors:
         for error in errors:
             print("Android 协议目录核验失败：" + error, file=sys.stderr)
         return 1
-    print("Android 请求方向、UI 分类、归属与官方方法级实验标注核验一致")
+    print("Android 协议与 UI 入口分类核验一致；后台接口不会成为用户操作入口")
     return 0
 
 

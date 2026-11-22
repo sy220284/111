@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
@@ -83,13 +82,12 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val installed = data["appInstalled"]?.optJSONArray("apps")
     var target by remember { mutableStateOf<JSONObject?>(null) }
     var desired by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
         vm.refresh("appInstalled", "app/installed", JSONObject())
     }
     ScreenColumn {
-        SectionIntro("CONNECTORS / APPS", "已连接应用", "清楚区分发现、配置启用和当前可调用状态。")
+        SectionIntro("CONNECTORS / APPS", "已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("应用目录", style = MaterialTheme.typography.titleMedium)
             Text(if (data["apps"] != null) "已发现 ${apps.size} 个应用" else "等待同步可用应用", color = Ink.copper)
@@ -127,7 +125,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text(if (active?.optBoolean("callable") == true) "已经可以调用" else
+                        Text(if (active?.optBoolean("callable") == true) "可供智能体使用" else
                             if (active?.optBoolean("enabled") == true) "已启用，等待工具就绪" else
                             if (app.optBoolean("isAccessible")) "可访问" else "尚未授权或不可用",
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
@@ -138,18 +136,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Ink.muted)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        expanded = if (expanded == id) "" else id
-                        if (expanded == id) {
-                            vm.refresh("appDetail", "app/read",
-                                JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true))
-                        }
-                    }) { Text(if (expanded == id) "收起详情" else "查看工具与详情") }
-                    if (installUrl.startsWith("https://")) {
-                        TextButton(onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
-                        }) { Icon(Icons.Outlined.OpenInNew, null); Text("打开授权页") }
+                if (installUrl.startsWith("https://")) {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
+                    }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Icon(Icons.Outlined.OpenInNew, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("管理应用授权")
                     }
                 }
                 if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
@@ -158,30 +151,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(if (enable) "启用应用" else "停用应用")
                     }
                 }
-                CodexReveal(expanded == id) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IntegrationState(vm, "appDetail") { vm.refresh("appDetail", "app/read",
-                            JSONObject().put("appIds", JSONArray().put(id)).put("includeTools", true)) }
-                        data["appDetail"]?.let { response ->
-                            val details = records(response)
-                            val found = details.firstOrNull { it.optString("id") == id }
-                                ?: details.firstOrNull()
-                            val tools = found?.optJSONArray("tools")
-                            if (tools != null && tools.length() > 0) {
-                                Text("可调用的工具", style = MaterialTheme.typography.titleSmall)
-                                for (index in 0 until tools.length()) {
-                                    val tool = tools.optJSONObject(index) ?: continue
-                                    Text(PresentationPolicy.meaningful(tool.optString("name"))
-                                        .ifEmpty { "未命名工具" },
-                                        style = MaterialTheme.typography.bodyMedium)
-                                }
-                            } else {
-                                Text("暂未发现可直接调用的工具。",
-                                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
-                }
+
             }
         }
     }
@@ -209,15 +179,12 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+fun McpServicesPage(vm: CodexViewModel) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val servers = records(data["mcp"])
-    val login = data["mcpLogin"]?.optString("authorizationUrl") ?: ""
-    var selected by remember { mutableStateOf("") }
+    val login = data["mcpLogin"]?.optString("authorizationUrl").orEmpty()
     var confirmLogin by remember { mutableStateOf("") }
-    var resourceSelection by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
-    var toolSelection by remember { mutableStateOf<Triple<String, String, JSONObject>?>(null) }
     val currentThread by vm.activeThread.collectAsState()
     fun refreshMcpServices() {
         vm.refresh("mcp", "mcpServerStatus/list",
@@ -225,105 +192,48 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     LaunchedEffect(currentThread) { refreshMcpServices() }
     ScreenColumn {
-        SectionIntro("TOOLS / MCP", "MCP 服务", "实时查看各服务的连接状态、工具与资源。")
+        SectionIntro("EXTENSIONS / MCP", "MCP 服务",
+            "管理扩展服务的连接与授权。工具由智能体在任务中按需调用。")
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("工具服务概览", style = MaterialTheme.typography.titleMedium)
-            Text(if (data["mcp"] != null) "已发现 ${servers.size} 个服务" else "等待同步服务目录",
-                style = MaterialTheme.typography.titleLarge)
-            Text("登录只针对你明确选择的服务发起。", color = Ink.muted)
-            OutlinedButton(onClick = {
-                refreshMcpServices()
-            }) { Icon(Icons.Outlined.Refresh, null); Text("刷新服务") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("已连接的服务", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                Text(servers.count {
+                    PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
+                }.toString() + " / " + servers.size,
+                    style = MaterialTheme.typography.titleMedium)
+            }
+            Text("只有服务连接或授权需要你操作；工具运行结果可在对应任务中查看。",
+                color = Ink.muted)
+            OutlinedButton(onClick = { refreshMcpServices() },
+                modifier = Modifier.heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(8.dp))
+                Text("刷新连接状态")
+            }
         }
         IntegrationState(vm, "mcp") { refreshMcpServices() }
-        if (servers.isEmpty() && data["mcp"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("当前没有已注册的 MCP 服务", color = Ink.muted)
-            Text("可通过 Codex 配置页设置服务，或通过插件安装所需服务。", color = Ink.muted)
+        if (servers.isEmpty() && data["mcp"] != null) {
+            CodexEmptyState("尚未连接扩展服务",
+                "可以在引擎配置中添加 MCP 服务，或安装提供服务的插件。",
+                icon = Icons.Outlined.Hub)
         }
         servers.forEach { server ->
-            val name = PresentationPolicy.meaningful(server.optString("name")).ifEmpty { "未命名服务" }
-            val tools = server.optJSONObject("tools") ?: JSONObject()
-            val resources = server.optJSONArray("resources") ?: JSONArray()
-            val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
-                    Spacer(Modifier.width(10.dp))
-                    Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    val serviceState = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
-                    StatusPill(serviceState, serviceState == "已连接")
-                }
-                Text("工具 " + tools.length() + " 项 · 资源 " + resources.length() + " 项",
-                    color = Ink.muted)
-                Text("授权：" + auth, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { selected = if (selected == name) "" else name }) {
-                        Text(if (selected == name) "收起详情" else "查看工具")
-                    }
-                    TextButton(onClick = { confirmLogin = name }) { Text("授权登录") }
-                }
-                CodexReveal(selected == name) {
-                    Column {
-                        val keys = tools.keys().asSequence().toList()
-                        keys.forEach { toolName ->
-                            OutlinedButton(
-                                onClick = {
-                                    toolSelection = Triple(
-                                        name, toolName, tools.optJSONObject(toolName) ?: JSONObject()
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            ) {
-                                Icon(Icons.Outlined.Build, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(toolName, modifier = Modifier.weight(1f), maxLines = 2)
-                                Icon(Icons.Outlined.ChevronRight, null)
-                            }
-                        }
-                        if (resources.length() > 0) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("服务资源", style = MaterialTheme.typography.titleMedium)
-                            for (index in 0 until resources.length()) {
-                                val resource = resources.optJSONObject(index) ?: continue
-                                val uri = resource.optString("uri")
-                                if (uri.isBlank()) continue
-                                OutlinedButton(
-                                    onClick = { resourceSelection = name to resource },
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                                ) {
-                                    Icon(Icons.Outlined.Description, null)
-                                    Spacer(Modifier.width(9.dp))
-                                    Text(PresentationPolicy.meaningful(resource.optString("name"))
-                                        .ifEmpty { "服务资源 ${index + 1}" },
-                                        modifier = Modifier.weight(1f), maxLines = 2)
-                                    Icon(Icons.Outlined.ChevronRight, null)
-                                }
-                            }
-                        }
-                        val error = server.optString("toolsError")
-                        if (error.isNotBlank()) ErrorText(error)
-                    }
-                }
-            }
+            McpServiceStatusCard(server, onAuthorize = { confirmLogin = it })
         }
         if (login.startsWith("https://") || login.startsWith("http://127.0.0.1")) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("请在浏览器完成 MCP 授权", style = MaterialTheme.typography.titleMedium)
-                OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login))) }) {
-                    Icon(Icons.Outlined.OpenInNew, null); Text("继续授权")
+                Text("完成扩展服务授权", style = MaterialTheme.typography.titleMedium)
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login)))
+                }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("在浏览器中继续")
                 }
             }
         }
         ProtocolFeedback(vm, listOf("mcpLogin"))
-    }
-    resourceSelection?.let { (name, resource) ->
-        McpResourceSheet(serverName = name, resource = resource, vm = vm,
-            onDismiss = { resourceSelection = null })
-    }
-    toolSelection?.let { (name, toolName, metadata) ->
-        McpToolCallSheet(vm, name, toolName, metadata,
-            onDismiss = { toolSelection = null },
-            onOpenThreads = { toolSelection = null; navigate("threads") })
     }
     if (confirmLogin.isNotBlank()) CodexConfirmDialog(
         title = "授权 MCP 服务",
@@ -331,12 +241,48 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         detail = confirmLogin,
         confirmLabel = "发起授权",
         onConfirm = {
-            vm.rpc("mcpLogin", "mcpServer/oauth/login", JSONObject().put("name", confirmLogin))
+            vm.rpc("mcpLogin", "mcpServer/oauth/login",
+                JSONObject().put("name", confirmLogin))
             confirmLogin = ""
         },
         onDismiss = { confirmLogin = "" }
     )
 }
+
+/** 用户只管理服务连接及授权，工具/资源的底层调用交给任务中的智能体。 */
+@Composable
+internal fun McpServiceStatusCard(
+    server: JSONObject,
+    onAuthorize: (String) -> Unit
+) {
+    val name = PresentationPolicy.meaningful(server.optString("name"))
+        .ifEmpty { "未命名服务" }
+    val status = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
+    val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
+    MaterialPanel(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
+            Spacer(Modifier.width(10.dp))
+            Text(name, style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f), maxLines = 2)
+            StatusPill(status, status == "已连接")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("授权：" + auth, color = Ink.muted, modifier = Modifier.weight(1f))
+            if (auth != "已授权") {
+                TextButton(onClick = { onAuthorize(name) },
+                    modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("授权登录")
+                }
+            }
+        }
+        if (server.optString("toolsError").isNotBlank()) {
+            Text("部分工具暂不可用，请检查服务连接或配置。",
+                color = Ink.red, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 
 @Composable
 fun EnvironmentsPage(vm: CodexViewModel) {

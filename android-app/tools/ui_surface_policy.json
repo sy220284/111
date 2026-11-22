@@ -48,12 +48,12 @@
       "flag": "常规/内部"
     },
     "thread/sample": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
     "thread/sample/cancel": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -88,7 +88,7 @@
       "flag": "常规/内部"
     },
     "thread/prediction/request": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -138,7 +138,7 @@
       "flag": "实验"
     },
     "thread/metadata/update": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "常规/内部"
     },
@@ -303,7 +303,7 @@
       "flag": "实验"
     },
     "thread/search/stream": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -313,7 +313,7 @@
       "flag": "实验"
     },
     "thread/search/stream/cancel": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -333,7 +333,7 @@
       "flag": "常规/内部"
     },
     "thread/readState/update": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -358,7 +358,7 @@
       "flag": "实验"
     },
     "thread/guardianReview": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -378,7 +378,7 @@
       "flag": "常规/内部"
     },
     "hooks/list": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "触发钩子",
       "flag": "常规/内部"
     },
@@ -413,7 +413,7 @@
       "flag": "常规/内部"
     },
     "plugin/reconcile": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "插件",
       "flag": "常规/内部"
     },
@@ -453,7 +453,7 @@
       "flag": "常规/内部"
     },
     "app/read": {
-      "surface": "直接操作",
+      "surface": "后台内部",
       "owner": "连接应用",
       "flag": "常规/内部"
     },
@@ -553,17 +553,17 @@
       "flag": "实验"
     },
     "thread/realtime/appendAudio": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
     "thread/realtime/appendText": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
     "thread/realtime/appendSpeech": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -723,22 +723,22 @@
       "flag": "常规/内部"
     },
     "mcpServer/resource/read": {
-      "surface": "直接操作",
+      "surface": "后台内部",
       "owner": "MCP 服务/审批",
       "flag": "常规/内部"
     },
     "mcpServer/event/stream/start": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "MCP 服务/审批",
       "flag": "实验"
     },
     "mcpServer/event/stream/stop": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "MCP 服务/审批",
       "flag": "实验"
     },
     "mcpServer/tool/call": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "MCP 服务/审批",
       "flag": "常规/内部"
     },
@@ -858,22 +858,22 @@
       "flag": "常规/内部"
     },
     "process/spawn": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "终端高级",
       "flag": "实验"
     },
     "process/writeStdin": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "终端高级",
       "flag": "实验"
     },
     "process/kill": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "终端高级",
       "flag": "实验"
     },
     "process/resizePty": {
-      "surface": "高级按需",
+      "surface": "后台内部",
       "owner": "终端高级",
       "flag": "实验"
     },

@@ -47,6 +47,38 @@ class UiPopulatedSubpagesInstrumentedTest {
         captureVerifiedDisplayScreenshot(name)
     }
 
+    @Test fun mcpConnectionCardKeepsAgentToolsOffTheUserInterface() {
+        val server = JSONObject()
+            .put("name", "演示扩展服务")
+            .put("runtimeStatus", "ready")
+            .put("authStatus", "unauthorized")
+            .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
+            .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
+        var requested: String? = null
+        rule.setContent {
+            CodexTheme {
+                McpServiceStatusCard(server, onAuthorize = { requested = it })
+            }
+        }
+        rule.onNodeWithText("演示扩展服务").assertExists()
+        rule.onNodeWithText("已连接").assertExists()
+        rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
+        rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
+        rule.onNodeWithText("授权登录").performClick()
+        rule.runOnIdle { assertEquals("演示扩展服务", requested) }
+        capture("audit-mcp-service-boundary-android35.png")
+    }
+
+    @Test fun mcpAuthorizedServiceDoesNotShowRedundantLogin() {
+        val server = JSONObject().put("name", "已授权服务")
+            .put("runtimeStatus", "running").put("authStatus", "authorized")
+            .put("tools", JSONObject().put("agent_only_tool", JSONObject()))
+        rule.setContent { CodexTheme { McpServiceStatusCard(server, onAuthorize = {}) } }
+        rule.onNodeWithText("授权：已授权").assertExists()
+        rule.onNodeWithText("授权登录").assertDoesNotExist()
+        rule.onNodeWithText("agent_only_tool").assertDoesNotExist()
+    }
+
     @Test fun imageDraftSurvivesActualAndroidPreferenceRestoreAndPruning() {
         // Device-protected private storage isolates this test from active user drafts.
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -327,48 +359,6 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("git status").assertExists()
         rule.onNodeWithText("仅本次允许").assertExists()
         capture("audit-conversation-approval-android35.png")
-    }
-
-    @Test fun mcpToolInputRendersActualSchemaFields() {
-        val vm = viewModel()
-        vm.activeThread.value = "ci-fixture-session"
-        val schema = JSONObject().put("type", "object")
-            .put("required", JSONArray().put("project"))
-            .put("properties", JSONObject()
-                .put("project", JSONObject().put("type", "string")
-                    .put("title", "项目名称").put("description", "要检查的项目"))
-                .put("dryRun", JSONObject().put("type", "boolean")
-                    .put("title", "仅检查")))
-        val tool = JSONObject().put("title", "检查项目")
-            .put("description", "读取项目当前状态")
-            .put("inputSchema", schema)
-        rule.setContent {
-            CodexTheme {
-                McpToolCallSheet(vm, "CI 工具服务", "inspect", tool, {}, {})
-            }
-        }
-        rule.onNodeWithText("核对并调用工具").assertExists()
-        rule.onNodeWithText("仅检查").assertExists()
-        capture("audit-mcp-tool-form-android35.png")
-    }
-
-    @Test fun mcpResourceRendersReturnedDocumentText() {
-        val vm = viewModel()
-        val resource = JSONObject().put("name", "帮助文档")
-            .put("uri", "docs://help")
-            .put("description", "服务使用说明")
-        rule.setContent {
-            CodexTheme {
-                McpResourceSheet("CI 工具服务", resource, vm, {})
-            }
-        }
-        rule.waitForIdle()
-        vm.data.value = vm.data.value + ("mcpResource:CI 工具服务:docs://help" to
-            JSONObject().put("contents", JSONArray().put(JSONObject()
-                .put("mimeType", "text/plain")
-                .put("text", "阅读工具使用说明与权限要求。"))))
-        rule.onNodeWithText("资源片段 1").assertExists()
-        capture("audit-mcp-resource-android35.png")
     }
 
     @Test fun elicitationRendersOnlyRequiredUserForm() {
