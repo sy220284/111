@@ -14,7 +14,7 @@ REQUIRED_SCREENS = """home sidebar chat settings-hub tools-sheet attachment-shee
 OPTIONAL_SCREENS = ["audit-thread-history-transition"]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")
-SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android35\\.png$")
+SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android35\.png$")
 
 
 def parse_discovered_screens(stdout: str) -> list[str]:
