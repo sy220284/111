@@ -81,7 +81,7 @@ class TerminalTranscriptStoreTest {
     }
 
     @Test(expected = IllegalStateException::class)
-    fun historicalReadCannotCrossCommandBoundary() = runBlocking {
+    fun historicalReadCannotCrossCommandBoundary(): Unit = runBlocking {
         val dir = sandbox()
         try {
             val logs = TerminalTranscriptStore(dir)
