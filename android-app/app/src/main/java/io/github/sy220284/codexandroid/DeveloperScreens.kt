@@ -19,9 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -407,6 +409,10 @@ fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun TerminalPage(vm: CodexViewModel) {
     var command by rememberSaveable { mutableStateOf("") }
+    var recentCommands by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
+    var historyVisible by rememberSaveable { mutableStateOf(false) }
+    var expandedOutput by rememberSaveable { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
@@ -424,6 +430,36 @@ fun TerminalPage(vm: CodexViewModel) {
                 label = { Text("Shell 命令") }, placeholder = { Text("pwd && ls -la") },
                 modifier = Modifier.fillMaxWidth(), maxLines = 5,
                 enabled = !session.running)
+            if (recentCommands.isNotEmpty()) {
+                Box {
+                    TextButton(
+                        onClick = { historyVisible = true },
+                        enabled = !session.running,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Icon(Icons.Outlined.History, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text("使用历史命令")
+                    }
+                    DropdownMenu(
+                        expanded = historyVisible,
+                        onDismissRequest = { historyVisible = false }
+                    ) {
+                        recentCommands.forEach { previous ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(previous, maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis)
+                                },
+                                onClick = {
+                                    command = previous
+                                    historyVisible = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
             OutlinedButton(onClick = { confirm = true },
                 enabled = command.isNotBlank() && !session.running,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -500,10 +536,34 @@ fun TerminalPage(vm: CodexViewModel) {
                 }
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("标准输出", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("标准输出", modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium)
+                    TextButton(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(session.stdoutText))
+                            vm.actionFeedback.tryEmit(ActionFeedbackReceipt("终端输出已复制"))
+                        },
+                        enabled = session.stdoutText.isNotBlank(),
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Icon(Icons.Outlined.ContentCopy, null,
+                            modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("复制")
+                    }
+                    TextButton(
+                        onClick = { expandedOutput = !expandedOutput },
+                        enabled = session.stdoutText.length > 16_000,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) { Text(if (expandedOutput) "收起" else "展开") }
+                }
                 DividerLine()
                 SelectionContainer {
-                    Text(session.stdoutText.takeLast(16_000).ifBlank {
+                    Text(session.stdoutText.takeLast(if (expandedOutput) 128_000 else 16_000).ifBlank {
                         if (session.running) "等待命令输出…" else "(无标准输出)"
                     }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
                         style = MaterialTheme.typography.bodySmall,
@@ -528,7 +588,13 @@ fun TerminalPage(vm: CodexViewModel) {
         confirmLabel = "确认执行",
         destructive = true,
         onConfirm = {
-            vm.startTerminalCommand(command)
+            val accepted = command.trim()
+            if (accepted.isNotBlank()) {
+                recentCommands = ArrayList(
+                    (listOf(accepted) + recentCommands.filterNot { it == accepted }).take(10)
+                )
+                vm.startTerminalCommand(accepted)
+            }
             confirm = false
         },
         onDismiss = { confirm = false }
