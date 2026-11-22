@@ -202,7 +202,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading })
             LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (all.isEmpty() && rootKey !in loading) MaterialPanel(Modifier.fillMaxWidth()) {
+        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("当前队列为空", style = MaterialTheme.typography.titleMedium)
             Text("添加任务后可在此调整执行先后顺序。", color = Ink.muted)
         }

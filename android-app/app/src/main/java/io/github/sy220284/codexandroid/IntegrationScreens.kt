@@ -92,7 +92,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         SectionIntro("CONNECTORS / APPS", "已连接应用", "清楚区分发现、配置启用和当前可调用状态。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("应用目录", style = MaterialTheme.typography.titleMedium)
-            Text("当前发现 ${apps.size} 个应用", color = Ink.copper)
+            Text(if (data["apps"] != null) "已发现 ${apps.size} 个应用" else "等待同步可用应用", color = Ink.copper)
             Text("应用登录、授权与可用能力由当前连接状态决定。", color = Ink.muted)
             OutlinedButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
@@ -219,22 +219,23 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var resourceSelection by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
     var toolSelection by remember { mutableStateOf<Triple<String, String, JSONObject>?>(null) }
     val currentThread by vm.activeThread.collectAsState()
-    LaunchedEffect(Unit) {
-        val args = JSONObject().put("detail", "full")
-        if (!currentThread.isNullOrBlank()) args.put("threadId", currentThread)
-        vm.refresh("mcp", "mcpServerStatus/list", args)
+    fun refreshMcpServices() {
+        vm.refresh("mcp", "mcpServerStatus/list",
+            CatalogRequestContract.mcpStatus(currentThread))
     }
+    LaunchedEffect(currentThread) { refreshMcpServices() }
     ScreenColumn {
         SectionIntro("TOOLS / MCP", "MCP 服务", "实时查看各服务的连接状态、工具与资源。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("工具服务概览", style = MaterialTheme.typography.titleMedium)
-            Text("已发现 " + servers.size + " 个服务", style = MaterialTheme.typography.titleLarge)
+            Text(if (data["mcp"] != null) "已发现 ${servers.size} 个服务" else "等待同步服务目录",
+                style = MaterialTheme.typography.titleLarge)
             Text("登录只针对你明确选择的服务发起。", color = Ink.muted)
             OutlinedButton(onClick = {
-                vm.refresh("mcp", "mcpServerStatus/list", JSONObject().put("detail", "full"))
+                refreshMcpServices()
             }) { Icon(Icons.Outlined.Refresh, null); Text("刷新服务") }
         }
-        IntegrationState(vm, "mcp") { vm.refresh("mcp", "mcpServerStatus/list") }
+        IntegrationState(vm, "mcp") { refreshMcpServices() }
         if (servers.isEmpty() && data["mcp"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("当前没有已注册的 MCP 服务", color = Ink.muted)
             Text("可通过 Codex 配置页设置服务，或通过插件安装所需服务。", color = Ink.muted)
