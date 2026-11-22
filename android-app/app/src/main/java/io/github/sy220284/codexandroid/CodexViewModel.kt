@@ -29,10 +29,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
     val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
     private val attachmentController by lazy {
-        AttachmentImportController(
-            getApplication<Application>().applicationContext, viewModelScope,
-            composerDrafts, errors
-        )
+        AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors)
     }
     val attachmentImport get() = attachmentController.state
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
