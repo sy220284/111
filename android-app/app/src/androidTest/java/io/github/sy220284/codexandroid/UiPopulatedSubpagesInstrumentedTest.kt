@@ -183,6 +183,50 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.runOnIdle { assertEquals("检查交互链路", submitted) }
     }
 
+    @Test fun sidebarShowsOtherThreadApprovalAndQuestionWithoutChangingActiveThread() {
+        val entries = listOf(
+            JSONObject().put("id", "local").put("name", "当前会话")
+                .put("cwd", "/projects/local"),
+            JSONObject().put("id", "remote-approval").put("name", "远程审批")
+                .put("cwd", "/projects/remote"),
+            JSONObject().put("id", "remote-input").put("name", "远程问题")
+                .put("cwd", "/projects/remote")
+        )
+        rule.setContent {
+            CodexTheme {
+                Column {
+                    SidebarSessionsContent(
+                        all = entries, hasResponse = true, connected = true,
+                        loading = false, hasError = false, activeId = "local",
+                        running = false, switching = false, onRefresh = {}, onOpenThread = {},
+                        liveActivities = mapOf(
+                            "remote-approval" to ThreadActivity.WaitingApproval,
+                            "remote-input" to ThreadActivity.WaitingAnswer
+                        )
+                    )
+                }
+            }
+        }
+        rule.onNodeWithText("其他 2 条会话正在执行或等待回应").assertExists()
+        rule.onNodeWithText("等待审批").assertExists()
+        rule.onNodeWithText("等待回答").assertExists()
+        rule.onNodeWithContentDescription("当前会话").assertExists()
+        capture("audit-sidebar-background-status-android35.png")
+    }
+
+    @Test fun questionApprovalRequiresAnswersAndHasNoInvalidDeclineButton() {
+        val vm = viewModel()
+        val request = ServerPrompt("ci-user-input", "item/tool/requestUserInput",
+            JSONObject().put("questions", JSONArray()
+                .put(JSONObject().put("id", "scope").put("header", "执行范围")
+                    .put("question", "请确定要操作的工作区"))))
+        rule.setContent { CodexTheme { ApprovalRequestCard(vm, request) } }
+        rule.onNodeWithText("拒绝").assertDoesNotExist()
+        rule.onNodeWithText("提交全部回答").assertIsNotEnabled()
+        rule.onNodeWithText("等待回答时可返回对话查看任务；停止任务可取消本次提问。")
+            .assertExists()
+    }
+
     @Test fun sidebarSessionRendersRealThreadAndOpensSelectedId() {
         val item = JSONObject().put("id", "ci-thread-001")
             .put("name", "检查工作区代码")

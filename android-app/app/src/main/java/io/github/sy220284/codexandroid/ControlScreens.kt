@@ -229,10 +229,12 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") },
-                modifier = Modifier.heightIn(min = 48.dp)) { Text("拒绝") }
+            if (!question) OutlinedButton(
+                onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) },
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) { Text("拒绝") }
             if (normal) {
-                OutlinedButton(onClick = { vm.answerApproval(prompt, "accept") },
+                OutlinedButton(onClick = { vm.answerApproval(prompt, ApprovalAction.AllowOnce) },
                     modifier = Modifier.heightIn(min = 48.dp)) { Text("仅本次允许") }
             } else if (permission) {
                 OutlinedButton(onClick = { grantPermissions = true },
@@ -243,11 +245,16 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     val id = questions.optJSONObject(it)?.optString("id") ?: ""
                     answers[id]?.isNotBlank() == true
                 }
+                val canSubmit = allAnswered && questions.length() > 0
                 OutlinedButton(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
-                    enabled = allAnswered && questions.length() > 0,
-                    modifier = Modifier.heightIn(min = 48.dp)) { Text("提交全部回答") }
+                    enabled = canSubmit,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                        .explainDisabled(!canSubmit, "需要先回答全部问题才能提交")
+                ) { Text("提交全部回答") }
             }
         }
+        if (question) Text("等待回答时可返回对话查看任务；停止任务可取消本次提问。",
+            color = Ink.muted, style = MaterialTheme.typography.labelSmall)
         if (normal && kind != "humanCommand") {
             TextButton(onClick = { grantSession = true }, modifier = Modifier.fillMaxWidth()) {
                 Text("在当前会话内持续允许此类操作")
@@ -267,7 +274,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         ).joinToString("\n"),
         confirmLabel = "本会话允许",
         destructive = true,
-        onConfirm = { grantSession = false; vm.answerApproval(prompt, "acceptForSession") },
+        onConfirm = { grantSession = false; vm.answerApproval(prompt, ApprovalAction.AllowSession) },
         onDismiss = { grantSession = false }
     )
     if (grantPermissions) CodexConfirmDialog(
@@ -276,7 +283,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         detail = permissionScope.joinToString("\n"),
         confirmLabel = "授权本轮",
         destructive = true,
-        onConfirm = { grantPermissions = false; vm.answerApproval(prompt, "accept") },
+        onConfirm = { grantPermissions = false; vm.answerApproval(prompt, ApprovalAction.GrantTurn) },
         onDismiss = { grantPermissions = false }
     )
 }

@@ -32,6 +32,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val projectCatalogRevision = MutableStateFlow(0)
     val planApprovalBusy = MutableStateFlow(false)
     val activeThread = MutableStateFlow<String?>(null)
+    internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
@@ -129,6 +130,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val previousThread = activeThread.value
             bridge.connect()
+            // A new native process invalidates ephemeral status from the old session.
+            threadActivities.value = emptyMap()
             errors.value = errors.value - "engine"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
@@ -539,14 +542,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         rpc("interrupt", "turn/interrupt", JSONObject().put("threadId", tid).put("turnId", turn))
     }
 
-    fun answerApproval(prompt: ServerPrompt, decision: String, customAnswer: String = "") {
+    fun answerApproval(prompt: ServerPrompt, action: ApprovalAction) {
         viewModelScope.launch {
             try {
-                val result = ApprovalProtocol.result(prompt, decision,
-                    if (customAnswer.isBlank()) emptyMap() else {
-                        val key = prompt.params.optJSONArray("questions")?.optJSONObject(0)?.optString("id") ?: ""
-                        mapOf(key to customAnswer)
-                    })
+                val decision = ApprovalDecisionPolicy.resolve(prompt, action)
+                val result = ApprovalProtocol.result(prompt, decision)
                 bridge.answer(prompt, result)
                 approvalAudit.record(prompt, decision)
                 errors.value = errors.value - "approvals"
@@ -668,6 +668,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             if (params.optString("changeType") == "deleted" &&
                 changedId == activeProjectId.value) activeProjectId.value = null
             projectCatalogRevision.value += 1
+            return
+        }
+        if (method == "thread/status/changed" && threadId.isNotBlank()) {
+            threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
+                threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
             return
         }
         if (method == "thread/project/updated") {

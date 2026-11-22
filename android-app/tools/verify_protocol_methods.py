@@ -10,17 +10,8 @@ from pathlib import Path
 import re
 import sys
 
-# These are server notifications handled by UI state, plus one app-internal event.
-# All other path-like literals in the Android transport and UI must exist in
-# Codex's generated request protocol, so an upstream rename fails CI.
-SERVER_NOTIFICATIONS = {
-    "account/login/completed", "account/updated", "command/exec/outputDelta",
-    "project/changed", "thread/project/updated",
-    "item/agentMessage/delta", "item/completed", "item/plan/delta",
-    "item/reasoning/summaryTextDelta", "item/started",
-    "serverRequest/resolved", "thread/archived", "thread/started",
-    "turn/completed", "turn/diff/updated", "turn/started",
-}
+# Both client requests and server notifications come from the pinned upstream
+# protocol. This avoids rejecting a real notification when new UI events are wired.
 INTERNAL_EVENTS = {"local/unsupportedServerRequest"}
 # Method-shaped enum variants from official v2/mcp.rs; these are payload
 # discriminators, not request methods.
@@ -32,6 +23,18 @@ def is_standard_mime(value: str) -> bool:
     return mimetypes.guess_extension(value, strict=False) is not None
 METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9_]+(?:/[a-zA-Z0-9_]+)+\b')
 EXPLICIT_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\{')
+NOTIFICATION_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\(')
+# A few official notifications use explicit serde attributes rather than the
+# normal macro wire-name arrow (for example account/login/completed).
+SERDE_NOTIFICATION = re.compile(r'(?m)^\s*#\[serde\(rename\s*=\s*"([^"]+/[^"]+)"\)\]')
+
+
+def protocol_methods(source: str) -> tuple[set[str], set[str]]:
+    """Parse two distinct official protocol macro shapes."""
+    return set(EXPLICIT_METHOD.findall(source)), (
+        set(NOTIFICATION_METHOD.findall(source)) |
+        set(SERDE_NOTIFICATION.findall(source))
+    )
 
 
 def main() -> int:
@@ -41,9 +44,9 @@ def main() -> int:
     args = parser.parse_args()
     if not args.protocol.is_file():
         parser.error(f"官方协议文件不存在：{args.protocol}")
-    known = set(EXPLICIT_METHOD.findall(args.protocol.read_text(encoding="utf-8")))
-    if len(known) < 100:
-        parser.error(f"官方协议解析结果异常：只有 {len(known)} 个方法")
+    known, notifications = protocol_methods(args.protocol.read_text(encoding="utf-8"))
+    if len(known) < 100 or len(notifications) < 40:
+        parser.error(f"官方协议解析结果异常：请求 {len(known)} 项，通知 {len(notifications)} 项")
     source_files = sorted(args.sources.rglob("*.kt"))
     if not source_files:
         parser.error("未找到 Kotlin 源文件")
@@ -58,11 +61,11 @@ def main() -> int:
                 method = m.group(1)
                 if method in known:
                     used.add(method)
-                elif (method not in SERVER_NOTIFICATIONS and method not in INTERNAL_EVENTS
+                elif (method not in notifications and method not in INTERNAL_EVENTS
                       and method not in PROTOCOL_VARIANTS
                       and not is_standard_mime(method)):
                     unknown.append((file, number, method))
-    print(f"已读取官方请求方法 {len(known)} 项；核查 Kotlin 文件 {len(source_files)} 个；使用到的有效请求 {len(used)} 项。")
+    print(f"已读取官方请求 {len(known)} 项、通知 {len(notifications)} 项；核查 Kotlin 文件 {len(source_files)} 个；使用到的有效请求 {len(used)} 项。")
     for file, number, method in unknown:
         print(f"协议未定义：{file}:{number}: {method}", file=sys.stderr)
     return 1 if unknown else 0

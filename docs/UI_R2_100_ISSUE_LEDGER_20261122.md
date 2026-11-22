@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 4 项；有对应实现待专项验收 58 项；部分处理 25 项；待完整实施 11 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 6 项；有对应实现待专项验收 58 项；部分处理 23 项；待完整实施 11 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -20,7 +20,7 @@
 | 8 | A | 通知状态脱节：Service 不订阅 EngineStatus，内核崩溃后通知仍显示"正在执行任务" | 已提交待专项验收 | CodexForegroundService.kt |
 | 9 | A | 内核子进程无优雅关闭：进程被杀时无 shutdownHook/close 路径，codex 内核可能残留孤儿进程 | 已提交待专项验收 | CodexConnection.kt |
 | 10 | A | onCleared→bridge.close() 是死代码：Application 级 session 永不 onCleared | 已提交待专项验收 | CodexApplication.kt |
-| 11 | A | 非活跃会话无执行/审批标识：侧栏 running=running&&activeId==id，其他会话后台跑任务看不见 | 已有部分改动 | SidebarSessions.kt |
+| 11 | A | 非活跃会话无执行/审批标识：侧栏 running=running&&activeId==id，其他会话后台跑任务看不见 | 专项验收通过 | ThreadActivityPolicyTest.kt、UiPopulatedSubpagesInstrumentedTest.kt；状态通知与非当前会话审批/等待回答的 360/393/411dp 测试通过，CI #45015762628 |
 | 12 | A | MainActivity.onResume 里 resumeInstall 主线程做安装恢复 IO，轻重未验 | 已提交待专项验收 | AppUpdateManager.kt · CodexApplication.kt |
 | 13 | A | stopRequested 以 remember(activeTurn) 键控——点停止瞬间恰逢 turn 换代则 stopping 态闪烁误判 | 已提交待专项验收 | ConversationScreen.kt |
 | 14 | A | 批量操作失败时已完成数与保留选择可能不同步（bulkCompleted 清理只含成功项，UI 无二次确认展示） | 已提交待专项验收 | ThreadLibraryPage.kt · CodexViewModel.kt |
@@ -32,7 +32,7 @@
 | 20 | B | attachmentBusy/attachmentError 是页面本地态——VM 级状态放 UI 层，页面销毁即丢 | 已提交待专项验收 | AttachmentImportController.kt |
 | 21 | B | 会话库 refresh key 动态拼接（archived:searchTerm:section:cursor）在 UI 层——契约应入 VM/contract 层 | 已提交待专项验收 | ThreadLibraryQuery.kt |
 | 22 | B | resumeInstall 由 Activity onResume 驱动——安装恢复职责应归 Service/WorkManager | 已提交待专项验收 | CodexApplication.kt |
-| 23 | B | 审批 decision 字符串由 UI 直接拼——决策策略层漏到 UI | 已有部分改动 | ControlScreens.kt |
+| 23 | B | 审批 decision 字符串由 UI 直接拼——决策策略层漏到 UI | 专项验收通过 | ApprovalDecisionPolicyTest.kt、ApprovalProtocolTest.kt、UiPopulatedSubpagesInstrumentedTest.kt；单次/整会话/权限范围隔离与无效拒绝按钮验收通过，CI #45015762628 |
 | 24 | B | 终端 stdin 行缓冲与 afterSent 编排留在 UI 层 | 已有部分改动 | DeveloperScreens.kt |
 | 25 | B | 重连策略只挂 Activity ON_RESUME——Service/WorkManager 级自动重连缺失，后台断线无人管 | 已提交待专项验收 | CodexForegroundService.kt |
 | 26 | B | 侧栏数据靠"打开抽屉"触发 thread/list——无 WorkManager 周期同步，后台数据永远滞后 | 已提交待专项验收 | SessionRefreshPolicy.kt · AppNavigation.kt |
@@ -112,6 +112,10 @@
 | 100 | D | 深链 codex://thread/xxx 外部直达会话 | 已提交待专项验收 | CodexDeepLink.kt |
 
 ## 本次专项验收证据
+
+- **#11**：官方 `thread/status/changed` 和 `ThreadStatus` 契约已核实；`ThreadActivityPolicyTest` 验证五种可见状态与过期列表覆盖；新增 `audit-sidebar-background-status-android35.png` 截图在 360dp、393dp、411dp 各自的仪器测试中采集，三档验收均通过。[CI 证据](https://github.com/sy220284/111/actions/runs/45015762628)。
+- **#23**：`ApprovalDecisionPolicyTest` 验证单次授权、会话授权、人类命令逐次授权、额外权限仅本轮、MCP 类型限制；新增输入问题只允许完整回答的设备测试；三档安卓设备与 Kotlin/Lint 均通过。[CI 证据](https://github.com/sy220284/111/actions/runs/45015762628)。
+- **交付门禁**：主分支此前构建已通过但独立 `verify-apk` 作业遗漏检出 `audit_apk_contents.py`，PR #35 加入显式检出；以合并后 main 的 ARM64 完整构建和二次校验结果为闭环依据。
 
 - **[UI 完整验收 #45008981995](https://github.com/sy220284/111/actions/runs/45008981995)**：Kotlin 编译、协议检查、单测、Lint 均通过；Android 35 的 360/393/411dp 设备测试各 41/41 项通过。
 - **#35**：`FirstTurnRecoveryControllerTest` 3 项全通过，分别覆盖已拒绝空会话安全清理、非空或已切换会话保护、已启动回合禁止误删。
