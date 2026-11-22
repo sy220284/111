@@ -206,6 +206,7 @@ class CodexConnection(private val appContext: Context) {
             else -> 45_000L
         }
     ): JSONObject {
+        ProtocolDirectionPolicy.requireClientSend(method)
         val id = sequence.getAndIncrement()
         val deferred = CompletableDeferred<JSONObject>()
         waiting[id] = deferred
@@ -226,6 +227,7 @@ class CodexConnection(private val appContext: Context) {
     }
 
     suspend fun notify(method: String, params: JSONObject = JSONObject()) {
+        ProtocolDirectionPolicy.requireClientSend(method)
         write(JSONObject().put("method", method).put("params", params))
     }
 

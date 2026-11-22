@@ -37,6 +37,32 @@ def protocol_methods(source: str) -> tuple[set[str], set[str]]:
     )
 
 
+CLIENT_DEFINITIONS = "client_request_definitions! {"
+HOST_DEFINITIONS = "server_request_definitions! {"
+NOTIFICATION_DEFINITIONS = "server_notification_definitions! {"
+HOST_POLICY = re.compile(r'HOST_ONLY\s*=\s*setOf\((.*?)\)', re.DOTALL)
+
+
+def protocol_directions(source: str) -> tuple[set[str], set[str]]:
+    """Read client and Host methods from different official Rust macros."""
+    client = source.find(CLIENT_DEFINITIONS)
+    host = source.find(HOST_DEFINITIONS)
+    notifications = source.find(NOTIFICATION_DEFINITIONS)
+    if not (0 <= client < host < notifications):
+        raise ValueError("官方协议请求方向宏结构不完整")
+    return (
+        set(EXPLICIT_METHOD.findall(source[client:host])),
+        set(EXPLICIT_METHOD.findall(source[host:notifications]))
+    )
+
+
+def host_policy_methods(kotlin: str) -> set[str]:
+    match = HOST_POLICY.search(kotlin)
+    if match is None:
+        raise ValueError("Android 缺少服务端主动请求列表")
+    return set(re.findall(r'"([^"]+/[^"]+)"', match.group(1)))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--protocol", type=Path, required=True)
@@ -44,12 +70,43 @@ def main() -> int:
     args = parser.parse_args()
     if not args.protocol.is_file():
         parser.error(f"官方协议文件不存在：{args.protocol}")
-    known, notifications = protocol_methods(args.protocol.read_text(encoding="utf-8"))
-    if len(known) < 100 or len(notifications) < 40:
-        parser.error(f"官方协议解析结果异常：请求 {len(known)} 项，通知 {len(notifications)} 项")
+    original = args.protocol.read_text(encoding="utf-8")
+    known, notifications = protocol_methods(original)
+    try:
+        client_methods, host_methods = protocol_directions(original)
+    except ValueError as failure:
+        parser.error(str(failure))
+    if (len(client_methods) < 150 or len(host_methods) < 5
+            or len(notifications) < 40 or client_methods | host_methods != known
+            or client_methods & host_methods):
+        parser.error("官方协议请求方向或通知解析异常，请核对上游结构")
     source_files = sorted(args.sources.rglob("*.kt"))
     if not source_files:
         parser.error("未找到 Kotlin 源文件")
+
+    application = args.sources / "io/github/sy220284/codexandroid"
+    policy_file = application / "ProtocolDirectionPolicy.kt"
+    connection_file = application / "CodexConnection.kt"
+    if not policy_file.is_file() or not connection_file.is_file():
+        parser.error("缺少客户端请求方向或连接层代码")
+    try:
+        guarded = host_policy_methods(policy_file.read_text(encoding="utf-8"))
+    except ValueError as failure:
+        parser.error(str(failure))
+    if guarded != host_methods:
+        print("Android Host-only 方法表与官方协议不一致：" +
+              f"缺失 {sorted(host_methods - guarded)}，多出 {sorted(guarded - host_methods)}",
+              file=sys.stderr)
+        return 1
+    connection = connection_file.read_text(encoding="utf-8")
+    request_body = connection.split("suspend fun request(", 1)[-1].split(
+        "suspend fun notify(", 1)[0]
+    notify_body = connection.split("suspend fun notify(", 1)[-1].split(
+        "suspend fun answer(", 1)[0]
+    guard_call = "ProtocolDirectionPolicy.requireClientSend(method)"
+    if (guard_call not in request_body or guard_call not in notify_body):
+        print("客户端请求或通知的实际发送链路缺少 Host-only 方向拦截", file=sys.stderr)
+        return 1
     unknown = []
     used = set()
     for file in source_files:
@@ -65,7 +122,9 @@ def main() -> int:
                       and method not in PROTOCOL_VARIANTS
                       and not is_standard_mime(method)):
                     unknown.append((file, number, method))
-    print(f"已读取官方请求 {len(known)} 项、通知 {len(notifications)} 项；核查 Kotlin 文件 {len(source_files)} 个；使用到的有效请求 {len(used)} 项。")
+    print(f"已核对官方客户端请求 {len(client_methods)} 项、Host 主动请求 {len(host_methods)} 项、" +
+          f"通知 {len(notifications)} 项；核查 Kotlin 文件 {len(source_files)} 个；" +
+          f"源码引用的有效请求 {len(used)} 项，Host-only 方向拦截已接入发送链路。")
     for file, number, method in unknown:
         print(f"协议未定义：{file}:{number}: {method}", file=sys.stderr)
     return 1 if unknown else 0
