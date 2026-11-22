@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -27,6 +28,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
+    val composerDrafts = MutableStateFlow<Map<String, ComposerDraft>>(emptyMap())
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -190,11 +192,27 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "请先中断或完成当前任务，再新建会话")
             return
         }
+        // 新建任务清空新会话草稿；已存在会话的未发送输入继续保留。
+        composerDrafts.update { it - ThreadComposerDrafts.NEW_THREAD }
         activeThread.value = null
         activeTurn.value = null
         timeline.value = emptyList()
         latestDiff.value = ""
         running.value = false
+    }
+
+    fun editComposerText(threadId: String?, text: String) {
+        composerDrafts.update { ThreadComposerDrafts.text(it, threadId, text) }
+    }
+
+    fun editComposerImages(threadId: String?, paths: List<String>) {
+        composerDrafts.update { ThreadComposerDrafts.images(it, threadId, paths) }
+    }
+
+    fun clearComposerAfterAccepted(
+        threadId: String?, text: String, images: List<String>
+    ) {
+        composerDrafts.update { ThreadComposerDrafts.accepted(it, threadId, text, images) }
     }
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
@@ -237,9 +255,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (id == null) {
                     val args = JSONObject().put("cwd", workingDirectory)
                     if (chosenModel.isNotBlank()) args.put("model", chosenModel)
-                    id = bridge.request("thread/start", args).getJSONObject("thread").getString("id")
-                    activeThread.value = id
+                    val createdId = bridge.request("thread/start", args)
+                        .getJSONObject("thread").getString("id")
+                    composerDrafts.update {
+                        ThreadComposerDrafts.attachNewThread(it, createdId)
+                    }
+                    id = createdId
+                    activeThread.value = createdId
                     refresh("threads", "thread/list", JSONObject().put("limit", 30))
+                    refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
                 }
                 val params = TurnRequestContract.build(
                     threadId = id, text = prompt, modelId = chosenModel,
