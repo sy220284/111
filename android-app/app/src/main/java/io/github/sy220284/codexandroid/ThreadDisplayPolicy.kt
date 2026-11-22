@@ -49,8 +49,8 @@ object ThreadDisplayPolicy {
     }
 
     /** Browsing another thread is independent of ongoing turns in other threads. */
-    fun canOpenThread(currentId: String?, targetId: String): Boolean =
-        targetId.isNotBlank() && currentId != targetId
+    fun canOpenThread(currentId: String?, targetId: String, currentRunning: Boolean): Boolean =
+        targetId.isNotBlank() && (currentId != targetId || !currentRunning)
 
     /** Keep any newly edited text; clear only the draft the server accepted. */
     fun afterAcceptedDraft(current: String, submitted: String): String =
