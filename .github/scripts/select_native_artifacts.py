@@ -101,7 +101,13 @@ class ArtifactSelector:
             old = item.get("headSha")
             if not old or not self.is_ancestor(old, target):
                 continue
-            if any(self.signature(old, abi) != current_signatures[abi] for abi in abis):
+            try:
+                if any(self.signature(old, abi) != current_signatures[abi] for abi in abis):
+                    continue
+            except SelectionError as error:
+                # A historical workflow can predate the native build inputs.
+                # It is ineligible for reuse, but must not block later runs.
+                print(f"跳过缺少完整原生编译输入的历史构建 {old}: {error}", file=sys.stderr)
                 continue
             run_id = item["databaseId"]
             response = json.loads(self.run([
