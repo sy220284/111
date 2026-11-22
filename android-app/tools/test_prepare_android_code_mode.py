@@ -30,6 +30,8 @@ class AndroidCodeModeAdaptationTests(unittest.TestCase):
         self.assertIn(HOST_CLI_ADDITION, adapted)
         self.assertIn(HOST_MAIN_ADDITION, adapted)
         self.assertIn("initialize_v8", adapted)
+        self.assertIn("v8__V8__IsSandboxEnabled", adapted)
+        self.assertIn("codex-android-v8-sandbox-enabled", adapted)
         self.assertEqual(adapt_host(adapted), adapted)
 
     def test_outdated_upstream_causes_explicit_failure(self):

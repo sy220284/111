@@ -30,7 +30,16 @@ HOST_MAIN_ADDITION = """    let cli = Cli::parse();
     if cli.android_v8_self_test {
         codex_code_mode_runtime::initialize_v8(codex_code_mode_runtime::V8JitMode::Enabled)
             .map_err(anyhow::Error::msg)?;
+        // A V8 library can initialize and still lack pointer-cage sandboxing.
+        // Prove that this Android binary was linked against the required variant.
+        unsafe extern "C" {
+            fn v8__V8__IsSandboxEnabled() -> bool;
+        }
+        if !unsafe { v8__V8__IsSandboxEnabled() } {
+            anyhow::bail!("Android Code Mode Host requires sandbox-enabled V8");
+        }
         println!("codex-android-v8-initialized");
+        println!("codex-android-v8-sandbox-enabled");
         return Ok(());
     }
     if cli.codex_ui_plugin_process {"""
