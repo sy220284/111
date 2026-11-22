@@ -239,16 +239,16 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
     }
 
-    @Test fun featureCatalogRetainsAllTwentyEightLegacyRoutes() {
+    @Test fun featureCatalogKeepsUserFacingRoutesOnly() {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
         assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(29, pages.size)
-        assertEquals(28, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(28, pages.size)
+        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(15, NavigationPolicy.settingsRoutes.size)
+        assertEquals(14, NavigationPolicy.settingsRoutes.size)
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
         openSettingRoute("config")
@@ -366,7 +366,7 @@ class UiNavigationInstrumentedTest {
     @Test fun secondarySettingsPagesHaveActualDeviceScreenshots() {
         // Every captured screen comes from the current Android Activity and real navigation.
         val routeScreens = listOf(
-            "providers", "skills", "apps", "mcp", "hooks",
+            "providers", "skills", "apps", "mcp",
             "environments", "security", "config", "diagnostics", "queue"
         )
         routeScreens.forEach { route ->
