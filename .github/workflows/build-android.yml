@@ -152,6 +152,7 @@ jobs:
               echo "$ABI APK 包含了另一架构的核心，拆包失败" >&2
               exit 1
             fi
+            python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi "$ABI" --mode full
             ls -lh "$APK"
             sha256sum "$APK"
           done

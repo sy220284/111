@@ -92,6 +92,7 @@ jobs:
             -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
           test -s "$APK"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
           test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
@@ -368,6 +369,8 @@ jobs:
           test -s "$APK"
           test ! -e "$DIR/app-x86_64-release.apk"
           unzip -tqq "$APK"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full \
+            --report "$RUNNER_TEMP/apk-size-audit.json"
           BADGE="$("$AAPT" dump badging "$APK" | sed -n '1p')"
           [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
           [[ "$BADGE" == *"versionCode='$CODE'"* ]]
