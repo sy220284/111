@@ -34,7 +34,8 @@ internal fun SidebarSessions(
     val activeId by vm.activeThread.collectAsState()
     var searching by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
-    val all = records(data["threads"]).filter { it.optString("id").isNotBlank() }
+    val sidebarResponse = data["sidebarThreads"] ?: data["threads"]
+    val all = records(sidebarResponse).filter { it.optString("id").isNotBlank() }
         .distinctBy { it.optString("id") }
     val matches = all.filter { item ->
         search.isBlank() || listOf(
@@ -66,9 +67,9 @@ internal fun SidebarSessions(
             }
             IconButton(
                 onClick = {
-                    vm.refresh("threads", "thread/list", JSONObject().put("limit", 30))
+                    vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
                 },
-                enabled = connected && "threads" !in loading,
+                enabled = connected && "sidebarThreads" !in loading,
                 modifier = Modifier.size(42.dp).testTag("sidebar-refresh")
             ) {
                 Icon(Icons.Outlined.Refresh, contentDescription = "刷新侧栏会话",
@@ -92,17 +93,17 @@ internal fun SidebarSessions(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
             }
-            "threads" in loading && all.isEmpty() -> {
+            "sidebarThreads" in loading && all.isEmpty() -> {
                 LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 12.dp))
                 Text("正在同步会话…", modifier = Modifier.padding(horizontal = 12.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
             }
-            errors["threads"] != null -> {
+            errors["sidebarThreads"] != null -> {
                 Text("会话同步失败，可点击刷新重试",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.red)
             }
-            all.isEmpty() && data["threads"] != null -> {
+            all.isEmpty() && sidebarResponse != null -> {
                 Text("暂无会话，开始首个任务后会显示在这里",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
