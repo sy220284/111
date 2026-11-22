@@ -11,11 +11,13 @@ on:
       - "android-app/tools/prepare_android_mxc.py"
       - "android-app/tools/prepare_android_code_mode.py"
       - "android-app/tools/prepare_android_v8.sh"
+      - "android-app/tools/adapt_android_v8_build.py"
   pull_request:
     paths:
       - ".github/workflows/build-native-codex.yml"
       - "android-app/tools/prepare_android_code_mode.py"
       - "android-app/tools/prepare_android_v8.sh"
+      - "android-app/tools/adapt_android_v8_build.py"
       - "android-app/tools/package_native_runtime.sh"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
@@ -100,6 +102,7 @@ jobs:
             android-app/tools/prepare_android_mxc.py
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
+            android-app/tools/adapt_android_v8_build.py
       - name: 检查源码快照版本
         run: |
           set -euo pipefail
@@ -140,7 +143,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .android-v8-cache/${{ matrix.rust_target }}
-          key: android-v8-${{ matrix.rust_target }}-152.2.0-sandbox-${{ hashFiles('android-app/tools/prepare_android_v8.sh') }}
+          key: android-v8-${{ matrix.rust_target }}-152.2.0-sandbox-${{ hashFiles('android-app/tools/prepare_android_v8.sh', 'android-app/tools/adapt_android_v8_build.py') }}
       - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
         shell: bash
         run: |
