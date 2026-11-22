@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已提交/已有对应实现 60 项；部分 27 项；待实施 13 项；合计 100。**
+**本次统计：已专项验收 4 项；有对应实现待专项验收 57 项；部分处理 26 项；待完整实施 13 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -44,7 +44,7 @@
 | 32 | B | 连接策略多点暴露：诊断页/设置页各有手动连接入口——自动重连为主+手动兜底应单点化 | 已提交待专项验收 | ConnectionRestartController.kt |
 | 33 | B | 任务完成后的图片清理在 VM receive 协程，但 UI attachmentError 不感知清理结果——状态两处管 | 已提交待专项验收 | CodexViewModel.kt |
 | 34 | B | 草稿持久化时机由 UI 输入事件驱动写盘——防抖/合并策略应在持久层 | 已有部分改动 | DraftPersistence.kt |
-| 35 | B | 首回合拒绝后的空会话清理逻辑（thread/read 确认）埋在 VM 发送链——应独立恢复策略对象并测 | 已提交待专项验收 | FirstTurnRecoveryController.kt |
+| 35 | B | 首回合拒绝后的空会话清理逻辑（thread/read 确认）埋在 VM 发送链——应独立恢复策略对象并测 | 专项验收通过 | FirstTurnRecoveryController.kt；3/3 单元测试通过 |
 | 36 | C | 通知图标用 android.R.drawable.ic_media_play（系统播放三角）——占位符级，语义错位 | 已提交待专项验收 | ic_codex_status.xml |
 | 37 | C | 通知无"停止任务"操作按钮——Android 媒体/下载类通知惯例带 action | 已提交待专项验收 | CodexForegroundService.kt |
 | 38 | C | 通知无进度信息（当前步骤/步数）——静态"正在执行任务" | 已提交待专项验收 | CodexForegroundService.kt |
@@ -72,13 +72,13 @@
 | 60 | C | 无字体大小偏好设置——系统字体缩放是唯一途径 | 已提交待专项验收 | SettingsHub.kt |
 | 61 | D | R8 混淆+资源压缩未开（isMinifyEnabled=false）——143MB APK 瘦身第一刀 | 已提交待专项验收 | app/build.gradle.kts |
 | 62 | D | APK 继续瘦身：上游静态资源剔除、per-language split 评估 | 已有部分改动 | app/build.gradle.kts |
-| 63 | D | timeline 进程级无界增长（session 长驻后加剧）——分页/窗口化裁剪 | 已提交待专项验收 | TimelineWindowStore.kt |
+| 63 | D | timeline 进程级无界增长（session 长驻后加剧）——分页/窗口化裁剪 | 专项验收通过 | TimelineWindowStore.kt；2/2 长历史与分页单元测试通过 |
 | 64 | D | composerDrafts 无上限累积——LRU/超期清理 | 已提交待专项验收 | ThreadComposerDrafts.kt |
 | 65 | D | errors map 无界（动态 key 残留）——TTL/上限 | 已有部分改动 | CodexViewModel.kt |
 | 66 | D | LazyColumn key 稳定性审计（id 稳定防全列表重组） | 已有部分改动 | ThreadLibraryPage.kt |
 | 67 | D | 图片导入串行 forEach——并行化+进度 | 已提交待专项验收 | AttachmentImportController.kt |
 | 68 | D | 图片导入迁 WorkManager——脱离页面生命周期（配合 A5） | 已有部分改动 | AttachmentImportController.kt |
-| 69 | D | 终端 stdout 16K 截断改环形缓冲+按需落盘加载 | 已提交待专项验收 | TerminalTranscriptStore.kt |
+| 69 | D | 终端 stdout 16K 截断改环形缓冲+按需落盘加载 | 专项验收通过 | TerminalTranscriptStore.kt；5/5 流式存储、导出与 UTF-8 分页单元测试通过 |
 | 70 | D | 事件流 backpressure 压测（512 buffer 满载行为） | 尚待实施 | 待定位 |
 | 71 | D | 对话页 15 个 collectAsState 订阅重组剖析（derivedStateOf 合并机会） | 尚待实施 | 待定位 |
 | 72 | D | 冷启动 Macrobenchmark 基线 | 尚待实施 | 待定位 |
@@ -90,7 +90,7 @@
 | 78 | D | Roborazzi/Paparazzi 截图 diff 基线 | 已有部分改动 | .github/workflows/check-android-ui.yml |
 | 79 | D | TalkBack 全 29 页走查 | 已有部分改动 | UiPopulatedSubpagesInstrumentedTest.kt |
 | 80 | D | strings.xml 抽取（英文骨架+避免 Compose 内联中文） | 尚待实施 | 待定位 |
-| 81 | D | RTL 布局声明与截图 | 已有部分改动 | ThreadBulkToolbar.kt |
+| 81 | D | RTL 布局声明与截图 | 专项验收通过 | AndroidManifest.xml RTL 声明、ThreadBulkToolbar.kt、3 种屏宽均通过的 RTL＋200% 字体实际截图 |
 | 82 | D | 深色主题全页回归（VisualSystem 仅 lightColorScheme） | 已有部分改动 | VisualSystem.kt |
 | 83 | D | 200% 字体降级策略 | 已有部分改动 | ThreadBulkToolbar.kt |
 | 84 | D | dp 文本全量换 sp | 尚待实施 | 待定位 |
@@ -110,6 +110,15 @@
 | 98 | D | 通知进度+动作按钮（配合 C37/38） | 已提交待专项验收 | CodexForegroundService.kt |
 | 99 | D | 多会话并行执行+任务中心（单 active 限制的产品化放宽） | 尚待实施 | 待定位 |
 | 100 | D | 深链 codex://thread/xxx 外部直达会话 | 已提交待专项验收 | CodexDeepLink.kt |
+
+## 本次专项验收证据
+
+- **[UI 完整验收 #45008981995](https://github.com/sy220284/111/actions/runs/45008981995)**：Kotlin 编译、协议检查、单测、Lint 均通过；Android 35 的 360/393/411dp 设备测试各 41/41 项通过。
+- **#35**：`FirstTurnRecoveryControllerTest` 3 项全通过，分别覆盖已拒绝空会话安全清理、非空或已切换会话保护、已启动回合禁止误删。
+- **#63**：`TimelineWindowStoreTest` 2 项全通过，覆盖 2060 条历史的磁盘分页与恢复、读回后写入新数据时防重复对账。
+- **#69**：`TerminalTranscriptStoreTest` 5 项全通过，覆盖双流输出、容量限制、UTF-8 跨页连续性、跨命令边界访问限制。
+- **#81**：AndroidManifest 已声明 RTL；`audit-rtl-200font-bulk-android35.png` 在三种屏宽被强制采集，按真实可滚动容器确认按钮能够到达、可见且触控高度不小于 48dp。[360dp 原始截图包](https://github.com/sy220284/111/actions/runs/45008981995/artifacts/14748699322)。
+- 完整 29 页面 TalkBack、其他页面的 200% 字体与 RTL 覆盖，仍按清单 #79、#83、#85、#86 独立推进。
 
 ## 验收与推进规则
 
