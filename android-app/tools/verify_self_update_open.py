@@ -140,6 +140,10 @@ def main() -> int:
     args = parser.parse_args()
     if not args.apk.is_file():
         parser.error(f"APK not found: {args.apk}")
+    # The app is the installation source. Authorize it as the CI device owner
+    # would do via Settings > Install unknown apps; retain the actual system
+    # installer confirmation and Open buttons for the end-to-end test.
+    adb("shell", "appops", "set", PACKAGE, "REQUEST_INSTALL_PACKAGES", "allow")
     copy_fixture(args.apk)
     launch_install_ui()
     click_system_button({"install", "update", "安装", "更新"}, timeout=35)
