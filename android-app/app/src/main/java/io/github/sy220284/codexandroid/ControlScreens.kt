@@ -56,6 +56,8 @@ object UiPreferences {
 fun ApprovalsPage(vm: CodexViewModel) {
     val prompts by vm.bridge.prompts.collectAsState()
     val errors by vm.errors.collectAsState()
+    val auditRecords by vm.approvalAudit.records.collectAsState()
+    val auditError by vm.approvalAudit.error.collectAsState()
     ScreenColumn {
         SectionIntro("HUMAN / APPROVAL", "待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
         errors["approvals"]?.let { ErrorText(it) }
@@ -67,6 +69,7 @@ fun ApprovalsPage(vm: CodexViewModel) {
         prompts.forEach { prompt ->
             key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
         }
+        ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
     }
 }
 
@@ -75,6 +78,15 @@ fun ApprovalsPage(vm: CodexViewModel) {
 @Composable
 fun ApprovalQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val prompts by vm.bridge.prompts.collectAsState()
+    ApprovalQuickSheetContent(vm, prompts, onDismiss)
+}
+
+/** Complete sheet bound to an explicit prompt snapshot for deterministic rendering. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ApprovalQuickSheetContent(
+    vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit
+) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -256,6 +268,8 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var advanced by rememberSaveable { mutableStateOf(false) }
     var path by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
+    var kind by rememberSaveable { mutableStateOf("text") }
+    var booleanValue by rememberSaveable { mutableStateOf(true) }
     var showConfirm by remember { mutableStateOf(false) }
     var parsed by remember { mutableStateOf<Any?>(null) }
     val ready = data["config"] != null
@@ -317,19 +331,70 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 OutlinedTextField(path, { path = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text("设置项名称") }, singleLine = true,
                     placeholder = { Text("approval_policy") })
-                OutlinedTextField(value, { value = it }, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("设置值（JSON）") }, minLines = 2,
-                    placeholder = { Text("\\\"on-request\\\"") })
-                OutlinedButton(onClick = {
-                    try {
-                        require(path.isNotBlank() && value.isNotBlank()) { "请填写设置名称和值" }
-                        parsed = JSONTokener(value).nextValue()
-                        showConfirm = true
-                    } catch (failure: Exception) {
-                        vm.errors.value = vm.errors.value +
-                            ("config" to (failure.message ?: "配置值格式不正确"))
+                Text("设置值类型", style = MaterialTheme.typography.titleSmall)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    listOf(
+                        "text" to "文本", "boolean" to "开关",
+                        "number" to "数字", "json" to "高级数据"
+                    ).forEach { (id, title) ->
+                        FilterChip(
+                            selected = kind == id,
+                            onClick = { kind = id },
+                            label = { Text(title) },
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        )
                     }
-                }, enabled = path.isNotBlank() && value.isNotBlank()) {
+                }
+                if (kind == "boolean") {
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (booleanValue) "已启用" else "已关闭",
+                            modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = booleanValue,
+                            onCheckedChange = { booleanValue = it }
+                        )
+                    }
+                } else {
+                    OutlinedTextField(
+                        value, { value = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(when (kind) {
+                            "number" -> "数字"
+                            "json" -> "结构化数据（JSON）"
+                            else -> "文本值"
+                        }) },
+                        minLines = if (kind == "json") 2 else 1,
+                        maxLines = if (kind == "json") 6 else 2,
+                        placeholder = { Text(when (kind) {
+                            "number" -> "例如 30"
+                            "json" -> "例如 {\\\"enabled\\\":true}"
+                            else -> "例如 on-request"
+                        }) }
+                    )
+                }
+                OutlinedButton(
+                    onClick = {
+                        try {
+                            require(path.isNotBlank()) { "请填写设置项名称" }
+                            parsed = ConfigInputParser.parse(kind, value, booleanValue)
+                            vm.errors.value = vm.errors.value - "config"
+                            showConfirm = true
+                        } catch (failure: Exception) {
+                            vm.errors.value = vm.errors.value +
+                                ("config" to (failure.message ?: "设置值格式不正确"))
+                        }
+                    },
+                    enabled = path.isNotBlank() &&
+                        (kind == "boolean" || value.isNotBlank()) &&
+                        "config" !in loading,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
                     Text("检查并保存")
                 }
             }
@@ -338,7 +403,8 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     if (showConfirm) CodexConfirmDialog(
         title = "保存本机设置",
         message = "本次操作将更新 Codex 在当前设备中的运行配置。",
-        detail = "设置项：$path\n设置值：$value",
+        detail = "设置项：$path\n设置值：" +
+            if (kind == "boolean") (if (booleanValue) "启用" else "关闭") else value,
         confirmLabel = "确认保存",
         onConfirm = {
             vm.rpc("config", "config/value/write",

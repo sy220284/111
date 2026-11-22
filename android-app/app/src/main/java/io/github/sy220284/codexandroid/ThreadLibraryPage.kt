@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -22,6 +26,7 @@ import org.json.JSONObject
  * Server-backed paginated conversation library. Each mode has its own result key,
  * so home-screen refreshes cannot overwrite archived or searched results.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
@@ -30,6 +35,17 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
+    val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
+    val context = LocalContext.current
+    var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
+    var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
+    var searchHistoryError by remember { mutableStateOf("") }
+    var selectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedIds by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var bulkConfirm by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(bulkCompleted) {
+        if (bulkCompleted.isNotEmpty()) selectedIds = selectedIds.filterNot(bulkCompleted::contains)
+    }
     var archived by rememberSaveable { mutableStateOf(false) }
     var searchText by rememberSaveable { mutableStateOf("") }
     var searchTerm by rememberSaveable { mutableStateOf("") }
@@ -58,7 +74,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val response = data[key]
     val entries = records(response)
     val nextCursor = response?.optString("nextCursor")?.takeIf { it.isNotBlank() }
-    val busy = "threadLibraryAction" in loading
+    val busy = "threadLibraryAction" in loading || "threadLibraryBulk" in loading
     val fullKey = "fullSearch:" + fullSubmitted
     val fullResults = if (fullSubmitted.isNotBlank()) records(data[fullKey]) else emptyList()
     val fullPending = fullSubmitted.isNotBlank() && fullKey in loading
@@ -68,7 +84,39 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ThreadSectionContract.threadList(archived, searchTerm, pageCursor, selectedSection))
     }
     LaunchedEffect(archived, searchTerm, cursor, selectedSection, fullText) {
+        selectedIds = emptyList()
+        selectionMode = false
         if (!fullText) load(cursor)
+    }
+
+    fun submitSearch(value: String) {
+        val submitted = value.trim()
+        searchText = submitted
+        if (submitted.isNotEmpty()) {
+            try {
+                if (fullText) recentFull = RecentThreadSearches.record(context, true, submitted)
+                else recentTitle = RecentThreadSearches.record(context, false, submitted)
+                searchHistoryError = ""
+            } catch (failure: Exception) {
+                searchHistoryError = "搜索记录保存失败：" +
+                    (failure.message ?: "设备存储不可用")
+            }
+        }
+        if (fullText) {
+            fullSubmitted = submitted
+            if (submitted.isNotEmpty()) vm.refresh("fullSearch:" + submitted,
+                "thread/search", JSONObject().put("searchTerm", submitted))
+        } else if (searchTerm == submitted && cursor == null) load(null)
+        else {
+            searchTerm = submitted
+            cursor = null
+            history = emptyList()
+        }
+    }
+
+    fun toggleSelected(id: String) {
+        if (id.isBlank()) return
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
     }
 
     LazyColumn(
@@ -115,17 +163,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     label = { Text(if (fullText) "搜索历史正文" else "搜索会话标题") },
                     leadingIcon = { Icon(Icons.Outlined.Search, null) },
                     trailingIcon = {
-                        IconButton(onClick = {
-                            val submitted = searchText.trim()
-                            if (fullText) {
-                                fullSubmitted = submitted
-                                if (submitted.isNotBlank()) vm.refresh("fullSearch:" + submitted,
-                                    "thread/search", JSONObject().put("searchTerm", submitted))
-                            } else if (searchTerm == submitted && cursor == null) load(null)
-                            else {
-                                searchTerm = submitted; cursor = null; history = emptyList()
-                            }
-                        }, enabled = key !in loading) {
+                        IconButton(onClick = { submitSearch(searchText) },
+                            enabled = key !in loading && !busy) {
                             Icon(Icons.Outlined.ArrowForward, "开始搜索")
                         }
                     },
@@ -133,6 +172,25 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(if (fullText) "全文检索由当前内核提供，搜索结果可直接恢复对应会话。" else
                     "标题搜索支持服务端游标分页。",
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                val recent = if (fullText) recentFull else recentTitle
+                if (recent.isNotEmpty()) {
+                    Text("最近搜索", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        recent.forEach { term ->
+                            FilterChip(
+                                selected = searchText == term,
+                                onClick = { submitSearch(term) },
+                                enabled = !busy,
+                                label = { Text(term, maxLines = 1) }
+                            )
+                        }
+                    }
+                }
+                if (searchHistoryError.isNotBlank())
+                    ErrorText(searchHistoryError)
                 if (!fullText) {
                 DividerLine()
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -176,12 +234,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("当前分组：" + section.optString("name"), modifier = Modifier.weight(1f),
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        TextButton(onClick = {
-                            sectionDraft = section.optString("name")
-                            editingSection = true
-                            showSectionEditor = true
-                        }) { Text("重命名") }
-                        TextButton(onClick = { deleteSection = section }) {
+                        TextButton(
+                            enabled = !running && !switching && !busy,
+                            onClick = {
+                                sectionDraft = section.optString("name")
+                                editingSection = true
+                                showSectionEditor = true
+                            }
+                        ) { Text("重命名") }
+                        TextButton(
+                            enabled = !running && !switching && !busy,
+                            onClick = { deleteSection = section }
+                        ) {
                             Text("删除", color = Ink.red)
                         }
                     }
@@ -219,6 +283,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (key in loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         errors[key]?.let { item { ErrorText(it) } }
         errors["threadLibraryAction"]?.let { item { ErrorText("会话操作失败：$it") } }
+        errors["threadLibraryBulk"]?.let { item { ErrorText("批量操作：$it") } }
         errors["sectionEdit"]?.let { item { ErrorText("会话分组失败：$it") } }
         errors["sectionMove"]?.let { item { ErrorText("移动会话失败：$it") } }
         if (response != null) item {
@@ -227,6 +292,16 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Text("本页 ${entries.size} 项", color = Ink.muted,
                     style = MaterialTheme.typography.labelMedium)
+                TextButton(
+                    onClick = {
+                        selectionMode = !selectionMode
+                        selectedIds = emptyList()
+                    },
+                    modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
+                    enabled = !busy && !switching && !running && entries.isNotEmpty()
+                ) {
+                    Text(if (selectionMode) "退出多选" else "批量管理")
+                }
             }
         }
         if (response != null && entries.isEmpty() && key !in loading && key !in errors) {
@@ -243,6 +318,20 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
+        if (selectionMode && entries.isNotEmpty()) item {
+            ThreadBulkToolbar(
+                selectedCount = selectedIds.size,
+                archived = archived,
+                enabled = !busy && !switching && !running,
+                onSelectAll = {
+                    selectedIds = entries.map { it.optString("id") }
+                        .filter { it.isNotBlank() && (!running || activeId != it) }
+                        .distinct()
+                },
+                onClear = { selectedIds = emptyList() },
+                onAction = { bulkConfirm = it }
+            )
+        }
         items(entries, key = { it.optString("id") }) { thread ->
             val id = thread.optString("id")
             val title = PresentationPolicy.threadTitle(
@@ -250,9 +339,25 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             )
             val canManage = !(running && activeId == id) && !busy
             var menu by remember(id) { mutableStateOf(false) }
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            MaterialPanel(Modifier.fillMaxWidth()
+                .testTag("thread-library-row-" + id)
+                .combinedClickable(
+                    enabled = !busy && !switching && !running && id.isNotBlank(),
+                    onClick = { if (selectionMode) toggleSelected(id) },
+                    onLongClick = {
+                        selectionMode = true
+                        if (id !in selectedIds) selectedIds = selectedIds + id
+                    }
+                )) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
+                    if (selectionMode) {
+                        Checkbox(
+                            checked = id in selectedIds,
+                            onCheckedChange = { toggleSelected(id) },
+                            enabled = canManage,
+                            modifier = Modifier.testTag("thread-select-" + id)
+                        )
+                    } else Surface(
                         color = Ink.canvas,
                         shape = RoundedCornerShape(13.dp)
                     ) {
@@ -268,7 +373,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
                     }
                     Box {
-                        IconButton(onClick = { menu = true }, enabled = canManage) {
+                        IconButton(onClick = { menu = true }, enabled = canManage && !selectionMode) {
                             Icon(Icons.Outlined.MoreVert, "管理会话")
                         }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -305,7 +410,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 if (running && activeId == id)
                     CodexNotice("该会话仍在执行，结束后可整理。")
-                if (archived) {
+                if (archived && !selectionMode) {
                     OutlinedButton(onClick = { action = "unarchive" to thread },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = canManage) {
@@ -313,7 +418,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Spacer(Modifier.width(7.dp))
                         Text("恢复会话")
                     }
-                } else {
+                } else if (!selectionMode) {
                     OutlinedButton(onClick = { vm.chooseThread(id); navigate("chat") },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = !running && !switching && id.isNotBlank()) {
@@ -349,6 +454,30 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
 
+    bulkConfirm?.let { kind ->
+        val count = selectedIds.size
+        val actionLabel = when (kind) {
+            "delete" -> "永久删除"
+            "unarchive" -> "恢复"
+            else -> "归档"
+        }
+        CodexConfirmDialog(
+            title = "批量" + actionLabel + "会话",
+            message = if (kind == "delete")
+                "这些会话的历史将永久删除。操作逐条执行，失败时保留未完成的选择，便于核查后重试。"
+            else "操作将逐条交由本机 Codex 内核执行，完成后刷新列表。",
+            detail = "已选择 $count 条会话。请确认范围。",
+            confirmLabel = "确认" + actionLabel,
+            destructive = kind == "delete",
+            onConfirm = {
+                vm.bulkThreadAction(kind, selectedIds) {
+                    load(cursor)
+                }
+                bulkConfirm = null
+            },
+            onDismiss = { bulkConfirm = null }
+        )
+    }
     if (showSectionEditor) {
         AlertDialog(
             onDismissRequest = { showSectionEditor = false },
@@ -360,7 +489,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             },
             confirmButton = {
                 OutlinedButton(
-                    enabled = sectionDraft.trim().isNotEmpty() &&
+                    enabled = !running && !switching && !busy &&
+                        sectionDraft.trim().isNotEmpty() &&
                         sectionDraft.trim().length <= 120 && "sectionEdit" !in loading,
                     onClick = {
                         val sectionId = currentSection?.optString("id")
@@ -390,7 +520,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             confirmLabel = "确认删除分组",
             destructive = true,
             onConfirm = {
-                vm.rpc("sectionEdit", "threadSection/delete",
+                if (!running && !switching && !busy) vm.rpc(
+                    "sectionEdit", "threadSection/delete",
                     ThreadSectionContract.delete(section.optString("id")),
                     after = {
                         selectedSection = ""

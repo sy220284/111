@@ -4,6 +4,19 @@ on:
   push:
     paths:
       - "android-app/**"
+      - "docs/DESIGN_SYSTEM.md"
+      - ".github/workflows/check-android-ui.yml"
+      - ".github/workflows/build-android.yml"
+      - ".github/workflows/build-native-codex.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/select_native_artifacts.py"
+      - ".github/scripts/test_native_reuse.py"
+      - "CODEX_UPSTREAM_COMMIT"
+      - "upstream/codex/**"
+  pull_request:
+    paths:
+      - "android-app/**"
+      - "docs/DESIGN_SYSTEM.md"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -34,6 +47,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/
+            /docs/DESIGN_SYSTEM.md
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
           sparse-checkout-cone-mode: false
       - name: 安装 JDK 17
@@ -64,6 +78,23 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
+      - name: 三方核验上游协议、Android 方法目录与界面层级
+        run: |
+          python3 android-app/tools/check_ui_protocol_matrix.py \
+            --matrix android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt \
+            --policy android-app/tools/ui_surface_policy.json \
+            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
+          python3 android-app/tools/test_check_ui_protocol_matrix.py
+      - name: 检查 Kotlin 源文件体量并阻断超大文件回归
+        run: |
+          python3 android-app/tools/check_kotlin_file_budget.py \
+            --sources android-app/app/src/main/java --max-lines 760
+      - name: 自动核验 Compose 主题颜色与设计文档一致
+        run: |
+          python3 android-app/tools/check_design_system_tokens.py \
+            --source android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt \
+            --spec docs/DESIGN_SYSTEM.md
+          python3 android-app/tools/test_check_design_system_tokens.py
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 保存测试与 Lint 报告

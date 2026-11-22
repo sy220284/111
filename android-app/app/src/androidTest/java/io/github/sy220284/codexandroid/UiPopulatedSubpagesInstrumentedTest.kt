@@ -59,6 +59,48 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-sidebar-filtered-android35.png")
     }
 
+    @Test fun batchToolbarSupportsAllSelectAndActionWithRealComposeClicks() {
+        var selected by mutableIntStateOf(0)
+        var requested = ""
+        rule.setContent {
+            CodexTheme {
+                ThreadBulkToolbar(
+                    selectedCount = selected,
+                    archived = false,
+                    enabled = true,
+                    onSelectAll = { selected = 2 },
+                    onClear = { selected = 0 },
+                    onAction = { requested = it }
+                )
+            }
+        }
+        rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
+        rule.onNodeWithText("全选本页").performClick()
+        rule.onNodeWithText("已选 2 条 · 仅针对当前筛选页").assertExists()
+        rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
+        rule.onNodeWithTag("thread-bulk-delete").performClick()
+        rule.runOnIdle { assertEquals("delete", requested) }
+        capture("audit-thread-bulk-selection-android35.png")
+    }
+
+    @Test fun approvalLogShowsPrivateHistoryAndConfirmsDeletion() {
+        var cleared = false
+        rule.setContent {
+            CodexTheme {
+                ApprovalAuditSection(
+                    listOf(ApprovalAuditRecord(1730000000000, "执行命令", "允许本次", "git status")),
+                    null, onClear = { cleared = true }
+                )
+            }
+        }
+        rule.onNodeWithTag("approval-audit-toggle").performClick()
+        rule.onNodeWithText("git status").assertIsDisplayed()
+        capture("audit-approval-history-android35.png")
+        rule.onNodeWithTag("approval-audit-clear").performClick()
+        rule.onNodeWithText("确认清除").performClick()
+        rule.runOnIdle { assertEquals(true, cleared) }
+    }
+
     @Test fun composerTextEditingUpdatesSendAvailability() {
         var text by mutableStateOf("")
         var submitted = ""
@@ -118,7 +160,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
-        rule.onNodeWithText("补充", substring = false).assertExists()
+        rule.onNodeWithContentDescription("补充任务指令").assertExists()
         capture("audit-composer-running-android35.png")
         rule.onNodeWithTag("composer-stop").performClick()
         rule.onNodeWithTag("composer-send").performClick()
@@ -134,10 +176,9 @@ class UiPopulatedSubpagesInstrumentedTest {
             JSONObject().put("command", "git status")
                 .put("reason", "确认本机工作区当前改动")
                 .put("cwd", "/data/user/0/ci/projects"))
-        vm.bridge.prompts.value = listOf(request)
         rule.setContent {
             CodexTheme {
-                ApprovalQuickSheet(vm, onDismiss = {})
+                ApprovalQuickSheetContent(vm, listOf(request), onDismiss = {})
             }
         }
         rule.onNodeWithText("处理当前任务的审批").assertExists()

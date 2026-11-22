@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -43,7 +44,8 @@ private fun ModelControl(modelName: String,
 @Composable
 private fun ModeControl(mode: String, enabled: Boolean,
     onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
+    OutlinedButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)
+        .testTag("conversation-mode-control"),
         enabled = enabled, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {
         Text(if (mode == "plan") "先计划" else "执行",
             modifier = Modifier.weight(1f, fill = false),

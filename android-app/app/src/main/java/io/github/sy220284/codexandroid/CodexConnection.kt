@@ -46,6 +46,13 @@ class CodexConnection(private val appContext: Context) {
         withContext(Dispatchers.IO) {
         if (status.value == EngineStatus.Connected) return@withContext
         status.value = EngineStatus.Starting
+        // Retire a failed/stale process before opening a new JSON-RPC stream.
+        val stale = process
+        process = null
+        writer = null
+        stale?.destroy()
+        failWaiting("运行核心正在重新连接")
+        prompts.value = emptyList()
         recentStderr.value = emptyList()
         val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
         val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
@@ -132,26 +139,31 @@ class CodexConnection(private val appContext: Context) {
                     val message = JSONObject(line)
                     val id = message.opt("id")
                     val method = message.optString("method")
-                    if (id is Number && method.isEmpty()) {
-                        waiting.remove(id.toLong())?.complete(message)
-                    } else if (method.isNotEmpty() && id != null && id != JSONObject.NULL) {
-                        if (method in setOf("item/commandExecution/requestApproval", "item/fileChange/requestApproval",
-                                "item/permissions/requestApproval", "item/tool/requestUserInput", "mcpServer/elicitation/request")) {
-                            prompts.value = prompts.value + ServerPrompt(id, method, message.optJSONObject("params") ?: JSONObject())
-                        } else {
-                            // Unsupported host requests must be answered, or the whole turn stalls forever.
+                    when (RpcEnvelopeRouter.classify(message)) {
+                        RpcEnvelopeKind.Response -> {
+                            waiting.remove((id as Number).toLong())?.complete(message)
+                        }
+                        RpcEnvelopeKind.HostRequest -> {
+                            prompts.value = prompts.value + ServerPrompt(
+                                id, method,
+                                message.optJSONObject("params") ?: JSONObject()
+                            )
+                        }
+                        RpcEnvelopeKind.UnsupportedHostRequest -> {
                             write(JSONObject().put("id", id).put("error",
                                 JSONObject().put("code", -32601)
                                     .put("message", "Android 客户端暂不支持服务端请求：" + method)))
                             events.emit(JSONObject().put("method", "local/unsupportedServerRequest")
                                 .put("params", JSONObject().put("method", method)))
                         }
-                    } else if (method == "serverRequest/resolved") {
-                        val resolved = message.optJSONObject("params")?.opt("requestId")
-                        prompts.value = prompts.value.filterNot { it.id.toString() == resolved.toString() }
-                        events.emit(message)
-                    } else {
-                        events.emit(message)
+                        RpcEnvelopeKind.RequestResolved -> {
+                            val resolved = message.optJSONObject("params")?.opt("requestId")
+                            prompts.value = prompts.value.filterNot {
+                                it.id.toString() == resolved.toString()
+                            }
+                            events.emit(message)
+                        }
+                        RpcEnvelopeKind.Event -> events.emit(message)
                     }
                 }
             }
@@ -178,7 +190,10 @@ class CodexConnection(private val appContext: Context) {
     suspend fun request(
         method: String,
         params: JSONObject = JSONObject(),
-        timeoutMillis: Long? = 45_000L
+        timeoutMillis: Long? = when (method) {
+            "thread/read", "thread/resume" -> 120_000L
+            else -> 45_000L
+        }
     ): JSONObject {
         val id = sequence.getAndIncrement()
         val deferred = CompletableDeferred<JSONObject>()

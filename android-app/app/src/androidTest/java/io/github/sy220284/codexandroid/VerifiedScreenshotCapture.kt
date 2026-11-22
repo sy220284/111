@@ -37,7 +37,13 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
 
     fun checkOwner() {
         val focus = focusedWindow()
-        check(focus.contains(target.packageName)) {
+        // Compose DropdownMenu uses an owned popup window whose WM title does
+        // not include the package. This exception is limited to the screenshot
+        // whose test explicitly verified the attachment menu's semantic nodes.
+        val verifiedComposerPopup =
+            fileName in setOf("attachment-sheet-android35.png", "tools-sheet-android35.png") &&
+                focus.contains("Pop-Up Window")
+        check(focus.contains(target.packageName) || verifiedComposerPopup) {
             "截图被其他程序或系统窗口遮挡：$fileName；当前前台=$focus"
         }
     }

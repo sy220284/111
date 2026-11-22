@@ -12,6 +12,11 @@ internal class LatestRequestGate {
 
     fun isLatest(key: String, ticket: Any): Boolean = active[key] === ticket
 
+    /** Release ownership when transient search entries leave the bounded cache. */
+    fun cancel(key: String) {
+        active.remove(key)
+    }
+
     fun complete(key: String, ticket: Any): Boolean {
         if (!isLatest(key, ticket)) return false
         active.remove(key)

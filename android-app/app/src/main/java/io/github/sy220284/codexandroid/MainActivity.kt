@@ -5,14 +5,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
+
 
 class MainActivity : ComponentActivity() {
-    private val model by viewModels<CodexViewModel>()
+    // Process-wide session is shared with foreground task execution.
+    private val model: CodexViewModel
+        get() = (application as CodexApplication).session
 
     override fun onResume() {
         super.onResume()
         AppUpdateManager.resumeInstall(this)
+        model.reconnectIfNeeded()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

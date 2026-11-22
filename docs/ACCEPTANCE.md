@@ -55,3 +55,35 @@ GitHub Actions 构建结果为最终记录；源码中存在页面或协议声�
 - [完整 ARM64/x86_64 APK 构建和 Android 35 测试](https://github.com/sy220284/111/actions/runs/44746033005)：`OK (12 tests)`，原生 Codex 内核启动、初始化、命令、离线会话及全部 28 个页面导航通过。
 - 为搜索框、导航项及页面标题增加稳定测试标识；逐页检查实际标题匹配，异常、跳错路由或崩溃会使 CI 失败。
 - 本项验收覆盖每个页面能否打开并正确导航。页面内部涉及服务端请求、插件安装、审批授权、模型输出、网络及文件读写仍在独立功能验收范围内。
+
+## PR #30 最终设备与页面回归核验 · 2026-11-22
+
+证据基线：`eccccd0826a87cd84241e6d5c99e9e84b63066ab`（之后仅补写复核/规范文档）。
+
+| 验收项 | 已核实结果与证据 |
+|---|---|
+| Kotlin 编译、协议方法核对、单测、Android Lint | [工作流 #44982471832](https://github.com/sy220284/111/actions/runs/44982471832)：全部成功 |
+| 360dp、393dp、411dp 的 Android 35 UI 设备回归与截图 | 同一 UI 工作流：三个独立作业全部成功 |
+| ARM64 / x86_64 APK 构建及原生核心 Android 35 设备回归 | [工作流 #44982471857](https://github.com/sy220284/111/actions/runs/44982471857)：build 与 android-emulator 均成功 |
+| 原始 14 项问题与 100 条优化点 | [第二轮逐项核查](UI_FOUR_SKILLS_14_ISSUES_100_IMPROVEMENTS_20261122.md)：逐条给出完成/部分/未完成/待验状态，详见同一文档 |
+| Figma 源画板同步 | 当前 MCP Starter 额度限制；未完成，源码设计规范与可编辑 Figma 画板仍需统一 |
+| ARM64 真实手机、真实 OAuth、真实模型长任务、TalkBack、折叠屏、强制发布签名 | 均需独立端到端测试，现有 Android 35 模拟器结果尚未覆盖 |
+
+本轮 CI 通过仅确认现有测试范围；详细剩余事项请按逐项核查表跟踪。此表更新不等于 PR 已合并或 Release 已发布。
+
+## PR #30 持续完善最终 CI 验证 · 2026-11-22
+
+**源代码基线**：`08de5bcd6f68942dfc9327188f01894e0aaaec09`（其后的变动仅为文档状态同步）。
+
+| 验收项目 | 结果 | 可复核证据 |
+|---|---|---|
+| Kotlin / 全量单元测试 / Android Lint | 通过 | [UI 工作流 #44988500821](https://github.com/sy220284/111/actions/runs/44988500821) |
+| 29/29 页面路由、195 官方接口名称与展示层级映射 | 通过 | 同一 UI 工作流，`check_ui_protocol_matrix.py` + 3 项回归测试 |
+| Compose 主色与设计规范全部 token 比对 | 通过 | 同一 UI 工作流，`check_design_system_tokens.py` + 4 项回归测试 |
+| Android 35 · 360dp、393dp、411dp UI 点击和页面截图 | 三个作业均成功，每档 `OK (39 tests)` | 同一 UI 工作流的独立设备测试及截图产物 |
+| ARM64 / x86_64 APK 构建和原生设备回归 | 通过，原生模拟器 `OK (47 tests)` | [APK/原生核心工作流 #44988500846](https://github.com/sy220284/111/actions/runs/44988500846) |
+| 审批审计与删除确认 | UI 设备交互测试通过 | `UiPopulatedSubpagesInstrumentedTest.approvalLogShowsPrivateHistoryAndConfirmsDeletion` |
+| 终端硬键命令历史和文件日志导出 | 单元/静态构建通过，硬键与大日志真机测试待补 | `TerminalHistoryNavigationTest`、`TerminalTranscriptStoreTest` |
+| Figma 原画板 | 尚未同步：Starter MCP 限额 | 当前 Figma 文件 `K4FEMoNdmQbcnJZCHWr8c7` |
+
+**说明**：源码可达、模拟器通过与真实账号/模型执行是不同层级的验收。原始 100 条优化建议有独立状态表：[逐项复核](UI_FOUR_SKILLS_14_ISSUES_100_IMPROVEMENTS_20261122.md)。仍缺真实 ARM64 手机长任务、第三方输入法、TalkBack/字体放大、折叠屏、真实模型登录/审批、完整发布签名及 Figma 画板一致性检查。

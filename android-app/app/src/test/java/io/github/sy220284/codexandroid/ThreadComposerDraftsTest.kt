@@ -32,6 +32,20 @@ class ThreadComposerDraftsTest {
         assertFalse(cleared.containsKey("real-123"))
     }
 
+    @Test fun rejectedFirstTurnRestoresTextAndImagesWithoutDiscardingConcurrentDraft() {
+        val pending = ThreadComposerDrafts.attachNewThread(
+            ThreadComposerDrafts.images(
+                ThreadComposerDrafts.text(emptyMap(), null, "检查设置"),
+                null, listOf("pending.jpg")
+            ), "created-a"
+        )
+        val concurrent = ThreadComposerDrafts.text(pending, null, "另一个草稿")
+        val restored = ThreadComposerDrafts.reclaimRejectedNewThread(concurrent, "created-a")
+        assertFalse(restored.containsKey("created-a"))
+        assertEquals("另一个草稿\n检查设置", restored[ThreadComposerDrafts.NEW_THREAD]?.text)
+        assertEquals(listOf("pending.jpg"), restored[ThreadComposerDrafts.NEW_THREAD]?.images)
+    }
+
     @Test fun acceptedOnlyClearsUnchangedFields() {
         var drafts = ThreadComposerDrafts.text(emptyMap(), "A", "第一版")
         drafts = ThreadComposerDrafts.images(drafts, "A", listOf("old.png"))
