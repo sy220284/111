@@ -79,6 +79,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         WorkspaceTaskOperations(this, workspaceRoot, workspacePreferences, viewModelScope)
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
+    private val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
     private var imagePathsForActiveTurn: List<String> = emptyList()
 
     init {
@@ -129,20 +130,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             val previousThread = activeThread.value
             bridge.connect()
             errors.value = errors.value - "engine"
-            // A reconnect must not silently reuse provider or skill lists from
-            // an older core session. Initial page reads and warmup share one gate.
-            data.value = data.value - "providers" - "skills"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
-            viewModelScope.launch {
-                delay(650)
-                if (bridge.status.value == EngineStatus.Connected) {
-                    ensureCatalog("providers", "modelProvider/list")
-                    ensureCatalog("skills", "skills/list",
-                        CatalogRequestContract.workspace(workingDirectory))
-                }
-            }
+            catalogWarmup.connected()
             // Rebuild visible history after a connection loss, without resending a task.
             if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread)
         } catch (failure: Exception) {
@@ -219,12 +210,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         onSuccess: ((JSONObject) -> Unit)? = null
     ) = request(key, method, params, onSuccess)
 
-    /** Initial catalog entry uses warm results; explicit retry still calls refresh. */
-    fun ensureCatalog(key: String, method: String, params: JSONObject = JSONObject()) {
-        if (CatalogRequestContract.shouldLoadCatalog(key, data.value.keys, loading.value)) {
-            refresh(key, method, params)
-        }
-    }
+    fun ensureCatalog(key: String, method: String, params: JSONObject = JSONObject()) =
+        catalogWarmup.ensure(key, method, params)
 
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
@@ -655,12 +642,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun refreshAccountCatalogs() {
-        refresh("models", "model/list")
-        refresh("providers", "modelProvider/list")
-        refresh("skills", "skills/list", CatalogRequestContract.workspace(workingDirectory))
-    }
-
     private suspend fun receive(message: JSONObject) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
@@ -676,11 +657,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 else errors.value = errors.value + ("account" to
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
-                if (result.success) refreshAccountCatalogs()
+                if (result.success) catalogWarmup.accountChanged()
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
-            refreshAccountCatalogs()
+            catalogWarmup.accountChanged()
         }
         if (method == "project/changed") {
             val changedId = params.optString("projectId")
