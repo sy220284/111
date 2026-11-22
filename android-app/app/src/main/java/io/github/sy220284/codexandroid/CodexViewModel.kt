@@ -631,6 +631,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             "turn/completed" -> {
                 running.value = false
+                activeTurn.value = null
                 timeline.value = timeline.value.map { item ->
                     if (item.id.startsWith("pending-") && item.status == "sending")
                         item.copy(status = "") else item
