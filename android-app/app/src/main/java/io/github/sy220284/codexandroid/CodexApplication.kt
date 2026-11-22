@@ -9,11 +9,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** The process owns a single Codex core, and releases it after background inactivity. */
 class CodexApplication : Application() {
     private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) { CodexViewModel(this) }
     val session: CodexViewModel get() = holder.value
+    val pendingDeepLink = MutableStateFlow<String?>(null)
 
     private val maintenance = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var activityCount = 0

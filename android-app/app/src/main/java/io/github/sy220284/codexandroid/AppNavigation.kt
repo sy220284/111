@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
@@ -96,6 +97,8 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val operationSnacks = remember { SnackbarHostState() }
+    val app = LocalContext.current.applicationContext as CodexApplication
+    val pendingDeepLink by app.pendingDeepLink.collectAsState()
     LaunchedEffect(status, selected, drawer.currentValue) {
         if (status == EngineStatus.Connected &&
             (selected == "chat" || drawer.currentValue == DrawerValue.Open)) {
@@ -169,6 +172,14 @@ fun CodexShell(vm: CodexViewModel) {
         focusManager.clearFocus()
         keyboard?.hide()
         scope.launch { drawer.close() }
+    }
+    LaunchedEffect(pendingDeepLink, status) {
+        val id = pendingDeepLink
+        if (id != null && status == EngineStatus.Connected) {
+            app.pendingDeepLink.value = null
+            vm.chooseThread(id)
+            move("chat")
+        }
     }
     LaunchedEffect(showQuickTools, pendingQuickRoute) {
         if (!showQuickTools) {

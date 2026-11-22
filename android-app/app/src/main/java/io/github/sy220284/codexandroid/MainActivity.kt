@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -18,8 +19,21 @@ class MainActivity : ComponentActivity() {
         model.reconnectIfNeeded()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptDeepLink(intent)
+    }
+
+    private fun acceptDeepLink(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val id = CodexDeepLink.threadId(intent.dataString) ?: return
+        (application as CodexApplication).pendingDeepLink.value = id
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        acceptDeepLink(intent)
         UiPreferences.initialize(applicationContext)
         // 典雅白界面使用深色系统图标，状态栏与导航栏保持透明白底。
         enableEdgeToEdge(
