@@ -115,7 +115,8 @@ class UiNavigationInstrumentedTest {
     @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
         openDrawerRoute("chat")
         rule.onNodeWithText("默认模型").assertIsDisplayed()
-        rule.onNodeWithText("执行", substring = false).assertIsDisplayed()
+        // 模式由真实内核恢复，可能是「执行」或「先计划」；校验实际可交互的按钮。
+        rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
         rule.onNodeWithContentDescription("查看内核运行诊断").assertIsDisplayed()
         rule.onNodeWithContentDescription("添加附件").assertIsDisplayed()
         capture("chat-toolbar-android35.png")
