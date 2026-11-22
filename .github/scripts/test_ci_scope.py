@@ -54,7 +54,7 @@ class AndroidCIScopeTests(unittest.TestCase):
 
     def test_git_abi_validation_has_one_maintained_implementation(self):
         self.assertFalse((WORKFLOWS / "verify-android-git.yml").exists())
-        self.assertIn("bash android-app/tools/build_android_git.sh",
+        self.assertIn('bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh"',
                       workflow("build-native-codex.yml"))
         self.assertIn("readelf -l", workflow("build-native-codex.yml"))
 
