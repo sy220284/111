@@ -176,12 +176,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("当前分组：" + section.optString("name"), modifier = Modifier.weight(1f),
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        TextButton(onClick = {
-                            sectionDraft = section.optString("name")
-                            editingSection = true
-                            showSectionEditor = true
-                        }) { Text("重命名") }
-                        TextButton(onClick = { deleteSection = section }) {
+                        TextButton(
+                            enabled = !running && !switching && !busy,
+                            onClick = {
+                                sectionDraft = section.optString("name")
+                                editingSection = true
+                                showSectionEditor = true
+                            }
+                        ) { Text("重命名") }
+                        TextButton(
+                            enabled = !running && !switching && !busy,
+                            onClick = { deleteSection = section }
+                        ) {
                             Text("删除", color = Ink.red)
                         }
                     }
@@ -360,7 +366,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             },
             confirmButton = {
                 OutlinedButton(
-                    enabled = sectionDraft.trim().isNotEmpty() &&
+                    enabled = !running && !switching && !busy &&
+                        sectionDraft.trim().isNotEmpty() &&
                         sectionDraft.trim().length <= 120 && "sectionEdit" !in loading,
                     onClick = {
                         val sectionId = currentSection?.optString("id")
@@ -390,7 +397,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             confirmLabel = "确认删除分组",
             destructive = true,
             onConfirm = {
-                vm.rpc("sectionEdit", "threadSection/delete",
+                if (!running && !switching && !busy) vm.rpc(
+                    "sectionEdit", "threadSection/delete",
                     ThreadSectionContract.delete(section.optString("id")),
                     after = {
                         selectedSection = ""
