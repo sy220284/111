@@ -46,7 +46,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
 
-本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 19，部分 28，未完成 43，待验 10。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 21，部分 27，未完成 43，待验 9。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
 
 | # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
 |---:|---|---|---|
@@ -119,7 +119,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 67 | 未完成 | stderr 环形缓冲明文隐私风险评估 | 未见独立威胁模型与清理策略验证 |
 | 68 | 部分 | CodexConnection 分流直接单测 | RpcEnvelopeRouter 已拆出并有测试；尚未注入真实流/MockProcess 压测 |
 | 69 | 部分 | sendPrompt 全路径状态机测试 | FirstTurnRecoveryPolicy 与草稿回收单测已补；完整端到端发送状态机的成功/双失败/断连组合仍待覆盖 |
-| 70 | 部分 | UI 协议矩阵对上游名称 CI 校验 | verify_protocol_methods 与 audit_ui_feature_coverage 验证引用；UiProtocolMatrix 全量一一对应缺独立门禁 |
+| 70 | 完成 | UI 协议矩阵对上游名称 CI 校验 | check_ui_protocol_matrix.py 已在 CI 三方核对官方 195 项方法、UiProtocolMatrix 和 ui_surface_policy.json 的层级；对缺失和层级不一致有回归测试，UI 静态构建 #44988500821 验证成功 |
 | 71 | 未完成 | 上游快照升级兼容演练脚本 | prepare_android_mxc.py 固定断言；未见可复核的升级演练 |
 | 72 | 部分 | goal/queue/catalog 契约测试全覆盖 | 已有部分请求契约测试；未确认三个 contract 的全分支覆盖 |
 | 73 | 未完成 | 截图像素差异回归 | 工作流保存截图；未集成 Roborazzi/Paparazzi 对比基线 |
@@ -142,7 +142,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 90 | 部分 | 系统通知任务完成与审批等待 | CodexForegroundService 发运行中通知；缺结束通知与审批操作通知 |
 | 91 | 未完成 | 桌面快捷方式或 Widget | 未见桌面入口组件 |
 | 92 | 未完成 | 输入栏语音输入 | 当前输入以文字/图片为主 |
-| 93 | 待验 | 设计系统文档与组件自动同步 | DESIGN_SYSTEM.md 的 Ink 颜色表与 VisualSystem.kt 同源核对；check_design_system_tokens.py 和回归单测接入 check-android-ui.yml，最新 CI 待验 |
+| 93 | 完成 | 设计系统文档与组件自动同步 | DESIGN_SYSTEM.md 的 Ink 颜色表与 VisualSystem.kt 一一校验，Material 主题主色统一；check_design_system_tokens.py 和回归单测已在 UI 静态构建 #44988500821 通过；Figma 原画板仍待同步 |
 | 94 | 未完成 | 验收矩阵自动从 CI 写入 | docs/ACCEPTANCE.md 依靠人工更新，未见自动生成流程 |
 | 95 | 未完成 | 会话数据模型版本化 | 未见面向上游结构变化的迁移机制 |
 | 96 | 部分 | 前台服务低功耗策略 | 通知渠道 IMPORTANCE_LOW；缺空闲降频的设备耗电基线 |
