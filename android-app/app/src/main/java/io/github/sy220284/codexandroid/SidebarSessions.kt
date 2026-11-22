@@ -71,6 +71,8 @@ internal fun SidebarSessions(
     val status by vm.bridge.status.collectAsState()
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
+    val liveExecutions by vm.threadExecutions.collectAsState()
     val activeId by vm.activeThread.collectAsState()
     val approvals by vm.bridge.prompts.collectAsState()
     val liveActivities by vm.threadActivities.collectAsState()
@@ -87,7 +89,9 @@ internal fun SidebarSessions(
         hasError = errors["sidebarThreads"] != null,
         activeId = activeId,
         running = running,
-        switching = switching,
+        switching = switching || firstThreadStarting,
+        liveExecutions = liveExecutions,
+        onStopThread = vm::interruptThread,
         pendingApprovals = approvals.size,
         liveActivities = liveActivities,
         onRefresh = {
@@ -115,6 +119,8 @@ internal fun SidebarSessionsContent(
     onOpenThread: (String) -> Unit,
     pendingApprovals: Int = 0,
     liveActivities: Map<String, ThreadActivity> = emptyMap(),
+    liveExecutions: Map<String, ThreadExecution> = emptyMap(),
+    onStopThread: (String) -> Unit = {},
     uiState: SidebarUiState? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
@@ -126,17 +132,19 @@ internal fun SidebarSessionsContent(
         ).any { it.contains(search.trim(), ignoreCase = true) }
     }
 
-    val backgroundActive = all.count { entry ->
-        entry.optString("id") != activeId &&
+    val activeIds = (liveExecutions.keys + all.mapNotNull { entry ->
+        val id = entry.optString("id")
+        id.takeIf { it.isNotBlank() &&
             ThreadActivityPolicy.isActive(ThreadActivityPolicy.effective(
-                entry, liveActivities[entry.optString("id")], false, 0))
-    }
+                entry, liveActivities[id], id in liveExecutions, 0)) }
+    }).distinct()
+    val backgroundActive = activeIds.count { it != activeId }
     val scroll = state.scroll
     LaunchedEffect(search, searching) {
         if (searching || search.isNotBlank()) scroll.scrollToItem(0)
     }
     Column(modifier.fillMaxWidth()) {
-        if (running || pendingApprovals > 0 || backgroundActive > 0) {
+        if (running || pendingApprovals > 0 || activeIds.isNotEmpty()) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
                     .testTag("sidebar-task-status"),
@@ -147,16 +155,49 @@ internal fun SidebarSessionsContent(
                     if (pendingApprovals > 0) Ink.warning.copy(alpha = .32f)
                     else Ink.jade.copy(alpha = .25f))
             ) {
-                Text(
-                    when {
-                        pendingApprovals > 0 -> "等待确认 · ${pendingApprovals} 项审批"
-                        running -> "当前会话正在执行，结束后可切换其他会话"
-                        else -> "其他 ${backgroundActive} 条会话正在执行或等待回应"
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (pendingApprovals > 0) Ink.warning else Ink.jade
-                )
+                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Text(
+                        when {
+                            pendingApprovals > 0 -> "待处理 ${pendingApprovals} 项审批 · ${activeIds.size} 条活跃会话"
+                            activeIds.isNotEmpty() -> "${activeIds.size} 条会话正在执行或等待回应"
+                            else -> "当前任务正在创建会话"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (pendingApprovals > 0) Ink.warning else Ink.jade
+                    )
+                    activeIds.take(4).forEach { id ->
+                        val entry = all.firstOrNull { it.optString("id") == id }
+                        val name = entry?.let {
+                            PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
+                        } ?: "会话 " + id.take(8)
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = { onOpenThread(id) },
+                                enabled = connected && !switching,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                    .testTag("sidebar-task-open-" + id)
+                            ) {
+                                Text(name, modifier = Modifier.weight(1f),
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                            }
+                            if (liveExecutions[id]?.turnId != null) {
+                                IconButton(
+                                    onClick = { onStopThread(id) },
+                                    enabled = connected,
+                                    modifier = Modifier.size(48.dp)
+                                        .testTag("sidebar-task-stop-" + id)
+                                ) {
+                                    Icon(Icons.Outlined.StopCircle,
+                                        contentDescription = "停止会话 " + name)
+                                }
+                            }
+                        }
+                    }
+                    if (activeIds.size > 4) Text(
+                        "另有 ${activeIds.size - 4} 条活跃会话，可在下方列表切换",
+                        color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     LazyColumn(
@@ -241,7 +282,7 @@ internal fun SidebarSessionsContent(
                 running = running && activeId == id,
                 pendingApprovals = if (activeId == id) pendingApprovals else 0,
                 activity = liveActivities[id] ?: ThreadActivityPolicy.fromThread(entry),
-                enabled = connected && !switching && (!running || activeId == id),
+                enabled = connected && !switching,
                 onClick = { onOpenThread(id) }
             )
         }
