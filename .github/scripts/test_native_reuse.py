@@ -56,9 +56,12 @@ class FakeRunner:
                 return "old-tree"
             if is_upstream:
                 return "same-tree"
-            if ref.endswith(":android-app/tools/prepare_android_code_mode.py"):
-                return "old-adapter" if is_old and self.changed_code_mode_adapter else "same-adapter"
             return "same-patcher"
+        if args[:2] == ["git", "ls-tree"]:
+            sha = args[2]
+            if sha.startswith(("old", "older")) and self.changed_code_mode_adapter:
+                return "old-adapter"
+            return "same-adapter"
         if args[:2] == ["git", "show"]:
             ref = args[2]
             if ref.endswith(":CODEX_UPSTREAM_COMMIT"):
