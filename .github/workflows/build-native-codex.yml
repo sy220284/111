@@ -273,8 +273,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_BRANCH: ${{ github.head_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           test -n "$PR_BRANCH"
-          gh workflow run build-android.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
-          echo "PR $PR_BRANCH 已提交 ARM64 手机 APK 打包验收；独立 UI 模拟器另行验证"
+          test -n "$PR_HEAD_SHA"
+          CURRENT_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$PR_BRANCH" --jq '.object.sha')"
+          if [ "$CURRENT_HEAD" != "$PR_HEAD_SHA" ]; then
+            echo "::notice::旧版 PR 原生检查 $PR_HEAD_SHA 已被 $CURRENT_HEAD 取代，跳过 APK 重复触发"
+            exit 0
+          fi
+          gh workflow run build-android.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH" -f expected_sha="$PR_HEAD_SHA"
+          echo "PR $PR_BRANCH 的提交 $PR_HEAD_SHA 已触发 ARM64 APK 同提交验收"
