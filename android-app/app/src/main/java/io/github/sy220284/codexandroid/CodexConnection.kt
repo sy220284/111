@@ -166,9 +166,10 @@ class CodexConnection(private val appContext: Context) {
                         RpcEnvelopeKind.UnsupportedHostRequest -> {
                             write(JSONObject().put("id", id).put("error",
                                 JSONObject().put("code", -32601)
-                                    .put("message", "Android 客户端暂不支持服务端请求：" + method)))
+                                    .put("message", RpcEnvelopeRouter.unsupportedReason(method))))
                             events.emit(JSONObject().put("method", "local/unsupportedServerRequest")
-                                .put("params", JSONObject().put("method", method)))
+                                .put("params", JSONObject().put("method", method)
+                                    .put("reason", RpcEnvelopeRouter.unsupportedReason(method))))
                         }
                         RpcEnvelopeKind.RequestResolved -> {
                             val resolved = message.optJSONObject("params")?.opt("requestId")
