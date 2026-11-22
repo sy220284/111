@@ -378,6 +378,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenMode = selectedMode.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
+            var turnRequestDispatched = false
             val pendingId = "pending-" + UUID.randomUUID()
             timeline.value = timeline.value + TimelineItem(
                 pendingId, "user",
@@ -420,6 +421,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     threadId = id, text = prompt, modelId = chosenModel,
                     mode = chosenMode, catalog = catalog, localImages = images
                 )
+                turnRequestDispatched = true
                 val response = bridge.request("turn/start", params)
                 activeTurn.value = response.optJSONObject("turn")?.optString("id")
                 imagePathsForActiveTurn = images
@@ -454,8 +456,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 running.value = false
                 timeline.value = timeline.value.filterNot { it.id == pendingId }
-                val message = (failure.message ?: "发送失败") +
-                    "；原指令已保留，可重试" + recoveryNote
+                val message = SubmissionFailurePolicy.message(
+                    failure, turnRequestDispatched) + recoveryNote
                 errors.value = errors.value + ("conversation" to message)
                 timeline.value = timeline.value + TimelineItem(
                     "failure-" + UUID.randomUUID(), "error", message)
