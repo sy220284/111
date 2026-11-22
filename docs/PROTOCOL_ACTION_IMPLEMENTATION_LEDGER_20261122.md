@@ -19,7 +19,7 @@
 
 ## 后续落地进展（相对本报告审计基线）
 
-- **C01/P0 方向校验已接入（PR #39）**：从锁定的 Rust 协议中分别提取 187 项客户端方法和 8 项 Host 主动请求，验证 Android Host-only 清单与上游逐项一致；`CodexConnection.request/notify` 在发出任何消息前统一拦截反向 Host 方法。补充 Python 与 Kotlin 反向调用测试。其他 C02～C09 仍按下面缺口逐一实施。
+- **C01/P0 方向校验已接入（PR #40）**：从锁定的 Rust 协议中分别提取 187 项客户端方法和 8 项 Host 主动请求，验证 Android Host-only 清单与上游逐项一致；`CodexConnection.request/notify` 在发出任何消息前统一拦截反向 Host 方法。补充 Python 与 Kotlin 反向调用测试。其他 C02～C09 仍按下面缺口逐一实施。
 
 ## 已查出的差异与落实任务
 
