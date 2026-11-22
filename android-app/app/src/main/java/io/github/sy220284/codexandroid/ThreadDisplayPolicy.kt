@@ -48,9 +48,9 @@ object ThreadDisplayPolicy {
         }
     }
 
-    /** An active Codex turn owns its thread until it completes or is stopped. */
-    fun canOpenThread(running: Boolean, currentId: String?, targetId: String): Boolean =
-        targetId.isNotBlank() && (!running || currentId == targetId)
+    /** Browsing another thread is independent of ongoing turns in other threads. */
+    fun canOpenThread(currentId: String?, targetId: String): Boolean =
+        targetId.isNotBlank() && currentId != targetId
 
     /** Keep any newly edited text; clear only the draft the server accepted. */
     fun afterAcceptedDraft(current: String, submitted: String): String =
