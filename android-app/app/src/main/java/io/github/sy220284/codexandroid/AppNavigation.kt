@@ -386,8 +386,10 @@ private fun Sidebar(
                 null, tint = Ink.muted, modifier = Modifier.size(20.dp))
         }
         if (more) {
-            listOf("terminal","diff","review","skills","plugins","mcp").forEach { id ->
-                SidebarRoute(id, selected, approvals, onSelect)
+            Column(Modifier.heightIn(max = 128.dp).verticalScroll(rememberScrollState())) {
+                listOf("terminal","diff","review","skills","plugins","mcp").forEach { id ->
+                    SidebarRoute(id, selected, approvals, onSelect)
+                }
             }
         }
         HorizontalDivider(
@@ -471,8 +473,7 @@ private fun SidebarRoute(
             if (id == "approvals" && approvals > 0)
                 StatusPill(approvals.toString(), tone = StatusTone.Danger)
         },
-        modifier = Modifier.testTag("nav-$id").heightIn(min = 49.dp)
-,
+        modifier = Modifier.testTag("nav-$id").heightIn(min = 48.dp),
         shape = RoundedCornerShape(14.dp),
         colors = NavigationDrawerItemDefaults.colors(
             selectedContainerColor = Color(0xFFF2F2F2),
