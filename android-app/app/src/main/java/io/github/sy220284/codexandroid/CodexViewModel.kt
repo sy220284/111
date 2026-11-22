@@ -646,11 +646,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val method = message.optString("method")
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
-        if (method == "local/unsupportedServerRequest") {
-            errors.value = errors.value + ("protocol" to params.optString("reason")
-                .ifBlank { "当前核心请求了尚未启用的宿主能力，详情请查看诊断" })
-            return
-        }
+        if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
         if (method == "account/login/completed") {
             val result = AccountLoginContract.completion(params, activeLoginId.value)
             if (result != null) {
