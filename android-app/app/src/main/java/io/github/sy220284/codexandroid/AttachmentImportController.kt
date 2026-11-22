@@ -3,6 +3,8 @@ package io.github.sy220284.codexandroid
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,6 +27,7 @@ internal class AttachmentImportController(
 ) {
     val state = MutableStateFlow(AttachmentImportState())
     private var pickerOwner: String? = null
+    private var pickerInFlight = false
 
     fun editText(threadId: String?, text: String) {
         drafts.update { ThreadComposerDrafts.text(it, threadId, text) }
@@ -38,13 +41,21 @@ internal class AttachmentImportController(
         drafts.update { ThreadComposerDrafts.accepted(it, threadId, text, images) }
     }
 
-    fun beginImageSelection(threadId: String?) {
+    fun beginImageSelection(threadId: String?): Boolean {
+        if (pickerInFlight || state.value.inProgress) {
+            state.value = state.value.copy(message = "请先完成当前选图或等待导入结束")
+            return false
+        }
+        pickerInFlight = true
         pickerOwner = threadId
+        return true
     }
 
     fun importPickedImages(selected: List<Uri>) {
+        if (!pickerInFlight) return
         val owner = pickerOwner
         pickerOwner = null
+        pickerInFlight = false
         if (selected.isEmpty()) return
         val key = ThreadComposerDrafts.key(owner)
         if (state.value.inProgress) {
@@ -64,9 +75,17 @@ internal class AttachmentImportController(
         scope.launch {
             val failures = mutableListOf<String>()
             var imported = 0
-            for (uri in accepted) {
+            // At most three independent URI copies are started together. Results are
+            // committed in selection order so the draft stays predictable.
+            val tasks = accepted.map { uri ->
+                async(Dispatchers.IO) {
+                    runCatching { LocalImageAttachments.importFrom(context, uri) }
+                }
+            }
+            for (task in tasks) {
+                val result = task.await()
                 try {
-                    val path = LocalImageAttachments.importFrom(context, uri)
+                    val path = result.getOrThrow()
                     drafts.update { previous ->
                         val current = previous[key]?.images.orEmpty()
                         if (current.size >= LocalImageAttachments.MAX_FILES) previous

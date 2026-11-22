@@ -319,7 +319,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun editComposerImages(threadId: String?, paths: List<String>) =
         attachmentController.editImages(threadId, paths)
 
-    fun beginImageSelection(threadId: String?) =
+    fun beginImageSelection(threadId: String?): Boolean =
         attachmentController.beginImageSelection(threadId)
 
     fun importPickedImages(selected: List<Uri>) =

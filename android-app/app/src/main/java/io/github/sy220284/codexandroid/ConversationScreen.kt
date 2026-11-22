@@ -388,8 +388,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     showAttachmentTools = false
                 },
                 onPickImage = {
-                    vm.beginImageSelection(thread)
-                    pendingImagePick = true
+                    if (vm.beginImageSelection(thread)) pendingImagePick = true
                     showAttachmentTools = false
                 }
             )
