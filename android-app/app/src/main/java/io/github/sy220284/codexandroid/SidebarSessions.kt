@@ -1,5 +1,7 @@
 package io.github.sy220284.codexandroid
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -59,7 +61,7 @@ internal fun SidebarSessions(
                     searching = !searching
                     if (!searching) search = ""
                 },
-                modifier = Modifier.size(42.dp).testTag("sidebar-search-toggle")
+                modifier = Modifier.size(48.dp).testTag("sidebar-search-toggle")
             ) {
                 Icon(if (searching) Icons.Outlined.Close else Icons.Outlined.Search,
                     contentDescription = if (searching) "关闭会话搜索" else "搜索侧栏会话",
@@ -70,7 +72,7 @@ internal fun SidebarSessions(
                     vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
                 },
                 enabled = connected && "sidebarThreads" !in loading,
-                modifier = Modifier.size(42.dp).testTag("sidebar-refresh")
+                modifier = Modifier.size(48.dp).testTag("sidebar-refresh")
             ) {
                 Icon(Icons.Outlined.Refresh, contentDescription = "刷新侧栏会话",
                     modifier = Modifier.size(19.dp), tint = Ink.muted)
@@ -147,14 +149,19 @@ internal fun SidebarSessionRow(
     onClick: () -> Unit
 ) {
     val id = item.optString("id")
+    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val surfaceColor by animateColorAsState(
+        targetValue = if (active) Ink.copper.copy(alpha = .065f) else Ink.canvas,
+        animationSpec = tween(CodexMotion.duration(170, reduceMotion)),
+        label = "sidebar-active-session"
+    )
     Surface(
         modifier = Modifier.fillMaxWidth()
             .testTag("sidebar-thread-" + id)
             .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(13.dp),
-        color = if (active) Ink.copper.copy(alpha = .065f) else Ink.canvas,
-        border = BorderStroke(1.dp,
-            if (active) Ink.copperDim else Ink.border.copy(alpha = .54f))
+        color = surfaceColor,
+        border = if (active) BorderStroke(1.dp, Ink.copperDim) else null
     ) {
         Row(Modifier.padding(horizontal = 11.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
