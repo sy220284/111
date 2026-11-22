@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
@@ -25,9 +27,16 @@ import kotlinx.coroutines.launch
  * It remains available while an approval is pending, even if a turn is not
  * currently emitting tokens. Its stop action uses the same validated VM RPC.
  */
+internal object ForegroundTaskPolicy {
+    fun shouldKeepAlive(running: Boolean, approvals: Int): Boolean = running || approvals > 0
+    fun shouldReconnect(connected: Boolean, running: Boolean, approvals: Int): Boolean =
+        !connected && shouldKeepAlive(running, approvals)
+}
+
 class CodexForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var watch: Job? = null
+    private var reconnectWatcher: Job? = null
 
     private data class TaskNotificationState(
         val running: Boolean,
@@ -63,11 +72,29 @@ class CodexForegroundService : Service() {
                     canStop = running && !turn.isNullOrBlank()
                 )
             }.distinctUntilChanged().collectLatest { state ->
-                if ((!state.running && state.approvals == 0) ||
-                    (!state.connected && !state.running)) {
+                if (!ForegroundTaskPolicy.shouldKeepAlive(state.running, state.approvals)) {
+                    reconnectWatcher?.cancel()
                     stopSelf()
                 } else {
                     showNotification(state, foreground = false)
+                    // A pending approval is a live interaction even when its turn is idle.
+                    // Reconnect while the foreground service is legitimately active;
+                    // exponential backoff avoids thrashing a failed native child.
+                    if (ForegroundTaskPolicy.shouldReconnect(
+                            state.connected, state.running, state.approvals
+                        ) && reconnectWatcher?.isActive != true) {
+                        reconnectWatcher = scope.launch {
+                            var interval = 2_000L
+                            while (isActive && ForegroundTaskPolicy.shouldKeepAlive(
+                                    session.running.value, session.bridge.prompts.value.size
+                                ) && session.bridge.status.value != EngineStatus.Connected) {
+                                delay(interval)
+                                session.reconnectIfNeeded()
+                                interval = (interval * 2).coerceAtMost(60_000L)
+                            }
+                        }
+                    }
+                    if (state.connected) reconnectWatcher?.cancel()
                 }
             }
         }
@@ -134,6 +161,7 @@ class CodexForegroundService : Service() {
 
     override fun onDestroy() {
         watch?.cancel()
+        reconnectWatcher?.cancel()
         scope.cancel()
         super.onDestroy()
     }
