@@ -250,7 +250,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    var draft by rememberSaveable { mutableStateOf("") }
+    val composerDrafts by vm.composerDrafts.collectAsState()
+    val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
+    val draft = snapshot.text
+    val attachedImages = snapshot.images
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
@@ -258,13 +261,13 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
+    var imagePickThread by remember { mutableStateOf<String?>(null) }
     var showEngineStatus by remember { mutableStateOf(false) }
     var showApprovalQuick by remember { mutableStateOf(false) }
     var stopRequested by remember(activeTurn) { mutableStateOf(false) }
     val stopping = busy && (("interrupt" in loading) ||
         (stopRequested && errors["interrupt"] == null))
     val attachmentContext = LocalContext.current
-    var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var attachmentBusy by remember { mutableStateOf(false) }
     var attachmentError by remember { mutableStateOf("") }
 
@@ -278,15 +281,26 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            if (attachedImages.size >= LocalImageAttachments.MAX_FILES) {
+            // 图片返回时始终归属于打开选择器的那条会话。
+            val owner = imagePickThread
+            val existing = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
+                ?.images.orEmpty()
+            if (existing.size >= LocalImageAttachments.MAX_FILES) {
                 attachmentError = "最多添加三张图片，请先移除一张"
             } else {
                 attachmentBusy = true
                 scope.launch {
                     try {
                         val path = LocalImageAttachments.importFrom(attachmentContext, uri)
-                        attachedImages = attachedImages + path
-                        attachmentError = ""
+                        val current = vm.composerDrafts.value[ThreadComposerDrafts.key(owner)]
+                            ?.images.orEmpty()
+                        if (current.size >= LocalImageAttachments.MAX_FILES) {
+                            LocalImageAttachments.release(attachmentContext, path)
+                            attachmentError = "图片数量已满，请先移除一张"
+                        } else {
+                            vm.editComposerImages(owner, current + path)
+                            attachmentError = ""
+                        }
                     } catch (failure: Exception) {
                         attachmentError = failure.message ?: "无法读取所选图片"
                     } finally {
@@ -413,14 +427,14 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             )
                             WelcomeActionCard(
                                 "写个脚本", "先描述需求", Icons.Outlined.Code,
-                                Ink.copper, onClick = { draft = "帮我写一个脚本，目标是：" },
+                                Ink.copper, onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
                                 modifier = Modifier.weight(1f)
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             WelcomeActionCard(
                                 "新建项目", "整理初始化步骤", Icons.Outlined.CreateNewFolder,
-                                Ink.copper, onClick = { draft = "请协助初始化一个新项目，需求是：" },
+                                Ink.copper, onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
                                 modifier = Modifier.weight(1f)
                             )
                             WelcomeActionCard(
@@ -487,7 +501,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             errors["attachments"]?.let { ErrorText(it) }
             LocalImageAttachmentStrip(attachedImages) { path ->
-                attachedImages = attachedImages - path
+                vm.editComposerImages(thread, attachedImages - path)
                 scope.launch {
                     try {
                         LocalImageAttachments.release(attachmentContext, path)
@@ -498,7 +512,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             ConversationComposer(
                 draft = draft,
-                onDraftChange = { draft = it },
+                onDraftChange = { vm.editComposerText(thread, it) },
                 attachedCount = attachedImages.size,
                 connected = status == EngineStatus.Connected,
                 running = busy,
@@ -515,13 +529,13 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     val message = draft.trim()
                     if (busy) {
                         vm.steerPrompt(message) {
-                            if (draft.trim() == message) draft = ""
+                            vm.clearComposerAfterAccepted(thread, message, emptyList())
                         }
                     } else {
                         val images = attachedImages.toList()
                         vm.sendPrompt(message, images) {
-                            if (draft.trim() == message) draft = ""
-                            if (attachedImages == images) attachedImages = emptyList()
+                            // 首条消息创建真实会话后，草稿已迁移到新 threadId。
+                            vm.clearComposerAfterAccepted(vm.activeThread.value, message, images)
                         }
                     }
                 }
@@ -547,6 +561,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }, hasThread = thread != null,
             imageCount = attachedImages.size, importing = attachmentBusy,
             onPickImage = {
+                imagePickThread = thread
                 pendingImagePick = true
                 showAttachmentTools = false
             }
