@@ -40,7 +40,8 @@ class FakeRunner:
                  expired_first=False, missing_abi=False, ancestor=True,
                  run_conclusion='success', failed_job=False,
                  changed_code_mode_adapter=False,
-                 legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False):
+                 legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False,
+                 changed_parent_cargo=False):
         self.run_conclusion = run_conclusion
         self.failed_job = failed_job
         self.changed_source = changed_source
@@ -53,14 +54,18 @@ class FakeRunner:
         self.changed_v8_builder = changed_v8_builder
         self.changed_v8_host_adapter = changed_v8_host_adapter
         self.changed_git_builder = changed_git_builder
+        self.changed_parent_cargo = changed_parent_cargo
+        self.git_queries = []
         self.called_api = 0
         self.last_workflow_query = []
 
     def __call__(self, args):
+        if args and args[0] == "git":
+            self.git_queries.append(args)
         if args[:2] == ["git", "rev-parse"]:
             ref = args[2]
             is_old = ref.startswith(("old:", "older:"))
-            is_upstream = ref.endswith(":upstream/codex")
+            is_upstream = ref.endswith(":upstream/codex/codex-rs")
             if is_upstream and is_old and self.changed_source:
                 return "old-tree"
             if is_upstream:
@@ -68,6 +73,9 @@ class FakeRunner:
             return "same-patcher"
         if args[:2] == ["git", "ls-tree"]:
             sha = args[2]
+            if args[-1] == "upstream/codex/.cargo":
+                return ("old-parent-cargo" if sha.startswith(("old", "older")) and
+                        self.changed_parent_cargo else "same-parent-cargo")
             if args[-1] == "android-app/tools/build_android_git.sh":
                 return ("old-git-builder" if sha.startswith(("old", "older")) and
                         self.changed_git_builder else "same-git-builder")
@@ -202,6 +210,25 @@ jobs:
         runner = FakeRunner(missing_abi=True, failed_job=True)
         self.assertIsNone(ArtifactSelector(runner).find(
             "owner/repo", "HEAD", ["arm64-v8a"]))
+
+    def test_upstream_docs_sdk_and_archived_ci_do_not_invalidate_binary(self):
+        runner = FakeRunner()
+        self.assertEqual(ArtifactSelector(runner).find(
+            "owner/repo", "HEAD", ["arm64-v8a"]), "21")
+        self.assertFalse(any(
+            ref.endswith(":upstream/codex") or "CODEX_UPSTREAM_COMMIT" in ref
+            for query in runner.git_queries for ref in query
+        ))
+        self.assertTrue(any(
+            ":upstream/codex/codex-rs" in ref
+            for query in runner.git_queries for ref in query
+        ))
+
+    def test_parent_cargo_config_change_requires_rebuild(self):
+        runner = FakeRunner(changed_parent_cargo=True)
+        self.assertIsNone(ArtifactSelector(runner).find(
+            "owner/repo", "HEAD", ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
 
     def test_changed_source_must_recompile(self):
         runner = FakeRunner(changed_source=True)
