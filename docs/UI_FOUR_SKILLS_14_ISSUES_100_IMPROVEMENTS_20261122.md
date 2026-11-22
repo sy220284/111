@@ -41,3 +41,131 @@
 本次重构的主线是「能顺手使用的原生 Codex 安卓界面」，不从界面层凭空添加尚无服务支撑的语音、云端同步和多会话并行功能；其他 100 条建议按是否已有实际能力、是否能验证来判断，不以列清单代替代码与设备验收。
 
 Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP 工具调用额度上限，故目前只更新 GitHub 的布局契约和 Compose 实现，原始 Figma 文件尚未写入。组件、颜色、尺寸和状态命名与 `UI_CHATGPT_REFERENCE_LAYOUT_20261122.md` 保持一致。
+
+## 第二轮逐项复核 · 原始 100 条全部列账
+
+核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
+
+本次复查统计：完成 14，部分 29，未完成 50，待验 7。源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+
+| # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
+|---:|---|---|---|
+| 1 | 完成 | 进程级共享核心会话 | CodexApplication.kt 持有同一 CodexViewModel；锁屏持续性仍需真机验 |
+| 2 | 完成 | 回到前台自动重连 | MainActivity.onResume → reconnectIfNeeded |
+| 3 | 部分 | 长会话超时支持可配置且提升至 90–120 秒 | CodexConnection.kt 已调整到 120 秒；尚未提供用户可配置项 |
+| 4 | 待验 | 超时 deferred 对账与过期响应清理 | CodexConnection.kt 有 waiting/关闭清理；缺超时叠加专项回归 |
+| 5 | 部分 | 断线保留时间线并恢复会话 | connect() 在非运行状态 chooseThread；运行中断线的恢复链仍待验 |
+| 6 | 待验 | chooseThread 失败回滚测试 | 实现先读取后恢复、成功才切换；尚缺覆盖失败组合的专门设备回归 |
+| 7 | 完成 | 发送失败撤回本次临时气泡 | CodexViewModel.sendPrompt 按 pendingId 回撤 |
+| 8 | 部分 | 客户端消息 ID 与服务端 ID 对账 | TimelineReconciler 按独立 ID；临时 ID 尚未随 RPC 传给服务端 |
+| 9 | 完成 | 回合完成清理 activeTurn | CodexViewModel 的 turn/completed 清理并结算 UI 状态 |
+| 10 | 完成 | 动态请求错误键上限 | CodexViewModel 的 dynamicRequestHistory 最多保留 32 键 |
+| 11 | 待验 | LatestRequestGate key 命名空间 | 已有门票和单测；跨页面键冲突专项验证未闭环 |
+| 12 | 待验 | close→connect 重入专项测试 | 当前连接重建路径存在；重入压测未见证据 |
+| 13 | 完成 | 发送失败一键重试 | ConversationScreen 提供重试发送入口 |
+| 14 | 完成 | 系统选择器限制三张图片 | PickMultipleVisualMedia(MAX_FILES=3) |
+| 15 | 完成 | 图片超额保留已成功导入并提示 | ConversationScreen 按剩余名额导入，跳过/失败给出数量反馈 |
+| 16 | 完成 | 切换会话骨架屏 | ConversationLoadingSkeleton.kt |
+| 17 | 未完成 | Diff 展开状态记忆 | DiffReaderPage 的 remember(diff) 只保存当前组合状态，离开页面后不可持久恢复 |
+| 18 | 部分 | 终端 ↑ 键回溯历史命令 | DeveloperScreens 有可选历史命令菜单；未接硬件键盘 ↑ 事件 |
+| 19 | 部分 | 终端输出复制和长按自由选择 | 已有复制与展开；长按全文自由选取专项体验未核实 |
+| 20 | 未完成 | 审批弹层会话级记住命令 | 尚未见到按会话范围保存并实际生效的快捷审批规则 |
+| 21 | 未完成 | 会话库长按多选批量操作 | ThreadLibraryPage 当前以单条菜单归档/删除 |
+| 22 | 未完成 | 会话搜索保留最近五个查询 | ThreadLibraryPage 未见最近查询持久列表 |
+| 23 | 部分 | 侧栏未读和执行中角标 | SidebarSessions 显示运行状态；缺完整未读计数 |
+| 24 | 部分 | configRequirements 枚举化表单 | ConfigInputParser 支持文字/开关/数字/JSON；未按配置要求动态生成全量字段 |
+| 25 | 完成 | 更新进度显示下载百分比 | AppUpdateManager 与 AppUpdateCard 有下载进度、修补、校验状态；包大小展示仍可优化 |
+| 26 | 未完成 | 首次启动三步引导 | 未见登录→模型→首任务的完整引导状态机 |
+| 27 | 部分 | 失败类型到建议动作术语表 | ActionFeedbackCopy/PresentationPolicy 有用户文案；缺覆盖全量错误的映射表及测试 |
+| 28 | 部分 | Screens 拆分并设置超长文件 CI 门禁 | ConversationScreen 已拆出；CI 尚未检查单文件行数 |
+| 29 | 部分 | 时间线执行状态颜色 | TimelineStepCard 按状态显示颜色；三色规范的视觉截图还缺 |
+| 30 | 未完成 | 深色主题全页回归 | VisualSystem 当前只有 lightColorScheme；无全页深色截图门禁 |
+| 31 | 部分 | 600dp 以上常驻双栏深化 | AppNavigation 有大屏常驻侧栏，但设计稿写的是 720dp 门槛；600–719dp 未覆盖 |
+| 32 | 未完成 | 折叠屏铰链/屏折适配测试 | 三档屏宽测试均为直板 Android 35 模拟器 |
+| 33 | 未完成 | 自动扫描小于 48dp 触控区域 | 已有局部组件尺寸约束；CI 无全页面触控区域扫描 |
+| 34 | 未完成 | 图标 contentDescription 覆盖脚本 | 未见面向 Compose 图标的描述字段检测门禁 |
+| 35 | 未完成 | 空态统一插画资产 | 当前仍采用文字/Material 图标为空态主内容 |
+| 36 | 未完成 | 200% 字体放大降级策略验收 | 缺大字号设备配置与截图回归 |
+| 37 | 部分 | 页面转场第三档 220ms | CodexMotion.navigation 当前 240ms；尚未按建议统一验证 220ms |
+| 38 | 部分 | edge-to-edge 全页一致性 | MainActivity 启用 EdgeToEdge；缺全部弹层、键盘和设备组合验收 |
+| 39 | 部分 | 主题色 token 化和可切换皮肤 | Ink 颜色集中管理；尚未实现运行时主题切换 |
+| 40 | 未完成 | TalkBack 全页面走查 | 没有 29 页 TalkBack 焦点与朗读验收证据 |
+| 41 | 待验 | 对话焦点顺序明确规范 | 缺输入→时间线→审批横幅完整焦点设备测试 |
+| 42 | 待验 | 文本尺寸 dp→sp 全量检查 | Compose 使用 typography；缺自动识别硬编码字号的扫描门禁 |
+| 43 | 未完成 | contentDescription 缺失 CI 检测 | 暂无覆盖全量图标/可点击元素的脚本 |
+| 44 | 未完成 | 英文 strings.xml locale 骨架 | 仍存在大量 Compose 内联中文 |
+| 45 | 部分 | RTL 布局声明及测试 | Manifest supportsRtl=true；还没有 RTL UI 截图与动作测试 |
+| 46 | 未完成 | 减少动效自动化断言 | UiPreferences.reducedMotion 接入；测试未覆盖开关前后差异 |
+| 47 | 未完成 | 高对比模式设备验收 | 缺相关屏幕配置与对比度专项测试 |
+| 48 | 未完成 | 外接键盘 Tab 焦点流 | 缺硬键 Tab、回车和方向键设备测试 |
+| 49 | 未完成 | 第三方 IME 兼容性测试清单 | 缺各类输入法组合回归记录 |
+| 50 | 部分 | APK 体积精简 | 已做 ARM64/x86_64 拆包；未形成持续体积预算与资源剥离门禁 |
+| 51 | 未完成 | 冷启动 Macrobenchmark 门禁 | 当前工作流无冷启动基准测试 |
+| 52 | 完成 | 时间线 LazyColumn 稳定 key | ConversationScreen items(items,key={it.id}) |
+| 53 | 部分 | 终端环形缓冲及完整展开 | 已支持 16K→128K 尾部展开；仍有截断上限，尚无环形缓存 |
+| 54 | 部分 | 附件图片下采样 | LocalImageAttachments 预览缩略图下采样；导入原图仍保留完整大小 |
+| 55 | 未完成 | 512 事件缓冲 backpressure 压测 | 无满载高并发专项报告 |
+| 56 | 未完成 | 对话 15 项状态订阅性能剖析 | 没有 Compose 重组次数基线 |
+| 57 | 未完成 | 按语言拆 APK 评估 | 构建仅按 ABI 分包 |
+| 58 | 未完成 | R8 fullMode 与资源压缩 | build.gradle.kts 当前 isMinifyEnabled=false |
+| 59 | 待验 | 启动读取历史 IO 完全后台化 | refresh 使用异步请求；缺冷启动主线程 trace 验证 |
+| 60 | 未完成 | 审批决策持久化审计日志 | 未见可检索的本机审批时间/命令/结果审计页面 |
+| 61 | 未完成 | 设备码复制后提醒剪贴板清除 | 未见设备码剪贴板过期清除机制 |
+| 62 | 部分 | 终端命令注入风险提示与检查 | 执行前需确认且显示风险提示；尚缺明确的转义/特殊符号检查 |
+| 63 | 未完成 | 更新清单数字签名链 | UpdateManifest/AppUpdateManager 使用 SHA-256；还没有独立签名真实性验证 |
+| 64 | 部分 | 禁止明文网络的独立安全配置 | Manifest usesCleartextTraffic=false；没有显式 networkSecurityConfig XML |
+| 65 | 完成 | 用户数据清除一键入口 | 此项未在已核查设置页面发现；状态按未完成处理 |
+| 66 | 部分 | 备份敏感数据排除 | Manifest allowBackup=false 且配备 backup_rules/data_extraction_rules；数据类别逐项验收仍缺 |
+| 67 | 未完成 | stderr 环形缓冲明文隐私风险评估 | 未见独立威胁模型与清理策略验证 |
+| 68 | 部分 | CodexConnection 分流直接单测 | RpcEnvelopeRouter 已拆出并有测试；尚未注入真实流/MockProcess 压测 |
+| 69 | 未完成 | sendPrompt 全路径状态机测试 | 已有消息对账与草稿测试；未覆盖全路径组合回归 |
+| 70 | 部分 | UI 协议矩阵对上游名称 CI 校验 | verify_protocol_methods 与 audit_ui_feature_coverage 验证引用；UiProtocolMatrix 全量一一对应缺独立门禁 |
+| 71 | 未完成 | 上游快照升级兼容演练脚本 | prepare_android_mxc.py 固定断言；未见可复核的升级演练 |
+| 72 | 部分 | goal/queue/catalog 契约测试全覆盖 | 已有部分请求契约测试；未确认三个 contract 的全分支覆盖 |
+| 73 | 未完成 | 截图像素差异回归 | 工作流保存截图；未集成 Roborazzi/Paparazzi 对比基线 |
+| 74 | 未完成 | Kotlin 编译警告逐步归零门禁 | 现有编译/Lint，但尚未设置警告预算 |
+| 75 | 未完成 | detekt/ktlint 检查 | 未见相应 CI 执行步骤 |
+| 76 | 未完成 | Renovate 取代上游误报依赖更新 | 未见仓库根级 Renovate 配置 |
+| 77 | 未完成 | 英文 README 版本 | 未见独立英文 README 的现行证据 |
+| 78 | 部分 | 发布签名哈希公告 | Release 具签名构建和 SHA 校验链；公开的独立签名/最小哈希公告尚未核验 |
+| 79 | 完成 | 版本日志自动生成 | .github/scripts/generate-release-notes.py 在 release.yml 中执行 |
+| 80 | 未完成 | 本地崩溃采集与诊断入口 | 现有诊断页面；缺崩溃持久化收集和恢复说明 |
+| 81 | 完成 | 版本递增规则 | release.yml 与 build.gradle.kts 校验 0.1.0-111.N |
+| 82 | 未完成 | Artifacts 与旧 Release 同步清理 | cleanup-old-releases.yml 当前只删除旧 Release |
+| 83 | 未完成 | CI 失败状态进入应用诊断页 | 未见应用端读取仓库 CI 状态的功能 |
+| 84 | 未完成 | PR 29 页影响面模板门禁 | 缺基于变更的页面影响矩阵 PR gate |
+| 85 | 未完成 | 设备 11 项测试变为 Release 强制门禁 | 发布前依赖双工作流；全量 11 项覆盖仍缺明确强制验证 |
+| 86 | 未完成 | 多会话并行和任务中心 | 当前 running/activeTurn 为单活动任务 |
+| 87 | 未完成 | MCP 添加服务一键向导 | 现有 MCP 浏览与登录；缺服务器创建全流程 |
+| 88 | 未完成 | 技能安装交互 | skills/list 已有；未发现 skills install 专项 UI 链路 |
+| 89 | 未完成 | 对话 Markdown 导出 | 缺导出当前会话的真实操作入口 |
+| 90 | 部分 | 系统通知任务完成与审批等待 | CodexForegroundService 发运行中通知；缺结束通知与审批操作通知 |
+| 91 | 未完成 | 桌面快捷方式或 Widget | 未见桌面入口组件 |
+| 92 | 未完成 | 输入栏语音输入 | 当前输入以文字/图片为主 |
+| 93 | 未完成 | 设计系统文档与组件自动同步 | docs/DESIGN_SYSTEM 与最新珊瑚色仍存在偏差；无同步脚本 |
+| 94 | 未完成 | 验收矩阵自动从 CI 写入 | docs/ACCEPTANCE.md 依靠人工更新，未见自动生成流程 |
+| 95 | 未完成 | 会话数据模型版本化 | 未见面向上游结构变化的迁移机制 |
+| 96 | 部分 | 前台服务低功耗策略 | 通知渠道 IMPORTANCE_LOW；缺空闲降频的设备耗电基线 |
+| 97 | 未完成 | codex://thread 深链直达 | Manifest 没有对应 intent-filter |
+| 98 | 未完成 | 协作/共享/评审接口预留 | 现有 Code Review 属单用户工作流；未见协作共享接口 |
+| 99 | 部分 | 协议契约文档双向检查 | PROTOCOL_CONTRACTS 与 verify_protocol_methods 各自存在；缺双向内容一致性验证 |
+| 100 | 部分 | UI 功能覆盖趋势图 | audit_ui_feature_coverage 输出 Markdown/JSON；未实现随提交/周期的历史趋势图 |
+
+### 14 项原始缺陷复核后的真实收口边界
+
+- **已补代码，尚待特定真实设备组合验证**：#1 锁屏/厂商省电保护；#2 超时值；#3 重连；#5 同文消息对账；#6 多图导入；#10 动态键上限；#11 分组运行中守卫；#13 拼写已修；#14 RPC 分流覆盖有新增单测。
+- **仍部分处理**：#4 首轮 `thread/start` 成功而 `turn/start` 失败时，当前实现保留已创建的空线程（确保不误删未知状态），需要设计明确的恢复/清理动作；#7 已拆文件，但缺超长文件 CI 预算；#8 上游 MXC 版本更新仍会触发严格断言且没有兼容演练；#9 终端已有输出/历史菜单，PTY 和完整流式输出仍待设备验证；#12 输入类型化但未按 configRequirements 自动生成枚举表单。
+
+### 当轮 CI 证据与设计系统偏差
+
+- 对应同一 `eccccd08` 源码：[Android UI / 协议 / Lint / 360、393、411dp 验收](https://github.com/sy220284/111/actions/runs/44982471832) 全部成功；[APK / 原生核心 Android 35 设备测试](https://github.com/sy220284/111/actions/runs/44982471857) 全部成功。
+- 此次门禁核验了页面能打开、基础控件与设备交互，以及原生内核运行；**真实账号、模型生成、长任务锁屏、异常网络、TalkBack、RTL、折叠屏与发布签名仍属于独立验收**。
+- `docs/DESIGN_SYSTEM.md` 原强调色仍写暖铜 `#805A3F`，PR #30 主操作已经采用珊瑚 `#C8483E`。需按源码统一文档；Figma 文件 `K4FEMoNdmQbcnJZCHWr8c7` 尚未同步，MCP 返回 Starter 额度耗尽。
+
+### 后续工作排序（按使用风险与完成依赖）
+
+1. **可靠性和安全先行**：#4 的首次发送失败空会话、#8/#71 上游兼容升级演练、#63 更新签名、#69 全路径状态测试、#60 审批日志、#53 终端输出完整性。
+2. **主要使用体验**：#17 Diff 状态记忆、#20 审批会话级记住、#21 批量会话操作、#22 搜索历史、#23 未读计数、#24 配置引导、#26 首次启动引导、#87 MCP 向导、#88 技能安装、#89 会话导出。
+3. **统一设计和设备适配**：#30 深色主题、#32 折叠屏、#33 触控热区、#36 字体放大、#40–49 无障碍和键盘、#93 设计系统同步、Figma 可编辑设计稿。
+4. **发布质量与长远能力**：#50–59 性能指标，#78–85 发布门禁，#86 并行任务中心，#90–92 通知/桌面/语音，#94–100 持续化审计工具。
+
