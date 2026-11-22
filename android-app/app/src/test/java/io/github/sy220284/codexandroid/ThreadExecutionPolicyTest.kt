@@ -28,6 +28,17 @@ class ThreadExecutionPolicyTest {
         }
     }
 
+    @Test fun offscreenFailuresAreBoundedAndReplacedByLatestMessage() {
+        val errors = (1..100).fold(emptyMap<String, String>()) { old, n ->
+            ThreadExecutionPolicy.failureUpdated(old, "thread-$n", "failed-$n")
+        }
+        assertEquals(64, errors.size)
+        assertFalse(errors.containsKey("thread-1"))
+        val replaced = ThreadExecutionPolicy.failureUpdated(errors, "thread-100", "latest")
+        assertEquals("latest", replaced["thread-100"])
+        assertEquals(64, replaced.size)
+    }
+
     @Test fun completingUnknownThreadCannotStopOtherExecutions() {
         val active = ThreadExecutionPolicy.reserve(emptyMap(), "one", emptyList())
         assertEquals(active, ThreadExecutionPolicy.finish(active, "unknown"))
