@@ -209,15 +209,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+fun McpServicesPage(vm: CodexViewModel) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
+    val errors by vm.errors.collectAsState()
     val servers = records(data["mcp"])
-    val login = data["mcpLogin"]?.optString("authorizationUrl") ?: ""
-    var selected by remember { mutableStateOf("") }
+    val login = data["mcpLogin"]?.optString("authorizationUrl").orEmpty()
     var confirmLogin by remember { mutableStateOf("") }
-    var resourceSelection by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
-    var toolSelection by remember { mutableStateOf<Triple<String, String, JSONObject>?>(null) }
     val currentThread by vm.activeThread.collectAsState()
     fun refreshMcpServices() {
         vm.refresh("mcp", "mcpServerStatus/list",
@@ -225,105 +223,74 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     LaunchedEffect(currentThread) { refreshMcpServices() }
     ScreenColumn {
-        SectionIntro("TOOLS / MCP", "MCP 服务", "实时查看各服务的连接状态、工具与资源。")
+        SectionIntro("EXTENSIONS / MCP", "MCP 服务",
+            "管理扩展服务的连接与授权。工具由智能体在任务中按需调用。")
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("工具服务概览", style = MaterialTheme.typography.titleMedium)
-            Text(if (data["mcp"] != null) "已发现 ${servers.size} 个服务" else "等待同步服务目录",
-                style = MaterialTheme.typography.titleLarge)
-            Text("登录只针对你明确选择的服务发起。", color = Ink.muted)
-            OutlinedButton(onClick = {
-                refreshMcpServices()
-            }) { Icon(Icons.Outlined.Refresh, null); Text("刷新服务") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("已连接的服务", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                Text(servers.count {
+                    PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
+                }.toString() + " / " + servers.size,
+                    style = MaterialTheme.typography.titleMedium)
+            }
+            Text("只有服务连接或授权需要你操作；工具运行结果可在对应任务中查看。",
+                color = Ink.muted)
+            OutlinedButton(onClick = { refreshMcpServices() },
+                modifier = Modifier.heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(8.dp))
+                Text("刷新连接状态")
+            }
         }
         IntegrationState(vm, "mcp") { refreshMcpServices() }
-        if (servers.isEmpty() && data["mcp"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("当前没有已注册的 MCP 服务", color = Ink.muted)
-            Text("可通过 Codex 配置页设置服务，或通过插件安装所需服务。", color = Ink.muted)
+        if (servers.isEmpty() && data["mcp"] != null) {
+            CodexEmptyState("尚未连接扩展服务",
+                "可以在引擎配置中添加 MCP 服务，或安装提供服务的插件。",
+                icon = Icons.Outlined.Hub)
         }
         servers.forEach { server ->
-            val name = PresentationPolicy.meaningful(server.optString("name")).ifEmpty { "未命名服务" }
-            val tools = server.optJSONObject("tools") ?: JSONObject()
-            val resources = server.optJSONArray("resources") ?: JSONArray()
+            val name = PresentationPolicy.meaningful(server.optString("name"))
+                .ifEmpty { "未命名服务" }
+            val status = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
             val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
-                    Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    val serviceState = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
-                    StatusPill(serviceState, serviceState == "已连接")
+                    Text(name, style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f), maxLines = 2)
+                    StatusPill(status, status == "已连接")
                 }
-                Text("工具 " + tools.length() + " 项 · 资源 " + resources.length() + " 项",
-                    color = Ink.muted)
-                Text("授权：" + auth, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { selected = if (selected == name) "" else name }) {
-                        Text(if (selected == name) "收起详情" else "查看工具")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("授权：" + auth, color = Ink.muted, modifier = Modifier.weight(1f))
+                    if (auth != "已授权") {
+                        TextButton(onClick = { confirmLogin = name },
+                            modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text("授权登录")
+                        }
                     }
-                    TextButton(onClick = { confirmLogin = name }) { Text("授权登录") }
                 }
-                CodexReveal(selected == name) {
-                    Column {
-                        val keys = tools.keys().asSequence().toList()
-                        keys.forEach { toolName ->
-                            OutlinedButton(
-                                onClick = {
-                                    toolSelection = Triple(
-                                        name, toolName, tools.optJSONObject(toolName) ?: JSONObject()
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            ) {
-                                Icon(Icons.Outlined.Build, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(toolName, modifier = Modifier.weight(1f), maxLines = 2)
-                                Icon(Icons.Outlined.ChevronRight, null)
-                            }
-                        }
-                        if (resources.length() > 0) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("服务资源", style = MaterialTheme.typography.titleMedium)
-                            for (index in 0 until resources.length()) {
-                                val resource = resources.optJSONObject(index) ?: continue
-                                val uri = resource.optString("uri")
-                                if (uri.isBlank()) continue
-                                OutlinedButton(
-                                    onClick = { resourceSelection = name to resource },
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                                ) {
-                                    Icon(Icons.Outlined.Description, null)
-                                    Spacer(Modifier.width(9.dp))
-                                    Text(PresentationPolicy.meaningful(resource.optString("name"))
-                                        .ifEmpty { "服务资源 ${index + 1}" },
-                                        modifier = Modifier.weight(1f), maxLines = 2)
-                                    Icon(Icons.Outlined.ChevronRight, null)
-                                }
-                            }
-                        }
-                        val error = server.optString("toolsError")
-                        if (error.isNotBlank()) ErrorText(error)
-                    }
+                if (server.optString("toolsError").isNotBlank()) {
+                    Text("部分工具暂不可用，请检查服务连接或配置。",
+                        color = Ink.red, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
         if (login.startsWith("https://") || login.startsWith("http://127.0.0.1")) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("请在浏览器完成 MCP 授权", style = MaterialTheme.typography.titleMedium)
-                OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login))) }) {
-                    Icon(Icons.Outlined.OpenInNew, null); Text("继续授权")
+                Text("完成扩展服务授权", style = MaterialTheme.typography.titleMedium)
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login)))
+                }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("在浏览器中继续")
                 }
             }
         }
+        errors["mcpLogin"]?.let { ErrorText(it) }
         ProtocolFeedback(vm, listOf("mcpLogin"))
-    }
-    resourceSelection?.let { (name, resource) ->
-        McpResourceSheet(serverName = name, resource = resource, vm = vm,
-            onDismiss = { resourceSelection = null })
-    }
-    toolSelection?.let { (name, toolName, metadata) ->
-        McpToolCallSheet(vm, name, toolName, metadata,
-            onDismiss = { toolSelection = null },
-            onOpenThreads = { toolSelection = null; navigate("threads") })
     }
     if (confirmLogin.isNotBlank()) CodexConfirmDialog(
         title = "授权 MCP 服务",
@@ -331,7 +298,8 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         detail = confirmLogin,
         confirmLabel = "发起授权",
         onConfirm = {
-            vm.rpc("mcpLogin", "mcpServer/oauth/login", JSONObject().put("name", confirmLogin))
+            vm.rpc("mcpLogin", "mcpServer/oauth/login",
+                JSONObject().put("name", confirmLogin))
             confirmLogin = ""
         },
         onDismiss = { confirmLogin = "" }
