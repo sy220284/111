@@ -38,7 +38,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     /** The first RPC must create a real thread ID before we can switch away. */
     val firstThreadStarting = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
-    private val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
+    internal val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
     val olderTimelineCount get() = timelineWindow.olderCount
     fun loadEarlierTimeline() {
         val id = activeThread.value ?: return
@@ -84,7 +84,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         WorkspaceTaskOperations(this, workspaceRoot, workspacePreferences, viewModelScope)
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
-    private val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
+    internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
     private var firstTurnImages: List<String> = emptyList()
 
     init {
@@ -283,7 +283,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** 一次读取得到的最近会话同时更新首页和侧栏，避免同一事件触发双重网络请求。 */
-    private fun syncRecentThreads() {
+    internal fun syncRecentThreads() {
         refresh("threads", "thread/list", JSONObject().put("limit", 100)) { response ->
             data.value = data.value + ("sidebarThreads" to response)
         }
@@ -718,144 +718,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun receive(message: JSONObject) {
-        val method = message.optString("method")
-        val params = message.optJSONObject("params") ?: JSONObject()
-        val threadId = params.optString("threadId")
-        if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
-        if (method == "account/login/completed") {
-            val result = AccountLoginContract.completion(params, activeLoginId.value)
-            if (result != null) {
-                activeLoginId.value = ""
-                accountLoginUrl.value = ""
-                deviceLoginCode.value = ""
-                deviceLoginUrl.value = ""
-                if (result.success) errors.value = errors.value - "account"
-                else errors.value = errors.value + ("account" to
-                    result.error.ifBlank { "登录未成功，请重新开始授权" })
-                refresh("account", "account/read")
-                if (result.success) catalogWarmup.accountChanged()
-            }
-        } else if (method == "account/updated") {
-            refresh("account", "account/read")
-            catalogWarmup.accountChanged()
-        }
-        if (method == "project/changed") {
-            val changedId = params.optString("projectId")
-            if (params.optString("changeType") == "deleted" &&
-                changedId == activeProjectId.value) activeProjectId.value = null
-            projectCatalogRevision.value += 1
-            return
-        }
-        if (method == "thread/status/changed" && threadId.isNotBlank()) {
-            threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
-                threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
-            return
-        }
-        if (method == "thread/project/updated") {
-            if (threadId == activeThread.value) {
-                activeProjectId.value = params.optString("projectId")
-                    .takeIf { it.isNotBlank() }
-            }
-            syncRecentThreads()
-            projectCatalogRevision.value += 1
-            return
-        }
-        if (method == "command/exec/outputDelta") {
-            val active = terminalSession.value
-            if (active.processId.isNotEmpty() &&
-                params.optString("processId") == active.processId && active.running) {
-                try {
-                    terminalSession.value = active.append(params)
-                    terminalTranscript.appendNotification(params)
-                } catch (failure: Exception) {
-                    terminalSession.value = active.copy(error =
-                        "终端输出解码失败：" + (failure.message ?: "非法输出"))
-                }
-            }
-            return
-        }
-        if (method == "thread/started" || method == "thread/archived") {
-            syncRecentThreads()
-        }
-        // Apply turn lifecycle to every thread before filtering display events to
-        // the visible timeline. An offscreen task must still finish and free images.
-        if (threadId.isNotBlank() && method == "turn/started") {
-            val turnId = params.optJSONObject("turn")?.optString("id")
-            threadExecutions.value = ThreadExecutionPolicy.started(
-                threadExecutions.value, threadId, turnId)
-            threadActivities.value = ThreadActivityPolicy.updated(
-                threadActivities.value, threadId, ThreadActivity.Running)
-            if (threadId == activeThread.value) {
-                activeTurn.value = threadExecutions.value[threadId]?.turnId
-                running.value = true
-            }
-        }
-        if (threadId.isNotBlank() && method == "turn/completed") {
-            val completedId = params.optJSONObject("turn")?.optString("id")
-            val execution = threadExecutions.value[threadId]
-            val validCompletion = execution?.turnId.isNullOrBlank() ||
-                completedId.isNullOrBlank() || execution?.turnId == completedId
-            if (!validCompletion) return
-            threadExecutions.value = ThreadExecutionPolicy.finish(
-                threadExecutions.value, threadId)
-            val completed = params.optJSONObject("turn")?.optString("status") == "completed"
-            if (!completed) {
-                val reason = params.optJSONObject("turn")?.optJSONObject("error")
-                    ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }
-                threadFailures.value = ThreadExecutionPolicy.failureUpdated(
-                    threadFailures.value, threadId, reason)
-            } else threadFailures.value = threadFailures.value - threadId
-            threadActivities.value = ThreadActivityPolicy.updated(
-                threadActivities.value, threadId,
-                if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
-            if (threadId == activeThread.value) {
-                running.value = false
-                activeTurn.value = null
-            }
-            syncRecentThreads()
-            val finishedImages = execution?.images.orEmpty()
-            if (finishedImages.isNotEmpty()) viewModelScope.launch {
-                for (path in finishedImages) {
-                    try {
-                        if (AttachmentRetentionPolicy.canRelease(
-                                path, composerDrafts.value.values,
-                                threadExecutions.value.values.flatMap { it.images }
-                            )) LocalImageAttachments.release(getApplication(), path)
-                    } catch (failure: Exception) {
-                        errors.value = errors.value + ("attachments" to
-                            (failure.message ?: "无法清理已完成任务的图片"))
-                    }
-                }
-            }
-        }
-        if (threadId.isNotBlank() && threadId != activeThread.value) return
-        when (method) {
-            "item/agentMessage/delta", "item/plan/delta",
-            "item/reasoning/summaryTextDelta", "item/started", "item/completed" ->
-                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
-            "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/completed" -> {
-                timeline.value = timeline.value.map { item ->
-                    if (item.id.startsWith("pending-") && item.status == "sending")
-                        item.copy(status = "") else item
-                }
-                val turn = params.optJSONObject("turn")
-                if (turn?.optString("status") != "completed") {
-                    timeline.value = timeline.value + TimelineItem(
-                        "status-" + System.nanoTime(), "error",
-                        turn?.optJSONObject("error")?.optString("message") ?: "任务已中断或失败"
-                    )
-                }
-            }
-        }
-        if (timeline.value.size > TimelineWindowStore.COMPACT_AT) {
-            try {
-                timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("timeline" to
-                    (failure.message ?: "会话历史无法暂存，当前记录仍保留在内存"))
-            }
-        }
+        CodexNotificationDispatcher.dispatch(this, message)
     }
 
     override fun onCleared() {
