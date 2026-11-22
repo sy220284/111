@@ -84,7 +84,9 @@ edition = "2021"
 v8 = { path = "../rusty_v8-src", features = ["v8_enable_sandbox"] }
 TOML
     BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-    printf '[target.x86_64-linux-android]\nlinker = "%s/x86_64-linux-android29-clang"\n' "$BIN" > "$WRAPPER/.cargo/config.toml"
+    LINKER="$BIN/x86_64-linux-android29-clang"
+    test -x "$LINKER"
+    printf '[target.x86_64-linux-android]\nlinker = "%s"\n' "$LINKER" > "$WRAPPER/.cargo/config.toml"
     SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
     export LIBCLANG_PATH=/usr/lib/llvm-21/lib
     export BINDGEN_EXTRA_CLANG_ARGS_x86_64_linux_android="--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/x86_64-linux-android"
@@ -106,7 +108,30 @@ TOML
     export NINJA="$(command -v ninja)"
     export V8_FROM_SOURCE=1
     export GN_ARGS='v8_enable_sandbox=true v8_enable_pointer_compression=true android_static_analysis="off"'
-    cargo build --release --target "$TARGET" --manifest-path "$WRAPPER/Cargo.toml" -j 2
+    # The Cargo config in WRAPPER/.cargo applies only when Cargo runs from
+    # WRAPPER (or a child). --manifest-path alone does not load that config.
+    # Fail in seconds, rather than after compiling V8, if NDK linking fails.
+    PREFLIGHT="$WRAPPER/linker-preflight"
+    mkdir -p "$PREFLIGHT/src"
+    cat > "$PREFLIGHT/Cargo.toml" <<'TOML'
+[package]
+name = "android-v8-linker-preflight"
+version = "0.1.0"
+edition = "2021"
+TOML
+    printf 'fn main() {}\n' > "$PREFLIGHT/src/main.rs"
+    (
+      cd "$PREFLIGHT"
+      cargo build --release --target "$TARGET" -j 2
+    )
+    ELF="$PREFLIGHT/target/$TARGET/release/android-v8-linker-preflight"
+    test -s "$ELF"
+    "$BIN/llvm-readelf" -h "$ELF" | grep -F 'X86-64'
+    echo "Verified Android NDK linker before the lengthy V8 build"
+    (
+      cd "$WRAPPER"
+      cargo build --release --target "$TARGET" -j 2
+    )
     GN_OUT="$WRAPPER/target/$TARGET/release/gn_out"
     test -s "$GN_OUT/obj/librusty_v8.a"
     test -s "$GN_OUT/src_binding.rs"
