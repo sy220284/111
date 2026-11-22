@@ -56,6 +56,8 @@ object UiPreferences {
 fun ApprovalsPage(vm: CodexViewModel) {
     val prompts by vm.bridge.prompts.collectAsState()
     val errors by vm.errors.collectAsState()
+    val auditRecords by vm.approvalAudit.records.collectAsState()
+    val auditError by vm.approvalAudit.error.collectAsState()
     ScreenColumn {
         SectionIntro("HUMAN / APPROVAL", "待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
         errors["approvals"]?.let { ErrorText(it) }
@@ -67,6 +69,7 @@ fun ApprovalsPage(vm: CodexViewModel) {
         prompts.forEach { prompt ->
             key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
         }
+        ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
     }
 }
 

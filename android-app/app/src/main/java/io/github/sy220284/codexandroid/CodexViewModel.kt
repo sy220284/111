@@ -27,6 +27,7 @@ data class TimelineItem(
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
+    val approvalAudit = ApprovalAuditController(application.applicationContext)
     val workingDirectory = application.filesDir.resolve("projects").apply { mkdirs() }.absolutePath
     val activeThread = MutableStateFlow<String?>(null)
     val threadSwitching = MutableStateFlow(false)
@@ -484,6 +485,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         mapOf(key to customAnswer)
                     })
                 bridge.answer(prompt, result)
+                approvalAudit.record(prompt, decision)
+                errors.value = errors.value - "approvals"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("approvals" to (failure.message ?: "授权回复失败"))
             }

@@ -15,7 +15,8 @@
         android:label="Codex"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updateprovider"
