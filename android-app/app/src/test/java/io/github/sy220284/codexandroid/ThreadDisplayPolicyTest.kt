@@ -32,11 +32,11 @@ class ThreadDisplayPolicyTest {
         assertEquals("今天", ThreadDisplayPolicy.dayGroup(null, midnight, today, zone))
     }
 
-    @Test fun aRunningTaskCannotSwitchToAnotherHistoryThread() {
-        assertFalse(ThreadDisplayPolicy.canOpenThread(true, "running", "another"))
-        assertTrue(ThreadDisplayPolicy.canOpenThread(true, "running", "running"))
-        assertTrue(ThreadDisplayPolicy.canOpenThread(false, "running", "another"))
-        assertFalse(ThreadDisplayPolicy.canOpenThread(false, "running", ""))
+    @Test fun switchingToAnotherThreadIsAllowedDuringBackgroundExecution() {
+        assertTrue(ThreadDisplayPolicy.canOpenThread("running", "another"))
+        assertFalse(ThreadDisplayPolicy.canOpenThread("running", "running"))
+        assertFalse(ThreadDisplayPolicy.canOpenThread("running", ""))
+        assertTrue(ThreadDisplayPolicy.canOpenThread(null, "another"))
     }
 
     @Test fun onlySuccessfulSubmissionClearsMatchingDraft() {
