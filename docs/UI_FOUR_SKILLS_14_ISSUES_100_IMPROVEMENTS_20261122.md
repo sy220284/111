@@ -15,12 +15,12 @@
 | 1 | P0 后台长任务因 ViewModel 生命周期中断 | `CodexApplication.kt` 持有会话、`CodexForegroundService.kt` 保留前台运行通知、Activity 复用同一实例；Manifest 注册必要服务权限 | 锁屏/厂商省电策略仍须真实手机核验 |
 | 2 | thread/read/resume 45 秒超时 | `CodexConnection.kt` 为读取与恢复设置 120 秒，其他调用保持有界 | 模拟器和大历史数据验证 |
 | 3 | 回前台无自动重连 | `MainActivity.onResume` 调用 `reconnectIfNeeded()`；连接重建后重新读取当前线程 | 网络/子进程异常组合需验 |
-| 4 | 发送失败遗留乐观气泡、空壳会话 | `CodexViewModel.sendPrompt` 用本次 UUID 回撤临时气泡；UI 提供「重试发送」；新线程已由服务器创建而首回合拒绝时仍保留线程以避免在超时不确定状态下误删用户数据 | 极端首次回合超时需真机重试确认 |
+| 4 | 发送失败遗留乐观气泡、空壳会话 | `CodexViewModel` 发送失败按临时 ID 回撤气泡；首次回合遭明确拒绝时调用 `thread/read` 确认空会话后清理，草稿归还原会话；超时状态保留待核实 | 真实网络超时与断连组合仍须真机验收 |
 | 5 | 同文消息按文字对账 | `TimelineReconciler.kt` 按服务端 ID 或独立 pending 标识匹配，新增同文单测 | 消息事件乱序压力需验 |
 | 6 | 10 张图全部拒绝 | `ConversationScreen.kt` 用系统多图选择器，最多三张；容量不足或个别导入错误时保留已成功图片 | 不同相册提供方行为需验 |
 | 7 | Screens.kt 持续膨胀 | 将 `ConversationPage/TimelineStepCard` 抽为 `ConversationScreen.kt`，`Screens.kt` 884 行缩至约 404 行 | 编译与页面路由审计 |
 | 8 | 上游 MXC 升级税 | `prepare_android_mxc.py` 当前按固定版本和三个调用点严格校验，遇变化会显式失败；自动升级演练与适配仍缺 | 保持已知固定版本直到有可复核升级演练 |
-| 9 | 终端 PTY 语义与移动交互 | `DeveloperScreens.kt` 增加历史命令选择、输出一键复制与展开保留日志；真实 PTY/交互式控制仍待核心能力测验 | 真机长期交互命令 |
+| 9 | 终端 PTY 语义与移动交互 | 终端新增 ↑/↓ 历史命令导航，按原样恢复未发送内容；输出按事件顺序写入本机私有存储，提供标准/错误输出导出（64MiB 上限） | PTY 真机交互、长输出设备测试待验 |
 | 10 | 动态 errors/data 键增长 | `CodexViewModel` 对 library/fullSearch 动态查询缓存限制 32 个，移除历史门票及临时状态 | 大量翻页与错误并发测试 |
 | 11 | 运行中允许删除分组 | `ThreadLibraryPage.kt` 对编辑、删除、确认添加运行/切换中安全守卫 | 动态状态切换设备测试 |
 | 12 | 高级配置要手写 JSON | `ControlScreens.kt` + `ConfigInputParser.kt` 提供文本、开关、数字和高级 JSON；审批/沙箱另有专用表单 | 具体 configRequirements 的全字段引导仍可扩充 |
@@ -46,7 +46,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
 
-本次复查统计（本轮代码更新后）：完成 17，部分 30，未完成 46，待验 7。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 18，部分 28，未完成 44，待验 10。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
 
 | # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
 |---:|---|---|---|
@@ -67,7 +67,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 15 | 完成 | 图片超额保留已成功导入并提示 | ConversationScreen 按剩余名额导入，跳过/失败给出数量反馈 |
 | 16 | 完成 | 切换会话骨架屏 | ConversationLoadingSkeleton.kt |
 | 17 | 完成 | Diff 展开状态记忆 | DiffExpansionPreferences 在本机保存会话/差异指纹与展开集合；DiffReaderPage 离开页面后仍能恢复状态 |
-| 18 | 部分 | 终端 ↑ 键回溯历史命令 | DeveloperScreens 有可选历史命令菜单；未接硬件键盘 ↑ 事件 |
+| 18 | 待验 | 终端 ↑ 键回溯历史命令 | TerminalHistoryNavigation.kt + DeveloperScreens.kt 已处理硬件 ↑↓ 及草稿恢复，TerminalHistoryNavigationTest 覆盖往返和边界；最新 CI 设备验收待确认 |
 | 19 | 部分 | 终端输出复制和长按自由选择 | 已有复制与展开；长按全文自由选取专项体验未核实 |
 | 20 | 未完成 | 审批弹层会话级记住命令 | 尚未见到按会话范围保存并实际生效的快捷审批规则 |
 | 21 | 完成 | 会话库长按多选批量操作 | ThreadLibraryPage 长按、多选、全选、取消、批量归档/恢复/删除；CodexViewModel 串行 RPC 并保留部分失败进度；新增 Compose 点击测试 |
@@ -102,18 +102,18 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 50 | 部分 | APK 体积精简 | 已做 ARM64/x86_64 拆包；未形成持续体积预算与资源剥离门禁 |
 | 51 | 未完成 | 冷启动 Macrobenchmark 门禁 | 当前工作流无冷启动基准测试 |
 | 52 | 完成 | 时间线 LazyColumn 稳定 key | ConversationScreen items(items,key={it.id}) |
-| 53 | 部分 | 终端环形缓冲及完整展开 | 已支持 16K→128K 尾部展开；仍有截断上限，尚无环形缓存 |
+| 53 | 部分 | 终端环形缓冲及完整展开 | UI 仍为 128KiB 滑动尾部缓存；新增 TerminalTranscriptStore 流式写入本机私有文件及文档导出，可留存至 64MiB，超过上限明确警告；极端日志压测尚需验证 |
 | 54 | 部分 | 附件图片下采样 | LocalImageAttachments 预览缩略图下采样；导入原图仍保留完整大小 |
 | 55 | 未完成 | 512 事件缓冲 backpressure 压测 | 无满载高并发专项报告 |
 | 56 | 未完成 | 对话 15 项状态订阅性能剖析 | 没有 Compose 重组次数基线 |
 | 57 | 未完成 | 按语言拆 APK 评估 | 构建仅按 ABI 分包 |
 | 58 | 未完成 | R8 fullMode 与资源压缩 | build.gradle.kts 当前 isMinifyEnabled=false |
 | 59 | 待验 | 启动读取历史 IO 完全后台化 | refresh 使用异步请求；缺冷启动主线程 trace 验证 |
-| 60 | 未完成 | 审批决策持久化审计日志 | 未见可检索的本机审批时间/命令/结果审计页面 |
+| 60 | 待验 | 审批决策持久化审计日志 | ApprovalAuditController 原子写入本机最近 100 条审批记录；ApprovalAuditSection 可浏览和确认清理，已有 Codec 单测与 Compose 点击测试，设备 CI 验收待确认 |
 | 61 | 未完成 | 设备码复制后提醒剪贴板清除 | 未见设备码剪贴板过期清除机制 |
 | 62 | 部分 | 终端命令注入风险提示与检查 | 执行前需确认且显示风险提示；尚缺明确的转义/特殊符号检查 |
 | 63 | 未完成 | 更新清单数字签名链 | UpdateManifest/AppUpdateManager 使用 SHA-256；还没有独立签名真实性验证 |
-| 64 | 部分 | 禁止明文网络的独立安全配置 | Manifest usesCleartextTraffic=false；没有显式 networkSecurityConfig XML |
+| 64 | 完成 | 禁止明文网络的独立安全配置 | AndroidManifest 声明 usesCleartextTraffic=false 且引用 network_security_config.xml，base-config 明确关闭明文流量，仅信任系统证书 |
 | 65 | 未完成 | 用户数据清除一键入口 | 此项未在已核查设置页面发现；状态按未完成处理 |
 | 66 | 部分 | 备份敏感数据排除 | Manifest allowBackup=false 且配备 backup_rules/data_extraction_rules；数据类别逐项验收仍缺 |
 | 67 | 未完成 | stderr 环形缓冲明文隐私风险评估 | 未见独立威胁模型与清理策略验证 |
@@ -142,7 +142,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 90 | 部分 | 系统通知任务完成与审批等待 | CodexForegroundService 发运行中通知；缺结束通知与审批操作通知 |
 | 91 | 未完成 | 桌面快捷方式或 Widget | 未见桌面入口组件 |
 | 92 | 未完成 | 输入栏语音输入 | 当前输入以文字/图片为主 |
-| 93 | 未完成 | 设计系统文档与组件自动同步 | docs/DESIGN_SYSTEM 与最新珊瑚色仍存在偏差；无同步脚本 |
+| 93 | 待验 | 设计系统文档与组件自动同步 | DESIGN_SYSTEM.md 的 Ink 颜色表与 VisualSystem.kt 同源核对；check_design_system_tokens.py 和回归单测接入 check-android-ui.yml，最新 CI 待验 |
 | 94 | 未完成 | 验收矩阵自动从 CI 写入 | docs/ACCEPTANCE.md 依靠人工更新，未见自动生成流程 |
 | 95 | 未完成 | 会话数据模型版本化 | 未见面向上游结构变化的迁移机制 |
 | 96 | 部分 | 前台服务低功耗策略 | 通知渠道 IMPORTANCE_LOW；缺空闲降频的设备耗电基线 |
@@ -179,3 +179,10 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 - 新增 `check_kotlin_file_budget.py` 和 CI 行数门禁；`ConfigInputParser` 拒绝多余 JSON/数字尾随内容。
 - 这些改动的最新 GitHub Actions 结果请检查 [PR #30](https://github.com/sy220284/111/pull/30) 对应提交；此前 `eccccd08` 两套 CI 通过，**不借用旧提交结论替代本轮测试**。
 - Figma 源文件 `K4FEMoNdmQbcnJZCHWr8c7` 的 Starter MCP 额度已用尽，读取元数据和设计库均收到调用上限；原画板尚未改动。
+
+## 终端日志与设计系统增量 · 2026-11-22
+
+- `TerminalHistoryNavigation.kt` 为硬键 ↑↓ 历史导航提供纯逻辑和单元测试，输入框仅在单行内容下接管方向键，保留多行编辑的正常光标操作。
+- `TerminalTranscriptStore.kt` 保存原始 stdout/stderr 字节、保留 UTF-8 跨事件边界并串行写入私有目录；UI 内存仍有 128KiB 上限，本机文件有 64MiB 上限、失败提示和文档选择器导出。长输出性能与系统存储紧张设备测试仍需补。
+- `docs/DESIGN_SYSTEM.md` 维护 Ink 颜色表；`android-app/tools/check_design_system_tokens.py` 在 CI 比对 Compose 实际值并阻断颜色偏移，`MaterialTheme.primary` 已统一为 `Ink.coral`。
+- 此处为源码核查状态，**以上新功能待 CI 同一提交成功后再标为完全验收**。原始 Figma 画板仍受 Starter MCP 调用额度限制。
