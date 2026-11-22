@@ -88,8 +88,21 @@ TOML
     SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
     export LIBCLANG_PATH=/usr/lib/llvm-21/lib
     export BINDGEN_EXTRA_CLANG_ARGS_x86_64_linux_android="--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/x86_64-linux-android"
-    test -x "$SRC/buildtools/linux64/gn"
-    export GN="$SRC/buildtools/linux64/gn"
+    # The pinned rusty_v8 source does not contain buildtools/linux64/gn.
+    # Its build.rs provisions the GN binary from the matching V8 dependency
+    # versions when GN is unset; retaining a guessed path caused CI to exit
+    # before compiling a single x86_64 target.
+    if command -v gn >/dev/null 2>&1; then
+      export GN="$(command -v gn)"
+      "$GN" --version
+    else
+      unset GN
+      test -s "$SRC/tools/ninja_gn_binaries.py" || {
+        echo "Pinned rusty_v8 is missing the GN provisioning script" >&2
+        exit 1
+      }
+      echo "GN is absent; pinned rusty_v8 will provision its own matching GN"
+    fi
     export NINJA="$(command -v ninja)"
     export V8_FROM_SOURCE=1
     export GN_ARGS='v8_enable_sandbox=true v8_enable_pointer_compression=true android_static_analysis="off"'
