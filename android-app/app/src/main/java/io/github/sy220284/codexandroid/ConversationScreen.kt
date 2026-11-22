@@ -185,7 +185,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
+            TextButton(onClick = { vm.newThread() }, enabled = !switching &&
+                !(busy && thread == null)) { Text("新建") }
             IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
                 Icon(Icons.Outlined.MoreHoriz, "会话工具")
             }
@@ -348,8 +349,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     else if (!busy && !switching) {
                         val originalText = draft
                         val originalImages = attachedImages.toList()
-                        vm.sendPrompt(originalText, originalImages) {
-                            vm.clearComposerAfterAccepted(vm.activeThread.value,
+                        vm.sendPrompt(originalText, originalImages) { acceptedThread ->
+                            vm.clearComposerAfterAccepted(acceptedThread,
                                 originalText, originalImages)
                         }
                     }
@@ -425,9 +426,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     } else {
                         val images = attachedImages.toList()
-                        vm.sendPrompt(message, images) {
-                            // 首条消息创建真实会话后，草稿已迁移到新 threadId。
-                            vm.clearComposerAfterAccepted(vm.activeThread.value, submittedDraft, images)
+                        vm.sendPrompt(message, images) { acceptedThread ->
+                            // 切换会话之后，回执仍只清理实际被接收会话的草稿。
+                            vm.clearComposerAfterAccepted(acceptedThread, submittedDraft, images)
                         }
                     }
                 },
