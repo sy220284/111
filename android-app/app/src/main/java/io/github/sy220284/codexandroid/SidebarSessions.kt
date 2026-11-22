@@ -41,6 +41,7 @@ internal fun SidebarSessions(
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
+    val approvals by vm.bridge.prompts.collectAsState()
     val sidebarResponse = data["sidebarThreads"] ?: data["threads"]
     val all = records(sidebarResponse).filter { it.optString("id").isNotBlank() }
         .distinctBy { it.optString("id") }
@@ -55,6 +56,7 @@ internal fun SidebarSessions(
         activeId = activeId,
         running = running,
         switching = switching,
+        pendingApprovals = approvals.size,
         onRefresh = {
             vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 100))
         },
@@ -76,7 +78,8 @@ internal fun SidebarSessionsContent(
     running: Boolean,
     switching: Boolean,
     onRefresh: () -> Unit,
-    onOpenThread: (String) -> Unit
+    onOpenThread: (String) -> Unit,
+    pendingApprovals: Int = 0
 ) {
     var searching by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
@@ -90,9 +93,30 @@ internal fun SidebarSessionsContent(
     LaunchedEffect(search, searching) {
         scroll.scrollToItem(0)
     }
+    Column(modifier.fillMaxWidth()) {
+        if (running || pendingApprovals > 0) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
+                    .testTag("sidebar-task-status"),
+                color = if (pendingApprovals > 0) Ink.warning.copy(alpha = .08f)
+                    else Ink.jade.copy(alpha = .07f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp,
+                    if (pendingApprovals > 0) Ink.warning.copy(alpha = .32f)
+                    else Ink.jade.copy(alpha = .25f))
+            ) {
+                Text(
+                    if (pendingApprovals > 0) "等待确认 · ${pendingApprovals} 项审批"
+                    else "当前会话正在执行，结束后可切换其他会话",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (pendingApprovals > 0) Ink.warning else Ink.jade
+                )
+            }
+        }
     LazyColumn(
         state = scroll,
-        modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
+        modifier = Modifier.fillMaxWidth().weight(1f).testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(5.dp),
         contentPadding = PaddingValues(bottom = 12.dp)
     ) {
@@ -137,11 +161,6 @@ internal fun SidebarSessionsContent(
                 textStyle = MaterialTheme.typography.bodyMedium
             )
         }
-        if (running) item(key = "session-running-note") {
-            Text("当前会话正在执行，完成或停止后可切换其他会话。",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                style = MaterialTheme.typography.labelMedium, color = Ink.warning)
-        }
         item(key = "session-list-status") {
             when {
                 !connected -> Text("连接内核后同步历史会话",
@@ -173,6 +192,7 @@ internal fun SidebarSessionsContent(
                 item = entry,
                 active = activeId == id,
                 running = running && activeId == id,
+                pendingApprovals = if (activeId == id) pendingApprovals else 0,
                 enabled = connected && !switching && (!running || activeId == id),
                 onClick = { onOpenThread(id) }
             )
@@ -188,6 +208,7 @@ internal fun SidebarSessionsContent(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -196,7 +217,8 @@ internal fun SidebarSessionRow(
     active: Boolean,
     running: Boolean,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    pendingApprovals: Int = 0
 ) {
     val id = item.optString("id")
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
@@ -224,10 +246,11 @@ internal fun SidebarSessionRow(
                     item.optString("preview")),
                     style = MaterialTheme.typography.bodyMedium, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
-                Text(if (running) "正在执行" else
+                Text(if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项"
+                    else if (running) "正在执行" else
                     PresentationPolicy.workspaceName(item.optString("cwd")),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (running) Ink.jade else Ink.muted,
+                    color = if (pendingApprovals > 0) Ink.warning else if (running) Ink.jade else Ink.muted,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (active) Icon(Icons.Outlined.CheckCircle, contentDescription = "当前会话",
