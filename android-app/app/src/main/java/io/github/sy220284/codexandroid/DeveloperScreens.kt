@@ -43,6 +43,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     val activeThread by vm.activeThread.collectAsState()
     val running by vm.running.collectAsState()
     val terminal by vm.terminalSession.collectAsState()
+    val vmErrors by vm.errors.collectAsState()
     var folder by remember { mutableStateOf(root) }
     var pendingWorkspace by remember { mutableStateOf<File?>(null) }
     var focus by remember { mutableStateOf<File?>(null) }
@@ -164,6 +165,9 @@ fun WorkspacePage(vm: CodexViewModel) {
             }
         }
         item { ProjectRegistryPanel(vm, folder) }
+        vmErrors["workspace"]?.let { warning ->
+            item { ErrorText(warning) }
+        }
         if (notice.isNotBlank()) item {
             CodexNotice(notice, if (notice.startsWith("已")) NoticeTone.Success else NoticeTone.Warning)
         }

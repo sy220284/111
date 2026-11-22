@@ -272,6 +272,17 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var attachmentError by remember { mutableStateOf("") }
 
     val selectedMode by vm.selectedMode.collectAsState()
+    val selectedWorkspace by vm.activeWorkspace.collectAsState()
+    val planApprovalBusy by vm.planApprovalBusy.collectAsState()
+    var confirmPlan by remember { mutableStateOf(false) }
+    val lastPlanIndex = items.indexOfLast {
+        it.kind == "plan" && it.text.isNotBlank() && !it.status.contains("stream", true)
+    }
+    val latestPlan = items.getOrNull(lastPlanIndex)
+    val planHasLaterUserInput = lastPlanIndex >= 0 &&
+        items.drop(lastPlanIndex + 1).any { it.kind == "user" }
+    val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
+        selectedMode == "plan" && !busy && !switching && thread != null
     val currentTitle = thread?.let { threadId ->
         (records(models["sidebarThreads"]) + records(models["threads"]))
             .firstOrNull { it.optString("id") == threadId }?.let {
@@ -369,7 +380,8 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(if (thread == null) "新的工作会话" else currentTitle ?: "当前任务",
                     style = MaterialTheme.typography.titleMedium)
-                Text("本机工作区",
+                Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
+                    .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = { vm.newThread() }, enabled = !busy) { Text("新建") }
@@ -483,6 +495,19 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
+        if (offerPlanApproval) {
+            MaterialPanel(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
+                Text("计划已生成", style = MaterialTheme.typography.titleMedium)
+                Text("请核对上方计划。确认后将按这份方案进入执行模式。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                OutlinedButton(onClick = { confirmPlan = true },
+                    enabled = !planApprovalBusy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(if (planApprovalBusy) "正在准备执行…" else "批准方案并执行")
+                }
+            }
+        }
+        errors["planApproval"]?.let { ErrorText(it) }
         errors["conversation"]?.let { ErrorText(it) }
         errors["steer"]?.let { ErrorText(it) }
         errors["interrupt"]?.let { ErrorText(it) }
@@ -579,6 +604,19 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 pendingImagePick = true
                 showAttachmentTools = false
             }
+        )
+    }
+    if (confirmPlan && latestPlan != null) {
+        CodexConfirmDialog(
+            title = "确认按计划执行",
+            message = "确认后内核会准备已批准的方案并进入执行模式。修改建议可先在输入框发送。",
+            detail = latestPlan.text.take(600),
+            confirmLabel = "开始按方案执行",
+            onConfirm = {
+                confirmPlan = false
+                vm.approvePlan(latestPlan.text)
+            },
+            onDismiss = { confirmPlan = false }
         )
     }
     if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }

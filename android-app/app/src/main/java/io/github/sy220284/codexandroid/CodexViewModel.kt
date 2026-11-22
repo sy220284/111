@@ -29,6 +29,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         workspaceRoot, workspacePreferences.getString("activeDirectory", null))
     val activeWorkspace = MutableStateFlow(restoredWorkspace.directory.absolutePath)
     val activeProjectId = MutableStateFlow<String?>(null)
+    val projectCatalogRevision = MutableStateFlow(0)
+    val planApprovalBusy = MutableStateFlow(false)
     val activeThread = MutableStateFlow<String?>(null)
     val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
@@ -225,6 +227,34 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         require(projectId.isNotBlank()) { "项目编号不可为空" }
         selectWorkspace(folder)
         activeProjectId.value = projectId
+    }
+
+    /** User-approved plan is prepared by the server before starting execution. */
+    fun approvePlan(markdown: String) {
+        val threadId = activeThread.value
+        if (planApprovalBusy.value || running.value || threadId.isNullOrBlank()) {
+            errors.value = errors.value + ("planApproval" to "当前任务状态无法批准方案")
+            return
+        }
+        planApprovalBusy.value = true
+        errors.value = errors.value - "planApproval"
+        viewModelScope.launch {
+            try {
+                val prepared = bridge.request("thread/prepareApprovedPlan",
+                    PlanExecutionContract.prepare(threadId, markdown))
+                check(activeThread.value == threadId && !running.value) {
+                    "等待方案确认期间会话状态已变化，请重新核对后批准"
+                }
+                val prompt = PlanExecutionContract.prompt(prepared)
+                selectedMode.value = "default"
+                sendPrompt(prompt)
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("planApproval" to
+                    (failure.message ?: "方案准备失败，请重试"))
+            } finally {
+                planApprovalBusy.value = false
+            }
+        }
     }
 
     fun newThread() {
@@ -549,6 +579,22 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
+        }
+        if (method == "project/changed") {
+            val changedId = params.optString("projectId")
+            if (params.optString("changeType") == "deleted" &&
+                changedId == activeProjectId.value) activeProjectId.value = null
+            projectCatalogRevision.value += 1
+            return
+        }
+        if (method == "thread/project/updated") {
+            if (threadId == activeThread.value) {
+                activeProjectId.value = params.optString("projectId")
+                    .takeIf { it.isNotBlank() }
+            }
+            syncRecentThreads()
+            projectCatalogRevision.value += 1
+            return
         }
         if (method == "command/exec/outputDelta") {
             val active = terminalSession.value

@@ -119,6 +119,8 @@ class CoreStartupInstrumentedTest {
             assertEquals("Host failed to initialize Android V8: $output", 0, process.exitValue())
             org.junit.Assert.assertTrue("No positive V8 initialization marker: $output",
                 output.contains("codex-android-v8-initialized"))
+            org.junit.Assert.assertTrue("Sandbox V8 was not enabled: $output",
+                output.contains("codex-android-v8-sandbox-enabled"))
         } finally {
             process.destroyForcibly()
         }

@@ -27,16 +27,37 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
     var expanded by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var confirmCreate by remember { mutableStateOf(false) }
+    var withThread by remember { mutableStateOf(false) }
+    var projectPages by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var nextPageCursor by remember { mutableStateOf("") }
+    val revision by vm.projectCatalogRevision.collectAsState()
     var editing by remember { mutableStateOf<JSONObject?>(null) }
     var renameText by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<JSONObject?>(null) }
     var detailsId by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf("") }
-    fun reload() = vm.refresh("projectsCatalog", "project/list", JSONObject().put("limit", 100))
-    LaunchedEffect(expanded, status) {
+    fun reload() {
+        projectPages = emptyList()
+        nextPageCursor = ""
+        vm.refresh("projectsCatalog", "project/list", JSONObject().put("limit", 100)) { response ->
+            projectPages = records(response)
+            nextPageCursor = response.optString("nextCursor")
+        }
+    }
+    fun loadMore() {
+        if (nextPageCursor.isBlank()) return
+        val cursor = nextPageCursor
+        vm.refresh("projectsCatalogMore", "project/list",
+            JSONObject().put("limit", 100).put("cursor", cursor)) { response ->
+            val seen = projectPages.map { it.optString("id") }.toSet()
+            projectPages = projectPages + records(response).filter { it.optString("id") !in seen }
+            nextPageCursor = response.optString("nextCursor")
+        }
+    }
+    LaunchedEffect(expanded, status, revision) {
         if (expanded && status == EngineStatus.Connected) reload()
     }
-    val projects = records(data["projectsCatalog"])
+    val projects = projectPages
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.AccountTree, null)
@@ -59,6 +80,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                     Text("刷新项目列表")
                 }
                 errors["projectsCatalog"]?.let { ErrorText("项目列表读取失败：$it") }
+                errors["projectsCatalogMore"]?.let { ErrorText("更多项目读取失败：$it") }
                 errors["projectWrite"]?.let { ErrorText("项目操作失败：$it") }
                 if (errorText.isNotEmpty()) ErrorText(errorText)
                 Text("当前目录：" + currentFolder.relativeTo(root).path.takeIf { it != "." }
@@ -67,15 +89,18 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                 OutlinedTextField(name, { name = it }, label = { Text("新项目名称") },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { confirmCreate = true },
-                        enabled = name.isNotBlank() && "projectWrite" !in loading) {
+                    OutlinedButton(onClick = {
+                        withThread = false
+                        confirmCreate = true
+                    }, enabled = name.isNotBlank() && "projectWrite" !in loading) {
                         Text("登记当前目录")
                     }
                     if (!currentThread.isNullOrBlank()) {
-                        OutlinedButton(onClick = {
+                        TextButton(onClick = {
+                            withThread = true
                             confirmCreate = true
                         }, enabled = name.isNotBlank() && "projectWrite" !in loading) {
-                            Text("登记时纳入当前会话")
+                            Text("同时关联当前会话")
                         }
                     }
                 }
@@ -140,11 +165,17 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                         }
                     }
                 }
+                if (nextPageCursor.isNotBlank()) {
+                    OutlinedButton(onClick = { loadMore() },
+                        enabled = "projectsCatalogMore" !in loading,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text(if ("projectsCatalogMore" in loading) "正在读取更多项目…" else "加载更多项目")
+                    }
+                }
             }
         }
     }
     if (confirmCreate) {
-        var withThread by remember { mutableStateOf(false) }
         AlertDialog(onDismissRequest = { confirmCreate = false },
             title = { Text("登记 Codex 项目") },
             text = {
