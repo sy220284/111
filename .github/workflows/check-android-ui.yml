@@ -52,6 +52,8 @@ jobs:
             /android-app/
             /docs/DESIGN_SYSTEM.md
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
+            /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
       - name: 安装 JDK 17
         uses: actions/setup-java@v4
