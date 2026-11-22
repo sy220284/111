@@ -46,9 +46,12 @@ class ArtifactSelector:
         # A tree object's SHA changes if ANY file in the bundled upstream changes.
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex"])
         patcher = self.run(["git", "rev-parse", f"{sha}:android-app/tools/prepare_android_mxc.py"])
+        code_mode_adapter = self.run([
+            "git", "rev-parse", f"{sha}:android-app/tools/prepare_android_code_mode.py"
+        ])
         version = self.run(["git", "show", f"{sha}:CODEX_UPSTREAM_COMMIT"]).splitlines()[0]
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, patcher, version, native_recipe(workflow))
+        return (upstream, patcher, code_mode_adapter, version, native_recipe(workflow))
 
     def is_ancestor(self, old, new):
         # Not an error: candidates from a previous main history can be skipped.
