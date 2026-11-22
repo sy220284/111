@@ -10,6 +10,12 @@ on:
       - "upstream/codex/**"
       - "android-app/tools/prepare_android_mxc.py"
       - "android-app/tools/prepare_android_code_mode.py"
+  pull_request:
+    paths:
+      - ".github/workflows/build-native-codex.yml"
+      - "android-app/tools/prepare_android_code_mode.py"
+      - "android-app/tools/package_native_runtime.sh"
+      - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
 
 permissions:
