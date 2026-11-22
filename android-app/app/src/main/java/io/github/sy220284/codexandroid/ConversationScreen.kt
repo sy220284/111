@@ -377,6 +377,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             errors["drafts"]?.let {
                 CodexNotice(it, NoticeTone.Error)
             }
+            errors["draftRecovery"]?.let {
+                CodexNotice(it, NoticeTone.Warning)
+            }
             if (attachmentBusy) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text("正在导入图片 ${imported.imported}/${imported.requested}…",
