@@ -142,7 +142,7 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
-        if (timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+        if (!threadSwitching.value && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
             try {
                 timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
             } catch (failure: Exception) {
