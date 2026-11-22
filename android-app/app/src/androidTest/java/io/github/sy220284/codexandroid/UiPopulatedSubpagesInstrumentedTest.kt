@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import android.app.Application
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -27,6 +28,50 @@ class UiPopulatedSubpagesInstrumentedTest {
     private fun capture(name: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(name)
+    }
+
+    @Test fun sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection() {
+        val vm = viewModel()
+        vm.activeThread.value = "ci-selected"
+        vm.data.value = vm.data.value + ("sidebarThreads" to JSONObject()
+            .put("threads", JSONArray()
+                .put(JSONObject().put("id", "ci-selected")
+                    .put("name", "修复工作区登录").put("cwd", "/projects/a"))
+                .put(JSONObject().put("id", "ci-build")
+                    .put("name", "检查构建流水线").put("cwd", "/projects/b"))))
+        rule.setContent {
+            CodexTheme { Column { SidebarSessions(vm, onOpenThread = {}) } }
+        }
+        rule.onNodeWithText("修复工作区登录").assertExists()
+        rule.onNodeWithText("检查构建流水线").assertExists()
+        rule.onNodeWithContentDescription("当前会话").assertExists()
+        rule.onNodeWithTag("sidebar-search-toggle").performClick()
+        rule.onNodeWithTag("sidebar-search").performTextInput("构建")
+        rule.onNodeWithText("修复工作区登录").assertDoesNotExist()
+        rule.onNodeWithText("检查构建流水线").assertExists()
+        capture("audit-sidebar-filtered-android35.png")
+    }
+
+    @Test fun composerTextEditingUpdatesSendAvailability() {
+        var text by mutableStateOf("")
+        var submitted = ""
+        rule.setContent {
+            CodexTheme {
+                ConversationComposer(
+                    draft = text, onDraftChange = { text = it },
+                    attachedCount = 0, connected = true, running = false,
+                    stopping = false, canStop = false,
+                    canSend = text.isNotBlank(), sending = false,
+                    onAttach = {}, onStop = {}, onSend = { submitted = text }
+                )
+            }
+        }
+        rule.onNodeWithTag("composer-send").assertIsNotEnabled()
+        rule.onNodeWithTag("composer-input").performTextInput("检查交互链路")
+        rule.onNodeWithTag("composer-send").assertIsEnabled()
+        capture("audit-composer-edit-android35.png")
+        rule.onNodeWithTag("composer-send").performClick()
+        rule.runOnIdle { assertEquals("检查交互链路", submitted) }
     }
 
     @Test fun sidebarSessionRendersRealThreadAndOpensSelectedId() {
