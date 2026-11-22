@@ -7,8 +7,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -17,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -41,7 +45,13 @@ internal fun ConversationComposer(
     sending: Boolean,
     onAttach: () -> Unit,
     onStop: () -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    menuExpanded: Boolean = false,
+    hasThread: Boolean = false,
+    imageImporting: Boolean = false,
+    onMenuDismiss: () -> Unit = {},
+    onMenuRoute: (String) -> Unit = {},
+    onPickImage: () -> Unit = {}
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     Surface(
@@ -86,13 +96,79 @@ internal fun ConversationComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                IconButton(
-                    onClick = onAttach,
-                    modifier = Modifier.size(46.dp).testTag("composer-plus")
-                ) {
-                    Icon(Icons.Outlined.Add,
-                        contentDescription = "添加附件", tint = Ink.parchment,
-                        modifier = Modifier.size(27.dp))
+                Box {
+                    IconButton(
+                        onClick = onAttach,
+                        modifier = Modifier.size(48.dp).testTag("composer-plus")
+                    ) {
+                        Icon(Icons.Outlined.Add,
+                            contentDescription = "添加附件", tint = Ink.parchment,
+                            modifier = Modifier.size(27.dp))
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = onMenuDismiss,
+                        modifier = Modifier.width(268.dp).heightIn(max = 460.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .testTag("composer-attachment-menu"),
+                        offset = DpOffset(0.dp, (-8).dp),
+                        containerColor = Ink.canvas,
+                        shadowElevation = 9.dp
+                    ) {
+                        Text("添加附件",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Ink.parchment,
+                            modifier = Modifier.padding(start = 19.dp,
+                                top = 10.dp, bottom = 6.dp))
+                        DropdownMenuItem(
+                            modifier = Modifier.testTag("attachment-pick-image"),
+                            enabled = !imageImporting &&
+                                attachedCount < LocalImageAttachments.MAX_FILES,
+                            text = { Text("照片") },
+                            leadingIcon = {
+                                Box(
+                                    Modifier.size(42.dp)
+                                        .background(Color(0xFFF1F1F1), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Outlined.AddPhotoAlternate,
+                                        null, tint = Ink.parchment,
+                                        modifier = Modifier.size(22.dp))
+                                }
+                            },
+                            onClick = onPickImage
+                        )
+                        listOf("files", "terminal", "diff", "review",
+                            "goals", "plugins", "modes").forEach { route ->
+                            val info = pages.first { it.id == route }
+                            val needsThread = UiFeatureCatalog.requiresThread(route)
+                            DropdownMenuItem(
+                                modifier = Modifier.testTag("quick-$route"),
+                                text = {
+                                    Text(if (route == "files") "工作区文件"
+                                        else info.title)
+                                },
+                                leadingIcon = {
+                                    Box(Modifier.size(42.dp)
+                                            .background(Color(0xFFF1F1F1), CircleShape),
+                                        contentAlignment = Alignment.Center) {
+                                        Icon(info.icon, null, tint = Ink.parchment,
+                                            modifier = Modifier.size(22.dp))
+                                    }
+                                },
+                                trailingIcon = {
+                                    if (needsThread && !hasThread)
+                                        Text("先选会话",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Ink.muted)
+                                },
+                                onClick = {
+                                    onMenuRoute(if (needsThread && !hasThread)
+                                        "threads" else route)
+                                }
+                            )
+                        }
+                    }
                 }
                 if (attachedCount > 0) {
                     Text("${attachedCount} 张图片",

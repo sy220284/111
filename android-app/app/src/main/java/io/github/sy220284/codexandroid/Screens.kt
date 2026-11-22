@@ -602,6 +602,19 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             vm.clearComposerAfterAccepted(vm.activeThread.value, submittedDraft, images)
                         }
                     }
+                },
+                menuExpanded = showAttachmentTools,
+                hasThread = thread != null,
+                imageImporting = attachmentBusy,
+                onMenuDismiss = { showAttachmentTools = false },
+                onMenuRoute = { destination ->
+                    pendingAttachmentRoute = destination
+                    showAttachmentTools = false
+                },
+                onPickImage = {
+                    imagePickThread = thread
+                    pendingImagePick = true
+                    showAttachmentTools = false
                 }
             )
         }
@@ -614,21 +627,6 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 showContextTools = false
             },
             onDismiss = { showContextTools = false }
-        )
-    }
-    if (showAttachmentTools) {
-        WorkspaceActionsSheet(
-            onDismiss = { showAttachmentTools = false },
-            navigate = { destination ->
-                pendingAttachmentRoute = destination
-                showAttachmentTools = false
-            }, hasThread = thread != null,
-            imageCount = attachedImages.size, importing = attachmentBusy,
-            onPickImage = {
-                imagePickThread = thread
-                pendingImagePick = true
-                showAttachmentTools = false
-            }
         )
     }
     if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }
