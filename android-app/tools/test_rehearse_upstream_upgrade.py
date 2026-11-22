@@ -17,6 +17,11 @@ class UpgradeRehearsalTest(unittest.TestCase):
             path = self.codex / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("[package]\nname='candidate'\nversion='0.0.1'\n")
+        (self.codex / "Cargo.toml").write_text(
+            "[workspace.dependencies]\n"
+            "mxc-sdk = { git = 'https://github.com/microsoft/mxc', "
+            "rev = 'c66201839d63cae2239db5e92f1f1d6076cf5181' }\n"
+        )
         self.install = self.codex / "install-context/src/lib.rs"
         self.host = self.codex / "code-mode-host/src/main.rs"
         self.install.parent.mkdir(parents=True)
@@ -38,6 +43,13 @@ class UpgradeRehearsalTest(unittest.TestCase):
         self.assertEqual(2, len(report["code_mode_sources"]))
         for path, contents in originals.items():
             self.assertEqual(contents, path.read_bytes())
+
+    def test_rejects_candidate_revision_drift_even_with_old_checkout_present(self):
+        manifest = self.codex / "Cargo.toml"
+        manifest.write_text(manifest.read_text().replace(
+            "c66201839d63cae2239db5e92f1f1d6076cf5181", "a" * 40))
+        with self.assertRaisesRegex(RuntimeError, "固定版本不一致"):
+            rehearse(self.codex, self.cargo)
 
     def test_rejects_unpinned_mxc_revision(self):
         self.mxc.rename(self.mxc.with_name("old.rs"))
