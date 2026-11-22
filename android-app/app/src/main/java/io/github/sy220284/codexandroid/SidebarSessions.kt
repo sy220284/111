@@ -4,6 +4,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,7 +27,9 @@ import org.json.JSONObject
 @Composable
 internal fun SidebarSessions(
     vm: CodexViewModel,
-    onOpenThread: (String) -> Unit
+    onOpenThread: (String) -> Unit,
+    onViewAll: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -39,6 +43,8 @@ internal fun SidebarSessions(
         .distinctBy { it.optString("id") }
     SidebarSessionsContent(
         all = all,
+        modifier = modifier,
+        onViewAll = onViewAll,
         hasResponse = sidebarResponse != null,
         connected = status == EngineStatus.Connected,
         loading = "sidebarThreads" in loading,
@@ -47,7 +53,7 @@ internal fun SidebarSessions(
         running = running,
         switching = switching,
         onRefresh = {
-            vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 30))
+            vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 100))
         },
         onOpenThread = onOpenThread
     )
@@ -57,6 +63,8 @@ internal fun SidebarSessions(
 @Composable
 internal fun SidebarSessionsContent(
     all: List<JSONObject>,
+    modifier: Modifier = Modifier,
+    onViewAll: () -> Unit = {},
     hasResponse: Boolean,
     connected: Boolean,
     loading: Boolean,
@@ -73,10 +81,11 @@ internal fun SidebarSessionsContent(
         search.isBlank() || listOf(
             item.optString("name"), item.optString("preview"), item.optString("cwd")
         ).any { it.contains(search.trim(), ignoreCase = true) }
-    }.take(6)
+    }
 
     Column(
-        modifier = Modifier.fillMaxWidth().testTag("sidebar-thread-list"),
+        modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            .testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
@@ -159,10 +168,12 @@ internal fun SidebarSessionsContent(
                 onClick = { onOpenThread(id) }
             )
         }
-        if (all.size > 6 && search.isBlank()) {
-            Text("显示最近 6 条，完整记录在“会话历史”中",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+        TextButton(
+            onClick = onViewAll,
+            modifier = Modifier.fillMaxWidth().testTag("sidebar-view-all")
+        ) {
+            Text("查看全部会话", style = MaterialTheme.typography.bodyMedium)
+            Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(17.dp))
         }
     }
 }
