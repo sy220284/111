@@ -1,7 +1,10 @@
 name: 安卓界面与协议独立验收
 
 on:
+  # Feature work is verified by its PR once. Main continues to run the same
+  # acceptance after merge for the signed release gate.
   push:
+    branches: [main]
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
