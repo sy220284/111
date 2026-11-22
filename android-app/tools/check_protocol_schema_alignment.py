@@ -18,7 +18,8 @@ V2_TYPE = re.compile(r'^v2::([A-Za-z]\w+)$')
 
 
 def verify(source: str, schema_dir: Path, thread_source: str,
-           project_contract: str, connection_source: str) -> tuple[list[str], dict]:
+           project_contract: str, connection_source: str,
+           turn_source: str, turn_contract: str) -> tuple[list[str], dict]:
     methods = parse_contracts(source)
     errors: list[str] = []
     stable_dtos = 0
@@ -67,6 +68,20 @@ def verify(source: str, schema_dir: Path, thread_source: str,
             errors.append("实验字段 projectId 意外进入稳定 ThreadStartParams Schema")
     if 'put("projectId", projectId)' not in project_contract:
         errors.append("Android 项目请求构造器未携带 projectId")
+    turn_experimental = '#[experimental("turn/start.collaborationMode")]'
+    if turn_experimental not in turn_source or (
+            "pub collaboration_mode: Option<CollaborationMode>" not in turn_source):
+        errors.append("Rust TurnStartParams 缺少实验性 collaborationMode 字段")
+    stable_turn = schema_dir / "TurnStartParams.json"
+    if not stable_turn.is_file():
+        errors.append("缺少稳定 TurnStartParams Schema")
+    else:
+        turn_fields = json.loads(stable_turn.read_text(encoding="utf-8")).get("properties", {})
+        if "collaborationMode" in turn_fields:
+            errors.append("实验字段 collaborationMode 意外进入稳定 TurnStartParams Schema")
+    if 'args.put("collaborationMode",' not in turn_contract:
+        errors.append("Android 计划模式缺少 collaborationMode 适配")
+
     if '.put("experimentalApi", true)' not in connection_source:
         errors.append("Android 未声明实验协议能力")
 
@@ -84,7 +99,9 @@ def main() -> int:
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--schemas", type=Path, required=True)
     parser.add_argument("--thread-types", type=Path, required=True)
+    parser.add_argument("--turn-types", type=Path, required=True)
     parser.add_argument("--android-project", type=Path, required=True)
+    parser.add_argument("--android-turn", type=Path, required=True)
     parser.add_argument("--android-connection", type=Path, required=True)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
@@ -93,6 +110,8 @@ def main() -> int:
         args.thread_types.read_text(encoding="utf-8"),
         args.android_project.read_text(encoding="utf-8"),
         args.android_connection.read_text(encoding="utf-8"),
+        args.turn_types.read_text(encoding="utf-8"),
+        args.android_turn.read_text(encoding="utf-8"),
     )
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
@@ -101,7 +120,7 @@ def main() -> int:
                                encoding="utf-8")
     for message in errors:
         print("协议字段校验失败：" + message, file=sys.stderr)
-    print(f"已校验稳定客户端 DTO Schema {stats['stableClientDtoSchemas']} 项；"
+    print(f"已校验稳定客户端 DTO 类型引用 {stats['stableClientDtoSchemas']} 处；"
           f"实验方法 {stats['experimentalClientMethods']} 项；Host {stats['hostRequestMethods']} 项")
     return 1 if errors else 0
 
