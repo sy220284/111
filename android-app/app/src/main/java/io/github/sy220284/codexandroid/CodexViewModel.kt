@@ -17,14 +17,6 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
-data class TimelineItem(
-    val id: String,
-    val kind: String,
-    val text: String,
-    val status: String = "",
-    val evidence: String = ""
-)
-
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
@@ -324,13 +316,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         running.value = false
     }
 
-    fun editComposerText(threadId: String?, text: String) {
-        composerDrafts.update { ThreadComposerDrafts.text(it, threadId, text) }
-    }
+    fun editComposerText(threadId: String?, text: String) =
+        attachmentController.editText(threadId, text)
 
-    fun editComposerImages(threadId: String?, paths: List<String>) {
-        composerDrafts.update { ThreadComposerDrafts.images(it, threadId, paths) }
-    }
+    fun editComposerImages(threadId: String?, paths: List<String>) =
+        attachmentController.editImages(threadId, paths)
 
     fun beginImageSelection(threadId: String?) =
         attachmentController.beginImageSelection(threadId)
@@ -344,11 +334,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun reportFullAttachmentSelection(threadId: String?) =
         attachmentController.reportFullAttachmentSelection(threadId)
 
-    fun clearComposerAfterAccepted(
-        threadId: String?, text: String, images: List<String>
-    ) {
-        composerDrafts.update { ThreadComposerDrafts.accepted(it, threadId, text, images) }
-    }
+    fun clearComposerAfterAccepted(threadId: String?, text: String, images: List<String>) =
+        attachmentController.clearAfterAccepted(threadId, text, images)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: () -> Unit = {}) {
         val prompt = text.trim()
