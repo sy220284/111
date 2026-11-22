@@ -674,7 +674,6 @@ fun TerminalPage(vm: CodexViewModel) {
         detail = command + "\n\n执行位置：本机工作区",
         confirmLabel = if (TerminalCommandPolicy.evaluate(command).dangerous) "确认执行高风险命令" else "确认执行",
         destructive = TerminalCommandPolicy.evaluate(command).dangerous,
-        destructive = true,
         onConfirm = {
             val accepted = command.trim()
             if (accepted.isNotBlank()) {

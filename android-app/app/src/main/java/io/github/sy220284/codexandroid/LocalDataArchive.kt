@@ -35,7 +35,7 @@ internal object LocalDataArchive {
         if (!name.startsWith("files/") && !name.startsWith("shared_prefs/")) return false
         if (name.contains('\\') || name.startsWith('/') || name.endsWith('/')) return false
         val parts = name.split('/')
-        if (parts.size < 3 || parts.any { it.isBlank() || it == "." || it == ".." }) return false
+        if (parts.size < 2 || parts.any { it.isBlank() || it == "." || it == ".." }) return false
         if (parts[1].startsWith(".codex-restore")) return false
         if (parts[0] == "files" && parts[1] == "codex-home" &&
             parts.last().matches(Regex("(?i)(auth|credentials|tokens?)\\.json"))) return false

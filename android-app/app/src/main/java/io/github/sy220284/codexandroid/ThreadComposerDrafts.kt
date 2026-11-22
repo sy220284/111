@@ -13,7 +13,7 @@ object ThreadComposerDrafts {
 
     private fun retainRecent(drafts: Map<String, ComposerDraft>): Map<String, ComposerDraft> =
         if (drafts.size <= MAX_ACTIVE_DRAFTS) drafts
-        else drafts.entries.takeLast(MAX_ACTIVE_DRAFTS).associate { it.toPair() }
+        else drafts.entries.toList().takeLast(MAX_ACTIVE_DRAFTS).associate { it.key to it.value }
 
     private fun updated(
         previous: Map<String, ComposerDraft>, id: String, draft: ComposerDraft
