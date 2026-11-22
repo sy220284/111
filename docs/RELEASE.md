@@ -2,15 +2,23 @@
 
 ## 自动发布顺序
 
-1. 向 `main` 合并客户端源码后，安卓版本构建与独立 UI 验收分别执行双架构 APK、Android 35 模拟器测试及界面回归。原生构建优先查找**源码树、Android 适配器、V8 构建器、上游版本和 Rust/NDK 编译配方完全相同**的旧构建，两种 ABI 产物均有效时跳过重复编译；真实编译输入变化、产物缺失或过期时重新编译。
+1. 向 `main` 合并客户端源码后，安卓版本构建与独立 UI 验收分别执行 ARM64 手机 APK 验证和 Android 35 多屏宽模拟器界面回归。原生构建优先查找**Android Rust 源码、父级 Cargo 配置、平台适配器和 Rust/NDK 编译配方完全相同**的旧 ARM64 构建，已验证产物仍有效时复用；真实编译输入变化、产物缺失或过期时重新编译。
 2. 仅当**同一源码提交**的两项 Android 验收都在 `main` **成功**时，「111 Android 正式发布」才会继续进入版本检查。两项检查的先后顺序不限；也可以从 Actions 手动启动发布，但同样需要这两项成功记录。
-3. 比较上一个正式 Release 到本次源码的变更：只有 `android-app/`、`upstream/codex/`、`CODEX_UPSTREAM_COMMIT` 或原生构建流程变化时才生成新 APK。已发布的源码提交、纯文档调整会跳过。
+3. 比较上一个正式 Release 到本次源码的变更：仅当正式 APK 的 Android 源码、打包配置、发行资产或 ARM64 原生编译输入真正变化时才发布新版本。CI 调度、测试、上游非 Android 文件和仅更新上游版本标记均不再产生重复 APK。
 4. 从有效版本标签及 `.github/release-version` 计算单调递增的版本号与 Android `versionCode`，禁止复用曾发布的编号。
-5. 从成功的原生构建记录中选择**完整输入完全一致、运行提交属于当前主分支历史且产物尚未过期**的 ARM64 内核。普通 Android 修改复用同一原生内核；Android 设备测试需要同时找到 ARM64 与 x86_64 两个产物。若未找到合格产物，先执行原生构建，再完成设备验收。
+5. 从成功的原生构建记录中选择**完整输入完全一致、运行提交属于当前主分支历史且产物尚未过期**的 ARM64 内核。普通 Android 修改复用同一原生内核；Android APK 验收只依赖 ARM64 原生内核，独立 UI 模拟器不依赖手机原生内核。若未找到合格产物，先执行原生构建，再完成设备验收。
 6. 原生构建同时生成 App Server 与独立 Code Mode Host，V8 与 Cargo.lock 的版本、Android 架构和沙箱配置必须匹配；逐一核验 ELF 架构、动态链接器、16 KB 对齐及所需共享库，再组装手机 APK。
-7. 运行 Kotlin 单元测试和 Release Lint，仅生成一个 **ARM64 正式签名手机 APK**；再核验版本号、包名、签名证书、APK 文件完整性和 ABI 隔离。
+7. 复用同一提交在独立 UI CI 中通过的 Kotlin 单元测试，在此执行 Release Lint 并只生成一个 **ARM64 正式签名手机 APK**；再核验版本号、包名、签名证书、APK 文件完整性和 ABI 隔离。
 8. 由合并 PR 生成中文更新说明；仅上传 ARM64 手机完整 APK、`SHA256SUMS.txt`、`update-manifest.json`。有可用上版手机 APK 时尝试生成 ARM64 二进制增量包，必须通过原样回放、SHA-256 对照且小于完整包的 65% 才会发布。
 9. 新 Release 发布后自动保留最近 3 个正式 Release（历史 Git 标签与提交保留）。**没有任何定时清理任务**。
+
+## CI 优化与上游升级
+
+- `import-codex.yml` 仅接受手动操作，可以指定官方源码完整提交 SHA；更新后创建中文 PR，经协议、ARM64 编译与 Android UI 验收后合并。
+- 发布调度只监听主分支验收事件。发布脚本预检查在相关 PR 或手动发布时执行，避免每次 UI 或 APK 检查结束都重复跑一轮。
+- 独立 `verify-android-git.yml` 已移除，ARM64 Git 编译、加载器、架构及 16KB 内存页对齐仍由原生核心构建验证。
+- 仅变更上游文档、SDK、历史工作流或上游提交号标记时不会重新构建原生核心；所有真实 Rust/Cargo/Android 编译输入变化仍触发构建。
+- `.github/scripts/test_ci_scope.py`、`test_native_reuse.py` 和 `test_release_change_gate.py` 持续检查 CI 执行边界、核心缓存复用及新版本发布条件。
 
 ## 首次配置：独立且长期一致的 Android 签名
 
@@ -58,8 +66,8 @@ Actions 现有的调试包签名与正式包签名不同。第一次由调试包
 
 
 - PR 内的 Release 签名构建属于打包和签名冒烟测试；只有原生构建、完整双组件 APK 和 Android 35 真正启动测试均通过，才算运行核心验收通过。
-- Code Mode Host 在 Android 使用 APK 内 `libcodex_code_mode_host.so`。构建时为 ARM64 核对固定 SHA-256 的 V8 152.2.0 沙箱产物，x86_64 使用锁定提交的官方 V8 源码进行沙箱编译，并通过独立进程初始化 V8 与健康探测两项测试。
-- 原生内核采用统一的复用校验：上游源码目录树、`CODEX_UPSTREAM_COMMIT` 记录的源码版本、Android 适配器、V8 沙箱构建器与原生编译步骤一致；工作流触发条件、编译前缓存判断和产物上传保留期变化不会让内核失效。原生编译产物保留 90 天，过期后自动进入重新编译流程。
+- Code Mode Host 在 Android 使用 APK 内 `libcodex_code_mode_host.so`。构建时为 ARM64 核对固定 SHA-256 的 V8 152.2.0 沙箱产物，原生交付只构建 ARM64，x86_64 模拟器使用独立的界面验收包。
+- 原生内核采用统一的复用校验：Android Rust 源码目录树、父级 Cargo 配置、Android 适配器、V8 沙箱构建器与原生编译步骤一致；工作流触发条件、编译前缓存判断和产物上传保留期变化不会让内核失效。原生编译产物保留 90 天，过期后自动进入重新编译流程。
 - 缺少签名 Secret、可复用原生核心、签名失败或 APK 校验不通过，均会阻止正式发布。
 - 每个 Release 保留源提交哈希、ARM64 手机完整 APK、SHA-256 和中文变更记录。
 - 发布记录：[GitHub Releases](https://github.com/sy220284/111/releases)；工作流：[111 Android 正式发布](https://github.com/sy220284/111/actions/workflows/release.yml)。

@@ -23,28 +23,33 @@
 - x86_64 核心执行 `--version` 退出码为 159（SIGSYS）；
 - `initialize` 无法成功握手。
 
-当前采用 **Android NDK / Bionic 原生构建**：直接从包内锁定的 Codex Rust 源码分别编译 `aarch64-linux-android` 与 `x86_64-linux-android`。Rust 版本固定为 `upstream/codex/codex-rs/rust-toolchain.toml` 所要求的 1.99.1，NDK 为 27.2.12479018，API 29。
+当前采用 **Android NDK / Bionic 原生构建**：从锁定的 Codex Rust 源码编译 `aarch64-linux-android`，仅发布 ARM64 手机原生内核；x86_64 模拟器使用独立 UI 验收 APK。Rust 版本固定为 `upstream/codex/codex-rs/rust-toolchain.toml` 所要求的 1.99.1，NDK 为 27.2.12479018，API 29。
 
-将官方源码与平台适配分离；编译和运行问题在 Android 适配层及构建流程处理。**x86_64 模拟器版已经完成原生启动、协议握手与命令执行测试；ARM64 手机版已完成编译和 APK 结构核验，仍需真机实测。**
+将官方源码与平台适配分离；编译和运行问题在 Android 适配层及构建流程处理。**CI 持续验证 ARM64 手机包的关键原生组件，并在 Android 35 模拟器验证 360、393、411dp 界面。真机原生交互仍需要设备实测。**
 
-## GitHub Actions 工作流
+## GitHub Actions 工作流（Android 专用）
 
-| 工作流 | 目的 | 触发 |
+根目录保留 **7 条实际交付工作流**；上游快照中的全平台 Rust、桌面发布、Python SDK 和社区管理工作流不会作为 111 的 CI 直接执行。
+
+| 工作流 | 触发条件 | 验收职责 |
 |---|---|---|
-| `一次性导入官方 Codex 源码` | 手动引入最新官方源码快照，记录提交版本 | 手动 |
-| `编译 Android 原生 Codex 核心` | 锁定 Rust / NDK，分别编译两个 ABI 的 Bionic ELF | 修改原生构建配置、手动 |
-| `安卓版本构建与验证` | 从原生核心构建取回双架构产物，分别制作手机与模拟器 APK，并完成设备测试 | UI 更新、原生核心成功、手动 |
-| `安卓界面与协议独立验收` | Kotlin 编译、审批协议单元测试、Android Lint | UI 更新、手动 |
-| `111 Android 正式发布` | Android 35 设备验收成功后，仅发布 ARM64 手机正式签名 APK，含版本递增和完整性校验 | 主分支设备验收通过、手动 |
-| `清理 111 旧正式版本` | Release 发布后保留最新三版，保留 Git 标签 | Release 发布、手动 |
+| `手动同步官方 Codex 源码并创建审核 PR` | 仅手动，可指定上游 SHA | 生成中文 PR，升级经 Android 验收后合并 |
+| `编译 Android 原生 Codex 核心` | Android Rust 源码、Cargo 配置、编译脚本更新；手动 | 编译并验证 ARM64 核心及依赖工具 |
+| `安卓界面与协议独立验收` | Android UI、协议及 CI 校验规则更新；手动 | Kotlin 单测、协议、Lint、3 档模拟器和截图 |
+| `安卓版本构建与验证` | 手机打包输入变更或原生核心完成；手动 | ARM64 APK、原生文件及安装包完整性 |
+| `安卓原生上游升级预演` | MXC、Code Mode 的上游 Rust 构建输入更新；手动 | Android 平台升级兼容性 |
+| `111 Android 正式发布` | 发布相关 PR、主分支两项验收完成；手动 | 同一提交通过两项验收后签名与发布 |
+| `清理 111 旧正式版本` | 发布 Release 后；手动 | 保留三个正式版本、全部 Git 标签 |
 
-Android NDK 的 ARM64 与 x86_64 内核已经通过编译。完整 APK 在 Android 35 x86_64 模拟器通过 `--version`、`initialize`、`account/read`、真实 Shell 命令执行以及侧边栏导航测试。构建遇到缺少原生核心时明确失败，不再使用 Linux 静态包。
+原生核心缓存按 **Android Rust 源码树、父级 Cargo 配置、Android 适配脚本和编译配方** 比较。上游无关文档、其他平台 SDK 或历史 CI 文件的变化不会使已验证的 ARM64 核心失效。必要编译输入变更或旧产物过期时重新编译。
+
+UI 单元测试由独立 UI CI 集中执行，APK 构建和签名阶段复用这项验收结论。 正式发布比较实际 APK 与原生编译输入，只修改 CI、测试和文档时不增加版本号。根目录工作流触发边界及发布条件由 `.github/scripts/test_ci_scope.py` 自动核查。
 
 ## 安装与验证
 
 1. 进入 [Actions](https://github.com/sy220284/111/actions)，查看 `编译 Android 原生 Codex 核心` 是否成功。
-2. 再查看 `安卓版本构建与验证` 的 `build` 和 `android-emulator` 是否均为成功。
-3. 两项均成功后，可从构建产物 `codex-android-arm64-apk` 下载 ARM64 手机调试 APK；`codex-android-x86_64-apk` 仅供开发及模拟器测试。正式版仅在 Releases 提供 ARM64 手机 APK。
+2. 再查看 `安卓版本构建与验证` 的 `build`、`verify-apk` 和独立 UI 验收的模拟器矩阵是否均为成功。
+3. 两项均成功后，可从构建产物 `codex-android-arm64-apk` 下载 ARM64 手机调试 APK；正式版仅在 Releases 提供 ARM64 手机 APK。
 4. 从侧栏“诊断与日志”检查本机 Codex 进程与协议；登录账号后试运行会话、命令与文件修改。
 5. 以上 Actions 工作流产物是**调试签名 APK**。正式签名版经「111 Android 正式发布」工作流发布至 [Releases](https://github.com/sy220284/111/releases)，签名 Secret 配置详见 [发布说明](docs/RELEASE.md)。首次 Android 35 x86_64 设备验收的日志见 [成功记录](https://github.com/sy220284/111/actions/runs/44732591288)，分架构版的验证见 [对应记录](https://github.com/sy220284/111/actions/runs/44733688136)。
 
