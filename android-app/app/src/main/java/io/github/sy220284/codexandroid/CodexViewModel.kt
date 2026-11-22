@@ -296,7 +296,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "正在建立新会话，请在会话创建后切换")
             return
         }
-        if (!ThreadDisplayPolicy.canOpenThread(activeThread.value, id)) return
+        if (!ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
         threadSwitching.value = true
         errors.value = errors.value - "conversation"
         viewModelScope.launch {
