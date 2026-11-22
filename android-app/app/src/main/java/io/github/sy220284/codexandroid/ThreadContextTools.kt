@@ -28,6 +28,8 @@ fun ThreadContextTools(
 ) {
     val current by vm.activeThread.collectAsState()
     val running by vm.running.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val data by vm.data.collectAsState()
@@ -142,7 +144,7 @@ fun ThreadContextTools(
                     CodexNotice("服务端已建立新的会话分支。", NoticeTone.Success)
                     OutlinedButton(onClick = {
                         vm.chooseThread(fork); openSubpage("chat")
-                    }, enabled = !running) {
+                    }, enabled = !switching && !firstThreadStarting) {
                         Text("打开新建分支")
                     }
                 }

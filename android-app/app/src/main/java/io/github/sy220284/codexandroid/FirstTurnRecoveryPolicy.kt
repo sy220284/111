@@ -6,6 +6,5 @@ package io.github.sy220284.codexandroid
  */
 internal object FirstTurnRecoveryPolicy {
     fun explicitlyRejected(failure: Throwable): Boolean =
-        failure is IllegalStateException &&
-            failure.message?.startsWith("turn/start：") == true
+        failure is RpcServerRejection && failure.method == "turn/start"
 }
