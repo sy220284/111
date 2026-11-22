@@ -11,7 +11,7 @@ data class ProtocolSurface(
 )
 object UiProtocolMatrix {
     val all = listOf(
-        ProtocolSurface("server/diagnostics", ApiExposure.Internal, "诊断", true),
+        ProtocolSurface("server/diagnostics", ApiExposure.Advanced, "诊断", true),
         ProtocolSurface("userVerification/status", ApiExposure.Internal, "身份验证后台", true),
         ProtocolSurface("userVerification/enroll", ApiExposure.Internal, "身份验证后台", true),
         ProtocolSurface("userVerification/delete", ApiExposure.Internal, "身份验证后台", true),
