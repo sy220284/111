@@ -16,3 +16,7 @@
 将这些 SVG 导入 Figma 时采用独立矢量节点，再与可编辑文字、组件变体组合。完整页面截图仅作为比对参考，不能贴图充当可编辑组件。Compose 内继续优先复用 Material 3 标准控件；需要定制品牌状态或通知时使用本目录中的独立素材。
 
 素材不包含任何生成式外部网络依赖，源文件完全保存在仓库；更新后应同步核验浅色对比、360/393/411dp 截图、减弱动效和 200% 字体缩放。
+
+## 已接入 App 的空态素材
+
+`app/src/main/res/drawable/` 新增 `ic_empty_diff.xml`、`ic_empty_approval.xml`、`ic_empty_connection.xml`，它们是源 SVG 的 Android 原生矢量形式。已在 `CodexEmptyState(artworkRes = ...)`、差异页、审批页和断连页面实际接入；通用组件根据是否指定素材切换原生图像和默认标准图标，保留单一组件与统一无障碍行为。
