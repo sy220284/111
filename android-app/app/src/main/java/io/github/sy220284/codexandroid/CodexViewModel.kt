@@ -437,7 +437,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
-    fun startTerminalCommand(command: String) {
+    fun startTerminalCommand(command: String, tty: Boolean = false) {
         if (terminalSession.value.running) {
             errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
             return
@@ -451,8 +451,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         val id = UUID.randomUUID().toString()
-        val args = TerminalSessionContract.execute(command, cwd, id)
-        terminalSession.value = TerminalSessionState.start(id, command)
+        val args = TerminalSessionContract.execute(command, cwd, id, tty)
+        terminalSession.value = TerminalSessionState.start(id, command, tty)
         errors.value = errors.value - "terminal"
         viewModelScope.launch {
             try {
@@ -466,6 +466,22 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    fun resizeTerminal(rows: Int, cols: Int) {
+        val current = terminalSession.value
+        if (!current.running || !current.tty) {
+            errors.value = errors.value + ("terminalResize" to "请先启动交互式终端")
+            return
+        }
+        val params = try {
+            TerminalSessionContract.resize(current.processId, rows, cols)
+        } catch (failure: IllegalArgumentException) {
+            errors.value = errors.value + ("terminalResize" to
+                (failure.message ?: "终端尺寸输入无效"))
+            return
+        }
+        rpc("terminalResize", "command/exec/resize", params)
     }
 
     fun sendTerminalInput(line: String, afterSent: () -> Unit = {}) {

@@ -464,6 +464,9 @@ fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun TerminalPage(vm: CodexViewModel) {
     var command by rememberSaveable { mutableStateOf("") }
+    var interactive by rememberSaveable { mutableStateOf(false) }
+    var ttyRows by rememberSaveable { mutableStateOf("24") }
+    var ttyCols by rememberSaveable { mutableStateOf("80") }
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
@@ -484,6 +487,15 @@ fun TerminalPage(vm: CodexViewModel) {
                 label = { Text("Shell 命令") }, placeholder = { Text("pwd && ls -la") },
                 modifier = Modifier.fillMaxWidth(), maxLines = 5,
                 enabled = !session.running)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("交互式终端", style = MaterialTheme.typography.bodyMedium)
+                    Text("启用 PTY 后支持交互命令与终端尺寸调整",
+                        color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                }
+                Switch(checked = interactive, onCheckedChange = { interactive = it },
+                    enabled = !session.running)
+            }
             OutlinedButton(onClick = { confirm = true },
                 enabled = command.isNotBlank() && !session.running,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -524,6 +536,27 @@ fun TerminalPage(vm: CodexViewModel) {
                 }
                 if (session.running) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (session.tty) {
+                        Text("交互式终端尺寸", style = MaterialTheme.typography.titleSmall)
+                        Row(Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(ttyRows, { ttyRows = it.filter(Char::isDigit).take(3) },
+                                label = { Text("行数") }, singleLine = true,
+                                modifier = Modifier.weight(1f), enabled = !session.terminating)
+                            OutlinedTextField(ttyCols, { ttyCols = it.filter(Char::isDigit).take(3) },
+                                label = { Text("列数") }, singleLine = true,
+                                modifier = Modifier.weight(1f), enabled = !session.terminating)
+                        }
+                        OutlinedButton(onClick = {
+                            vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
+                                ttyCols.toIntOrNull() ?: 0)
+                        }, enabled = !session.terminating &&
+                            ttyRows.toIntOrNull() in 2..300 &&
+                            ttyCols.toIntOrNull() in 10..400) {
+                            Text("调整终端尺寸")
+                        }
+                        errors["terminalResize"]?.let { ErrorText(it) }
+                    }
                     OutlinedTextField(
                         value = input, onValueChange = { input = it },
                         label = { Text("向运行中的命令输入一行") },
@@ -584,11 +617,15 @@ fun TerminalPage(vm: CodexViewModel) {
     if (confirm) CodexConfirmDialog(
         title = "确认执行命令",
         message = "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
-        detail = command + "\n\n执行位置：本机工作区",
+        detail = command + "\n\n执行位置：" +
+            File(vm.activeWorkspace.value).relativeTo(File(vm.workingDirectory)).path
+                .takeIf { it != "." }?.let { "projects/" + it }.orEmpty()
+                .ifBlank { "projects/" } +
+            if (interactive) "\n交互式 PTY 终端" else "\n流式命令",
         confirmLabel = "确认执行",
         destructive = true,
         onConfirm = {
-            vm.startTerminalCommand(command)
+            vm.startTerminalCommand(command, tty = interactive)
             confirm = false
         },
         onDismiss = { confirm = false }

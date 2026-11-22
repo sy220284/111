@@ -25,6 +25,34 @@ class TerminalSessionContractTest {
         assertTrue(request.getBoolean("disableTimeout"))
     }
 
+    @Test fun interactiveTerminalUsesRealPtyAndSupportsResize() {
+        val exec = TerminalSessionContract.execute("sh", "/sandbox/work", "pty-1", tty = true)
+        assertTrue(exec.getBoolean("tty"))
+        assertEquals(24, exec.getJSONObject("size").getInt("rows"))
+        assertEquals(80, exec.getJSONObject("size").getInt("cols"))
+        val resized = TerminalSessionContract.resize("pty-1", 42, 128)
+        assertEquals("pty-1", resized.getString("processId"))
+        assertEquals(42, resized.getJSONObject("size").getInt("rows"))
+        assertEquals(128, resized.getJSONObject("size").getInt("cols"))
+        assertTrue(TerminalSessionState.start("pty-1", "sh", tty = true).tty)
+        assertFalse(TerminalSessionState.start("pipe-1", "echo").tty)
+    }
+
+    @Test fun rejectInvalidTerminalSizeBeforeSendingRequest() {
+        for (rows in listOf(0, 1, 301)) {
+            try {
+                TerminalSessionContract.resize("pty-1", rows, 80)
+                fail("Unexpected accepted row count: $rows")
+            } catch (_: IllegalArgumentException) {}
+        }
+        for (cols in listOf(0, 9, 401)) {
+            try {
+                TerminalSessionContract.resize("pty-1", 24, cols)
+                fail("Unexpected accepted column count: $cols")
+            } catch (_: IllegalArgumentException) {}
+        }
+    }
+
     @Test fun appendPreservesUnicodeSplitAcrossStreamChunks() {
         val original = "中文日志 ✓"
         val chars = original.toByteArray(StandardCharsets.UTF_8)
