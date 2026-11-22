@@ -378,7 +378,9 @@ class UiNavigationInstrumentedTest {
 
         openSettingRoute("config")
         rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
-        rule.onNodeWithText("设置值（JSON）").assertExists()
+        rule.onNodeWithText("文本值").assertExists()
+        rule.onNodeWithText("开关").assertExists()
+        rule.onNodeWithText("高级数据").assertExists()
         capture("audit-config-editor-android35.png")
 
         openSettingRoute("environments")
