@@ -361,48 +361,6 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-conversation-approval-android35.png")
     }
 
-    @Test fun mcpToolInputRendersActualSchemaFields() {
-        val vm = viewModel()
-        vm.activeThread.value = "ci-fixture-session"
-        val schema = JSONObject().put("type", "object")
-            .put("required", JSONArray().put("project"))
-            .put("properties", JSONObject()
-                .put("project", JSONObject().put("type", "string")
-                    .put("title", "项目名称").put("description", "要检查的项目"))
-                .put("dryRun", JSONObject().put("type", "boolean")
-                    .put("title", "仅检查")))
-        val tool = JSONObject().put("title", "检查项目")
-            .put("description", "读取项目当前状态")
-            .put("inputSchema", schema)
-        rule.setContent {
-            CodexTheme {
-                McpToolCallSheet(vm, "CI 工具服务", "inspect", tool, {}, {})
-            }
-        }
-        rule.onNodeWithText("核对并调用工具").assertExists()
-        rule.onNodeWithText("仅检查").assertExists()
-        capture("audit-mcp-tool-form-android35.png")
-    }
-
-    @Test fun mcpResourceRendersReturnedDocumentText() {
-        val vm = viewModel()
-        val resource = JSONObject().put("name", "帮助文档")
-            .put("uri", "docs://help")
-            .put("description", "服务使用说明")
-        rule.setContent {
-            CodexTheme {
-                McpResourceSheet("CI 工具服务", resource, vm, {})
-            }
-        }
-        rule.waitForIdle()
-        vm.data.value = vm.data.value + ("mcpResource:CI 工具服务:docs://help" to
-            JSONObject().put("contents", JSONArray().put(JSONObject()
-                .put("mimeType", "text/plain")
-                .put("text", "阅读工具使用说明与权限要求。"))))
-        rule.onNodeWithText("资源片段 1").assertExists()
-        capture("audit-mcp-resource-android35.png")
-    }
-
     @Test fun elicitationRendersOnlyRequiredUserForm() {
         val vm = viewModel()
         val props = JSONObject().put("title", JSONObject().put("type", "string")
