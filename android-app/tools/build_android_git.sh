@@ -25,9 +25,13 @@ if [ "$actual" != "$COMMIT" ]; then
 fi
 # Local Git operations run under the Android app UID. Keep required zlib,
 # but do not add unverified bundled curl/OpenSSL dynamic libraries.
+# Git's Makefile uses SHELL_PATH for build-time generators AND target runtime.
+# Build generators must execute on Linux, while compiled paths and scripts must
+# retain Android's /system/bin/sh. Supply both target quoting variables explicitly.
 make -C "$SOURCE" -j 2 git \
   "CC=$CC" "AR=$AR" "RANLIB=$RANLIB" \
-  "SHELL_PATH=/bin/sh" 'SHELL_PATH_CQ_SQ="/system/bin/sh"' \
+  "SHELL_PATH=/bin/sh" "SHELL_PATH_SQ=/system/bin/sh" \
+  'SHELL_PATH_CQ_SQ="/system/bin/sh"' \
   "DEFAULT_EDITOR=vi" "DEFAULT_PAGER=cat" \
   "CFLAGS=-O2 -fPIC" \
   "LDFLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384" \
