@@ -1,7 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import android.content.Context
-import androidx.lifecycle.ViewModelProvider
 import org.json.JSONObject
 import org.json.JSONArray
 import android.graphics.Bitmap
@@ -400,7 +399,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun permissionApprovalExplainsActualScope() {
-        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        val vm = (rule.activity.application as CodexApplication).session
         openDrawerRoute("approvals")
         val permissions = JSONObject()
             .put("network", JSONObject().put("enabled", true))
@@ -419,7 +418,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun taskSpecificSheetsAreReachableAndReadable() {
-        val vm = ViewModelProvider(rule.activity)[CodexViewModel::class.java]
+        val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread {
             vm.activeThread.value = "ci-selected-session"
             vm.running.value = false

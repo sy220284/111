@@ -134,10 +134,9 @@ class UiPopulatedSubpagesInstrumentedTest {
             JSONObject().put("command", "git status")
                 .put("reason", "确认本机工作区当前改动")
                 .put("cwd", "/data/user/0/ci/projects"))
-        vm.bridge.prompts.value = listOf(request)
         rule.setContent {
             CodexTheme {
-                ApprovalQuickSheet(vm, onDismiss = {})
+                ApprovalQuickSheetContent(vm, listOf(request), onDismiss = {})
             }
         }
         rule.onNodeWithText("处理当前任务的审批").assertExists()

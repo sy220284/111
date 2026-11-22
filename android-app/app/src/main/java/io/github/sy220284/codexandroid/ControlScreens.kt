@@ -75,6 +75,15 @@ fun ApprovalsPage(vm: CodexViewModel) {
 @Composable
 fun ApprovalQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val prompts by vm.bridge.prompts.collectAsState()
+    ApprovalQuickSheetContent(vm, prompts, onDismiss)
+}
+
+/** Complete sheet bound to an explicit prompt snapshot for deterministic rendering. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ApprovalQuickSheetContent(
+    vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit
+) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
