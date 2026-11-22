@@ -47,6 +47,38 @@ class UiPopulatedSubpagesInstrumentedTest {
         captureVerifiedDisplayScreenshot(name)
     }
 
+    @Test fun mcpConnectionCardKeepsAgentToolsOffTheUserInterface() {
+        val server = JSONObject()
+            .put("name", "演示扩展服务")
+            .put("runtimeStatus", "ready")
+            .put("authStatus", "unauthorized")
+            .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
+            .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
+        var requested: String? = null
+        rule.setContent {
+            CodexTheme {
+                McpServiceStatusCard(server, onAuthorize = { requested = it })
+            }
+        }
+        rule.onNodeWithText("演示扩展服务").assertExists()
+        rule.onNodeWithText("已连接").assertExists()
+        rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
+        rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
+        rule.onNodeWithText("授权登录").performClick()
+        rule.runOnIdle { assertEquals("演示扩展服务", requested) }
+        capture("audit-mcp-service-boundary-android35.png")
+    }
+
+    @Test fun mcpAuthorizedServiceDoesNotShowRedundantLogin() {
+        val server = JSONObject().put("name", "已授权服务")
+            .put("runtimeStatus", "running").put("authStatus", "authorized")
+            .put("tools", JSONObject().put("agent_only_tool", JSONObject()))
+        rule.setContent { CodexTheme { McpServiceStatusCard(server, onAuthorize = {}) } }
+        rule.onNodeWithText("授权：已授权").assertExists()
+        rule.onNodeWithText("授权登录").assertDoesNotExist()
+        rule.onNodeWithText("agent_only_tool").assertDoesNotExist()
+    }
+
     @Test fun imageDraftSurvivesActualAndroidPreferenceRestoreAndPruning() {
         // Device-protected private storage isolates this test from active user drafts.
         val context = InstrumentationRegistry.getInstrumentation().targetContext
