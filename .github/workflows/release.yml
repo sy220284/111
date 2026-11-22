@@ -10,6 +10,8 @@ name: 111 Android 正式发布
       - '.github/scripts/audit_apk_contents.py'
       - '.github/scripts/test_audit_apk_contents.py'
       - '.github/scripts/test_ci_scope.py'
+      - '.github/scripts/release_change_gate.py'
+      - '.github/scripts/test_release_change_gate.py'
       - '.github/scripts/prepare-release-assets.sh'
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
@@ -209,10 +211,15 @@ jobs:
             git merge-base --is-ancestor "$PREVIOUS_TAG" "$RELEASE_SHA" || {
               echo "::error::上版提交不在当前发布链上，需要人工检查主分支历史"; exit 1;
             }
-            git diff --name-only "$PREVIOUS_TAG" "$RELEASE_SHA" > "$RUNNER_TEMP/release-paths.txt"
-            if ! grep -Eq '^(android-app/|upstream/codex/|CODEX_UPSTREAM_COMMIT$|\.github/workflows/build-native-codex\.yml$)' "$RUNNER_TEMP/release-paths.txt"; then
-              echo "::notice::距上版仅有文档或发布流程变化，跳过重复 APK"
+            GATE_STATUS=0
+            python3 .github/scripts/release_change_gate.py \
+              --base "$PREVIOUS_TAG" --head "$RELEASE_SHA" || GATE_STATUS=$?
+            if [ "$GATE_STATUS" -eq 3 ]; then
+              echo "::notice::仅有无关变更，跳过重复 APK"
               exit 0
+            elif [ "$GATE_STATUS" -ne 0 ]; then
+              echo "::error::无法确认 Android 发版输入，终止发布"
+              exit "$GATE_STATUS"
             fi
           fi
 
