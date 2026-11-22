@@ -249,32 +249,7 @@ fun McpServicesPage(vm: CodexViewModel) {
                 icon = Icons.Outlined.Hub)
         }
         servers.forEach { server ->
-            val name = PresentationPolicy.meaningful(server.optString("name"))
-                .ifEmpty { "未命名服务" }
-            val status = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
-            val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
-                    Spacer(Modifier.width(10.dp))
-                    Text(name, style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f), maxLines = 2)
-                    StatusPill(status, status == "已连接")
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("授权：" + auth, color = Ink.muted, modifier = Modifier.weight(1f))
-                    if (auth != "已授权") {
-                        TextButton(onClick = { confirmLogin = name },
-                            modifier = Modifier.heightIn(min = 48.dp)) {
-                            Text("授权登录")
-                        }
-                    }
-                }
-                if (server.optString("toolsError").isNotBlank()) {
-                    Text("部分工具暂不可用，请检查服务连接或配置。",
-                        color = Ink.red, style = MaterialTheme.typography.bodySmall)
-                }
-            }
+            McpServiceStatusCard(server, onAuthorize = { confirmLogin = it })
         }
         if (login.startsWith("https://") || login.startsWith("http://127.0.0.1")) {
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -303,6 +278,41 @@ fun McpServicesPage(vm: CodexViewModel) {
         onDismiss = { confirmLogin = "" }
     )
 }
+
+/** 用户只管理服务连接及授权，工具/资源的底层调用交给任务中的智能体。 */
+@Composable
+internal fun McpServiceStatusCard(
+    server: JSONObject,
+    onAuthorize: (String) -> Unit
+) {
+    val name = PresentationPolicy.meaningful(server.optString("name"))
+        .ifEmpty { "未命名服务" }
+    val status = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
+    val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
+    MaterialPanel(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
+            Spacer(Modifier.width(10.dp))
+            Text(name, style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f), maxLines = 2)
+            StatusPill(status, status == "已连接")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("授权：" + auth, color = Ink.muted, modifier = Modifier.weight(1f))
+            if (auth != "已授权") {
+                TextButton(onClick = { onAuthorize(name) },
+                    modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("授权登录")
+                }
+            }
+        }
+        if (server.optString("toolsError").isNotBlank()) {
+            Text("部分工具暂不可用，请检查服务连接或配置。",
+                color = Ink.red, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 
 @Composable
 fun EnvironmentsPage(vm: CodexViewModel) {
