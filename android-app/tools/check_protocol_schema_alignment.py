@@ -65,7 +65,7 @@ def verify(source: str, schema_dir: Path, thread_source: str,
         fields = json.loads(stable_start.read_text(encoding="utf-8")).get("properties", {})
         if "projectId" in fields:
             errors.append("实验字段 projectId 意外进入稳定 ThreadStartParams Schema")
-    if '.put("projectId", projectId)' not in project_contract:
+    if 'put("projectId", projectId)' not in project_contract:
         errors.append("Android 项目请求构造器未携带 projectId")
     if '.put("experimentalApi", true)' not in connection_source:
         errors.append("Android 未声明实验协议能力")
