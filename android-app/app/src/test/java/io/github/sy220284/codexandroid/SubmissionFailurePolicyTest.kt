@@ -12,7 +12,7 @@ class SubmissionFailurePolicyTest {
 
     @Test fun explicitCoreRejectionCanBeRetried() {
         val message = SubmissionFailurePolicy.message(
-            IllegalStateException("turn/start：运行配置被拒绝"), true)
+            RpcServerRejection("turn/start", -32602, "运行配置被拒绝"), true)
         assertTrue(message.contains("明确拒绝"))
         assertTrue(message.contains("重试"))
     }
