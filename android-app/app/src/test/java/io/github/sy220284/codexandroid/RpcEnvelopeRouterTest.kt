@@ -1,0 +1,41 @@
+package io.github.sy220284.codexandroid
+
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class RpcEnvelopeRouterTest {
+    @Test fun responsesRouteToTheirAwaitingRequest() {
+        assertEquals(RpcEnvelopeKind.Response,
+            RpcEnvelopeRouter.classify(JSONObject().put("id", 42)
+                .put("result", JSONObject().put("ok", true))))
+        assertEquals(RpcEnvelopeKind.Event,
+            RpcEnvelopeRouter.classify(JSONObject().put("method", "turn/completed")))
+    }
+
+    @Test fun knownApprovalAndUserInputAreSupportedHostRequests() {
+        for (method in listOf(
+            "item/commandExecution/requestApproval",
+            "item/permissions/requestApproval",
+            "item/tool/requestUserInput",
+            "mcpServer/elicitation/request"
+        )) {
+            assertEquals(RpcEnvelopeKind.HostRequest,
+                RpcEnvelopeRouter.classify(JSONObject().put("id", "approval")
+                    .put("method", method)))
+        }
+    }
+
+    @Test fun unknownHostMethodReceivesExplicitUnsupportedResponse() {
+        assertEquals(RpcEnvelopeKind.UnsupportedHostRequest,
+            RpcEnvelopeRouter.classify(JSONObject().put("id", 7)
+                .put("method", "newUnexpected/serverRequest")))
+    }
+
+    @Test fun resolvedPromptNotificationIsRecognized() {
+        assertEquals(RpcEnvelopeKind.RequestResolved,
+            RpcEnvelopeRouter.classify(JSONObject()
+                .put("method", "serverRequest/resolved")
+                .put("params", JSONObject().put("requestId", 1))))
+    }
+}
