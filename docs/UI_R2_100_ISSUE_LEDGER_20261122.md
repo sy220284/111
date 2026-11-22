@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 4 项；有对应实现待专项验收 57 项；部分处理 26 项；待完整实施 13 项；合计 100。**
+**本次统计：已专项验收 4 项；有对应实现待专项验收 57 项；部分处理 25 项；待完整实施 13 项；经安全评估跳过 1 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -71,7 +71,7 @@
 | 59 | C | 深浅色切换无预览卡——设置页改完全局生效，用户盲选 | 已提交待专项验收 | SettingsHub.kt |
 | 60 | C | 无字体大小偏好设置——系统字体缩放是唯一途径 | 已提交待专项验收 | SettingsHub.kt |
 | 61 | D | R8 混淆+资源压缩未开（isMinifyEnabled=false）——143MB APK 瘦身第一刀 | 已提交待专项验收 | app/build.gradle.kts |
-| 62 | D | APK 继续瘦身：上游静态资源剔除、per-language split 评估 | 已有部分改动 | app/build.gradle.kts |
+| 62 | D | APK 继续瘦身：上游静态资源剔除、per-language split 评估 | **安全评估后跳过侵入式瘦身** | APK_SIZE_SAFETY_ASSESSMENT_20261122.md；保留运行依赖、离线及语言支持 |
 | 63 | D | timeline 进程级无界增长（session 长驻后加剧）——分页/窗口化裁剪 | 专项验收通过 | TimelineWindowStore.kt；2/2 长历史与分页单元测试通过 |
 | 64 | D | composerDrafts 无上限累积——LRU/超期清理 | 已提交待专项验收 | ThreadComposerDrafts.kt |
 | 65 | D | errors map 无界（动态 key 残留）——TTL/上限 | 已有部分改动 | CodexViewModel.kt |
@@ -117,6 +117,7 @@
 - **#35**：`FirstTurnRecoveryControllerTest` 3 项全通过，分别覆盖已拒绝空会话安全清理、非空或已切换会话保护、已启动回合禁止误删。
 - **#63**：`TimelineWindowStoreTest` 2 项全通过，覆盖 2060 条历史的磁盘分页与恢复、读回后写入新数据时防重复对账。
 - **#69**：`TerminalTranscriptStoreTest` 5 项全通过，覆盖双流输出、容量限制、UTF-8 跨页连续性、跨命令边界访问限制。
+- **#62（安全跳过）**：保留上游静态资源、技能、语言数据及原生工具，不扩大原生 strip；正式 APK 强制核查 Server、Code Mode Host、Git、ripgrep 与 hpatchz，参见 APK_SIZE_SAFETY_ASSESSMENT_20261122.md。
 - **#81**：AndroidManifest 已声明 RTL；`audit-rtl-200font-bulk-android35.png` 在三种屏宽被强制采集，按真实可滚动容器确认按钮能够到达、可见且触控高度不小于 48dp。[360dp 原始截图包](https://github.com/sy220284/111/actions/runs/45008981995/artifacts/14748699322)。
 - 完整 29 页面 TalkBack、其他页面的 200% 字体与 RTL 覆盖，仍按清单 #79、#83、#85、#86 独立推进。
 

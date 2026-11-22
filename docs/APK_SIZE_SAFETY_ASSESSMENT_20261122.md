@@ -2,12 +2,13 @@
 
 ## 决策
 
-**功能完整优先。现阶段保持已启用且构建通过的 R8 与 Android 资源压缩，不再追加侵入式瘦身。** 后续体积收益以完整 ARM64 Codex 运行 APK 的实际数据为准，所有变更必须通过 Codex 启动、终端、会话、Git、ripgrep、更新恢复和关键 UI 的运行级验收。
+**功能完整优先。现阶段保持已启用且构建通过的 R8 与 Android 资源压缩，不再追加侵入式瘦身；原清单 #62 评估结案，跳过进一步删减。** 后续体积收益以完整 ARM64 Codex 运行 APK 的实际数据为准，所有变更必须通过 Codex 启动、终端、会话、Git、ripgrep、更新恢复和关键 UI 的运行级验收。
 
 ## 已核实的事实
 
 - `android-app/app/build.gradle.kts` 的 Release 已设置 `isMinifyEnabled=true`、`isShrinkResources=true`；正式发布通过 `codexReleaseTargetAbi=arm64-v8a` 仅构建 ARM64。调试包与 UI 专项验收不等于最终手机安装包。
 - `CodexConnection.kt` 通过 `applicationInfo.nativeLibraryDir/libcodex_server.so` + `ProcessBuilder` 启动 Codex 原生核心。该 ELF 文件必须存在、与设备 ABI 一致，并被 Android 解包（`useLegacyPackaging=true`，清单设置 `extractNativeLibs=true`）。
+- 完整运行包必须同时包含 `libcodex_server.so`、`libcodex_code_mode_host.so`、`libcodex_rg.so`、`libcodex_git.so`；仅保留 Server 会损失 Code Mode 和本机开发工具。
 - `libhpatchz.so` 是本机增量升级恢复组件。完整签名发布流程已经检查两个原生库和包签名。PR 内的 Release smoke 仅验证签名/构建与 `libhpatchz.so`，没有导入完整 Codex 内核，因此无法单凭该 smoke 判断核心运行能力。
 - 已通过的独立 UI 验收覆盖 360/393/411dp 模拟器、41 项测试/屏宽；它验证界面与交互，未覆盖 ARM64 正式包中 Codex 真实子进程的工作回合。
 - 原清单提及的“143MB APK”来自旧基线，不能与当前 UI APK 压缩 artifact 体积直接比较。要获得真实瘦身收益，需要两次均包含相同 Codex 原生二进制、签名方式与 ABI 的完整 Release APK 做同口径比较。
@@ -26,8 +27,8 @@
 
 ## 自动验收
 
-`.github/scripts/audit_apk_contents.py` 根据 **full**（正式、含原生核心）和 **ui-smoke**（仅 PR 构建、无 Codex 核心）区分验收，检查 Android manifest、资源表、classes.dex、hpatchz、完整包里的 Codex 核心和每个本机 `.so` 的 ELF64 ABI，并输出 APK/DEX/原生库/资源构成。
+`.github/scripts/audit_apk_contents.py` 根据 **full**（正式、含原生核心）和 **ui-smoke**（仅 PR 构建、无 Codex 核心）区分验收，检查 Android manifest、资源表、classes.dex、hpatchz、完整包里的四个 Codex 必需原生组件和每个本机 `.so` 的 ELF64 ABI，并输出 APK/DEX/原生库/资源构成。
 
 入口：`python3 .github/scripts/audit_apk_contents.py --apk <实际文件> --abi arm64-v8a --mode full --report <报告路径>`。
 
-**发布门禁原则**：核心丢失、架构混入或 ELF 无效必须阻断。体积数字用于实际趋势分析，绝不通过盲目删除功能换得更小安装包。新增静态门禁后仍要在真实 ARM64 设备验证最终签名包。
+**发布门禁原则**：Server、Code Mode Host、Git、ripgrep 任一缺失，架构混入或 ELF 无效必须阻断。体积数字用于实际趋势分析，绝不通过盲目删除功能换得更小安装包。新增静态门禁后仍要在真实 ARM64 设备验证最终签名包。

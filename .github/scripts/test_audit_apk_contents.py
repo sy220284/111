@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from zipfile import ZipFile
 
-from audit_apk_contents import ApkAuditError, audit
+from audit_apk_contents import ApkAuditError, REQUIRED_RUNTIME, audit
 
 
 def elf(machine):
@@ -20,7 +20,9 @@ class ApkAuditTests(unittest.TestCase):
         self.addCleanup(self.work.cleanup)
         self.path = Path(self.work.name) / "app.apk"
 
-    def package(self, *, core=True, wrong_abi=False, malformed=False, abi="arm64-v8a"):
+    def package(self, *, core=True, wrong_abi=False, malformed=False,
+                missing_component=None, wrong_machine_component=None,
+                abi="arm64-v8a"):
         payload = {
             "AndroidManifest.xml": b"manifest",
             "resources.arsc": b"resources",
@@ -28,8 +30,12 @@ class ApkAuditTests(unittest.TestCase):
             f"lib/{abi}/libhpatchz.so": elf(183 if abi == "arm64-v8a" else 62),
         }
         if core:
-            payload[f"lib/{abi}/libcodex_server.so"] = elf(
-                183 if abi == "arm64-v8a" else 62)
+            for component in REQUIRED_RUNTIME:
+                if component == missing_component:
+                    continue
+                machine = 62 if component == wrong_machine_component else (
+                    183 if abi == "arm64-v8a" else 62)
+                payload[f"lib/{abi}/{component}"] = elf(machine)
         if wrong_abi:
             payload["lib/x86_64/libunexpected.so"] = elf(62)
         if malformed:
@@ -42,6 +48,7 @@ class ApkAuditTests(unittest.TestCase):
         self.package()
         result = audit(self.path, "arm64-v8a", "full")
         self.assertEqual(64, result["core_bytes"])
+        self.assertEqual(64 * len(REQUIRED_RUNTIME), result["runtime_bytes"])
         self.assertGreater(result["uncompressed_by_category"]["native"], 100)
         self.assertEqual(result["apk_bytes"], self.path.stat().st_size)
 
@@ -57,6 +64,18 @@ class ApkAuditTests(unittest.TestCase):
             audit(self.path, "arm64-v8a", "full")
         self.package(malformed=True)
         with self.assertRaisesRegex(ApkAuditError, "ELF64"):
+            audit(self.path, "arm64-v8a", "full")
+
+    def test_full_package_requires_each_codex_component(self):
+        for component in REQUIRED_RUNTIME:
+            with self.subTest(component=component):
+                self.package(missing_component=component)
+                with self.assertRaisesRegex(ApkAuditError, component):
+                    audit(self.path, "arm64-v8a", "full")
+
+    def test_rejects_wrong_architecture_for_code_mode_host(self):
+        self.package(wrong_machine_component="libcodex_code_mode_host.so")
+        with self.assertRaisesRegex(ApkAuditError, "原生库架构错误"):
             audit(self.path, "arm64-v8a", "full")
 
     def test_x86_runtime_is_valid_only_in_emulator_package(self):

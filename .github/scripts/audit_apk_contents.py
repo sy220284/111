@@ -2,7 +2,7 @@
 """Audit APK size and required executable payloads without modifying the APK.
 
 UI-only signing smoke deliberately omits the Codex core. Shipping APKs must
-contain the complete ABI-specific native core; slimming must never remove it.
+contain the complete ABI-specific native executables; slimming must never remove them.
 """
 import argparse
 import json
@@ -12,6 +12,13 @@ from zipfile import BadZipFile, ZipFile
 
 MACHINES = {"arm64-v8a": 183, "x86_64": 62}
 REQUIRED_ANDROID = ("AndroidManifest.xml", "resources.arsc", "classes.dex")
+# All four ARM64 Codex executables are stored as native libraries for Android extraction.
+REQUIRED_RUNTIME = (
+    "libcodex_server.so",
+    "libcodex_code_mode_host.so",
+    "libcodex_rg.so",
+    "libcodex_git.so",
+)
 
 
 class ApkAuditError(ValueError):
@@ -30,7 +37,7 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 raise ApkAuditError("APK 包含重名文件条目")
             required = list(REQUIRED_ANDROID) + [f"lib/{abi}/libhpatchz.so"]
             if mode == "full":
-                required.append(f"lib/{abi}/libcodex_server.so")
+                required.extend(f"lib/{abi}/{binary}" for binary in REQUIRED_RUNTIME)
             missing = sorted(set(required) - entries.keys())
             if missing:
                 raise ApkAuditError("关键安装文件缺失：" + ", ".join(missing))
@@ -68,6 +75,8 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 "compressed_by_category": compressed,
                 "core_bytes": entries.get(f"lib/{abi}/libcodex_server.so").file_size
                     if f"lib/{abi}/libcodex_server.so" in entries else None,
+                "runtime_bytes": sum(entries[f"lib/{abi}/{binary}"].file_size
+                    for binary in REQUIRED_RUNTIME) if mode == "full" else None,
             }
     except (BadZipFile, OSError) as error:
         raise ApkAuditError(f"APK 结构或文件读取失败：{error}") from error

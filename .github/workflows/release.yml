@@ -7,6 +7,8 @@ name: 111 Android 正式发布
       - '.github/scripts/generate-release-notes.py'
       - '.github/scripts/test_generate_release_notes.py'
       - '.github/scripts/test_release_assets.py'
+      - '.github/scripts/audit_apk_contents.py'
+      - '.github/scripts/test_audit_apk_contents.py'
       - '.github/scripts/prepare-release-assets.sh'
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
