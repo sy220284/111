@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
@@ -36,6 +37,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
     var deleting by remember { mutableStateOf<JSONObject?>(null) }
     var detailsId by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf("") }
+    var actionMenuId by remember { mutableStateOf("") }
     fun reload() {
         projectPages = emptyList()
         nextPageCursor = ""
@@ -88,32 +90,40 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(name, { name = it }, label = { Text("新项目名称") },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        withThread = false
-                        confirmCreate = true
-                    }, enabled = name.isNotBlank() && "projectWrite" !in loading) {
-                        Text("登记当前目录")
+                if (!currentThread.isNullOrBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = withThread, onCheckedChange = { withThread = it },
+                            enabled = !running && "projectWrite" !in loading)
+                        Text("同时关联当前会话", style = MaterialTheme.typography.bodyMedium)
                     }
-                    if (!currentThread.isNullOrBlank()) {
-                        TextButton(onClick = {
-                            withThread = true
-                            confirmCreate = true
-                        }, enabled = name.isNotBlank() && "projectWrite" !in loading) {
-                            Text("同时关联当前会话")
-                        }
-                    }
+                }
+                OutlinedButton(onClick = { confirmCreate = true },
+                    enabled = name.isNotBlank() && !running && "projectWrite" !in loading,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(if (withThread && currentThread != null) "登记项目并关联会话"
+                        else "登记当前目录")
                 }
                 projects.forEachIndexed { index, project ->
                     val projectId = project.optString("id")
-                    val displayName = project.optString("name")
+                    val displayName = project.optString("name").ifBlank { "未命名项目" }
                     val rootPath = project.optJSONArray("roots")
                         ?.optJSONObject(0)?.optString("path").orEmpty()
+                    val location = when {
+                        rootPath.isBlank() -> "目录信息缺失"
+                        rootPath == root.path -> "projects/"
+                        rootPath.startsWith(root.path + File.separator) ->
+                            "projects/" + rootPath.removePrefix(root.path + File.separator)
+                        else -> "目录不在当前本机工作区"
+                    }
+                    val canModify = !running && "projectWrite" !in loading
                     HorizontalDivider()
-                    Text(displayName, style = MaterialTheme.typography.titleSmall)
-                    Text(rootPath.removePrefix(root.path).ifBlank { "/" },
-                        style = MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(displayName, style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(location, style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                         OutlinedButton(onClick = {
                             try {
                                 vm.selectProject(projectId, File(rootPath))
@@ -122,36 +132,56 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                                 errorText = error.message ?: "无法使用此项目"
                             }
                         }, enabled = projectId.isNotBlank() && rootPath.isNotBlank() &&
-                            !running && "projectWrite" !in loading &&
-                            (selectedId != projectId || selectedPath != rootPath)) {
-                            Text(if (selectedId == projectId) "当前项目" else "使用项目")
+                            canModify && (selectedId != projectId || selectedPath != rootPath),
+                            modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text(if (selectedId == projectId) "当前项目" else "使用")
                         }
-                        TextButton(onClick = {
-                            detailsId = if (detailsId == projectId) "" else projectId
-                            if (detailsId == projectId) vm.refresh(
-                                "projectDetail", "project/read",
-                                ProjectRequestContract.read(projectId))
-                        }) { Text(if (detailsId == projectId) "收起" else "详情") }
-                        TextButton(onClick = {
-                            editing = project
-                            renameText = displayName
-                        }) { Text("改名") }
-                        TextButton(onClick = { deleting = project }) { Text("移除") }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = {
-                            vm.rpc("projectWrite", "project/move",
-                                ProjectRequestContract.move(projectId,
-                                    projects.getOrNull(index - 1)?.optString("id")),
-                                after = { reload() })
-                        }, enabled = index > 0 && "projectWrite" !in loading) { Text("上移") }
-                        TextButton(onClick = {
-                            vm.rpc("projectWrite", "project/move",
-                                ProjectRequestContract.move(projectId,
-                                    projects.getOrNull(index + 2)?.optString("id")),
-                                after = { reload() })
-                        }, enabled = index < projects.lastIndex && "projectWrite" !in loading) {
-                            Text("下移")
+                        Box {
+                            IconButton(onClick = { actionMenuId = projectId },
+                                enabled = projectId.isNotBlank(),
+                                modifier = Modifier.size(48.dp)) {
+                                Icon(Icons.Outlined.MoreVert, "管理" + displayName)
+                            }
+                            DropdownMenu(expanded = actionMenuId == projectId,
+                                onDismissRequest = { actionMenuId = "" }) {
+                                DropdownMenuItem(
+                                    text = { Text(if (detailsId == projectId) "收起详情" else "查看详情") },
+                                    onClick = {
+                                        actionMenuId = ""
+                                        detailsId = if (detailsId == projectId) "" else projectId
+                                        if (detailsId == projectId) vm.refresh(
+                                            "projectDetail", "project/read",
+                                            ProjectRequestContract.read(projectId))
+                                    })
+                                DropdownMenuItem(text = { Text("重命名") },
+                                    enabled = canModify,
+                                    onClick = {
+                                        actionMenuId = ""
+                                        editing = project
+                                        renameText = displayName
+                                    })
+                                DropdownMenuItem(text = { Text("向上移动") },
+                                    enabled = canModify && index > 0,
+                                    onClick = {
+                                        actionMenuId = ""
+                                        vm.rpc("projectWrite", "project/move",
+                                            ProjectRequestContract.move(projectId,
+                                                projects.getOrNull(index - 1)?.optString("id")),
+                                            after = { reload() })
+                                    })
+                                DropdownMenuItem(text = { Text("向下移动") },
+                                    enabled = canModify && index < projects.lastIndex,
+                                    onClick = {
+                                        actionMenuId = ""
+                                        vm.rpc("projectWrite", "project/move",
+                                            ProjectRequestContract.move(projectId,
+                                                projects.getOrNull(index + 2)?.optString("id")),
+                                            after = { reload() })
+                                    })
+                                DropdownMenuItem(text = { Text("移除项目登记") },
+                                    enabled = canModify,
+                                    onClick = { actionMenuId = ""; deleting = project })
+                            }
                         }
                     }
                     if (detailsId == projectId) {
@@ -159,8 +189,6 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                             it.optString("id") == projectId
                         }?.let { item ->
                             Text("目录数量：" + (item.optJSONArray("roots")?.length() ?: 0),
-                                style = MaterialTheme.typography.bodySmall)
-                            Text("项目编号：" + item.optString("id").take(16),
                                 style = MaterialTheme.typography.bodySmall)
                         }
                     }
