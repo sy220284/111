@@ -51,4 +51,10 @@
 
 ## 设备级回归验收增强
 - 新增 `conversationApprovalSheetRendersActualCommandAndDecision` Android Compose 仪器测试：注入明示的协议形状样例（不发出真实审批），检查对话内审批弹层、命令正文与仅本次授权按钮。
-- 将 `audit-conversation-approval` 纳入每档 Android 35 模拟器的必需截图清单；当前必检数增加至 52 张/档（360、393、411dp），新增页面不再只依赖静态源码检查。
+- 将 `audit-conversation-approval` 纳入每档 Android 35 模拟器的必需截图清单；当前每档有 51 张必检截图及 1 张附加截图，新增审批画面已列入必检范围；三档屏宽共采集 156 张。
+
+## 最终设备测试记录（对应代码 SHA 483723c0）
+- [UI 独立验收](https://github.com/sy220284/111/actions/runs/44970837236)：Kotlin 编译、协议审计、94 项单元测试及 Lint 通过；29/29 页面路由有效；官方 195 项请求已核对；Android 35 360/393/411dp 各 32/32 项设备测试通过，每档 51 张必检截图及 1 张附加截图，缺失 0。
+- [原生 APK 与核心验收](https://github.com/sy220284/111/actions/runs/44970837223)：ARM64/x86_64 APK 构建成功，Android 35 x86_64 运行核心模拟器测试通过。
+- APK 发行签名、ARM64 物理设备真实账号和云端长任务仍以各自端到端证据为准；本次模拟器测试只验证已列明的能力范围。
+- Figma Starter MCP 调用额度已用尽，本次未修改原 Figma 文件。所有最新改动均在 Compose 代码与本文件中留下可追溯记录。
