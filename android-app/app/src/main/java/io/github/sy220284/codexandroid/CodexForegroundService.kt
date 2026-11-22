@@ -40,6 +40,7 @@ class CodexForegroundService : Service() {
 
     private data class TaskNotificationState(
         val running: Boolean,
+        val threads: Int,
         val approvals: Int,
         val connected: Boolean,
         val events: Int,
@@ -56,20 +57,25 @@ class CodexForegroundService : Service() {
         ).apply { description = "长任务进度、审批提醒和停止操作" })
 
         // A foreground notification must exist immediately, before collecting flows.
-        showNotification(TaskNotificationState(true, 0, true, 0, false), foreground = true)
+        showNotification(TaskNotificationState(true, 1, 0, true, 0, false), foreground = true)
 
         val session = (application as CodexApplication).session
         watch = scope.launch {
+            val activeCount = combine(session.running, session.threadExecutions) {
+                visibleRunning, executions ->
+                maxOf(executions.size, if (visibleRunning) 1 else 0)
+            }
             combine(
-                session.running, session.bridge.prompts, session.bridge.status,
+                activeCount, session.bridge.prompts, session.bridge.status,
                 session.timeline, session.activeTurn
-            ) { running, prompts, status, timeline, turn ->
+            ) { count, prompts, status, timeline, turn ->
                 TaskNotificationState(
-                    running = running,
+                    running = count > 0,
+                    threads = count,
                     approvals = prompts.size,
                     connected = status == EngineStatus.Connected,
                     events = timeline.size,
-                    canStop = running && !turn.isNullOrBlank()
+                    canStop = session.running.value && !turn.isNullOrBlank()
                 )
             }.distinctUntilChanged().collectLatest { state ->
                 if (!ForegroundTaskPolicy.shouldKeepAlive(state.running, state.approvals)) {
@@ -125,11 +131,13 @@ class CodexForegroundService : Service() {
         val title = when {
             !state.connected -> "Codex 运行核心连接中断"
             state.approvals > 0 -> "Codex 有 ${state.approvals} 项操作等待确认"
+            state.threads > 1 -> "Codex 正在执行 ${state.threads} 条会话任务"
             else -> "Codex 正在执行任务"
         }
         val detail = when {
             !state.connected -> "点按返回应用，重新连接并检查执行结果"
             state.approvals > 0 -> "点击返回任务对话，查看内容并决定是否允许"
+            state.threads > 1 -> "多会话任务持续运行，点按查看并切换会话"
             else -> "已记录 ${state.events} 条执行事件，点按查看详情"
         }
         val builder = Notification.Builder(this, CHANNEL)
