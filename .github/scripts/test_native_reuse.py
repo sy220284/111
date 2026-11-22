@@ -38,8 +38,11 @@ jobs:
 class FakeRunner:
     def __init__(self, *, changed_source=False, changed_recipe=False,
                  expired_first=False, missing_abi=False, ancestor=True,
+                 run_conclusion='success', failed_job=False,
                  changed_code_mode_adapter=False,
                  legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False):
+        self.run_conclusion = run_conclusion
+        self.failed_job = failed_job
         self.changed_source = changed_source
         self.changed_recipe = changed_recipe
         self.expired_first = expired_first
@@ -92,10 +95,16 @@ class FakeRunner:
         if args[:3] == ["gh", "run", "list"]:
             self.last_workflow_query = list(args)
             return json.dumps([
-                {"databaseId": 21, "headSha": "old", "conclusion": "success"},
-                {"databaseId": 20, "headSha": "older", "conclusion": "success"},
+                {"databaseId": 21, "headSha": "old", "conclusion": self.run_conclusion},
+                {"databaseId": 20, "headSha": "older", "conclusion": self.run_conclusion},
             ])
         if args[:2] == ["gh", "api"]:
+            if args[2].endswith("/jobs?per_page=100"):
+                return json.dumps({"jobs": [
+                    {"name": f"编译 {abi} 核心",
+                     "conclusion": "failure" if self.failed_job and abi == "arm64-v8a" else "success"}
+                    for abi in ("arm64-v8a", "x86_64")
+                ]})
             self.called_api += 1
             names = ["codex-android-native-arm64-v8a"]
             if not self.missing_abi:
@@ -116,6 +125,34 @@ class NativeReuseTests(unittest.TestCase):
     def test_compiler_change_invalidates_binary(self):
         edited = COMPILER_JOB.replace("cargo build --locked", "cargo build --release")
         self.assertNotEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
+
+    def test_arm64_signature_is_stable_when_x86_matrix_removed(self):
+        full = """
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rust_target: aarch64-linux-android
+            abi: arm64-v8a
+          - rust_target: x86_64-linux-android
+            abi: x86_64
+    env:
+      RUST: 1.99.1
+    steps:
+      - name: build
+        run: cargo build
+      - name: 上传原生内核与构建清单
+        uses: actions/upload-artifact@v4
+"""
+        arm_only = full.replace(
+            "          - rust_target: x86_64-linux-android\\n            abi: x86_64\\n", ""
+        )
+        self.assertEqual(native_recipe(full, "arm64-v8a"),
+                         native_recipe(arm_only, "arm64-v8a"))
+        self.assertNotEqual(native_recipe(full, "x86_64"),
+                            native_recipe(full, "arm64-v8a"))
 
     def test_unrecognized_recipe_is_error(self):
         with self.assertRaises(SelectionError):
@@ -149,6 +186,16 @@ class NativeReuseTests(unittest.TestCase):
         runner = FakeRunner(missing_abi=True)
         self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                        ["arm64-v8a"]), "21")
+
+    def test_cancelled_workflow_with_successful_arm64_job_is_reusable(self):
+        runner = FakeRunner(missing_abi=True, run_conclusion="cancelled")
+        self.assertEqual(ArtifactSelector(runner).find(
+            "owner/repo", "HEAD", ["arm64-v8a"]), "21")
+
+    def test_failed_native_job_cannot_reuse_artifact(self):
+        runner = FakeRunner(missing_abi=True, failed_job=True)
+        self.assertIsNone(ArtifactSelector(runner).find(
+            "owner/repo", "HEAD", ["arm64-v8a"]))
 
     def test_changed_source_must_recompile(self):
         runner = FakeRunner(changed_source=True)

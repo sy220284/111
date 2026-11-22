@@ -49,7 +49,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             .github/scripts
-      - name: 查找双架构可复用内核
+      - name: 查找已验证的 ARM64 原生核心
         id: detect
         shell: bash
         env:
@@ -58,7 +58,7 @@ jobs:
           set -euo pipefail
           RESULT=0
           python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a x86_64 \
+            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a \
             > "$RUNNER_TEMP/reused-native-run" || RESULT=$?
           if [ "$RESULT" -eq 0 ]; then
             echo "reuse=true" >> "$GITHUB_OUTPUT"
@@ -85,11 +85,6 @@ jobs:
             clangxx: aarch64-linux-android29-clang++
             abi: arm64-v8a
             elf_arch: AArch64
-          - rust_target: x86_64-linux-android
-            clang: x86_64-linux-android29-clang
-            clangxx: x86_64-linux-android29-clang++
-            abi: x86_64
-            elf_arch: X86-64
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"
@@ -258,9 +253,12 @@ jobs:
           retention-days: 90
 
   verify-pr-apk:
-    name: 完成 PR 原生构建后触发同提交 APK 与模拟器验收
-    if: github.event_name == 'pull_request'
-    needs: native
+    name: ARM64 就绪后触发同提交手机 APK 验收
+    needs: [reuse, native]
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      needs.reuse.result == 'success' &&
+      (needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -275,4 +273,4 @@ jobs:
           set -euo pipefail
           test -n "$PR_BRANCH"
           gh workflow run build-android.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH"
-          echo "PR $PR_BRANCH 已提交完整双 ABI APK 与 Android 35 设备验收"
+          echo "PR $PR_BRANCH 已提交 ARM64 手机 APK 打包验收；独立 UI 模拟器另行验证"

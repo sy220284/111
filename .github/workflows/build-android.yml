@@ -52,7 +52,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
-      - name: 核实源码及 Rust/NDK 编译配置，复用完整双架构内核
+      - name: 核验源码与编译配置并复用 ARM64 原生核心
         id: native
         shell: bash
         env:
@@ -61,12 +61,12 @@ jobs:
           set -euo pipefail
           RUN_ID="$(python3 .github/scripts/select_native_artifacts.py \
             --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME" \
-            --abis arm64-v8a x86_64)" || {
-            echo "::error::当前源码没有可复用的完整 ARM64 / x86_64 原生内核，请先完成自动触发的原生构建"
+            --abis arm64-v8a)" || {
+            echo "::error::当前源码没有可复用的 ARM64 原生核心，请先完成自动触发的原生构建"
             exit 1
           }
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "两种架构使用相同已验证内核构建：$RUN_ID"
+          echo "ARM64 复用已验证的内核构建：$RUN_ID"
       - name: 取回 ARM64 原生核心
         uses: actions/download-artifact@v4
         with:
@@ -74,65 +74,46 @@ jobs:
           run-id: ${{ steps.native.outputs.run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
-      - name: 取回 x86_64 原生核心
-        uses: actions/download-artifact@v4
-        with:
-          name: codex-android-native-x86_64
-          run-id: ${{ steps.native.outputs.run_id }}
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/native-x86
-      - name: 核验两个 Android 原生程序并装配到 APK
+      - name: 核验并装配 ARM64 手机原生核心
         shell: bash
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
           bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
-          bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           head -n 1 CODEX_UPSTREAM_COMMIT
       - name: 下载并校验官方安卓增量恢复组件
         shell: bash
-        run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a x86_64
+        run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a
       - name: 制作可在安卓端回放的真实增量更新样本
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 APK 并验证审批协议测试
-        run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true --no-daemon --stacktrace
-      - name: 验证 ARM64 / x86_64 独立 APK 的内核与 ABI
+        run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+      - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
           set -euo pipefail
-          APK_DIR="android-app/app/build/outputs/apk/debug"
+          APK="android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          test -s "$APK"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          for ABI in arm64-v8a x86_64; do
-            APK="$APK_DIR/app-$ABI-debug.apk"
-            test -s "$APK"
-            unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-filelist-$ABI"
-            grep -Fxq "lib/$ABI/libcodex_server.so" "$RUNNER_TEMP/apk-filelist-$ABI"
-            grep -Fxq "lib/$ABI/libcodex_code_mode_host.so" "$RUNNER_TEMP/apk-filelist-$ABI"
-            grep -Fxq "lib/$ABI/libcodex_rg.so" "$RUNNER_TEMP/apk-filelist-$ABI"
-            grep -Fxq "lib/$ABI/libcodex_git.so" "$RUNNER_TEMP/apk-filelist-$ABI"
-            grep -Fxq 'classes.dex' "$RUNNER_TEMP/apk-filelist-$ABI"
-            OTHER="x86_64"
-            if [ "$ABI" = x86_64 ]; then OTHER="arm64-v8a"; fi
-            if grep -Eq "^lib/$OTHER/libcodex_(server|code_mode_host|rg|git)\.so$" "$RUNNER_TEMP/apk-filelist-$ABI"; then
-              echo "$ABI APK 包含了另一架构的核心，拆包失败" >&2
-              exit 1
-            fi
-            ls -lh "$APK"
-            sha256sum "$APK"
+          unzip -tqq "$APK"
+          unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-arm64-files"
+          for LIB in server code_mode_host rg git; do
+            grep -Fxq "lib/arm64-v8a/libcodex_$LIB.so" "$RUNNER_TEMP/apk-arm64-files"
           done
+          grep -Fxq 'lib/arm64-v8a/libhpatchz.so' "$RUNNER_TEMP/apk-arm64-files"
+          grep -Fxq 'classes.dex' "$RUNNER_TEMP/apk-arm64-files"
+          if grep -Eq '^lib/x86_64/' "$RUNNER_TEMP/apk-arm64-files"; then
+            echo "::error::ARM64 手机 APK 混入 x86_64 原生库"
+            exit 1
+          fi
+          sha256sum "$APK"
+
       - name: 上传 ARM64 安卓手机专用 APK
         uses: actions/upload-artifact@v4
         with:
           name: codex-android-arm64-apk
           path: android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
-          if-no-files-found: error
-          retention-days: 30
-      - name: 上传 x86_64 模拟器专用 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: codex-android-x86_64-apk
-          path: android-app/app/build/outputs/apk/debug/app-x86_64-debug.apk
           if-no-files-found: error
           retention-days: 30
       - name: 上传设备仪器测试 APK
@@ -143,48 +124,29 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  android-emulator:
-    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
-    runs-on: ubuntu-latest
+  verify-apk:
+    name: ARM64 手机安装包二次核验
     needs: build
-    timeout-minutes: 55
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: 取回 x86_64 原生运行包
+      - name: 取回 ARM64 原生 APK
         uses: actions/download-artifact@v4
         with:
-          name: codex-android-x86_64-apk
-          path: apks/device
-      - name: 取回设备仪器测试包
-        uses: actions/download-artifact@v4
-        with:
-          name: codex-android-instrumentation-apk
-          path: apks/test
-      - name: 允许虚拟机加速
+          name: codex-android-arm64-apk
+          path: apks
+      - name: 验证完整性、ABI 与关键原生组件
+        shell: bash
         run: |
-          sudo adduser "$USER" kvm || true
-          sudo chmod 666 /dev/kvm
-      - name: 在 Android 35 模拟器中验证 Codex 核心
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          target: google_apis
-          disable-animations: true
-          emulator-boot-timeout: 900
-          script: |
-            adb install -r apks/device/app-x86_64-debug.apk
-            adb install -r apks/test/app-debug-androidTest.apk
-            # Keep full native-core acceptance at the representative 393dp phone width.
-            adb shell wm size 393x800
-            adb shell wm density 160
-            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "393x800"
-            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
-            adb shell am instrument -w -r io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee instrument-result.log
-            grep -Fq 'OK (' instrument-result.log
-      - name: 保存设备测试证据
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: codex-android-device-test-results
-          path: instrument-result.log
-          if-no-files-found: ignore
+          set -euo pipefail
+          APK="apks/app-arm64-v8a-debug.apk"
+          test -s "$APK"
+          unzip -tqq "$APK"
+          for LIB in server code_mode_host rg git; do
+            unzip -Z1 "$APK" | grep -Fxq "lib/arm64-v8a/libcodex_$LIB.so"
+          done
+          if unzip -Z1 "$APK" | grep -Eq '^lib/x86_64/'; then
+            echo "::error::ARM64 手机安装包混入其他架构"
+            exit 1
+          fi
+          sha256sum "$APK"

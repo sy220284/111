@@ -82,11 +82,7 @@ android {
         abi {
             isEnable = providers.gradleProperty("codexSplitAbi").orNull == "true"
             reset()
-            if (releaseTargetAbi == "arm64-v8a") {
-                include("arm64-v8a")
-            } else {
-                include("arm64-v8a", "x86_64")
-            }
+            include("arm64-v8a")
             isUniversalApk = false
         }
     }

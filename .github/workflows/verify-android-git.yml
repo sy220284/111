@@ -1,4 +1,4 @@
-name: 安卓 Git 双架构独立交叉编译验收
+name: 安卓 Git ARM64 交叉编译验收
 
 on:
   push:
@@ -32,10 +32,6 @@ jobs:
             abi: arm64-v8a
             clang: aarch64-linux-android29-clang
             elf_arch: AArch64
-          - target: x86_64-linux-android
-            abi: x86_64
-            clang: x86_64-linux-android29-clang
-            elf_arch: X86-64
     steps:
       - name: 检出安卓 Git 交叉编译脚本
         uses: actions/checkout@v4
