@@ -51,6 +51,7 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("needs.preflight.result == 'success'", contents)
         self.assertIn("build-android.yml check-android-ui.yml", contents)
         self.assertNotIn(":app:testDebugUnitTest", contents)
+        self.assertIn("release_change_gate.py", contents)
 
     def test_git_abi_validation_has_one_maintained_implementation(self):
         self.assertFalse((WORKFLOWS / "verify-android-git.yml").exists())
