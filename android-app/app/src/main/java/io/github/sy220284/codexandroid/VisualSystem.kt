@@ -137,7 +137,8 @@ fun CodexTheme(content: @Composable () -> Unit) {
         outline = Ink.border,
         secondary = Ink.jade,
         error = Ink.red
-    )    MaterialTheme(
+    )
+    MaterialTheme(
         colorScheme = scheme,
         typography = Typography(
             displaySmall = androidx.compose.ui.text.TextStyle(fontSize = (34 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp),
