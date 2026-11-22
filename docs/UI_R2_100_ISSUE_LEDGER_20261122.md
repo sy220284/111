@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计（PR #47）：已专项验收 10 项；有对应实现待专项验收 58 项；部分处理 22 项；待完整实施 7 项；经安全评估跳过 2 项；按明确需求取消 1 项；合计 100。**
+**本次统计（已合并 PR #47、#49）：已专项验收 10 项；有对应实现待专项验收 58 项；部分处理 22 项；待完整实施 7 项；经安全评估跳过 2 项；按明确需求取消 1 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -84,7 +84,7 @@
 | 72 | D | 冷启动 Macrobenchmark 基线 | 尚待实施 | 待定位 |
 | 73 | D | 启动期 syncRecentThreads 等 IO 后台化 | 已有部分改动 | CodexViewModel.kt |
 | 74 | D | CodexConnection 流抽象+MockProcess 单测 | 专项验收通过 | RpcProcessChannel.kt · RpcProcessChannelTest.kt · CodexConnection.kt；[PR #38 Kotlin/MockProcess/三屏宽 CI](https://github.com/sy220284/111/actions/runs/45017467158) 通过，真实 ARM64 核心执行仍由独立门禁覆盖 |
-| 75 | D | sendPrompt 全路径状态机测试（成功/半失败/双失败/断连） | 已有部分改动 | SubmissionFailurePolicy.kt |
+| 75 | D | sendPrompt 全路径状态机测试（成功/半失败/双失败/断连） | 已有部分改动（状态机单测已落地） | [PR #49](https://github.com/sy220284/111/pull/49) 已合并；TurnSubmissionCoordinator.kt、TurnSubmissionCoordinatorTest.kt 覆盖成功、已有会话、明确拒绝、创建失败、超时、回合编号缺失、输入无效；Kotlin 单测与 Android 三档模拟器 CI 已通过，真实 ARM64 核心双阶段断线恢复仍待专项验收 |
 | 76 | D | detekt/ktlint 接入 | 尚待实施 | 待定位 |
 | 77 | D | Kotlin 警告预算门禁 | 尚待实施 | 待定位 |
 | 78 | D | Roborazzi/Paparazzi 截图 diff 基线 | 已有部分改动 | .github/workflows/check-android-ui.yml |
@@ -108,7 +108,7 @@
 | 96 | D | specialUse 前台服务的 Play 上架合规预案 | 按明确需求取消 | 用户确定不在 Google Play 上架；保留本地安装、运行、通知和后台任务能力 |
 | 97 | D | START_NOT_STICKY→STICKY+重建重连评估（保活韧性） | 已有部分改动 | CodexForegroundService.kt |
 | 98 | D | 通知进度+动作按钮（配合 C37/38） | 已提交待专项验收 | CodexForegroundService.kt |
-| 99 | D | 多会话并行执行+任务中心（单 active 限制的产品化放宽） | 已提交待专项验收 | [PR #47](https://github.com/sy220284/111/pull/47)；ThreadExecutionPolicy.kt、CodexNotificationDispatcher.kt、CodexViewModel.kt、SidebarSessions.kt、ThreadExecutionPolicyTest.kt、UiPopulatedSubpagesInstrumentedTest.kt；Kotlin/Android UI CI 与真实 ARM64 核心多任务待分别验收 |
+| 99 | D | 多会话并行执行+任务中心（单 active 限制的产品化放宽） | 已提交待专项验收 | [PR #47](https://github.com/sy220284/111/pull/47) 已合并；ThreadExecutionPolicy.kt、CodexNotificationDispatcher.kt、CodexViewModel.kt、SidebarSessions.kt、ThreadExecutionPolicyTest.kt、UiPopulatedSubpagesInstrumentedTest.kt；Kotlin/Android UI CI 与真实 ARM64 核心多任务待分别验收 |
 | 100 | D | 深链 codex://thread/xxx 外部直达会话 | 已提交待专项验收 | CodexDeepLink.kt |
 
 ## 本次专项验收证据
