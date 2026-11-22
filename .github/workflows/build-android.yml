@@ -2,6 +2,7 @@ name: 安卓版本构建与验证
 
 on:
   push:
+    branches: [main]
     paths:
       - "android-app/**"
       - ".github/workflows/build-android.yml"
@@ -10,6 +11,7 @@ on:
   workflow_run:
     workflows: ["编译 Android 原生 Codex 核心"]
     types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -22,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -58,7 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID="$(python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a x86_64)" || {
+            --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME" \
+            --abis arm64-v8a x86_64)" || {
             echo "::error::当前源码没有可复用的完整 ARM64 / x86_64 原生内核，请先完成自动触发的原生构建"
             exit 1
           }
@@ -78,53 +81,13 @@ jobs:
           run-id: ${{ steps.native.outputs.run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-x86
-      - name: 核验 Android 原生二进制并装配到 APK
+      - name: 核验两个 Android 原生程序并装配到 APK
         shell: bash
         run: |
           set -euo pipefail
-          for ABI in arm64-v8a x86_64; do
-            if [ "$ABI" = arm64-v8a ]; then
-              SRC_DIR="$RUNNER_TEMP/native-arm64"
-              ARCH="AArch64"
-            else
-              SRC_DIR="$RUNNER_TEMP/native-x86"
-              ARCH="X86-64"
-            fi
-            mapfile -t FOUND < <(find "$SRC_DIR" -type f -name codex-app-server)
-            if [ "${#FOUND[@]}" != "1" ]; then
-              echo "$ABI 原生内核产物数量异常：${#FOUND[@]}" >&2
-              exit 1
-            fi
-            SRC="${FOUND[0]}"
-            file "$SRC"
-            readelf -h "$SRC" | grep -q "$ARCH"
-            readelf -l "$SRC" | grep -q '/system/bin/linker64'
-            mapfile -t LOAD_ALIGNS < <(readelf -Wl "$SRC" | awk '$1=="LOAD" {print $NF}')
-            if [ "${#LOAD_ALIGNS[@]}" -eq 0 ]; then
-              echo "$ABI 没有可检查的 ELF 加载段" >&2
-              exit 1
-            fi
-            for ALIGN in "${LOAD_ALIGNS[@]}"; do
-              if (( ALIGN < 16384 )); then
-                echo "$ABI ELF 加载段对齐不足 16 KB：$ALIGN" >&2
-                exit 1
-              fi
-            done
-            TARGET="android-app/app/src/main/jniLibs/$ABI"
-            mkdir -p "$TARGET"
-            cp "$SRC" "$TARGET/libcodex_server.so"
-            chmod 755 "$TARGET/libcodex_server.so"
-            echo "$ABI 原始内核大小："
-            du -h "$TARGET/libcodex_server.so"
-            STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-            test -x "$STRIP"
-            "$STRIP" --strip-all "$TARGET/libcodex_server.so"
-            readelf -h "$TARGET/libcodex_server.so" | grep -q "$ARCH"
-            readelf -l "$TARGET/libcodex_server.so" | grep -q '/system/bin/linker64'
-            echo "$ABI 发布内核大小："
-            du -h "$TARGET/libcodex_server.so"
-            sha256sum "$TARGET/libcodex_server.so"
-          done
+          STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
+          bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           head -n 1 CODEX_UPSTREAM_COMMIT
       - name: 下载并校验官方安卓增量恢复组件
         shell: bash
@@ -145,10 +108,13 @@ jobs:
             test -s "$APK"
             unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-filelist-$ABI"
             grep -Fxq "lib/$ABI/libcodex_server.so" "$RUNNER_TEMP/apk-filelist-$ABI"
+            grep -Fxq "lib/$ABI/libcodex_code_mode_host.so" "$RUNNER_TEMP/apk-filelist-$ABI"
+            grep -Fxq "lib/$ABI/libcodex_rg.so" "$RUNNER_TEMP/apk-filelist-$ABI"
+            grep -Fxq "lib/$ABI/libcodex_git.so" "$RUNNER_TEMP/apk-filelist-$ABI"
             grep -Fxq 'classes.dex' "$RUNNER_TEMP/apk-filelist-$ABI"
             OTHER="x86_64"
             if [ "$ABI" = x86_64 ]; then OTHER="arm64-v8a"; fi
-            if grep -Fxq "lib/$OTHER/libcodex_server.so" "$RUNNER_TEMP/apk-filelist-$ABI"; then
+            if grep -Eq "^lib/$OTHER/libcodex_(server|code_mode_host|rg|git)\.so$" "$RUNNER_TEMP/apk-filelist-$ABI"; then
               echo "$ABI APK 包含了另一架构的核心，拆包失败" >&2
               exit 1
             fi
@@ -178,7 +144,7 @@ jobs:
           retention-days: 30
 
   android-emulator:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 55

@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import tarfile
 from pathlib import Path
 import subprocess
 import tempfile
@@ -25,7 +26,25 @@ class ReleaseAssetTests(unittest.TestCase):
                 (apk_dir / f"app-{abi}-release.apk").write_bytes(data)
             runner = root / "runner"
             runner.mkdir()
+            # Stub the source fetch in this isolated unit test. Production
+            # still verifies the exact Git release commit, with no fallback.
+            fake_bin = root / "fake-bin"
+            fake_bin.mkdir()
+            git = fake_bin / "git"
+            git.write_text(
+                "#!/usr/bin/env python3\n"
+                "import pathlib, sys\n"
+                "if sys.argv[1] == 'clone':\n"
+                "    target = pathlib.Path(sys.argv[-1])\n"
+                "    target.mkdir(parents=True, exist_ok=True)\n"
+                "    (target / 'COPYING').write_text('corresponding test source')\n"
+                "elif sys.argv[1] == '-C' and sys.argv[-2:] == ['rev-parse', 'HEAD']:\n"
+                "    print('9a2fb147f2c61d0cab52c883e7e26f5b7948e3ed')\n"
+                "else:\n"
+                "    sys.exit(2)\n", encoding="utf-8")
+            git.chmod(0o755)
             env = dict(os.environ)
+            env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
             env.update(
                 GITHUB_WORKSPACE=str(root),
                 RUNNER_TEMP=str(runner),
@@ -49,9 +68,13 @@ class ReleaseAssetTests(unittest.TestCase):
                 self.assertEqual(entry["sha256"], hashlib.sha256(data).hexdigest())
             self.assertEqual(
                 {p.name for p in out.iterdir()},
-                {"codex-android-arm64-v8a-0.1.0-111.1.apk", "update-manifest.json", "SHA256SUMS.txt"},
+                {"codex-android-arm64-v8a-0.1.0-111.1.apk", "update-manifest.json",
+                 "SHA256SUMS.txt", "git-2.52.0-corresponding-source.tar.xz"},
             )
+            with tarfile.open(out / "git-2.52.0-corresponding-source.tar.xz", "r:xz") as archive:
+                self.assertIn("git-android-release-source/COPYING", archive.getnames())
             sums = (out / "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertIn("git-2.52.0-corresponding-source.tar.xz", sums)
             self.assertIn("update-manifest.json", sums)
             for entry in manifest["apks"]:
                 self.assertIn(entry["name"], sums)

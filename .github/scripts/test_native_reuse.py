@@ -37,13 +37,21 @@ jobs:
 
 class FakeRunner:
     def __init__(self, *, changed_source=False, changed_recipe=False,
-                 expired_first=False, missing_abi=False, ancestor=True):
+                 expired_first=False, missing_abi=False, ancestor=True,
+                 changed_code_mode_adapter=False,
+                 legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False):
         self.changed_source = changed_source
         self.changed_recipe = changed_recipe
         self.expired_first = expired_first
         self.missing_abi = missing_abi
         self.ancestor = ancestor
+        self.changed_code_mode_adapter = changed_code_mode_adapter
+        self.legacy_missing_adapter = legacy_missing_adapter
+        self.changed_v8_builder = changed_v8_builder
+        self.changed_v8_host_adapter = changed_v8_host_adapter
+        self.changed_git_builder = changed_git_builder
         self.called_api = 0
+        self.last_workflow_query = []
 
     def __call__(self, args):
         if args[:2] == ["git", "rev-parse"]:
@@ -52,7 +60,25 @@ class FakeRunner:
             is_upstream = ref.endswith(":upstream/codex")
             if is_upstream and is_old and self.changed_source:
                 return "old-tree"
-            return "same-tree" if is_upstream else "same-patcher"
+            if is_upstream:
+                return "same-tree"
+            return "same-patcher"
+        if args[:2] == ["git", "ls-tree"]:
+            sha = args[2]
+            if args[-1] == "android-app/tools/build_android_git.sh":
+                return ("old-git-builder" if sha.startswith(("old", "older")) and
+                        self.changed_git_builder else "same-git-builder")
+            if args[-1] == "android-app/tools/adapt_android_v8_build.py":
+                return ("old-v8-host" if sha.startswith(("old", "older")) and
+                        self.changed_v8_host_adapter else "same-v8-host")
+            if args[-1] == "android-app/tools/prepare_android_v8.sh":
+                return ("old-builder" if sha.startswith(("old", "older")) and
+                        self.changed_v8_builder else "same-builder")
+            if sha.startswith(("old", "older")) and self.legacy_missing_adapter:
+                return ""
+            if sha.startswith(("old", "older")) and self.changed_code_mode_adapter:
+                return "old-adapter"
+            return "same-adapter"
         if args[:2] == ["git", "show"]:
             ref = args[2]
             if ref.endswith(":CODEX_UPSTREAM_COMMIT"):
@@ -64,6 +90,7 @@ class FakeRunner:
         if args[:2] == ["git", "merge-base"]:
             return args[2] if self.ancestor else "other-history"
         if args[:3] == ["gh", "run", "list"]:
+            self.last_workflow_query = list(args)
             return json.dumps([
                 {"databaseId": 21, "headSha": "old", "conclusion": "success"},
                 {"databaseId": 20, "headSha": "older", "conclusion": "success"},
@@ -100,6 +127,14 @@ class NativeReuseTests(unittest.TestCase):
                                                        ["arm64-v8a", "x86_64"]), "21")
         self.assertEqual(runner.called_api, 1)
 
+    def test_feature_branch_is_scoped_to_its_own_native_build(self):
+        runner = FakeRunner()
+        self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
+            ["arm64-v8a", "x86_64"], branch="fix/android-code-mode-host-bundle-20261122"), "21")
+        index = runner.last_workflow_query.index("--branch")
+        self.assertEqual("fix/android-code-mode-host-bundle-20261122",
+            runner.last_workflow_query[index + 1])
+
     def test_fallback_to_older_unexpired_artifacts(self):
         runner = FakeRunner(expired_first=True)
         self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
@@ -125,6 +160,36 @@ class NativeReuseTests(unittest.TestCase):
         runner = FakeRunner(changed_recipe=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
+
+    def test_legacy_build_without_code_mode_adapter_must_recompile(self):
+        runner = FakeRunner(legacy_missing_adapter=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
+
+    def test_changed_code_mode_adapter_must_recompile(self):
+        runner = FakeRunner(changed_code_mode_adapter=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
+
+    def test_changed_v8_builder_must_recompile(self):
+        runner = FakeRunner(changed_v8_builder=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
+
+    def test_changed_v8_host_adapter_must_recompile(self):
+        runner = FakeRunner(changed_v8_host_adapter=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
+
+    def test_changed_git_builder_must_recompile(self):
+        runner = FakeRunner(changed_git_builder=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
 
     def test_unrelated_history_cannot_reuse(self):
         runner = FakeRunner(ancestor=False)

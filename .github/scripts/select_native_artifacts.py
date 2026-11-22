@@ -46,19 +46,33 @@ class ArtifactSelector:
         # A tree object's SHA changes if ANY file in the bundled upstream changes.
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex"])
         patcher = self.run(["git", "rev-parse", f"{sha}:android-app/tools/prepare_android_mxc.py"])
+        # Older valid builds predate the Android adapter. ls-tree returns an
+        # empty match for those commits; the differing signature forces rebuild.
+        code_mode_adapter = self.run([
+            "git", "ls-tree", sha, "--", "android-app/tools/prepare_android_code_mode.py"
+        ])
+        v8_builder = self.run([
+            "git", "ls-tree", sha, "--", "android-app/tools/prepare_android_v8.sh"
+        ])
+        v8_host_adapter = self.run([
+            "git", "ls-tree", sha, "--", "android-app/tools/adapt_android_v8_build.py"
+        ])
+        git_builder = self.run([
+            "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
+        ])
         version = self.run(["git", "show", f"{sha}:CODEX_UPSTREAM_COMMIT"]).splitlines()[0]
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, patcher, version, native_recipe(workflow))
+        return (upstream, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, version, native_recipe(workflow))
 
     def is_ancestor(self, old, new):
         # Not an error: candidates from a previous main history can be skipped.
         return self.run(["git", "merge-base", old, new]) == old
 
-    def find(self, repository, target, abis):
+    def find(self, repository, target, abis, branch="main"):
         current_signature = self.signature(target)
         runs = json.loads(self.run([
             "gh", "run", "list", "--repo", repository,
-            "--workflow", "build-native-codex.yml", "--branch", "main",
+            "--workflow", "build-native-codex.yml", "--branch", branch,
             "--limit", "200", "--json", "databaseId,headSha,conclusion",
         ]))
         expected = {f"codex-android-native-{abi}" for abi in abis}
@@ -92,10 +106,11 @@ def main():
     parser.add_argument("--abis", nargs="+", required=True,
                         choices=("arm64-v8a", "x86_64"))
     parser.add_argument("--target", default="HEAD")
+    parser.add_argument("--branch", default="main")
     args = parser.parse_args()
     try:
         selector = ArtifactSelector()
-        run_id = selector.find(args.repo, args.target, args.abis)
+        run_id = selector.find(args.repo, args.target, args.abis, branch=args.branch)
         if run_id:
             print(run_id)
             print(f"复用原生核心构建 {run_id}（同源码、编译配置、有效产物：{', '.join(args.abis)}）",
