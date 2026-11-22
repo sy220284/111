@@ -115,7 +115,12 @@ internal object LocalDataArchive {
                 val marker = archive.nextEntry
                 require(marker?.name == "manifest.txt") { "文件不是 111 本地备份" }
                 val bytes = ByteArray(ARCHIVE_MARKER.length + 1)
-                val size = archive.read(bytes)
+                var size = 0
+                while (size < bytes.size) {
+                    val count = archive.read(bytes, size, bytes.size - size)
+                    if (count < 0) break
+                    size += count
+                }
                 require(size == ARCHIVE_MARKER.length &&
                     String(bytes, 0, size, Charsets.UTF_8) == ARCHIVE_MARKER &&
                     archive.read() == -1) { "备份格式或版本不受支持" }
@@ -185,8 +190,19 @@ internal object LocalDataArchive {
                 } else File(prefsRoot, name.removePrefix("shared_prefs/"))
                 if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
                     throw IOException("恢复目标目录无法创建")
-                Files.move(file.toPath(), target.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+                // Keep each staged source until all replacements are complete. If the
+                // process exits midway, next launch replays the same verified backup.
+                val temporary = File.createTempFile(".codex-import-", ".tmp", target.parentFile)
+                try {
+                    Files.copy(file.toPath(), temporary.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING)
+                    Files.move(temporary.toPath(), target.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE)
+                } finally {
+                    if (temporary.exists() && !temporary.delete())
+                        throw IOException("无法清理恢复临时文件：" + temporary.name)
+                }
                 recovered++
             }
             if (!marker.delete()) throw IOException("恢复完成但标记未清理")

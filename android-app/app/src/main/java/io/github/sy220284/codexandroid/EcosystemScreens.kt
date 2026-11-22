@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -596,6 +597,9 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
     var showLogs by remember { mutableStateOf(false) }
+    var showCrashes by remember { mutableStateOf(false) }
+    var crashRevision by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
     ScreenColumn {
         SectionIntro("ENGINE / DIAGNOSTICS", "内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -641,6 +645,34 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("诊断结果", style = MaterialTheme.typography.titleMedium)
                 DetailToggle(it, "查看诊断摘要")
+            }
+        }
+        MaterialPanel(Modifier.fillMaxWidth().testTag("diagnostics-crash-history")) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("本机崩溃记录", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { showCrashes = !showCrashes }) {
+                    Text(if (showCrashes) "收起" else "查看")
+                }
+            }
+            Text("仅保存异常类型、时间和代码调用位置；不会上传执行内容。",
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            if (showCrashes) {
+                val stored = remember(showCrashes, crashRevision) {
+                    LocalCrashReporter.read(context)
+                }
+                if (stored.isBlank()) {
+                    Text("尚无本机崩溃记录", color = Ink.muted)
+                } else {
+                    SelectionContainer {
+                        Text(stored, fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    }
+                    TextButton(onClick = {
+                        LocalCrashReporter.clear(context)
+                        crashRevision++
+                    }) { Text("清除本机崩溃记录", color = Ink.red) }
+                }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {

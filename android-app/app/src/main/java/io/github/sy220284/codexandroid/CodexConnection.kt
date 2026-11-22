@@ -95,7 +95,7 @@ class CodexConnection(private val appContext: Context) {
                         while (true) {
                             val line = stream.readLine() ?: break
                             if (process !== child) break
-                            recentStderr.value = (recentStderr.value + line.take(350))
+                            recentStderr.value = (recentStderr.value + StderrSanitizer.redact(line.take(350)))
                                 .takeLast(16)
                         }
                     }

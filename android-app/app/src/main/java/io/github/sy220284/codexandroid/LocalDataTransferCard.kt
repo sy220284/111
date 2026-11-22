@@ -16,9 +16,12 @@ import androidx.compose.ui.unit.dp
 
 /** Portable backup and restore are independent of the update-checking screen lifecycle. */
 @Composable
-internal fun LocalDataTransferCard() {
+internal fun LocalDataTransferCard(vm: CodexViewModel) {
     val context = LocalContext.current
     val state by AppDataTransfer.state.collectAsState()
+    val running by vm.running.collectAsState()
+    val terminal by vm.terminalSession.collectAsState()
+    val available = !running && !terminal.running
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri -> if (uri != null) AppDataTransfer.export(context, uri) }
@@ -41,7 +44,7 @@ internal fun LocalDataTransferCard() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = { exportPicker.launch("111-本机备份.zip") },
-                    enabled = !state.busy,
+                    enabled = !state.busy && available,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-export")
                 ) { Text("导出数据") }
                 OutlinedButton(
@@ -50,6 +53,8 @@ internal fun LocalDataTransferCard() {
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-import")
                 ) { Text("导入备份") }
             }
+            if (!available) Text("当前有任务在运行，完成或停止任务后可备份与恢复。",
+                color = Ink.warning, style = MaterialTheme.typography.labelMedium)
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             val message = state.result.ifBlank { LocalDataArchive.lastResult(context) }
             if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall,
@@ -66,7 +71,7 @@ internal fun LocalDataTransferCard() {
             confirmLabel = "核对并导入",
             destructive = true,
             onConfirm = {
-                AppDataTransfer.import(context, uri)
+                if (available) AppDataTransfer.import(context, uri)
                 pendingImport = null
             },
             onDismiss = { pendingImport = null }

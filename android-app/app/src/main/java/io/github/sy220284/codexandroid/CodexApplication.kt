@@ -18,7 +18,7 @@ class CodexApplication : Application() {
     val pendingDeepLink = MutableStateFlow<String?>(null)
 
     private val maintenance = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var activityCount = 0
+    @Volatile private var activityCount = 0
     private var idleRelease: Job? = null
     private val activities = object : ActivityLifecycleCallbacks {
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
@@ -51,6 +51,7 @@ class CodexApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         LocalDataArchive.restoreIfPending(this)
+        LocalCrashReporter.install(this)
         registerActivityLifecycleCallbacks(activities)
     }
 

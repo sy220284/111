@@ -105,7 +105,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 if (group.title == "通用与外观" && showUpdate) {
                     AppUpdateCard()
-                    LocalDataTransferCard()
+                    LocalDataTransferCard(vm)
                 }
             }
         }
