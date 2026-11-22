@@ -40,6 +40,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val running by vm.running.collectAsState()
+    val executions by vm.threadExecutions.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
@@ -260,7 +262,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("当前分组：" + section.optString("name"), modifier = Modifier.weight(1f),
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                         TextButton(
-                            enabled = !running && !switching && !busy,
+                            enabled = !firstThreadStarting && !switching && !busy,
                             onClick = {
                                 sectionDraft = section.optString("name")
                                 editingSection = true
@@ -268,7 +270,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             }
                         ) { Text("重命名") }
                         TextButton(
-                            enabled = !running && !switching && !busy,
+                            enabled = !firstThreadStarting && !switching && !busy,
                             onClick = { deleteSection = section }
                         ) {
                             Text("删除", color = Ink.red)
@@ -282,7 +284,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = !running && !switching) {
+                    enabled = !firstThreadStarting && !switching) {
                     Icon(Icons.Outlined.Add, null)
                     Spacer(Modifier.width(7.dp))
                     Text("新建任务")
@@ -299,8 +301,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 item { CodexEmptyState("没有全文检索结果", "尝试减少关键词或切回标题搜索。") }
             }
             items(fullResults, key = { "full-" + it.optString("id") }) { thread ->
-                ThreadRow(thread, enabled = !switching && (!running || activeId == thread.optString("id"))) {
-                    if (!running) vm.chooseThread(thread.optString("id"))
+                ThreadRow(thread, enabled = !switching && !firstThreadStarting) {
+                    vm.chooseThread(thread.optString("id"))
                     navigate("chat")
                 }
             }
@@ -323,7 +325,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         selectedIds = emptyList()
                     },
                     modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
-                    enabled = !busy && !switching && !running && entries.isNotEmpty()
+                    enabled = !busy && !switching && !firstThreadStarting && entries.isNotEmpty()
                 ) {
                     Text(if (selectionMode) "完成选择" else "批量管理")
                 }
@@ -368,10 +370,10 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ThreadBulkToolbar(
                 selectedCount = selectedIds.size,
                 archived = archived,
-                enabled = !busy && !switching && !running,
+                enabled = !busy && !switching && !firstThreadStarting,
                 onSelectAll = {
                     selectedIds = entries.map { it.optString("id") }
-                        .filter { it.isNotBlank() && (!running || activeId != it) }
+                        .filter { it.isNotBlank() && it !in executions }
                         .distinct()
                 },
                 onClear = { selectedIds = emptyList() },
@@ -393,12 +395,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             val title = PresentationPolicy.threadTitle(
                 thread.optString("name"), thread.optString("preview")
             )
-            val canManage = !(running && activeId == id) && !busy
+            val canManage = id !in executions && !busy
             var menu by remember(id) { mutableStateOf(false) }
             MaterialPanel(Modifier.fillMaxWidth()
                 .testTag("thread-library-row-" + id)
                 .combinedClickable(
-                    enabled = !busy && !switching && !running && id.isNotBlank(),
+                    enabled = !busy && !switching && !firstThreadStarting && id.isNotBlank(),
                     onClick = { if (selectionMode) toggleSelected(id) },
                     onLongClick = {
                         selectionMode = true
@@ -464,8 +466,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("更新于 " + updatedAt,
                         color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                 }
-                if (running && activeId == id)
-                    CodexNotice("该会话仍在执行，结束后可整理。")
+                if (id in executions)
+                    CodexNotice("该会话仍在执行，可切到其他会话，完成后再整理。")
                 if (archived && !selectionMode) {
                     OutlinedButton(onClick = { action = "unarchive" to thread },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -477,7 +479,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 } else if (!selectionMode) {
                     OutlinedButton(onClick = { vm.chooseThread(id); navigate("chat") },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        enabled = !running && !switching && id.isNotBlank()) {
+                        enabled = !firstThreadStarting && !switching && id.isNotBlank()) {
                         Icon(Icons.Outlined.PlayArrow, null)
                         Spacer(Modifier.width(7.dp))
                         Text("继续会话")
@@ -545,7 +547,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             },
             confirmButton = {
                 OutlinedButton(
-                    enabled = !running && !switching && !busy &&
+                    enabled = !firstThreadStarting && !switching && !busy &&
                         sectionDraft.trim().isNotEmpty() &&
                         sectionDraft.trim().length <= 120 && "sectionEdit" !in loading,
                     onClick = {
@@ -576,7 +578,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             confirmLabel = "确认删除分组",
             destructive = true,
             onConfirm = {
-                if (!running && !switching && !busy) vm.rpc(
+                if (!firstThreadStarting && !switching && !busy) vm.rpc(
                     "sectionEdit", "threadSection/delete",
                     ThreadSectionContract.delete(section.optString("id")),
                     after = {
