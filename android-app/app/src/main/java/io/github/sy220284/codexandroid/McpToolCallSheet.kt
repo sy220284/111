@@ -34,7 +34,9 @@ fun McpToolCallSheet(
     val names = properties?.keys()?.asSequence()?.toList()?.sorted().orEmpty()
     val required = schema?.optJSONArray("required") ?: JSONArray()
     val requiredNames = (0 until required.length()).map { required.optString(it) }.toSet()
-    val supported = names.all { field ->
+    val supported = schema != null &&
+        schema.optString("type").let { it.isBlank() || it == "object" } &&
+        requiredNames.all { it in names } && names.all { field ->
         properties?.optJSONObject(field)?.optString("type") in
             setOf("string", "integer", "number", "boolean")
     }
@@ -69,6 +71,8 @@ fun McpToolCallSheet(
             result
         }.getOrNull()
     }
+
+    val argumentProblem = McpToolArguments.problem(schema, arguments)
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -177,12 +181,12 @@ fun McpToolCallSheet(
                         label = { Text("自定义参数（JSON）") },
                         modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 8)
                 }
-                if (arguments == null) {
-                    Text("请完成必填参数，并检查输入的数值与格式。",
+                if (argumentProblem != null) {
+                    Text(argumentProblem,
                         color = Ink.red, style = MaterialTheme.typography.bodySmall)
                 }
                 CodexPrimaryButton(onClick = { confirming = true },
-                    enabled = arguments != null && key !in loading,
+                    enabled = arguments != null && argumentProblem == null && key !in loading,
                     busy = key in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)) {
                     Icon(Icons.Outlined.PlayArrow, null)
@@ -205,7 +209,7 @@ fun McpToolCallSheet(
             Spacer(Modifier.height(18.dp))
         }
     }
-    if (confirming && thread != null && arguments != null) {
+    if (confirming && thread != null && arguments != null && argumentProblem == null) {
         val preview = if (advanced) "已填写自定义参数"
         else names.mapNotNull { name ->
             val raw = values[name]?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
