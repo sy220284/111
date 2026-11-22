@@ -555,47 +555,6 @@ fun PluginsPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun HooksPage(vm: CodexViewModel) {
-    val data by vm.data.collectAsState()
-    val groups = records(data["hooks"])
-    LaunchedEffect(Unit) {
-        vm.refresh("hooks", "hooks/list", CatalogRequestContract.workspace(vm.workingDirectory))
-    }
-    ScreenColumn {
-        SectionIntro("RUNTIME / HOOKS", "触发钩子", "查看执行时机、来源、权限与托管状态。")
-        SourceState(vm, "hooks") { vm.refresh("hooks", "hooks/list",
-            CatalogRequestContract.workspace(vm.workingDirectory)) }
-        groups.forEach { group ->
-            Text("工作区触发器", color = Ink.muted)
-            group.optJSONArray("hooks")?.objects()?.forEach { hook ->
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Bolt, null, tint = Ink.copper)
-                        Spacer(Modifier.width(11.dp))
-                        Text(PresentationPolicy.hookEvent(hook.optString("eventName")),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f))
-                        StatusPill(if (hook.optBoolean("enabled")) "启用" else "停用", hook.optBoolean("enabled"))
-                    }
-                    Text("来源：当前工作区", color = Ink.muted,
-                        style = MaterialTheme.typography.labelMedium)
-                    Text(
-                        "运行策略：" + if (hook.optString("trustStatus").equals("trusted", ignoreCase = true))
-                            "已核验" else "由运行核心管理",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-        }
-        if (groups.isEmpty() && data["hooks"] != null) {
-            CodexEmptyState("没有可用的运行钩子",
-                "当前工作区没有注册可显示的触发器。",
-                icon = Icons.Outlined.Bolt)
-        }
-    }
-}
-
-@Composable
 fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val status by vm.bridge.status.collectAsState()
     val errors by vm.errors.collectAsState()
