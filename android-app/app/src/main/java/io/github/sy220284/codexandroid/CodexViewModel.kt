@@ -51,6 +51,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val loading = MutableStateFlow<Set<String>>(emptySet())
     /** Successful IDs remain visible during partial failures so UI can keep only unfinished selections. */
     val bulkCompletedThreadIds = MutableStateFlow<Set<String>>(emptySet())
+    val bulkActionSummary = MutableStateFlow("")
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
     /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
@@ -214,6 +215,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         bulkCompletedThreadIds.value = emptySet()
+        bulkActionSummary.value = "正在处理 0/${targets.size} 项会话"
         errors.value = errors.value - "threadLibraryBulk"
         loading.value = loading.value + "threadLibraryBulk"
         viewModelScope.launch {
@@ -226,13 +228,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     bridge.request(method, JSONObject().put("threadId", id))
                     completed++
                     bulkCompletedThreadIds.value = bulkCompletedThreadIds.value + id
+                    bulkActionSummary.value = "正在处理 $completed/${targets.size} 项会话"
                 }
-                actionFeedback.emit(ActionFeedbackReceipt(
-                    "已${ThreadBulkActionPolicy.display(kind)} $completed 条会话"
-                ))
+                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} $completed 条会话，结果可在这里查看"
+                actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value))
             } catch (failure: Exception) {
                 val reason = "已完成 $completed/${targets.size} 条；" +
                     (failure.message ?: "操作中断，请核对未完成项")
+                bulkActionSummary.value = reason
                 errors.value = errors.value + ("threadLibraryBulk" to reason)
                 actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true))
             } finally {

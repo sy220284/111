@@ -44,6 +44,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val switching by vm.threadSwitching.collectAsState()
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
+    val bulkSummary by vm.bulkActionSummary.collectAsState()
     val context = LocalContext.current
     var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
     var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
@@ -340,6 +341,20 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         searchText = ""; searchTerm = ""; cursor = null; history = emptyList()
                     }
                 )
+            }
+        }
+        if (bulkSummary.isNotBlank()) item(key = "bulk-result") {
+            Surface(color = Ink.jade.copy(alpha = .07f),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Ink.jade.copy(alpha = .3f)),
+                modifier = Modifier.fillMaxWidth().testTag("bulk-result-persistent")) {
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(bulkSummary, modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
+                    TextButton(onClick = { vm.bulkActionSummary.value = "" },
+                        modifier = Modifier.heightIn(min = 48.dp)) { Text("关闭") }
+                }
             }
         }
         if (entries.isNotEmpty()) item(key = "bulk-toolbar") {
