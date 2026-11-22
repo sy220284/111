@@ -28,6 +28,15 @@ internal object ThreadExecutionPolicy {
         ))
     }
 
+    /** Retain a bounded, per-thread failure receipt for tasks finishing offscreen. */
+    fun failureUpdated(
+        previous: Map<String, String>, threadId: String, reason: String
+    ): Map<String, String> {
+        require(threadId.isNotBlank()) { "会话编号不能为空" }
+        return ((previous - threadId) + (threadId to reason))
+            .entries.toList().takeLast(64).associate { it.key to it.value }
+    }
+
     fun finish(
         previous: Map<String, ThreadExecution>, threadId: String
     ): Map<String, ThreadExecution> = previous - threadId
