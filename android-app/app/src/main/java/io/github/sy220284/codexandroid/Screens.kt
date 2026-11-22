@@ -356,25 +356,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             IconButton(onClick = { navigate("diff") }, enabled = thread != null) { Icon(Icons.Outlined.Difference, "查看代码差异") }
         }
         DividerLine()
-        if (thread != null || items.isNotEmpty()) Row(
+        // 会话导航统一归入侧边栏，正文只保留与当前任务有关的快捷动作。
+        if (latestDiff.isNotBlank()) Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(horizontal = 13.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AssistChip(
-                onClick = { navigate("threads") },
-                label = { Text("会话历史") },
-                leadingIcon = { Icon(Icons.Outlined.History, null, modifier = Modifier.size(17.dp)) },
+                onClick = { navigate("diff") },
+                label = { Text("查看最新改动") },
+                leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
                 modifier = Modifier.heightIn(min = 46.dp)
             )
-            if (latestDiff.isNotBlank()) {
-                AssistChip(
-                    onClick = { navigate("diff") },
-                    label = { Text("查看最新改动") },
-                    leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
-                    modifier = Modifier.heightIn(min = 46.dp)
-                )
-            }
         }
         CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
             if (switching) {
@@ -503,71 +496,36 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(
-                    modifier = Modifier.size(49.dp),
-                    shape = RoundedCornerShape(17.dp), color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.border)
-                ) {
-                    IconButton(
-                        onClick = { showAttachmentTools = true },
-                        modifier = Modifier.testTag("composer-plus")
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = "添加附件",
-                            tint = Ink.copper)
+            ConversationComposer(
+                draft = draft,
+                onDraftChange = { draft = it },
+                attachedCount = attachedImages.size,
+                connected = status == EngineStatus.Connected,
+                running = busy,
+                stopping = stopping,
+                canStop = busy && !activeTurn.isNullOrBlank(),
+                canSend = status == EngineStatus.Connected && !switching && !attachmentBusy &&
+                    (if (busy) draft.isNotBlank() && thread != null &&
+                        !activeTurn.isNullOrBlank() && !steering
+                     else draft.isNotBlank() || attachedImages.isNotEmpty()),
+                sending = steering || (busy && activeTurn.isNullOrBlank()),
+                onAttach = { showAttachmentTools = true },
+                onStop = { stopRequested = true; vm.interrupt() },
+                onSend = {
+                    val message = draft.trim()
+                    if (busy) {
+                        vm.steerPrompt(message) {
+                            if (draft.trim() == message) draft = ""
+                        }
+                    } else {
+                        val images = attachedImages.toList()
+                        vm.sendPrompt(message, images) {
+                            if (draft.trim() == message) draft = ""
+                            if (attachedImages == images) attachedImages = emptyList()
+                        }
                     }
                 }
-                OutlinedTextField(
-                value = draft, onValueChange = { draft = it },
-                modifier = Modifier.weight(1f), minLines = 1, maxLines = 5,
-                placeholder = { Text(if (busy) "任务运行中，可以补充要求或修正方向…" else "描述目标、文件及验收要求…") },
-                shape = RoundedCornerShape(18.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default)
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = { stopRequested = true; vm.interrupt() },
-                    enabled = busy && !activeTurn.isNullOrBlank() && !stopping,
-                    modifier = Modifier.weight(.38f).heightIn(min = 50.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
-                    contentPadding = PaddingValues(horizontal = 9.dp)
-                ) {
-                    if (stopping) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp,
-                            color = Ink.red)
-                    } else Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(if (stopping) "停止中" else "停止")
-                }
-                CodexPrimaryButton(
-                    onClick = {
-                        val message = draft.trim()
-                        if (busy) {
-                            vm.steerPrompt(message) {
-                                if (draft.trim() == message) draft = ""
-                            }
-                        } else {
-                            val images = attachedImages.toList()
-                            vm.sendPrompt(message, images) {
-                                if (draft.trim() == message) draft = ""
-                                if (attachedImages == images) attachedImages = emptyList()
-                            }
-                        }
-                    },
-                    enabled = status == EngineStatus.Connected && !switching && !attachmentBusy &&
-                        (if (busy) draft.isNotBlank() && thread != null &&
-                            !activeTurn.isNullOrBlank() && !steering
-                         else draft.isNotBlank() || attachedImages.isNotEmpty()),
-                    busy = steering || (busy && activeTurn.isNullOrBlank()),
-                    modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
-                ) {
-                    Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text(if (busy) "补充指令" else "发送给 Codex", maxLines = 1)
-                }
-            }
+            )
         }
     }
     if (showContextTools) {
