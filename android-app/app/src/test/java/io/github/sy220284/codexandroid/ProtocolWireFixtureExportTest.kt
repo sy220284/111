@@ -29,8 +29,8 @@ class ProtocolWireFixtureExportTest {
         val records = JSONArray()
         val unique = mutableSetOf<String>()
         fun add(method: String, caseName: String, params: JSONObject) {
-            assertTrue("重复的线缆请求样例: \$method / \$caseName",
-                unique.add("\$method:\$caseName"))
+            assertTrue("重复的线缆请求样例: $method / $caseName",
+                unique.add("$method:$caseName"))
             records.put(JSONObject()
                 .put("method", method)
                 .put("case", caseName)
