@@ -723,7 +723,7 @@
       "flag": "常规/内部"
     },
     "mcpServer/resource/read": {
-      "surface": "直接操作",
+      "surface": "后台内部",
       "owner": "MCP 服务/审批",
       "flag": "常规/内部"
     },
@@ -738,7 +738,7 @@
       "flag": "实验"
     },
     "mcpServer/tool/call": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "MCP 服务/审批",
       "flag": "常规/内部"
     },
