@@ -9,7 +9,7 @@
 - `android-app/app/build.gradle.kts` 的 Release 维持 `isMinifyEnabled=false`、`isShrinkResources=false`；PR 曾验证混淆版能编译和签名，但未证明正式 ARM64 核心启动、动态资源和全页面行为正常，因此本轮回退该优化。正式发布通过 `codexReleaseTargetAbi=arm64-v8a` 仅构建 ARM64。调试包与 UI 专项验收不等于最终手机安装包。
 - `CodexConnection.kt` 通过 `applicationInfo.nativeLibraryDir/libcodex_server.so` + `ProcessBuilder` 启动 Codex 原生核心。该 ELF 文件必须存在、与设备 ABI 一致，并被 Android 解包（`useLegacyPackaging=true`，清单设置 `extractNativeLibs=true`）。
 - 完整运行包必须同时包含 `libcodex_server.so`、`libcodex_code_mode_host.so`、`libcodex_rg.so`、`libcodex_git.so`；仅保留 Server 会损失 Code Mode 和本机开发工具。
-- `libhpatchz.so` 是本机增量升级恢复组件。完整签名发布流程已经检查两个原生库和包签名。PR 内的 Release smoke 仅验证签名/构建与 `libhpatchz.so`，没有导入完整 Codex 内核，因此无法单凭该 smoke 判断核心运行能力。
+- `libhpatchz.so` 是本机增量升级恢复组件。完整签名发布流程已检查四个 Codex 原生组件、hpatchz 和 APK 签名。PR 内的 Release smoke 仅验证签名/构建与 `libhpatchz.so`，没有导入完整 Codex 内核，因此无法单凭该 smoke 判断核心运行能力。
 - 已通过的独立 UI 验收覆盖 360/393/411dp 模拟器、41 项测试/屏宽；它验证界面与交互，未覆盖 ARM64 正式包中 Codex 真实子进程的工作回合。
 - 原清单提及的“143MB APK”来自旧基线，不能与当前 UI APK 压缩 artifact 体积直接比较。要获得真实瘦身收益，需要两次均包含相同 Codex 原生二进制、签名方式与 ABI 的完整 Release APK 做同口径比较。
 

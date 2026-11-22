@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 4 项；有对应实现待专项验收 57 项；部分处理 25 项；待完整实施 12 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 4 项；有对应实现待专项验收 58 项；部分处理 25 项；待完整实施 11 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -101,7 +101,7 @@
 | 89 | D | backup_rules 数据类别逐项验收 | 已有部分改动 | LocalDataArchive.kt |
 | 90 | D | stderr 缓冲威胁模型与清理策略 | 已有部分改动 | StderrSanitizer.kt |
 | 91 | D | Renovate 替代 dependabot 误报 | 尚待实施 | 待定位 |
-| 92 | D | 上游快照升级演练脚本（MXC 补丁适用性自动验证） | 尚待实施 | 待定位 |
+| 92 | D | 上游快照升级演练脚本（MXC 补丁适用性自动验证） | 已提交待专项验收 | rehearse_upstream_upgrade.py · test_rehearse_upstream_upgrade.py · rehearse-android-upgrade.yml；先校验补丁再执行原生编译 |
 | 93 | D | 11 项设备测试升 release 强制 gate | 已提交待专项验收 | .github/workflows/release.yml |
 | 94 | D | changelog 从提交自动生成 | 已提交待专项验收 | .github/scripts/generate-release-notes.py |
 | 95 | D | crash 本地收集+诊断页入口 | 已提交待专项验收 | LocalCrashReporter.kt |

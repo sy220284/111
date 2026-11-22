@@ -1,0 +1,52 @@
+name: 安卓原生上游升级预演
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "CODEX_UPSTREAM_COMMIT"
+      - "upstream/codex/**"
+      - "android-app/tools/prepare_android_mxc.py"
+      - "android-app/tools/prepare_android_code_mode.py"
+      - "android-app/tools/rehearse_upstream_upgrade.py"
+      - "android-app/tools/test_rehearse_upstream_upgrade.py"
+      - ".github/workflows/rehearse-android-upgrade.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-upgrade-rehearsal-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    name: MXC 和 Code Mode Host 源码适配预演
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            /CODEX_UPSTREAM_COMMIT
+            /upstream/codex/
+            /android-app/tools/prepare_android_mxc.py
+            /android-app/tools/prepare_android_code_mode.py
+            /android-app/tools/rehearse_upstream_upgrade.py
+            /android-app/tools/test_rehearse_upstream_upgrade.py
+          sparse-checkout-cone-mode: false
+      - name: 检验升级预演逻辑的正常和异常场景
+        run: python3 -m unittest discover -s android-app/tools -p 'test_rehearse_upstream_upgrade.py'
+      - name: 安装固定的 Rust 版本
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - name: 下载 ARM64 编译依赖但跳过原生编译
+        working-directory: upstream/codex/codex-rs
+        run: cargo fetch --locked --target aarch64-linux-android
+      - name: 校验实际候选源码兼容锚点
+        run: |
+          python3 android-app/tools/rehearse_upstream_upgrade.py \
+            --codex-rs upstream/codex/codex-rs \
+            --cargo-home "${CARGO_HOME:-$HOME/.cargo}"
