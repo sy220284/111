@@ -10,7 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,7 +39,7 @@ internal class SidebarUiState(
     val scroll = LazyListState(initialIndex, initialOffset)
 
     companion object {
-        val Saver = Saver<SidebarUiState, List<Any>>(
+        val Saver = listSaver<SidebarUiState, Any>(
             save = {
                 listOf(it.search, it.searching, it.more,
                     it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset)
@@ -125,7 +125,7 @@ internal fun SidebarSessionsContent(
 
     val scroll = state.scroll
     LaunchedEffect(search, searching) {
-        scroll.scrollToItem(0)
+        if (searching || search.isNotBlank()) scroll.scrollToItem(0)
     }
     Column(modifier.fillMaxWidth()) {
         if (running || pendingApprovals > 0) {
