@@ -350,6 +350,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
         viewModelScope.launch {
+            var newlyCreatedThreadId: String? = null
             val pendingId = "pending-" + UUID.randomUUID()
             timeline.value = timeline.value + TimelineItem(
                 pendingId, "user",
@@ -380,6 +381,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     if (chosenModel.isNotBlank()) args.put("model", chosenModel)
                     val createdId = bridge.request("thread/start", args)
                         .getJSONObject("thread").getString("id")
+                    newlyCreatedThreadId = createdId
                     composerDrafts.update {
                         ThreadComposerDrafts.attachNewThread(it, createdId)
                     }
@@ -397,14 +399,39 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 errors.value = errors.value - "conversation"
                 afterAccepted()
             } catch (failure: Exception) {
+                var recoveryNote = ""
+                val created = newlyCreatedThreadId
+                // Reclaim an empty newly created session only after an explicit
+                // server rejection. Never delete after timeout/disconnect:
+                // the server may already have accepted the turn.
+                if (created != null && FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
+                    try {
+                        val checked = bridge.request("thread/read", JSONObject()
+                            .put("threadId", created).put("includeTurns", true),
+                            timeoutMillis = 20_000L)
+                        val turns = checked.optJSONObject("thread")?.optJSONArray("turns")
+                        if (turns != null && turns.length() == 0 &&
+                            activeThread.value == created && activeTurn.value.isNullOrBlank()) {
+                            bridge.request("thread/delete", JSONObject().put("threadId", created))
+                            composerDrafts.update {
+                                ThreadComposerDrafts.reclaimRejectedNewThread(it, created)
+                            }
+                            activeThread.value = null
+                            syncRecentThreads()
+                            recoveryNote = "；新建空会话已清理"
+                        }
+                    } catch (recoveryFailure: Exception) {
+                        recoveryNote = "；新建会话检查失败：" +
+                            (recoveryFailure.message ?: "请到会话资料库核查")
+                    }
+                }
                 running.value = false
-                // Retract only this specific optimistic item. Never match identical text.
                 timeline.value = timeline.value.filterNot { it.id == pendingId }
-                errors.value = errors.value + ("conversation" to
-                    (failure.message ?: "发送失败，原指令已保留，可重试"))
+                val message = (failure.message ?: "发送失败") +
+                    "；原指令已保留，可重试" + recoveryNote
+                errors.value = errors.value + ("conversation" to message)
                 timeline.value = timeline.value + TimelineItem(
-                    "failure-" + UUID.randomUUID(), "error",
-                    failure.message ?: "发送失败，原指令已保留")
+                    "failure-" + UUID.randomUUID(), "error", message)
             }
         }
     }
