@@ -82,6 +82,14 @@ def verify(source: str, schema_dir: Path, thread_source: str,
     if 'args.put("collaborationMode",' not in turn_contract:
         errors.append("Android 计划模式缺少 collaborationMode 适配")
 
+    if 'Initialize => "initialize" {' not in source or (
+            'client_notification_definitions! {' not in source):
+        errors.append("官方初始化握手声明缺失")
+    initialize = connection_source.find('request("initialize",')
+    initialized = connection_source.find('notify("initialized",')
+    if initialize == -1 or initialized == -1 or initialize >= initialized:
+        errors.append("Android 必须先完成 initialize 请求，再发送 initialized 通知")
+
     if '.put("experimentalApi", true)' not in connection_source:
         errors.append("Android 未声明实验协议能力")
 
