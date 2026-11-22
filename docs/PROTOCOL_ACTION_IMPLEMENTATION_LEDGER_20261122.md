@@ -9,22 +9,22 @@
 | 客户端→Codex 服务端请求 | 187 | Kotlin 发起请求；由 Rust 内核执行 |
 | Codex 服务端→Android Host 请求 | 8 | 需要宿主处理结果；其中 5 种已被 Android 分流与 UI 处理，另 3 种当前返回明确不支持 |
 | 协议方法合计 | 195 | Rust 与 Kotlin 目录及 JSON 分类名称对应 |
-| 直接操作 | 40 | 页面/快捷入口，由用户执行 |
-| 上下文操作 | 44 | 选中对象后用菜单、Sheet 或行内动作 |
+| 直接操作 | 39 | 页面/快捷入口，由用户执行 |
+| 上下文操作 | 43 | 选中对象后用菜单、Sheet 或行内动作 |
 | 高级按需 | 52 | 仅在用户有明确配置、授权或管理操作时按需提供入口 |
-| 后台内部 | 57 | 智能体工具、进程/流传输、事件同步及 Host 请求；仅在需要用户审批时出示结果 |
+| 后台内部 | 59 | 智能体工具、进程/流传输、事件同步及 Host 请求；仅在需要用户审批时出示结果 |
 | 平台不适用 | 2 | Windows Sandbox；Android 不生成入口 |
 
 **重点说明**：`initialize`、`initialized` 属于连接握手，不在上述 195 项带斜杠方法中；通知事件也不在这 195 项请求中。校验脚本还须覆盖握手、通知、服务端主动请求和返回结构。
 
 ## 用户界面与智能体后台职责收敛（2026-11-22）
 
-- **用户可直接操作（40）**：会话、任务、终端、文件、账号及配置等；保留明确的入口与反馈。
-- **对象操作（44）**：会话、文件、项目等选中对象后的操作；仅在对应上下文出现。
+- **用户可直接操作（39）**：会话、任务、终端、文件、账号及配置等；保留明确的入口与反馈。
+- **对象操作（43）**：会话、文件、项目等选中对象后的操作；仅在对应上下文出现。
 - **高级按需（52）**：配对、远程控制、实验语音的用户控制、进阶管理等；有真实能力且用户需要时才呈现，绝不按方法目录自动生成页面。
-- **智能体/内核后台（57）**：包括进程管理、语音分片、搜索流维护、插件状态对账、MCP 事件流、运行钩子查询、Host 反向请求。Android 保留原 RPC 能力，具体调用归智能体、内核或连接管理层；只有授权、审批、失败提示需要展示给用户。
+- **智能体/内核后台（59）**：包括进程管理、语音分片、搜索流维护、插件状态对账、MCP 事件流、运行钩子查询、Host 反向请求。Android 保留原 RPC 能力，具体调用归智能体、内核或连接管理层；只有授权、审批、失败提示需要展示给用户。
 - **平台不适用（2）**：Android 不生成入口。
-- MCP 用户页面只展示服务连接、授权与可恢复错误。逐个工具/资源的底层执行交由任务中的智能体，执行结果继续体现在会话时间线。
+- MCP 用户页面只展示服务连接、授权与可恢复错误。手动工具表单及资源浏览组件已移除，底层执行交由任务中的智能体，执行结果继续体现在会话时间线。
 - 曾作为独立设置页的只读“触发钩子”已移出导航；保留后台协议，后续出现实际需要用户决定的钩子信任或权限时，直接在审批流程中呈现对应决策。
 - CI 新增界面路由与协议归属交叉检查：后台/Host 接口不得变成常规页面入口，Compose 发起的直接 RPC 不得越过用户操作边界。
 
@@ -253,10 +253,10 @@
 | `plugin/uninstall` | Android→服务端 | 卸载插件 | `PluginUninstallParams → PluginUninstallResponse` | 直接操作：设置→扩展能力 | 插件卸载确认（影响范围） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `mcpServer/oauth/login` | Android→服务端 | 发起 MCP 服务授权 | `McpServerOauthLoginParams → McpServerOauthLoginResponse` | 直接操作：设置→扩展能力 | MCP OAuth 授权 Sheet | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | MCP 服务状态列表＋连接状态标签 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `mcpServer/resource/read` | Android→服务端 | 读取 MCP 资源 | `McpResourceReadParams → McpResourceReadResponse` | 直接操作：设置→扩展能力 | MCP 文本/资源阅读器 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 待逐项验证调用入口/响应/实测 | P1 |
+| `mcpServer/resource/read` | Android→服务端 | 读取 MCP 资源 | `McpResourceReadParams → McpResourceReadResponse` | 后台处理：智能体/MCP 协议层 | 用户端仅呈现服务授权、审批与任务执行反馈 | 智能体自动调用工具或读取资源；Android 不提供手动调用表单 | 已移除手动 UI 入口并保留后台协议；待真实服务验证 | P1 |
 | `mcpServer/event/stream/start` | Android→服务端 | 订阅 MCP 事件流 | `McpServerEventStreamStartParams → McpServerEventStreamStartResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
 | `mcpServer/event/stream/stop` | Android→服务端 | 取消 MCP 事件流 | `McpServerEventStreamStopParams → McpServerEventStreamStopResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
-| `mcpServer/tool/call` | Android→服务端 | 调用 MCP 服务工具 | `McpServerToolCallParams → McpServerToolCallResponse` | 上下文操作：设置→扩展能力 | 工具 Schema 动态表单、结果/错误详情 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 待逐项验证调用入口/响应/实测 | P1 |
+| `mcpServer/tool/call` | Android→服务端 | 调用 MCP 服务工具 | `McpServerToolCallParams → McpServerToolCallResponse` | 后台处理：智能体/MCP 协议层 | 用户端仅呈现服务授权、审批与任务执行反馈 | 智能体自动调用工具或读取资源；Android 不提供手动调用表单 | 已移除手动 UI 入口并保留后台协议；待真实服务验证 | P1 |
 | `mcpServer/elicitation/request` | 服务端→Android | 请求用户提供 MCP 交互信息 | `McpServerElicitationRequestParams → McpServerElicitationRequestResponse` | 后台处理：当前会话审批卡/Host | 任务内 MCP 用户输入/授权弹层 | 后台收到服务端请求→在当前任务弹出阻断审批卡→校验输入→按请求 id 回传 result | Host 已有分类与回传实现；待真机校验 | P0 |
 
 ### 环境、配置、安全与远程控制（24 项）
