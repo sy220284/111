@@ -438,19 +438,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 // the server may already have accepted the turn.
                 if (created != null && FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
                     try {
-                        val checked = bridge.request("thread/read", JSONObject()
-                            .put("threadId", created).put("includeTurns", true),
-                            timeoutMillis = 20_000L)
-                        val turns = checked.optJSONObject("thread")?.optJSONArray("turns")
-                        if (turns != null && turns.length() == 0 &&
-                            activeThread.value == created && activeTurn.value.isNullOrBlank()) {
-                            bridge.request("thread/delete", JSONObject().put("threadId", created))
+                        recoveryNote = FirstTurnRecoveryController { method, params, timeout ->
+                            bridge.request(method, params, timeoutMillis = timeout)
+                        }.reclaim(created, { activeThread.value }, { activeTurn.value }) {
                             composerDrafts.update {
                                 ThreadComposerDrafts.reclaimRejectedNewThread(it, created)
                             }
                             activeThread.value = null
                             syncRecentThreads()
-                            recoveryNote = "；新建空会话已清理"
                         }
                     } catch (recoveryFailure: Exception) {
                         recoveryNote = "；新建会话检查失败：" +
