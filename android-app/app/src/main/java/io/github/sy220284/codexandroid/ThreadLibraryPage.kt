@@ -319,46 +319,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         if (selectionMode && entries.isNotEmpty()) item {
-            MaterialPanel(Modifier.fillMaxWidth().testTag("thread-bulk-toolbar")) {
-                Text("已选 ${selectedIds.size} 条 · 仅针对当前筛选页",
-                    style = MaterialTheme.typography.titleMedium)
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            selectedIds = entries.map { it.optString("id") }
-                                .filter { it.isNotBlank() && (!running || activeId != it) }
-                                .distinct()
-                        },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        enabled = !busy && !running
-                    ) { Text("全选本页") }
-                    OutlinedButton(
-                        onClick = { selectedIds = emptyList() },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        enabled = !busy && selectedIds.isNotEmpty()
-                    ) { Text("清空选择") }
-                }
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { bulkConfirm = if (archived) "unarchive" else "archive" },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                            .testTag("thread-bulk-archive"),
-                        enabled = !busy && !switching && !running && selectedIds.isNotEmpty()
-                    ) { Text(if (archived) "批量恢复" else "批量归档") }
-                    OutlinedButton(
-                        onClick = { bulkConfirm = "delete" },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                            .testTag("thread-bulk-delete"),
-                        enabled = !busy && !switching && !running && selectedIds.isNotEmpty()
-                    ) { Text("批量删除", color = Ink.red) }
-                }
-            }
+            ThreadBulkToolbar(
+                selectedCount = selectedIds.size,
+                archived = archived,
+                enabled = !busy && !switching && !running,
+                onSelectAll = {
+                    selectedIds = entries.map { it.optString("id") }
+                        .filter { it.isNotBlank() && (!running || activeId != it) }
+                        .distinct()
+                },
+                onClear = { selectedIds = emptyList() },
+                onAction = { bulkConfirm = it }
+            )
         }
         items(entries, key = { it.optString("id") }) { thread ->
             val id = thread.optString("id")
