@@ -50,8 +50,8 @@ internal object McpToolArguments {
             if (!validType) return "参数 $name 的类型与工具要求不一致（$type）"
             val choices = def.optJSONArray("enum")
             if (choices != null && (0 until choices.length()).none {
-                    JSONObject.valueToString(choices.opt(it)) ==
-                        JSONObject.valueToString(value)
+                    choices.opt(it) == value ||
+                        choices.opt(it)?.toString() == value?.toString()
                 }) return "参数 $name 不在允许的选项中"
         }
         return null
