@@ -59,6 +59,9 @@ class CodexConnection(private val appContext: Context) {
             put("CODEX_HOME", home.absolutePath)
             put("TMPDIR", temp.absolutePath)
             put("PATH", "/system/bin:/system/xbin")
+            // Native CLI helpers may link against the NDK C++ runtime packaged
+            // next to the executable in the APK's extracted native library dir.
+            put("LD_LIBRARY_PATH", appContext.applicationInfo.nativeLibraryDir)
             put("TERM", "xterm-256color")
         }
         try {
