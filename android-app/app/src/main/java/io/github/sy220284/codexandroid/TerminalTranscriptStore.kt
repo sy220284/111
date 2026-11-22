@@ -9,8 +9,14 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+
+/** Immutable window of historical stdout, read on demand from the local transcript. */
+internal data class TerminalTranscriptSlice(
+    val text: String, val beforeOffset: Long, val hasMore: Boolean
+)
 
 /**
  * Stores ordered stdout/stderr bytes privately on the device. The UI continues
@@ -89,6 +95,50 @@ internal class TerminalTranscriptStore(
                 }
             }
         }
+
+    /**
+     * Page backwards through stdout. Both boundaries align to the beginning
+     * of a UTF-8 character, so adjacent pages do not corrupt multilingual logs.
+     * The default upper bound excludes the 128KiB already visible in the live UI.
+     */
+    suspend fun readStdoutBefore(
+        processId: String,
+        beforeOffset: Long? = null,
+        visibleTailBytes: Int = 128 * 1024,
+        pageBytes: Int = 32 * 1024
+    ): TerminalTranscriptSlice = withContext(Dispatchers.IO) {
+        require(pageBytes in 1..65536 && visibleTailBytes >= 0) { "日志读取范围无效" }
+        lock.withLock {
+            check(available.value && activeProcessId == processId) {
+                "当前命令记录已切换，请返回终端重试"
+            }
+            RandomAccessFile(stdout, "r").use { file ->
+                val length = file.length()
+                fun alignBefore(position: Long): Long {
+                    var at = position.coerceIn(0, length)
+                    if (at >= length) return at
+                    while (at > 0) {
+                        file.seek(at)
+                        val byte = file.readUnsignedByte()
+                        if ((byte and 0xC0) != 0x80) break
+                        at--
+                    }
+                    return at
+                }
+                val desiredEnd = beforeOffset ?: (length - visibleTailBytes).coerceAtLeast(0)
+                val end = alignBefore(desiredEnd)
+                if (end == 0L) return@withLock TerminalTranscriptSlice("", 0, false)
+                val start = alignBefore((end - pageBytes).coerceAtLeast(0))
+                val size = (end - start).toInt()
+                val bytes = ByteArray(size)
+                file.seek(start)
+                file.readFully(bytes)
+                TerminalTranscriptSlice(
+                    String(bytes, Charsets.UTF_8), start, start > 0
+                )
+            }
+        }
+    }
 
     /** Streams the transcript to a user-chosen file without loading it all into RAM. */
     suspend fun export(processId: String, command: String, output: OutputStream) =

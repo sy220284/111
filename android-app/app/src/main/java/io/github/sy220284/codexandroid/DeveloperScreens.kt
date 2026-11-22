@@ -453,6 +453,11 @@ fun TerminalPage(vm: CodexViewModel) {
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
     val errors by vm.errors.collectAsState()
+    var historicalStdout by remember(session.processId) { mutableStateOf("") }
+    var historicalOffset by remember(session.processId) { mutableStateOf<Long?>(null) }
+    var historicalMore by remember(session.processId) { mutableStateOf(true) }
+    var historicalLoading by remember(session.processId) { mutableStateOf(false) }
+    var historicalError by remember(session.processId) { mutableStateOf("") }
 
     ScreenColumn {
         SectionIntro("LOCAL / COMMAND", "本地终端",
@@ -595,7 +600,7 @@ fun TerminalPage(vm: CodexViewModel) {
                 session.error?.let { ErrorText(it) }
                 if (session.outputTruncated) {
                     CodexNotice(
-                        if (transcriptAvailable) "界面仅显示最近 128KiB；可用下方按钮导出本机留存的执行日志。"
+                        if (transcriptAvailable) "正在查看最近 128KiB；可按需加载较早输出，或导出完整本机日志。"
                         else "界面仅保留最近 128KiB，较早日志已不可读取。",
                         NoticeTone.Warning
                     )
@@ -627,6 +632,48 @@ fun TerminalPage(vm: CodexViewModel) {
                         enabled = session.stdoutText.length > 16_000,
                         modifier = Modifier.heightIn(min = 48.dp)
                     ) { Text(if (expandedOutput) "收起" else "展开") }
+                }
+                if (transcriptAvailable && session.outputTruncated && historicalMore) {
+                    OutlinedButton(
+                        onClick = {
+                            val targetId = session.processId
+                            historicalLoading = true
+                            historicalError = ""
+                            scope.launch {
+                                try {
+                                    val page = vm.terminalTranscript.readStdoutBefore(
+                                        targetId, historicalOffset)
+                                    if (vm.terminalSession.value.processId == targetId) {
+                                        historicalOffset = page.beforeOffset
+                                        historicalMore = page.hasMore
+                                        historicalStdout = (page.text + historicalStdout).takeLast(256_000)
+                                    }
+                                } catch (failure: Exception) {
+                                    historicalError = failure.message ?: "无法读取更早的输出"
+                                } finally {
+                                    historicalLoading = false
+                                }
+                            }
+                        },
+                        enabled = !historicalLoading,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("terminal-load-older")
+                    ) {
+                        Icon(Icons.Outlined.History, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(if (historicalLoading) "正在读取…" else "加载更早输出（每次约 32KiB）")
+                    }
+                }
+                if (historicalError.isNotBlank()) ErrorText(historicalError)
+                if (historicalStdout.isNotBlank()) {
+                    Text("较早的标准输出（本机分页读取）",
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    SelectionContainer {
+                        Text(historicalStdout, color = Ink.parchment,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.testTag("terminal-older-stdout"))
+                    }
                 }
                 if (transcriptAvailable) {
                     OutlinedButton(
