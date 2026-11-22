@@ -25,6 +25,17 @@ class LatestRequestGateTest {
         assertTrue(gate.complete("review", first))
     }
 
+    @Test fun evictedSearchRequestCannotOverwriteNewData() {
+        val gate = LatestRequestGate()
+        val old = gate.begin("library:older-page")
+        gate.cancel("library:older-page")
+        assertFalse(gate.isLatest("library:older-page", old))
+        assertFalse(gate.complete("library:older-page", old))
+        val newer = gate.begin("library:older-page")
+        assertTrue(gate.isLatest("library:older-page", newer))
+        assertFalse(gate.isLatest("library:older-page", old))
+    }
+
     @Test fun nextRequestAfterCompletionGetsFreshOwnership() {
         val gate = LatestRequestGate()
         val previous = gate.begin("pluginSkill:one")

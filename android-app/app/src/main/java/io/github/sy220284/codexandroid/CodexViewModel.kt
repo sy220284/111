@@ -612,15 +612,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     else -> item.optString("text")
                 }
                 val all = timeline.value.toMutableList()
-                // 本地发送时已经加入用户消息，正式事件到达后合并，避免一条指令显示两次。
-                val sameId = all.indexOfLast { it.id == id }
-                // One pending send at a time is guaranteed by running state. Only the
-                // client-generated pending ID may be replaced by its authoritative item.
-                val optimistic = if (kind == "userMessage") {
-                    all.indexOfFirst { it.id.startsWith("pending-") &&
-                        it.kind == "user" && it.status == "sending" }
-                } else -1
-                val pos = if (sameId >= 0) sameId else optimistic
+                // Authoritative item ID wins; unmatched user events consume only
+                // a unique pending send marker, never compare potentially identical text.
+                val pos = TimelineReconciler.position(all, id, kind)
                 val displayedKind = if (kind == "userMessage") "user" else kind
                 val displayedText = description.ifBlank {
                     if (pos >= 0) all[pos].text else "正在处理…"
@@ -637,6 +631,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             "turn/completed" -> {
                 running.value = false
+                timeline.value = timeline.value.map { item ->
+                    if (item.id.startsWith("pending-") && item.status == "sending")
+                        item.copy(status = "") else item
+                }
                 syncRecentThreads()
                 val finishedImages = imagePathsForActiveTurn
                 imagePathsForActiveTurn = emptyList()
