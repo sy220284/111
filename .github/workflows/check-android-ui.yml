@@ -89,6 +89,8 @@ jobs:
           python3 android-app/tools/verify_protocol_methods.py \
             --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
             --sources android-app/app/src/main/java
+      - name: UI调用表达式与普通协议字符串分层检查
+        run: python3 -m unittest discover -s android-app/tools -p 'test_audit_ui_rpc_calls.py'
       - name: 自动核对28个页面与实际RPC引用并生成审计矩阵
         run: |
           python3 android-app/tools/audit_ui_feature_coverage.py \
