@@ -43,7 +43,8 @@ class SchemaAlignmentTest(unittest.TestCase):
     def test_missing_experimental_capability_is_detected(self):
         errors, _ = verify(self.protocol, self.schemas, self.thread,
                            self.project,
-                           self.connection.replace('.put("experimentalApi", true)', ''))
+                           self.connection.replace('.put("experimentalApi", true)', ''),
+                           self.turn, self.turn_contract)
         self.assertTrue(any("未声明实验协议能力" in e for e in errors))
 
 
