@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 6 项；有对应实现待专项验收 58 项；部分处理 23 项；待完整实施 11 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 6 项；有对应实现待专项验收 59 项；部分处理 23 项；待完整实施 10 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -79,7 +79,7 @@
 | 67 | D | 图片导入串行 forEach——并行化+进度 | 已提交待专项验收 | AttachmentImportController.kt |
 | 68 | D | 图片导入迁 WorkManager——脱离页面生命周期（配合 A5） | 已有部分改动 | AttachmentImportController.kt |
 | 69 | D | 终端 stdout 16K 截断改环形缓冲+按需落盘加载 | 专项验收通过 | TerminalTranscriptStore.kt；5/5 流式存储、导出与 UTF-8 分页单元测试通过 |
-| 70 | D | 事件流 backpressure 压测（512 buffer 满载行为） | 尚待实施 | 待定位 |
+| 70 | D | 事件流 backpressure 压测（512 buffer 满载行为） | 已提交待专项验收 | RpcEventBuffer.kt · RpcEventBufferTest.kt；512 满载悬挂不丢消息、4096 条双消费者有序压力测试 |
 | 71 | D | 对话页 15 个 collectAsState 订阅重组剖析（derivedStateOf 合并机会） | 尚待实施 | 待定位 |
 | 72 | D | 冷启动 Macrobenchmark 基线 | 尚待实施 | 待定位 |
 | 73 | D | 启动期 syncRecentThreads 等 IO 后台化 | 已有部分改动 | CodexViewModel.kt |
