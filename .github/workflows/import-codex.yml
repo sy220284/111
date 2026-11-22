@@ -1,51 +1,83 @@
-name: 一次性导入官方 Codex 源码
+name: 手动同步官方 Codex 源码并创建审核 PR
+
 on:
-  push:
-    paths:
-      - .github/workflows/import-codex.yml
   workflow_dispatch:
+    inputs:
+      upstream_sha:
+        description: 指定完整上游提交 SHA；留空则使用官方 main 最新提交
+        required: false
+        type: string
+
 permissions:
   contents: write
+  pull-requests: write
+
 concurrency:
   group: codex-upstream-import
   cancel-in-progress: false
+
 jobs:
   import:
+    name: 锁定上游源码并创建审核 PR
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: 获取上游最新提交
+      - name: 获取官方源码快照
         shell: bash
+        env:
+          UPSTREAM_SHA: ${{ inputs.upstream_sha }}
         run: |
           set -euo pipefail
           git clone --depth=1 --single-branch --branch main https://github.com/openai/codex.git "$RUNNER_TEMP/codex"
+          if [ -n "$UPSTREAM_SHA" ]; then
+            [[ "$UPSTREAM_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::须提供 40 位小写 SHA"; exit 1; }
+            git -C "$RUNNER_TEMP/codex" fetch --depth=1 origin "$UPSTREAM_SHA"
+            git -C "$RUNNER_TEMP/codex" checkout --detach "$UPSTREAM_SHA"
+          fi
           git -C "$RUNNER_TEMP/codex" rev-parse HEAD > CODEX_UPSTREAM_COMMIT
           git -C "$RUNNER_TEMP/codex" show -s --format=%cI HEAD >> CODEX_UPSTREAM_COMMIT
           echo 'https://github.com/openai/codex' >> CODEX_UPSTREAM_COMMIT
           mkdir -p upstream/codex
           rsync -a --delete --exclude=.git "$RUNNER_TEMP/codex/" upstream/codex/
-          echo 'Upstream commit:'
           cat CODEX_UPSTREAM_COMMIT
-          echo 'Oversized files:'
-          find upstream/codex -type f -size +95M -print
-          if find upstream/codex -type f -size +95M | grep -q .; then
-            echo '上游存在超过 95 MB 的文件，需采用 LFS 或分包' >&2
+          if find upstream/codex -type f -size +95M -print -quit | grep -q .; then
+            echo "::error::存在超过 95 MB 的文件，需要 LFS 或分包"
             exit 1
           fi
-      - name: 提交源码快照
+      - name: 提交升级分支并创建中文 PR
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add upstream/codex CODEX_UPSTREAM_COMMIT
           if git diff --cached --quiet; then
-            echo '官方源码无变化'
+            echo "上游源码无变化，无需创建 PR"
             exit 0
           fi
-          git commit -m "导入官方 Codex 最新源码快照"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          SHA="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
+          BRANCH="chore/codex-upstream-${SHA:0:12}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::已有上游升级分支 $BRANCH，请先处理已有 PR"
+            exit 1
+          fi
+          git switch -c "$BRANCH"
+          git commit -m "同步官方 Codex 源码快照：${SHA:0:12}"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "同步官方 Codex 源码快照：${SHA:0:12}" \
+            --body "## 本次变更
+
+          - 上游版本：$SHA
+          - 同步官方源码快照与版本记录
+
+          ## 合并前验收
+
+          - Rust 协议与 Android UI 接口差异
+          - ARM64 原生核心、APK 和设备验收
+          - Android 平台适配兼容性"
