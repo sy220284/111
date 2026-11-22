@@ -76,8 +76,7 @@ fun CodexNotice(
     tone: NoticeTone = NoticeTone.Info,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
-    onAction: () -> Unit = {},
-    artworkRes: Int? = null
+    onAction: () -> Unit = {}
 ) {
     val color = when (tone) {
         NoticeTone.Info -> Ink.copper
@@ -153,7 +152,8 @@ fun CodexEmptyState(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Outlined.Inbox,
     actionLabel: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    artworkRes: Int? = null
 ) {
     Column(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 27.dp),
