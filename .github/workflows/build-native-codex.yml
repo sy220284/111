@@ -10,10 +10,12 @@ on:
       - "upstream/codex/**"
       - "android-app/tools/prepare_android_mxc.py"
       - "android-app/tools/prepare_android_code_mode.py"
+      - "android-app/tools/prepare_android_v8.sh"
   pull_request:
     paths:
       - ".github/workflows/build-native-codex.yml"
       - "android-app/tools/prepare_android_code_mode.py"
+      - "android-app/tools/prepare_android_v8.sh"
       - "android-app/tools/package_native_runtime.sh"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
@@ -67,7 +69,7 @@ jobs:
     needs: reuse
     if: needs.reuse.outputs.reuse != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 115
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +99,7 @@ jobs:
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
             android-app/tools/prepare_android_code_mode.py
+            android-app/tools/prepare_android_v8.sh
       - name: 检查源码快照版本
         run: |
           set -euo pipefail
@@ -133,6 +136,11 @@ jobs:
         with:
           workspaces: upstream/codex/codex-rs
           key: codex-android-${{ matrix.rust_target }}
+      - name: 缓存沙箱版本的 Android V8 静态库与绑定
+        uses: actions/cache@v4
+        with:
+          path: .android-v8-cache/${{ matrix.rust_target }}
+          key: android-v8-${{ matrix.rust_target }}-152.2.0-sandbox-${{ hashFiles('android-app/tools/prepare_android_v8.sh') }}
       - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
         shell: bash
         run: |
@@ -157,7 +165,13 @@ jobs:
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_code_mode.py" \
             "$GITHUB_WORKSPACE/upstream/codex/codex-rs/install-context/src/lib.rs" \
             --host-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/code-mode-host/src/main.rs"
-      - name: 使用 Android Bionic 编译 App Server
+      - name: 准备已核验的 Android V8 沙箱库
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash android-app/tools/prepare_android_v8.sh \
+            "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+      - name: 使用 Android Bionic 编译 App Server 与 Code Mode Host
         shell: bash
         run: |
           set -euo pipefail
