@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 10 项；有对应实现待专项验收 57 项；部分处理 22 项；待完整实施 9 项；经安全评估跳过 2 项；合计 100。**
+**本次统计（PR #47）：已专项验收 10 项；有对应实现待专项验收 58 项；部分处理 22 项；待完整实施 7 项；经安全评估跳过 2 项；按明确需求取消 1 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -89,7 +89,7 @@
 | 77 | D | Kotlin 警告预算门禁 | 尚待实施 | 待定位 |
 | 78 | D | Roborazzi/Paparazzi 截图 diff 基线 | 已有部分改动 | .github/workflows/check-android-ui.yml |
 | 79 | D | TalkBack 全 29 页走查 | 已有部分改动 | UiPopulatedSubpagesInstrumentedTest.kt |
-| 80 | D | strings.xml 抽取（英文骨架+避免 Compose 内联中文） | 尚待实施 | 待定位 |
+| 80 | D | strings.xml 抽取（英文骨架+避免 Compose 内联中文） | 尚待实施（仅保留中文资源统一） | 用户确定只需要中文版；无需英文界面或英文资源骨架。中文资源集中管理仍可择机实施 |
 | 81 | D | RTL 布局声明与截图 | 专项验收通过 | AndroidManifest.xml RTL 声明、ThreadBulkToolbar.kt、3 种屏宽均通过的 RTL＋200% 字体实际截图 |
 | 82 | D | 深色主题全页回归（VisualSystem 仅 lightColorScheme） | 已有部分改动 | VisualSystem.kt |
 | 83 | D | 200% 字体降级策略 | 已有部分改动 | ThreadBulkToolbar.kt |
@@ -105,10 +105,10 @@
 | 93 | D | 11 项设备测试升 release 强制 gate | 已提交待专项验收 | .github/workflows/release.yml |
 | 94 | D | changelog 从提交自动生成 | 已提交待专项验收 | .github/scripts/generate-release-notes.py |
 | 95 | D | crash 本地收集+诊断页入口 | 已提交待专项验收 | LocalCrashReporter.kt |
-| 96 | D | specialUse 前台服务的 Play 上架合规预案 | 尚待实施 | 待定位 |
+| 96 | D | specialUse 前台服务的 Play 上架合规预案 | 按明确需求取消 | 用户确定不在 Google Play 上架；保留本地安装、运行、通知和后台任务能力 |
 | 97 | D | START_NOT_STICKY→STICKY+重建重连评估（保活韧性） | 已有部分改动 | CodexForegroundService.kt |
 | 98 | D | 通知进度+动作按钮（配合 C37/38） | 已提交待专项验收 | CodexForegroundService.kt |
-| 99 | D | 多会话并行执行+任务中心（单 active 限制的产品化放宽） | 尚待实施 | 待定位 |
+| 99 | D | 多会话并行执行+任务中心（单 active 限制的产品化放宽） | 已提交待专项验收 | [PR #47](https://github.com/sy220284/111/pull/47)；ThreadExecutionPolicy.kt、CodexNotificationDispatcher.kt、CodexViewModel.kt、SidebarSessions.kt、ThreadExecutionPolicyTest.kt、UiPopulatedSubpagesInstrumentedTest.kt；Kotlin/Android UI CI 与真实 ARM64 核心多任务待分别验收 |
 | 100 | D | 深链 codex://thread/xxx 外部直达会话 | 已提交待专项验收 | CodexDeepLink.kt |
 
 ## 本次专项验收证据
@@ -130,6 +130,6 @@
 
 每项从“已有部分改动”到“已提交待专项验收”，必须给出实际代码入口；从“已提交待专项验收”到“已验收”，必须核对源码行为、单测或设备交互与对应截图，必要时包含性能数据。主线合并与真机安装另外核验，独立 UI CI 成功不能替代原生安装包完整性测试。
 
-**当前仍需重点推进**：原始更新清单签名（#87）、并行任务中心（#99）、全页面 TalkBack 和无障碍检测（#79、#85、#86）、性能基准与事件压力测试（#70–#75）、国际化及文本尺寸全面治理（#80–#84）、工程门禁和发布专项（#76–#78、#91–#97）。
+**调整后的优先事项**：先完成多会话任务中心（#99）的真实 ARM64 核心并行/断线/审批专项验收，再完善后台恢复与失败状态（#75、#97）、全页面 TalkBack 和无障碍检测（#79、#85、#86）、性能基准（#71–#73）、中文文本资源统一及缩放适配（#80、#83、#84）、工程质量和自有分发安全（#76–#78、#87、#89–#95）。英文界面与 Google Play 上架专项移出需求范围；#61、#62 高风险瘦身维持安全跳过。
 
 本账本只记录 111 UI 清单，未纳入其他 PR 的开发任务。
