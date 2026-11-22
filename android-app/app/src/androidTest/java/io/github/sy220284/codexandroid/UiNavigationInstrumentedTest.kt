@@ -13,12 +13,29 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
 /** 参考布局验收：侧栏只出现常用入口，所有原有功能归入设置或快捷菜单。 */
 class UiNavigationInstrumentedTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+
+    /** Tests share one application-owned Codex session, so each test owns a clean UI fixture. */
+    @Before fun resetSessionFixture() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread {
+            vm.activeThread.value = null
+            vm.activeTurn.value = null
+            vm.running.value = false
+            vm.threadSwitching.value = false
+            vm.timeline.value = emptyList()
+            vm.bridge.prompts.value = emptyList()
+            vm.composerDrafts.value = emptyMap()
+            vm.errors.value = emptyMap()
+        }
+        rule.waitForIdle()
+    }
 
     /** Send Back to the focused Android window so Dialog/ModalBottomSheet receives it. */
     private fun pressSystemBack() {
