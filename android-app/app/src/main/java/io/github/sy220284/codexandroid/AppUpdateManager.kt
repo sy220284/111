@@ -256,7 +256,7 @@ internal object AppUpdateManager {
     internal fun systemInstallIntent(uri: Uri): Intent =
         Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, "application/vnd.android.package-archive")
-            .setClipData(ClipData.newRawUri("verified-update", uri))
+            .apply { clipData = ClipData.newRawUri("verified-update", uri) }
             .addFlags(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
                     Intent.FLAG_ACTIVITY_NEW_TASK or
