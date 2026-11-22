@@ -19,8 +19,8 @@ class UpgradeRehearsalTest(unittest.TestCase):
             path.write_text("[package]\nname='candidate'\nversion='0.0.1'\n")
         (self.codex / "Cargo.toml").write_text(
             "[workspace.dependencies]\n"
-            "mxc-sdk = { git = 'https://github.com/microsoft/mxc', "
-            "rev = 'c66201839d63cae2239db5e92f1f1d6076cf5181' }\n"
+            'mxc-sdk = { git = "https://github.com/microsoft/mxc", '
+            'rev = "c66201839d63cae2239db5e92f1f1d6076cf5181" }\n'
         )
         self.install = self.codex / "install-context/src/lib.rs"
         self.host = self.codex / "code-mode-host/src/main.rs"
