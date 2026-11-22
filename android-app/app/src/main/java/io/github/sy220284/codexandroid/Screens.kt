@@ -430,27 +430,34 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center)
                     if (!shortViewport && !busy) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WelcomeActionCard(
-                                "浏览文件", "打开工作区", Icons.Outlined.FolderOpen,
-                                Ink.jade, onClick = { navigate("files") }, modifier = Modifier.weight(1f)
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AssistChip(
+                                onClick = { navigate("files") },
+                                label = { Text("浏览文件") },
+                                leadingIcon = { Icon(Icons.Outlined.FolderOpen, null,
+                                    modifier = Modifier.size(18.dp)) }
                             )
-                            WelcomeActionCard(
-                                "写个脚本", "先描述需求", Icons.Outlined.Code,
-                                Ink.copper, onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
-                                modifier = Modifier.weight(1f)
+                            AssistChip(
+                                onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
+                                label = { Text("写个脚本") },
+                                leadingIcon = { Icon(Icons.Outlined.Code, null,
+                                    modifier = Modifier.size(18.dp)) }
                             )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WelcomeActionCard(
-                                "新建项目", "整理初始化步骤", Icons.Outlined.CreateNewFolder,
-                                Ink.copper, onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
-                                modifier = Modifier.weight(1f)
+                            AssistChip(
+                                onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
+                                label = { Text("新建项目") },
+                                leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null,
+                                    modifier = Modifier.size(18.dp)) }
                             )
-                            WelcomeActionCard(
-                                "代码审查", "检查修改质量", Icons.Outlined.FactCheck,
-                                Ink.jade, onClick = { navigate(if (thread == null) "threads" else "review") }, modifier = Modifier.weight(1f)
+                            AssistChip(
+                                onClick = { navigate(if (thread == null) "threads" else "review") },
+                                label = { Text("代码审查") },
+                                leadingIcon = { Icon(Icons.Outlined.FactCheck, null,
+                                    modifier = Modifier.size(18.dp)) }
                             )
                         }
                     }
