@@ -101,7 +101,7 @@ object UiProtocolMatrix {
         ProtocolSurface("plugin/share/list", ApiExposure.Advanced, "插件", false),
         ProtocolSurface("plugin/share/checkout", ApiExposure.Advanced, "插件", false),
         ProtocolSurface("plugin/share/delete", ApiExposure.Advanced, "插件", false),
-        ProtocolSurface("app/read", ApiExposure.Direct, "连接应用", false),
+        ProtocolSurface("app/read", ApiExposure.Internal, "连接应用", false),
         ProtocolSurface("app/list", ApiExposure.Direct, "连接应用", false),
         ProtocolSurface("app/installed", ApiExposure.Direct, "连接应用", false),
         ProtocolSurface("fs/readFile", ApiExposure.Contextual, "工作区文件", false),
