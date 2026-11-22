@@ -87,11 +87,18 @@ class ArtifactSelector:
 
     def find(self, repository, target, abis, branch="main"):
         current_signatures = {abi: self.signature(target, abi) for abi in abis}
-        runs = json.loads(self.run([
+        query = [
             "gh", "run", "list", "--repo", repository,
-            "--workflow", "build-native-codex.yml", "--branch", branch,
+            "--workflow", "build-native-codex.yml",
             "--limit", "200", "--json", "databaseId,headSha,conclusion",
-        ]))
+        ]
+        # After a merge commit, the verified PR commit becomes an ancestor
+        # of main. Include its build in the search rather than recompiling.
+        # is_ancestor() plus the exact per-ABI source/recipe signature below
+        # remain mandatory before reuse.
+        if branch != "main":
+            query.extend(["--branch", branch])
+        runs = json.loads(self.run(query))
         expected = {f"codex-android-native-{abi}" for abi in abis}
         for item in runs:
             # The successful ARM64 job remains reusable after a separate
