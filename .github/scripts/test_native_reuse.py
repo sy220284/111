@@ -38,13 +38,15 @@ jobs:
 class FakeRunner:
     def __init__(self, *, changed_source=False, changed_recipe=False,
                  expired_first=False, missing_abi=False, ancestor=True,
-                 changed_code_mode_adapter=False):
+                 changed_code_mode_adapter=False,
+                 legacy_missing_adapter=False):
         self.changed_source = changed_source
         self.changed_recipe = changed_recipe
         self.expired_first = expired_first
         self.missing_abi = missing_abi
         self.ancestor = ancestor
         self.changed_code_mode_adapter = changed_code_mode_adapter
+        self.legacy_missing_adapter = legacy_missing_adapter
         self.called_api = 0
 
     def __call__(self, args):
@@ -59,6 +61,8 @@ class FakeRunner:
             return "same-patcher"
         if args[:2] == ["git", "ls-tree"]:
             sha = args[2]
+            if sha.startswith(("old", "older")) and self.legacy_missing_adapter:
+                return ""
             if sha.startswith(("old", "older")) and self.changed_code_mode_adapter:
                 return "old-adapter"
             return "same-adapter"
@@ -134,6 +138,12 @@ class NativeReuseTests(unittest.TestCase):
         runner = FakeRunner(changed_recipe=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
+
+    def test_legacy_build_without_code_mode_adapter_must_recompile(self):
+        runner = FakeRunner(legacy_missing_adapter=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
+                                                        ["arm64-v8a"]))
+        self.assertEqual(runner.called_api, 0)
 
     def test_changed_code_mode_adapter_must_recompile(self):
         runner = FakeRunner(changed_code_mode_adapter=True)
