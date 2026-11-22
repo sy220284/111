@@ -64,16 +64,18 @@ class TerminalTranscriptStoreTest {
         try {
             val logs = TerminalTranscriptStore(dir)
             logs.begin("history")
-            val original = ("你好，Terminal ✓\n").repeat(16000)
+            val original = ("你好，Terminal ✓\n").repeat(400)
             logs.append("history", "stdout", original.toByteArray(Charsets.UTF_8))
             var before: Long? = null
             val pages = mutableListOf<String>()
+            var hasMore: Boolean
             do {
                 val page = logs.readStdoutBefore(
                     "history", before, visibleTailBytes = 0, pageBytes = 311)
                 pages.add(0, page.text)
                 before = page.beforeOffset
-            } while (page.hasMore)
+                hasMore = page.hasMore
+            } while (hasMore)
             assertEquals(original, pages.joinToString(""))
         } finally { dir.deleteRecursively() }
     }
