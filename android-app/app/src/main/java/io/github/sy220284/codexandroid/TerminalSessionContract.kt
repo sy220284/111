@@ -7,7 +7,7 @@ import java.util.Base64
 
 /** A command is confirmed in the UI before this protocol request is sent. */
 object TerminalSessionContract {
-    fun execute(command: String, cwd: String, processId: String): JSONObject {
+    fun execute(command: String, cwd: String, processId: String, tty: Boolean = false): JSONObject {
         require(command.isNotBlank()) { "请输入要执行的命令" }
         require(cwd.isNotBlank()) { "工作目录不可为空" }
         require(processId.isNotBlank()) { "缺少终端会话标识" }
@@ -18,6 +18,12 @@ object TerminalSessionContract {
             .put("streamStdoutStderr", true)
             .put("streamStdin", true)
             .put("disableTimeout", true)
+            .apply {
+                if (tty) {
+                    put("tty", true)
+                    put("size", JSONObject().put("rows", 24).put("cols", 80))
+                }
+            }
             .put("sandboxPolicy", JSONObject()
                 .put("type", "externalSandbox")
                 .put("networkAccess", "restricted"))
@@ -31,6 +37,13 @@ object TerminalSessionContract {
             .put("deltaBase64", Base64.getEncoder().encodeToString(
                 (line + "\n").toByteArray(StandardCharsets.UTF_8)))
             .put("closeStdin", false)
+    }
+
+    fun resize(processId: String, rows: Int, cols: Int): JSONObject {
+        require(processId.isNotBlank()) { "需要正在运行的终端会话" }
+        require(rows in 2..300 && cols in 10..400) { "终端行列数不在有效范围内" }
+        return JSONObject().put("processId", processId)
+            .put("size", JSONObject().put("rows", rows).put("cols", cols))
     }
 
     fun terminate(processId: String): JSONObject {
@@ -47,6 +60,7 @@ object TerminalSessionContract {
 data class TerminalSessionState(
     val processId: String = "",
     val command: String = "",
+    val tty: Boolean = false,
     val running: Boolean = false,
     val completed: Boolean = false,
     val terminating: Boolean = false,
@@ -59,8 +73,9 @@ data class TerminalSessionState(
     companion object {
         const val MAX_STREAM_BYTES = 128 * 1024
 
-        fun start(processId: String, command: String) =
-            TerminalSessionState(processId = processId, command = command, running = true)
+        fun start(processId: String, command: String, tty: Boolean = false) =
+            TerminalSessionState(processId = processId, command = command,
+                tty = tty, running = true)
     }
 
     val stdoutText: String get() = String(stdoutBytes, StandardCharsets.UTF_8)

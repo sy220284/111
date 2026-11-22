@@ -1,0 +1,5 @@
+Git 2.52.0 (GPL-2.0) is bundled as a separate local CLI executable.
+Original source: https://github.com/git/git/tree/9a2fb147f2c61d0cab52c883e7e26f5b7948e3ed
+Build recipe: android-app/tools/build_android_git.sh in this repository.
+Official releases include git-2.52.0-corresponding-source.tar.xz.
+This Android build supports local Git operations; HTTPS transport is not bundled.

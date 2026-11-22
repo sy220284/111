@@ -28,6 +28,15 @@ for ABI in arm64-v8a; do
   mv "$APKS_JSON.tmp" "$APKS_JSON"
 done
 
+# Git is GPL-2.0. Accompany every signed APK with the exact corresponding
+# upstream Git source; our build recipe is preserved in this repository.
+GIT_SOURCE="$RUNNER_TEMP/git-android-release-source"
+git clone --depth 1 --branch v2.52.0 --single-branch \
+  https://github.com/git/git.git "$GIT_SOURCE"
+test "$(git -C "$GIT_SOURCE" rev-parse HEAD)" = "9a2fb147f2c61d0cab52c883e7e26f5b7948e3ed"
+tar -cJf "$OUT/git-2.52.0-corresponding-source.tar.xz" \
+  --exclude=.git -C "$RUNNER_TEMP" git-android-release-source
+
 if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
   HDIFF_VERSION=5.1.3
   HDIFF_ARCHIVE="hdiffpatch_v${HDIFF_VERSION}_bin_linux64.zip"
