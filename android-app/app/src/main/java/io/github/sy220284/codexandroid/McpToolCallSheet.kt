@@ -74,7 +74,14 @@ fun McpToolCallSheet(
         }.getOrNull()
     }
 
-    val argumentProblem = McpToolArguments.problem(schema, arguments)
+    val argumentProblem = if (!advanced && arguments == null) {
+        val missing = requiredNames.firstOrNull { values[it].isNullOrBlank() }
+        if (missing != null)
+            "请填写必填参数：" + PresentationPolicy.meaningful(
+                properties?.optJSONObject(missing)?.optString("title"))
+                .ifEmpty { PresentationPolicy.skillName(missing) }
+        else "请检查参数的数字或选项格式"
+    } else McpToolArguments.problem(schema, arguments)
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -111,7 +118,10 @@ fun McpToolCallSheet(
                         val description = PresentationPolicy.meaningful(
                             field.optString("description"))
                         val selected = values[name].orEmpty()
-                        Text(label, style = MaterialTheme.typography.titleMedium)
+                        if (type == "boolean" ||
+                            (field.optJSONArray("enum")?.length() ?: 0) > 0) {
+                            Text(label, style = MaterialTheme.typography.titleMedium)
+                        }
                         if (description.isNotEmpty())
                             Text(description, color = Ink.muted,
                                 style = MaterialTheme.typography.bodySmall)
