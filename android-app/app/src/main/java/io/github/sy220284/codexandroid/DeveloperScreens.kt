@@ -18,6 +18,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
@@ -411,6 +414,7 @@ fun TerminalPage(vm: CodexViewModel) {
     var command by rememberSaveable { mutableStateOf("") }
     var recentCommands by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var historyVisible by rememberSaveable { mutableStateOf(false) }
+    var historyPosition by remember { mutableStateOf(TerminalHistoryPosition()) }
     var expandedOutput by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     var confirm by remember { mutableStateOf(false) }
@@ -426,11 +430,37 @@ fun TerminalPage(vm: CodexViewModel) {
             Text("执行位置：本机工作区", color = Ink.muted,
                 style = MaterialTheme.typography.labelMedium)
             Text("命令可能修改应用工作区。执行前显示完整内容并请你确认。", color = Ink.muted)
-            OutlinedTextField(command, { command = it },
-                label = { Text("Shell 命令") }, placeholder = { Text("pwd && ls -la") },
-                modifier = Modifier.fillMaxWidth(), maxLines = 5,
-                enabled = !session.running)
+            OutlinedTextField(
+                command,
+                onValueChange = {
+                    command = it
+                    // Editing an old command starts a fresh history traversal.
+                    historyPosition = TerminalHistoryPosition()
+                },
+                label = { Text("Shell 命令") },
+                placeholder = { Text("pwd && ls -la") },
+                modifier = Modifier.fillMaxWidth()
+                    .testTag("terminal-command-input")
+                    .onPreviewKeyEvent { event ->
+                        if (session.running || event.type != KeyEventType.KeyDown ||
+                            '\n' in command) return@onPreviewKeyEvent false
+                        val choice = when (event.key) {
+                            Key.DirectionUp -> TerminalHistoryNavigation.previous(
+                                command, recentCommands, historyPosition)
+                            Key.DirectionDown -> TerminalHistoryNavigation.next(
+                                recentCommands, historyPosition)
+                            else -> null
+                        } ?: return@onPreviewKeyEvent false
+                        command = choice.command
+                        historyPosition = choice.position
+                        true
+                    },
+                maxLines = 5,
+                enabled = !session.running
+            )
             if (recentCommands.isNotEmpty()) {
+                Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
+                    style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                 Box {
                     TextButton(
                         onClick = { historyVisible = true },
@@ -453,6 +483,7 @@ fun TerminalPage(vm: CodexViewModel) {
                                 },
                                 onClick = {
                                     command = previous
+                                    historyPosition = TerminalHistoryPosition()
                                     historyVisible = false
                                 }
                             )
@@ -593,6 +624,7 @@ fun TerminalPage(vm: CodexViewModel) {
                 recentCommands = ArrayList(
                     (listOf(accepted) + recentCommands.filterNot { it == accepted }).take(10)
                 )
+                historyPosition = TerminalHistoryPosition()
                 vm.startTerminalCommand(accepted)
             }
             confirm = false
