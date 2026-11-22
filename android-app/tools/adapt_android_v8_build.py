@@ -8,18 +8,17 @@ unnecessary and fails in restricted CI networks. Other targets are untouched.
 import argparse
 from pathlib import Path
 
-OLD = '''        if target_arch == "x86_64" {
-          maybe_install_sysroot("amd64");
-        }
-        gn_args.push(format!(r#"v8_target_cpu="{arch}""#).to_string());'''
-NEW = '''        // Android x86_64 uses NDK headers for target; host tools use runner Linux.
-        // The downloadable Debian sysroot is unnecessary for this cross-build.
-        gn_args.push(format!(r#"v8_target_cpu="{arch}""#).to_string());'''
+OLD = '''    if target_arch == "x86_64" {
+      maybe_install_sysroot("amd64");
+    }
+    gn_args.push(format!(r#"v8_target_cpu="{arch}""#).to_string());'''
+NEW = '''    // Android x86_64 uses the NDK target sysroot and runner Linux host tools.
+    gn_args.push(format!(r#"v8_target_cpu="{arch}""#).to_string());'''
 
-OLD_SYSROOT = '''        gn_args.push("use_sysroot=true".to_string());
+OLD_SYSROOT = '''    gn_args.push("use_sysroot=true".to_string());
 
-        // NDK 23 and above removes libgcc entirely.'''
-NEW_SYSROOT = '''        gn_args.push("use_sysroot=false".to_string());
+    // NDK 23 and above removes libgcc entirely.'''
+NEW_SYSROOT = '''    gn_args.push("use_sysroot=false".to_string());
 
         // NDK 23 and above removes libgcc entirely.'''
 
