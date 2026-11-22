@@ -46,7 +46,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 
 核查时间：2026-11-22。对照用户原始文档逐条编号，证据版本：PR #30 `eccccd0826a87cd84241e6d5c99e9e84b63066ab`。状态采用四类：**完成**＝明确找到现有源码实现（仍以专项验证范围为界）；**部分**＝已有基础功能但距离原建议尚有差距；**未完成**＝在此次已检查的相关页面、流程、测试及配置中未找到完整落地；**待验**＝已找到实现路径但缺针对性运行证据。
 
-本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 18，部分 28，未完成 44，待验 10。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
+本次复查统计（代码与待验状态同步至 PR #30 最新改动）：完成 19，部分 28，未完成 43，待验 10。 源码覆盖门禁通过不等于所有功能端到端通过，以下每项保持独立结论。
 
 | # | 状态 | 原始建议（摘要） | 代码核查 / 尚缺事项 |
 |---:|---|---|---|
@@ -69,7 +69,7 @@ Figma 现有目标：`K4FEMoNdmQbcnJZCHWr8c7`。官方连接返回 Starter MCP �
 | 17 | 完成 | Diff 展开状态记忆 | DiffExpansionPreferences 在本机保存会话/差异指纹与展开集合；DiffReaderPage 离开页面后仍能恢复状态 |
 | 18 | 待验 | 终端 ↑ 键回溯历史命令 | TerminalHistoryNavigation.kt + DeveloperScreens.kt 已处理硬件 ↑↓ 及草稿恢复，TerminalHistoryNavigationTest 覆盖往返和边界；最新 CI 设备验收待确认 |
 | 19 | 部分 | 终端输出复制和长按自由选择 | 已有复制与展开；长按全文自由选取专项体验未核实 |
-| 20 | 未完成 | 审批弹层会话级记住命令 | 尚未见到按会话范围保存并实际生效的快捷审批规则 |
+| 20 | 完成 | 审批弹层会话级记住命令 | ControlScreens 的 ApprovalRequestCard 已有本会话持续允许的二次确认，调用 answerApproval(..., acceptForSession)；ApprovalProtocol 仅允许普通命令和文件审批使用，humanCommand 禁用；是否由内核按匹配规则复用需真实模型端到端测试 |
 | 21 | 完成 | 会话库长按多选批量操作 | ThreadLibraryPage 长按、多选、全选、取消、批量归档/恢复/删除；CodexViewModel 串行 RPC 并保留部分失败进度；新增 Compose 点击测试 |
 | 22 | 完成 | 会话搜索保留最近五个查询 | RecentThreadSearches 分开记录标题/全文最近五条查询，SharedPreferences 持久保存；界面快捷再次搜索，附单元测试 |
 | 23 | 部分 | 侧栏未读和执行中角标 | SidebarSessions 显示运行状态；缺完整未读计数 |
