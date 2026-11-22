@@ -81,6 +81,24 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun bundledCodeModeHostCanInitializeV8OnAndroid() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val host = File(app.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
+        org.junit.Assert.assertTrue("Missing Code Mode Host: ${host.path}", host.isFile)
+        val process = ProcessBuilder(host.absolutePath, "--android-v8-self-test")
+            .redirectErrorStream(true).start()
+        try {
+            val finished = process.waitFor(25, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("Host V8 initialization timed out", finished)
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals("Host failed to initialize Android V8: $output", 0, process.exitValue())
+            org.junit.Assert.assertTrue("No positive V8 initialization marker: $output",
+                output.contains("codex-android-v8-initialized"))
+        } finally {
+            process.destroyForcibly()
+        }
+    }
+
     @Test fun bundledCodeModeHostStartsAndServesHealthcheck() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val host = File(app.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
