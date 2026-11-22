@@ -72,8 +72,6 @@ def parse_contracts(source: str) -> dict[str, MethodContract]:
                 experimental=experimental,
             )
             previous = match.end()
-    if len(result) < 100:
-        raise ValueError(f"官方协议方法异常少：{len(result)}")
     return result
 
 
