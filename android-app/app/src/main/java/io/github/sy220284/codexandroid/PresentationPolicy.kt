@@ -146,7 +146,10 @@ object PresentationPolicy {
             .distinct()
 
     fun readableError(value: String?): String {
-        val raw = meaningful(value)
+        // Drop the internal RPC method prefix, keeping the server's actual explanation.
+        val raw = meaningful(value).replace(
+            Regex("""^[A-Za-z][\w-]*(?:/[\w-]+)+[：:]\s*"""), ""
+        )
         if (raw.isEmpty()) return "当前操作没有返回详细原因"
         return raw.replace(
             Regex("""/data/(?:user/[0-9]+|data)/[^\s\n,;)}]+"""),

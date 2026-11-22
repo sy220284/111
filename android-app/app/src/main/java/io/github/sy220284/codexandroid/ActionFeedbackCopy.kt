@@ -52,7 +52,8 @@ object ActionFeedbackCopy {
     fun failure(method: String, reason: String): ActionFeedbackReceipt =
         ActionFeedbackReceipt(
             (known[method]?.attempt ?: "执行操作") + "失败：" +
-                reason.trim().ifBlank { "请检查连接及操作权限" },
+                reason.trim().removePrefix(method + "：").removePrefix(method + ":")
+                    .trim().ifBlank { "请检查连接及操作权限" },
             isError = true
         )
 }

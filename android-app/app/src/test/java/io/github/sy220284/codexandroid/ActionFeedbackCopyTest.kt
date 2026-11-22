@@ -23,6 +23,8 @@ class ActionFeedbackCopyTest {
         assertTrue(receipt.isError)
         assertEquals("安装插件失败：网络中断", receipt.message)
         assertFalse(receipt.message.contains("plugin/install"))
+        assertEquals("安装插件失败：连接拒绝",
+            ActionFeedbackCopy.failure("plugin/install", "plugin/install：连接拒绝").message)
     }
 
     @Test fun unknownActionsHaveSafeHumanReadableFeedback() {
