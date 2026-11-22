@@ -9,6 +9,7 @@ class ActionFeedbackCopyTest {
         assertEquals("插件已安装", ActionFeedbackCopy.success("plugin/install", JSONObject()).message)
         assertEquals("任务目标已保存", ActionFeedbackCopy.success("thread/goal/set", JSONObject()).message)
         assertEquals("权限及配置已保存", ActionFeedbackCopy.success("config/batchWrite", JSONObject()).message)
+        assertEquals("已发送任务停止请求", ActionFeedbackCopy.success("turn/interrupt", JSONObject()).message)
     }
 
     @Test fun toolErrorResultMustNotBeReportedAsSuccess() {

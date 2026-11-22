@@ -236,6 +236,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val busy by vm.running.collectAsState()
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
+    val loading by vm.loading.collectAsState()
     val items by vm.timeline.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
@@ -251,6 +252,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
+    var showApprovalQuick by remember { mutableStateOf(false) }
+    var stopRequested by remember(activeTurn) { mutableStateOf(false) }
+    val stopping = busy && (("interrupt" in loading) ||
+        (stopRequested && errors["interrupt"] == null))
     val attachmentContext = LocalContext.current
     var attachedImages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var attachmentBusy by remember { mutableStateOf(false) }
@@ -364,14 +369,21 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        CodexReveal(visible = prompts.isNotEmpty()) {
-            CodexNotice("本次任务有 ${prompts.size} 项待审批操作",
-                NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                actionLabel = "查看", onAction = { navigate("approvals") })
-        }
-        CodexReveal(visible = busy) {
-            CodexNotice("任务执行中 · 已记录 ${items.size} 步 · ${items.lastOrNull()?.text?.trim()?.replace("\n", " ")?.take(35).orEmpty()}",
-                NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
+        CodexReveal(visible = prompts.isNotEmpty() || busy) {
+            if (prompts.isNotEmpty()) {
+                CodexNotice(
+                    "当前任务有 ${prompts.size} 项待审批操作，确认后才能继续。",
+                    NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+                    actionLabel = "立即处理", onAction = { showApprovalQuick = true }
+                )
+            } else if (busy) {
+                CodexNotice(
+                    if (stopping) "已请求停止任务，正在等待内核确认。"
+                    else "执行中 · ${items.size} 步 · " +
+                        PresentationPolicy.timelineKind(items.lastOrNull()?.kind.orEmpty()),
+                    NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+                )
+            }
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (items.isEmpty()) {
@@ -447,6 +459,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         errors["conversation"]?.let { ErrorText(it) }
         errors["steer"]?.let { ErrorText(it) }
+        errors["interrupt"]?.let { ErrorText(it) }
         DividerLine()
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             ConversationControlBar(
@@ -505,15 +518,18 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
-                    onClick = { vm.interrupt() },
-                    enabled = busy,
+                    onClick = { stopRequested = true; vm.interrupt() },
+                    enabled = busy && !activeTurn.isNullOrBlank() && !stopping,
                     modifier = Modifier.weight(.38f).heightIn(min = 50.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
                     contentPadding = PaddingValues(horizontal = 9.dp)
                 ) {
-                    Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
+                    if (stopping) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp,
+                            color = Ink.red)
+                    } else Icon(Icons.Outlined.StopCircle, null, modifier = Modifier.size(19.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text("停止")
+                    Text(if (stopping) "停止中" else "停止")
                 }
                 CodexPrimaryButton(
                     onClick = {
@@ -534,6 +550,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         (if (busy) draft.isNotBlank() && thread != null &&
                             !activeTurn.isNullOrBlank() && !steering
                          else draft.isNotBlank() || attachedImages.isNotEmpty()),
+                    busy = steering || (busy && activeTurn.isNullOrBlank()),
                     modifier = Modifier.weight(.62f).heightIn(min = 50.dp)
                 ) {
                     Icon(if (busy) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward, null)
@@ -567,6 +584,7 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         )
     }
+    if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }
     if (showModels) ModelChoiceSurface(vm) { showModels = false }
     if (showModes) ModeChoiceSurface(vm) { showModes = false }
     if (showEngineStatus) EngineStatusSheet(

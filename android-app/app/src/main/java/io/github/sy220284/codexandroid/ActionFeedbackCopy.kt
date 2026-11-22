@@ -39,7 +39,8 @@ object ActionFeedbackCopy {
         "accountSession/switch" to Copy("已切换账号会话", "切换账号"),
         "review/start" to Copy("代码审查已发起", "发起代码审查"),
         "thread/attachment/add" to Copy("会话附件已添加", "添加会话附件"),
-        "thread/attachment/remove" to Copy("会话附件已移除", "移除会话附件")
+        "thread/attachment/remove" to Copy("会话附件已移除", "移除会话附件"),
+        "turn/interrupt" to Copy("已发送任务停止请求", "停止当前任务")
     )
 
     fun success(method: String, response: JSONObject): ActionFeedbackReceipt {
