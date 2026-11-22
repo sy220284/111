@@ -59,6 +59,30 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-sidebar-filtered-android35.png")
     }
 
+    @Test fun batchToolbarSupportsAllSelectAndActionWithRealComposeClicks() {
+        var selected by mutableIntStateOf(0)
+        var requested = ""
+        rule.setContent {
+            CodexTheme {
+                ThreadBulkToolbar(
+                    selectedCount = selected,
+                    archived = false,
+                    enabled = true,
+                    onSelectAll = { selected = 2 },
+                    onClear = { selected = 0 },
+                    onAction = { requested = it }
+                )
+            }
+        }
+        rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
+        rule.onNodeWithText("全选本页").performClick()
+        rule.onNodeWithText("已选 2 条 · 仅针对当前筛选页").assertExists()
+        rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
+        rule.onNodeWithTag("thread-bulk-delete").performClick()
+        rule.runOnIdle { assertEquals("delete", requested) }
+        capture("audit-thread-bulk-selection-android35.png")
+    }
+
     @Test fun composerTextEditingUpdatesSendAvailability() {
         var text by mutableStateOf("")
         var submitted = ""
