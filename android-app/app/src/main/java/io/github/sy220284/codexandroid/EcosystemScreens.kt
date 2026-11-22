@@ -60,7 +60,7 @@ fun ModelsPage(vm: CodexViewModel) {
     val chosen by vm.modelId.collectAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val items = records(data["models"])
-    LaunchedEffect(Unit) { vm.refresh("models", "model/list") }
+    LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
     ScreenColumn {
         SectionIntro("MODELS / SELECTION", "模型目录", "直接从官方模型目录选择新会话的运行模型。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -121,7 +121,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     var customEnvKey by remember { mutableStateOf("") }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.refresh("providers", "modelProvider/list") }
+    LaunchedEffect(Unit) { vm.ensureCatalog("providers", "modelProvider/list") }
     ScreenColumn {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -251,7 +251,10 @@ fun SkillsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val groups = records(data["skills"])
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
-    LaunchedEffect(Unit) { vm.refresh("skills", "skills/list", CatalogRequestContract.workspace(vm.workingDirectory)) }
+    LaunchedEffect(Unit) {
+        vm.ensureCatalog("skills", "skills/list",
+            CatalogRequestContract.workspace(vm.workingDirectory))
+    }
     ScreenColumn {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",

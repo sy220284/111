@@ -4,7 +4,7 @@
 
 > 统计口径：“已提交待专项验收”仅表示存在对应代码/既有实现，仍需逐项确认运行行为；“已有部分改动”表示关键路径尚未闭环；“尚待实施”表示目前未建立完整修复证据。通过本 PR 的独立 UI CI 后，再把有专项证据的项改为“已验收”。
 
-**本次统计：已专项验收 4 项；有对应实现待专项验收 56 项；部分处理 25 项；待完整实施 13 项；经安全评估跳过 2 项；合计 100。**
+**本次统计：已专项验收 4 项；有对应实现待专项验收 57 项；部分处理 25 项；待完整实施 12 项；经安全评估跳过 2 项；合计 100。**
 
 当前 PR：[#34](https://github.com/sy220284/111/pull/34)。独立 UI 构建与三屏宽设备验收：[Actions](https://github.com/sy220284/111/actions?query=branch%3Aui%2Fr2-visual-assets-20261122)。
 
@@ -37,7 +37,7 @@
 | 25 | B | 重连策略只挂 Activity ON_RESUME——Service/WorkManager 级自动重连缺失，后台断线无人管 | 已提交待专项验收 | CodexForegroundService.kt |
 | 26 | B | 侧栏数据靠"打开抽屉"触发 thread/list——无 WorkManager 周期同步，后台数据永远滞后 | 已提交待专项验收 | SessionRefreshPolicy.kt · AppNavigation.kt |
 | 27 | B | 增量更新 hpatch 合成在 Service 执行但由 UI Card 全程驱动——后台化不彻底，页面离开流程中断 | 已有部分改动 | AppUpdateManager.kt |
-| 28 | B | 模型目录/技能目录等 catalog 预热无自动策略——用户进对应页面才拉，首屏等待长 | 尚待实施 | 待定位 |
+| 28 | B | 模型目录/技能目录等 catalog 预热无自动策略——用户进对应页面才拉，首屏等待长 | 已提交待专项验收 | CodexViewModel.kt · EcosystemScreens.kt · CatalogRequestContractTest.kt；连接后预热、避免重复请求、账号刷新失效 |
 | 29 | B | 终端导出 64MiB 全量字符串拼接在 UI 层做——内存峰值应流式落盘 | 已提交待专项验收 | TerminalTranscriptStore.kt |
 | 30 | B | 会话标题生成 PresentationPolicy.threadTitle 在 UI 多处重复调用——应单点 presentation 层 | 已有部分改动 | PresentationPolicy.kt |
 | 31 | B | VM.receive() 仍 250+ 行 if-else 大杂烩——事件分发应表驱动（TimelineReconciler 只接了一半） | 已有部分改动 | TimelineEventReducer.kt |
