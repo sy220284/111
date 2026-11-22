@@ -20,16 +20,16 @@ class NavigationPolicyTest {
         assertFalse(NavigationPolicy.isDetailPage("settings"))
     }
 
-    @Test fun allTwentyEightRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
-        assertEquals(28, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(28, UiFeatureCatalog.legacyRoutes.distinct().size)
+    @Test fun userRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
+        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(27, UiFeatureCatalog.legacyRoutes.distinct().size)
         assertEquals(4, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(15, settings.size)
+        assertEquals(14, settings.size)
         assertEquals(settings.size, settings.distinct().size)
         assertTrue(settings.containsAll(listOf("models","appearance","about","update")))
-        assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal") })
-        assertEquals(28, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
+        assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
+        assertEquals(27, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
     @Test fun quickToolsAreTaskScopedAndAllTargetsExist() {
