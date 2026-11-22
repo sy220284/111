@@ -46,6 +46,7 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_android_code_mode.py'
           bash -n android-app/tools/package_native_runtime.sh
           bash -n android-app/tools/prepare_android_v8.sh
+          python3 -m unittest discover -s android-app/tools -p 'test_adapt_android_v8_build.py'
 
 
   release-signing-smoke:
