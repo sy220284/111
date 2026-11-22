@@ -95,6 +95,7 @@ fun ScreenColumn(
 @Composable
 private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
@@ -128,6 +129,8 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         CodexPrimaryButton(
             onClick = { if (!running) vm.newThread(); navigate("chat") },
+            enabled = !switching,
+            busy = switching,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             shape = RoundedCornerShape(24.dp)
         ) {
@@ -169,13 +172,16 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
         }
-        if (threads.isEmpty()) {
+        if (threads.isEmpty() && data["threads"] != null) {
             Text("完成首个任务后，最近的会话会出现在这里。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        } else if (threads.isEmpty()) {
+            Text("等待连接并同步最近的会话。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         } else {
             threads.take(2).forEach { item ->
-                ThreadRow(item, enabled = !running ||
-                    vm.activeThread.value == item.optString("id")) {
+                ThreadRow(item, enabled = !switching && (!running ||
+                    vm.activeThread.value == item.optString("id"))) {
                     val id = item.optString("id")
                     if (!running) vm.chooseThread(id)
                     navigate("chat")
@@ -803,15 +809,36 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     ScreenColumn {
         SectionIntro("SEARCH / THREADS", "全文检索", "通过 Codex 的历史检索定位旧任务。")
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("搜索词") }, leadingIcon = { Icon(Icons.Outlined.Search, null) })
-        OutlinedButton(onClick = { vm.refresh("search", "thread/search", JSONObject().put("searchTerm", query)) }, enabled = query.isNotBlank()) { Text("搜索") }
-        errors["search"]?.let { ErrorText(it) }
+        CodexPrimaryButton(
+            onClick = { vm.refresh("search", "thread/search",
+                JSONObject().put("searchTerm", query.trim())) },
+            enabled = query.isNotBlank() && "search" !in loading,
+            busy = "search" in loading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Outlined.Search, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(7.dp))
+            Text("查找历史会话")
+        }
+        ProtocolFeedback(vm, listOf("search"), onRetry = {
+            vm.refresh("search", "thread/search",
+                JSONObject().put("searchTerm", query.trim()))
+        })
+        if (data["search"] != null && records(data["search"]).isEmpty() &&
+            "search" !in loading && errors["search"] == null) {
+            CodexEmptyState("没有找到相关会话",
+                "尝试换一个关键词，或返回会话历史查看全部记录。",
+                actionLabel = "查看全部会话", onAction = { navigate("threads") })
+        }
         records(data["search"]).forEach { entry ->
-            ThreadRow(entry, enabled = ThreadDisplayPolicy.canOpenThread(
+            ThreadRow(entry, enabled = !switching && ThreadDisplayPolicy.canOpenThread(
                 running, activeThread, entry.optString("id"))) {
                 if (!running) vm.chooseThread(entry.optString("id"))
                 navigate("chat")
