@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -28,6 +29,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
+    /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
+    val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
     val latestDiff = MutableStateFlow("")
     val modelId = MutableStateFlow("")
     val selectedMode = MutableStateFlow("default")
@@ -58,6 +61,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun connect() = viewModelScope.launch {
         try {
             bridge.connect()
+            errors.value = errors.value - "engine"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             refresh("threads", "thread/list", JSONObject().put("limit", 30))
@@ -76,7 +80,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         key: String,
         method: String,
         params: JSONObject,
-        onSuccess: ((JSONObject) -> Unit)?
+        onSuccess: ((JSONObject) -> Unit)?,
+        userAction: Boolean = false
     ) {
         val ticket = latestRequests.begin(key)
         data.value = data.value - key
@@ -89,10 +94,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     data.value = data.value + (key to response)
                     errors.value = errors.value - key
                     onSuccess?.invoke(response)
+                    if (userAction) actionFeedback.emit(
+                        ActionFeedbackCopy.success(method, response))
                 }
             } catch (failure: Exception) {
                 if (latestRequests.isLatest(key, ticket)) {
-                    errors.value = errors.value + (key to (failure.message ?: "请求失败"))
+                    val reason = failure.message ?: "请求失败"
+                    errors.value = errors.value + (key to reason)
+                    if (userAction) actionFeedback.emit(
+                        ActionFeedbackCopy.failure(method, reason))
                 }
             } finally {
                 if (latestRequests.complete(key, ticket)) {
@@ -110,7 +120,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     ) = request(key, method, params, onSuccess)
 
     fun rpc(key: String, method: String, params: JSONObject = JSONObject(), after: (() -> Unit)? = null) {
-        request(key, method, params, if (after == null) null else { _ -> after() })
+        request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
     }
 
     fun chooseThread(id: String) {
@@ -124,10 +134,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
-                activeThread.value = id
-                running.value = false
-                timeline.value = emptyList()
-                latestDiff.value = ""
+                // Keep the previous conversation visible until the new one is fully read.
                 val history = bridge.request("thread/read", JSONObject()
                     .put("threadId", id).put("includeTurns", true))
                 data.value = data.value + ("threadHistory" to history)
@@ -157,6 +164,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                activeThread.value = id
+                running.value = false
+                latestDiff.value = ""
                 timeline.value = restored
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))

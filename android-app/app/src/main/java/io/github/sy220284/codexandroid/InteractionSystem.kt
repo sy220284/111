@@ -150,14 +150,22 @@ fun CodexEmptyState(
     onAction: () -> Unit = {}
 ) {
     MaterialPanel(modifier.fillMaxWidth()) {
-        Icon(icon, contentDescription = null, tint = Ink.copper, modifier = Modifier.size(29.dp))
-        Spacer(Modifier.height(8.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(description, style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-        if (actionLabel != null) {
-            Spacer(Modifier.height(7.dp))
-            OutlinedButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(actionLabel)
+        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Surface(color = Ink.canvas, border = BorderStroke(1.dp, Ink.copperDim),
+                shape = RoundedCornerShape(18.dp)) {
+                Icon(icon, contentDescription = null, tint = Ink.copper,
+                    modifier = Modifier.padding(14.dp).size(28.dp))
+            }
+            Text(title, style = MaterialTheme.typography.titleMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text(description, style = MaterialTheme.typography.bodyMedium,
+                color = Ink.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (actionLabel != null) {
+                Spacer(Modifier.height(2.dp))
+                CodexPrimaryButton(onClick = onAction,
+                    modifier = Modifier.heightIn(min = 48.dp)) { Text(actionLabel) }
             }
         }
     }
