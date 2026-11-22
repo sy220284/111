@@ -28,6 +28,24 @@ METHOD = re.compile(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"')
 OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
 
 
+# Count identifiable RPC expressions separately from strings in descriptors.
+# A static callsite is not proof of a successful device interaction.
+RPC_CALL = re.compile(
+    r'\b(?:(?:bridge|vm)\.)?(?:request|rpc|refresh|ensureCatalog)\s*\(\s*'
+    r'(?:(?:"[^"\n]*"|[A-Za-z_]\w*)\s*,\s*)?'
+    r'"(?P<method>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"',
+    re.M,
+)
+
+
+def find_rpc_calls(code: str, official: set[str]) -> set[str]:
+    return {
+        match.group("method") for match in RPC_CALL.finditer(code)
+        if match.group("method") in official
+    }
+
+
+
 def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
     directory = sources.resolve()
     files = {path.name: path.read_text(encoding="utf-8")
@@ -97,6 +115,13 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
                 if filename not in called[name]:
                     called[name].append(filename)
 
+    call_sites: dict[str, list[str]] = {}
+    for filename, source in files.items():
+        if filename in declaration_files:
+            continue
+        for method in find_rpc_calls(source, client_requests):
+            call_sites.setdefault(method, []).append(filename)
+
     equivalents: dict[str, dict] = {}
     user_facing: set[str] = set()
     if policy is not None:
@@ -144,6 +169,9 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         "hostRequests": len(host_requests),
         "hostRequestMethods": sorted(host_requests),
         "referencedRequests": len(called),
+        "rpcCallsiteRequests": len(call_sites),
+        "rpcCallsiteSources": dict(sorted(call_sites.items())),
+        "methodOnlyReferences": sorted(set(called) - set(call_sites)),
         "userFacingRequests": len(user_facing),
         "equivalentRequests": len(equivalents),
         "implementationEquivalents": dict(sorted(equivalents.items())),
@@ -166,10 +194,11 @@ def report_markdown(result: dict) -> str:
         f"- Android 可主动请求：**{result['clientRequests']}**", 
         f"- 内核向 Android 发起的 Host 请求：**{result['hostRequests']}**", 
         f"- Android 非声明目录代码中显式引用的官方请求：**{result['referencedRequests']}**",
+        f"- Android 静态 RPC 调用表达式所涉及方法：**{result['rpcCallsiteRequests']}**",
         f"- 用户可见请求总数：**{result['userFacingRequests']}**",
         f"- 已核对的本地等效/条件实现：**{result['equivalentRequests']}**",
         "",
-        "说明：引用率统计仅针对客户端请求，Host 主动请求单独核算。下文源码引用是静态字符串证据，页面操作成功、参数正确性和设备兼容性须另行验证。", 
+        "说明：方法名称引用与静态调用表达式单独统计。静态表达式仍可能被条件分支阻断；页面点击和实际运行成功须经 Android 设备验证。", 
         "",
         "| 分组 | 页面 | ID | 实际组件 | 源文件 |",
         "| --- | --- | --- | --- | --- |",
