@@ -286,7 +286,13 @@ fun SkillsPage(vm: CodexViewModel) {
                 ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
             }
         }
-        if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("目录中暂时没有技能。", color = Ink.muted) }
+        if (groups.isEmpty() && data["skills"] != null) {
+            CodexEmptyState("当前工作区没有可用技能",
+                "可以安装技能包并刷新目录，启用后即可在对话中使用。",
+                icon = Icons.Outlined.School, actionLabel = "重新读取技能",
+                onAction = { vm.refresh("skills", "skills/list",
+                    JSONObject().put("cwds", JSONArray().put(vm.workingDirectory))) })
+        }
     }
     confirmation?.let { (skill, enabled) ->
         CodexConfirmDialog(
@@ -568,7 +574,11 @@ fun HooksPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (groups.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) { Text("尚未载入运行钩子。", color = Ink.muted) }
+        if (groups.isEmpty() && data["hooks"] != null) {
+            CodexEmptyState("没有可用的运行钩子",
+                "当前工作区没有注册可显示的触发器。",
+                icon = Icons.Outlined.Bolt)
+        }
     }
 }
 

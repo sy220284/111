@@ -320,6 +320,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
+    val loading by vm.loading.collectAsState()
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]
     val permissionProfiles = records(data["permissionProfiles"])
@@ -386,7 +387,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             CodexPrimaryButton(
                 onClick = { confirm = true },
-                enabled = hasChanges,
+                enabled = hasChanges && "securitySave" !in loading,
+                busy = "securitySave" in loading,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 Text("保存本次权限调整")

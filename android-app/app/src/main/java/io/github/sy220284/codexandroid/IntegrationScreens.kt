@@ -103,7 +103,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
             vm.refresh("appInstalled", "app/installed")
         })
-        if (apps.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
+        if (apps.isEmpty() && data["apps"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
             Text("检查登录状态，或进入插件管理查看可用的扩展。",
                 color = Ink.muted)
@@ -235,7 +235,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }) { Icon(Icons.Outlined.Refresh, null); Text("刷新服务") }
         }
         IntegrationState(vm, "mcp") { vm.refresh("mcp", "mcpServerStatus/list") }
-        if (servers.isEmpty()) MaterialPanel(Modifier.fillMaxWidth()) {
+        if (servers.isEmpty() && data["mcp"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("当前没有已注册的 MCP 服务", color = Ink.muted)
             Text("可通过 Codex 配置页设置服务，或通过插件安装所需服务。", color = Ink.muted)
         }
