@@ -62,6 +62,29 @@ class RpcProcessChannelTest {
         channel.closeWriter()
     }
 
+    @Test fun malformedResultFromProcessIsRejectedAtRpcBoundary() = runBlocking {
+        val process = MockCodexProcess(listOf(
+            """{"id":1,"result":{"thread":{"id":"thread-1"}}}""",
+            """{"id":2,"result":null}"""
+        ))
+        val channel = RpcProcessChannel(process)
+        val results = mutableListOf<JSONObject>()
+        try {
+            channel.readFrames { envelope ->
+                if (RpcEnvelopeRouter.classify(envelope) == RpcEnvelopeKind.Response) {
+                    results += RpcResponseContract.requireResult("thread/start", envelope)
+                }
+            }
+            fail("应拒绝内核缺失的响应结果")
+        } catch (failure: IllegalStateException) {
+            assertEquals(1, results.size)
+            assertEquals("thread-1", results[0].getJSONObject("thread").getString("id"))
+            assertTrue(failure.message.orEmpty().contains("结果为空或类型错误"))
+        } finally {
+            channel.closeWriter()
+        }
+    }
+
     @Test fun rejectsMalformedFrameInsteadOfSilentlySkippingIt() = runBlocking {
         val channel = RpcProcessChannel(MockCodexProcess(listOf(
             """{"method":"turn/started","params":{}}""", "{invalid json"
