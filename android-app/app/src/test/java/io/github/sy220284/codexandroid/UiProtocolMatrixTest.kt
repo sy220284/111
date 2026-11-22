@@ -7,17 +7,17 @@ class UiProtocolMatrixTest {
     @Test fun everyProtocolMethodHasExactlyOneUiExposure() {
         assertEquals(195, UiProtocolMatrix.all.size)
         assertEquals(195, UiProtocolMatrix.byMethod.size)
-        assertEquals(39, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
+        assertEquals(38, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
         assertEquals(43, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
         assertEquals(52, UiProtocolMatrix.advanced.size)
-        assertEquals(61, UiProtocolMatrix.systemOnly.size)
+        assertEquals(62, UiProtocolMatrix.systemOnly.size)
     }
 
     @Test fun agentTransportProtocolsRemainInternal() {
         listOf("process/spawn", "process/writeStdin", "process/resizePty",
             "thread/realtime/appendAudio", "mcpServer/event/stream/start",
             "plugin/reconcile", "hooks/list", "mcpServer/tool/call",
-            "mcpServer/resource/read").forEach { method ->
+            "mcpServer/resource/read", "app/read").forEach { method ->
             assertEquals(method, ApiExposure.Internal, UiProtocolMatrix.byMethod[method]?.exposure)
         }
         assertFalse("后台钩子不应自动成为设置入口", "hooks" in UiFeatureCatalog.byRoute)
