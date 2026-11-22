@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,15 @@ data class TimelineItem(
     val evidence: String = ""
 )
 
+/** Import ownership is tied to the original thread, not the screen lifetime. */
+data class AttachmentImportState(
+    val threadKey: String = ThreadComposerDrafts.NEW_THREAD,
+    val inProgress: Boolean = false,
+    val imported: Int = 0,
+    val requested: Int = 0,
+    val message: String = ""
+)
+
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
@@ -35,6 +45,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val running = MutableStateFlow(false)
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
     val composerDrafts = MutableStateFlow(DraftPersistence.load(application.applicationContext))
+    val attachmentImport = MutableStateFlow(AttachmentImportState())
+    private var imagePickOwner: String? = null
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     /** Successful IDs remain visible during partial failures so UI can keep only unfinished selections. */
@@ -322,6 +334,93 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun editComposerImages(threadId: String?, paths: List<String>) {
         composerDrafts.update { ThreadComposerDrafts.images(it, threadId, paths) }
+    }
+
+    /** Called before launching the Android photo picker; survives page disposal. */
+    fun beginImageSelection(threadId: String?) {
+        imagePickOwner = threadId
+    }
+
+    /** Importing uses application-scoped work and keeps the picker owner immutable. */
+    fun importPickedImages(selected: List<Uri>) {
+        val owner = imagePickOwner
+        imagePickOwner = null
+        if (selected.isEmpty()) return
+        val key = ThreadComposerDrafts.key(owner)
+        if (attachmentImport.value.inProgress) {
+            attachmentImport.value = attachmentImport.value.copy(
+                message = "还有图片正在导入，请等本次完成后重新选择")
+            return
+        }
+        val capacity = (LocalImageAttachments.MAX_FILES -
+            composerDrafts.value[key]?.images.orEmpty().size).coerceAtLeast(0)
+        val accepted = selected.take(capacity)
+        if (accepted.isEmpty()) {
+            attachmentImport.value = AttachmentImportState(
+                threadKey = key, message = "每条会话最多添加 3 张图片，请先移除一张")
+            return
+        }
+        attachmentImport.value = AttachmentImportState(
+            threadKey = key, inProgress = true, requested = accepted.size)
+        viewModelScope.launch {
+            val failures = mutableListOf<String>()
+            var added = 0
+            for (uri in accepted) {
+                try {
+                    val path = LocalImageAttachments.importFrom(getApplication(), uri)
+                    val current = composerDrafts.value[key]?.images.orEmpty()
+                    if (current.size < LocalImageAttachments.MAX_FILES) {
+                        composerDrafts.update { previous ->
+                            val newest = previous[key]?.images.orEmpty()
+                            if (newest.size < LocalImageAttachments.MAX_FILES) {
+                                ThreadComposerDrafts.images(previous, owner, newest + path)
+                            } else previous
+                        }
+                        if (path in composerDrafts.value[key]?.images.orEmpty()) added++
+                        else LocalImageAttachments.release(getApplication(), path)
+                    } else {
+                        LocalImageAttachments.release(getApplication(), path)
+                    }
+                } catch (failure: Exception) {
+                    failures += (failure.message ?: "无法导入所选图片")
+                }
+                attachmentImport.value = attachmentImport.value.copy(imported = added)
+            }
+            val skipped = selected.size - accepted.size
+            val result = when {
+                failures.isNotEmpty() -> "已导入 ${added} 张；" +
+                    failures.distinct().joinToString("；")
+                skipped > 0 -> "已导入 ${added} 张，另有 ${skipped} 张超出剩余名额"
+                else -> ""
+            }
+            attachmentImport.value = AttachmentImportState(
+                threadKey = key, imported = added, requested = accepted.size, message = result
+            )
+        }
+    }
+
+    /** A removal also survives navigation; failure appears in the shared error flow. */
+    fun removeComposerImage(threadId: String?, path: String) {
+        composerDrafts.update { previous ->
+            val current = previous[ThreadComposerDrafts.key(threadId)]?.images.orEmpty()
+            ThreadComposerDrafts.images(previous, threadId, current - path)
+        }
+        viewModelScope.launch {
+            try {
+                LocalImageAttachments.release(getApplication(), path)
+                errors.value = errors.value - "attachments"
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("attachments" to
+                    (failure.message ?: "无法清理该图片缓存"))
+            }
+        }
+    }
+
+    fun reportFullAttachmentSelection(threadId: String?) {
+        attachmentImport.value = AttachmentImportState(
+            threadKey = ThreadComposerDrafts.key(threadId),
+            message = "每条会话最多添加 3 张图片，请先移除一张"
+        )
     }
 
     fun clearComposerAfterAccepted(
