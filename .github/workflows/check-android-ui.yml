@@ -70,6 +70,16 @@ jobs:
           gradle-version: "8.11.1"
       - name: 校验官方Rust协议方法、方向、DTO和通知清单
         run: python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
+      - name: 对照Rust类型与稳定JSON Schema校验请求响应字段
+        run: |
+          python3 android-app/tools/check_protocol_schema_alignment.py \
+            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
+            --schemas upstream/codex/codex-rs/app-server-protocol/schema/json/v2 \
+            --thread-types upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs \
+            --android-project android-app/app/src/main/java/io/github/sy220284/codexandroid/ProjectRequestContract.kt \
+            --android-connection android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt \
+            --report protocol-contract-audit.json
+          python3 -m unittest discover -s android-app/tools -p 'test_check_protocol_schema_alignment.py'
       - name: 验证协议校验器正确区分请求与通知
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_protocol_methods.py'
       - name: 对照官方 Codex 接口清单，验证 UI 中所有协议方法
@@ -117,6 +127,7 @@ jobs:
             android-app/app/build/test-results/testDebugUnitTest/
             ui-coverage.md
             ui-coverage.json
+            protocol-contract-audit.json
           if-no-files-found: ignore
           retention-days: 14
       - name: 保存独立编译的 UI 与设备测试安装包
