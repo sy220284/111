@@ -1,0 +1,114 @@
+package io.github.sy220284.codexandroid
+
+import java.io.File
+import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+
+/** Owns running terminal/PTY commands and persistent stdout/stderr receipts. */
+internal class TerminalTaskOperations(
+    private val vm: CodexViewModel,
+    private val scope: CoroutineScope
+) {
+    private val terminalSession get() = vm.terminalSession
+    private val activeWorkspace get() = vm.activeWorkspace
+    private val workspaceRoot get() = File(vm.workingDirectory).canonicalFile
+    private val terminalTranscript get() = vm.terminalTranscript
+    private val errors get() = vm.errors
+    private val bridge get() = vm.bridge
+    private fun rpc(key: String, method: String, params: JSONObject) =
+        vm.rpc(key, method, params)
+
+    /** Terminal commands are always launched from an explicitly confirmed UI action. */
+    fun startTerminalCommand(command: String, tty: Boolean = false) {
+        if (vm.connectionRestarter.busy.value) {
+            errors.value = errors.value + ("terminal" to "正在重新连接内核，请稍后执行命令")
+            return
+        }
+        if (terminalSession.value.running) {
+            errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
+            return
+        }
+        val cwd = try {
+            WorkspaceSelectionContract.validate(workspaceRoot, File(activeWorkspace.value))
+                .absolutePath
+        } catch (error: Exception) {
+            errors.value = errors.value + ("terminal" to
+                (error.message ?: "任务项目目录不可用，请重新选择"))
+            return
+        }
+        val id = UUID.randomUUID().toString()
+        val args = TerminalSessionContract.execute(command, cwd, id, tty)
+        terminalSession.value = TerminalSessionState.start(id, command, tty)
+        errors.value = errors.value - "terminal"
+        scope.launch {
+            try {
+                terminalTranscript.begin(id)
+                val result = bridge.request("command/exec", args, timeoutMillis = null)
+                terminalTranscript.appendTail(id, result)
+                val active = terminalSession.value
+                if (active.processId == id) terminalSession.value = active.finish(result)
+            } catch (failure: Exception) {
+                val active = terminalSession.value
+                if (active.processId == id) {
+                    terminalSession.value = active.fail(failure.message ?: "终端命令执行失败")
+                }
+            }
+        }
+    }
+
+    fun resizeTerminal(rows: Int, cols: Int) {
+        val current = terminalSession.value
+        if (!current.running || !current.tty) {
+            errors.value = errors.value + ("terminalResize" to "请先启动交互式终端")
+            return
+        }
+        val params = try {
+            TerminalSessionContract.resize(current.processId, rows, cols)
+        } catch (failure: IllegalArgumentException) {
+            errors.value = errors.value + ("terminalResize" to
+                (failure.message ?: "终端尺寸输入无效"))
+            return
+        }
+        rpc("terminalResize", "command/exec/resize", params)
+    }
+
+    fun sendTerminalInput(line: String, afterSent: () -> Unit = {}) {
+        val state = terminalSession.value
+        if (!state.running || state.terminating) return
+        val args = TerminalSessionContract.write(state.processId, line)
+        scope.launch {
+            try {
+                bridge.request("command/exec/write", args)
+                errors.value = errors.value - "terminalInput"
+                afterSent()
+            } catch (failure: Exception) {
+                errors.value = errors.value + ("terminalInput" to
+                    (failure.message ?: "终端输入失败"))
+            }
+        }
+    }
+
+    fun stopTerminalCommand() {
+        val active = terminalSession.value
+        if (!active.running || active.terminating) return
+        terminalSession.value = active.copy(terminating = true)
+        scope.launch {
+            try {
+                bridge.request("command/exec/terminate",
+                    TerminalSessionContract.terminate(active.processId))
+                errors.value = errors.value - "terminalStop"
+            } catch (failure: Exception) {
+                val current = terminalSession.value
+                if (current.processId == active.processId && current.running) {
+                    terminalSession.value = current.copy(terminating = false)
+                    errors.value = errors.value + ("terminalStop" to
+                        (failure.message ?: "无法停止终端命令"))
+                }
+            }
+        }
+    }
+
+
+}

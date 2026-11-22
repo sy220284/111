@@ -61,6 +61,7 @@ class CodexConnection(private val appContext: Context) {
         prompts.value = emptyList()
         recentStderr.value = emptyList()
         val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+        val codeModeHost = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
         val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
         val workspace = File(appContext.filesDir, "projects").apply { mkdirs() }
         val temp = File(appContext.cacheDir, "codex-tmp").apply { mkdirs() }
@@ -71,10 +72,18 @@ class CodexConnection(private val appContext: Context) {
             put("CODEX_HOME", home.absolutePath)
             put("TMPDIR", temp.absolutePath)
             put("PATH", "/system/bin:/system/xbin")
+            // Native CLI helpers may link against the NDK C++ runtime packaged
+            // next to the executable in the APK's extracted native library dir.
+            put("LD_LIBRARY_PATH", appContext.applicationInfo.nativeLibraryDir)
             put("TERM", "xterm-256color")
         }
         try {
             require(path.isFile) { "APK 中未找到当前设备 ABI 的 Codex 运行核心，请检查发布包。" }
+            require(codeModeHost.isFile) {
+                "APK 缺少当前设备 ABI 的 Code Mode Host，请安装包含完整运行组件的版本。"
+            }
+            val toolsDir = NativeToolInstaller.prepare(appContext)
+            builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
             val child = builder.start()
             process = child
             writer = BufferedWriter(OutputStreamWriter(child.outputStream, Charsets.UTF_8))

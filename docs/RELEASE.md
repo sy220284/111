@@ -2,12 +2,12 @@
 
 ## 自动发布顺序
 
-1. 向 `main` 合并客户端源码后，安卓版本构建与独立 UI 验收分别执行双架构 APK、Android 35 模拟器测试及界面回归。原生构建优先查找**源码树、依赖修补器、上游版本和 Rust/NDK 编译配方完全相同**的旧构建，两种 ABI 产物均有效时跳过重复编译；真实编译输入变化、产物缺失或过期时重新编译。
+1. 向 `main` 合并客户端源码后，安卓版本构建与独立 UI 验收分别执行双架构 APK、Android 35 模拟器测试及界面回归。原生构建优先查找**源码树、Android 适配器、V8 构建器、上游版本和 Rust/NDK 编译配方完全相同**的旧构建，两种 ABI 产物均有效时跳过重复编译；真实编译输入变化、产物缺失或过期时重新编译。
 2. 仅当**同一源码提交**的两项 Android 验收都在 `main` **成功**时，「111 Android 正式发布」才会继续进入版本检查。两项检查的先后顺序不限；也可以从 Actions 手动启动发布，但同样需要这两项成功记录。
 3. 比较上一个正式 Release 到本次源码的变更：只有 `android-app/`、`upstream/codex/`、`CODEX_UPSTREAM_COMMIT` 或原生构建流程变化时才生成新 APK。已发布的源码提交、纯文档调整会跳过。
 4. 从有效版本标签及 `.github/release-version` 计算单调递增的版本号与 Android `versionCode`，禁止复用曾发布的编号。
 5. 从成功的原生构建记录中选择**完整输入完全一致、运行提交属于当前主分支历史且产物尚未过期**的 ARM64 内核。普通 Android 修改复用同一原生内核；Android 设备测试需要同时找到 ARM64 与 x86_64 两个产物。若未找到合格产物，先执行原生构建，再完成设备验收。
-6. 验证 ARM64 ELF 的架构、Android 动态链接器与 16 KB 加载段对齐，使用 NDK 去除符号并装配手机 APK。
+6. 原生构建同时生成 App Server 与独立 Code Mode Host，V8 与 Cargo.lock 的版本、Android 架构和沙箱配置必须匹配；逐一核验 ELF 架构、动态链接器、16 KB 对齐及所需共享库，再组装手机 APK。
 7. 运行 Kotlin 单元测试和 Release Lint，仅生成一个 **ARM64 正式签名手机 APK**；再核验版本号、包名、签名证书、APK 文件完整性和 ABI 隔离。
 8. 由合并 PR 生成中文更新说明；仅上传 ARM64 手机完整 APK、`SHA256SUMS.txt`、`update-manifest.json`。有可用上版手机 APK 时尝试生成 ARM64 二进制增量包，必须通过原样回放、SHA-256 对照且小于完整包的 65% 才会发布。
 9. 新 Release 发布后自动保留最近 3 个正式 Release（历史 Git 标签与提交保留）。**没有任何定时清理任务**。
@@ -57,8 +57,9 @@ Actions 现有的调试包签名与正式包签名不同。第一次由调试包
 - 更新器显示当前已安装版本，并优先进行增量恢复；旧缓存按版本清理。HDiffPatch v5.1.3 的 MIT 及第三方许可文本随 APK 放在 `assets/licenses/HDiffPatch-LICENSE.txt`。
 
 
-- 在 PR 中发布工作流会执行中文更新说明、手机 APK 产物清单测试、Release 签名构建及 Shell 语法检查，不生成正式 Release。
-- 原生内核采用统一的复用校验：上游源码目录树、`CODEX_UPSTREAM_COMMIT` 记录的源码版本、Android 编译修补器以及原生构建的编译步骤一致；工作流触发条件、编译前缓存判断和产物上传保留期变化不会让内核失效。原生编译产物保留 90 天，过期后自动进入重新编译流程。
+- PR 内的 Release 签名构建属于打包和签名冒烟测试；只有原生构建、完整双组件 APK 和 Android 35 真正启动测试均通过，才算运行核心验收通过。
+- Code Mode Host 在 Android 使用 APK 内 `libcodex_code_mode_host.so`。构建时为 ARM64 核对固定 SHA-256 的 V8 152.2.0 沙箱产物，x86_64 使用锁定提交的官方 V8 源码进行沙箱编译，并通过独立进程初始化 V8 与健康探测两项测试。
+- 原生内核采用统一的复用校验：上游源码目录树、`CODEX_UPSTREAM_COMMIT` 记录的源码版本、Android 适配器、V8 沙箱构建器与原生编译步骤一致；工作流触发条件、编译前缓存判断和产物上传保留期变化不会让内核失效。原生编译产物保留 90 天，过期后自动进入重新编译流程。
 - 缺少签名 Secret、可复用原生核心、签名失败或 APK 校验不通过，均会阻止正式发布。
 - 每个 Release 保留源提交哈希、ARM64 手机完整 APK、SHA-256 和中文变更记录。
 - 发布记录：[GitHub Releases](https://github.com/sy220284/111/releases)；工作流：[111 Android 正式发布](https://github.com/sy220284/111/actions/workflows/release.yml)。

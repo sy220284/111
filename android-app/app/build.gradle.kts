@@ -55,7 +55,6 @@ android {
     }
     buildTypes {
         release {
-            // Optimize Kotlin/Compose bytecode and remove unused Android resources.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -74,6 +73,9 @@ android {
         jniLibs {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libcodex_server.so"
+            keepDebugSymbols += "**/libcodex_code_mode_host.so"
+            keepDebugSymbols += "**/libcodex_rg.so"
+            keepDebugSymbols += "**/libcodex_git.so"
         }
     }
     // Enabled only in the native APK pipeline. Standalone UI verification keeps
@@ -82,11 +84,7 @@ android {
         abi {
             isEnable = providers.gradleProperty("codexSplitAbi").orNull == "true"
             reset()
-            if (releaseTargetAbi == "arm64-v8a") {
-                include("arm64-v8a")
-            } else {
-                include("arm64-v8a", "x86_64")
-            }
+            include("arm64-v8a")
             isUniversalApk = false
         }
     }
