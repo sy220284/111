@@ -12,12 +12,14 @@ on:
       - "android-app/tools/prepare_android_code_mode.py"
       - "android-app/tools/prepare_android_v8.sh"
       - "android-app/tools/adapt_android_v8_build.py"
+      - "android-app/tools/build_android_git.sh"
   pull_request:
     paths:
       - ".github/workflows/build-native-codex.yml"
       - "android-app/tools/prepare_android_code_mode.py"
       - "android-app/tools/prepare_android_v8.sh"
       - "android-app/tools/adapt_android_v8_build.py"
+      - "android-app/tools/build_android_git.sh"
       - "android-app/tools/package_native_runtime.sh"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
@@ -103,6 +105,7 @@ jobs:
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
+            android-app/tools/build_android_git.sh
       - name: 检查源码快照版本
         run: |
           set -euo pipefail
@@ -214,7 +217,9 @@ jobs:
             --target "$TARGET" --root "$RUNNER_TEMP/ripgrep-install" --jobs 2
           test -s "$RUNNER_TEMP/ripgrep-install/bin/rg"
           cp "$RUNNER_TEMP/ripgrep-install/bin/rg" "target/$TARGET/release/rg"
-          for NAME in codex-app-server codex-code-mode-host rg; do
+          bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
+            "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
+          for NAME in codex-app-server codex-code-mode-host rg git; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
             file "$CORE"
@@ -238,5 +243,6 @@ jobs:
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-app-server
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-code-mode-host
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/rg
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/git
           if-no-files-found: error
           retention-days: 90

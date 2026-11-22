@@ -9,22 +9,30 @@ import java.nio.file.LinkOption
 object NativeToolInstaller {
     fun prepare(context: Context): File {
         val nativeDir = File(context.applicationInfo.nativeLibraryDir).canonicalFile
-        val ripgrep = File(nativeDir, "libcodex_rg.so")
-        require(ripgrep.isFile) { "APK 缺少当前设备架构的文件搜索工具 rg，请安装完整运行包" }
         val tools = File(context.filesDir, "native-tools").apply { mkdirs() }
-        val link = File(tools, "rg").toPath()
-        val target = ripgrep.toPath()
-        if (Files.isSymbolicLink(link)) {
-            if (Files.readSymbolicLink(link) == target) return tools
-            Files.delete(link)
-        } else {
-            require(!Files.exists(link, LinkOption.NOFOLLOW_LINKS)) {
-                "文件搜索工具入口存在异常文件：$link"
+        val required = mapOf(
+            "rg" to "libcodex_rg.so",
+            "git" to "libcodex_git.so"
+        )
+        required.forEach { (name, library) ->
+            val executable = File(nativeDir, library)
+            require(executable.isFile) {
+                "APK 缺少当前设备架构的本地开发工具 $name，请安装完整运行包"
             }
-        }
-        Files.createSymbolicLink(link, target)
-        require(Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == target) {
-            "无法创建本机文件搜索工具入口"
+            val link = File(tools, name).toPath()
+            val target = executable.toPath()
+            if (Files.isSymbolicLink(link)) {
+                if (Files.readSymbolicLink(link) == target) return@forEach
+                Files.delete(link)
+            } else {
+                require(!Files.exists(link, LinkOption.NOFOLLOW_LINKS)) {
+                    "本机 $name 命令入口存在异常文件：$link"
+                }
+            }
+            Files.createSymbolicLink(link, target)
+            require(Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == target) {
+                "无法建立本机 $name 命令入口"
+            }
         }
         return tools
     }

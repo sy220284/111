@@ -73,6 +73,7 @@ android {
             keepDebugSymbols += "**/libcodex_server.so"
             keepDebugSymbols += "**/libcodex_code_mode_host.so"
             keepDebugSymbols += "**/libcodex_rg.so"
+            keepDebugSymbols += "**/libcodex_git.so"
         }
     }
     // Enabled only in the native APK pipeline. Standalone UI verification keeps

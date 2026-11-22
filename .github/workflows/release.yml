@@ -46,6 +46,7 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_android_code_mode.py'
           bash -n android-app/tools/package_native_runtime.sh
           bash -n android-app/tools/prepare_android_v8.sh
+          bash -n android-app/tools/build_android_git.sh
           python3 -m unittest discover -s android-app/tools -p 'test_adapt_android_v8_build.py'
 
 
@@ -366,6 +367,7 @@ jobs:
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_server.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_code_mode_host.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_rg.so'
+          unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libcodex_git.so'
           unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
           unzip -Z1 "$APK" | grep -Fxq 'classes.dex'
           if unzip -Z1 "$APK" | grep -Fxq 'lib/x86_64/libcodex_server.so'; then

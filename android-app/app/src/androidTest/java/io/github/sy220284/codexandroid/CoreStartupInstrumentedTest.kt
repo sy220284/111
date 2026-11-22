@@ -81,6 +81,34 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun bundledNativeGitCanTrackLocalProject() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bin = NativeToolInstaller.prepare(app)
+        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val folder = File(workspace, "git-android-verification").apply { mkdirs() }
+        val file = File(folder, "CODEX-VERIFIED.txt")
+        file.writeText("codex git android test")
+        val shell = "git init -q && git add CODEX-VERIFIED.txt && " +
+            "git -c user.name=Codex -c user.email=codex@example.invalid " +
+            "commit -qm verified && git status --porcelain && git log -1 --format=%s"
+        val process = ProcessBuilder("/system/bin/sh", "-c", shell)
+            .directory(folder)
+            .redirectErrorStream(true)
+            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .start()
+        try {
+            val ended = process.waitFor(30, TimeUnit.SECONDS)
+            org.junit.Assert.assertTrue("Native Git did not finish", ended)
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals("Native Git failed: $output", 0, process.exitValue())
+            org.junit.Assert.assertTrue("No persisted commit: $output",
+                output.lines().any { it.trim() == "verified" })
+        } finally {
+            process.destroyForcibly()
+            WorkspaceFileActions.delete(workspace, folder)
+        }
+    }
+
     @Test fun bundledRipgrepSearchesAndroidProjectWorkspace() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bin = NativeToolInstaller.prepare(app)

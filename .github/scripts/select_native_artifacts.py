@@ -57,9 +57,12 @@ class ArtifactSelector:
         v8_host_adapter = self.run([
             "git", "ls-tree", sha, "--", "android-app/tools/adapt_android_v8_build.py"
         ])
+        git_builder = self.run([
+            "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
+        ])
         version = self.run(["git", "show", f"{sha}:CODEX_UPSTREAM_COMMIT"]).splitlines()[0]
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, patcher, code_mode_adapter, v8_builder, v8_host_adapter, version, native_recipe(workflow))
+        return (upstream, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, version, native_recipe(workflow))
 
     def is_ancestor(self, old, new):
         # Not an error: candidates from a previous main history can be skipped.
