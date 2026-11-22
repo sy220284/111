@@ -259,7 +259,7 @@ fun WorkspaceActionsSheet(
                 }
             }
             val routes = if (onPickImage == null) NavigationPolicy.quickToolRoutes
-                else listOf("files","terminal","diff","review","plugins","modes")
+                else listOf("files","terminal","diff","review","goals","plugins","modes")
             routes.forEach { id ->
                 val item = pages.first { it.id == id }
                 val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread

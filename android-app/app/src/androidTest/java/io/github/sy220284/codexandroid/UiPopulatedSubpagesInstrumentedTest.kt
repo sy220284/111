@@ -118,7 +118,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
-        rule.onNodeWithText("补充", substring = false).assertExists()
+        rule.onNodeWithContentDescription("补充任务指令").assertExists()
         capture("audit-composer-running-android35.png")
         rule.onNodeWithTag("composer-stop").performClick()
         rule.onNodeWithTag("composer-send").performClick()

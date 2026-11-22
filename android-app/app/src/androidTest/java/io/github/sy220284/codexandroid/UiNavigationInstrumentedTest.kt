@@ -57,7 +57,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("从一项任务开始").assertIsDisplayed()
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("聊天", substring = false).assertExists()
+        rule.onNodeWithTag("nav-chat").assertExists()
         rule.onNodeWithTag("nav-settings").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
@@ -69,6 +69,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
         capture("chat-android35.png")
+    }
+
+    @Test fun chatAndWorkTabsPreserveTheSamePrimaryNavigation() {
+        rule.onNodeWithTag("tab-chat").performClick()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("tab-home").performClick()
+        rule.onNodeWithText("从一项任务开始").assertExists()
+        rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("nav-chat").assertExists()
+        rule.onNodeWithTag("nav-files").assertExists()
+        rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
+        rule.onNodeWithText("查看更多").performClick()
+        rule.onNodeWithTag("nav-plugins").assertExists()
     }
 
     @Test fun chatKeepsStopAndSendControlsReachable() {
@@ -288,8 +302,9 @@ class UiNavigationInstrumentedTest {
     @Test fun desktopStyleSidebarIsTheOnlyPrimaryNavigation() {
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithText("工作台", substring = false).assertExists()
-        rule.onNodeWithText("工作区", substring = false).assertExists()
+        rule.onNodeWithTag("nav-home").assertExists()
+        rule.onNodeWithTag("nav-files").assertExists()
+        rule.onNodeWithText("查看更多").assertExists()
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
@@ -432,20 +447,21 @@ class UiNavigationInstrumentedTest {
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithTag("quick-review").performClick()
         rule.onNodeWithText("审查范围").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithTag("quick-goals").performClick()
         rule.onNodeWithText("设置新目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
     }
 
     @Test fun toolbarQuickActionsCanOpenProjectTools() {
-        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("tab-chat").performClick()
+        rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         rule.onNodeWithTag("quick-diff").performClick()
         // Diff 需要活动会话；未选择时先进入可选会话资料库。
