@@ -28,6 +28,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private val restoredWorkspace = WorkspaceSelectionContract.restore(
         workspaceRoot, workspacePreferences.getString("activeDirectory", null))
     val activeWorkspace = MutableStateFlow(restoredWorkspace.directory.absolutePath)
+    val activeProjectId = MutableStateFlow<String?>(null)
     val activeThread = MutableStateFlow<String?>(null)
     val threadSwitching = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
@@ -188,6 +189,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     workspaceRoot, File(history.getJSONObject("thread").getString("cwd")))
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
                 activeWorkspace.value = threadDirectory.absolutePath
+                activeProjectId.value = history.getJSONObject("thread")
+                    .optString("projectId").takeIf { it.isNotBlank() }
                 workspacePreferences.edit()
                     .putString("activeDirectory", threadDirectory.absolutePath).apply()
                 data.value = data.value + ("threadHistory" to history)
@@ -212,8 +215,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         if (selected.absolutePath == activeWorkspace.value && activeThread.value == null) return
         if (activeThread.value != null) newThread()
         activeWorkspace.value = selected.absolutePath
+        activeProjectId.value = null
         workspacePreferences.edit().putString("activeDirectory", selected.absolutePath).apply()
         errors.value = errors.value - "workspace"
+    }
+
+    /** Attach an existing Codex project identity to subsequent work and its cwd. */
+    fun selectProject(projectId: String, folder: File) {
+        require(projectId.isNotBlank()) { "项目编号不可为空" }
+        selectWorkspace(folder)
+        activeProjectId.value = projectId
     }
 
     fun newThread() {
@@ -262,6 +273,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
         val chosenWorkspace = activeWorkspace.value
+        val chosenProject = activeProjectId.value
         viewModelScope.launch {
             timeline.value = timeline.value + TimelineItem(
                 "user-" + System.nanoTime(), "user",
@@ -289,8 +301,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (id == null) {
                     val cwd = WorkspaceSelectionContract.validate(
                         workspaceRoot, File(chosenWorkspace)).absolutePath
-                    val args = JSONObject().put("cwd", cwd)
-                    if (chosenModel.isNotBlank()) args.put("model", chosenModel)
+                    val args = ProjectRequestContract.threadStart(
+                        File(cwd), chosenProject, chosenModel)
                     val createdId = bridge.request("thread/start", args)
                         .getJSONObject("thread").getString("id")
                     composerDrafts.update {

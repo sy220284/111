@@ -163,6 +163,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
             }
         }
+        item { ProjectRegistryPanel(vm, folder) }
         if (notice.isNotBlank()) item {
             CodexNotice(notice, if (notice.startsWith("已")) NoticeTone.Success else NoticeTone.Warning)
         }
