@@ -130,6 +130,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val previousThread = activeThread.value
             bridge.connect()
+            // A new native process invalidates ephemeral status from the old session.
+            threadActivities.value = emptyMap()
             errors.value = errors.value - "engine"
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
