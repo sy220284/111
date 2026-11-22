@@ -101,7 +101,7 @@ class CoreStartupInstrumentedTest {
                         socket.connect(InetSocketAddress("127.0.0.1", port), 300)
                         socket.soTimeout = 1000
                         socket.getOutputStream().write(
-                            "GET /healthz HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n"
+                            "GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"
                                 .toByteArray(Charsets.US_ASCII)
                         )
                         val response = socket.getInputStream().bufferedReader().readLine()
