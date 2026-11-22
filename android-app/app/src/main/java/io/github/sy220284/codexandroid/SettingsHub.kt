@@ -194,7 +194,7 @@ private fun AppearanceSettingToggle(
     }
 }
 
-/** 与输入框附件菜单分离：这里只呈现工作区和当前会话工具。 */
+/** 文件和任务扩展入口统一使用一列明确操作，输入区模式采用参考截图的圆形图标列表。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspaceActionsSheet(
@@ -202,69 +202,101 @@ fun WorkspaceActionsSheet(
     imageCount: Int = 0, importing: Boolean = false, onPickImage: (() -> Unit)? = null
 ) {
     fun openTool(route: String) {
-        // The hosting page completes the route change after this window is removed.
+        // 先完成关闭，再交由宿主处理真实路由，避免多张浮层同时出现。
         onDismiss()
         navigate(route)
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
-            .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (onPickImage == null) "工作区工具" else "任务工具与附件",
-                style = MaterialTheme.typography.headlineSmall)
-            Text("文件与终端随时可用；代码审查和任务队列需要选中会话。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        dragHandle = {
+            if (onPickImage == null) BottomSheetDefaults.DragHandle(color = Ink.border)
+        }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = 500.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 19.dp, vertical = 12.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Text(if (onPickImage == null) "工作区工具" else "添加附件",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 7.dp, top = 8.dp, bottom = 8.dp))
             if (onPickImage != null) {
-                Text("添加附件", style = MaterialTheme.typography.titleMedium)
-                OutlinedButton(
-                    onClick = { onDismiss(); onPickImage() },
-                    enabled = !importing && imageCount < LocalImageAttachments.MAX_FILES,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)
+                val imageAllowed = !importing &&
+                    imageCount < LocalImageAttachments.MAX_FILES
+                Surface(
+                    modifier = Modifier.fillMaxWidth()
                         .testTag("attachment-pick-image")
+                        .clickable(enabled = imageAllowed) {
+                            onDismiss()
+                            onPickImage()
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Ink.canvas
                 ) {
-                    Icon(Icons.Outlined.AddPhotoAlternate, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("从相册或文件选择图片")
-                }
-                if (imageCount >= LocalImageAttachments.MAX_FILES)
-                    Text("最多添加三张图片，移除已有附件后可继续。",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                HorizontalDivider(color = Ink.border)
-            }
-            NavigationPolicy.quickToolRoutes.chunked(3).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { id ->
-                        val item = pages.first { it.id == id }
-                        val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
-                        Surface(
-                            modifier = Modifier.weight(1f).testTag("quick-$id")
-                                .clickable { openTool(if(allowed) id else "threads") },
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, if(allowed) Ink.border else Ink.copperDim),
-                            color = Ink.canvas
-                        ) {
-                            Column(Modifier.padding(vertical = 15.dp, horizontal = 6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                Icon(item.icon, null, tint = if (allowed) Ink.copper else Ink.muted,
-                                    modifier = Modifier.size(23.dp))
-                                Text(item.title, maxLines = 1,
-                                    style = MaterialTheme.typography.labelMedium)
-                                if (!allowed) Text("先选会话",
-                                    style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                            }
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                        .padding(horizontal = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(44.dp).background(Color(0xFFF0F0F0), CircleShape),
+                            contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.AddPhotoAlternate, null,
+                                tint = if (imageAllowed) Ink.parchment else Ink.muted,
+                                modifier = Modifier.size(23.dp))
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Text("照片", style = MaterialTheme.typography.bodyLarge,
+                            color = if (imageAllowed) Ink.parchment else Ink.muted,
+                            modifier = Modifier.weight(1f))
+                        if (!imageAllowed) {
+                            Text(if (importing) "导入中" else "已达三张上限",
+                                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
             }
-            if (!hasThread) OutlinedButton(onClick = { openTool("threads") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.History, null)
-                Spacer(Modifier.width(8.dp))
-                Text("选择会话后使用任务工具")
+            val routes = if (onPickImage == null) NavigationPolicy.quickToolRoutes
+                else listOf("files","terminal","diff","review","plugins","modes")
+            routes.forEach { id ->
+                val item = pages.first { it.id == id }
+                val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
+                Surface(
+                    modifier = Modifier.fillMaxWidth().testTag("quick-$id")
+                        .clickable { openTool(if (allowed) id else "threads") },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Ink.canvas
+                ) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                        .padding(horizontal = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(44.dp).background(Color(0xFFF0F0F0), CircleShape),
+                            contentAlignment = Alignment.Center) {
+                            Icon(item.icon, null, tint = Ink.parchment,
+                                modifier = Modifier.size(23.dp))
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Text(item.title, style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f), color = Ink.parchment)
+                        if (!allowed) {
+                            Text("先选会话", style = MaterialTheme.typography.labelMedium,
+                                color = Ink.muted)
+                        } else {
+                            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
+                                modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
             }
-            Spacer(Modifier.height(10.dp))
+            if (!hasThread) {
+                Text("选择历史会话后可使用代码审查、目标和队列工具。",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
