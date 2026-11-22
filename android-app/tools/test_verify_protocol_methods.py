@@ -11,10 +11,15 @@ class ProtocolMethodParsingTest(unittest.TestCase):
         }
         ThreadStatusChanged => "thread/status/changed" (v2::ThreadStatusChangedNotification),
         AccountUpdated => "account/updated" (v2::AccountUpdatedNotification),
+        #[serde(rename = "account/login/completed")]
+        #[ts(rename = "account/login/completed")]
+        AccountLoginCompleted(v2::AccountLoginCompletedNotification),
         '''
         requests, notifications = protocol_methods(source)
         self.assertEqual({"thread/start"}, requests)
-        self.assertEqual({"thread/status/changed", "account/updated"}, notifications)
+        self.assertEqual({
+            "thread/status/changed", "account/updated", "account/login/completed"
+        }, notifications)
         self.assertNotIn("thread/status/changeTypo", requests | notifications)
 
     def test_notification_is_not_silently_treated_as_client_request(self):

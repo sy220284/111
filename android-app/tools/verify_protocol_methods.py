@@ -24,11 +24,17 @@ def is_standard_mime(value: str) -> bool:
 METHOD_PATTERN = re.compile(r'\b[a-z][a-zA-Z0-9_]+(?:/[a-zA-Z0-9_]+)+\b')
 EXPLICIT_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\{')
 NOTIFICATION_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\(')
+# A few official notifications use explicit serde attributes rather than the
+# normal macro wire-name arrow (for example account/login/completed).
+SERDE_NOTIFICATION = re.compile(r'(?m)^\s*#\[serde\(rename\s*=\s*"([^"]+/[^"]+)"\)\]')
 
 
 def protocol_methods(source: str) -> tuple[set[str], set[str]]:
     """Parse two distinct official protocol macro shapes."""
-    return set(EXPLICIT_METHOD.findall(source)), set(NOTIFICATION_METHOD.findall(source))
+    return set(EXPLICIT_METHOD.findall(source)), (
+        set(NOTIFICATION_METHOD.findall(source)) |
+        set(SERDE_NOTIFICATION.findall(source))
+    )
 
 
 def main() -> int:
