@@ -273,7 +273,8 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
     val selectedMode by vm.selectedMode.collectAsState()
     val currentTitle = thread?.let { threadId ->
-        records(models["threads"]).firstOrNull { it.optString("id") == threadId }?.let {
+        (records(models["sidebarThreads"]) + records(models["threads"]))
+            .firstOrNull { it.optString("id") == threadId }?.let {
             PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
         }
     }
@@ -334,6 +335,14 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
     var unreadSteps by remember { mutableIntStateOf(0) }
+    // 会话恢复后的时间线从当前会话末尾开始，不沿用上一会话的未读数和滚动位置。
+    LaunchedEffect(thread) {
+        followTail = true
+        unreadSteps = 0
+        lastKnownStepCount = items.size
+        if (items.isNotEmpty()) scroll.scrollToItem(items.lastIndex)
+        else scroll.scrollToItem(0)
+    }
     LaunchedEffect(scroll) {
         snapshotFlow {
             val total = scroll.layoutInfo.totalItemsCount
@@ -500,6 +509,10 @@ private fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 ErrorText(attachmentError)
             }
             errors["attachments"]?.let { ErrorText(it) }
+            if (busy && attachedImages.isNotEmpty()) {
+                Text("运行中仅支持补充文字；已选图片将在下一轮发送。",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
             LocalImageAttachmentStrip(attachedImages) { path ->
                 vm.editComposerImages(thread, attachedImages - path)
                 scope.launch {
