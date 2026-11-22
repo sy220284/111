@@ -96,6 +96,7 @@ fun ScreenColumn(
 private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
@@ -185,10 +186,9 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         } else {
             threads.take(2).forEach { item ->
-                ThreadRow(item, enabled = !switching && (!running ||
-                    vm.activeThread.value == item.optString("id"))) {
+                ThreadRow(item, enabled = !switching && !firstThreadStarting) {
                     val id = item.optString("id")
-                    if (!running) vm.chooseThread(id)
+                    if (vm.activeThread.value != id) vm.chooseThread(id)
                     navigate("chat")
                 }
             }
@@ -371,6 +371,7 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     ScreenColumn {
@@ -399,9 +400,8 @@ private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 actionLabel = "查看全部会话", onAction = { navigate("threads") })
         }
         records(data["search"]).forEach { entry ->
-            ThreadRow(entry, enabled = !switching && ThreadDisplayPolicy.canOpenThread(
-                running, activeThread, entry.optString("id"))) {
-                if (!running) vm.chooseThread(entry.optString("id"))
+            ThreadRow(entry, enabled = !switching && !firstThreadStarting) {
+                if (activeThread != entry.optString("id")) vm.chooseThread(entry.optString("id"))
                 navigate("chat")
             }
         }
