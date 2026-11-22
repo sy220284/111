@@ -211,6 +211,88 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val name = "Android 验证 " + UUID.randomUUID()
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val created = bridge.request("project/create",
+                    ProjectRequestContract.create(workspace, workspace, name))
+                val project = created.getJSONObject("project")
+                val projectId = project.getString("id")
+                assertEquals(name, project.getString("name"))
+                val read = bridge.request("project/read",
+                    ProjectRequestContract.read(projectId))
+                assertEquals(projectId, read.getJSONObject("project").getString("id"))
+                val started = bridge.request("thread/start",
+                    ProjectRequestContract.threadStart(workspace, projectId, ""))
+                assertEquals(projectId, started.getJSONObject("thread").getString("projectId"))
+                val updated = bridge.request("project/update",
+                    ProjectRequestContract.rename(projectId, "Android 修改验证"))
+                assertEquals("Android 修改验证",
+                    updated.getJSONObject("project").getString("name"))
+                val listed = bridge.request("project/list",
+                    JSONObject().put("limit", 100))
+                org.junit.Assert.assertTrue("Created project missing from registry",
+                    records(listed).any { it.optString("id") == projectId })
+                bridge.request("project/delete", ProjectRequestContract.read(projectId))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun androidPtySupportsInteractiveInputAndResize() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val id = UUID.randomUUID().toString()
+                val ready = CompletableDeferred<Unit>()
+                val resultText = CompletableDeferred<Unit>()
+                var state = TerminalSessionState.start(id, "PTY integration", tty = true)
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { message ->
+                        if (message.optString("method") != "command/exec/outputDelta") return@collect
+                        val params = message.optJSONObject("params") ?: return@collect
+                        if (params.optString("processId") != id) return@collect
+                        state = state.append(params)
+                        if (state.stdoutText.contains("pty-ready")) ready.complete(Unit)
+                        if (state.stdoutText.contains("pty-done")) resultText.complete(Unit)
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "if [ -t 0 ]; then printf pty-ready; read value; " +
+                                    "printf pty-done; else exit 7; fi",
+                                root.absolutePath, id, tty = true
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/resize",
+                        TerminalSessionContract.resize(id, 36, 105))
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(id, "confirmed"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { resultText.await() }
+                    assertEquals("PTY command failed: " + state.stdoutText,
+                        0, result.getInt("exitCode"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
     @Test fun localThreadCanStartAndBeReadWithoutCloudLogin() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
