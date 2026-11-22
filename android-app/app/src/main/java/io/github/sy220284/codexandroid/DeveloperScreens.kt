@@ -471,13 +471,13 @@ fun TerminalPage(vm: CodexViewModel) {
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
     val errors by vm.errors.collectAsState()
+    val activeWorkspace by vm.activeWorkspace.collectAsState()
 
     ScreenColumn {
         SectionIntro("LOCAL / COMMAND", "本地终端",
             "运行本机工作区命令。执行期间可以查看实时输出、输入内容或主动停止。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("Android 进程级隔离", style = MaterialTheme.typography.titleMedium)
-            val activeWorkspace by vm.activeWorkspace.collectAsState()
             Text("执行位置：" + File(activeWorkspace).relativeTo(
                 File(vm.workingDirectory)).path.takeIf { it != "." }
                 ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
@@ -618,7 +618,7 @@ fun TerminalPage(vm: CodexViewModel) {
         title = "确认执行命令",
         message = "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
         detail = command + "\n\n执行位置：" +
-            File(vm.activeWorkspace.value).relativeTo(File(vm.workingDirectory)).path
+            File(activeWorkspace).relativeTo(File(vm.workingDirectory)).path
                 .takeIf { it != "." }?.let { "projects/" + it }.orEmpty()
                 .ifBlank { "projects/" } +
             if (interactive) "\n交互式 PTY 终端" else "\n流式命令",
