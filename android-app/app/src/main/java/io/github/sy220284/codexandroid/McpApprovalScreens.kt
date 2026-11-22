@@ -141,8 +141,8 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.answerApproval(prompt, "decline") }) { Text("拒绝") }
-            TextButton(onClick = { vm.answerApproval(prompt, "cancel") }) { Text("取消") }
+            OutlinedButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) }) { Text("拒绝") }
+            TextButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) }) { Text("取消") }
             if ((kind in listOf("form", "openai/form", "openaiForm") && fields != null)
                 || (kind == "url" && (params.optString("url").startsWith("https://")
                     || params.optString("url").startsWith("http://127.0.0.1:")))) {

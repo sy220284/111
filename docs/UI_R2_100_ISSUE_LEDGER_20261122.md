@@ -32,7 +32,7 @@
 | 20 | B | attachmentBusy/attachmentError 是页面本地态——VM 级状态放 UI 层，页面销毁即丢 | 已提交待专项验收 | AttachmentImportController.kt |
 | 21 | B | 会话库 refresh key 动态拼接（archived:searchTerm:section:cursor）在 UI 层——契约应入 VM/contract 层 | 已提交待专项验收 | ThreadLibraryQuery.kt |
 | 22 | B | resumeInstall 由 Activity onResume 驱动——安装恢复职责应归 Service/WorkManager | 已提交待专项验收 | CodexApplication.kt |
-| 23 | B | 审批 decision 字符串由 UI 直接拼——决策策略层漏到 UI | 已有部分改动 | ControlScreens.kt |
+| 23 | B | 审批 decision 字符串由 UI 直接拼——决策策略层漏到 UI | 已提交待专项验收 | ApprovalDecisionPolicy.kt · ApprovalDecisionPolicyTest.kt · ControlScreens.kt · McpApprovalScreens.kt；策略统一并阻断非法授权 |
 | 24 | B | 终端 stdin 行缓冲与 afterSent 编排留在 UI 层 | 已有部分改动 | DeveloperScreens.kt |
 | 25 | B | 重连策略只挂 Activity ON_RESUME——Service/WorkManager 级自动重连缺失，后台断线无人管 | 已提交待专项验收 | CodexForegroundService.kt |
 | 26 | B | 侧栏数据靠"打开抽屉"触发 thread/list——无 WorkManager 周期同步，后台数据永远滞后 | 已提交待专项验收 | SessionRefreshPolicy.kt · AppNavigation.kt |

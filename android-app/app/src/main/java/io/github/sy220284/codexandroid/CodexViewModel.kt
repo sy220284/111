@@ -539,14 +539,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         rpc("interrupt", "turn/interrupt", JSONObject().put("threadId", tid).put("turnId", turn))
     }
 
-    fun answerApproval(prompt: ServerPrompt, decision: String, customAnswer: String = "") {
+    fun answerApproval(prompt: ServerPrompt, action: ApprovalAction) {
         viewModelScope.launch {
             try {
-                val result = ApprovalProtocol.result(prompt, decision,
-                    if (customAnswer.isBlank()) emptyMap() else {
-                        val key = prompt.params.optJSONArray("questions")?.optJSONObject(0)?.optString("id") ?: ""
-                        mapOf(key to customAnswer)
-                    })
+                val decision = ApprovalDecisionPolicy.resolve(prompt, action)
+                val result = ApprovalProtocol.result(prompt, decision)
                 bridge.answer(prompt, result)
                 approvalAudit.record(prompt, decision)
                 errors.value = errors.value - "approvals"
