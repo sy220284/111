@@ -33,9 +33,12 @@ def adb(*args: str, check: bool = True, input_file=None) -> str:
 def copy_fixture(apk: Path) -> None:
     adb("shell", "run-as", PACKAGE, "mkdir", "-p", "cache/updates")
     with apk.open("rb") as stream:
+        # Quote the redirection for the inner run-as shell. Without quoting,
+        # adb's outer shell redirects as the shell UID and cannot write the
+        # application's private cache.
         adb(
-            "shell", "-T", "run-as", PACKAGE,
-            "sh", "-c", "cat > cache/updates/ci-self-update.apk",
+            "shell", "-T",
+            f"run-as {PACKAGE} sh -c 'cat > cache/updates/ci-self-update.apk'",
             input_file=stream
         )
     expected = apk.stat().st_size
