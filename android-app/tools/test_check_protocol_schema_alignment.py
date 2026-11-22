@@ -40,6 +40,12 @@ class SchemaAlignmentTest(unittest.TestCase):
                            self.turn_contract.replace('args.put("collaborationMode",', 'args.put("renamed",'))
         self.assertTrue(any("缺少 collaborationMode" in e for e in errors))
 
+    def test_initialization_handshake_order_is_enforced(self):
+        broken = self.connection.replace('notify("initialized",', 'notify("removed",')
+        errors, _ = verify(self.protocol, self.schemas, self.thread,
+                           self.project, broken, self.turn, self.turn_contract)
+        self.assertTrue(any("initialize" in e and "initialized" in e for e in errors))
+
     def test_missing_experimental_capability_is_detected(self):
         errors, _ = verify(self.protocol, self.schemas, self.thread,
                            self.project,
