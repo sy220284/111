@@ -2,8 +2,7 @@ name: 编译 Android 原生 Codex 核心
 
 on:
   push:
-    # 在不影响 PR 正在运行的旧构建时，单独验证修复后的 360 分钟流水线。
-    branches: [main, fix/android-code-mode-host-bundle-20261122]
+    branches: [main]
     paths:
       - ".github/workflows/build-native-codex.yml"
       - ".github/scripts/select_native_artifacts.py"
