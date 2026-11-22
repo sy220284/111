@@ -22,6 +22,15 @@ class ConfigInputParserTest {
         }
     }
 
+    @Test fun rejectsExtraTokensInsteadOfSilentlySavingPartialConfig() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConfigInputParser.parse("json", "{\"enabled\":true} garbage", false)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ConfigInputParser.parse("number", "12 34", false)
+        }
+    }
+
     @Test fun structuredJsonIsOptIn() {
         assertEquals(true,
             (ConfigInputParser.parse("json", "{\"enabled\":true}", false)
