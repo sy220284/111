@@ -40,6 +40,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
