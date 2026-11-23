@@ -176,6 +176,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         onSuccess: ((JSONObject) -> Unit)?,
         userAction: Boolean = false
     ) {
+        // A file archive is a process-wide maintenance transaction. No new user
+        // mutation may slip in through another screen or an already-open sheet.
+        if (userAction && !globalWorkSnapshot().canStartNewTask) {
+            val reason = "本机备份或恢复正在进行，完成后再操作"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch {
+                actionFeedback.emit(ActionFeedbackCopy.failure(method, reason))
+            }
+            return
+        }
         if (method in setOf("thread/delete", "thread/archive") &&
             params.optString("threadId") in threadExecutions.value) {
             val reason = "所选会话仍有执行中的任务，请先停止或等待完成后再整理"
