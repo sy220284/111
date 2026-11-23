@@ -48,17 +48,19 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     val targetId = if (useRemote) remoteName.trim() else "local"
     val canConnect = remoteName.isNotBlank() &&
         ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint)
-    val statusBusy = "envStatus" in loading
-    val infoBusy = "envInfo" in loading
+    val statusKey = "envStatus:$targetId"
+    val infoKey = "envInfo:$targetId"
+    val statusBusy = statusKey in loading
+    val infoBusy = infoKey in loading
     val writeBusy = "environmentAdd" in loading
 
     fun checkEnvironment(id: String) {
         queriedEnvironment = id
-        vm.refresh("envStatus", "environment/status", JSONObject().put("environmentId", id))
+        vm.refresh("envStatus:$id", "environment/status", JSONObject().put("environmentId", id))
     }
     fun loadEnvironmentInfo(id: String) {
         queriedEnvironment = id
-        vm.refresh("envInfo", "environment/info", JSONObject().put("environmentId", id))
+        vm.refresh("envInfo:$id", "environment/info", JSONObject().put("environmentId", id))
     }
 
     ScreenColumn {
@@ -135,6 +137,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                         val url = endpoint.trim()
                         lastSubmittedRemote = id
                         queriedEnvironment = id
+                        vm.data.value = vm.data.value - "environmentAdd"
                         vm.rpc("environmentAdd", "environment/add",
                             JSONObject().put("environmentId", id).put("execServerUrl", url),
                             after = { checkEnvironment(id) })
@@ -186,26 +189,26 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             }
         }
         val visibleKeys = if (useRemote && lastSubmittedRemote == targetId)
-            listOf("envStatus", "envInfo", "environmentAdd")
-        else listOf("envStatus", "envInfo")
+            listOf(statusKey, infoKey, "environmentAdd")
+        else listOf(statusKey, infoKey)
         if (queriedEnvironment == targetId || (useRemote && lastSubmittedRemote == targetId)) {
             PresentationPolicy.visibleErrors(errors, visibleKeys)
                 .forEach { error -> ErrorText(error) }
         }
-        for (key in listOf("envStatus", "envInfo")) {
+        for (key in listOf(statusKey, infoKey)) {
             if (queriedEnvironment == targetId) {
                 results[key]?.let { response ->
                     MaterialPanel(Modifier.fillMaxWidth()) {
-                        Text(if (key == "envStatus") "环境运行状态" else "环境详情",
+                        Text(if (key == statusKey) "环境运行状态" else "环境详情",
                             style = MaterialTheme.typography.titleMedium)
                         val state = PresentationPolicy.serviceState(response.optString("status"))
-                        if (key == "envStatus") {
+                        if (key == statusKey) {
                             StatusPill(state, state == "已连接")
                         }
                         PresentationPolicy.meaningful(response.optString("displayName"))
                             .takeIf { it.isNotEmpty() }
                             ?.let { Text(it, color = Ink.muted) }
-                        if (key == "envInfo")
+                        if (key == infoKey)
                             Text("详细状态已读取，可在服务端查看配置与运行日志。",
                                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                     }
