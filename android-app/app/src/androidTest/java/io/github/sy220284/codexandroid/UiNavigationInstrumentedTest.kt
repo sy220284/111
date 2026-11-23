@@ -220,7 +220,7 @@ class UiNavigationInstrumentedTest {
         val commandArea = rule.onNodeWithTag("terminal-command-input").fetchSemanticsNode().boundsInRoot
         assertTrue("终端输出区应位于输入区上方", output.bottom <= commandArea.top)
         capture("terminal-android35.png")
-        rule.onNodeWithText("Shell 命令").performTextInput("pwd")
+        rule.onNodeWithText("输入命令").performTextInput("pwd")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
