@@ -433,19 +433,29 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("quick-queue").performClick()
         rule.onNodeWithTag("thread-library-sheet").assertExists()
 
+        // Let the library's initial server query finish before seeding the offline fixture.
+        // request() clears the previous result when it starts a refresh.
+        val key = ThreadLibraryQuery.key(false, "", "", null)
+        rule.waitUntil(10_000L) {
+            key !in vm.loading.value &&
+                (key in vm.errors.value || key in vm.data.value)
+        }
         // Exercise chooseThread's successful already-open callback without a live server.
         // A real server resume invokes the same callback after thread/read and thread/resume.
         rule.runOnUiThread {
             val selectedId = "ci-queue-resume-thread"
-            val key = ThreadLibraryQuery.key(false, "", "", null)
             vm.activeThread.value = selectedId
             vm.data.value = vm.data.value + (key to JSONObject().put("data",
                 JSONArray().put(JSONObject().put("id", selectedId)
                     .put("name", "继续队列测试会话"))))
         }
         rule.waitForIdle()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("thread-library-row-ci-queue-resume-thread")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithTag("thread-library-list")
-            .performScrollToNode(hasText("继续会话"))
+            .performScrollToNode(hasTestTag("thread-library-row-ci-queue-resume-thread"))
         rule.onNodeWithText("继续会话").performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
@@ -468,11 +478,8 @@ class UiNavigationInstrumentedTest {
             rule.activity.currentFocus?.clearFocus()
         }
         rule.waitForIdle()
-        // Android may consume the first Back to finish dismissing the IME.
-        pressSystemBack()
-        if (rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()) {
-            pressSystemBack()
-        }
+        // A visible close button must work regardless of IME focus or Back delivery.
+        rule.onNodeWithTag("thread-queue-close").performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
         }

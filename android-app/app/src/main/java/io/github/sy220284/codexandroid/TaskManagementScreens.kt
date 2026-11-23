@@ -338,9 +338,19 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         containerColor = Ink.canvas,
         contentColor = Ink.parchment
     ) {
-        Box(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
             .testTag("thread-queue-sheet")) {
-            ThreadQueuePage(vm)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp).testTag("thread-queue-close")
+                ) {
+                    Icon(Icons.Outlined.Close, contentDescription = "关闭任务队列")
+                }
+            }
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                ThreadQueuePage(vm)
+            }
         }
     }
 }
