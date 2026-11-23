@@ -219,11 +219,14 @@ internal object AppUpdateManager {
                 verifyInstalledSigner(activity.applicationContext, file)
                 withContext(Dispatchers.Main) {
                     val latest = (activity.application as CodexApplication).session.globalWorkSnapshot()
-                    check(latest.canDisruptCoreOrData) { latest.blockReason }
-                    requestSystemInstall(activity)
+                    if (latest.canDisruptCoreOrData) {
+                        requestSystemInstall(activity)
+                    } else {
+                        set(UpdatePhase.READY, latest.blockReason + "；安装包已保留")
+                    }
                 }
             } catch (e: Exception) {
-                set(UpdatePhase.READY, "安装暂缓：" + (e.message ?: "请检查系统授权与任务状态"))
+                set(UpdatePhase.ERROR, "安装准备失败：" + (e.message ?: "请检查系统授权"))
             }
         }
     }
