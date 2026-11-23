@@ -51,13 +51,15 @@ class UiPopulatedSubpagesInstrumentedTest {
         val server = JSONObject()
             .put("name", "演示扩展服务")
             .put("runtimeStatus", "ready")
-            .put("authStatus", "unauthorized")
+            .put("authStatus", "notLoggedIn")
             .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
             .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
         var requested: String? = null
         rule.setContent {
             CodexTheme {
-                McpServiceStatusCard(server, onAuthorize = { requested = it })
+                McpServiceStatusCard(server, authenticating = false,
+                    onAuthorize = { requested = it.optString("name") },
+                    onOpenAccount = {}, onOpenConfig = {})
             }
         }
         rule.onNodeWithText("演示扩展服务").assertExists()
@@ -71,12 +73,56 @@ class UiPopulatedSubpagesInstrumentedTest {
 
     @Test fun mcpAuthorizedServiceDoesNotShowRedundantLogin() {
         val server = JSONObject().put("name", "已授权服务")
-            .put("runtimeStatus", "running").put("authStatus", "authorized")
+            .put("runtimeStatus", "connected").put("authStatus", "oAuth")
             .put("tools", JSONObject().put("agent_only_tool", JSONObject()))
-        rule.setContent { CodexTheme { McpServiceStatusCard(server, onAuthorize = {}) } }
-        rule.onNodeWithText("授权：已授权").assertExists()
+        rule.setContent { CodexTheme { McpServiceStatusCard(server, authenticating = false,
+            onAuthorize = {}, onOpenAccount = {}, onOpenConfig = {}) } }
+        rule.onNodeWithText("认证：已授权").assertExists()
         rule.onNodeWithText("授权登录").assertDoesNotExist()
         rule.onNodeWithText("agent_only_tool").assertDoesNotExist()
+    }
+
+    @Test fun hostedMcpAppsLinkToChatGptAccountWithoutOAuthRegistration() {
+        val server = JSONObject().put("name", "codex_apps")
+            .put("runtimeStatus", "authenticationRequired")
+            .put("authStatus", "notLoggedIn")
+        var accountOpened = false
+        var oauthStarted = false
+        rule.setContent {
+            CodexTheme {
+                McpServiceStatusCard(server, authenticating = false,
+                    onAuthorize = { oauthStarted = true },
+                    onOpenAccount = { accountOpened = true }, onOpenConfig = {})
+            }
+        }
+        rule.onNodeWithText("ChatGPT 扩展服务").assertExists()
+        rule.onNodeWithText("需要授权").assertExists()
+        rule.onNodeWithText("认证：ChatGPT 账号").assertExists()
+        rule.onNodeWithText("授权登录").assertDoesNotExist()
+        rule.onNodeWithText("查看账号").performClick()
+        rule.runOnIdle {
+            assertTrue(accountOpened)
+            assertEquals(false, oauthStarted)
+        }
+        capture("audit-mcp-chatgpt-auth-android35.png")
+    }
+
+    @Test fun unsupportedMcpAuthOffersConfigurationInsteadOfBrokenOAuth() {
+        val server = JSONObject().put("name", "自建服务")
+            .put("runtimeStatus", "failed")
+            .put("authStatus", "unsupported")
+        var configOpened = false
+        rule.setContent {
+            CodexTheme {
+                McpServiceStatusCard(server, authenticating = false,
+                    onAuthorize = { throw AssertionError("Unsupported OAuth action") },
+                    onOpenAccount = {}, onOpenConfig = { configOpened = true })
+            }
+        }
+        rule.onNodeWithText("认证：不支持网页授权").assertExists()
+        rule.onNodeWithText("授权登录").assertDoesNotExist()
+        rule.onNodeWithText("查看配置").performClick()
+        rule.runOnIdle { assertTrue(configOpened) }
     }
 
     @Test fun imageDraftSurvivesActualAndroidPreferenceRestoreAndPruning() {
