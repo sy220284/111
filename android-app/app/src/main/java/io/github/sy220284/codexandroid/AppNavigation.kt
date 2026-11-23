@@ -296,11 +296,9 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         navigationIcon = {
                             if (!wide) {
-                                // File browsing opened from a conversation returns to the task.
-                                // A direct sidebar visit still retains the normal sidebar button.
-                                val fromConversation = selected == "files" &&
-                                    backHistory.dropLast(1).lastOrNull() == "chat"
-                                val isNested = NavigationPolicy.isDetailPage(selected) || fromConversation
+                                // Workspace files remain a primary location with a stable drawer.
+                                // A contextual return action is offered separately when opened from chat.
+                                val isNested = NavigationPolicy.isDetailPage(selected)
                                 IconButton(
                                     onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
                                     modifier = Modifier.padding(start = 6.dp).size(45.dp)
@@ -312,6 +310,16 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         actions = {
+                            if (!wide && selected == "files" &&
+                                backHistory.dropLast(1).lastOrNull() == "chat") {
+                                IconButton(
+                                    onClick = goBack,
+                                    modifier = Modifier.testTag("files-return-to-conversation")
+                                ) {
+                                    Icon(Icons.Outlined.ArrowBack,
+                                        contentDescription = "返回上一页")
+                                }
+                            }
                             if (selected == "threads") {
                                 IconButton(
                                     onClick = { vm.newThread(); move("chat") },
