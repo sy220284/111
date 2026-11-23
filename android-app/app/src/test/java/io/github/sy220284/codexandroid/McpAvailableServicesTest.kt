@@ -11,6 +11,7 @@ class McpAvailableServicesTest {
     private fun server(name: String, status: String, auth: String = "oAuth") =
         JSONObject().put("name", name).put("runtimeStatus", status)
             .put("authStatus", auth)
+            .put("tools", JSONObject().put("ready_tool", JSONObject()))
 
     @Test fun onlyLiveAndAuthorizedConnectionsAppearInTheList() {
         val items = listOf(
@@ -33,6 +34,11 @@ class McpAvailableServicesTest {
     @Test fun aBrokenToolCatalogIsNotAdvertisedAsUsable() {
         val broken = server("broken", "connected").put("toolsError", "discovery failed")
         assertFalse(McpAvailableServices.isUsable(broken))
+        assertFalse(McpAvailableServices.isUsable(
+            JSONObject().put("name", "no-capabilities").put("runtimeStatus", "connected")))
+        assertTrue(McpAvailableServices.isUsable(
+            JSONObject().put("name", "prompt-only").put("runtimeStatus", "connected")
+                .put("serverCapabilities", JSONObject().put("prompts", JSONObject()))))
         val resourceOnly = server("resource", "connected")
             .put("toolsError", "tool catalog unavailable")
             .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://article")))
