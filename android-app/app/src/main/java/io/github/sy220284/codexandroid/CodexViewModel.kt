@@ -289,11 +289,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun chooseThread(id: String) {
+    fun chooseThread(id: String, onOpened: (() -> Unit)? = null) {
         // Serialize resume requests: multiple rapid taps must not race the active session.
         if (threadSwitching.value) return
         if (firstThreadStarting.value) {
             errors.value = errors.value + ("conversation" to "正在建立新会话，请在会话创建后切换")
+            return
+        }
+        if (id.isNotBlank() && id == activeThread.value) {
+            onOpened?.invoke()
             return
         }
         if (!ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
@@ -351,6 +355,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 latestDiff.value = ""
                 timeline.value = newest
+                onOpened?.invoke()
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
             } finally {

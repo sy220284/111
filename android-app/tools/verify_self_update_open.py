@@ -33,20 +33,22 @@ def adb(*args: str, check: bool = True, input_file=None) -> str:
 
 
 def copy_fixture(apk: Path) -> None:
-    adb("shell", "run-as", PACKAGE, "mkdir", "-p", "cache/updates")
+    # Startup cleanup now removes unowned cache/updates content. Stage the
+    # test APK outside that cache, and let the instrumentation test explicitly
+    # prepare, verify, and hand it to the installer using the production cache.
+    adb("shell", "run-as", PACKAGE, "mkdir", "-p", "files")
     with apk.open("rb") as stream:
         # Quote the redirection for the inner run-as shell. Without quoting,
-        # adb's outer shell redirects as the shell UID and cannot write the
-        # application's private cache.
+        # adb's outer shell redirects as the shell UID.
         adb(
             "shell", "-T",
-            f"run-as {PACKAGE} sh -c 'cat > cache/updates/ci-self-update.apk'",
+            f"run-as {PACKAGE} sh -c 'cat > files/ci-self-update.apk'",
             input_file=stream
         )
     expected = apk.stat().st_size
     actual = int(adb(
         "shell", "run-as", PACKAGE, "stat", "-c", "%s",
-        "cache/updates/ci-self-update.apk"
+        "files/ci-self-update.apk"
     ).strip())
     if actual != expected:
         raise RuntimeError(f"APK fixture truncated: {actual} bytes vs {expected} bytes")

@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import android.content.ComponentName
+import android.content.pm.ActivityInfo
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -35,7 +36,7 @@ class SelfUpdateInstallerIntentInstrumentedTest {
         assertEquals(uri, intent.clipData?.getItemAt(0)?.uri)
         assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
         assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
-        assertTrue(intent.flags and Intent.FLAG_ACTIVITY_MULTIPLE_TASK != 0)
+        assertFalse(intent.flags and Intent.FLAG_ACTIVITY_MULTIPLE_TASK != 0)
         assertFalse(intent.flags and Intent.FLAG_ACTIVITY_CLEAR_TASK != 0)
         assertFalse(intent.getBooleanExtra(Intent.EXTRA_RETURN_RESULT, false))
     }
@@ -46,6 +47,8 @@ class SelfUpdateInstallerIntentInstrumentedTest {
         val launch = app.packageManager.getLaunchIntentForPackage(app.packageName)
         assertNotNull("Installed app must expose a normal launcher to the installer", launch)
         assertEquals(ComponentName(app, MainActivity::class.java), launch!!.component)
+        val home = app.packageManager.getActivityInfo(launch.component!!, 0)
+        assertEquals(ActivityInfo.LAUNCH_SINGLE_TASK, home.launchMode)
         assertEquals(Intent.ACTION_MAIN, launch.action)
         assertTrue(launch.categories?.contains(Intent.CATEGORY_LAUNCHER) == true)
     }
