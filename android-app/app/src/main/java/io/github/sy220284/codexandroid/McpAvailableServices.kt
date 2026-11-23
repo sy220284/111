@@ -19,6 +19,7 @@ internal object McpAvailableServices {
     }
 
     fun isUsable(server: JSONObject): Boolean {
+        if (PresentationPolicy.meaningful(server.optString("name")).isEmpty()) return false
         if (server.optString("runtimeStatus") != "connected") return false
         if (server.optString("authStatus") == "notLoggedIn") return false
 
