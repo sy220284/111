@@ -30,6 +30,7 @@ class NavigationPolicyTest {
         assertEquals("limits", NavigationPolicy.matchedSettingSpot("usage", "额度")?.target)
         assertEquals("advanced", NavigationPolicy.matchedSettingSpot("config", "高级配置")?.target)
         assertEquals("check", NavigationPolicy.matchedSettingSpot("update", "检查更新")?.target)
+        assertEquals("profiles", NavigationPolicy.matchedSettingSpot("security", "权限方案")?.target)
         assertEquals("motion", NavigationPolicy.matchedSettingSpot("appearance", "减少动效")?.target)
         assertEquals("custom", NavigationPolicy.matchedSettingSpot(
             "providers", "配置模型服务商")?.target)

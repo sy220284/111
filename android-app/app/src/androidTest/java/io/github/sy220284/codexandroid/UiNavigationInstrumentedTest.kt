@@ -691,7 +691,10 @@ class UiNavigationInstrumentedTest {
 
     @Test fun expandedSecurityAndAboutViewsAreCaptured() {
         openSettingRoute("security")
-        rule.onNodeWithText("可用权限方案").performScrollTo()
+        rule.onNodeWithTag("security-profiles-toggle").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("可用权限方案", substring = false).assertDoesNotExist()
+        rule.onNodeWithTag("security-profiles-toggle").performClick()
+        rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         capture("audit-security-profiles-android35.png")
 
         openSettingRoute("about")

@@ -56,6 +56,7 @@ object NavigationPolicy {
         SettingsSpot("providers", "custom", "配置模型服务商", listOf("API Key", "Base URL", "接口地址", "自定义服务商", "密钥变量")),
         SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查")),
         SettingsSpot("config", "advanced", "高级自定义配置", listOf("高级配置", "自定义配置", "配置键值")),
+        SettingsSpot("security", "profiles", "可用权限方案", listOf("权限方案", "授权方案", "执行权限方案")),
         SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
         SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
     )
