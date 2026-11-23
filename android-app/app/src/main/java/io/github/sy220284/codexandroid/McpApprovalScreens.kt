@@ -163,8 +163,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         if (isForm && formError != null) {
             Text("填写完整并核对格式后，即可提交。",
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
-}
+        }
     }
     if (confirmation) {
         CodexConfirmDialog(
