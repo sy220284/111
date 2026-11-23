@@ -124,6 +124,26 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun globalArchiveOverlayProtectsSettingsAndRestoresThePage() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("备份")
+        try {
+            rule.runOnUiThread {
+                AppDataTransfer.state.value = DataTransferState(
+                    busy = true, result = "正在验证本机备份…")
+            }
+            rule.waitForIdle()
+            rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
+            rule.onNodeWithText("正在验证本机备份…").assertExists()
+            captureVerifiedDisplayScreenshot("audit-backup-in-progress-android35.png")
+        } finally {
+            rule.runOnUiThread { AppDataTransfer.state.value = DataTransferState() }
+            rule.waitForIdle()
+        }
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
+        rule.onNodeWithTag("settings-search").assertExists()
+    }
+
     @Test fun chatAndWorkTabsPreserveTheSamePrimaryNavigation() {
         rule.onNodeWithTag("tab-chat").performClick()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
