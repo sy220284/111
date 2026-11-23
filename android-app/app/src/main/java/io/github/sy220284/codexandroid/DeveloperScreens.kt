@@ -163,15 +163,11 @@ fun WorkspacePage(vm: CodexViewModel) {
                 } else {
                     StatusPill("当前项目", true)
                 }
-                IconButton(onClick = { showProjectManager = !showProjectManager },
+                IconButton(onClick = { showProjectManager = true },
                     modifier = Modifier.testTag("workspace-project-management")) {
-                    Icon(if (showProjectManager) Icons.Outlined.ExpandLess
-                        else Icons.Outlined.AccountTree, "管理项目")
+                    Icon(Icons.Outlined.AccountTree, "管理项目")
                 }
             }
-        }
-        if (showProjectManager) item(key = "workspace-projects") {
-            ProjectRegistryPanel(vm, folder)
         }
         vmErrors["workspace"]?.let { warning ->
             item { ErrorText(warning) }
@@ -313,6 +309,9 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
 
+    if (showProjectManager) {
+        ProjectRegistryPanel(vm, folder, onDismiss = { showProjectManager = false })
+    }
     pendingWorkspace?.let { target ->
         CodexConfirmDialog(
             title = "切换任务项目",
