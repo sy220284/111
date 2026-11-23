@@ -230,3 +230,11 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 - #66 已 squash 合并至 main：[`d7ae30df`](https://github.com/sy220284/111/commit/d7ae30df3eab8473ea5def24a398aebe6f6197bb)。
 - 最终 PR HEAD `ef4fbcbeb702bd1dc413b3b911668fad110a72a7` 的 [CI #45138957127](https://github.com/sy220284/111/actions/runs/45138957127) 四作业成功；360/393/411dp 各 69 项 Android 35 仪器测试通过，三档截图已归档；393dp 的 Install → Open 安装回归通过。
 - ARM64 真实运行、实际外部授权和厂商兼容仍按对应专项单独验收。
+
+
+## 2026-11-23 #71 全功能链路审计与跨会话安全归属
+
+- **历史替代**：#47 多会话运行后，`vm.running` 的语义收敛为前台当前会话状态。此前备份、重启、更新安装和后台释放路径仍把它当作全局是否空闲，导致共享状态分裂；#71 引入 `GlobalWorkSnapshot` 与响应式观察入口，统一所有全局危险操作的真实占用判断。
+- **推广模块**：本机备份与恢复（含系统选择器返回）、诊断重启按钮及实际重启、系统更新安装器交接、长时间后台空闲释放、数据备份期间发送指令与终端命令。
+- **长期自动核对**：全部 29 项功能借原有回归索引自动关联注册路由、源码文件、测试/截图声明及 Rust 195 项方法。CLI 输出 `full-feature-workflows.json`、`full-feature-workflows.md`，存入相同 SHA 的 CI artifact；真实内核、OEM 和外部账号验收等级保持独立。
+- **验证要求**：请以 [PR #71](https://github.com/sy220284/111/pull/71) 当前提交的 Kotlin/JVM/Lint、Android 35 360/393/411dp 与完整报告为准；不要用历史模拟器截图或静态数字替代跨会话恢复实测。#68 键盘、#69 权限、#70 MCP 三项并行工作保留，不相互覆盖。
