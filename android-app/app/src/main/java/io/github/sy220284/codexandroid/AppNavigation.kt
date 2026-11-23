@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -86,6 +87,7 @@ fun CodexShell(vm: CodexViewModel) {
     var backHistory by rememberSaveable { mutableStateOf(listOf("home")) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val sidebarState = rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    val pageStateHolder = rememberSaveableStateHolder()
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -322,7 +324,7 @@ fun CodexShell(vm: CodexViewModel) {
                     // Only the current page participates in semantics and input.
                     // This prevents stale search fields and buttons from remaining
                     // interactive during rapid settings / feature navigation.
-                    key(selected) {
+                    pageStateHolder.SaveableStateProvider(selected) {
                         CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
                             PageContent(selected, vm, move)
                         }
