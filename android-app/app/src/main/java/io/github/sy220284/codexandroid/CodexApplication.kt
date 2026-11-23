@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,6 +60,33 @@ class CodexApplication : Application() {
         super.onCreate()
         LocalDataArchive.restoreIfPending(this)
         LocalCrashReporter.install(this)
+        // Run the initial small cache sweep before any screen can initiate a
+        // new download. This avoids racing an asynchronous startup cleanup with
+        // an active update attempt or its freshly staged APK.
+        try {
+            val versionCode = packageManager.getPackageInfo(packageName, 0).longVersionCode
+            val retryAfter = UpdateCache.cleanupStale(
+                cacheDir, versionCode, System.currentTimeMillis()
+            )
+            if (retryAfter != null) {
+                maintenance.launch(Dispatchers.IO) {
+                    delay(retryAfter)
+                    try {
+                        val currentCode =
+                            packageManager.getPackageInfo(packageName, 0).longVersionCode
+                        UpdateCache.cleanupStale(
+                            cacheDir, currentCode, System.currentTimeMillis()
+                        )
+                    } catch (error: Exception) {
+                        Log.e("CodexUpdateCache", "延迟清理安装交接缓存失败", error)
+                    }
+                }
+            }
+        } catch (error: Exception) {
+            // A cache cleanup failure must be visible in logs, but must not
+            // prevent users from opening the installed application.
+            Log.e("CodexUpdateCache", "启动时清理更新缓存失败", error)
+        }
         registerActivityLifecycleCallbacks(activities)
     }
 
