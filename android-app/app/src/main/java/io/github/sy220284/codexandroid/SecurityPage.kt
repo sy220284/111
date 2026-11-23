@@ -20,7 +20,9 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]?.optJSONObject("requirements")
     val profiles = records(data["permissionProfiles"])
-    val defaultProfile = current?.optString("default_permissions").orEmpty().ifBlank {\n        data["securityRequirements"]?.optJSONObject("requirements")?.optString("defaultPermissions").orEmpty()\n    }
+    val defaultProfile = current?.optString("default_permissions").orEmpty().ifBlank {
+        data["securityRequirements"]?.optJSONObject("requirements")?.optString("defaultPermissions").orEmpty()
+    }
     val effectiveApproval = current?.optString("approval_policy").orEmpty()
     val effectiveSandbox = current?.optString("sandbox_mode").orEmpty()
     val activeThread by vm.activeThread.collectAsState()
@@ -135,7 +137,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 "此方案允许访问工作区以外的文件和网络，执行风险较高。"
                 else "权限调整将影响选定范围内的后续操作。",
             detail = "目标：" + (if (scope == "thread") "当前会话" else "新任务默认权限") +
-                "\n方案：" + PresentationPolicy.permissionProfile(id),
+                "
+方案：" + PresentationPolicy.permissionProfile(id),
             confirmLabel = "确认保存",
             destructive = id == ":danger-full-access",
             onConfirm = {
