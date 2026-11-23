@@ -69,8 +69,8 @@ def audit(repository: Path, expected: int = 29) -> dict:
             issues.append(f"{route} 缺少功能目录")
         if route != "update" and route not in routes:
             issues.append(f"{route} 缺少实际页面路由")
-        if not cited_tests and not collected:
-            issues.append(f"{route} 缺少测试或设备截图声明")
+        if not cited_tests:
+            issues.append(f"{route} 未关联实际 JUnit/Android 用例，仅登记截图不足以闭环")
         entry = next((line for line in navigation.splitlines()
                       if line.strip().startswith('Page("' + route + '"')), "")
         methods = re.findall(r'"([A-Za-z][A-Za-z0-9_]*/[A-Za-z0-9_/]+)"', entry)
