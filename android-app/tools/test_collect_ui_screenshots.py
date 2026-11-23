@@ -33,6 +33,7 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
 
     def test_offscreen_work_protection_evidence_is_mandatory(self):
         self.assertIn("audit-backup-background-block", REQUIRED_SCREENS)
+        self.assertIn("audit-backup-in-progress", REQUIRED_SCREENS)
 
 
 if __name__ == "__main__":
