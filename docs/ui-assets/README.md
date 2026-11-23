@@ -24,3 +24,8 @@
 ### 双主题变量
 
 `tokens.json` 的 `modes.light` 与 `modes.dark` 使用同名 14 项语义颜色。Figma 中为同一变量集合建立两种模式；Android 设置页的双主题预览卡直接切换该集合，状态语义保持不变。
+
+## 交互图谱补充（2026-11-23）
+
+- `interaction-atlas-mobile.svg`：八类原始 SVG 组件示意，包括对话输入、进度、步骤、筛选、骨架屏、系统反馈、底部面板和上下文操作。可直接导入 Figma，文字和形状均为 SVG 元素。
+- 组件交互和实际 Android 落地对应表见 [交互组件图谱](../INTERACTION_COMPONENT_ATLAS_20261123.md)。图谱供复用，正式 App 交互仍以 Compose 组件及实测为准。
