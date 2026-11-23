@@ -171,7 +171,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if ("update" in group.routes) {
-                    if (showUpdate) AppUpdateCard(autoExpand =
+                    if (showUpdate) AppUpdateCard(vm = vm, autoExpand =
                         query.isNotBlank() && NavigationPolicy.matchedSettingSpot("update", query) != null)
                     if (showTransfers) LocalDataTransferCard(vm)
                 }
