@@ -2,15 +2,15 @@
 
 ## 自动发布顺序
 
-1. 向 `main` 合并客户端源码后，安卓版本构建与独立 UI 验收分别执行 ARM64 手机 APK 验证和 Android 35 多屏宽模拟器界面回归。原生构建优先查找**Android Rust 源码、父级 Cargo 配置、平台适配器和 Rust/NDK 编译配方完全相同**的旧 ARM64 构建，已验证产物仍有效时复用；真实编译输入变化、产物缺失或过期时重新编译。
-2. 仅当**同一源码提交**的两项 Android 验收都在 `main` **成功**时，「111 Android 正式发布」才会继续进入版本检查。两项检查的先后顺序不限；也可以从 Actions 手动启动发布，但同样需要这两项成功记录。
+1. 向 `main` 合并客户端源码后，安卓版本构建与独立 UI 验收并行推进；如果同一提交同时触发原生内核和 APK 工作流，APK 会等待原生构建结束后只执行一次。原生构建优先查找**Android Rust 源码、父级 Cargo 配置、平台适配器和 Rust/NDK 编译配方完全相同**的旧 ARM64 构建，已验证产物仍有效时复用；真实编译输入变化、产物缺失或过期时重新编译。
+2. 仅当**同一源码提交**的 ARM64 APK 构建及二次核验、Kotlin/协议/Lint、360/393/411dp 设备交互与截图验收在 `main` **全部成功**时，「111 Android 正式发布」才会进入版本检查。两项检查的先后顺序不限；也可以从 Actions 手动启动发布，但同样需要这两项成功记录。
 3. 比较上一个正式 Release 到本次源码的变更：仅当正式 APK 的 Android 源码、打包配置、发行资产或 ARM64 原生编译输入真正变化时才发布新版本。CI 调度、测试、上游非 Android 文件和仅更新上游版本标记均不再产生重复 APK。
 4. 从有效版本标签及 `.github/release-version` 计算单调递增的版本号与 Android `versionCode`，禁止复用曾发布的编号。
 5. 从成功的原生构建记录中选择**完整输入完全一致、运行提交属于当前主分支历史且产物尚未过期**的 ARM64 内核。普通 Android 修改复用同一原生内核；Android APK 验收只依赖 ARM64 原生内核，独立 UI 模拟器不依赖手机原生内核。若未找到合格产物，先执行原生构建，再完成设备验收。
 6. 原生构建同时生成 App Server 与独立 Code Mode Host，V8 与 Cargo.lock 的版本、Android 架构和沙箱配置必须匹配；逐一核验 ELF 架构、动态链接器、16 KB 对齐及所需共享库，再组装手机 APK。
 7. 复用同一提交在独立 UI CI 中通过的 Kotlin 单元测试，在此执行 Release Lint 并只生成一个 **ARM64 正式签名手机 APK**；再核验版本号、包名、签名证书、APK 文件完整性和 ABI 隔离。
 8. 由合并 PR 生成中文更新说明；仅上传 ARM64 手机完整 APK、`SHA256SUMS.txt`、`update-manifest.json`。有可用上版手机 APK 时尝试生成 ARM64 二进制增量包，必须通过原样回放、SHA-256 对照且小于完整包的 65% 才会发布。
-9. 新 Release 发布后自动保留最近 3 个正式 Release（历史 Git 标签与提交保留）。**没有任何定时清理任务**。
+9. 正式签名发布成功后，发布工作流在同一流水线直接调用可复用版本清理作业，自动保留最新 3 个正式 Release（历史 Git 标签与提交保留）。**没有定时清理任务**。
 
 ## CI 优化与上游升级
 
@@ -18,7 +18,7 @@
 - 发布调度只监听主分支验收事件。发布脚本预检查在相关 PR 或手动发布时执行，避免每次 UI 或 APK 检查结束都重复跑一轮。
 - 独立 `verify-android-git.yml` 已移除，ARM64 Git 编译、加载器、架构及 16KB 内存页对齐仍由原生核心构建验证。
 - 仅变更上游文档、SDK、历史工作流或上游提交号标记时不会重新构建原生核心；所有真实 Rust/Cargo/Android 编译输入变化仍触发构建。
-- `.github/scripts/test_ci_scope.py`、`test_native_reuse.py` 和 `test_release_change_gate.py` 持续检查 CI 执行边界、核心缓存复用及新版本发布条件。
+- `.github/scripts/test_ci_scope.py`、`test_native_reuse.py`、`test_decide_android_build.py`、`test_verify_release_acceptance.py` 和 `test_release_change_gate.py` 持续核对触发去重、核心复用、完整设备验收与新版本发布条件。
 
 ## 首次配置：独立且长期一致的 Android 签名
 
