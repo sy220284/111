@@ -131,23 +131,18 @@ fun ThreadGoalPage(vm: CodexViewModel) {
             }
             OutlinedButton(
                 onClick = {
-                    val params = JSONObject().put("threadId", active)
-                        .put("origin", "user")
-                        .put("objective", objective.trim())
-                        .put("status", status)
-                    // A hidden advanced control leaves an existing budget unchanged.
-                    // A visible empty control explicitly clears an existing limit.
-                    if (showAdvancedBudget) {
-                        if (budget.isNotBlank()) {
-                            params.put("tokenBudget", budget.toLong())
-                        } else if (goal != null && !goal.isNull("tokenBudget")) {
-                            params.put("tokenBudget", JSONObject.NULL)
-                        }
-                    }
+                    val threadId = requireNotNull(active) { "请先打开任务会话" }
+                    val params = ThreadGoalRequestContract.set(
+                        threadId = threadId, objective = objective, status = status,
+                        budgetText = budget, editBudget = showAdvancedBudget,
+                        existingBudget = goal != null && !goal.isNull("tokenBudget")
+                    )
                     vm.rpc("goalWrite", "thread/goal/set", params, after = {
-                        vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
+                        vm.refresh("goal:$threadId", "thread/goal/get",
+                            JSONObject().put("threadId", threadId))
                     })
-                }, enabled = objective.isNotBlank() && safeBudget && "goalWrite" !in loading,
+                }, enabled = objective.isNotBlank() &&
+                    (!showAdvancedBudget || safeBudget) && "goalWrite" !in loading,
                 modifier = Modifier.fillMaxWidth()
             ) { Text("保存目标") }
         }
