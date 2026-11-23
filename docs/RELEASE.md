@@ -59,6 +59,10 @@ keytool -genkeypair -v -keystore 111-release.jks -storetype PKCS12 \
 
 Actions 现有的调试包签名与正式包签名不同。第一次由调试包切换至正式包时可能需要卸载调试包，卸载前应导出应用数据。
 
+## vivo/OriginOS 安装器「打开」真机验收
+
+下一次正式签名的应用内升级必须按 [vivo 最小验收与证据格式](VIVO_SELF_UPDATE_ACCEPTANCE.md) 记录一次真实安装器「打开」进入首页的结果。Android 35 模拟器自更新回归属于持续 CI 检查，不能替代 OriginOS 真机交付证据。
+
 ## 验收与故障定位
 
 - Android 设备完整构建会使用与正式发布一致的 `-WD / zstd / xxh128` 参数生成小型增量测试包，在 Android 35 模拟器上用应用实际打包的 `libhpatchz.so` 重建并逐字节比对；同时测试损坏补丁被拒绝。
