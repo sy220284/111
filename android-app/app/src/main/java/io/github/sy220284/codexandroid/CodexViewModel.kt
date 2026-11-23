@@ -174,7 +174,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return
         if (method in setOf("thread/delete", "thread/archive") &&
-            params.optString("threadId") in threadExecutions.value) {
+            params?.optString("threadId")?.let { it in threadExecutions.value } == true) {
             val reason = "所选会话仍有执行中的任务，请先停止或等待完成后再整理"
             errors.value = errors.value + (key to reason)
             if (userAction) viewModelScope.launch {
