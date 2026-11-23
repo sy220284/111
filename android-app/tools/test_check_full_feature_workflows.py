@@ -72,6 +72,18 @@ class FullFeatureWorkflowGateTests(TestCase):
             self.assertTrue(any("文件已失效" in error for error in errors))
             self.assertTrue(any("缺少测试或设备截图" in error for error in errors))
 
+    def test_documented_screenshot_must_be_in_device_capture_manifest(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_repo(root)
+            collector = root / "android-app/tools/collect_ui_screenshots.py"
+            collector.write_text(
+                'REQUIRED_SCREENS = """other-screen""".split()\\nOPTIONAL_SCREENS = []',
+                encoding="utf-8"
+            )
+            errors = self.run_audit(root)["issues"]
+            self.assertTrue(any("文档截图未纳入设备验收" in error for error in errors))
+
     def test_host_method_cannot_be_marked_as_normal_page_action(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
