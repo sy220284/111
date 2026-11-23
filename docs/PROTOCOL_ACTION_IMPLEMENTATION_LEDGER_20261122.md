@@ -406,3 +406,12 @@
 
 - 合并提交：[`d7ae30df`](https://github.com/sy220284/111/commit/d7ae30df3eab8473ea5def24a398aebe6f6197bb)；PR 最终 HEAD `ef4fbcbeb702bd1dc413b3b911668fad110a72a7` 的 [UI/协议 CI #45138957127](https://github.com/sy220284/111/actions/runs/45138957127) **4/4 通过**。360/393/411dp 各 69 项 Android 35 仪器测试通过，三档截图归档；393dp 安装器 Install → Open 回归通过。
 - 本次修改手机页面布局、IME 空间策略与屏幕测试范围；195 项官方方法、Rust DTO、UI 归属来源及后台 Host 调用方向保持原实现。真实服务端与 ARM64 厂商真机等专项继续按原状态追踪。
+
+
+## 2026-11-23 输入法展开验收证据校正（独立 UI 设备断言）
+
+- **发现来源**：复核 `main@d7ae30df` 的 [Android 35 393dp UI 作业 #45140036669](https://github.com/sy220284/111/actions/runs/45140036669) 原始 `chat-keyboard-open-android35.png`，输入文字和操作按钮可见，但屏幕未显示系统软件键盘。此前 69/69 仪器测试成功仅证明无键盘场景下控件可见；历史“键盘展开截图验收通过”的结论需要补充真实 IME 状态证据。
+- **根因**：旧 `chatKeyboardKeepsComposerActionsAccessible` 用 `performTextInput` 注入文字并检查按钮，未核查系统 `WindowInsets.Type.ime()`；Android 模拟器连接硬件键盘时可成功输入却隐藏软件键盘，形成跨 360/393/411dp 的同类假阳性。
+- **改造位置**：`.github/workflows/check-android-ui.yml` 明确开启模拟器软件键盘并验证输入法服务；`UiNavigationInstrumentedTest.kt` 引入可复用真实 IME Insets 断言，覆盖聊天输入和设置搜索，聊天截图拍摄前后均检查 IME 可见且高度大于零。
+- **协议影响**：`thread/start`、`turn/start`、设置搜索/导航的真实 RPC、参数和用户数据路径均未改动。本轮只提高设备测试对系统输入法真实状态的证明能力。
+- **验收等级**：代码与 CI 检查已提交至独立分支，最终设备通过状态以此 PR 当前 HEAD 的四作业、三档截图及 `ime` 可见断言结果更新；此前“键盘展开已验收”不沿用作为本轮结论。
