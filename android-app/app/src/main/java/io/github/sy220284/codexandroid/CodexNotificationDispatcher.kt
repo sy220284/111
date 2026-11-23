@@ -16,7 +16,7 @@ internal object CodexNotificationDispatcher {
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
         if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
-        if (method == "mcpServer/oauthLoginCompleted") {
+        if (method == "mcpServer/oauthLogin/completed") {
             val matching = McpServiceAuthPolicy.matchesCompletion(data.value["mcpLogin"], params)
             if (matching) {
                 data.value = data.value - "mcpLogin"
