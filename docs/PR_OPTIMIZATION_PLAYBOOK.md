@@ -250,3 +250,9 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 
 - 早期仅在备份卡片隐藏操作按钮，无法阻止其余页面在归档时改动数据。改由 `CodexShell` 的独占进度弹层统一封锁 UI，`CodexViewModel.request` 在数据传输期间阻断新的用户写请求，全局策略再把已发起 RPC、登录和方案准备加入检查，保护备份文件一致性。
 - 全量页面截图审计曾计算 `missing_screens` 但未据此失败；现对每个截图名称强制匹配设备清单，有截图遗漏就让 CI 失败。两者均配有正反例回归，不再靠人工检查页面级菜单是否齐全。
+
+
+### #71 真实测试引用标准再提升
+
+- 逐功能索引原来允许“只有截图、没有对应测试”仍被算作有证据，审计后定位到 `review`、`skills`、`apps`、`diagnostics` 四行。已补真实既有设备用例，并将每项都具备 JUnit/Android 名称及截图清单登记设为 CI 统一门槛。
+- 本地数据归档时统一使用 `DataTransferBusyOverlay` + `DataTransferMutationGate`，并把待完成读写、登录、方案提交纳入统一安全策略；原有各页面无需复制处理，减少重复维护。
