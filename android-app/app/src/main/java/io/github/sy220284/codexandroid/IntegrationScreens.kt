@@ -234,7 +234,8 @@ fun McpServicesPage(vm: CodexViewModel) {
             )
         }
         IntegrationState(vm, "mcp") { refreshServices() }
-        if (usable.isEmpty() && "mcp" !in loading) {
+        if (usable.isEmpty() && "mcp" !in loading &&
+            (data["mcp"] != null || engineStatus != EngineStatus.Connected)) {
             CodexEmptyState(
                 "暂无可用 MCP 服务",
                 if (engineStatus != EngineStatus.Connected) "连接本机运行核心后查看可用服务。"
@@ -249,6 +250,7 @@ fun McpServicesPage(vm: CodexViewModel) {
 /** The management screen deliberately renders no registration, OAuth or tool controls. */
 @Composable
 internal fun McpServiceStatusCard(server: JSONObject) {
+    if (!McpAvailableServices.isUsable(server)) return
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
