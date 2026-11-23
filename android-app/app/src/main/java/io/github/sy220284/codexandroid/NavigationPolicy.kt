@@ -58,8 +58,8 @@ object NavigationPolicy {
         if (q.isBlank()) return null
         return settingsSpots.firstOrNull { spot ->
             spot.route == id &&
-                (spot.label.contains(q, ignoreCase = true) ||
-                    spot.terms.any { it.contains(q, ignoreCase = true) })
+                (q.contains(spot.label, ignoreCase = true) ||
+                    spot.terms.any { q.contains(it, ignoreCase = true) })
         }
     }
 

@@ -223,8 +223,9 @@ fun AppearanceInlineControls() {
         AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
         AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
         Text("文字大小", style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            modifier = Modifier.padding(top = 6.dp).testTag("appearance-font-heading"))
+        Row(Modifier.fillMaxWidth().testTag("appearance-font-controls"),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
                 .forEach { (scale, label) ->
                     FilterChip(

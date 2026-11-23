@@ -23,6 +23,12 @@ class NavigationPolicyTest {
             assertNull(SettingsDeepLink.take(spot.route))
         }
         assertTrue(NavigationPolicy.settingsSpots.all { it.route in NavigationPolicy.settingsRoutes })
+        // 搜索一级功能名称时应进入管理总览，只有明确的操作词才展开表单。
+        assertNull(NavigationPolicy.matchedSettingSpot("providers", "模型服务商"))
+        assertNull(NavigationPolicy.matchedSettingSpot("plugins", "插件"))
+        assertNull(NavigationPolicy.matchedSettingSpot("appearance", "外观与交互"))
+        assertEquals("custom", NavigationPolicy.matchedSettingSpot(
+            "providers", "配置模型服务商")?.target)
     }
 
     @Test fun settingsOverviewAvoidsDuplicateEntriesWithoutHidingSearchResults() {

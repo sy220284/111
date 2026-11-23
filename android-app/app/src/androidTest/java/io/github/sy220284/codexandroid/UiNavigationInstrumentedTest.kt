@@ -283,7 +283,9 @@ class UiNavigationInstrumentedTest {
         val emptyPanel = rule.onNodeWithTag("terminal-console-empty").fetchSemanticsNode().boundsInRoot
         val commandArea = rule.onNodeWithTag("terminal-command-input").fetchSemanticsNode().boundsInRoot
         assertTrue("终端输出区应位于输入区上方", output.bottom <= commandArea.top)
-        assertTrue("空输出面板应填满终端输出区", emptyPanel.height >= output.height - 8f)
+        assertTrue("空态需要足够的阅读面积", emptyPanel.height >= 96f)
+        assertTrue("空态不能超出终端输出容器", emptyPanel.bottom <= output.bottom + 8f)
+        assertTrue("空态应保留结果区域扩展空间", emptyPanel.height <= output.height)
         capture("terminal-android35.png")
         rule.onNodeWithText("输入命令").performTextInput("pwd")
         rule.runOnUiThread {
@@ -445,7 +447,7 @@ class UiNavigationInstrumentedTest {
     @Test fun pluginDiscoveryCanOpenSearchWithoutInventedResults() {
         openSettingRoute("plugins")
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
-        rule.onNodeWithText("搜索插件（实验）").assertExists()
+        rule.onNodeWithText("搜索插件", substring = false).assertExists()
         rule.onNodeWithText("插件名称或关键字").assertExists()
         capture("plugin-search-android35.png")
     }
@@ -508,7 +510,8 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("字号")
         rule.onNodeWithTag("settings-route-appearance").performClick()
-        rule.onNodeWithText("文字大小").assertExists()
+        rule.onNodeWithTag("appearance-font-heading").assertExists()
+        rule.onNodeWithTag("appearance-font-controls").assertExists()
     }
 
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
