@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
+    @Test fun settingsOverviewAvoidsDuplicateEntriesWithoutHidingSearchResults() {
+        assertFalse(NavigationPolicy.showInSettingsGroup("account", ""))
+        assertFalse(NavigationPolicy.showInSettingsGroup("diagnostics", ""))
+        assertTrue(NavigationPolicy.showInSettingsGroup("account", "登录"))
+        assertTrue(NavigationPolicy.showInSettingsGroup("diagnostics", "日志"))
+        assertTrue(NavigationPolicy.showInSettingsGroup("plugins", ""))
+        assertTrue(NavigationPolicy.showInSettingsGroup("environments", ""))
+    }
+
     @Test fun commonNavigationRemainsCompact() {
         assertEquals(listOf("chat", "home", "files", "settings"),
             NavigationPolicy.sidebarRoutes)
