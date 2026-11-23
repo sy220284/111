@@ -275,26 +275,43 @@ internal fun SidebarSessionsContent(
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
             }
         }
-        itemsIndexed(matches, key = { _, item -> item.optString("id") }) { index, entry ->
-            val group = ThreadDisplayPolicy.dayGroup(entry.opt("updatedAt"), entry.opt("createdAt"))
-            val previousGroup = matches.getOrNull(index - 1)?.let { previous ->
-                ThreadDisplayPolicy.dayGroup(previous.opt("updatedAt"), previous.opt("createdAt"))
+        // Desktop-style organization: conversations live below their projects,
+        // rather than presenting unrelated work in one date-only flat list.
+        matches.groupBy { it.optString("cwd").ifBlank { "未知项目" } }
+            .forEach { (cwd, projectThreads) ->
+                item(key = "sidebar-project-" + cwd) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(
+                            start = 12.dp, end = 8.dp, top = 11.dp, bottom = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.FolderOpen, null, tint = Ink.muted,
+                            modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            if (cwd == "未知项目") cwd else PresentationPolicy.workspaceName(cwd),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Ink.muted, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(projectThreads.size.toString(), color = Ink.muted,
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                items(projectThreads, key = { it.optString("id") }) { entry ->
+                    val id = entry.optString("id")
+                    SidebarSessionRow(
+                        item = entry,
+                        active = activeId == id,
+                        running = running && activeId == id,
+                        pendingApprovals = if (activeId == id) pendingApprovals else 0,
+                        activity = liveActivities[id] ?: ThreadActivityPolicy.fromThread(entry),
+                        enabled = connected && !switching,
+                        onClick = { onOpenThread(id) }
+                    )
+                }
             }
-            if (index == 0 || group != previousGroup) {
-                Text(group, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
-            }
-            val id = entry.optString("id")
-            SidebarSessionRow(
-                item = entry,
-                active = activeId == id,
-                running = running && activeId == id,
-                pendingApprovals = if (activeId == id) pendingApprovals else 0,
-                activity = liveActivities[id] ?: ThreadActivityPolicy.fromThread(entry),
-                enabled = connected && !switching,
-                onClick = { onOpenThread(id) }
-            )
-        }
         item(key = "session-view-all") {
             TextButton(
                 onClick = onViewAll,
