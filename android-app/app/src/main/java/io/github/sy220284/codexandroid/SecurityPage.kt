@@ -14,11 +14,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import org.json.JSONObject
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewModelScope
 
 @Composable
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
     var saving by remember { mutableStateOf(false) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var saveError by remember { mutableStateOf(false) }
@@ -234,10 +234,10 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         saveMessage = snapshot.blockReason
                         saveError = true
                     } else {
-                    // Reserve ownership before launching: backup cannot start in the gap.
-                    vm.securitySaveBusy.value = true
-                    saving = true
-                    coroutineScope.launch {
+                        // Own the entire write + readback even if this page is closed.
+                        vm.securitySaveBusy.value = true
+                        saving = true
+                        vm.viewModelScope.launch {
                         saveMessage = null
                         try {
                             val verified = SecurityPermissionController.saveDefault(vm.bridge, id)
@@ -252,7 +252,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             vm.securitySaveBusy.value = false
                             saving = false
                         }
-                    }
+                        }
                     }
                 }
                 draftProfile = null
