@@ -265,7 +265,9 @@ jobs:
   release:
     name: 签名、验证并发布 ARM64 手机 APK
     needs: check-release
-    if: needs.check-release.outputs.should_release == 'true'
+    # The PR-only preflight is skipped for workflow_run. Check the actual
+    # acceptance result explicitly instead of inheriting an implicit success().
+    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 65
     permissions:
@@ -419,7 +421,7 @@ jobs:
   cleanup:
     name: 正式发布成功后保留最近三个版本
     needs: release
-    if: needs.release.result == 'success'
+    if: always() && needs.release.result == 'success'
     permissions:
       contents: write
     uses: ./.github/workflows/cleanup-old-releases.yml
