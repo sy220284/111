@@ -730,6 +730,12 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(15_000L) {
             listOf("config", "securityRequirements", "permissionProfiles").none { it in vm.loading.value }
         }
+        rule.onNodeWithTag("security-profiles-toggle").performScrollTo()
+        if (rule.onAllNodesWithText("可用权限方案", substring = false)
+                .fetchSemanticsNodes().isEmpty()) {
+            rule.onNodeWithTag("security-profiles-toggle").performClick()
+        }
+        rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         rule.runOnUiThread {
             vm.data.value = vm.data.value + mapOf(
                 "config" to JSONObject().put("config", JSONObject()
@@ -747,7 +753,6 @@ class UiNavigationInstrumentedTest {
                     .put(JSONObject().put("id", ":danger-full-access").put("allowed", true)))
             )
         }
-        rule.onNodeWithTag("security-profiles-toggle").performScrollTo().performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("security-profile-workspace").fetchSemanticsNodes().isNotEmpty()
         }
