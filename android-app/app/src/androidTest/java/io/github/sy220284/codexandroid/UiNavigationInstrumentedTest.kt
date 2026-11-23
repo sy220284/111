@@ -434,7 +434,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-queue").performClick()
         rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
+        rule.runOnUiThread {
+            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
+            rule.activity.currentFocus?.clearFocus()
+        }
+        rule.waitForIdle()
         pressSystemBack()
+        rule.onNodeWithTag("thread-queue-sheet").assertDoesNotExist()
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-queue").performClick()
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")

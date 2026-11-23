@@ -22,6 +22,7 @@ class NavigationPolicyTest {
         assertFalse(NavigationPolicy.isDetailPage("search"))
         assertTrue(NavigationPolicy.isDetailPage("terminal"))
         assertTrue(NavigationPolicy.isDetailPage("diff"))
+        assertTrue(NavigationPolicy.isDetailPage("limits"))
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))

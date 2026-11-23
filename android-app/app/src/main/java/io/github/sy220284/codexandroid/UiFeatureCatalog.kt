@@ -37,7 +37,7 @@ object UiFeatureCatalog {
         UiFeature("config", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("security", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("usage", FeatureSurface.Page, FeatureOwner.Account, false),
-        UiFeature("limits", FeatureSurface.Inline, FeatureOwner.Account, false),
+        UiFeature("limits", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("appearance", FeatureSurface.Inline, FeatureOwner.System, false),
         UiFeature("diagnostics", FeatureSurface.Page, FeatureOwner.System, true),
         UiFeature("about", FeatureSurface.Sheet, FeatureOwner.System, false),
