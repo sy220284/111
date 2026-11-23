@@ -817,13 +817,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
     }
 
-    @Test fun expandedSecurityAndAboutViewsAreCaptured() {
+    @Test fun directlySelectableSecurityAndAboutViewsAreCaptured() {
         openSettingRoute("security")
-        rule.onNodeWithTag("security-profiles-toggle").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("可用权限方案", substring = false).assertExists()
-        rule.onNodeWithTag("security-profiles-toggle").performClick()
-        rule.onNodeWithText("可用权限方案", substring = false).assertDoesNotExist()
-        rule.onNodeWithTag("security-profiles-toggle").performClick()
+        rule.onNodeWithTag("security-profiles-heading").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         capture("audit-security-profiles-android35.png")
 
@@ -838,11 +834,7 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(15_000L) {
             listOf("config", "securityRequirements", "permissionProfiles").none { it in vm.loading.value }
         }
-        rule.onNodeWithTag("security-profiles-toggle").performScrollTo()
-        if (rule.onAllNodesWithText("可用权限方案", substring = false)
-                .fetchSemanticsNodes().isEmpty()) {
-            rule.onNodeWithTag("security-profiles-toggle").performClick()
-        }
+        rule.onNodeWithTag("security-profiles-heading").performScrollTo()
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         rule.runOnUiThread {
             vm.data.value = vm.data.value + mapOf(
