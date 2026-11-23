@@ -121,8 +121,10 @@ fun TerminalPage(vm: CodexViewModel) {
             Icon(Icons.Outlined.Terminal, contentDescription = null, tint = Ink.muted)
         }
         Box(Modifier.fillMaxWidth().weight(1f).testTag("terminal-console")) {
-            Column(Modifier.fillMaxSize().verticalScroll(consoleScroll),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val consoleHeight = maxHeight
+                Column(Modifier.fillMaxSize().verticalScroll(consoleScroll),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (session.processId.isNotEmpty()) {
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -297,7 +299,7 @@ fun TerminalPage(vm: CodexViewModel) {
                         }
                     }
                 } else {
-                    MaterialPanel(Modifier.fillMaxWidth().heightIn(min = 220.dp)
+                    MaterialPanel(Modifier.fillMaxWidth().heightIn(min = consoleHeight)
                         .testTag("terminal-console-empty")) {
                         Text("等待执行命令", style = MaterialTheme.typography.titleMedium)
                         DividerLine()
@@ -308,6 +310,7 @@ fun TerminalPage(vm: CodexViewModel) {
                                 style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                         }
                     }
+                }
                 }
             }
         }
