@@ -381,7 +381,6 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
     val data by vm.data.collectAsState()
     val count = records(data["queue:" + (active ?: "none")]).size
-    val shortWindow = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 480
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -389,7 +388,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         contentColor = Ink.parchment
     ) {
         Column(Modifier.fillMaxWidth()
-            .fillMaxHeight(AdaptiveWorkspaceLayout.queueSheetFraction(count, shortWindow))
+            .fillMaxHeight(PhoneSheetLayout.queueFraction(count))
             .testTag("thread-queue-sheet")) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 IconButton(

@@ -78,6 +78,8 @@ class UiNavigationInstrumentedTest {
 
     @Test fun drawerOpensAndNavigatesToConversation() {
         rule.onNodeWithText("从一项任务开始").assertIsDisplayed()
+        assertEquals(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            rule.activity.requestedOrientation)
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-chat").assertExists()

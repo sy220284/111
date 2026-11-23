@@ -11,7 +11,6 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,33 +25,28 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun ChatWorkTopBar(
     selected: String,
-    wide: Boolean,
     newThreadBlockReason: String?,
     onMenu: () -> Unit,
     onNavigate: (String) -> Unit,
     onNewThread: () -> Unit
 ) {
-    val shortWindow = LocalConfiguration.current.screenHeightDp < AdaptiveWorkspaceLayout.compactHeightDp
     Row(
-        Modifier.fillMaxWidth().height(if (shortWindow) 56.dp else 72.dp).background(Ink.canvas)
-            .padding(horizontal = if (shortWindow) 9.dp else 15.dp),
+        Modifier.fillMaxWidth().height(64.dp).background(Ink.canvas)
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (!wide) {
-                IconButton(
-                    onClick = onMenu,
-                    modifier = Modifier.size(48.dp)
-                        .background(Ink.recessed, CircleShape)
-                        .testTag("drawer-toggle")
-                ) {
-                    Icon(Icons.Outlined.Menu, "打开侧边导航", tint = Ink.parchment)
-                }
+            IconButton(
+                onClick = onMenu,
+                modifier = Modifier.size(48.dp)
+                    .background(Ink.recessed, CircleShape)
+                    .testTag("drawer-toggle")
+            ) {
+                Icon(Icons.Outlined.Menu, "打开侧边导航", tint = Ink.parchment)
             }
         }
         Row(
-            Modifier.width(if (shortWindow) 174.dp else 196.dp)
-                .height(if (shortWindow) 42.dp else 49.dp)
+            Modifier.width(196.dp).height(49.dp)
                 .background(Ink.recessed, RoundedCornerShape(28.dp))
                 .padding(4.dp).testTag("chat-work-switch"),
             verticalAlignment = Alignment.CenterVertically
