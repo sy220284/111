@@ -84,6 +84,7 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
                 CircularProgressIndicator()
                 Text(
                     text = transfer.result.ifBlank { "正在处理本机工作数据…" },
+                    modifier = Modifier.testTag("data-transfer-busy-message"),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
