@@ -182,19 +182,19 @@ fun WorkspacePage(vm: CodexViewModel) {
         if (actionBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
             OutlinedButton(
-                onClick = { showCreate = !showCreate },
+                onClick = { showCreate = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("workspace-create-toggle")
             ) {
-                Icon(if (showCreate) Icons.Outlined.ExpandLess else Icons.Outlined.Add, null)
+                Icon(Icons.Outlined.Add, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (showCreate) "收起新建操作" else "新建文件或文件夹")
+                Text("新建文件或文件夹")
             }
-            CodexReveal(showCreate) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("新建项目内容", style = MaterialTheme.typography.titleMedium)
-                Text("在当前目录创建文件或文件夹。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            if (showCreate) CodexDetailSheet(
+                title = "新建项目内容",
+                subtitle = "在当前目录创建文件或文件夹",
+                onDismiss = { showCreate = false }
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     FilterChip(selected = createKind == "file",
                         onClick = { createKind = "file" }, label = { Text("文本文件") },
@@ -228,7 +228,6 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Spacer(Modifier.width(7.dp))
                     Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
-            }
             }
         }
         item {
