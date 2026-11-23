@@ -382,11 +382,40 @@ class UiNavigationInstrumentedTest {
         capture("plugins-android35.png")
     }
 
+
+    @Test fun settingsSearchDoesNotExposeTaskOperations() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("任务队列")
+        rule.onNodeWithText("未找到相关功能").assertExists()
+        rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
+        rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
+    }
+
+    @Test fun queueAndFullSearchOpenAsTaskSheets() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-global-search").performClick()
+        rule.onNodeWithTag("thread-library-sheet").assertExists()
+        rule.onNodeWithText("搜索历史正文").assertExists()
+        captureOverlay("thread-global-search-android35.png")
+        pressSystemBack()
+
+        rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
+        openDrawerRoute("files")
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-queue").performClick()
+        rule.onNodeWithTag("thread-queue-sheet").assertExists()
+        rule.onNodeWithText("任务队列").assertExists()
+        captureOverlay("audit-queue-android35.png")
+        pressSystemBack()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+    }
+
     @Test fun secondarySettingsPagesHaveActualDeviceScreenshots() {
         // Every captured screen comes from the current Android Activity and real navigation.
         val routeScreens = listOf(
             "providers", "skills", "apps", "mcp",
-            "environments", "security", "config", "diagnostics", "queue"
+            "environments", "security", "config", "diagnostics"
         )
         routeScreens.forEach { route ->
             openSettingRoute(route)
