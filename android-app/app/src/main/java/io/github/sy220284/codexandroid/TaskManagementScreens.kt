@@ -266,49 +266,77 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it)?.optString("text") }
                 .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
             MaterialPanel(Modifier.fillMaxWidth()) {
+                var showQueueActions by remember(item.optString("id")) { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AtlasSequenceBadge(index + 1, all.size)
                     Spacer(Modifier.width(9.dp))
                     Text("第 " + (index + 1) + " 项",
                         color = Ink.copper, style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
-                        val order = ids.toMutableList()
-                        val swap = order[index - 1]
-                        order[index - 1] = order[index]
-                        order[index] = swap
-                        vm.rpc("queueWrite", "thread/queue/reorder",
-                            JSONObject().put("threadId", active)
-                                .put("queuedSubmissionIds", JSONArray(order)), after = { refreshQueue() })
-                    }, enabled = canReorder && index > 0 && "queueWrite" !in loading) {
-                        Icon(Icons.Outlined.ArrowUpward, "上移")
-                    }
-                    IconButton(onClick = {
-                        val order = ids.toMutableList()
-                        val swap = order[index + 1]
-                        order[index + 1] = order[index]
-                        order[index] = swap
-                        vm.rpc("queueWrite", "thread/queue/reorder",
-                            JSONObject().put("threadId", active)
-                                .put("queuedSubmissionIds", JSONArray(order)), after = { refreshQueue() })
-                    }, enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading) {
-                        Icon(Icons.Outlined.ArrowDownward, "下移")
-                    }
                     IconButton(
-                        onClick = {
-                            pendingEdit = item
-                            editText = input.optJSONObject(0)?.optString("text").orEmpty()
-                        },
-                        enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
-                            "queueWrite" !in loading
+                        onClick = { showQueueActions = true },
+                        enabled = "queueWrite" !in loading,
+                        modifier = Modifier.testTag("queue-item-more-" + index)
                     ) {
-                        Icon(Icons.Outlined.Edit, "编辑文本任务")
-                    }
-                    IconButton(onClick = { pendingDelete = item },
-                        enabled = "queueWrite" !in loading) {
-                        Icon(Icons.Outlined.DeleteOutline, "删除")
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "管理第${index + 1}项指令")
                     }
                 }
+                if (showQueueActions) CodexActionSheet(
+                    title = "第 ${index + 1} 项指令",
+                    onDismiss = { showQueueActions = false },
+                    actions = listOf(
+                        CodexSheetAction(
+                            label = "上移",
+                            description = "优先执行此项",
+                            icon = Icons.Outlined.ArrowUpward,
+                            enabled = canReorder && index > 0 && "queueWrite" !in loading,
+                            onClick = {
+                                val order = ids.toMutableList()
+                                val swap = order[index - 1]
+                                order[index - 1] = order[index]
+                                order[index] = swap
+                                vm.rpc("queueWrite", "thread/queue/reorder",
+                                    JSONObject().put("threadId", active)
+                                        .put("queuedSubmissionIds", JSONArray(order)),
+                                    after = { refreshQueue() })
+                            }
+                        ),
+                        CodexSheetAction(
+                            label = "下移",
+                            description = "延后执行此项",
+                            icon = Icons.Outlined.ArrowDownward,
+                            enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading,
+                            onClick = {
+                                val order = ids.toMutableList()
+                                val swap = order[index + 1]
+                                order[index + 1] = order[index]
+                                order[index] = swap
+                                vm.rpc("queueWrite", "thread/queue/reorder",
+                                    JSONObject().put("threadId", active)
+                                        .put("queuedSubmissionIds", JSONArray(order)),
+                                    after = { refreshQueue() })
+                            }
+                        ),
+                        CodexSheetAction(
+                            label = "编辑指令",
+                            icon = Icons.Outlined.Edit,
+                            enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
+                                "queueWrite" !in loading,
+                            onClick = {
+                                pendingEdit = item
+                                editText = input.optJSONObject(0)?.optString("text").orEmpty()
+                            }
+                        ),
+                        CodexSheetAction(
+                            label = "删除指令",
+                            description = "删除前会再次确认",
+                            icon = Icons.Outlined.DeleteOutline,
+                            destructive = true,
+                            enabled = "queueWrite" !in loading,
+                            onClick = { pendingDelete = item }
+                        )
+                    )
+                )
                 Text(summary, style = MaterialTheme.typography.bodyLarge, maxLines = 8,
                     overflow = TextOverflow.Ellipsis)
             }
