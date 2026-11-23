@@ -90,6 +90,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
     internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
+    private val mcpCatalog by lazy { McpCatalogController(this) }
     private var firstTurnImages: List<String> = emptyList()
 
     init {
@@ -131,6 +132,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val previousThread = activeThread.value
             bridge.connect()
+            mcpCatalog.reset()
             // A new native process invalidates ephemeral status from the old session.
             threadActivities.value = emptyMap()
             errors.value = errors.value - "engine" - "protocol"
@@ -222,6 +224,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         params: JSONObject = JSONObject(),
         onSuccess: ((JSONObject) -> Unit)? = null
     ) = request(key, method, params, onSuccess)
+
+    /** Read only live MCP connections; reload the native catalog when the agent edits config. */
+    fun refreshMcpServices() = mcpCatalog.refresh()
 
     fun ensureCatalog(key: String, method: String, params: JSONObject = JSONObject()) =
         catalogWarmup.ensure(key, method, params)
