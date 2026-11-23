@@ -213,13 +213,8 @@ fun McpServicesPage(vm: CodexViewModel) {
     val engineStatus by vm.bridge.status.collectAsState()
     val usable = McpAvailableServices.visible(records(data["mcp"]))
 
-    fun refreshServices() {
-        vm.refresh("mcp", "mcpServerStatus/list",
-            CatalogRequestContract.mcpStatus(activeThread))
-    }
-
     LaunchedEffect(activeThread, engineStatus) {
-        if (engineStatus == EngineStatus.Connected) refreshServices()
+        if (engineStatus == EngineStatus.Connected) vm.refreshMcpServices()
     }
 
     ScreenColumn {
@@ -229,11 +224,12 @@ fun McpServicesPage(vm: CodexViewModel) {
                 modifier = Modifier.weight(1f))
             CodexRefreshIcon(
                 busy = "mcp" in loading,
-                onRefresh = { refreshServices() },
+                onRefresh = { vm.refreshMcpServices() },
                 label = "刷新可用服务"
             )
         }
-        IntegrationState(vm, "mcp") { refreshServices() }
+        ProtocolFeedback(vm, listOf("mcp", "mcpReload"),
+            onRetry = { vm.refreshMcpServices() })
         if (usable.isEmpty() && "mcp" !in loading &&
             (data["mcp"] != null || engineStatus != EngineStatus.Connected)) {
             CodexEmptyState(
