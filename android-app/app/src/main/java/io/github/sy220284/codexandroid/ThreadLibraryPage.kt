@@ -549,6 +549,10 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         .filter { it.isNotBlank() && it !in executions }.distinct()
                 },
                 onClear = { selectedIds = emptyList() },
+                onFinish = {
+                    selectedIds = emptyList()
+                    selectionMode = false
+                },
                 onAction = { bulkConfirm = it }
             )
         }
