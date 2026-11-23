@@ -230,3 +230,11 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 - #66 已 squash 合并至 main：[`d7ae30df`](https://github.com/sy220284/111/commit/d7ae30df3eab8473ea5def24a398aebe6f6197bb)。
 - 最终 PR HEAD `ef4fbcbeb702bd1dc413b3b911668fad110a72a7` 的 [CI #45138957127](https://github.com/sy220284/111/actions/runs/45138957127) 四作业成功；360/393/411dp 各 69 项 Android 35 仪器测试通过，三档截图已归档；393dp 的 Install → Open 安装回归通过。
 - ARM64 真实运行、实际外部授权和厂商兼容仍按对应专项单独验收。
+
+
+## 10. UI 截图必须证明被测系统状态（2026-11-23）
+
+- **旧假设**：#66 修复 `adjustResize` 与重复 `imePadding()` 后，既有截图清单中的 `chat-keyboard-open-android35.png` 被当作真实键盘展开证据。
+- **实际证据差异**：在主线提交 `d7ae30df` 的 [UI CI #45140036669](https://github.com/sy220284/111/actions/runs/45140036669) 393dp 归档图里，文本已注入且按钮可见，但没有软键盘。仅用控件存在性断言会漏掉最关键的系统状态前提；该结果需重新按真实 IME 展开验收。
+- **统一改造**：同一 Android 35 工作流为 360/393/411dp 全部设备开启软件输入法；复用测试内的系统 `WindowInsets.Type.ime()` 可见且高度非零断言，聊天输入区截图在键盘真实出现后采集，并覆盖设置搜索的输入法交互。
+- **复用原则**：凡依赖系统状态（键盘、授权弹窗、安装器、断连、通知）的 UI 证据，先确认系统状态真的发生，再证明界面仍可交互。提交到主线前以新 SHA 的 CI 原始设备日志与截图复核，旧的截图名称不可代替状态证明。
