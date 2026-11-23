@@ -39,6 +39,107 @@ DYNAMIC_METHOD = re.compile(
 )
 
 
+
+FEATURE = re.compile(
+    r'UiFeature\("(?P<id>[a-z]+)",\s*FeatureSurface\.(?P<surface>\w+),'
+    r'\s*FeatureOwner\.(?P<owner>\w+),\s*(?:true|false)\)'
+)
+# The shell dispatches sheets to exactly one contextual overlay; they should not
+# silently turn back into top-level pages when the catalog grows.
+SHEET_DISPATCH = {
+    "threads": ("showThreadLibrary = true", "ThreadLibraryQuickSheet("),
+    "search": ("showThreadLibrary = true", "ThreadLibraryQuickSheet("),
+    "approvals": ("showApprovals = true", "ApprovalQuickSheet("),
+    "goals": ("showGoal = true", "ThreadGoalSheet("),
+    "queue": ("showQueue = true", "ThreadQueueQuickSheet("),
+    "review": ("showReview = true", "ReviewScopeSheet("),
+    "models": ("showModels = true", "ModelChoiceSurface("),
+    "modes": ("showMode = true", "ModeChoiceSurface("),
+    "about": ("showAbout = true", "AboutInfoSheet("),
+}
+INLINE_DISPATCH = {
+    "appearance": ("SettingsHub.kt", "AppearanceInlineControls("),
+    "update": ("SettingsHub.kt", "AppUpdateCard("),
+}
+CONTROL_MARKER = re.compile(
+    r'\b(?:Button|OutlinedButton|TextButton|IconButton|FilterChip|'
+    r'DropdownMenuItem|Switch|Checkbox|RadioButton)\s*\('
+)
+EMPTY_HANDLER = re.compile(
+    r'\b(?:onClick|onConfirm|onDismissRequest)\s*=\s*\{\s*\}'
+    r'|\.clickable\s*\{\s*\}'
+)
+
+
+def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
+    code = files.get("UiFeatureCatalog.kt", "")
+    navigation = files.get("AppNavigation.kt", "")
+    features = [match.groupdict() for match in FEATURE.finditer(code)]
+    ids = [item["id"] for item in features]
+    invalid = []
+    if len(ids) != len(set(ids)):
+        invalid.append("功能目录包含重复路由")
+    if set(ids) != page_ids | {"update"}:
+        invalid.append("功能目录与页面清单的注册项不一致")
+    settings_block = code.split("val settingsGroups = listOf(", 1)[-1].split(
+        "val legacyRoutes", 1
+    )[0]
+    settings_ids = [
+        name for group in re.findall(r'FeatureGroup\("[^"]+",\s*listOf\(([^)]*)\)', settings_block)
+        for name in NAME.findall(group)
+    ]
+    if len(settings_ids) != len(set(settings_ids)):
+        invalid.append("设置首页存在重复的功能入口")
+    if len({"usage", "limits"} & set(settings_ids)) != 1:
+        invalid.append("用量和额度必须由同一个账号入口管理")
+    task_actions = {"threads", "approvals", "search", "goals", "queue",
+                    "diff", "terminal", "review", "modes"}
+    if task_actions & set(settings_ids):
+        invalid.append("设置首页混入会话或工作区操作")
+    move_start = navigation.find("val move:")
+    move_end = navigation.find("if (page.id != destination)", move_start)
+    route_handlers = navigation[move_start:move_end] if move_start >= 0 and move_end > move_start else ""
+    missing_surfaces = []
+    for feature in features:
+        name, kind = feature["id"], feature["surface"]
+        if kind == "Sheet":
+            expected = SHEET_DISPATCH.get(name)
+            if expected is None:
+                missing_surfaces.append(f"{name}:缺少弹层归属")
+            elif (f'"{name}"' not in route_handlers
+                  or expected[0] not in route_handlers or expected[1] not in navigation):
+                missing_surfaces.append(f"{name}:弹层入口或组件未接通")
+        elif kind == "Inline":
+            expected = INLINE_DISPATCH.get(name)
+            if expected is None or expected[1] not in files.get(expected[0], ""):
+                missing_surfaces.append(f"{name}:内嵌组件未接通")
+        elif kind not in {"Page", "Reader"}:
+            missing_surfaces.append(f"{name}:未知展示类型 {kind}")
+    empty_actions = [
+        f"{name}:{code[:match.start()].count(chr(10)) + 1}"
+        for name, code in files.items()
+        for match in EMPTY_HANDLER.finditer(code)
+    ]
+    controls = {
+        name: len(CONTROL_MARKER.findall(source))
+        for name, source in files.items()
+        if CONTROL_MARKER.search(source)
+    }
+    return {
+        "featureCount": len(features),
+        "surfaceCounts": {
+            kind: sum(f["surface"] == kind for f in features)
+            for kind in ("Page", "Sheet", "Reader", "Inline", "Action", "Dialog")
+        },
+        "settingsEntryCount": len(settings_ids),
+        "interactiveControls": sum(controls.values()),
+        "controlSources": dict(sorted(controls.items())),
+        "invalidHierarchy": invalid,
+        "missingSurfaceMappings": missing_surfaces,
+        "emptyActionHandlers": empty_actions,
+    }
+
+
 def _call_arguments(source: str, begin: int) -> list[str]:
     """切分 Kotlin 实参，忽略嵌套表达式和引号中的逗号、括号。"""
     args: list[str] = []
@@ -207,12 +308,14 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         f"{name} -> {handler}" for name, handler in routes.items()
         if handler not in defined
     })
+    hierarchy = audit_surface_hierarchy(files, set(ids))
     entries = [{
         **page,
         "handler": routes.get(page["id"], "缺失"),
         "source": defined.get(routes.get(page["id"], ""), "缺失")
     } for page in catalog]
     return {
+        **hierarchy,
         "pageCount": len(catalog),
         "routedCount": len(catalog) - len(missing),
         "officialRequests": len(official),
@@ -241,6 +344,8 @@ def report_markdown(result: dict) -> str:
         "# Codex Android UI 覆盖审计（CI 自动生成）",
         "",
         f"- 已定义页面：**{result['pageCount']}**",
+        f"- 注册功能：**{result['featureCount']}**；展示方式：{result['surfaceCounts']}",
+        f"- 设置入口：**{result['settingsEntryCount']}**；静态控件总数：**{result['interactiveControls']}**",
         f"- 已映射路由：**{result['routedCount']}**",
         f"- 官方协议方法总数：**{result['officialRequests']}**", 
         f"- Android 可主动请求：**{result['clientRequests']}**", 
@@ -281,6 +386,17 @@ def report_markdown(result: dict) -> str:
                 f"| `{method}` | {entry['surface']} | {entry['owner']} | "
                 f"{'已引用' if method in result['referencedMethodSources'] else '尚未直接引用'} |"
             )
+    lines.extend(["", "## 层级、操作与弹层审查", ""])
+    for label, field in [
+        ("入口与归属冲突", "invalidHierarchy"),
+        ("展示组件未接通", "missingSurfaceMappings"),
+        ("空操作处理器", "emptyActionHandlers"),
+    ]:
+        value = result[field]
+        lines.append(f"- {label}：{', '.join(value) if value else '无'}")
+    lines.append("")
+    lines.append("静态检查可发现重复入口、缺失弹层映射与空点击处理器；"
+                 "所有按钮的真实操作结果仍以 Android 设备回归和服务端响应为准。")
     lines.extend(["", "## 缺失/冲突", ""])
     for title, field in [
         ("没有页面路由", "missingRoutes"),
@@ -318,12 +434,12 @@ def main() -> int:
         f"UI 页面对照 {result['routedCount']}/{result['pageCount']}；"
         f"官方请求引用 {result['referencedRequests']}/{result['officialRequests']}。"
     )
-    for field in ("missingRoutes", "unknownRoutes", "undefinedHandlers"):
+    checked = ("missingRoutes", "unknownRoutes", "undefinedHandlers",
+               "invalidHierarchy", "missingSurfaceMappings", "emptyActionHandlers")
+    for field in checked:
         if result[field]:
             print(f"{field}：{result[field]}", file=sys.stderr)
-    return int(any(result[field] for field in (
-        "missingRoutes", "unknownRoutes", "undefinedHandlers"
-    )))
+    return int(any(result[field] for field in checked))
 
 
 if __name__ == "__main__":

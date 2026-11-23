@@ -250,10 +250,12 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchOpensRealAccountUsageAndLimitsPages() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("额度")
-        rule.onNodeWithTag("settings-route-limits").assertExists()
-        rule.onNodeWithTag("settings-route-usage").assertDoesNotExist()
-        rule.onNodeWithTag("settings-route-limits").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
+        rule.onNodeWithTag("settings-route-usage").assertExists()
+        rule.onNodeWithTag("settings-route-limits").assertDoesNotExist()
+        rule.onNodeWithTag("settings-route-usage").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
+        rule.onNodeWithText("额度", substring = false).performClick()
+        rule.onNodeWithText("额度窗口").assertExists()
     }
 
     @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
@@ -310,8 +312,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
-        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
+        rule.onNodeWithText("查看用量与额度").performScrollTo().performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
     }
 
     @Test fun featureCatalogKeepsUserFacingRoutesOnly() {
@@ -323,7 +325,7 @@ class UiNavigationInstrumentedTest {
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(16, NavigationPolicy.settingsRoutes.size)
+        assertEquals(15, NavigationPolicy.settingsRoutes.size)
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
@@ -355,7 +357,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun accountMetricsUsesSharedUsageAndLimitsTabs() {
         openSettingRoute("account")
-        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
+        rule.onNodeWithText("查看用量与额度").performScrollTo().performClick()
         rule.onNodeWithText("账号使用概况").assertExists()
         capture("account-usage-android35.png")
         rule.onNodeWithText("额度", substring = false).performClick()
@@ -366,6 +368,11 @@ class UiNavigationInstrumentedTest {
     @Test fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
         val name = "ui-folder-" + System.currentTimeMillis()
         openDrawerRoute("files")
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-create-open"))
+        rule.onNodeWithTag("workspace-create-panel").assertDoesNotExist()
+        rule.onNodeWithTag("workspace-create-open").performClick()
+        rule.onNodeWithTag("workspace-create-panel").assertExists()
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-folder-mode"))
         rule.onNodeWithTag("workspace-folder-mode").performClick()
@@ -627,7 +634,10 @@ class UiNavigationInstrumentedTest {
 
     @Test fun expandedSecurityAndAboutViewsAreCaptured() {
         openSettingRoute("security")
-        rule.onNodeWithText("可用权限方案").performScrollTo()
+        rule.onNodeWithTag("security-profiles-toggle").performScrollTo()
+        rule.onNodeWithText("可用权限方案", substring = false).assertDoesNotExist()
+        rule.onNodeWithTag("security-profiles-toggle").performClick()
+        rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         capture("audit-security-profiles-android35.png")
 
         openSettingRoute("about")

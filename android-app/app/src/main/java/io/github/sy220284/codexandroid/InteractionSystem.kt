@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
@@ -389,12 +390,15 @@ fun CodexConfirmDialog(
                 onClick = onConfirm,
                 colors = if (destructive) ButtonDefaults.outlinedButtonColors(containerColor = Ink.canvas, contentColor = Ink.red)
                 else ButtonDefaults.outlinedButtonColors(),
-                modifier = Modifier.heightIn(min = 48.dp),
+                modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-accept"),
                 border = BorderStroke(1.dp, if (destructive) Ink.red else Ink.copper)
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("取消") }
+            TextButton(onClick = onDismiss,
+                modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-cancel")) {
+                Text("取消")
+            }
         }
     )
 }

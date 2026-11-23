@@ -261,8 +261,11 @@ fun SkillsPage(vm: CodexViewModel) {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory)) }
+        if (groups.any { (it.optJSONArray("skills")?.length() ?: 0) > 0 }) {
+            Text("当前工作区技能", color = Ink.muted,
+                style = MaterialTheme.typography.titleMedium)
+        }
         groups.forEach { group ->
-            Text("工作区技能", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             group.optJSONArray("skills")?.objects()?.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
                 var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
@@ -295,9 +298,9 @@ fun SkillsPage(vm: CodexViewModel) {
                     }
                 }
             }
-            group.optJSONArray("errors")?.objects()?.forEach { issue ->
-                ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
-            }
+        }
+        if (groups.any { (it.optJSONArray("errors")?.length() ?: 0) > 0 }) {
+            ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
         }
         ProtocolFeedback(vm, listOf("skillsWrite"))
         if ("skillsWrite" in mutationLoading) {
@@ -589,6 +592,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val terminalRunning by vm.terminalSession.collectAsState()
     val promptItems by vm.bridge.prompts.collectAsState()
     var showCrashes by remember { mutableStateOf(false) }
+    var showTroubleshooting by rememberSaveable { mutableStateOf(false) }
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     ScreenColumn {
@@ -598,19 +602,19 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 Icon(Icons.Outlined.Memory, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Codex App Server", style = MaterialTheme.typography.titleMedium)
+                    Text("运行服务", style = MaterialTheme.typography.titleMedium)
                     StatusPill(if (status == EngineStatus.Connected) "已连接" else "连接异常", status == EngineStatus.Connected)
                 }
             }
             val statusSnapshot = status
             Text(when (statusSnapshot) {
-                EngineStatus.Starting -> "正在初始化本机进程和 JSON-RPC。"
-                EngineStatus.Connected -> "进程已通过 initialize 并建立响应通道。"
+                EngineStatus.Starting -> "正在启动任务运行服务。"
+                EngineStatus.Connected -> "已准备好执行任务。"
                 is EngineStatus.Unavailable ->
-                    "本机内核连接失败，可尝试重新连接或查看启动日志。"
+                    "连接中断，可以尝试重新连接或查看日志。"
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
-            Text("工作区：本机工作区", color = Ink.muted)
+            Text("运行位置：此设备", color = Ink.muted)
             val stderr by vm.bridge.recentStderr.collectAsState()
             if (stderr.isNotEmpty()) {
                 TextButton(onClick = { showLogs = !showLogs }) {
@@ -638,7 +642,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                     Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
                 OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
-                    enabled = status == EngineStatus.Connected) { Text("读取官方诊断") }
+                    enabled = status == EngineStatus.Connected) { Text("检查运行状态") }
             }
             if (taskRunning || terminalRunning.running || promptItems.isNotEmpty()) {
                 Text("运行期间保留当前内核进程，避免中断正在执行的任务。",
@@ -681,10 +685,19 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 }
             }
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("故障排查顺序", style = MaterialTheme.typography.titleMedium)
-            Text("1. 核心 ELF 是否已安装和可执行\n2. initialize 是否返回\n3. 登录状态是否有效\n4. 对应能力是否支持 Android 环境",
-                color = Ink.muted)
+        TextButton(onClick = { showTroubleshooting = !showTroubleshooting },
+            modifier = Modifier.testTag("diagnostics-advanced-toggle")) {
+            Icon(if (showTroubleshooting) Icons.Outlined.ExpandLess
+                else Icons.Outlined.ExpandMore, null)
+            Spacer(Modifier.width(6.dp))
+            Text(if (showTroubleshooting) "收起排查方法" else "查看故障排查方法")
+        }
+        CodexReveal(showTroubleshooting) {
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("故障排查方法", style = MaterialTheme.typography.titleMedium)
+                Text("1. 检查运行组件是否完成安装\n2. 确认任务运行服务已连接\n3. 检查账号登录状态\n4. 确认当前设备支持所需能力",
+                    color = Ink.muted)
+            }
         }
     }
 }
