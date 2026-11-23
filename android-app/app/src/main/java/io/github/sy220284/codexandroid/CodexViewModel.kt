@@ -30,6 +30,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeThread = MutableStateFlow<String?>(null)
     internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
+    /** True across the entire permissions save + effective-config readback. */
+    val securitySaveBusy = MutableStateFlow(false)
+    /** Reserved before asynchronous foreground-service startup for terminal commands. */
+    val terminalStarting = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     /** All running threads, including tasks no longer visible on the current page. */
@@ -164,7 +168,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private fun request(
         key: String,
         method: String,
-        params: JSONObject,
+        params: JSONObject?,
         onSuccess: ((JSONObject) -> Unit)?,
         userAction: Boolean = false
     ) {
@@ -212,7 +216,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh(
         key: String,
         method: String,
-        params: JSONObject = JSONObject(),
+        params: JSONObject? = JSONObject(),
         onSuccess: ((JSONObject) -> Unit)? = null
     ) = request(key, method, params, onSuccess)
 
@@ -240,6 +244,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         val targets = ThreadBulkActionPolicy.uniqueIds(ids)
         if (targets.isEmpty()) return
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("threadLibraryBulk" to "本机备份或恢复正在进行，完成后再整理会话")
+            return
+        }
         if (firstThreadStarting.value || threadSwitching.value ||
             targets.any { it in threadExecutions.value } ||
             "threadLibraryBulk" in loading.value) {
@@ -291,6 +299,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun chooseThread(id: String, onOpened: (() -> Unit)? = null) {
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再切换会话")
+            return
+        }
         // Serialize resume requests: multiple rapid taps must not race the active session.
         if (threadSwitching.value) return
         if (firstThreadStarting.value) {
@@ -372,6 +384,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun approvePlan(markdown: String) = workspaceTasks.approvePlan(markdown)
 
     fun newThread() {
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再新建会话")
+            return
+        }
         if (threadSwitching.value) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后再新建任务")
             return
