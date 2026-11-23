@@ -99,6 +99,11 @@ class UiNavigationInstrumentedTest {
     @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
         val vm = (rule.activity.application as CodexApplication).session
         openDrawerRoute("settings")
+        // The backup card lives inside a lazily composed settings group.
+        // Search and scroll to the actual section before asserting child actions.
+        rule.onNodeWithTag("settings-search").performTextInput("备份")
+        rule.onNodeWithTag("settings-list").performScrollToNode(
+            hasTestTag("settings-backup"))
         rule.onNodeWithTag("backup-export").assertExists()
         try {
             rule.runOnUiThread {
