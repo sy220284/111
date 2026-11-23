@@ -31,7 +31,9 @@ internal data class GlobalWorkSnapshot(
     val blockReason: String
         get() = when {
             dataTransferBusy -> "本机数据正在备份或恢复，请完成后再操作"
-            hasActiveWork -> "仍有会话任务、请求或审批待处理，请完成后再操作"
+            inFlightRequests > 0 || loginBusy || planApprovalBusy ->
+                "请求或授权操作正在处理，请完成后再备份、恢复或重启"
+            hasActiveWork -> "仍有会话任务、终端命令或审批待处理，请完成后再操作"
             else -> ""
         }
 }
