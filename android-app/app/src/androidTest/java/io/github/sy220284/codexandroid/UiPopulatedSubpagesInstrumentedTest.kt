@@ -160,11 +160,14 @@ class UiPopulatedSubpagesInstrumentedTest {
     }
 
     @Test fun sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection() {
+        val now = java.time.Instant.now().epochSecond
         val response = JSONObject().put("threads", JSONArray()
             .put(JSONObject().put("id", "ci-selected")
-                .put("name", "修复工作区登录").put("cwd", "/projects/a"))
+                .put("name", "修复工作区登录").put("cwd", "/projects/a")
+                .put("updatedAt", now))
             .put(JSONObject().put("id", "ci-build")
-                .put("name", "检查构建流水线").put("cwd", "/projects/b")))
+                .put("name", "检查构建流水线").put("cwd", "/projects/b")
+                .put("updatedAt", now - 3 * 86400)))
         // 绘制数据与内核连接拆开；真实内核启动也不会覆盖本测试的固定数据。
         val sessions = records(response)
         rule.setContent {
@@ -180,6 +183,8 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("修复工作区登录").assertExists()
         rule.onNodeWithText("检查构建流水线").assertExists()
+        rule.onNodeWithText("今天").assertExists()
+        rule.onNodeWithText("更早").assertExists()
         rule.onNodeWithContentDescription("当前会话").assertExists()
         rule.onNodeWithTag("sidebar-search-toggle").performClick()
         rule.onNodeWithTag("sidebar-search").performTextInput("构建")

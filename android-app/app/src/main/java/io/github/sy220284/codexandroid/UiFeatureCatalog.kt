@@ -45,13 +45,19 @@ object UiFeatureCatalog {
         UiFeature("update", FeatureSurface.Inline, FeatureOwner.System, false)
     )
     val byRoute = all.associateBy { it.route }
-    val sidebarRoutes = listOf("home","chat","files","settings")
-    val workspaceTools = listOf("files","diff","terminal","review","goals","queue")
+    val sidebarRoutes = listOf("chat","home","files","settings")
+    /** 工作区工具的顺序、分组与导航入口统一从一份目录读取。 */
+    val workspaceToolGroups = listOf(
+        FeatureGroup("项目与文件", listOf("files", "terminal", "diff")),
+        FeatureGroup("当前会话", listOf("review", "goals", "queue"))
+    )
+    val workspaceTools = workspaceToolGroups.flatMap { it.routes }
+    /** 以用户的操作意图分组，设置项只有一个固定归属。 */
     val settingsGroups = listOf(
-        FeatureGroup("账户与模型", listOf("account", "providers", "models")),
-        FeatureGroup("扩展能力", listOf("skills", "plugins", "apps", "mcp")),
-        FeatureGroup("主机与安全", listOf("environments", "config", "security", "diagnostics")),
-        FeatureGroup("通用与外观", listOf("appearance", "about", "update"))
+        FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage", "limits")),
+        FeatureGroup("技能与连接", listOf("skills", "plugins", "apps", "mcp")),
+        FeatureGroup("运行与安全", listOf("environments", "security", "config")),
+        FeatureGroup("外观与帮助", listOf("appearance", "diagnostics", "about", "update"))
     )
     val legacyRoutes = all.filter { it.route != "settings" && it.route != "update" }.map { it.route }
     val nonSettingsWorkRoutes = listOf("search","goals","queue","diff","terminal","review","modes")

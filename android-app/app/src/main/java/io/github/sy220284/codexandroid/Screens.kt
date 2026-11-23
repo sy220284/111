@@ -102,104 +102,132 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
-    val hasAccount = data["account"]?.optJSONObject("account") != null
     val errors by vm.errors.collectAsState()
+    val connected = status == EngineStatus.Connected
+    val connecting = status == EngineStatus.Starting
+    val hasAccount = data["account"]?.optJSONObject("account") != null
 
     ScreenColumn {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 5.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Text(if (running) "继续当前工作" else "从一项任务开始",
                 style = MaterialTheme.typography.headlineSmall)
-            Text("描述目标，或从现有工作区继续。",
+            Text(if (running) "返回任务对话，查看执行结果和下一步。"
+                 else "输入你的需求，或打开之前的项目继续。",
                 style = MaterialTheme.typography.bodyLarge, color = Ink.muted)
-            if (status == EngineStatus.Connected) {
-                StatusPill("本机引擎已连接", tone = StatusTone.Success)
+        }
+        MaterialPanel(Modifier.fillMaxWidth().testTag("home-task-hero")) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    when {
+                        connected -> Icons.Outlined.CheckCircle
+                        connecting -> Icons.Outlined.Sync
+                        else -> Icons.Outlined.SyncProblem
+                    }, null,
+                    tint = if (connected) Ink.jade else Ink.warning,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    when {
+                        connected -> if (running) "任务执行中" else "已准备好开始任务"
+                        connecting -> "正在连接运行服务"
+                        else -> "运行服务需要重新连接"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Ink.muted, modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            CodexPrimaryButton(
+                onClick = {
+                    if (connected) {
+                        if (!running) vm.newThread()
+                        navigate("chat")
+                    } else if (status is EngineStatus.Unavailable) vm.connect()
+                },
+                enabled = !switching && !connecting,
+                busy = switching || connecting,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    .testTag("home-primary-action"),
+                shape = RoundedCornerShape(17.dp)
+            ) {
+                Icon(
+                    when {
+                        !connected -> Icons.Outlined.Refresh
+                        running -> Icons.Outlined.PlayArrow
+                        else -> Icons.Outlined.Add
+                    }, null)
+                Spacer(Modifier.width(9.dp))
+                Text(when {
+                    !connected -> "重新连接"
+                    running -> "继续当前任务"
+                    else -> "开启新对话"
+                })
             }
         }
-        errors["protocol"]?.let { reason ->
-            CodexNotice(reason, NoticeTone.Warning,
+        when {
+            prompts.isNotEmpty() -> CodexNotice(
+                "有 ${prompts.size} 项操作需要确认", NoticeTone.Warning,
+                actionLabel = "查看审批", onAction = { navigate("approvals") })
+            connected && data["account"] != null && !hasAccount -> CodexNotice(
+                "登录后可使用已关联的账号和模型服务。",
+                NoticeTone.Info, actionLabel = "设置账号", onAction = { navigate("account") })
+            connected && errors["protocol"] != null -> CodexNotice(
+                PresentationPolicy.readableError(errors.getValue("protocol")),
+                NoticeTone.Warning,
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
-        if (prompts.isNotEmpty()) CodexNotice(
-            "有 " + prompts.size + " 项操作等待审批", NoticeTone.Warning,
-            actionLabel = "去处理", onAction = { navigate("approvals") }
-        )
-        if (status != EngineStatus.Connected) {
-            CodexNotice("内核尚未连接，可以前往设置检查连接。", NoticeTone.Info,
-                actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
-        } else if (data["account"] != null && !hasAccount) {
-            CodexNotice("尚未登录，可在设置中完成账号或服务商配置。",
-                NoticeTone.Info, actionLabel = "去登录", onAction = { navigate("account") })
-        }
-        CodexPrimaryButton(
-            onClick = { if (!running) vm.newThread(); navigate("chat") },
-            enabled = !switching,
-            busy = switching,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Icon(if (running) Icons.Outlined.PlayArrow else Icons.Outlined.Add, null)
-            Spacer(Modifier.width(9.dp))
-            Text(if (running) "继续当前任务" else "开启新对话")
-        }
-        Text("从这里开始", style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(start = 5.dp, top = 11.dp))
+        Text("常用工作", style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 5.dp, top = 9.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             WelcomeActionCard(
-                title = "查看工作区", subtitle = "浏览文件与项目",
+                title = "项目文件", subtitle = "浏览与编辑文件",
                 icon = Icons.Outlined.FolderOpen, tone = Ink.jade,
-                onClick = { navigate("files") }, modifier = Modifier.weight(1f)
+                onClick = { navigate("files") }, modifier = Modifier.weight(1f).testTag("home-shortcut-files")
             )
             WelcomeActionCard(
-                title = "写个小脚本", subtitle = "在对话中描述目标",
-                icon = Icons.Outlined.Code, tone = Ink.copper,
-                onClick = { navigate("chat") }, modifier = Modifier.weight(1f)
+                title = "会话历史", subtitle = "继续之前的任务",
+                icon = Icons.Outlined.History, tone = Ink.copper,
+                onClick = { navigate("threads") }, modifier = Modifier.weight(1f).testTag("home-shortcut-threads")
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             WelcomeActionCard(
-                title = "检查修改", subtitle = "查看本轮代码差异",
+                title = "代码差异", subtitle = "查看任务修改",
                 icon = Icons.Outlined.Difference, tone = Ink.copper,
-                onClick = { navigate("diff") }, modifier = Modifier.weight(1f)
+                onClick = { navigate("diff") }, modifier = Modifier.weight(1f).testTag("home-shortcut-diff")
             )
             WelcomeActionCard(
-                title = "运行命令", subtitle = "打开工作区终端",
+                title = "终端", subtitle = "运行命令",
                 icon = Icons.Outlined.Terminal, tone = Ink.jade,
-                onClick = { navigate("terminal") }, modifier = Modifier.weight(1f)
+                onClick = { navigate("terminal") }, modifier = Modifier.weight(1f).testTag("home-shortcut-terminal")
             )
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("最近工作", style = MaterialTheme.typography.titleMedium,
+            Text("最近会话", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
-            TextButton(onClick = { navigate("threads") }) { Text("全部会话") }
+            TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
         }
-        if (threads.isEmpty() && data["threads"] != null) {
-            Text("完成首个任务后，最近的会话会出现在这里。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-        } else if (threads.isEmpty()) {
-            Text("等待连接并同步最近的会话。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        if (threads.isEmpty()) {
+            Text(
+                if (connected && data["threads"] != null)
+                    "完成首个任务后，这里会出现最近的会话。"
+                else "连接后可查看最近的任务记录。",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium
+            )
         } else {
-            threads.take(2).forEach { item ->
+            threads.take(3).forEach { item ->
                 ThreadRow(item, enabled = !switching && !firstThreadStarting) {
                     val id = item.optString("id")
                     vm.chooseThread(id) { navigate("chat") }
                 }
             }
-        }
-        OutlinedButton(
-            onClick = { navigate("settings") },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)
-        ) {
-            Icon(Icons.Outlined.Tune, null)
-            Spacer(Modifier.width(8.dp))
-            Text("更多功能与设置")
         }
     }
 }

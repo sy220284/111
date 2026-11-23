@@ -103,8 +103,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-chat").assertExists()
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
-        rule.onNodeWithText("查看更多").performClick()
-        rule.onNodeWithTag("nav-plugins").assertExists()
+        rule.onNodeWithTag("sidebar-workspace-tools").assertExists()
+        rule.onNodeWithTag("sidebar-new-chat").assertExists()
+        rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-workspace-tools").performClick()
+        rule.onNodeWithTag("quick-terminal").assertExists()
+        rule.onNodeWithTag("quick-review").assertExists()
     }
 
     @Test fun chatKeepsStopAndSendControlsReachable() {
@@ -160,7 +164,7 @@ class UiNavigationInstrumentedTest {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-diff-thread" }
         rule.waitForIdle()
-        rule.onNodeWithText("检查修改").performClick()
+        rule.onNodeWithTag("home-shortcut-diff").performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
         rule.onNodeWithText("暂无可展示的代码差异").assertExists()
@@ -206,6 +210,41 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
+        rule.onNodeWithTag("home-task-hero").assertExists()
+        rule.onNodeWithTag("home-primary-action").assertExists()
+        rule.onNodeWithText("常用工作").assertExists()
+        for (id in listOf("files", "threads", "diff", "terminal")) {
+            rule.onNodeWithTag("home-shortcut-$id").assertExists()
+        }
+        rule.onNodeWithTag("home-shortcut-files").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+    }
+
+    @Test fun settingsOverviewAndLocalBackupCanBeFoundByIntent() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-overview").assertExists()
+        rule.onNodeWithTag("settings-account-overview").assertExists()
+        rule.onNodeWithTag("settings-engine-overview").assertExists()
+        rule.onNodeWithTag("settings-search").performTextInput("备份")
+        rule.onNodeWithTag("settings-overview").assertDoesNotExist()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
+        rule.onNodeWithTag("settings-backup").assertExists()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
+        rule.onNodeWithTag("settings-search").performTextClearance()
+        rule.onNodeWithTag("settings-overview").assertExists()
+    }
+
+    @Test fun settingsSearchOpensRealAccountUsageAndLimitsPages() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("额度")
+        rule.onNodeWithTag("settings-route-limits").assertExists()
+        // “额度”也关联用量统计，两个真实账号功能均应可访问。
+        rule.onNodeWithTag("settings-route-usage").assertExists()
+        rule.onNodeWithTag("settings-route-limits").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
+    }
+
     @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
         openDrawerRoute("settings")
         rule.onNodeWithText("账户与模型").assertExists()
@@ -224,7 +263,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
-        rule.onNodeWithText("运行命令").performClick()
+        rule.onNodeWithTag("home-shortcut-terminal").performClick()
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
         val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
@@ -273,7 +312,7 @@ class UiNavigationInstrumentedTest {
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(14, NavigationPolicy.settingsRoutes.size)
+        assertEquals(16, NavigationPolicy.settingsRoutes.size)
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
         openSettingRoute("config")
@@ -351,7 +390,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-threads").assertDoesNotExist()
         rule.onNodeWithTag("nav-approvals").assertDoesNotExist()
-        rule.onNodeWithText("查看更多").assertExists()
+        rule.onNodeWithTag("sidebar-new-chat").assertExists()
+        rule.onNodeWithTag("sidebar-workspace-tools").assertExists()
+        rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
@@ -419,7 +460,7 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("任务队列")
-        rule.onNodeWithText("未找到相关功能").assertExists()
+        rule.onNodeWithText("未找到相关设置").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
         rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
     }
@@ -570,7 +611,6 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertExists()
         capture("audit-environment-editor-android35.png")
     }
-
 
     @Test fun executionEnvironmentShowsChoiceBeforeConnectionFields() {
         openSettingRoute("environments")
