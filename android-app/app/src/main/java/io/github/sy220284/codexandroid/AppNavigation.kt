@@ -97,6 +97,7 @@ fun CodexShell(vm: CodexViewModel) {
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val terminalSession by vm.terminalSession.collectAsState()
+    val dataTransfer by AppDataTransfer.state.collectAsState()
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val operationSnacks = remember { SnackbarHostState() }
     val app = LocalContext.current.applicationContext as CodexApplication
@@ -409,6 +410,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
         if (showModels) ModelChoiceSurface(vm) { showModels = false }
         if (showAbout) AboutInfoSheet(vm) { showAbout = false }
+        // Archive export/restore must be exclusive across all nested pages,
+        // sheets and settings, including any workspace editor still open.
+        DataTransferBusyOverlay(dataTransfer)
     }
 }
 
