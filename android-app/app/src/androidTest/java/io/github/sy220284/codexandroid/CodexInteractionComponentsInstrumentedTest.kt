@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.platform.testTag
@@ -157,5 +158,50 @@ class CodexInteractionComponentsInstrumentedTest {
         }
         rule.onNodeWithTag("atlas-settings-action").performClick()
         rule.onNodeWithText("已打开").assertExists()
+    }
+
+    @Test fun actionDialogInsideParentSheetDoesNotDuplicateBottomSheets() {
+        rule.setContent {
+            var parentVisible by remember { mutableStateOf(true) }
+            var menuVisible by remember { mutableStateOf(false) }
+            var performed by remember { mutableStateOf("未执行") }
+            CodexTheme {
+                Column {
+                    Text(performed)
+                    if (parentVisible) CodexDetailSheet(
+                        title = "项目管理",
+                        onDismiss = { parentVisible = false }
+                    ) {
+                        TextButton(onClick = { menuVisible = true }) {
+                            Text("项目更多操作")
+                        }
+                    }
+                    if (menuVisible) CodexActionDialog(
+                        title = "管理当前项目",
+                        onDismiss = { menuVisible = false },
+                        actions = listOf(
+                            CodexSheetAction(
+                                label = "重命名",
+                                icon = Icons.Outlined.Settings,
+                                onClick = { performed = "已进入重命名" }
+                            ),
+                            CodexSheetAction(
+                                label = "不可移动",
+                                icon = Icons.Outlined.Settings,
+                                enabled = false,
+                                onClick = { performed = "不应执行" }
+                            )
+                        )
+                    )
+                }
+            }
+        }
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.onNodeWithText("项目更多操作").performClick()
+        rule.onNodeWithText("不可移动").assertIsNotEnabled()
+        rule.onNodeWithText("重命名").performClick()
+        rule.onNodeWithText("已进入重命名").assertExists()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.onNodeWithText("管理当前项目").assertDoesNotExist()
     }
 }
