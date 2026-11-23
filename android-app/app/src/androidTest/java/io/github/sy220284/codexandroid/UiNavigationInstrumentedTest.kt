@@ -425,6 +425,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("quick-queue").performClick()
         rule.onNodeWithTag("thread-queue-sheet").assertExists()
         rule.onNodeWithText("任务队列").assertExists()
+        assertTrue("同一队列请求错误只显示一次",
+            rule.onAllNodesWithText("Codex 内核尚未连接").fetchSemanticsNodes().size <= 1)
         captureOverlay("audit-queue-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
