@@ -142,6 +142,28 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-rtl-200font-bulk-android35.png")
     }
 
+    @Test fun darkAppearanceWithSystemDoubleFontRemainsReachable() {
+        val originalDark = UiPreferences.darkMode.value
+        try {
+            rule.runOnIdle { UiPreferences.setDarkMode(true) }
+            rule.setContent {
+                CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
+                    CodexTheme {
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                            AppearanceInlineControls()
+                        }
+                    }
+                }
+            }
+            rule.onNodeWithTag("appearance-font-controls").performScrollTo().assertIsDisplayed()
+            rule.onNodeWithText("最大", substring = false).assertIsDisplayed()
+            rule.onNodeWithText("减少动效").performScrollTo().assertIsDisplayed()
+            capture("audit-dark-200font-appearance-android35.png")
+        } finally {
+            rule.runOnIdle { UiPreferences.setDarkMode(originalDark) }
+        }
+    }
+
     @Test fun disabledBatchActionsExplainTheirStateToScreenReaders() {
         rule.setContent {
             CodexTheme {

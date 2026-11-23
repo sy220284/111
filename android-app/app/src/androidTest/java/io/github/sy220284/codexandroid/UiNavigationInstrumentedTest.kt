@@ -122,6 +122,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
     }
 
+    @Test fun chatKeyboardKeepsComposerActionsAccessible() {
+        openDrawerRoute("chat")
+        rule.onNodeWithTag("composer-input").performClick()
+        rule.onNodeWithTag("composer-input").performTextInput("验证键盘展开后的操作入口")
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        rule.onNodeWithTag("composer-plus").assertIsDisplayed()
+        capture("chat-keyboard-open-android35.png")
+    }
+
     @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
         openDrawerRoute("chat")
         rule.onNodeWithText("默认模型").assertIsDisplayed()
