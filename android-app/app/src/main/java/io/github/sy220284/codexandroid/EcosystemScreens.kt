@@ -397,8 +397,13 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
             if (submittedMatchesDraft && searchKey !in busy)
                 AtlasListHeading("插件搜索结果", found.size, suffix = "个匹配项")
-            if (submittedMatchesDraft && searchKey in busy)
-                AtlasLoadingResults("正在搜索插件目录", placeholderRows = 2)
+            if (submittedMatchesDraft && searchKey in busy) {
+                if (found.isEmpty()) {
+                    AtlasLoadingResults("正在搜索插件目录", placeholderRows = 2)
+                } else {
+                    AtlasOperationProgress("正在加载更多插件结果")
+                }
+            }
             if (submittedMatchesDraft) errors[searchKey]?.let {
                 ErrorText("插件搜索失败：$it。可以改用常规插件目录。")
             }
