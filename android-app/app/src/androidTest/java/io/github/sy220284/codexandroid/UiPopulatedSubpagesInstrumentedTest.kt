@@ -419,8 +419,34 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithText("MCP 服务请求用户操作").assertExists()
-        rule.onNodeWithText("核对并提交").assertExists()
+        rule.onNodeWithTag("elicitation-submit").assertExists().assertIsNotEnabled()
+        rule.onNodeWithTag("elicitation-field-title").performTextInput("验收标题")
+        rule.onNodeWithTag("elicitation-submit").assertIsEnabled()
+        rule.onNodeWithTag("elicitation-field-title").performTextClearance()
+        rule.onNodeWithTag("elicitation-submit").assertIsNotEnabled()
+        rule.onNodeWithTag("elicitation-field-title").performTextInput("验收标题")
+        rule.onNodeWithTag("elicitation-submit").assertIsEnabled().performClick()
+        rule.onNodeWithText("向 MCP 服务提交确认").assertExists()
+        rule.onNodeWithTag("confirm-dialog-cancel").assertExists().performClick()
+        rule.onNodeWithText("向 MCP 服务提交确认").assertDoesNotExist()
         capture("audit-mcp-elicitation-android35.png")
+    }
+
+    @Test fun requiredBooleanMcpChoiceMustBeExplicitAndCanBeDeclined() {
+        val vm = viewModel()
+        val props = JSONObject().put("permission", JSONObject()
+            .put("type", "boolean").put("title", "允许读取公开数据"))
+        val params = JSONObject().put("serverName", "CI 工具服务")
+            .put("type", "form").put("message", "请选择授权")
+            .put("requestedSchema", JSONObject().put("type", "object")
+                .put("properties", props).put("required", JSONArray().put("permission")))
+        val prompt = ServerPrompt("ci-boolean", "mcpServer/elicitation/request", params)
+        rule.setContent {
+            CodexTheme { Column { McpElicitationRequestCard(vm, prompt) } }
+        }
+        rule.onNodeWithTag("elicitation-submit").assertIsNotEnabled()
+        rule.onNodeWithTag("elicitation-deny-permission").performClick()
+        rule.onNodeWithTag("elicitation-submit").assertIsEnabled()
     }
 
     @Test fun extensionStringListUsesReadableMultiLineForm() {

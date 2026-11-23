@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -30,6 +31,19 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val required = schema?.optJSONArray("required") ?: JSONArray()
     val answers = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
     val multilineDrafts = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
+    val isForm = kind in listOf("form", "openai/form", "openaiForm") && fields != null
+    val urlReady = kind == "url" && (params.optString("url").startsWith("https://") ||
+        params.optString("url").startsWith("http://127.0.0.1:"))
+    val requiredCompleted = (0 until required.length()).all { index ->
+        val key = required.optString(index)
+        val entered = answers[key] ?: return@all false
+        val type = fields?.optJSONObject(key)?.optString("type")
+        type !in setOf("string", "number", "integer") || entered.isNotBlank()
+    }
+    val formValid = isForm && requiredCompleted && runCatching {
+        McpElicitationContract.respond(params, "accept", answers.toMap())
+    }.isSuccess
+    val canSubmit = formValid || urlReady
     var confirmation by remember(prompt.id.toString()) { mutableStateOf(false) }
 
     MaterialPanel(Modifier.fillMaxWidth()) {
@@ -46,7 +60,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         DividerLine()
         Text(params.optString("message").ifBlank { params.optString("title") },
             style = MaterialTheme.typography.bodyMedium)
-        if (kind in listOf("form", "openai/form", "openaiForm") && fields != null) {
+        if (isForm && fields != null) {
             for (name in fields.keys().asSequence().toList()) {
                 val field = fields.optJSONObject(name) ?: continue
                 val type = field.optString("type")
@@ -58,11 +72,17 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
                 when (type) {
-                    "boolean" -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        val checked = answers[name] == "true"
-                        WhiteSwitch(checked = checked, onCheckedChange = { answers[name] = it.toString() })
-                        Spacer(Modifier.width(10.dp))
-                        Text(if (checked) "允许" else "关闭", color = Ink.muted)
+                    "boolean" -> Row(Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = answers[name] == "true",
+                            onClick = { answers[name] = "true" },
+                            modifier = Modifier.testTag("elicitation-allow-" + name))
+                        Text("允许", color = Ink.muted)
+                        Spacer(Modifier.width(16.dp))
+                        RadioButton(selected = answers[name] == "false",
+                            onClick = { answers[name] = "false" },
+                            modifier = Modifier.testTag("elicitation-deny-" + name))
+                        Text("不允许", color = Ink.muted)
                     }
                     "string" -> {
                         val options = field.optJSONArray("enum")
@@ -81,7 +101,8 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             OutlinedTextField(
                                 value = answers[name] ?: "",
                                 onValueChange = { answers[name] = it },
-                                label = { Text(label) }, modifier = Modifier.fillMaxWidth(),
+                                label = { Text(label) },
+                                modifier = Modifier.fillMaxWidth().testTag("elicitation-field-" + name),
                                 visualTransformation = if (field.optString("format") == "password") {
                                     PasswordVisualTransformation()
                                 } else VisualTransformation.None
@@ -158,11 +179,18 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) }) { Text("拒绝") }
             TextButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) }) { Text("取消") }
-            if ((kind in listOf("form", "openai/form", "openaiForm") && fields != null)
-                || (kind == "url" && (params.optString("url").startsWith("https://")
-                    || params.optString("url").startsWith("http://127.0.0.1:")))) {
-                OutlinedButton(onClick = { confirmation = true }) { Text("核对并提交") }
+            if (isForm || urlReady) {
+                OutlinedButton(onClick = { confirmation = true },
+                    enabled = canSubmit,
+                    modifier = Modifier.testTag("elicitation-submit")
+                        .explainDisabled(!canSubmit, "请填写必填项目并检查格式")) {
+                    Text("核对并提交")
+                }
             }
+        }
+        if (isForm && !formValid) {
+            Text("填写完整并核对格式后，即可提交。",
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
     }
     if (confirmation) {
