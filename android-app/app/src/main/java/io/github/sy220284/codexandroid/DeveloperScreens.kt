@@ -182,19 +182,19 @@ fun WorkspacePage(vm: CodexViewModel) {
         if (actionBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
             OutlinedButton(
-                onClick = { showCreate = !showCreate },
+                onClick = { showCreate = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("workspace-create-toggle")
             ) {
-                Icon(if (showCreate) Icons.Outlined.ExpandLess else Icons.Outlined.Add, null)
+                Icon(Icons.Outlined.Add, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (showCreate) "收起新建操作" else "新建文件或文件夹")
+                Text("新建文件或文件夹")
             }
-            CodexReveal(showCreate) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("新建项目内容", style = MaterialTheme.typography.titleMedium)
-                Text("在当前目录创建文件或文件夹。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            if (showCreate) CodexDetailSheet(
+                title = "新建项目内容",
+                subtitle = "在当前目录创建文件或文件夹",
+                onDismiss = { showCreate = false }
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     FilterChip(selected = createKind == "file",
                         onClick = { createKind = "file" }, label = { Text("文本文件") },
@@ -228,7 +228,6 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Spacer(Modifier.width(7.dp))
                     Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
-            }
             }
         }
         item {
@@ -275,30 +274,39 @@ fun WorkspacePage(vm: CodexViewModel) {
                             modifier = Modifier.testTag("workspace-menu-" + file.name)) {
                             Icon(Icons.Outlined.MoreVert, "管理 " + file.name)
                         }
-                        DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
-                            DropdownMenuItem(text = { Text("重命名") },
-                                leadingIcon = { Icon(Icons.Outlined.Edit, null) },
-                                onClick = {
-                                    optionsOpen = false
-                                    renameName = file.name
-                                    fileAction = "rename" to file
-                                })
-                            DropdownMenuItem(text = { Text("复制") },
-                                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                                onClick = {
-                                    optionsOpen = false
-                                    copyName = if (file.isDirectory) file.name + "-副本"
-                                        else file.nameWithoutExtension + "-副本" +
-                                            (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
-                                    fileAction = "copy" to file
-                                })
-                            DropdownMenuItem(text = { Text("删除") },
-                                leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red) },
-                                onClick = {
-                                    optionsOpen = false
-                                    fileAction = "delete" to file
-                                })
-                        }
+                        if (optionsOpen) CodexActionSheet(
+                            title = "管理 " + file.name,
+                            onDismiss = { optionsOpen = false },
+                            actions = listOf(
+                                CodexSheetAction(
+                                    label = "重命名",
+                                    description = "更改当前文件或文件夹的名称",
+                                    icon = Icons.Outlined.Edit,
+                                    onClick = {
+                                        renameName = file.name
+                                        fileAction = "rename" to file
+                                    }
+                                ),
+                                CodexSheetAction(
+                                    label = "复制",
+                                    description = "在当前目录建立一份副本",
+                                    icon = Icons.Outlined.ContentCopy,
+                                    onClick = {
+                                        copyName = if (file.isDirectory) file.name + "-副本"
+                                            else file.nameWithoutExtension + "-副本" +
+                                                (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                                        fileAction = "copy" to file
+                                    }
+                                ),
+                                CodexSheetAction(
+                                    label = "删除",
+                                    description = "删除前将再次确认目标",
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    onClick = { fileAction = "delete" to file },
+                                    destructive = true
+                                )
+                            )
+                        )
                     }
                 }
             }
