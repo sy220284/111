@@ -120,10 +120,33 @@ fun CodexShell(vm: CodexViewModel) {
     var showAttachments by remember { mutableStateOf(false) }
     var showThreadLibrary by remember { mutableStateOf(false) }
     var showApprovals by remember { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
+    var showModels by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
+    var libraryInitialFullText by remember { mutableStateOf(false) }
     val move: (String) -> Unit = move@{ destination ->
         when (destination) {
-            "threads" -> {
+            "threads", "search" -> {
+                libraryInitialFullText = destination == "search"
                 showThreadLibrary = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "queue" -> {
+                if (activeThread == null) {
+                    libraryInitialFullText = false
+                    showThreadLibrary = true
+                } else showQueue = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "models" -> {
+                showModels = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "about" -> {
+                showAbout = true
                 scope.launch { drawer.close() }
                 return@move
             }
@@ -362,12 +385,16 @@ fun CodexShell(vm: CodexViewModel) {
         if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
         if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
         if (showThreadLibrary) ThreadLibraryQuickSheet(vm,
+            initialFullText = libraryInitialFullText,
             onDismiss = { showThreadLibrary = false },
             navigate = { destination ->
                 showThreadLibrary = false
                 move(destination)
             })
         if (showApprovals) ApprovalQuickSheet(vm) { showApprovals = false }
+        if (showQueue) ThreadQueueQuickSheet(vm) { showQueue = false }
+        if (showModels) ModelChoiceSurface(vm) { showModels = false }
+        if (showAbout) AboutInfoSheet(vm) { showAbout = false }
     }
 }
 
@@ -390,7 +417,7 @@ private fun Sidebar(
         ) {
             Text("Codex", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
-            IconButton(onClick = { onSelect("threads") },
+            IconButton(onClick = { onSelect("search") },
                 modifier = Modifier.size(48.dp).testTag("sidebar-global-search")) {
                 Icon(Icons.Outlined.Search, "搜索全部会话", tint = Ink.parchment)
             }
