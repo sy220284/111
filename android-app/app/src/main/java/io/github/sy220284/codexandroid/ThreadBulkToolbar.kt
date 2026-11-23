@@ -41,14 +41,16 @@ internal fun ThreadBulkToolbar(
             ) {
                 Text("已选 $selectedCount 条 · 仅针对当前筛选页",
                     color = Ink.parchment, style = MaterialTheme.typography.labelMedium)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onSelectAll, enabled = enabled,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Icon(Icons.Outlined.SelectAll, null)
-                        Text("全选本页")
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onSelectAll, enabled = enabled,
+                        modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
+                        Icon(Icons.Outlined.SelectAll, contentDescription = "全选本页")
                     }
-                    TextButton(onClick = onFinish, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Text("完成选择")
+                    IconButton(onClick = onFinish,
+                        modifier = Modifier.size(48.dp).testTag("thread-bulk-finish")) {
+                        Icon(Icons.Outlined.Check, contentDescription = "完成选择")
                     }
                 }
                 CodexSecondaryButton(
