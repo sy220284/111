@@ -318,8 +318,10 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val engineStatus by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -344,7 +346,12 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("当前配置", style = MaterialTheme.typography.titleMedium)
-                    Text(if (ready) "已读取本机配置" else "等待读取",
+                    Text(when {
+                        ready -> "已读取本机配置"
+                        "config" in loading -> "正在读取"
+                        errors["config"] != null -> "读取失败"
+                        else -> "未读取"
+                    },
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
                 IconButton(onClick = {
@@ -358,6 +365,21 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
         errors["config"]?.let { ErrorText(it) }
+        if (!ready && "config" !in loading) {
+            if (engineStatus != EngineStatus.Connected) {
+                CodexRecoveryState("连接后可读取引擎配置",
+                    "运行核心连接后可查看生效配置并编辑高级参数。",
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+            } else {
+                CodexRecoveryState(
+                    if (errors["config"] != null) "配置读取失败" else "配置尚未读取",
+                    "可重新请求本机生效配置，读取后再修改。",
+                    "重新读取", {
+                        vm.refresh("config", "config/read",
+                            JSONObject().put("includeLayers", true))
+                    }, { navigate("diagnostics") })
+            }
+        }
         CodexDetailTrigger(
             label = "高级自定义配置",
             onClick = { advanced = true },
@@ -375,20 +397,20 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     label = { Text("设置项名称") }, singleLine = true,
                     placeholder = { Text("approval_policy") })
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    listOf(
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    val types = listOf(
                         "text" to "文本", "boolean" to "开关",
                         "number" to "数字", "json" to "高级数据"
-                    ).forEach { (id, title) ->
-                        FilterChip(
-                            selected = kind == id,
-                            onClick = { kind = id },
-                            label = { Text(title) },
-                            modifier = Modifier.heightIn(min = 48.dp)
-                        )
+                    )
+                    SingleChoiceSegmentedButtonRow(Modifier.width(464.dp)) {
+                        types.forEachIndexed { index, pair ->
+                            SegmentedButton(
+                                selected = kind == pair.first,
+                                onClick = { kind = pair.first },
+                                shape = SegmentedButtonDefaults.itemShape(index, types.size),
+                                label = { Text(pair.second) }
+                            )
+                        }
                     }
                 }
                 if (kind == "boolean") {
@@ -421,7 +443,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }) }
                     )
                 }
-                OutlinedButton(
+                CodexPrimaryButton(
                     onClick = {
                         try {
                             require(path.isNotBlank()) { "请填写设置项名称" }
