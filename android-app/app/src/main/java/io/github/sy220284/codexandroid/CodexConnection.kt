@@ -60,6 +60,7 @@ class CodexConnection(private val appContext: Context) {
         val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
         val codeModeHost = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
         val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
+        McpAgentSkillInstaller.install(appContext, home)
         val workspace = File(appContext.filesDir, "projects").apply { mkdirs() }
         val temp = File(appContext.cacheDir, "codex-tmp").apply { mkdirs() }
         val builder = ProcessBuilder(path.absolutePath, "--listen", "stdio://")
