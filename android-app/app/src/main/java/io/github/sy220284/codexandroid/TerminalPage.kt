@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -90,6 +91,19 @@ fun TerminalPage(vm: CodexViewModel) {
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
     var historicalError by remember(session.processId) { mutableStateOf("") }
     val activeWorkspace by vm.activeWorkspace.collectAsState()
+    val consoleScroll = rememberScrollState()
+    var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
+    LaunchedEffect(consoleScroll) {
+        snapshotFlow { consoleScroll.isScrollInProgress to
+            (consoleScroll.value >= consoleScroll.maxValue - 24) }.collect { (scrolling, atEnd) ->
+            if (scrolling) followConsoleTail = atEnd
+        }
+    }
+    LaunchedEffect(consoleScroll, session.processId) {
+        snapshotFlow { consoleScroll.maxValue }.collect { bottom ->
+            if (followConsoleTail) consoleScroll.scrollTo(bottom)
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -106,98 +120,9 @@ fun TerminalPage(vm: CodexViewModel) {
             Icon(Icons.Outlined.Terminal, contentDescription = null, tint = Ink.muted)
         }
         Box(Modifier.fillMaxWidth().weight(1f).testTag("terminal-console")) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            Column(Modifier.fillMaxSize().verticalScroll(consoleScroll),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (session.processId.isNotEmpty()) {
-                    MaterialPanel(Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (session.running) Icons.Outlined.Terminal
-                                else if (session.error != null || session.exitCode != 0)
-                                    Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
-                                null, tint = if (session.running || session.exitCode == 0) Ink.jade else Ink.red
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    if (session.terminating) "正在停止"
-                                    else if (session.running) "命令执行中"
-                                    else if (session.error != null) "命令执行失败"
-                                    else "执行结束 · 返回码 " + (session.exitCode?.toString() ?: "未知"),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(session.command, color = Ink.muted,
-                                    style = MaterialTheme.typography.labelSmall, maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis)
-                            }
-                            StatusPill(
-                                if (session.running) "运行中" else if (session.exitCode == 0) "完成" else "异常",
-                                !session.running && session.exitCode == 0,
-                                tone = if (session.running) StatusTone.Info else if (session.exitCode == 0) StatusTone.Success else StatusTone.Danger
-                            )
-                        }
-                        if (session.running) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                            if (session.tty) {
-                                Text("交互式终端尺寸", style = MaterialTheme.typography.titleSmall)
-                                Row(Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(ttyRows, { ttyRows = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("行数") }, singleLine = true,
-                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
-                                    OutlinedTextField(ttyCols, { ttyCols = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("列数") }, singleLine = true,
-                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
-                                }
-                                OutlinedButton(onClick = {
-                                    vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
-                                        ttyCols.toIntOrNull() ?: 0)
-                                }, enabled = !session.terminating &&
-                                    ttyRows.toIntOrNull() in 2..300 &&
-                                    ttyCols.toIntOrNull() in 10..400) {
-                                    Text("调整终端尺寸")
-                                }
-                                errors["terminalResize"]?.let { ErrorText(it) }
-                            }
-                            OutlinedTextField(
-                                value = input, onValueChange = { input = it },
-                                label = { Text("向运行中的命令输入一行") },
-                                modifier = Modifier.fillMaxWidth(), maxLines = 3,
-                                enabled = !session.terminating
-                            )
-                            Row(Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedButton(onClick = {
-                                    val submitted = input
-                                    vm.sendTerminalInput(submitted) {
-                                        input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
-                                    }
-                                }, enabled = input.isNotEmpty() && !session.terminating,
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                                    Text("发送输入")
-                                }
-                                OutlinedButton(onClick = { vm.stopTerminalCommand() },
-                                    enabled = !session.terminating,
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
-                                    Icon(Icons.Outlined.StopCircle, null)
-                                    Spacer(Modifier.width(5.dp))
-                                    Text("停止")
-                                }
-                            }
-                            errors["terminalInput"]?.let { ErrorText(it) }
-                            errors["terminalStop"]?.let { ErrorText(it) }
-                        }
-                        session.error?.let { ErrorText(it) }
-                        if (session.outputTruncated) {
-                            CodexNotice(
-                                if (transcriptAvailable) "正在查看最近 128KiB；可按需加载较早输出，或导出完整本机日志。"
-                                else "界面仅保留最近 128KiB，较早日志已不可读取。",
-                                NoticeTone.Warning
-                            )
-                        }
-                        transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
-                    }
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(
                             Modifier.fillMaxWidth(),
@@ -304,6 +229,67 @@ fun TerminalPage(vm: CodexViewModel) {
                             }
                         }
                     }
+                    MaterialPanel(Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (session.running) Icons.Outlined.Terminal
+                                else if (session.error != null || session.exitCode != 0)
+                                    Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
+                                null, tint = if (session.running || session.exitCode == 0) Ink.jade else Ink.red
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (session.terminating) "正在停止"
+                                    else if (session.running) "命令执行中"
+                                    else if (session.error != null) "命令执行失败"
+                                    else "执行结束 · 返回码 " + (session.exitCode?.toString() ?: "未知"),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(session.command, color = Ink.muted,
+                                    style = MaterialTheme.typography.labelSmall, maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis)
+                            }
+                            StatusPill(
+                                if (session.running) "运行中" else if (session.exitCode == 0) "完成" else "异常",
+                                !session.running && session.exitCode == 0,
+                                tone = if (session.running) StatusTone.Info else if (session.exitCode == 0) StatusTone.Success else StatusTone.Danger
+                            )
+                        }
+                        if (session.running) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            if (session.tty) {
+                                Text("交互式终端尺寸", style = MaterialTheme.typography.titleSmall)
+                                Row(Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(ttyRows, { ttyRows = it.filter(Char::isDigit).take(3) },
+                                        label = { Text("行数") }, singleLine = true,
+                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
+                                    OutlinedTextField(ttyCols, { ttyCols = it.filter(Char::isDigit).take(3) },
+                                        label = { Text("列数") }, singleLine = true,
+                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
+                                }
+                                OutlinedButton(onClick = {
+                                    vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
+                                        ttyCols.toIntOrNull() ?: 0)
+                                }, enabled = !session.terminating &&
+                                    ttyRows.toIntOrNull() in 2..300 &&
+                                    ttyCols.toIntOrNull() in 10..400) {
+                                    Text("调整终端尺寸")
+                                }
+                                errors["terminalResize"]?.let { ErrorText(it) }
+                            }
+                        }
+                        session.error?.let { ErrorText(it) }
+                        if (session.outputTruncated) {
+                            CodexNotice(
+                                if (transcriptAvailable) "正在查看最近 128KiB；可按需加载较早输出，或导出完整本机日志。"
+                                else "界面仅保留最近 128KiB，较早日志已不可读取。",
+                                NoticeTone.Warning
+                            )
+                        }
+                        transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
+                    }
                 } else {
                     MaterialPanel(Modifier.fillMaxWidth().heightIn(min = 220.dp)
                         .testTag("terminal-console-empty")) {
@@ -319,7 +305,44 @@ fun TerminalPage(vm: CodexViewModel) {
                 }
             }
         }
-        if (!session.running) {
+        if (session.running) {
+            MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-active-controls")) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (session.terminating) "正在停止" else "命令执行中",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall)
+                    if (session.tty) StatusPill("交互式终端", false, StatusTone.Info)
+                }
+                            OutlinedTextField(
+                                value = input, onValueChange = { input = it },
+                                label = { Text("向运行中的命令输入一行") },
+                                modifier = Modifier.fillMaxWidth(), maxLines = 3,
+                                enabled = !session.terminating
+                            )
+                            Row(Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                OutlinedButton(onClick = {
+                                    val submitted = input
+                                    vm.sendTerminalInput(submitted) {
+                                        input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
+                                    }
+                                }, enabled = input.isNotEmpty() && !session.terminating,
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                    Text("发送输入")
+                                }
+                                OutlinedButton(onClick = { vm.stopTerminalCommand() },
+                                    enabled = !session.terminating,
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
+                                    Icon(Icons.Outlined.StopCircle, null)
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("停止")
+                                }
+                            }
+                            errors["terminalInput"]?.let { ErrorText(it) }
+                            errors["terminalStop"]?.let { ErrorText(it) }
+            }
+        } else {
                 MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-composer-panel")) {
                     OutlinedTextField(
                         command,
