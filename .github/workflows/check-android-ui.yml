@@ -8,6 +8,7 @@ on:
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
+      - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -20,6 +21,7 @@ on:
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
+      - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -53,6 +55,7 @@ jobs:
             /.github/workflows/
             /.github/scripts/
             /docs/DESIGN_SYSTEM.md
+            /docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs
@@ -109,6 +112,10 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
+      - name: 从唯一协议策略核对 UI 组件映射文档
+        run: |
+          python3 android-app/tools/sync_ui_protocol_docs.py --check
+          python3 -m unittest discover -s android-app/tools -p 'test_sync_ui_protocol_docs.py'
       - name: 三方核验上游协议、Android 方法目录与界面层级
         run: |
           python3 android-app/tools/check_ui_protocol_matrix.py \
