@@ -6,7 +6,8 @@
 
 ## 已有规则与历史 PR 复用
 
-- 对照 `AGENTS.md` 与 `docs/PR_OPTIMIZATION_PLAYBOOK.md` 的结论：
+- 对照权威执行规则 `AGENTS.md` 和权威接口清单 `docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md` 的结论：
+- `docs/PR_OPTIMIZATION_PLAYBOOK.md` 中关联的历史 PR 参考与已替代方案：
 - 相关已合并 PR 及复用位置：
 - 相关开放 PR、同文件并行修改与去重方案：
 - 本次取代或保留的旧行为：
@@ -37,10 +38,11 @@
 - 正常、失败、断连、取消、重试、返回、跨会话的测试：
 - 验收结论（逐项标明：已实现、专项通过、真机通过、待验证）：
 
-## 经验库和旧台账回写
+## 双权威文件与历史记录同步
 
-- [ ] 为本 PR 在 `docs/PR_OPTIMIZATION_PLAYBOOK.md` 新增索引和复用规则
-- [ ] 查过是否替代旧规则并更新历史继承表
-- [ ] 同步受影响的界面、协议、设计和 100 项历史台账（如适用）
+- [ ] 产品、UI、架构和执行规则变更已同步 `AGENTS.md`（如适用）
+- [ ] 接口归属、调用链、实现/验收状态、证据 SHA 已逐项同步 `docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md`（如适用）
+- [ ] 涉及历史替代或新增长期经验时，按需维护 `docs/PR_OPTIMIZATION_PLAYBOOK.md` 的参考索引
+- [ ] 同步受影响的其他界面、协议、设计和 100 项历史台账（如适用）
 - [ ] 逐项说明其他模块是否需要应用同类修复
 - [ ] 本 PR 标题与描述使用中文，所有“通过”可追溯到当前 SHA 的实际证据
