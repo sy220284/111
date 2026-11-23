@@ -22,6 +22,11 @@ internal class TerminalTaskOperations(
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
     fun startTerminalCommand(command: String, tty: Boolean = false) {
+        if (!vm.globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("terminal" to
+                "本机数据正在备份或恢复，完成后再执行终端命令")
+            return
+        }
         if (vm.connectionRestarter.busy.value) {
             errors.value = errors.value + ("terminal" to "正在重新连接内核，请稍后执行命令")
             return
