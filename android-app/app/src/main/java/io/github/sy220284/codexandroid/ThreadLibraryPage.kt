@@ -136,15 +136,14 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item {
-            SectionIntro("WORKSPACE / THREADS", "会话资料库",
-                "整理正在使用的会话与归档记录，所有操作交由 Codex 内核执行。")
+            Text("会话资料库", style = MaterialTheme.typography.headlineSmall)
         }
         item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("会话管理", style = MaterialTheme.typography.titleMedium)
-                        Text("按标题或全文检索真实会话记录", color = Ink.muted,
+                        Text("查找会话", style = MaterialTheme.typography.titleMedium)
+                        Text("搜索标题或对话内容", color = Ink.muted,
                             style = MaterialTheme.typography.bodySmall)
                     }
                     CodexRefreshIcon(busy = key in loading || fullPending,
@@ -180,9 +179,6 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Text(if (fullText) "全文检索由当前内核提供，搜索结果可直接恢复对应会话。" else
-                    "标题搜索支持服务端游标分页。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 val recent = if (fullText) recentFull else recentTitle
                 if (recent.isNotEmpty()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -296,7 +292,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (fullPending) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             errors[fullKey]?.let { item { ErrorText(it) } }
             if (fullSubmitted.isBlank()) {
-                item { CodexEmptyState("在历史正文中查找", "输入关键词并点击搜索，结果来自当前 Codex 内核。") }
+                item { CodexEmptyState("搜索历史内容", "输入关键词查找过去的对话。") }
             } else if (!fullPending && fullResults.isEmpty() && fullKey !in errors) {
                 item { CodexEmptyState("没有全文检索结果", "尝试减少关键词或切回标题搜索。") }
             }
@@ -523,7 +519,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             title = "批量" + actionLabel + "会话",
             message = if (kind == "delete")
                 "这些会话的历史将永久删除。操作逐条执行，失败时保留未完成的选择，便于核查后重试。"
-            else "操作将逐条交由本机 Codex 内核执行，完成后刷新列表。",
+            else "将逐条处理所选会话，完成后刷新列表。",
             detail = "已选择 $count 条会话。请确认范围。",
             confirmLabel = "确认" + actionLabel,
             destructive = kind == "delete",
