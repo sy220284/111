@@ -55,7 +55,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         reload()
     }
     ScreenColumn {
-        SectionIntro("TRUST / EXECUTION", "运行权限与安全",
+        SectionIntro("TRUST / EXECUTION", "权限与安全",
             "选择 Codex 可以执行的操作范围，调整前可查看当前设置。")
         ProtocolFeedback(vm, listOf("config", "securityRequirements", "permissionProfiles",
             "securitySave", "securityThreadSave"), onRetry = { reload() })
@@ -74,8 +74,11 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Spacer(Modifier.weight(1f))
                 if (current != null) StatusPill("已读取", tone = StatusTone.Success)
             }
-            Text(PresentationPolicy.permissionProfile(defaultProfile),
-                style = MaterialTheme.typography.titleLarge, color = Ink.parchment)
+            Text(when {
+                current == null -> "等待连接内核"
+                defaultProfile.isBlank() -> "沿用内核默认权限"
+                else -> PresentationPolicy.permissionProfile(defaultProfile)
+            }, style = MaterialTheme.typography.titleLarge, color = Ink.parchment)
             DividerLine()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Text("审批方式", color = Ink.muted,
