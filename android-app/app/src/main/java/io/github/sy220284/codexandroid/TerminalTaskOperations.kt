@@ -31,7 +31,7 @@ internal class TerminalTaskOperations(
             errors.value = errors.value + ("terminal" to "正在重新连接内核，请稍后执行命令")
             return
         }
-        if (terminalSession.value.running) {
+        if (terminalSession.value.running || vm.terminalStarting.value) {
             errors.value = errors.value + ("terminal" to "已有命令正在执行，请先停止或结束该命令")
             return
         }
@@ -45,20 +45,18 @@ internal class TerminalTaskOperations(
         }
         val id = UUID.randomUUID().toString()
         val args = TerminalSessionContract.execute(command, cwd, id, tty)
-        // Terminal PTY may run with the UI in the background. Start the same
-        // foreground protection used by turns before marking the command active.
-        try {
-            CodexForegroundService.start(vm.getApplication())
-        } catch (failure: Exception) {
-            errors.value = errors.value + ("terminal" to
-                ("无法为终端任务启动后台保护：" +
-                    (failure.message ?: "系统拒绝启动前台服务")))
-            return
-        }
-        terminalSession.value = TerminalSessionState.start(id, command, tty)
-        errors.value = errors.value - "terminal"
+        // Own the pending start synchronously: a second tap or global backup
+        // cannot overtake Android's asynchronous foreground-service creation.
+        vm.terminalStarting.value = true
         scope.launch {
             try {
+                CodexForegroundService.startAndAwaitReady(vm.getApplication())
+                check(vm.globalWorkSnapshot().canStartNewTask) {
+                    "备份或恢复正在进行，终端命令未启动"
+                }
+                terminalSession.value = TerminalSessionState.start(id, command, tty)
+                vm.terminalStarting.value = false
+                errors.value = errors.value - "terminal"
                 terminalTranscript.begin(id)
                 val result = bridge.request("command/exec", args, timeoutMillis = null)
                 terminalTranscript.appendTail(id, result)
@@ -66,9 +64,15 @@ internal class TerminalTaskOperations(
                 if (active.processId == id) terminalSession.value = active.finish(result)
             } catch (failure: Exception) {
                 val active = terminalSession.value
-                if (active.processId == id) {
-                    terminalSession.value = active.fail(failure.message ?: "终端命令执行失败")
+                if (active.processId == id && active.running) {
+                    terminalSession.value = active.fail(
+                        failure.message ?: "终端命令执行失败")
+                } else {
+                    errors.value = errors.value + ("terminal" to
+                        ("终端未启动：" + (failure.message ?: "前台服务未就绪")))
                 }
+            } finally {
+                vm.terminalStarting.value = false
             }
         }
     }
