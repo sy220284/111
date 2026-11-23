@@ -103,6 +103,24 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("授权登录").assertDoesNotExist()
     }
 
+    @Test fun androidMcpManagementSkillInstallsLocallyAndRemainsIdempotent() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val root = File(context.cacheDir, "mcp-skill-test-" + UUID.randomUUID())
+        try {
+            McpAgentSkillInstaller.install(context, root)
+            val skill = File(root, "skills/111-mcp-service-manager/SKILL.md")
+            assertTrue(skill.isFile)
+            val instructions = skill.readText()
+            assertTrue(instructions.contains("name: 111-mcp-service-manager"))
+            assertTrue(instructions.contains("CODEX_HOME"))
+            assertTrue(instructions.contains("MCP 服务"))
+            McpAgentSkillInstaller.install(context, root)
+            assertEquals(instructions, skill.readText())
+        } finally {
+            assertTrue(root.deleteRecursively() || !root.exists())
+        }
+    }
+
     @Test fun imageDraftSurvivesActualAndroidPreferenceRestoreAndPruning() {
         // Device-protected private storage isolates this test from active user drafts.
         val context = InstrumentationRegistry.getInstrumentation().targetContext
