@@ -41,7 +41,7 @@ import org.json.JSONObject
 import java.io.File
 
 @Composable
-fun TerminalPage(vm: CodexViewModel) {
+fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var command by rememberSaveable { mutableStateOf("") }
     var interactive by rememberSaveable { mutableStateOf(false) }
     var ttyRows by rememberSaveable { mutableStateOf("24") }
@@ -110,15 +110,17 @@ fun TerminalPage(vm: CodexViewModel) {
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("本地终端", style = MaterialTheme.typography.titleLarge)
-                Text("工作区 · " + File(activeWorkspace).relativeTo(
-                    File(vm.workingDirectory)).path.takeIf { it != "." }
-                    ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
-                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+        if (!embedded) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("本地终端", style = MaterialTheme.typography.titleLarge)
+                    Text("工作区 · " + File(activeWorkspace).relativeTo(
+                        File(vm.workingDirectory)).path.takeIf { it != "." }
+                        ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
+                        color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                }
+                Icon(Icons.Outlined.Terminal, contentDescription = null, tint = Ink.muted)
             }
-            Icon(Icons.Outlined.Terminal, contentDescription = null, tint = Ink.muted)
         }
         Box(Modifier.fillMaxWidth().weight(1f).testTag("terminal-console")) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
