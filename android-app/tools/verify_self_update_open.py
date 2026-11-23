@@ -137,6 +137,37 @@ def wait_until_launched(timeout: float) -> None:
     )
 
 
+
+def failure_diagnostics() -> None:
+    """Preserve evidence of installer handoff failures; never retry or mask them."""
+    print("SELF UPDATE FAILURE DIAGNOSTICS", file=sys.stderr, flush=True)
+    for title, args in (
+        ("top activities", ("shell", "dumpsys", "activity", "activities")),
+        ("window focus", ("shell", "dumpsys", "window")),
+        ("recent installer events", ("shell", "logcat", "-d", "-t", "220",
+                                     "-s", "ActivityTaskManager:I", "PackageInstaller:I", "*:S")),
+    ):
+        result = adb(*args, check=False)
+        lines = result.splitlines()
+        if title == "top activities":
+            lines = [line for line in lines if any(word in line for word in
+                ("ResumedActivity", "topResumedActivity", "mResumedActivity",
+                 "packageinstaller", "PackageInstaller", PACKAGE))][-35:]
+        elif title == "window focus":
+            lines = [line for line in lines if any(word in line for word in
+                ("mCurrentFocus", "mFocusedApp", "packageinstaller", "PackageInstaller"))][-20:]
+        print(title + ":\n" + "\n".join(lines[-90:]), file=sys.stderr, flush=True)
+    screenshot = Path("ui-screenshots/self-update-failure-android35.png")
+    try:
+        result = subprocess.run(["adb", "exec-out", "screencap", "-p"],
+                                capture_output=True, check=True)
+        if result.stdout.startswith(b"\x89PNG"):
+            screenshot.parent.mkdir(parents=True, exist_ok=True)
+            screenshot.write_bytes(result.stdout)
+            print("Failure screenshot: " + str(screenshot), file=sys.stderr, flush=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print("Screenshot collection failed: " + str(exc), file=sys.stderr, flush=True)
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apk", required=True, type=Path)
@@ -160,4 +191,5 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as error:
         print(f"SELF UPDATE OPEN FAILED: {error}", file=sys.stderr, flush=True)
+        failure_diagnostics()
         sys.exit(1)
