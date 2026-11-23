@@ -183,8 +183,8 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("修复工作区登录").assertExists()
         rule.onNodeWithText("检查构建流水线").assertExists()
-        rule.onNodeWithText("今天").assertExists()
-        rule.onNodeWithText("更早").assertExists()
+        rule.onNodeWithTag("sidebar-project-/projects/a").assertExists()
+        rule.onNodeWithTag("sidebar-project-/projects/b").assertExists()
         rule.onNodeWithContentDescription("当前会话").assertExists()
         rule.onNodeWithTag("sidebar-search-toggle").performClick()
         rule.onNodeWithTag("sidebar-search").performTextInput("构建")
@@ -357,20 +357,25 @@ class UiPopulatedSubpagesInstrumentedTest {
         var sent = false
         var stopped = false
         rule.setContent {
+            var mode by remember { mutableStateOf("queue") }
             CodexTheme {
                 ConversationComposer(
                     draft = "检查这一轮修改", onDraftChange = {},
                     attachedCount = 0, connected = true,
                     running = true, stopping = false,
                     canStop = true, canSend = true, sending = false,
-                    followUpMode = "queue", onFollowUpModeChange = {},
+                    followUpMode = mode, onFollowUpModeChange = { mode = it },
                     onAttach = {}, onStop = { stopped = true }, onSend = { sent = true }
                 )
             }
         }
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
-        rule.onNodeWithContentDescription("补充任务指令").assertExists()
+        rule.onNodeWithTag("composer-mode-queue").assertIsDisplayed()
+        rule.onNodeWithTag("composer-mode-steer").assertIsDisplayed()
+        rule.onNodeWithContentDescription("加入后续执行队列").assertExists()
+        rule.onNodeWithTag("composer-mode-steer").performClick()
+        rule.onNodeWithContentDescription("立即调整当前任务").assertExists()
         capture("audit-composer-running-android35.png")
         rule.onNodeWithTag("composer-stop").performClick()
         rule.onNodeWithTag("composer-send").performClick()
