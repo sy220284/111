@@ -100,14 +100,20 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     ScreenColumn {
         SectionIntro("CONNECTORS / APPS", "已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("应用目录", style = MaterialTheme.typography.titleMedium)
-            Text(if (data["apps"] != null) "已发现 ${apps.size} 个应用" else "等待同步可用应用", color = Ink.copper)
-            Text("应用登录、授权与可用能力由当前连接状态决定。", color = Ink.muted)
-            OutlinedButton(onClick = {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("应用连接", style = MaterialTheme.typography.titleMedium)
+                Text(if (data["apps"] != null) "${apps.size} 个可用应用" else "正在读取应用",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            TextButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
-            }) { Icon(Icons.Outlined.Refresh, null); Text("刷新连接状态") }
+            }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(6.dp))
+                Text("刷新")
+            }
         }
         ProtocolFeedback(vm, listOf("apps", "appInstalled"), onRetry = {
             vm.refresh("apps", "app/list", JSONObject().put("limit", 100))

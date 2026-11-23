@@ -29,6 +29,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val fields = schema?.optJSONObject("properties")
     val required = schema?.optJSONArray("required") ?: JSONArray()
     val answers = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
+    val multilineDrafts = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
     var confirmation by remember(prompt.id.toString()) { mutableStateOf(false) }
 
     MaterialPanel(Modifier.fillMaxWidth()) {
@@ -115,11 +116,25 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                     Text(choice)
                                 }
                             }
+                        } else if (field.optJSONObject("items")?.optString("type") == "string") {
+                            OutlinedTextField(
+                                value = multilineDrafts[name] ?: "",
+                                onValueChange = { input ->
+                                    multilineDrafts[name] = input
+                                    answers[name] = JSONArray(input.lines()
+                                        .map { it.trim() }.filter { it.isNotBlank() }).toString()
+                                },
+                                label = { Text("每行填写一项") },
+                                supportingText = { Text("可以填写多行，提交时自动整理为列表。") },
+                                minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth()
+                            )
                         } else {
                             OutlinedTextField(
                                 value = answers[name] ?: "[]",
                                 onValueChange = { answers[name] = it },
-                                label = { Text("JSON 数组") }, modifier = Modifier.fillMaxWidth()
+                                label = { Text("高级列表数据（JSON）") },
+                                supportingText = { Text("此服务要求结构化列表格式。") },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }

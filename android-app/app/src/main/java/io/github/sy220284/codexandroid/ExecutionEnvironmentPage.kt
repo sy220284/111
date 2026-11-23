@@ -97,19 +97,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             if (useRemote) Icon(Icons.Outlined.CheckCircle, "已选择")
         }
 
-        if (!useRemote) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.CheckCircle, null, tint = Ink.jade)
-                    Spacer(Modifier.width(8.dp))
-                    Text("已选择本机工作区", style = MaterialTheme.typography.titleMedium)
-                }
-                Text("本机工作区文件保存在此应用的私有目录。",
-                    style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-                Text("需要检查本机环境服务时，可打开下方详细诊断。",
-                    style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-            }
-        } else {
+        if (useRemote) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("连接外部执行服务", style = MaterialTheme.typography.titleMedium)
                 Text("需要预先在另一台设备部署兼容的执行服务，并获得连接地址。",
@@ -172,8 +160,6 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 Text("环境检查", style = MaterialTheme.typography.titleMedium)
                 Text("当前环境：${if (useRemote) remoteName.ifBlank { "请先填写连接名称" } else "本机"}",
                     color = Ink.muted)
-                if (!useRemote) Text("本机服务标识：local", color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = { checkEnvironment(targetId) },
                         enabled = targetId.isNotBlank() && !statusBusy,

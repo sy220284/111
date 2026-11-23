@@ -423,6 +423,28 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-mcp-elicitation-android35.png")
     }
 
+    @Test fun extensionStringListUsesReadableMultiLineForm() {
+        val vm = viewModel()
+        val entries = JSONObject().put("type", "array")
+            .put("title", "需要处理的文件")
+            .put("items", JSONObject().put("type", "string"))
+        val params = JSONObject().put("serverName", "文件整理服务")
+            .put("type", "form").put("message", "填写文件名称")
+            .put("requestedSchema", JSONObject().put("type", "object")
+                .put("properties", JSONObject().put("files", entries))
+                .put("required", JSONArray().put("files")))
+        val prompt = ServerPrompt("ci-list-form", "mcpServer/elicitation/request", params)
+        rule.setContent {
+            CodexTheme {
+                Column { McpElicitationRequestCard(vm, prompt) }
+            }
+        }
+        rule.onNodeWithText("每行填写一项").assertExists()
+        rule.onNodeWithText("JSON 数组").assertDoesNotExist()
+        rule.onNodeWithText("每行填写一项").performTextInput("第一项\\n第二项")
+        rule.onNodeWithText("第一项", substring = true).assertExists()
+    }
+
     @Test fun pluginDetailShowsCapabilitiesRatherThanRawMetadata() {
         val vm = viewModel()
         val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")

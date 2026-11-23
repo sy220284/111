@@ -46,6 +46,15 @@ object PresentationPolicy {
         else -> "正在读取"
     }
 
+    /** 登录来源的协议值用于内部判断，页面只显示用户能识别的授权方式。 */
+    fun accountAuthMethod(value: String?): String = when (meaningful(value).lowercase()) {
+        "chatgpt", "chatgptaccount", "chatgpt-account" -> "ChatGPT 账号"
+        "apikey", "api-key", "api_key" -> "API 密钥"
+        "device", "devicecode", "device_code" -> "设备码授权"
+        "browser", "oauth" -> "浏览器授权"
+        else -> "已授权"
+    }
+
     fun sandboxMode(value: String?): String = when (meaningful(value)) {
         "read-only" -> "只读"
         "workspace-write" -> "可编辑工作区"

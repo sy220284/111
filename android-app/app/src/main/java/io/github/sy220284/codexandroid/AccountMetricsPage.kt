@@ -42,10 +42,6 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 onClick = { selectedTab = "limits" }, label = { Text("额度") },
                 modifier = Modifier.weight(1f))
         }
-        SectionIntro(if (usage) "ACCOUNT / USAGE" else "ACCOUNT / LIMITS",
-            if (usage) "使用量" else "使用限额",
-            if (usage) "查看服务端累计用量与最近使用节奏。"
-            else "了解额度占用、重置窗口和真实可用状态。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(if (usage) Icons.Outlined.Insights else Icons.Outlined.Speed,
@@ -54,7 +50,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 Column(Modifier.weight(1f)) {
                     Text(if (usage) "账号使用概况" else "额度窗口",
                         style = MaterialTheme.typography.titleMedium)
-                    Text("由已登录的 Codex 账号实时提供",
+                    Text("与当前登录账号同步",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
                 CodexRefreshIcon(busy = selectedTab in loading,

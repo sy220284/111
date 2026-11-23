@@ -162,11 +162,6 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
             }
-            item {
-                Text("变更来源：实时执行事件及会话历史保存的文件修改记录。",
-                    color = Ink.muted,
-                    style = MaterialTheme.typography.bodySmall)
-            }
         }
     }
 }

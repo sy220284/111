@@ -48,7 +48,7 @@ object UiFeatureCatalog {
     val sidebarRoutes = listOf("chat","home","files","settings")
     /** 以用户的操作意图分组，设置项只有一个固定归属。 */
     val settingsGroups = listOf(
-        FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage", "limits")),
+        FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage")),
         FeatureGroup("技能与连接", listOf("skills", "plugins", "apps", "mcp")),
         FeatureGroup("运行与安全", listOf("environments", "security", "config")),
         FeatureGroup("外观与帮助", listOf("appearance", "diagnostics", "about", "update"))

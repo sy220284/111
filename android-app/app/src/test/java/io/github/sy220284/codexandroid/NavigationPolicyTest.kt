@@ -46,11 +46,13 @@ class NavigationPolicyTest {
         assertEquals(27, UiFeatureCatalog.legacyRoutes.distinct().size)
         assertEquals(4, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(16, settings.size)
+        assertEquals(15, settings.size)
         assertEquals(settings.size, settings.distinct().size)
-        assertTrue(settings.containsAll(listOf("models","usage","limits","appearance","about","update")))
-        assertTrue(NavigationPolicy.matches("额度", "", "", "limits"))
+        assertTrue(settings.containsAll(listOf("models","usage","appearance","about","update")))
+        assertFalse(settings.contains("limits")) // 兼容旧路由，但设置里只有一个用量与额度入口
+        assertTrue(NavigationPolicy.matches("额度", "", "", "usage"))
         assertTrue(NavigationPolicy.matches("用量", "", "", "usage"))
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("limits").surface)
         assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
         assertEquals(27, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
@@ -82,6 +84,9 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.settingsTopics.all {
             it.route in NavigationPolicy.settingsRoutes
         })
+        assertEquals("用量与额度",
+            NavigationPolicy.matchedSettingTopic("usage", "额度"))
+        assertFalse(NavigationPolicy.settingsRoutes.contains("limits"))
         assertFalse(NavigationPolicy.matches("免审批", "项目管理", "任务工具", "queue"))
         assertNull(NavigationPolicy.matchedSettingTopic("queue", "免审批"))
     }

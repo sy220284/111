@@ -58,6 +58,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var notice by remember { mutableStateOf("") }
     var createName by remember { mutableStateOf("") }
     var createKind by remember { mutableStateOf("file") }
+    var showCreate by rememberSaveable { mutableStateOf(false) }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
     var copyName by remember { mutableStateOf("") }
@@ -180,6 +181,16 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
         if (actionBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
+            OutlinedButton(
+                onClick = { showCreate = !showCreate },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("workspace-create-toggle")
+            ) {
+                Icon(if (showCreate) Icons.Outlined.ExpandLess else Icons.Outlined.Add, null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (showCreate) "收起新建操作" else "新建文件或文件夹")
+            }
+            CodexReveal(showCreate) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("新建项目内容", style = MaterialTheme.typography.titleMedium)
                 Text("在当前目录创建文件或文件夹。",
@@ -203,6 +214,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         else WorkspaceFileActions.createFolder(root, folder, createName)
                         notice = "已创建：" + created.name
                         createName = ""
+                        showCreate = false
                         focusManager.clearFocus()
                         keyboardController?.hide()
                         refresh++
@@ -216,6 +228,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Spacer(Modifier.width(7.dp))
                     Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
+            }
             }
         }
         item {

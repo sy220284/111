@@ -159,7 +159,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if (connected && authMode.isNotBlank()) {
-                    Text("认证方式 · $authMode", color = Ink.muted,
+                    Text("登录方式 · " + PresentationPolicy.accountAuthMethod(authMode), color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
                 }
                 DividerLine()
@@ -198,19 +198,13 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text("账号与工作区切换（实验）")
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = { navigate("usage") },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Insights, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("使用量")
-                }
-                OutlinedButton(onClick = { navigate("limits") },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Speed, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("使用限额")
-                }
+            OutlinedButton(onClick = { navigate("usage") },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("account-usage-limits")) {
+                Icon(Icons.Outlined.Insights, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("查看用量与额度", modifier = Modifier.weight(1f))
+                Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
             }
             TextButton(onClick = { navigate("providers") }) {
                 Text("管理模型服务商")

@@ -309,7 +309,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
     ScreenColumn {
         SectionIntro("RUNTIME / PREFERENCES", "引擎配置",
-            "常用配置已经归入对应功能页面，其他选项可在下方自定义调整。")
+            "常用设置可直接在设置页管理；这里只处理需要手动填写的高级参数。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.SettingsSuggest, null, tint = Ink.copper)
@@ -328,24 +328,6 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if ("config" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text("配置保存在当前设备，修改成功后影响后续任务。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-        }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("按功能管理", style = MaterialTheme.typography.titleMedium)
-            listOf(
-                Triple("security", "权限与安全", "审批方式和工作区文件访问"),
-                Triple("providers", "模型服务商", "默认服务商和接入配置"),
-                Triple("models", "模型目录", "任务模型及思考能力")
-            ).forEach { (id, title, summary) ->
-                OutlinedButton(onClick = { navigate(id) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                        Text(title, style = MaterialTheme.typography.bodyLarge)
-                        Text(summary, color = Ink.muted,
-                            style = MaterialTheme.typography.labelMedium)
-                    }
-                    Icon(Icons.Outlined.ChevronRight, null)
-                }
-            }
         }
         errors["config"]?.let { ErrorText(it) }
         TextButton(
@@ -528,7 +510,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ) {
                 Text("保存本次权限调整")
             }
-            Text("Android 应用私有空间由系统隔离；Codex 的沙箱与网络策略仍由实际运行环境执行。",
+            Text("修改权限后，后续任务将按新的执行范围运行。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
         OutlinedButton(onClick = { navigate("approvals") }) {
