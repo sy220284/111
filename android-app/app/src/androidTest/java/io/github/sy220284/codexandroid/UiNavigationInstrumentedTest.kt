@@ -512,6 +512,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun settingsSearchSurvivesReturningFromDetailPage() {
         openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performClick()
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
         assertRealSoftKeyboardOpen()
         rule.onNodeWithTag("settings-list")
