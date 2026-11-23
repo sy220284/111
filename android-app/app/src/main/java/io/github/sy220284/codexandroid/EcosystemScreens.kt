@@ -66,7 +66,7 @@ fun ModelsPage(vm: CodexViewModel) {
     val items = records(data["models"])
     LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
     ScreenColumn {
-        SectionIntro("MODELS / SELECTION", "模型目录", "直接从官方模型目录选择新会话的运行模型。")
+        SectionIntro("模型目录", "直接从官方模型目录选择新会话的运行模型。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("新会话使用的模型", style = MaterialTheme.typography.titleMedium)
             Text(chosen.ifBlank { "遵循 Codex 默认模型" }, color = Ink.copper)
@@ -130,7 +130,7 @@ fun ProvidersPage(vm: CodexViewModel) {
         vm.ensureCatalog("providers", "modelProvider/list")
     }
     ScreenColumn {
-        SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
+        SectionIntro("模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("默认服务商", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             val defaultName = entries.firstOrNull { it.optString("id") == defaultId }
@@ -274,7 +274,7 @@ fun SkillsPage(vm: CodexViewModel) {
             CatalogRequestContract.workspace(vm.workingDirectory))
     }
     ScreenColumn {
-        SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
+        SectionIntro("技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory)) }
         if (skills.isNotEmpty()) {
@@ -431,7 +431,7 @@ fun PluginsPage(vm: CodexViewModel) {
             CatalogRequestContract.workspace(vm.workingDirectory))
     }
     ScreenColumn {
-        SectionIntro("CODEX / MARKETPLACE", "插件",
+        SectionIntro("插件",
             "先管理已安装能力，需要新功能时再浏览可用插件。")
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             FilterChip(selected = installedOnly, onClick = { installedOnly = true },
@@ -657,7 +657,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     ScreenColumn {
-        SectionIntro("ENGINE / DIAGNOSTICS", "内核诊断", "查看真实运行状态与官方诊断接口结果。")
+        SectionIntro("内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Memory, null, tint = Ink.copper)

@@ -56,7 +56,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         reload()
     }
     ScreenColumn {
-        SectionIntro("TRUST / EXECUTION", "权限与安全",
+        SectionIntro("权限与安全",
             "选择 Codex 可以执行的操作范围，调整前可查看当前设置。")
         ProtocolFeedback(vm, listOf("config", "securityRequirements", "permissionProfiles",
             "securitySave", "securityThreadSave"), onRetry = { reload() })

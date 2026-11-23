@@ -194,9 +194,9 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 
 val LocalWorkPageTitle = compositionLocalOf { "" }
 
-/** 页面导语只保留标题；操作说明按需进入二级弹层。英文分类标记仅供历史调用兼容。 */
+/** 页面导语只保留标题；操作说明按需进入二级弹层。不再保留无效英文分类参数。 */
 @Composable
-fun SectionIntro(@Suppress("UNUSED_PARAMETER") eyebrow: String, title: String, subtitle: String = "") {
+fun SectionIntro(title: String, subtitle: String = "") {
     val showTitle = title != LocalWorkPageTitle.current
     var showExplanation by remember(title, subtitle) { mutableStateOf(false) }
     if (showTitle || subtitle.isNotBlank()) {

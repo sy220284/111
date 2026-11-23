@@ -40,7 +40,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
         if (status == EngineStatus.Connected) vm.refresh("modes", "collaborationMode/list")
     }
     ScreenColumn {
-        SectionIntro("WORKFLOW / BEHAVIOR", "协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
+        SectionIntro("协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("新任务使用的工作方式", style = MaterialTheme.typography.titleMedium)
             StatusPill(if (selected == "plan") "计划模式" else "标准执行模式", true)
@@ -103,7 +103,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         vm.refresh("appInstalled", "app/installed", JSONObject())
     }
     ScreenColumn {
-        SectionIntro("CONNECTORS / APPS", "已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
+        SectionIntro("已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("应用连接", style = MaterialTheme.typography.titleMedium)

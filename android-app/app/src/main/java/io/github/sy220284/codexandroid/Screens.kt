@@ -315,7 +315,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     var selectedDetail by remember(page.id) { mutableStateOf<Pair<String, String>?>(null) }
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
     ScreenColumn {
-        SectionIntro("", page.title, page.subtitle)
+        SectionIntro(page.title, page.subtitle)
         if (page.experimental) StatusPill("实验功能", tone = StatusTone.Neutral)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -386,7 +386,7 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
     val payload by vm.data.collectAsState()
     val method = page.rpc ?: return
     ScreenColumn {
-        SectionIntro("THREAD / CONTEXT", page.title, page.subtitle)
+        SectionIntro(page.title, page.subtitle)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("需要先打开一个会话", style = MaterialTheme.typography.titleMedium)

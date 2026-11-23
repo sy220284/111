@@ -52,7 +52,7 @@ fun PluginDetailSheet(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            SectionIntro("PLUGIN / DETAIL", entry.optJSONObject("interface")?.optString("displayName")
+            SectionIntro(entry.optJSONObject("interface")?.optString("displayName")
                 ?.ifBlank { name } ?: name, "安装或启用之前查看实际提供的能力和来源。")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
