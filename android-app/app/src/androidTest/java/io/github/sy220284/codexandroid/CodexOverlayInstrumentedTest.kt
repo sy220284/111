@@ -3,6 +3,8 @@ package io.github.sy220284.codexandroid
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
@@ -10,6 +12,28 @@ import org.junit.Test
 /** Verifies a real Material 3 overlay, including explicit dismiss without side effects. */
 class CodexOverlayInstrumentedTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test
+    fun blockedConfirmationShowsReasonAndCannotAccept() {
+        var confirmed = false
+        rule.setContent {
+            CodexTheme {
+                CodexConfirmDialog(
+                    title = "确认导入本机备份",
+                    message = "仍有会话任务、终端命令或审批待处理，请完成后再操作",
+                    onConfirm = { confirmed = true },
+                    onDismiss = {},
+                    confirmLabel = "核对并导入",
+                    destructive = true,
+                    confirmEnabled = false
+                )
+            }
+        }
+        rule.onNodeWithText("仍有会话任务、终端命令或审批待处理，请完成后再操作")
+            .assertExists()
+        rule.onNodeWithTag("confirm-dialog-accept").assertIsNotEnabled()
+        rule.runOnIdle { org.junit.Assert.assertFalse(confirmed) }
+    }
 
     @Test
     fun evidenceSheetShowsReadableResultAndCloses() {
