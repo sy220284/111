@@ -281,7 +281,8 @@ internal fun SidebarSessionsContent(
             .forEach { (cwd, projectThreads) ->
                 item(key = "sidebar-project-" + cwd) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(
+                        modifier = Modifier.fillMaxWidth()
+                            .testTag("sidebar-project-" + cwd).padding(
                             start = 12.dp, end = 8.dp, top = 11.dp, bottom = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
