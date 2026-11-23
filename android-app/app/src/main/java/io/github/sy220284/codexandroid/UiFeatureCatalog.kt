@@ -54,7 +54,7 @@ object UiFeatureCatalog {
         FeatureGroup("通用与外观", listOf("appearance", "about", "update"))
     )
     val legacyRoutes = all.filter { it.route != "settings" && it.route != "update" }.map { it.route }
-    val nonSettingsWorkRoutes = listOf("search","goals","queue","diff","terminal","review","modes","limits")
+    val nonSettingsWorkRoutes = listOf("search","goals","queue","diff","terminal","review","modes")
     fun requiresThread(route: String): Boolean = byRoute[route]?.needsThread == true
     fun find(route: String): UiFeature = requireNotNull(byRoute[route]) {
         "未注册的功能入口：$route"
