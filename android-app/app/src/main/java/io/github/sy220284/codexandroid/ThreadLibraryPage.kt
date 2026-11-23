@@ -172,7 +172,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     value = searchText,
                     onValueChange = { searchText = it },
                     placeholder = if (fullText) "搜索历史正文" else "搜索会话标题",
-                    label = "查找会话",
+                    label = if (fullText) "搜索历史正文" else "搜索会话标题",
                     busy = key in loading || fullPending,
                     enabled = !busy,
                     onClear = {
