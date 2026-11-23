@@ -8,6 +8,7 @@ on:
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
+      - "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
       - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - "docs/UI_V5_COMPONENT_INTEGRATION.md"
       - "docs/ui-assets/tokens.json"
@@ -23,6 +24,7 @@ on:
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
+      - "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
       - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - "docs/UI_V5_COMPONENT_INTEGRATION.md"
       - "docs/ui-assets/tokens.json"
@@ -59,6 +61,7 @@ jobs:
             /.github/workflows/
             /.github/scripts/
             /docs/DESIGN_SYSTEM.md
+            /docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md
             /docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md
             /docs/ui-assets/tokens.json
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
