@@ -19,12 +19,22 @@ import androidx.compose.ui.unit.dp
 internal fun LocalDataTransferCard(vm: CodexViewModel) {
     val context = LocalContext.current
     val state by AppDataTransfer.state.collectAsState()
-    val running by vm.running.collectAsState()
-    val terminal by vm.terminalSession.collectAsState()
-    val available = !running && !terminal.running
+    val work = observeGlobalWorkSnapshot(vm)
+    val available = work.canDisruptCoreOrData
+    val errors by vm.errors.collectAsState()
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
-    ) { uri -> if (uri != null) AppDataTransfer.export(context, uri) }
+    ) { uri ->
+        if (uri != null) {
+            val current = vm.globalWorkSnapshot()
+            if (current.canDisruptCoreOrData) {
+                vm.errors.value = vm.errors.value - "dataTransfer"
+                AppDataTransfer.export(context, uri)
+            } else {
+                vm.errors.value = vm.errors.value + ("dataTransfer" to current.blockReason)
+            }
+        }
+    }
     var pendingImport by remember { mutableStateOf<android.net.Uri?>(null) }
     val importPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -49,12 +59,13 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 ) { Text("导出数据") }
                 OutlinedButton(
                     onClick = { importPicker.launch(arrayOf("application/zip", "application/octet-stream")) },
-                    enabled = !state.busy,
+                    enabled = available,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-import")
                 ) { Text("导入备份") }
             }
-            if (!available) Text("当前有任务在运行，完成或停止任务后可备份与恢复。",
+            if (!available) Text(work.blockReason,
                 color = Ink.warning, style = MaterialTheme.typography.labelMedium)
+            errors["dataTransfer"]?.let { ErrorText(it) }
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             val message = state.result.ifBlank { LocalDataArchive.lastResult(context) }
             if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall,
@@ -71,8 +82,14 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
             confirmLabel = "核对并导入",
             destructive = true,
             onConfirm = {
-                if (available) AppDataTransfer.import(context, uri)
-                pendingImport = null
+                val current = vm.globalWorkSnapshot()
+                if (current.canDisruptCoreOrData) {
+                    vm.errors.value = vm.errors.value - "dataTransfer"
+                    AppDataTransfer.import(context, uri)
+                    pendingImport = null
+                } else {
+                    vm.errors.value = vm.errors.value + ("dataTransfer" to current.blockReason)
+                }
             },
             onDismiss = { pendingImport = null }
         )
