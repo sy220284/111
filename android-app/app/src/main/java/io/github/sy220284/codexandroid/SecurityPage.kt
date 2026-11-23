@@ -55,7 +55,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (SettingsDeepLink.take("security") == "profiles") showProfiles = true
         reload()
     }
-    ScreenColumn {
+    Column(Modifier.fillMaxSize()) {
+    ScreenColumn(modifier = Modifier.weight(1f)) {
         SectionIntro("TRUST / EXECUTION", "权限与安全",
             "选择 Codex 可以执行的操作范围，调整前可查看当前设置。")
         ProtocolFeedback(vm, listOf("config", "securityRequirements", "permissionProfiles",
@@ -76,7 +77,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 if (current != null) StatusPill("已读取", tone = StatusTone.Success)
             }
             Text(when {
-                current == null -> "等待连接内核"
+                current == null -> "未读取"
                 defaultProfile.isBlank() -> "沿用内核默认权限"
                 else -> PresentationPolicy.permissionProfile(defaultProfile)
             }, style = MaterialTheme.typography.titleLarge, color = Ink.parchment)
@@ -85,7 +86,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text("审批方式", color = Ink.muted,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.width(72.dp))
-                Text(PresentationPolicy.approvalMode(effectiveApproval),
+                Text(if (effectiveApproval.isBlank()) "未读取"
+                    else PresentationPolicy.approvalMode(effectiveApproval),
                     color = Ink.parchment, style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f))
             }
@@ -93,7 +95,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text("文件访问", color = Ink.muted,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.width(72.dp))
-                Text(PresentationPolicy.sandboxMode(effectiveSandbox),
+                Text(if (effectiveSandbox.isBlank()) "未读取"
+                    else PresentationPolicy.sandboxMode(effectiveSandbox),
                     color = Ink.parchment, style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f))
             }
@@ -173,11 +176,12 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         ) { draftProfile = id }
                     }
                     if (draftProfile != null) {
-                        Row(Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Text("已选择，保存后生效", color = Ink.coral,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.weight(1f))
+                        MaterialPanel(Modifier.fillMaxWidth()) {
+                            Text("待保存", color = Ink.muted,
+                                style = MaterialTheme.typography.labelSmall)
+                            Text(PresentationPolicy.permissionProfile(draftProfile.orEmpty()),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Ink.parchment)
                             TextButton(onClick = { draftProfile = null }) {
                                 Text("撤销修改")
                             }
@@ -186,17 +190,6 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     if (draftProfile == ":danger-full-access") {
                         CodexNotice("完全访问允许操作项目以外的文件及网络。保存时需要再次确认。",
                             NoticeTone.Warning)
-                    }
-                    CodexPrimaryButton(
-                        onClick = { confirm = true },
-                        enabled = draftProfile != null &&
-                            (scope == "thread" || draftProfile != defaultProfile) &&
-                            !saving && !defaultSaveBusy && "securityThreadSave" !in loading,
-                        busy = saving || defaultSaveBusy || "securityThreadSave" in loading,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .testTag("security-save")
-                    ) {
-                        Text(if (scope == "thread") "应用到当前会话" else "保存默认权限")
                     }
                     Text(if (scope == "thread")
                         "仅影响当前会话之后的操作。"
@@ -209,6 +202,32 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("实际权限仍受运行环境和管理员安全策略约束。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         }
+    }
+    if (draftProfile != null) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Ink.elevated,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Ink.border)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Text("待保存 · " + PresentationPolicy.permissionProfile(draftProfile.orEmpty()),
+                    color = Ink.parchment, style = MaterialTheme.typography.bodyMedium)
+                CodexPrimaryButton(
+                    onClick = { confirm = true },
+                    enabled = (scope == "thread" || draftProfile != defaultProfile) &&
+                        !saving && !defaultSaveBusy && "securityThreadSave" !in loading,
+                    busy = saving || defaultSaveBusy || "securityThreadSave" in loading,
+                    modifier = Modifier.fillMaxWidth().testTag("security-save")
+                ) {
+                    Text(if (scope == "thread") "应用到当前会话" else "保存默认权限")
+                }
+            }
+        }
+    }
     }
     if (confirm && draftProfile != null) {
         val id = draftProfile!!
