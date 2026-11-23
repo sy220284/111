@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
@@ -13,6 +14,33 @@ import org.junit.Test
 /** Verifies a real Material 3 overlay, including explicit dismiss without side effects. */
 class CodexOverlayInstrumentedTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test
+    fun dataArchiveExclusiveDialogAppearsAndClearsWithoutLosingPage() {
+        val transfer = mutableStateOf(DataTransferState())
+        rule.setContent {
+            CodexTheme {
+                Column {
+                    androidx.compose.material3.Text("原有项目编辑状态")
+                    DataTransferBusyOverlay(transfer.value)
+                }
+            }
+        }
+        rule.onNodeWithText("原有项目编辑状态").assertExists()
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
+        rule.runOnUiThread {
+            transfer.value = DataTransferState(busy = true, result = "正在导出本机工作数据…")
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
+        rule.onNodeWithText("正在导出本机工作数据…").assertExists()
+        rule.runOnUiThread {
+            transfer.value = DataTransferState(busy = false, result = "导出完成")
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
+        rule.onNodeWithText("原有项目编辑状态").assertExists()
+    }
 
     @Test
     fun blockedConfirmationShowsReasonAndCannotAccept() {
