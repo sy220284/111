@@ -41,12 +41,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
-fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit,
-    onOpenWorkspaceTools: () -> Unit) {
+fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     when (id) {
         "home" -> HomePage(vm, navigate)
         "settings" -> SettingsHubPage(vm, navigate)
-        "chat" -> ConversationPage(vm, navigate, onOpenWorkspaceTools)
+        "chat" -> ConversationPage(vm, navigate)
         "threads" -> ThreadLibraryPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
