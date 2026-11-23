@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -108,6 +112,13 @@ fun AtlasStatusSelector(
                         },
                         leadingIcon = if (selected == option.key) {
                             { Icon(Icons.Outlined.Check, contentDescription = null,
+                                tint = when (option.tone) {
+                                    StatusTone.Success -> Ink.jade
+                                    StatusTone.Warning -> Ink.warning
+                                    StatusTone.Danger -> Ink.red
+                                    StatusTone.Info -> Ink.copper
+                                    StatusTone.Neutral -> Ink.muted
+                                },
                                 modifier = Modifier.size(18.dp)) }
                         } else null
                     )
@@ -126,7 +137,7 @@ fun AtlasSequenceBadge(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.size(34.dp),
+        modifier = modifier.size(34.dp).semantics { contentDescription = "第$position 项，共 $total 项" },
         shape = CircleShape,
         color = if (position == 1) Ink.jade else Ink.canvas,
         border = BorderStroke(1.dp, if (position == 1) Ink.jade else Ink.border)
@@ -238,29 +249,27 @@ fun AtlasSettingsActionRow(
     enabled: Boolean = true
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().clickable(
+            enabled = enabled, role = Role.Button, onClick = onClick
+        ),
         color = Ink.canvas,
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, Ink.border)
     ) {
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                .then(Modifier),
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconButton(onClick = onClick, enabled = enabled,
-                modifier = Modifier.size(48.dp)) {
-                Icon(icon, contentDescription = title, tint = Ink.copper)
-            }
+            Icon(icon, contentDescription = null,
+                modifier = Modifier.size(24.dp), tint = Ink.copper)
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(detail, style = MaterialTheme.typography.bodySmall,
                     color = Ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            IconButton(onClick = onClick, enabled = enabled) {
-                Icon(Icons.Outlined.ChevronRight, contentDescription = "进入$title")
-            }
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+                tint = Ink.muted, modifier = Modifier.size(20.dp))
         }
     }
 }
