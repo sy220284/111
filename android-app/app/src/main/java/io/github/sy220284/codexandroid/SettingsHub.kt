@@ -35,10 +35,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }.filter { it.second.isNotEmpty() ||
         (it.first.title == "通用与外观" && (query.isBlank() ||
             NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update"))) }
-    val managed = NavigationPolicy.settingsRoutes.toSet()
-    val hiddenMatches = if (query.isBlank()) emptyList() else
-        pages.filter { it.id !in managed && it.id != "settings" &&
-            NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
     val showUpdate = query.isBlank() ||
         NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     LazyColumn(
@@ -56,7 +52,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         item(key = "search") {
             OutlinedTextField(value = query, onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth().testTag("settings-search"),
-                placeholder = { Text("搜索配置、扩展或功能名称") },
+                placeholder = { Text("搜索账号、设置或扩展") },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 trailingIcon = {
                     if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
@@ -64,7 +60,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }, singleLine = true, shape = RoundedCornerShape(22.dp))
         }
-        if (groups.isEmpty() && hiddenMatches.isEmpty()) {
+        if (groups.isEmpty()) {
             item { CodexEmptyState("未找到相关功能", "可以按名称或关键字重新查询。",
                 actionLabel = "清除搜索", onAction = { query = "" }) }
         }
@@ -106,22 +102,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 if (group.title == "通用与外观" && showUpdate) {
                     AppUpdateCard()
                     LocalDataTransferCard(vm)
-                }
-            }
-        }
-        if (hiddenMatches.isNotEmpty()) {
-            item(key = "search-extra-title") {
-                Text("功能搜索结果", modifier = Modifier.padding(start = 8.dp, top = 6.dp),
-                    style = MaterialTheme.typography.titleMedium, color = Ink.muted)
-            }
-            items(hiddenMatches, key = { "extra-" + it.id }) { entry ->
-                SettingRouteRow(entry, detail = "前往功能") {
-                    when(entry.id) {
-                        "modes" -> navigate("modes")
-                        "limits" -> navigate("limits")
-                        "search" -> navigate("threads")
-                        else -> navigate(entry.id)
-                    }
                 }
             }
         }
