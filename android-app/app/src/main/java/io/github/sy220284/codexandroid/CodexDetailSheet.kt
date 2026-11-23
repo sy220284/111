@@ -166,3 +166,35 @@ fun CodexSkeletonRows(count: Int = 3) {
         }
     }
 }
+
+/** 当调用位置已在底部面板中，使用轻量对话框查看少量信息，避免弹层套弹层。 */
+@Composable
+fun CodexInfoDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Ink.elevated,
+        titleContentColor = Ink.parchment,
+        textContentColor = Ink.parchment,
+        shape = RoundedCornerShape(22.dp),
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                content = content
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.heightIn(min = 48.dp)
+                    .testTag("codex-info-close")
+            ) { Text("关闭") }
+        }
+    )
+}
