@@ -113,8 +113,8 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) { Text("保存目标") }
         }
-        errors[key]?.let { ErrorText(it) }
-        errors["goalWrite"]?.let { ErrorText(it) }
+        PresentationPolicy.visibleErrors(errors, listOf(key, "goalWrite"))
+            .forEach { ErrorText(it) }
     }
     if (confirmClear) CodexConfirmDialog(
         title = "清除当前任务目标",
@@ -266,13 +266,11 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 pageCount = page
             }, modifier = Modifier.fillMaxWidth()) { Text("加载更多任务") }
         }
-        errors[rootKey]?.let { ErrorText(it) }
-        if (currentKey != rootKey) {
-            errors[currentKey]?.takeIf { it != errors[rootKey] }?.let { ErrorText(it) }
-        }
-        errors["queueWrite"]?.takeIf {
-            it != errors[rootKey] && it != errors[currentKey]
-        }?.let { ErrorText(it) }
+        // Compare user-visible errors, not raw RPC strings: different endpoints
+        // can resolve to the same actionable message (e.g. an offline engine).
+        PresentationPolicy.visibleErrors(errors,
+            listOfNotNull(rootKey, currentKey.takeIf { it != rootKey }, "queueWrite"))
+            .forEach { ErrorText(it) }
     }
     pendingEdit?.let { item ->
         AlertDialog(

@@ -290,10 +290,15 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 }
                 if ("threadSections" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 errors["threadSections"]
-                    ?.takeUnless { it == errors[key] || it == errors[fullKey] }
+                    ?.takeUnless { sectionError ->
+                        listOfNotNull(errors[key], errors[fullKey]).any {
+                            PresentationPolicy.readableError(it) ==
+                                PresentationPolicy.readableError(sectionError)
+                        }
+                    }
                     ?.let {
-                        Text("分组加载失败：$it", color = Ink.muted,
-                            style = MaterialTheme.typography.bodySmall)
+                        Text("分组加载失败：" + PresentationPolicy.readableError(it),
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),

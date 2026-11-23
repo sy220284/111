@@ -39,7 +39,7 @@
 | config | 高级设置 | 设置 Page；常用配置与高级编辑分层 | audit-config-android35.png、audit-config-editor-android35.png |
 | security | 权限管理 | 设置 Page；审批、文件范围及权限方案 | audit-security-android35.png |
 | usage | 账户用量 | 设置 Page；使用量与限额共享页签 | account-usage-android35.png |
-| limits | 账户用量 | Inline / 同一账户使用量视图；清除误归类的任务工具标记 | account-limits-android35.png |
+| limits | 账户用量 | Page / 与用量共用页签，子页面保留返回按钮 | account-limits-android35.png |
 | appearance | 显示设置 | Inline；在设置页内调整外观 | appearance-android35.png |
 | diagnostics | 主机状态 | 设置 Page；连接诊断与故障记录 | audit-diagnostics-android35.png |
 | about | 设置信息 | Sheet；跨页面入口复用关于弹层 | audit-about-android35.png |
@@ -71,3 +71,12 @@
 ## Figma 对齐情况
 
 目标 Figma 文件 `K4FEMoNdmQbcnJZCHWr8c7`。本次创建工作会话后调用元数据读取，服务器明确返回 **Starter 计划 MCP 调用额度已耗尽**；whoami 确认当前连接为 Starter View 席位。无法读取原画板节点或执行更新，不能声称 Figma 已同步。以上页面归属与组件选择是后续设计同步的唯一工作清单，代码和真实 Android 截图是当前可复核依据。
+
+## PR #55 交互闭环补充核实（2026-11-23）
+
+- **选择会话后继续原动作**：快捷工具保留 `queue`、`goals`、`review`、`diff` 目标，若当前没有会话则进入会话库；仅在 `chooseThread` 完成真实 `thread/read` 和 `thread/resume` 后触发原动作。取消选择则清空待续操作，返回原工作区。
+- **草稿与页面状态**：会话库、任务队列、目标和审查复用 Shell 的 `SaveableStateHolder`，按会话保存草稿；确认和删除仍遵守实际请求结果。升级前恢复出的 Sheet 路由统一由 Shell 重新分发。
+- **重复错误根因**：队列与任务目标改用 `PresentationPolicy.visibleErrors`，以用户实际可见的错误文案去重；相同的内核断连原因只提示一次。会话分组错误同样按可见文案判重。
+- **导航归属**：使用限额作为账号数据页面的另一入口与“用量”共享页签，保留完整页面返回导航。
+- **新增回归**：无会话点击队列必须出现“选择会话后继续：任务队列”；取消回到原页；输入队列草稿、关闭并重新打开后文字保留；三个屏幕尺寸继续跑现有 UI 截图与协议验收。
+- **验收证据**：此前 45104299871 的 51 项设备测试已通过。新提交以最新工作流与新增的测试结果为准；Figma 目前仍受 Starter MCP 限额限制，画板同步状态保持“未完成”。
