@@ -137,51 +137,68 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                             modifier = Modifier.heightIn(min = 48.dp)) {
                             Text(if (selectedId == projectId) "当前项目" else "使用")
                         }
-                        Box {
-                            IconButton(onClick = { actionMenuId = projectId },
-                                enabled = projectId.isNotBlank(),
-                                modifier = Modifier.size(48.dp)) {
-                                Icon(Icons.Outlined.MoreVert, "管理" + displayName)
-                            }
-                            DropdownMenu(expanded = actionMenuId == projectId,
-                                onDismissRequest = { actionMenuId = "" }) {
-                                DropdownMenuItem(
-                                    text = { Text("查看详情") },
-                                    onClick = {
-                                        actionMenuId = ""
-                                        detailsId = projectId
-                                        vm.refresh("projectDetail", "project/read",
-                                            ProjectRequestContract.read(projectId))
-                                    })
-                                DropdownMenuItem(text = { Text("重命名") },
-                                    enabled = canModify,
-                                    onClick = {
-                                        actionMenuId = ""
-                                        editing = project
-                                        renameText = displayName
-                                    })
-                                DropdownMenuItem(text = { Text("向上移动") },
-                                    enabled = canModify && index > 0,
-                                    onClick = {
-                                        actionMenuId = ""
-                                        vm.rpc("projectWrite", "project/move",
-                                            ProjectRequestContract.move(projectId,
-                                                projects.getOrNull(index - 1)?.optString("id")),
-                                            after = { reload() })
-                                    })
-                                DropdownMenuItem(text = { Text("向下移动") },
-                                    enabled = canModify && index < projects.lastIndex,
-                                    onClick = {
-                                        actionMenuId = ""
-                                        vm.rpc("projectWrite", "project/move",
-                                            ProjectRequestContract.move(projectId,
-                                                projects.getOrNull(index + 2)?.optString("id")),
-                                            after = { reload() })
-                                    })
-                                DropdownMenuItem(text = { Text("移除项目登记") },
-                                    enabled = canModify,
-                                    onClick = { actionMenuId = ""; deleting = project })
-                            }
+                        IconButton(
+                            onClick = { actionMenuId = projectId },
+                            enabled = projectId.isNotBlank(),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Outlined.MoreVert, "管理" + displayName)
+                        }
+                        if (actionMenuId == projectId && projectId.isNotBlank()) {
+                            CodexActionDialog(
+                                title = "管理项目 · " + displayName,
+                                onDismiss = { actionMenuId = "" },
+                                actions = listOf(
+                                    CodexSheetAction(
+                                        label = "查看详情",
+                                        icon = Icons.Outlined.Info,
+                                        onClick = {
+                                            detailsId = projectId
+                                            vm.refresh("projectDetail", "project/read",
+                                                ProjectRequestContract.read(projectId))
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "重命名",
+                                        icon = Icons.Outlined.Edit,
+                                        enabled = canModify,
+                                        onClick = {
+                                            editing = project
+                                            renameText = displayName
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "向上移动",
+                                        icon = Icons.Outlined.ArrowUpward,
+                                        enabled = canModify && index > 0,
+                                        onClick = {
+                                            vm.rpc("projectWrite", "project/move",
+                                                ProjectRequestContract.move(projectId,
+                                                    projects.getOrNull(index - 1)?.optString("id")),
+                                                after = { reload() })
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "向下移动",
+                                        icon = Icons.Outlined.ArrowDownward,
+                                        enabled = canModify && index < projects.lastIndex,
+                                        onClick = {
+                                            vm.rpc("projectWrite", "project/move",
+                                                ProjectRequestContract.move(projectId,
+                                                    projects.getOrNull(index + 2)?.optString("id")),
+                                                after = { reload() })
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "移除项目登记",
+                                        icon = Icons.Outlined.DeleteOutline,
+                                        description = "只移除登记，保留本机目录；确认后执行",
+                                        enabled = canModify,
+                                        destructive = true,
+                                        onClick = { deleting = project }
+                                    )
+                                )
+                            )
                         }
                     }
                 }
