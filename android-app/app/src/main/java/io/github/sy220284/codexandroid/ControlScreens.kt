@@ -444,14 +444,14 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]?.optJSONObject("requirements")
     val profiles = records(data["permissionProfiles"])
-    val defaultProfile = current?.optString("default_permissions").orEmpty()
+    val defaultProfile = current?.optString("default_permissions").orEmpty().ifBlank {\n        data["securityRequirements"]?.optJSONObject("requirements")?.optString("defaultPermissions").orEmpty()\n    }
     val effectiveApproval = current?.optString("approval_policy").orEmpty()
     val effectiveSandbox = current?.optString("sandbox_mode").orEmpty()
     val activeThread by vm.activeThread.collectAsState()
     var scope by rememberSaveable { mutableStateOf("default") }
     var draftProfile by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
-    var showProfiles by rememberSaveable { mutableStateOf(true) }
+    var showProfiles by rememberSaveable { mutableStateOf(false) }
     val selected = draftProfile ?: defaultProfile
     val allowedProfiles = requirements?.optJSONObject("allowedPermissionProfiles")
     val canSelect: (JSONObject) -> Boolean = { profile ->
