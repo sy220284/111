@@ -727,6 +727,9 @@ class UiNavigationInstrumentedTest {
     @Test fun permissionProfilesCanBeSelectedAndRestrictedProfilesCannot() {
         val vm = (rule.activity.application as CodexApplication).session
         openSettingRoute("security")
+        rule.waitUntil(15_000L) {
+            listOf("config", "securityRequirements", "permissionProfiles").none { it in vm.loading.value }
+        }
         rule.runOnUiThread {
             vm.data.value = vm.data.value + mapOf(
                 "config" to JSONObject().put("config", JSONObject()
@@ -745,6 +748,9 @@ class UiNavigationInstrumentedTest {
             )
         }
         rule.onNodeWithTag("security-profiles-toggle").performScrollTo().performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("security-profile-workspace").fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithTag("security-profile-workspace").performScrollTo().performClick()
         rule.onNodeWithText("保存默认权限").assertIsEnabled()
         rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo()
