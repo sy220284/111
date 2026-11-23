@@ -335,7 +335,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     value = searchDraft,
                     onValueChange = { searchDraft = it },
                     placeholder = "插件名称或关键字",
-                    label = "搜索插件",
+                    label = "插件名称或关键字",
                     enabled = engineStatus == EngineStatus.Connected &&
                         "pluginMutation" !in busy,
                     busy = "pluginSearch:" + searchSubmitted + ":0" in busy,
