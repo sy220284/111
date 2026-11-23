@@ -23,6 +23,22 @@ class GlobalWorkSnapshotTest {
         assertEquals("", idle().blockReason)
     }
 
+    @Test fun pendingRpcAuthorizationAndPlanPreparationMustFinishBeforeBackup() {
+        val pending = listOf(
+            idle().copy(inFlightRequests = 2),
+            idle().copy(loginBusy = true),
+            idle().copy(planApprovalBusy = true)
+        )
+        pending.forEach {
+            assertTrue(it.hasActiveWork)
+            assertFalse(it.canDisruptCoreOrData)
+            assertEquals(
+                "请求或授权操作正在处理，请完成后再备份、恢复或重启",
+                it.blockReason
+            )
+        }
+    }
+
     @Test fun unrelatedBackgroundTasksDoNotBlockNormalParallelThreadCreation() {
         assertTrue(idle().copy(executingThreads = 3).canStartNewTask)
         assertTrue(idle().copy(terminalRunning = true).canStartNewTask)
