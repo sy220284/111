@@ -368,7 +368,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-update-toggle").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("update-check").assertExists()
-        capture("settings-update-sheet-android35.png")
+        captureOverlay("settings-update-sheet-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         capture("settings-hub-android35.png")
@@ -746,7 +746,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
         rule.onNodeWithText("服务地址（HTTP / HTTPS）").assertExists()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        capture("audit-provider-editor-android35.png")
+        captureOverlay("audit-provider-editor-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("config")
@@ -755,7 +755,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("开关").assertExists()
         rule.onNodeWithText("高级数据").assertExists()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        capture("audit-config-editor-android35.png")
+        captureOverlay("audit-config-editor-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("environments")
