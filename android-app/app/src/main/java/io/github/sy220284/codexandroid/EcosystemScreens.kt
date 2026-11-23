@@ -141,12 +141,18 @@ fun ProvidersPage(vm: CodexViewModel) {
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("服务商配置", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                TextButton(onClick = { showCustomEditor = !showCustomEditor }) {
-                    Text(if (showCustomEditor) "收起" else "添加自定义服务商")
-                }
+            Text("服务商配置", style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                    .clickable { showCustomEditor = !showCustomEditor },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AddCircleOutline, null, tint = Ink.copper)
+                Spacer(Modifier.width(10.dp))
+                Text("添加自定义服务商", modifier = Modifier.weight(1f))
+                Icon(if (showCustomEditor) Icons.Outlined.ExpandLess
+                    else Icons.Outlined.ChevronRight,
+                    contentDescription = if (showCustomEditor) "收起编辑" else "打开服务商编辑")
             }
             CodexReveal(showCustomEditor) {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -162,18 +168,30 @@ fun ProvidersPage(vm: CodexViewModel) {
                         singleLine = true)
                     Text("密钥值由本机环境管理；这里仅填写变量名称。",
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                    OutlinedButton(
+                    CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
-                            (customUrl.startsWith("https://") || customUrl.startsWith("http://"))
+                            (customUrl.startsWith("https://") || customUrl.startsWith("http://")),
+                        modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }
             }
-            TextButton(onClick = {
-                showCapabilities = !showCapabilities
-                if (showCapabilities) vm.refresh("providerCapabilities",
-                    "modelProvider/capabilities/read")
-            }) { Text(if (showCapabilities) "收起能力信息" else "查看服务商能力") }
+            DividerLine()
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable {
+                    showCapabilities = !showCapabilities
+                    if (showCapabilities) vm.refresh("providerCapabilities",
+                        "modelProvider/capabilities/read")
+                },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Info, null, tint = Ink.muted)
+                Spacer(Modifier.width(10.dp))
+                Text("查看服务商能力", modifier = Modifier.weight(1f))
+                Icon(if (showCapabilities) Icons.Outlined.ExpandLess
+                    else Icons.Outlined.ChevronRight,
+                    contentDescription = if (showCapabilities) "收起能力" else "展开能力")
+            }
             CodexReveal(showCapabilities) {
                 val caps = data["providerCapabilities"]
                 if (caps != null) {
