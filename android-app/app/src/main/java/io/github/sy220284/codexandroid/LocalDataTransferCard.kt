@@ -77,8 +77,11 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
     pendingImport?.let { uri ->
         CodexConfirmDialog(
             title = "确认导入本机备份",
-            message = "将检查整个备份文件，下次完整启动时恢复其中的项目、会话与设置。同名本机文件会被备份版本替换，请先确认当前任务已结束。",
+            message = "将检查整个备份文件，下次完整启动时恢复其中的项目、会话与设置。" +
+                "同名本机文件会被备份版本替换，请先确认当前任务已结束。" +
+                if (available) "" else "\n\n" + work.blockReason,
             detail = "源文件：" + (uri.lastPathSegment ?: "所选备份"),
+            confirmEnabled = available,
             confirmLabel = "核对并导入",
             destructive = true,
             onConfirm = {
