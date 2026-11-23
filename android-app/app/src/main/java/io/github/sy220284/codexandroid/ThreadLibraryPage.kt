@@ -35,7 +35,8 @@ import org.json.JSONObject
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
+    initialFullText: Boolean = false) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -60,7 +61,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var archived by rememberSaveable { mutableStateOf(false) }
     var searchText by rememberSaveable { mutableStateOf("") }
     var searchTerm by rememberSaveable { mutableStateOf("") }
-    var fullText by rememberSaveable { mutableStateOf(false) }
+    var fullText by rememberSaveable { mutableStateOf(initialFullText) }
     var fullSubmitted by rememberSaveable { mutableStateOf("") }
     var selectedSection by rememberSaveable { mutableStateOf("") }
     var showSectionEditor by remember { mutableStateOf(false) }
@@ -684,7 +685,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 fun ThreadLibraryQuickSheet(
     vm: CodexViewModel,
     onDismiss: () -> Unit,
-    navigate: (String) -> Unit
+    navigate: (String) -> Unit,
+    initialFullText: Boolean = false
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -694,7 +696,7 @@ fun ThreadLibraryQuickSheet(
     ) {
         Box(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
             .testTag("thread-library-sheet")) {
-            ThreadLibraryPage(vm, navigate)
+            ThreadLibraryPage(vm, navigate, initialFullText)
         }
     }
 }
