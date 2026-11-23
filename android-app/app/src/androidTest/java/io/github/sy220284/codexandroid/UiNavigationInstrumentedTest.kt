@@ -766,6 +766,7 @@ class UiNavigationInstrumentedTest {
             .assertIsNotEnabled()
         rule.onNodeWithTag("security-profile-workspace").performScrollTo()
             .assertIsDisplayed()
+        capture("audit-security-selection-android35.png")
     }
 
     @Test fun permissionApprovalExplainsActualScope() {
