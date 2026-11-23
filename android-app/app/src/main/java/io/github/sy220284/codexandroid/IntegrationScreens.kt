@@ -329,7 +329,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
     }.joinToString(" · ")
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { details = !details },
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { details = true },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
@@ -344,19 +344,22 @@ internal fun McpServiceStatusCard(server: JSONObject) {
             }
             StatusPill("可用", true)
             Spacer(Modifier.width(4.dp))
-            Icon(if (details) Icons.Outlined.ExpandLess else Icons.Outlined.ChevronRight,
-                contentDescription = if (details) "收起服务详情" else "查看服务详情",
-                tint = Ink.muted)
+            Icon(Icons.Outlined.ChevronRight,
+                contentDescription = "查看服务详情", tint = Ink.muted)
         }
-        CodexReveal(details) {
-            DividerLine()
-            Text(server.optString("description").ifBlank {
-                "服务已连接，可用能力由智能体在任务中选择调用。"
-            }, style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-            Text("工具 $toolCount 项 · 资源 $resourceCount 项",
-                style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
-            Text("由智能体管理连接与授权；此处仅展示已就绪的服务。",
-                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-        }
+    }
+    if (details) CodexDetailSheet(
+        title = McpAvailableServices.displayName(server),
+        subtitle = "已就绪服务 · 由智能体管理授权和调用",
+        onDismiss = { details = false }
+    ) {
+        StatusPill("可用", true)
+        Text(server.optString("description").ifBlank {
+            "服务已连接，可用能力由智能体在任务中选择调用。"
+        }, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
+        Text("工具 $toolCount 项 · 资源 $resourceCount 项",
+            style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+        Text("此处显示已经连接的服务，具体能力由智能体在任务中使用。",
+            style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }
 }
