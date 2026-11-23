@@ -170,7 +170,7 @@ class UiNavigationInstrumentedTest {
         capture("diff-reader-android35.png")
     }
 
-    @Test fun workspaceToolBackNavigatesToWorkspaceRatherThanSettings() {
+    @Test fun projectTerminalAndFilesReturnToConversation() {
         openDrawerRoute("chat")
         rule.onNodeWithTag("chat-project-terminal").performClick()
         rule.onNodeWithText("当前项目终端").assertExists()
@@ -466,7 +466,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
     }
 
-    @Test fun missingSessionKeepsOriginalToolWhenOpeningPicker() {
+    @Test fun noSessionStillOpensProjectResourcesDirectly() {
         openDrawerRoute("chat")
         rule.onNodeWithTag("chat-project-terminal").assertExists()
         rule.onNodeWithTag("chat-project-files").assertExists()
@@ -476,12 +476,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
-    @Test fun selectingSessionResumesTheOriginalQueueAction() {
+    @Test fun activeThreadOpensItsQueueWithoutHistoryPicker() {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-current-queue" }
         openDrawerRoute("chat")
         rule.onNodeWithContentDescription("会话选项").performClick()
-        rule.onNodeWithText("待办队列（实验）").performClick()
+        rule.onNodeWithText("待办队列（实验）").performScrollTo().performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
         }
@@ -494,7 +494,7 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
         openDrawerRoute("chat")
         rule.onNodeWithContentDescription("会话选项").performClick()
-        rule.onNodeWithText("待办队列（实验）").performClick()
+        rule.onNodeWithText("待办队列（实验）").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -508,7 +508,7 @@ class UiNavigationInstrumentedTest {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
         }
         rule.onNodeWithContentDescription("会话选项").performClick()
-        rule.onNodeWithText("待办队列（实验）").performClick()
+        rule.onNodeWithText("待办队列（实验）").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
     }
 
@@ -524,7 +524,7 @@ class UiNavigationInstrumentedTest {
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
         openDrawerRoute("chat")
         rule.onNodeWithContentDescription("会话选项").performClick()
-        rule.onNodeWithText("待办队列（实验）").performClick()
+        rule.onNodeWithText("待办队列（实验）").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-sheet").assertExists()
         rule.onNodeWithText("任务队列").assertExists()
         assertTrue("同一队列请求错误只显示一次",
