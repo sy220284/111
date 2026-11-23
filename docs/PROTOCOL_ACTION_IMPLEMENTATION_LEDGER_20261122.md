@@ -8,6 +8,15 @@
 
 > 审计基线：`sy220284/111`，`main@99519677e157efc3bed6bd4055583b8d0e6adeab`（PR #34 合并后）。官方权威为锁定的 `upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs` 及 `v2` Rust 类型。下表 195 项由 `ui_surface_policy.json` 与官方协议方法集逐项交叉生成。**“已定位调用”仅指源码证据，尚不等于设备验收通过**。
 
+## 2026-11-23 PR #74 决策界面重组与原协议契约保持
+
+本轮将会话资料库和全文检索从高占屏 Sheet 改成独立 Page；任务依赖会话时仍使用独立的选择 Sheet。涉及 `thread/list`、`thread/search`、`thread/resume`、`thread/archive`、`thread/delete`，仍沿用原始请求/响应、分页游标与写入确认。
+`item/commandExecution/requestApproval`、`item/fileChange/requestApproval`、`item/permissions/requestApproval`、`mcpServer/elicitation/request` 等 Host 交互仅调整按钮视觉、解释信息与授权菜单；真实回传仍使用 `ApprovalAction` 与原来的接口契约，并保留会话持续授权的二次确认。
+`model/list`、`collaborationMode/list`、`skills/list`、`plugin/list`、`app/list`、`app/installed`、`mcpServerStatus/list`、`account/usage/read`、`account/rateLimits/read` 仅将失败、断线、空值与恢复操作从业务单选项剥离，复用现有请求及状态来源。
+`config/read`、`configRequirements/read`、`permissionProfile/list` 及默认/当前会话权限保存链保留写后回读逻辑，界面将“已生效”与“待保存”分开展示；草稿保存按钮固定底部。
+`turn/start` 的输入行为保持原有草稿/附件回执清理规则；图片附件只有系统照片来源时直接打开平台选择器。
+**分级验收**：以上均属于 UI 容器与语义变更，195 项 RPC 方法的方向、类型和 `ui_surface_policy.json` 不变；Android Kotlin 编译、单测、仪器截图与真实 Codex/第三方授权回执，须分别按 PR #74 最终 head SHA 验收。在 CI 结束前不得将其登记为通过。
+
 ## 2026-11-23 近20个PR复查后共享协议与任务安全整改
 
 | 协议/链路 | 确认的根因 | 当前修复入口 | 已具备的验证与边界 |
