@@ -30,6 +30,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
         mutableStateOf(if (id == "limits" || requestedTab == "limits") "limits" else "usage")
     }
     val data by vm.data.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     val result = data[selectedTab]
@@ -37,13 +38,19 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     val method = if (usage) "account/usage/read" else "account/rateLimits/read"
     LaunchedEffect(selectedTab) { vm.refresh(selectedTab, method) }
     ScreenColumn {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = selectedTab == "usage",
-                onClick = { selectedTab = "usage" }, label = { Text("用量") },
-                modifier = Modifier.weight(1f))
-            FilterChip(selected = selectedTab == "limits",
-                onClick = { selectedTab = "limits" }, label = { Text("额度") },
-                modifier = Modifier.weight(1f))
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = selectedTab == "usage",
+                onClick = { selectedTab = "usage" },
+                shape = SegmentedButtonDefaults.itemShape(0, 2),
+                label = { Text("用量") }
+            )
+            SegmentedButton(
+                selected = selectedTab == "limits",
+                onClick = { selectedTab = "limits" },
+                shape = SegmentedButtonDefaults.itemShape(1, 2),
+                label = { Text("额度") }
+            )
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -63,10 +70,23 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             if (selectedTab in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         }
         errors[selectedTab]?.let { ErrorText(it) }
-        if (result == null && selectedTab !in loading && selectedTab !in errors) {
-            CodexEmptyState("等待账号数据", "请检查账号是否已经登录，并刷新当前页面。",
-                actionLabel = "前往账号登录",
-                onAction = { navigate("account") })
+        if (result == null && selectedTab !in loading) {
+            when {
+                engineStatus != EngineStatus.Connected -> {
+                    CodexRecoveryState("连接后可查看账号数据",
+                        "本机运行核心尚未连接，连接后读取用量与额度。",
+                        "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                }
+                selectedTab in errors -> {
+                    CodexRecoveryState("账号数据读取失败",
+                        "检查登录状态后可重试读取。",
+                        "重新读取", { vm.refresh(selectedTab, method) },
+                        { navigate("diagnostics") })
+                }
+                else -> CodexEmptyState("登录后查看账号数据",
+                    "当前没有返回账号用量或额度，请检查登录状态。",
+                    actionLabel = "前往账号登录", onAction = { navigate("account") })
+            }
         }
         if (usage && result != null) {
             val summary = result.optJSONObject("summary")
