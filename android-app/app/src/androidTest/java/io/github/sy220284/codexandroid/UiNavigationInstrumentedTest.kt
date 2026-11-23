@@ -96,6 +96,29 @@ class UiNavigationInstrumentedTest {
         capture("chat-android35.png")
     }
 
+    @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
+        val vm = (rule.activity.application as CodexApplication).session
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("backup-export").assertExists()
+        try {
+            rule.runOnUiThread {
+                vm.activeThread.value = null
+                vm.running.value = false
+                vm.threadExecutions.value = mapOf(
+                    "offscreen-active" to ThreadExecution(turnId = "running-turn"))
+            }
+            rule.waitForIdle()
+            rule.onNodeWithTag("backup-export").assertIsNotEnabled()
+            rule.onNodeWithTag("backup-import").assertIsNotEnabled()
+            rule.onNodeWithText(
+                "仍有会话任务、终端命令或审批待处理，请完成后再操作").assertExists()
+            capture("audit-backup-background-block-android35.png")
+        } finally {
+            rule.runOnUiThread { vm.threadExecutions.value = emptyMap() }
+            rule.waitForIdle()
+        }
+    }
+
     @Test fun chatAndWorkTabsPreserveTheSamePrimaryNavigation() {
         rule.onNodeWithTag("tab-chat").performClick()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
