@@ -111,6 +111,24 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
     }
 
+    @Test fun newConversationActionRemainsAvailableWhileOtherTaskRuns() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread {
+            vm.firstThreadStarting.value = false
+            vm.threadSwitching.value = false
+            vm.running.value = true
+        }
+        try {
+            rule.waitForIdle()
+            rule.onNodeWithTag("top-new-chat").assertIsEnabled()
+            rule.onNodeWithContentDescription("打开侧边导航").performClick()
+            rule.onNodeWithTag("sidebar-new-chat").assertIsEnabled()
+        } finally {
+            rule.runOnUiThread { vm.running.value = false }
+            rule.waitForIdle()
+        }
+    }
+
     @Test fun chatKeepsStopAndSendControlsReachable() {
         openDrawerRoute("chat")
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
