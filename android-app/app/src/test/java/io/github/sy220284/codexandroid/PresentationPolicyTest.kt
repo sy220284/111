@@ -41,7 +41,8 @@ class PresentationPolicyTest {
 
         assertEquals("已连接", PresentationPolicy.serviceState("connected"))
         assertEquals("连接失败", PresentationPolicy.serviceState("failed"))
-        assertEquals("需要授权", PresentationPolicy.authorizationState("required"))
+        assertEquals("需要授权", PresentationPolicy.serviceState("authenticationRequired"))
+        assertEquals("已停用", PresentationPolicy.serviceState("disabled"))
         assertEquals("可在任务对话中使用，按需启用或停用",
             PresentationPolicy.readableSkillSummary("Create editable Canva instagram posts"))
     }
@@ -91,6 +92,21 @@ class PresentationPolicyTest {
         assertTrue(!shown.contains("/data/user/"))
         assertTrue(!PresentationPolicy.readableError(
             "01a1fdcb-d65d-76d2-8abc-123456789abc").contains("01a1fdcb"))
+    }
+
+    @Test fun htmlMcpOAuthErrorKeepsHttpCodeWithoutLeakingWebPage() {
+        val raw = "failed to login to MCP server 'codex_apps': " +
+            "Dynamic registration failed: HTTP 405 Method Not Allowed: " +
+            "<!DOCTYPE html><html class=\\\"chatgpt-theme\\\" data-build=\\\"hash\\\">"
+        val readable = PresentationPolicy.readableError(raw)
+        assertTrue(readable.contains("HTTP 405"))
+        assertTrue(readable.contains("认证方式"))
+        assertTrue(!readable.contains("DOCTYPE"))
+        assertTrue(!readable.contains("data-build"))
+        val wrongEndpoint = PresentationPolicy.readableError(
+            "HTTP 502: <html><body>internal gateway page</body></html>")
+        assertTrue(wrongEndpoint.contains("HTTP 502"))
+        assertTrue(!wrongEndpoint.contains("<html"))
     }
 
     @Test fun evidenceSummarizesRealOutputWithoutShowingProtocolFields() {
