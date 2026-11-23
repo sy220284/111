@@ -320,7 +320,7 @@
 | `environment/add` | Android→服务端 | 登记执行环境 | `EnvironmentAddParams → EnvironmentAddResponse` | 上下文操作：设置→主机与安全 | 新增执行环境表单 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `environment/info` | Android→服务端 | 读取执行环境信息 | `EnvironmentInfoParams → EnvironmentInfoResponse` | 上下文操作：设置→主机与安全 | 执行环境详情 Sheet | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `environment/status` | Android→服务端 | 读取执行环境状态 | `EnvironmentStatusParams → EnvironmentStatusResponse` | 上下文操作：设置→主机与安全 | 环境状态汇总卡 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `config/mcpServer/reload` | Android→服务端 | 重新加载 MCP 配置 | `无参 → McpServerRefreshResponse` | 高级按需：设置→主机与安全 | 按对象显示简洁状态；高级接口需能力门禁 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P0 |
+| `config/mcpServer/reload` | Android→服务端 | 重新加载 MCP 配置 | `无参 → McpServerRefreshResponse` | 后台处理：智能体/MCP 配置重载 | 用户端不提供重载按钮；服务列表在检测到智能体修改配置后自动同步 | 本机 config.toml 版本变化→调用内核 reload→成功后重新读取真实服务状态 | `McpCatalogController` 已接入自动变更检测和状态回读；最终构建与设备验收待记录 | P0 |
 | `windowsSandbox/setupStart` | Android→服务端 | 配置 Windows 沙箱 | `WindowsSandboxSetupStartParams → WindowsSandboxSetupStartResponse` | 无 Android UI | 按对象显示简洁状态；高级接口需能力门禁 | Android 无前端，核心侧保持协议兼容 | 待逐项验证调用入口/响应/实测 | 排除 |
 | `windowsSandbox/readiness` | Android→服务端 | 检查 Windows 沙箱就绪状态 | `无参 → WindowsSandboxReadinessResponse` | 无 Android UI | 按对象显示简洁状态；高级接口需能力门禁 | Android 无前端，核心侧保持协议兼容 | 待逐项验证调用入口/响应/实测 | 排除 |
 | `config/read` | Android→服务端 | 读取引擎配置 | `ConfigReadParams → ConfigReadResponse` | 直接操作：设置→主机与安全 | 设置分组列表与配置来源 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P0 |
@@ -412,6 +412,8 @@
 - **用户需求**：在任务对话中让智能体负责 MCP 的添加、变更与授权，设置中的 MCP 页面只显示可以实际使用的服务列表。
 - **协议与真实状态**：锁定官方 `McpServerStatus.runtimeStatus` 的 `connected` 为可用基础；还需排除 `authStatus=notLoggedIn`、工具目录出错且没有可用资源的服务。任何仅已配置、启动中、需要授权或连接失败的记录均不进入可用目录。
 - **页面改造**：`IntegrationScreens.kt` 去除授权/账号/配置快捷按钮、网页跳转、确认弹层、工具明细及错误服务列表；`McpAvailableServices.kt` 统一识别和排序；保留可用数量与手动刷新。空列表提示在任务对话中告诉智能体要接入的服务。
+- **智能体执行路径**：APK 启动时 `McpAgentSkillInstaller` 把自包含的 `111-mcp-service-manager` 技能安装到本机 `CODEX_HOME/skills`；智能体只在用户请求时处理本机 MCP 配置、必要权限和连接验证，不依赖桌面版 `codex mcp` 命令。
+- **配置实时生效**：`McpCatalogController` 在页面打开/手动刷新及相关状态事件时识别 `CODEX_HOME/config.toml` 版本变更，仅发生修改时调用 `config/mcpServer/reload`，随后重新读取可用目录；失败保留可见错误与重试入口。
 - **后台分工**：`mcpServer/oauth/login` 在 `ui_surface_policy.json` 划为后台内部，不生成独立 UI 入口；`mcpServerStatus/list` 继续作为只读目录接口；`mcpServer/oauthLogin/completed`、`mcpServer/startupStatus/updated` 和账号变化通知驱动列表更新。真实服务添加、OAuth 授权与 Host 确认交由原 Codex 内核及对话任务管理。
 - **专项验收标准**：单测覆盖连接、授权、工具目录失败、可用资源及排序；Compose 设备测试确认页面和服务卡不出现手动注册/授权按钮、不可用项与内部工具名。仍需独立进行带真实账号的第三方 MCP 连接和工具调用验收，以记录实际可用性。
 
