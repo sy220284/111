@@ -4,19 +4,21 @@ from pathlib import Path
 import re
 import unittest
 
-SOURCE = Path("android-app/app/src/main/java/io/github/sy220284/codexandroid/EcosystemScreens.kt")
+SOURCE_DIR = Path("android-app/app/src/main/java/io/github/sy220284/codexandroid")
+SKILLS = SOURCE_DIR / "SkillsPage.kt"
+PLUGINS = SOURCE_DIR / "EcosystemScreens.kt"
 
 
 class MutationKeyTests(unittest.TestCase):
     def test_mutations_do_not_reuse_list_request_keys(self):
-        source = SOURCE.read_text(encoding="utf-8")
+        source = SKILLS.read_text(encoding="utf-8") + "\n" + PLUGINS.read_text(encoding="utf-8")
         self.assertRegex(source, r'vm\.rpc\("skillsWrite",\s*"skills/config/write"')
         self.assertRegex(source, r'vm\.rpc\("pluginMutation",\s*"plugin/install"')
         self.assertRegex(source, r'vm\.rpc\("pluginMutation",\s*"plugin/uninstall"')
         self.assertNotRegex(source, r'vm\.rpc\("(?:skills|plugins)",\s*"(?:skills/config/write|plugin/(?:install|uninstall))"')
 
     def test_plugin_search_cannot_show_stale_results(self):
-        source = SOURCE.read_text(encoding="utf-8")
+        source = PLUGINS.read_text(encoding="utf-8")
         self.assertIn("ThreadSearchSubmission.matches(searchDraft, searchSubmitted)", source)
         self.assertIn('data[searchPrefix + "0"] != null', source)
 
