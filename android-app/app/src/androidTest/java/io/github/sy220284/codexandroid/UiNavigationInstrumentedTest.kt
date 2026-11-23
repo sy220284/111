@@ -164,7 +164,7 @@ class UiNavigationInstrumentedTest {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-diff-thread" }
         rule.waitForIdle()
-        rule.onNodeWithText("检查修改").performClick()
+        rule.onNodeWithTag("home-shortcut-diff").performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
         rule.onNodeWithText("暂无可展示的代码差异").assertExists()
@@ -239,7 +239,8 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("额度")
         rule.onNodeWithTag("settings-route-limits").assertExists()
-        rule.onNodeWithTag("settings-route-usage").assertDoesNotExist()
+        // “额度”也关联用量统计，两个真实账号功能均应可访问。
+        rule.onNodeWithTag("settings-route-usage").assertExists()
         rule.onNodeWithTag("settings-route-limits").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
     }
@@ -311,7 +312,7 @@ class UiNavigationInstrumentedTest {
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(14, NavigationPolicy.settingsRoutes.size)
+        assertEquals(16, NavigationPolicy.settingsRoutes.size)
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
         openSettingRoute("config")
@@ -459,7 +460,7 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("任务队列")
-        rule.onNodeWithText("未找到相关功能").assertExists()
+        rule.onNodeWithText("未找到相关设置").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
         rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
     }
