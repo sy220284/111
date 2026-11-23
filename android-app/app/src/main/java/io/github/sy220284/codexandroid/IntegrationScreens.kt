@@ -206,12 +206,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel) {
+fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
+    val loading by vm.loading.collectAsState()
     val servers = records(data["mcp"])
     val login = data["mcpLogin"]?.optString("authorizationUrl").orEmpty()
-    var confirmLogin by remember { mutableStateOf("") }
+    var confirmLogin by remember { mutableStateOf<JSONObject?>(null) }
     val currentThread by vm.activeThread.collectAsState()
     fun refreshMcpServices() {
         vm.refresh("mcp", "mcpServerStatus/list",
@@ -227,7 +228,7 @@ fun McpServicesPage(vm: CodexViewModel) {
             } + " / " + servers.size + " 项",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f))
-            CodexRefreshIcon(busy = false, onRefresh = { refreshMcpServices() },
+            CodexRefreshIcon(busy = "mcp" in loading, onRefresh = { refreshMcpServices() },
                 label = "刷新连接状态")
         }
         IntegrationState(vm, "mcp") { refreshMcpServices() }
@@ -237,7 +238,13 @@ fun McpServicesPage(vm: CodexViewModel) {
                 icon = Icons.Outlined.Hub)
         }
         servers.forEach { server ->
-            McpServiceStatusCard(server, onAuthorize = { confirmLogin = it })
+            McpServiceStatusCard(
+                server = server,
+                authenticating = "mcpLogin" in loading,
+                onAuthorize = { confirmLogin = it },
+                onOpenAccount = { navigate("account") },
+                onOpenConfig = { navigate("config") }
+            )
         }
         if (login.startsWith("https://") || login.startsWith("http://127.0.0.1")) {
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -253,30 +260,35 @@ fun McpServicesPage(vm: CodexViewModel) {
         }
         ProtocolFeedback(vm, listOf("mcpLogin"))
     }
-    if (confirmLogin.isNotBlank()) CodexConfirmDialog(
+    val selected = confirmLogin
+    if (selected != null) CodexConfirmDialog(
         title = "授权 MCP 服务",
         message = "将为选定的 MCP 服务发起独立的 OAuth 授权流程。",
-        detail = confirmLogin,
+        detail = selected.optString("name"),
         confirmLabel = "发起授权",
         onConfirm = {
             vm.rpc("mcpLogin", "mcpServer/oauth/login",
-                JSONObject().put("name", confirmLogin))
-            confirmLogin = ""
+                McpServiceAuthPolicy.oauthLoginParams(selected, currentThread))
+            confirmLogin = null
         },
-        onDismiss = { confirmLogin = "" }
+        onDismiss = { confirmLogin = null }
     )
 }
 
-/** 用户只管理服务连接及授权，工具/资源的底层调用交给任务中的智能体。 */
+/** The card manages credentials and connectivity; agent tools remain in the task runtime. */
 @Composable
 internal fun McpServiceStatusCard(
     server: JSONObject,
-    onAuthorize: (String) -> Unit
+    authenticating: Boolean,
+    onAuthorize: (JSONObject) -> Unit,
+    onOpenAccount: () -> Unit,
+    onOpenConfig: () -> Unit
 ) {
-    val name = PresentationPolicy.meaningful(server.optString("name"))
-        .ifEmpty { "未命名服务" }
+    val rawName = server.optString("name")
+    val name = if (rawName == "codex_apps") "ChatGPT 扩展服务"
+        else PresentationPolicy.meaningful(rawName).ifEmpty { "未命名服务" }
     val status = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
-    val auth = PresentationPolicy.authorizationState(server.opt("authStatus")?.toString())
+    val auth = McpServiceAuthPolicy.presentation(server)
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
@@ -286,13 +298,22 @@ internal fun McpServiceStatusCard(
             StatusPill(status, status == "已连接")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("授权：" + auth, color = Ink.muted, modifier = Modifier.weight(1f))
-            if (auth != "已授权") {
-                TextButton(onClick = { onAuthorize(name) },
+            Text("认证：" + auth.state, color = Ink.muted, modifier = Modifier.weight(1f))
+            val click: (() -> Unit)? = when (auth.action) {
+                McpAuthAction.None -> null
+                McpAuthAction.ChatGptAccount -> onOpenAccount
+                McpAuthAction.OAuthLogin -> ({ onAuthorize(server) })
+                McpAuthAction.EngineConfiguration -> onOpenConfig
+            }
+            if (click != null) {
+                TextButton(onClick = click, enabled = !authenticating,
                     modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("授权登录")
+                    Text(auth.actionLabel.orEmpty())
                 }
             }
+        }
+        auth.explanation?.let {
+            Text(it, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         }
         if (server.optString("toolsError").isNotBlank()) {
             Text("部分工具暂不可用，请检查服务连接或配置。",
@@ -300,5 +321,3 @@ internal fun McpServiceStatusCard(
         }
     }
 }
-
-
