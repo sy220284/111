@@ -186,7 +186,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             unreadSteps += added
         }
     }
-    Column(Modifier.fillMaxSize().imePadding()) {
+    // Activity 已设置 adjustResize，Scaffold 会在输入法打开后缩小可用内容区。
+    // 此处叠加 imePadding 会再次扣除键盘高度，导致编辑器整个移出画面。
+    Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp,
             vertical = if (compactWorkArea) 0.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
