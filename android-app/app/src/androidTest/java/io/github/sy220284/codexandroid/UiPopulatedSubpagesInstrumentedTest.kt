@@ -47,82 +47,60 @@ class UiPopulatedSubpagesInstrumentedTest {
         captureVerifiedDisplayScreenshot(name)
     }
 
-    @Test fun mcpConnectionCardKeepsAgentToolsOffTheUserInterface() {
+    @Test fun mcpAvailableCardShowsOnlyServiceAndAvailability() {
         val server = JSONObject()
             .put("name", "演示扩展服务")
-            .put("runtimeStatus", "ready")
-            .put("authStatus", "notLoggedIn")
+            .put("runtimeStatus", "connected")
+            .put("authStatus", "oAuth")
             .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
             .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
-        var requested: String? = null
-        rule.setContent {
-            CodexTheme {
-                McpServiceStatusCard(server, authenticating = false,
-                    onAuthorize = { requested = it.optString("name") },
-                    onOpenAccount = {}, onOpenConfig = {})
-            }
-        }
+        rule.setContent { CodexTheme { McpServiceStatusCard(server) } }
         rule.onNodeWithText("演示扩展服务").assertExists()
-        rule.onNodeWithText("已连接").assertExists()
+        rule.onNodeWithText("可用").assertExists()
+        rule.onNodeWithText("授权登录").assertDoesNotExist()
+        rule.onNodeWithText("查看账号").assertDoesNotExist()
+        rule.onNodeWithText("查看配置").assertDoesNotExist()
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
-        rule.onNodeWithText("授权登录").performClick()
-        rule.runOnIdle { assertEquals("演示扩展服务", requested) }
         capture("audit-mcp-service-boundary-android35.png")
     }
 
-    @Test fun mcpAuthorizedServiceDoesNotShowRedundantLogin() {
-        val server = JSONObject().put("name", "已授权服务")
-            .put("runtimeStatus", "connected").put("authStatus", "oAuth")
-            .put("tools", JSONObject().put("agent_only_tool", JSONObject()))
-        rule.setContent { CodexTheme { McpServiceStatusCard(server, authenticating = false,
-            onAuthorize = {}, onOpenAccount = {}, onOpenConfig = {}) } }
-        rule.onNodeWithText("认证：已授权").assertExists()
-        rule.onNodeWithText("授权登录").assertDoesNotExist()
-        rule.onNodeWithText("agent_only_tool").assertDoesNotExist()
-    }
-
-    @Test fun hostedMcpAppsLinkToChatGptAccountWithoutOAuthRegistration() {
+    @Test fun hostedMcpAppsAreListedWithoutRegistrationOrAuthorizationControls() {
         val server = JSONObject().put("name", "codex_apps")
-            .put("runtimeStatus", "authenticationRequired")
-            .put("authStatus", "notLoggedIn")
-        var accountOpened = false
-        var oauthStarted = false
-        rule.setContent {
-            CodexTheme {
-                McpServiceStatusCard(server, authenticating = false,
-                    onAuthorize = { oauthStarted = true },
-                    onOpenAccount = { accountOpened = true }, onOpenConfig = {})
-            }
-        }
+            .put("runtimeStatus", "connected")
+            .put("authStatus", "bearerToken")
+        rule.setContent { CodexTheme { McpServiceStatusCard(server) } }
         rule.onNodeWithText("ChatGPT 扩展服务").assertExists()
-        rule.onNodeWithText("需要授权").assertExists()
-        rule.onNodeWithText("认证：ChatGPT 账号").assertExists()
+        rule.onNodeWithText("可用").assertExists()
+        rule.onNodeWithText("认证：ChatGPT 账号").assertDoesNotExist()
         rule.onNodeWithText("授权登录").assertDoesNotExist()
-        rule.onNodeWithText("查看账号").performClick()
-        rule.runOnIdle {
-            assertTrue(accountOpened)
-            assertEquals(false, oauthStarted)
-        }
-        capture("audit-mcp-chatgpt-auth-android35.png")
+        rule.onNodeWithText("查看账号").assertDoesNotExist()
+        capture("audit-mcp-chatgpt-available-android35.png")
     }
 
-    @Test fun unsupportedMcpAuthOffersConfigurationInsteadOfBrokenOAuth() {
-        val server = JSONObject().put("name", "自建服务")
-            .put("runtimeStatus", "failed")
-            .put("authStatus", "unsupported")
-        var configOpened = false
+    @Test fun mcpListKeepsOnlyUsableServersAndPreservesAgentToolBoundary() {
+        val candidates = listOf(
+            JSONObject().put("name", "无效服务")
+                .put("runtimeStatus", "failed"),
+            JSONObject().put("name", "需要授权的服务")
+                .put("runtimeStatus", "authenticationRequired")
+                .put("authStatus", "notLoggedIn"),
+            JSONObject().put("name", "可用服务")
+                .put("runtimeStatus", "connected").put("authStatus", "oAuth")
+                .put("tools", JSONObject().put("agent_tool", JSONObject()))
+        )
         rule.setContent {
             CodexTheme {
-                McpServiceStatusCard(server, authenticating = false,
-                    onAuthorize = { throw AssertionError("Unsupported OAuth action") },
-                    onOpenAccount = {}, onOpenConfig = { configOpened = true })
+                Column {
+                    McpAvailableServices.visible(candidates).forEach { McpServiceStatusCard(it) }
+                }
             }
         }
-        rule.onNodeWithText("认证：不支持网页授权").assertExists()
+        rule.onNodeWithText("可用服务").assertExists()
+        rule.onNodeWithText("无效服务").assertDoesNotExist()
+        rule.onNodeWithText("需要授权的服务").assertDoesNotExist()
+        rule.onNodeWithText("agent_tool").assertDoesNotExist()
         rule.onNodeWithText("授权登录").assertDoesNotExist()
-        rule.onNodeWithText("查看配置").performClick()
-        rule.runOnIdle { assertTrue(configOpened) }
     }
 
     @Test fun imageDraftSurvivesActualAndroidPreferenceRestoreAndPruning() {
