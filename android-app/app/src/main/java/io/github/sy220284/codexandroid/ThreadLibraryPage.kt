@@ -274,10 +274,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if ("threadSections" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                errors["threadSections"]?.let {
-                    Text("分组服务暂不可用：$it", color = Ink.muted,
-                        style = MaterialTheme.typography.bodySmall)
-                }
+                errors["threadSections"]
+                    ?.takeUnless { it == errors[key] || it == errors[fullKey] }
+                    ?.let {
+                        Text("分组加载失败：$it", color = Ink.muted,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     enabled = !firstThreadStarting && !switching) {
