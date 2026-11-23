@@ -357,7 +357,11 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             }
         } else {
         if (key in loading) item {
-            AtlasLoadingResults("正在读取会话列表", placeholderRows = 3)
+            if (response == null) {
+                AtlasLoadingResults("正在读取会话列表", placeholderRows = 3)
+            } else {
+                AtlasOperationProgress("正在更新会话列表")
+            }
         }
         errors[key]?.let { item { ErrorText(it) } }
         errors["threadLibraryAction"]?.let { item { ErrorText("会话操作失败：$it") } }
