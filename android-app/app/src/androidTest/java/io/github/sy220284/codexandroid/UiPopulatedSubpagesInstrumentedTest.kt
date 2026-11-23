@@ -208,6 +208,15 @@ class UiPopulatedSubpagesInstrumentedTest {
         val delete = rule.onNodeWithTag("thread-bulk-delete").fetchSemanticsNode().boundsInRoot
         assertTrue("Large-font actions must stack vertically", delete.top > archive.top)
         assertTrue("Touch targets remain at least 48dp tall", archive.height >= 48f && delete.height >= 48f)
+        val selectAll = rule.onNodeWithTag("thread-bulk-select-all")
+            .fetchSemanticsNode().boundsInRoot
+        val done = rule.onNodeWithTag("thread-bulk-finish")
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue("Select-all and finish must fit the 360dp container",
+            selectAll.left >= 0f && done.left >= 0f &&
+                selectAll.right <= 360f && done.right <= 360f)
+        assertTrue("Large-font actions must not overlap",
+            selectAll.right <= done.left || done.right <= selectAll.left)
         capture("audit-rtl-200font-bulk-android35.png")
     }
 
