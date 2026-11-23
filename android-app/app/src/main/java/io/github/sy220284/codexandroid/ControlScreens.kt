@@ -446,6 +446,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var draftApproval by remember { mutableStateOf<String?>(null) }
     var draftSandbox by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
+    var showProfiles by rememberSaveable { mutableStateOf(false) }
     val selectedApproval = draftApproval ?: effectiveApproval
     val selectedSandbox = draftSandbox ?: effectiveSandbox
     val hasChanges = current != null && (
@@ -513,11 +514,13 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("Android 应用私有空间由系统隔离；Codex 的沙箱与网络策略仍由实际运行环境执行。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
-        OutlinedButton(onClick = { navigate("approvals") }) {
-            Icon(Icons.Outlined.GppGood, null)
-            Spacer(Modifier.width(8.dp))
-            Text("查看待审批操作")
+        TextButton(onClick = { showProfiles = !showProfiles },
+            modifier = Modifier.testTag("security-profiles-toggle")) {
+            Icon(if (showProfiles) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
+            Spacer(Modifier.width(6.dp))
+            Text(if (showProfiles) "收起权限方案" else "查看可用权限方案")
         }
+        CodexReveal(showProfiles) {
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("可用权限方案", style = MaterialTheme.typography.titleMedium)
             Text("从当前 Codex 内核读取，显示哪些方案被运行策略允许。新任务默认继承上方生效设置。",
@@ -540,6 +543,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         profile.optBoolean("allowed"))
                 }
             }
+        }
         }
         if (requirements != null) CodexNotice(
             "此运行环境还有额外安全规则，授权操作将遵循实际生效的限制。", NoticeTone.Info
