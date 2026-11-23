@@ -428,6 +428,23 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-mcp-elicitation-android35.png")
     }
 
+    @Test fun requiredBooleanMcpChoiceMustBeExplicitAndCanBeDeclined() {
+        val vm = viewModel()
+        val props = JSONObject().put("permission", JSONObject()
+            .put("type", "boolean").put("title", "允许读取公开数据"))
+        val params = JSONObject().put("serverName", "CI 工具服务")
+            .put("type", "form").put("message", "请选择授权")
+            .put("requestedSchema", JSONObject().put("type", "object")
+                .put("properties", props).put("required", JSONArray().put("permission")))
+        val prompt = ServerPrompt("ci-boolean", "mcpServer/elicitation/request", params)
+        rule.setContent {
+            CodexTheme { Column { McpElicitationRequestCard(vm, prompt) } }
+        }
+        rule.onNodeWithTag("elicitation-submit").assertIsNotEnabled()
+        rule.onNodeWithTag("elicitation-deny-permission").performClick()
+        rule.onNodeWithTag("elicitation-submit").assertIsEnabled()
+    }
+
     @Test fun pluginDetailShowsCapabilitiesRatherThanRawMetadata() {
         val vm = viewModel()
         val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")

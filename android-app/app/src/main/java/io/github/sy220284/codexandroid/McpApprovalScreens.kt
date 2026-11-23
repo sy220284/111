@@ -33,10 +33,10 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val isForm = kind in listOf("form", "openai/form", "openaiForm") && fields != null
     val urlReady = kind == "url" && (params.optString("url").startsWith("https://") ||
         params.optString("url").startsWith("http://127.0.0.1:"))
-    val formError = if (isForm) runCatching {
+    val formValid = isForm && runCatching {
         McpElicitationContract.respond(params, "accept", answers.toMap())
-    }.exceptionOrNull()?.message else null
-    val canSubmit = (isForm && formError == null) || urlReady
+    }.isSuccess
+    val canSubmit = formValid || urlReady
     var confirmation by remember(prompt.id.toString()) { mutableStateOf(false) }
 
     MaterialPanel(Modifier.fillMaxWidth()) {
@@ -65,11 +65,17 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
                 when (type) {
-                    "boolean" -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        val checked = answers[name] == "true"
-                        WhiteSwitch(checked = checked, onCheckedChange = { answers[name] = it.toString() })
-                        Spacer(Modifier.width(10.dp))
-                        Text(if (checked) "允许" else "关闭", color = Ink.muted)
+                    "boolean" -> Row(Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = answers[name] == "true",
+                            onClick = { answers[name] = "true" },
+                            modifier = Modifier.testTag("elicitation-allow-" + name))
+                        Text("允许", color = Ink.muted)
+                        Spacer(Modifier.width(16.dp))
+                        RadioButton(selected = answers[name] == "false",
+                            onClick = { answers[name] = "false" },
+                            modifier = Modifier.testTag("elicitation-deny-" + name))
+                        Text("不允许", color = Ink.muted)
                     }
                     "string" -> {
                         val options = field.optJSONArray("enum")
@@ -161,7 +167,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 }
             }
         }
-        if (isForm && formError != null) {
+        if (isForm && !formValid) {
             Text("填写完整并核对格式后，即可提交。",
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
