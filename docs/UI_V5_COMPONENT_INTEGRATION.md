@@ -8,7 +8,7 @@
 
 | 展现类别 | 判定 | 执行组件 | 用户看到 |
 |---|---|---|---|
-| 常驻页面 | 需要长期阅读、多条记录、持续输入 | `PageContent` / 对话 / 文件 / 终端 / Diff / 队列 | 固定导航与上下文 |
+| 常驻页面 | 需要长期阅读、多条记录、持续输入 | `PageContent` / 对话 / 文件 / 终端 / Diff | 固定导航与上下文 |
 | 底部选择层 | 单次选择、短时上下文 | `CodexChoiceSheet` / 模型 / 模式 / 状态 / 目标 / 审查 | 取消、选项、描述、当前状态 |
 | 风险确认 | 可能更改远端权限、记录或文件 | `CodexConfirmDialog` | 精确对象、影响范围、确认及取消 |
 | 行内设置 | 开关、配额、版本、短状态 | `AppearanceInlineControls` / `AppUpdateCard` / `AccountMetricsPage` | 状态在原位更新 |
@@ -18,7 +18,7 @@
 ## 二、四项技能落地
 
 1. **finesse-ui（审美与可用性）**：所有页面/卡片/强调背景纯白 `#FFFFFF`，深灰文字 `#263139`，次要文案 `#56646D`，边框 `#D8DEE1`；暖铜 `#805A3F`、青绿 `#246F54`、红 `#AC363A` 只用于字、图标、描边和进度；重要触控盒不小于 48dp。
-2. **finesse-brief（工作情境）**：侧栏六个常用入口；设置四组；会话特定操作从会话 ··· 触发；工作区工具不混入附件选择；保持原有 28 个路由用于旧链接与能力核查。
+2. **finesse-brief（工作情境）**：侧栏以当前项目和项目内会话为主，设置四组；任务目标、队列、审查在工作流内按需显示；文件、终端属于项目上下文；保持原有 28 个路由用于旧链接与能力核查。
 3. **frame-smith（动效）**：卡片按压/边框反馈 110ms，短内容展开 210ms，页面切换 240ms；`UiPreferences.reducedMotion` 让自定义位移与缩放即时结束，仍保留静态按压反馈；进度严格来自真实数据，无伪造完成动画。
 4. **finesse-term（文案）**：按钮文字写操作后果，例如“检查并下载更新”“确认授权服务”“确认删除资料”，危险确认披露范围；错误说明修复方向；JSON 字段保留在阅读器或专业模式中。
 
@@ -30,7 +30,10 @@
 | `ModelChoiceSurface` | `model/list` + `modelId` | 对话/默认模型选择共享；成功后更改后续会话 |
 | `ModeChoiceSurface` | `collaborationMode/list` + `selectedMode` | 仅显示当前内核支持的计划选项，执行中不切换 |
 | `AttachmentActionsSheet` | `LocalImageAttachments.importFrom` | 输入框“+”仅管理三张以内本机图片，不与工具菜单混合 |
-| `WorkspaceActionsSheet` | 真实工作区与会话路由 | 文件、Diff、终端、审查、目标、队列；缺少会话先跳会话历史 |
+| `Sidebar` + `SidebarSessions` | `activeWorkspace` + `thread/list` | 侧栏显示当前项目，并按工作目录聚合会话；项目与会话自动衔接 |
+| `ConversationPage` + `ConversationComposer` | `thread/goal/get`、`thread/queue/add/list`、`turn/steer` | 对话显示目标、改动摘要及排队条数；执行中的输入栏切换「完成后执行 / 立即纠偏」 |
+| `TerminalPage` + 对话终端抽屉 | `command/exec`、`command/exec/write`、`command/exec/terminate` | 从对话或项目入口直接打开终端，保持当前工作目录；无需先选择历史会话 |
+| `DiffReaderPage` + `ThreadDiffHistory` | `turn/diff/updated`、`thread/read` 的 `fileChange` | 当前执行变更实时显示；历史会话恢复逐文件 Diff，并在同一阅读器触发审查 |
 | `ReviewScopePanel` / `ReviewScopeSheet` | `review/start` | 选择审查范围、确认风险、提交 RPC；结果回到任务流 |
 | `ThreadGoalSheet` | `thread/goal/get/set/clear` | 当前会话 ··· 操作；目标编辑和清除沿用真实服务调用 |
 | `ThreadQueuePage` | `thread/queue/list/add/update/delete/reorder` | 复杂列表保留页，实验能力失败状态保留 |
@@ -66,7 +69,7 @@
 - Kotlin 编译、协议检查、UnitTest、Lint、APK 构建与 Android 35 360/393/411dp 全量 UI Test；
 - 28 个原业务路由仍存在；功能目录与页面目录通过 `UiFeatureCatalog.kt` 和自动审计核对；所有按钮具备明确操作结果；
 - 登录、模型切换、模式选择、权限、审查、MCP、附件增删和升级均只依赖真实状态；
-- 选中会话前禁止直接执行回退、审查、目标与队列；禁用/错误保留解释和返回入口；
+- 回退、目标与队列按当前会话 ID 操作；文件与终端按当前项目目录直接打开；审查从已绑定的差异和任务中发起，错误状态可见；
 - 360/393/411dp：键盘弹出不遮挡发送；Modal 关闭后可返回原上下文；长 JSON 显示全文；
 - 系统大字、TalkBack、弱动效、系统安装授权和真实设备登录另外保存独立设备证据。
 
