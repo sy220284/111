@@ -140,11 +140,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
         when (destination) {
             "threads", "search" -> {
+                // 历史和搜索有独立的整页导航与系统返回路径。
                 pendingThreadAction = null
-                libraryInitialFullText = destination == "search"
-                showThreadLibrary = true
-                scope.launch { drawer.close() }
-                return@move
+                showThreadLibrary = false
             }
             "queue" -> {
                 showQueue = true
@@ -296,7 +294,7 @@ fun CodexShell(vm: CodexViewModel) {
                             val isNested = NavigationPolicy.isDetailPage(selected)
                             IconButton(
                                 onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
-                                modifier = Modifier.padding(start = 6.dp).size(45.dp)
+                                modifier = Modifier.padding(start = 6.dp).size(48.dp)
                                     .border(1.dp, Ink.border, CircleShape)
                             ) {
                                 Icon(if (isNested) Icons.Outlined.ArrowBack else Icons.Outlined.Menu,
@@ -304,6 +302,14 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         actions = {
+                            if (selected == "threads" || selected == "search") {
+                                IconButton(
+                                    onClick = { vm.newThread(); move("chat") },
+                                    enabled = newThreadBlockReason == null,
+                                    modifier = Modifier.size(48.dp).testTag("library-new-thread")
+                                        .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
+                                ) { Icon(Icons.Outlined.Add, "新建任务") }
+                            }
                             if (selected == "files" &&
                                 backHistory.dropLast(1).lastOrNull() == "chat") {
                                 IconButton(
@@ -447,14 +453,13 @@ private fun Sidebar(
                 .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty()),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Ink.coral, contentColor = Color.White,
+                containerColor = Ink.parchment, contentColor = Ink.canvas,
                 disabledContainerColor = Ink.border, disabledContentColor = Ink.muted)
         ) {
             Icon(Icons.Outlined.Add, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
             Text("新建任务", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium)
-            Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
         }
         listOf("chat", "home", "files").forEach { id ->
             SidebarRoute(id, selected, approvals, onSelect)
@@ -495,14 +500,20 @@ private fun Sidebar(
         ) {
             Text("账号与设置", style = MaterialTheme.typography.labelMedium,
                 color = Ink.muted, modifier = Modifier.padding(start = 13.dp))
-            Row {
-                IconButton(onClick = { onSelect("account") },
-                    modifier = Modifier.size(48.dp).testTag("nav-account")) {
-                    Icon(Icons.Outlined.AccountCircle, "账号", tint = Ink.parchment)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(onClick = { onSelect("account") },
+                        modifier = Modifier.size(48.dp).testTag("nav-account")) {
+                        Icon(Icons.Outlined.AccountCircle, "账号", tint = Ink.parchment)
+                    }
+                    Text("账号", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                 }
-                IconButton(onClick = { onSelect("settings") },
-                    modifier = Modifier.size(48.dp).testTag("nav-settings")) {
-                    Icon(Icons.Outlined.Settings, "设置", tint = Ink.parchment)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(onClick = { onSelect("settings") },
+                        modifier = Modifier.size(48.dp).testTag("nav-settings")) {
+                        Icon(Icons.Outlined.Settings, "设置", tint = Ink.parchment)
+                    }
+                    Text("设置", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                 }
             }
         }
