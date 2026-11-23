@@ -62,25 +62,25 @@ class NavigationPolicyTest {
         assertFalse(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("threads"))
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("threads").surface)
         assertFalse(NavigationPolicy.isCommon("review"))
         assertTrue(NavigationPolicy.isSettingsChild("plugins"))
         assertFalse(NavigationPolicy.isSettingsChild("terminal"))
         assertFalse(NavigationPolicy.isSettingsChild("review"))
         assertFalse(NavigationPolicy.isSettingsChild("threads"))
-        assertFalse(NavigationPolicy.isDetailPage("threads"))
+        assertTrue(NavigationPolicy.isDetailPage("threads"))
         assertFalse(NavigationPolicy.isDetailPage("approvals"))
         assertFalse(NavigationPolicy.isDetailPage("queue"))
-        assertFalse(NavigationPolicy.isDetailPage("search"))
+        assertTrue(NavigationPolicy.isDetailPage("search"))
         assertTrue(NavigationPolicy.isDetailPage("terminal"))
         assertTrue(NavigationPolicy.isDetailPage("diff"))
         assertTrue(NavigationPolicy.isDetailPage("limits"))
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))
-        assertEquals(listOf("home", "chat", "limits"),
+        assertEquals(listOf("home", "threads", "chat", "limits"),
             NavigationPolicy.pageHistory(listOf("home", "threads", "chat", "queue", "limits")))
-        assertEquals(emptyList<String>(),
+        assertEquals(listOf("search"),
             NavigationPolicy.pageHistory(listOf("search", "approvals", "about")))
     }
 
