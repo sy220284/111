@@ -51,6 +51,8 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("decide_android_build.py", android)
         self.assertIn("needs.preflight.outputs.should_build == 'true'", android)
         self.assertIn("github.event.workflow_run.head_sha == github.sha", android)
+        self.assertIn("if: always() && needs.build.result == 'success'", android)
+        self.assertIn("ARM64 手机安装包二次核验", android)
         self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", android)
 
     def test_cleanup_is_reusable_and_only_called_after_real_release(self):
