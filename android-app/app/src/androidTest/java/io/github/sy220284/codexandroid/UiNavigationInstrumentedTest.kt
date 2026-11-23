@@ -140,7 +140,7 @@ class UiNavigationInstrumentedTest {
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithTag("chat-project-terminal").performClick()
-        rule.onNodeWithText("当前项目终端").assertExists()
+        rule.onNodeWithText("项目终端").assertExists()
         captureOverlay("terminal-sheet-android35.png")
     }
 
@@ -179,7 +179,7 @@ class UiNavigationInstrumentedTest {
     @Test fun projectTerminalAndFilesReturnToConversation() {
         openDrawerRoute("chat")
         rule.onNodeWithTag("chat-project-terminal").performClick()
-        rule.onNodeWithText("当前项目终端").assertExists()
+        rule.onNodeWithText("项目终端").assertExists()
         rule.onNodeWithContentDescription("收起终端").performClick()
         rule.onNodeWithTag("conversation-composer").assertExists()
         rule.onNodeWithTag("chat-project-files").performClick()
@@ -483,7 +483,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("chat-project-files").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
         rule.onNodeWithTag("chat-project-terminal").performClick()
-        rule.onNodeWithText("当前项目终端").assertExists()
+        rule.onNodeWithText("项目终端").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
