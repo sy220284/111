@@ -604,6 +604,22 @@ class UiPopulatedSubpagesInstrumentedTest {
             .assertIsDisplayed()
     }
 
+    @Test fun modelDescriptionOpensSecondLevelWithoutChangingSelection() {
+        val vm = viewModel()
+        val entry = JSONObject().put("id", "audit-model")
+            .put("displayName", "测试模型")
+            .put("description", "模型说明从列表进入详情后展示。")
+        rule.setContent { CodexTheme { ModelsPage(vm) } }
+        rule.waitForIdle()
+        vm.data.value = vm.data.value + ("models" to JSONObject()
+            .put("data", JSONArray().put(entry)))
+        rule.onNodeWithText("测试模型").assertExists()
+        rule.onNodeWithText("模型说明从列表进入详情后展示。").assertDoesNotExist()
+        rule.onNodeWithTag("model-detail-audit-model").performClick()
+        rule.onNodeWithText("模型说明从列表进入详情后展示。").assertIsDisplayed()
+        assertEquals("", vm.modelId.value)
+    }
+
     @Test fun pluginDetailShowsCapabilitiesRatherThanRawMetadata() {
         val vm = viewModel()
         val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")

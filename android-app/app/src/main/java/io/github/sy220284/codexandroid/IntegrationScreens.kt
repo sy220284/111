@@ -174,6 +174,16 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         val description = PresentationPolicy.meaningful(app.optString("description"))
         val installUrl = app.optString("installUrl")
         val enabled = app.optBoolean("isEnabled", true)
+        val active = (0 until (installed?.length() ?: 0))
+            .mapNotNull { installed?.optJSONObject(it) }
+            .firstOrNull { it.optString("id") == id }
+        val appStatus = when {
+            !enabled -> "已停用"
+            active?.optBoolean("callable") == true -> "已连接"
+            !app.optBoolean("isAccessible") -> "待授权"
+            active?.optBoolean("enabled") == true -> "等待工具就绪"
+            else -> "尚未连接"
+        }
         ModalBottomSheet(
             onDismissRequest = { inspecting = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -186,7 +196,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(name, style = MaterialTheme.typography.headlineSmall)
-                StatusPill(if (enabled) "已启用" else "已停用", enabled)
+                StatusPill(appStatus, appStatus == "已连接")
                 Text("应用说明", style = MaterialTheme.typography.titleMedium)
                 Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
                 if (installUrl.startsWith("https://")) {
