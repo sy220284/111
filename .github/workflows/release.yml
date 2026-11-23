@@ -12,6 +12,11 @@ name: 111 Android 正式发布
       - '.github/scripts/test_ci_scope.py'
       - '.github/scripts/release_change_gate.py'
       - '.github/scripts/test_release_change_gate.py'
+      - '.github/scripts/verify_release_acceptance.py'
+      - '.github/scripts/test_verify_release_acceptance.py'
+      - '.github/scripts/decide_android_build.py'
+      - '.github/scripts/test_decide_android_build.py'
+      - '.github/workflows/cleanup-old-releases.yml'
       - '.github/scripts/prepare-release-assets.sh'
       - '.github/release-version'
       - 'android-app/app/build.gradle.kts'
@@ -167,15 +172,16 @@ jobs:
           fi
           # The two workflows can finish in either order. The last successful
           # completion will publish only if both green runs match this SHA.
-          for REQUIRED_WORKFLOW in build-android.yml check-android-ui.yml; do
-            PASSED="$(gh run list --repo "$GITHUB_REPOSITORY" \
-              --workflow "$REQUIRED_WORKFLOW" --branch main --commit "$RELEASE_SHA" \
-              --limit 100 --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')"
-            if [ "$PASSED" -eq 0 ]; then
-              echo "::notice::源码 $RELEASE_SHA 尚未同时通过 $REQUIRED_WORKFLOW，等待对应验收成功后再发布"
-              exit 0
-            fi
-          done
+          ACCEPT_STATUS=0
+          python3 .github/scripts/verify_release_acceptance.py \
+            --repo "$GITHUB_REPOSITORY" --sha "$RELEASE_SHA" || ACCEPT_STATUS=$?
+          if [ "$ACCEPT_STATUS" -eq 3 ]; then
+            echo "::notice::同一提交尚未通过全部 Android APK 和 UI 设备级验收"
+            exit 0
+          elif [ "$ACCEPT_STATUS" -ne 0 ]; then
+            echo "::error::无法核对完整 Android 设备验收，终止发布"
+            exit "$ACCEPT_STATUS"
+          fi
           set -euo pipefail
           # 统一的原生内核复用判据：上游源码树、版本、依赖修补器及
           # 实际 Rust/NDK 编译配方全部一致，且产物未过期。
@@ -409,3 +415,11 @@ jobs:
           generate_release_notes: false
           files: .release-assets/*
           fail_on_unmatched_files: true
+
+  cleanup:
+    name: 正式发布成功后保留最近三个版本
+    needs: release
+    if: needs.release.result == 'success'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/cleanup-old-releases.yml
