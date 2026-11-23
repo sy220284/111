@@ -18,7 +18,8 @@ ROW = re.compile(r"^\|\s*(\d{2})\s*\|\s*`([a-z]+)`\s*\|\s*(P[012])\s*\|\s*([^|]*
 PAGE = re.compile(r'\bPage\("([a-z]+)"')
 FEATURE = re.compile(r'\bUiFeature\("([a-z]+)"')
 SCREEN = re.compile(r'([a-z][a-z0-9-]+)-android35\.png')
-TEST_DECL = re.compile(r'\b(?:fun|class)\s+([A-Za-z][A-Za-z0-9_]*)\b')
+TEST_METHOD = re.compile(r'@Test(?:\([^)]*\))?\s+fun\s+([A-Za-z][A-Za-z0-9_]*)\b')
+TEST_CLASS = re.compile(r'\bclass\s+([A-Za-z][A-Za-z0-9_]*Test)\b')
 SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
 
 
@@ -36,7 +37,7 @@ def audit(repository: Path, expected: int = 29) -> dict:
     tests = "\n".join(p.read_text(encoding="utf-8")
                      for area in ("test", "androidTest")
                      for p in sorted((repository / "android-app/app/src" / area).rglob("*.kt")))
-    test_names = set(TEST_DECL.findall(tests))
+    test_names = set(TEST_METHOD.findall(tests)) | set(TEST_CLASS.findall(tests))
     declared_screens = set(collector.split('REQUIRED_SCREENS = """', 1)[1].split('"""', 1)[0].split())
     declared_screens.update(collector.split('OPTIONAL_SCREENS = [', 1)[1].split(']', 1)[0].replace('"', '').replace("'", '').replace(",", " ").split())
     routes = set(PAGE.findall(navigation))
