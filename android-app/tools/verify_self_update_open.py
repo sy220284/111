@@ -115,7 +115,7 @@ def click_system_button(labels: set[str], timeout: float) -> None:
 
 def parse_last_update_time(package_dump: str) -> str:
     """Read the installed package's update timestamp from Android PackageManager."""
-    match = re.search(r"(?m)^\\s*lastUpdateTime=(.+)$", package_dump)
+    match = re.search(r"(?m)^\s*lastUpdateTime=(.+)$", package_dump)
     if match is None or not match.group(1).strip():
         raise RuntimeError("PackageManager did not expose lastUpdateTime")
     return match.group(1).strip()
