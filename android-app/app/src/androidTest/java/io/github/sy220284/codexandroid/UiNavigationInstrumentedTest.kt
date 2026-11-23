@@ -214,10 +214,11 @@ class UiNavigationInstrumentedTest {
     @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
         rule.onNodeWithTag("home-task-hero").assertExists()
         rule.onNodeWithTag("home-primary-action").assertExists()
-        rule.onNodeWithText("常用工作").assertExists()
-        for (id in listOf("files", "threads", "diff", "terminal")) {
-            rule.onNodeWithTag("home-shortcut-$id").assertExists()
-        }
+        rule.onNodeWithText("当前项目").assertExists()
+        rule.onNodeWithTag("home-project-context").assertExists()
+        rule.onNodeWithTag("home-shortcut-files").assertExists()
+        rule.onNodeWithTag("home-shortcut-terminal").assertExists()
+        rule.onNodeWithTag("home-shortcut-diff").assertDoesNotExist()
         rule.onNodeWithTag("home-shortcut-files").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
     }
@@ -647,7 +648,7 @@ class UiNavigationInstrumentedTest {
             vm.running.value = false
         }
         openDrawerRoute("chat")
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("复制会话分支").assertExists()
         captureOverlay("audit-thread-context-android35.png")
         rule.onNodeWithText("回合历史与回退").performScrollTo().performClick()
@@ -665,31 +666,30 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("查看完整时间线（实验）").assertExists()
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
     }
 
-    @Test fun sidebarQuickActionsCanOpenProjectTools() {
+    @Test fun sidebarProjectContextOpensFilesWithoutHistoryPicker() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("sidebar-workspace-tools").performClick()
-        rule.onNodeWithTag("quick-terminal").assertExists()
-        rule.onNodeWithTag("quick-diff").performClick()
-        // 没有活动会话时，直接打开可关闭的会话管理弹层。
-        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithTag("sidebar-project-context").assertExists()
+        rule.onNodeWithTag("sidebar-project-context").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
     private fun captureOverlay(fileName: String) {
