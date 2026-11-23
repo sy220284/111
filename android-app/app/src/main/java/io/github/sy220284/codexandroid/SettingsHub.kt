@@ -45,7 +45,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         item(key = "intro") {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("设置与管理", style = MaterialTheme.typography.titleLarge)
-                Text("常用操作在对话和工作区；这里集中管理账号、扩展和主机。",
+                Text("账号、模型、扩展和设备设置集中在这里。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -77,7 +77,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 if (index > 0) HorizontalDivider(
                                     modifier = Modifier.padding(start = 58.dp, end = 15.dp),
                                     color = Ink.border.copy(alpha = .46f), thickness = .5.dp)
-                                SettingRouteRow(page = entry, detail = when(entry.id) {
+                                SettingRouteRow(page = entry, detail = NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待检查"
                                     "security" -> "执行授权"
                                     "models" -> "选择模型"
@@ -104,11 +104,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     LocalDataTransferCard(vm)
                 }
             }
-        }
-        item(key = "footer") {
-            Text("运行状态与能力来自实际内核，实验功能按当前服务可用性执行。",
-                modifier = Modifier.padding(vertical = 12.dp),
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
     }
     if (showModels) ModelChoiceSurface(vm) { showModels = false }
@@ -138,11 +133,10 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(page.subtitle, color = Ink.muted, style = MaterialTheme.typography.labelMedium,
+            Text(if (detail.isNotBlank() && detail != "实验") detail else page.subtitle,
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (detail.isNotBlank() && page.id == "diagnostics") Text(detail, color = Ink.muted,
-            style = MaterialTheme.typography.labelMedium, maxLines = 1)
         Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
             modifier = Modifier.size(21.dp))
     }
@@ -241,7 +235,6 @@ private fun AppearanceSettingToggle(
 @Composable
 fun WorkspaceActionsSheet(
     onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false,
-    imageCount: Int = 0, importing: Boolean = false, onPickImage: (() -> Unit)? = null
 ) {
     fun openTool(route: String) {
         // 先完成关闭，再交由宿主处理真实路由，避免多张浮层同时出现。
@@ -253,7 +246,7 @@ fun WorkspaceActionsSheet(
         containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = {
-            if (onPickImage == null) BottomSheetDefaults.DragHandle(color = Ink.border)
+            BottomSheetDefaults.DragHandle(color = Ink.border)
         }
     ) {
         Column(
@@ -263,45 +256,11 @@ fun WorkspaceActionsSheet(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Text(if (onPickImage == null) "工作区工具" else "添加附件",
+            Text("工作区工具",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 7.dp, top = 8.dp, bottom = 8.dp))
-            if (onPickImage != null) {
-                val imageAllowed = !importing &&
-                    imageCount < LocalImageAttachments.MAX_FILES
-                Surface(
-                    modifier = Modifier.fillMaxWidth()
-                        .testTag("attachment-pick-image")
-                        .clickable(enabled = imageAllowed) {
-                            onDismiss()
-                            onPickImage()
-                        },
-                    shape = RoundedCornerShape(16.dp),
-                    color = Ink.canvas
-                ) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .padding(horizontal = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(Modifier.size(44.dp).background(Ink.elevated, CircleShape),
-                            contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.AddPhotoAlternate, null,
-                                tint = if (imageAllowed) Ink.parchment else Ink.muted,
-                                modifier = Modifier.size(23.dp))
-                        }
-                        Spacer(Modifier.width(14.dp))
-                        Text("照片", style = MaterialTheme.typography.bodyLarge,
-                            color = if (imageAllowed) Ink.parchment else Ink.muted,
-                            modifier = Modifier.weight(1f))
-                        if (!imageAllowed) {
-                            Text(if (importing) "导入中" else "已达三张上限",
-                                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
-            }
-            val routes = if (onPickImage == null) NavigationPolicy.quickToolRoutes
-                else listOf("files","terminal","diff","review","goals","plugins","modes")
+
+            val routes = NavigationPolicy.quickToolRoutes
             routes.forEach { id ->
                 val item = pages.first { it.id == id }
                 val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread

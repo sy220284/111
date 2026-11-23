@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
@@ -97,7 +98,7 @@ fun ThreadContextTools(
                 Text("和此会话相关的目标、队列与历史操作集中管理。",
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-goals")) {
                     Icon(Icons.Outlined.Flag, null)
                     Spacer(Modifier.width(8.dp))
                     Text("管理任务目标")
@@ -121,7 +122,7 @@ fun ThreadContextTools(
                     Text("会话关联资料")
                 }
                 OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-review")) {
                     Icon(Icons.Outlined.FactCheck, null)
                     Spacer(Modifier.width(8.dp))
                     Text("代码审查")

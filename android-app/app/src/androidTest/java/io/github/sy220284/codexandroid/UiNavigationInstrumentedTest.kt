@@ -129,12 +129,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithText("添加附件").assertExists()
         rule.onNodeWithTag("attachment-pick-image").assertExists()
-        rule.onNodeWithTag("quick-terminal").assertExists()
+        // Attachment entry only selects media; workspace actions are elsewhere.
+        rule.onNodeWithTag("quick-terminal").assertDoesNotExist()
+        rule.onNodeWithTag("quick-review").assertDoesNotExist()
+        rule.onNodeWithTag("quick-goals").assertDoesNotExist()
         captureOverlay("attachment-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithTag("composer-plus").performClick()
-        rule.onNodeWithText("添加附件").assertExists()
+        rule.onNodeWithContentDescription("工作区工具").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         captureOverlay("tools-sheet-android35.png")
     }
@@ -405,6 +407,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-diagnostics").assertExists()
     }
 
+
+    @Test fun settingsSearchFindsActualOptionsByUserWording() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("API Key")
+        rule.onNodeWithTag("settings-route-providers").assertExists()
+        rule.onNodeWithText("API 密钥和模型服务商").assertExists()
+        rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
+    }
+
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("任务队列")
@@ -621,21 +632,21 @@ class UiNavigationInstrumentedTest {
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithTag("composer-plus").performClick()
-        rule.onNodeWithTag("quick-review").performClick()
+        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithTag("composer-plus").performClick()
-        rule.onNodeWithTag("quick-goals").performClick()
+        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
     }
 
     @Test fun toolbarQuickActionsCanOpenProjectTools() {
         rule.onNodeWithTag("tab-chat").performClick()
-        rule.onNodeWithTag("composer-plus").performClick()
+        rule.onNodeWithTag("composer-workspace-tools").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         rule.onNodeWithTag("quick-diff").performClick()
         // 没有活动会话时，直接打开可关闭的会话管理弹层。

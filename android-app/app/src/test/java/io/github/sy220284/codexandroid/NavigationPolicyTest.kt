@@ -56,6 +56,25 @@ class NavigationPolicyTest {
         assertFalse(UiFeatureCatalog.requiresThread("terminal"))
     }
 
+
+    @Test fun settingsSearchResolvesCommonNamesToRegisteredDestinations() {
+        val samples = mapOf(
+            "API Key" to "providers", "免审批" to "security", "字号" to "appearance",
+            "日志" to "diagnostics", "升级" to "update", "远程主机" to "environments",
+            "插件市场" to "plugins", "MCP服务器" to "mcp"
+        )
+        for ((query, destination) in samples) {
+            assertTrue("设置搜索没有命中：$query",
+                NavigationPolicy.matches(query, "", "", destination))
+            assertNotNull(NavigationPolicy.matchedSettingTopic(destination, query))
+        }
+        assertTrue(NavigationPolicy.settingsTopics.all {
+            it.route in NavigationPolicy.settingsRoutes
+        })
+        assertFalse(NavigationPolicy.matches("免审批", "项目管理", "任务工具", "queue"))
+        assertNull(NavigationPolicy.matchedSettingTopic("queue", "免审批"))
+    }
+
     @Test fun contextSearchMatchesExactNamesAndDescriptions() {
         assertTrue(NavigationPolicy.matches("审批", "待审批操作", "审批详情", "approvals"))
         assertTrue(NavigationPolicy.matches("  权限 ", "权限与安全", "执行范围", "security"))
