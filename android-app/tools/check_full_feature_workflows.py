@@ -63,6 +63,8 @@ def audit(repository: Path, expected: int = 29) -> dict:
             issues.append(f"{route} 未登记 Kotlin 归属文件")
         if missing_files:
             issues.append(f"{route} 文件已失效：{', '.join(missing_files)}")
+        if missing_screens:
+            issues.append(f"{route} 文档截图未纳入设备验收：{', '.join(missing_screens)}")
         if route not in features:
             issues.append(f"{route} 缺少功能目录")
         if route != "update" and route not in routes:
