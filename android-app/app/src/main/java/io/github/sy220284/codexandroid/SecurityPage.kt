@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import org.json.JSONObject
 import kotlinx.coroutines.launch
 
@@ -34,7 +35,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var scope by rememberSaveable { mutableStateOf("default") }
     var draftProfile by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
-    var showProfiles by rememberSaveable { mutableStateOf(false) }
+    var showProfiles by rememberSaveable { mutableStateOf(true) }
     val selected = draftProfile ?: defaultProfile
     val allowedProfiles = requirements?.optJSONObject("allowedPermissionProfiles")
     val canSelect: (JSONObject) -> Boolean = { profile ->
@@ -55,87 +56,155 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     ScreenColumn {
         SectionIntro("TRUST / EXECUTION", "运行权限与安全",
-            "从 Codex 内核选择实际允许的权限方案，并确认作用范围。")
+            "选择 Codex 可以执行的操作范围，调整前可查看当前设置。")
         ProtocolFeedback(vm, listOf("config", "securityRequirements", "permissionProfiles",
             "securitySave", "securityThreadSave"), onRetry = { reload() })
+
         saveMessage?.let { message ->
             if (saveError) ErrorText(message) else CodexNotice(message, NoticeTone.Info)
         }
+
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("当前默认权限", style = MaterialTheme.typography.titleMedium)
-            Text("权限方案：" + PresentationPolicy.permissionProfile(defaultProfile),
-                color = Ink.muted)
-            Text("审批：" + PresentationPolicy.approvalMode(effectiveApproval), color = Ink.muted)
-            Text("文件访问：" + PresentationPolicy.sandboxMode(effectiveSandbox), color = Ink.muted)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.GppGood, null, tint = Ink.jade,
+                    modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("当前默认权限", color = Ink.muted,
+                    style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.weight(1f))
+                if (current != null) StatusPill("已读取", tone = StatusTone.Success)
+            }
+            Text(PresentationPolicy.permissionProfile(defaultProfile),
+                style = MaterialTheme.typography.titleLarge, color = Ink.parchment)
             DividerLine()
-            Text("修改作用范围", style = MaterialTheme.typography.titleMedium)
-            listOf("default" to "后续新任务默认权限",
-                "thread" to "当前会话后续操作").forEach { (value, title) ->
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .clickable(enabled = value != "thread" || activeThread != null) {
-                        scope = value
-                        draftProfile = null
-                    }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = scope == value, onClick = {
-                        scope = value
-                        draftProfile = null
-                    }, enabled = value != "thread" || activeThread != null)
-                    Text(title, modifier = Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Text("审批方式", color = Ink.muted,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(72.dp))
+                Text(PresentationPolicy.approvalMode(effectiveApproval),
+                    color = Ink.parchment, style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Text("文件访问", color = Ink.muted,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(72.dp))
+                Text(PresentationPolicy.sandboxMode(effectiveSandbox),
+                    color = Ink.parchment, style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f))
+            }
+        }
+
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("调整范围", style = MaterialTheme.typography.titleMedium)
+            Text("新任务默认设置与当前会话分别保存，互不覆盖。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecurityScopeOption(
+                    label = "新任务默认",
+                    subtitle = "以后创建的任务",
+                    selected = scope == "default", enabled = true,
+                    modifier = Modifier.weight(1f).testTag("security-scope-default")
+                ) {
+                    scope = "default"
+                    draftProfile = null
+                }
+                SecurityScopeOption(
+                    label = "当前会话",
+                    subtitle = if (activeThread == null) "暂无可用会话" else "此会话后续操作",
+                    selected = scope == "thread", enabled = activeThread != null,
+                    modifier = Modifier.weight(1f).testTag("security-scope-thread")
+                ) {
+                    scope = "thread"
+                    draftProfile = null
                 }
             }
-            if (activeThread == null)
-                Text("当前没有已建立的会话，可先设置新任务默认权限。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         }
-        TextButton(onClick = { showProfiles = !showProfiles },
-            modifier = Modifier.testTag("security-profiles-toggle")) {
-            Icon(if (showProfiles) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
-            Spacer(Modifier.width(6.dp))
-            Text(if (showProfiles) "收起权限方案" else "查看可用权限方案")
-        }
-        CodexReveal(showProfiles) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("可用权限方案", style = MaterialTheme.typography.titleMedium)
-                Text("仅允许选择当前工作目录与管理策略许可的方案。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                if (profiles.isEmpty()) Text("正在读取权限方案或暂无可用方案。",
-                    color = Ink.muted)
-                profiles.forEach { profile ->
-                    val id = profile.optString("id")
-                    val allowed = canSelect(profile)
-                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .clickable(enabled = allowed) { draftProfile = id }
-                        .testTag("security-profile-" + id.removePrefix(":")),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = if (scope == "default") selected == id else draftProfile == id,
-                            onClick = { draftProfile = id }, enabled = allowed)
-                        Column(Modifier.weight(1f)) {
-                            Text(PresentationPolicy.permissionProfile(id),
-                                style = MaterialTheme.typography.titleSmall)
-                            val description = profile.optString("description")
-                            if (description.isNotBlank() && description != "null")
-                                Text(description, color = Ink.muted,
-                                    style = MaterialTheme.typography.bodySmall)
-                        }
-                        StatusPill(if (allowed) "可用" else "受策略限制", allowed)
+
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("选择权限档位", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { showProfiles = !showProfiles },
+                    modifier = Modifier.testTag("security-profiles-toggle")
+                        .heightIn(min = 48.dp)) {
+                    Text(if (showProfiles) "收起" else "展开")
+                    Spacer(Modifier.width(4.dp))
+                    Icon(if (showProfiles) Icons.Outlined.ExpandLess
+                        else Icons.Outlined.ExpandMore, null,
+                        modifier = Modifier.size(18.dp))
+                }
+            }
+            CodexReveal(showProfiles) {
+                Column(Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("可用权限方案",
+                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    if (profiles.isEmpty()) {
+                        Text(if ("permissionProfiles" in loading) "正在读取可用方案…"
+                            else "尚无可选权限方案，请检查内核连接。",
+                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                     }
+                    profiles.forEach { profile ->
+                        val id = profile.optString("id")
+                        val allowed = canSelect(profile)
+                        val isSelected = if (scope == "default") selected == id
+                            else draftProfile == id
+                        SecurityProfileOption(
+                            name = PresentationPolicy.permissionProfile(id),
+                            description = when (id) {
+                                ":read-only" -> "可查看工作区文件；修改时需批准"
+                                ":workspace" -> "允许编辑项目文件；越界操作仍需批准"
+                                ":danger-full-access" -> "允许访问工作区外的文件及网络"
+                                else -> profile.optString("description").takeUnless {
+                                    it.isBlank() || it == "null"
+                                }.orEmpty()
+                            },
+                            allowed = allowed,
+                            selected = isSelected,
+                            isDangerous = id == ":danger-full-access",
+                            modifier = Modifier.testTag(
+                                "security-profile-" + id.removePrefix(":"))
+                        ) { draftProfile = id }
+                    }
+                    if (draftProfile != null) {
+                        Row(Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Text("已选择，保存后生效", color = Ink.coral,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f))
+                            TextButton(onClick = { draftProfile = null }) {
+                                Text("撤销修改")
+                            }
+                        }
+                    }
+                    if (draftProfile == ":danger-full-access") {
+                        CodexNotice("完全访问允许操作项目以外的文件及网络。保存时需要再次确认。",
+                            NoticeTone.Warning)
+                    }
+                    CodexPrimaryButton(
+                        onClick = { confirm = true },
+                        enabled = draftProfile != null &&
+                            (scope == "thread" || draftProfile != defaultProfile) &&
+                            !saving && "securityThreadSave" !in loading,
+                        busy = saving || "securityThreadSave" in loading,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .testTag("security-save")
+                    ) {
+                        Text(if (scope == "thread") "应用到当前会话" else "保存默认权限")
+                    }
+                    Text(if (scope == "thread")
+                        "仅影响当前会话之后的操作。"
+                        else "保存后，新创建的任务将使用该权限方案。",
+                        color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
-                if (draftProfile != null) {
-                    TextButton(onClick = { draftProfile = null }) { Text("放弃本次修改") }
-                }
-                CodexPrimaryButton(
-                    onClick = { confirm = true },
-                    enabled = draftProfile != null &&
-                        (scope == "thread" || draftProfile != defaultProfile) &&
-                        !saving && "securityThreadSave" !in loading,
-                    busy = saving || "securityThreadSave" in loading,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                ) { Text(if (scope == "thread") "应用到当前会话" else "保存默认权限") }
             }
         }
-        if (requirements != null) CodexNotice(
-            "权限受当前运行环境和管理策略约束，实际生效范围以保存后的内核状态为准。",
-            NoticeTone.Info)
+        if (requirements != null) {
+            Text("实际权限仍受运行环境和管理员安全策略约束。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        }
     }
     if (confirm && draftProfile != null) {
         val id = draftProfile!!
@@ -182,3 +251,76 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
 }
 
+
+
+/** Two mutually exclusive application scopes, with a readable disabled state. */
+@Composable
+private fun SecurityScopeOption(
+    label: String, subtitle: String, selected: Boolean,
+    enabled: Boolean, modifier: Modifier = Modifier, onChoose: () -> Unit
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier = modifier
+            .border(BorderStroke(if (selected) 1.3.dp else 1.dp,
+                if (selected) Ink.coral else Ink.border), shape)
+            .background(
+                if (selected) Ink.coral.copy(alpha = .055f) else Ink.panel, shape)
+            .clickable(enabled = enabled, onClick = onChoose)
+            .heightIn(min = 64.dp)
+            .padding(horizontal = 10.dp, vertical = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled,
+                modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(label,
+                color = if (enabled) Ink.parchment else Ink.muted,
+                style = MaterialTheme.typography.titleSmall)
+        }
+        Text(subtitle, color = Ink.muted,
+            style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** Shared row state for built-in and custom permission profiles. */
+@Composable
+private fun SecurityProfileOption(
+    name: String, description: String, allowed: Boolean,
+    selected: Boolean, isDangerous: Boolean,
+    modifier: Modifier = Modifier, onChoose: () -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = modifier.fillMaxWidth()
+            .border(BorderStroke(if (selected) 1.4.dp else .8.dp,
+                if (selected) Ink.coral else Ink.border.copy(alpha = .7f)), shape)
+            .background(if (selected) Ink.coral.copy(alpha = .055f)
+                else Ink.panel, shape)
+            .clickable(enabled = allowed, onClick = onChoose)
+            .heightIn(min = 72.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = allowed,
+            modifier = Modifier.size(32.dp))
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(name, style = MaterialTheme.typography.titleSmall,
+                color = if (allowed) Ink.parchment else Ink.muted)
+            if (description.isNotBlank()) {
+                Text(description, style = MaterialTheme.typography.bodySmall,
+                    color = Ink.muted)
+            }
+            if (isDangerous) {
+                Text("高风险权限", style = MaterialTheme.typography.labelMedium,
+                    color = Ink.red)
+            }
+        }
+        if (!allowed) StatusPill("受限", good = false)
+        else if (selected) Text("已选", style = MaterialTheme.typography.labelMedium,
+            color = Ink.coral)
+    }
+}
