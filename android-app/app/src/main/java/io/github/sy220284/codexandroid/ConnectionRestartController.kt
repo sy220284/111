@@ -8,8 +8,8 @@ import kotlinx.coroutines.withContext
 
 /** All user-triggered restarts respect active work before disposing the native child. */
 internal object ConnectionRestartPolicy {
-    fun canRestart(running: Boolean, terminalRunning: Boolean, approvals: Int): Boolean =
-        !running && !terminalRunning && approvals == 0
+    fun canRestart(snapshot: GlobalWorkSnapshot): Boolean =
+        snapshot.canDisruptCoreOrData
 }
 
 internal class ConnectionRestartController(private val vm: CodexViewModel) {
@@ -28,9 +28,7 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
     }
 
     fun restart() {
-        if (!ConnectionRestartPolicy.canRestart(
-                vm.running.value, vm.terminalSession.value.running,
-                vm.bridge.prompts.value.size)) {
+        if (!ConnectionRestartPolicy.canRestart(vm.globalWorkSnapshot())) {
             vm.errors.value = vm.errors.value + ("diagnostics" to
                 "仍有任务或审批待处理，请先完成操作再重启连接")
             return
@@ -38,9 +36,9 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
         if (!busy.compareAndSet(false, true)) return
         vm.viewModelScope.launch {
             try {
-                check(ConnectionRestartPolicy.canRestart(
-                    vm.running.value, vm.terminalSession.value.running,
-                    vm.bridge.prompts.value.size)) { "任务状态已变化，内核重启已取消" }
+                check(ConnectionRestartPolicy.canRestart(vm.globalWorkSnapshot())) {
+                    "任务或数据备份状态已变化，内核重启已取消"
+                }
                 withContext(Dispatchers.IO) { vm.bridge.close() }
                 vm.connect().join()
                 vm.errors.value = vm.errors.value - "diagnostics"
