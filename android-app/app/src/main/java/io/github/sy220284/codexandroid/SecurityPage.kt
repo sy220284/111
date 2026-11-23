@@ -20,6 +20,7 @@ import androidx.lifecycle.viewModelScope
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     var saving by remember { mutableStateOf(false) }
+    val defaultSaveBusy by vm.securitySaveBusy.collectAsState()
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var saveError by remember { mutableStateOf(false) }
     val loading by vm.loading.collectAsState()
@@ -190,8 +191,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         onClick = { confirm = true },
                         enabled = draftProfile != null &&
                             (scope == "thread" || draftProfile != defaultProfile) &&
-                            !saving && "securityThreadSave" !in loading,
-                        busy = saving || "securityThreadSave" in loading,
+                            !saving && !defaultSaveBusy && "securityThreadSave" !in loading,
+                        busy = saving || defaultSaveBusy || "securityThreadSave" in loading,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                             .testTag("security-save")
                     ) {
@@ -230,7 +231,10 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 } else {
                     val snapshot = vm.globalWorkSnapshot()
-                    if (!snapshot.canStartNewTask) {
+                    if (defaultSaveBusy) {
+                        saveMessage = "已有默认权限修改正在保存与回读，请完成后重试"
+                        saveError = true
+                    } else if (!snapshot.canStartNewTask) {
                         saveMessage = snapshot.blockReason
                         saveError = true
                     } else {
