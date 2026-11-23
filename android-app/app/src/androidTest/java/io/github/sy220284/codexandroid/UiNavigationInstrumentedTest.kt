@@ -378,7 +378,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithText("柔和阴影").assertExists()
         rule.onNodeWithText("减少动效").assertExists()
-        capture("appearance-android35.png")
+        captureOverlay("appearance-android35.png")
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
@@ -609,12 +609,16 @@ class UiNavigationInstrumentedTest {
         }
     }
 
-    @Test fun settingsSearchFindsInlineAppearanceControls() {
+    @Test fun settingsSearchOpensAppearanceSheetWithoutInlineExpansion() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("字号")
         rule.onNodeWithTag("settings-route-appearance").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("appearance-font-heading").assertExists()
         rule.onNodeWithTag("appearance-font-controls").assertExists()
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        rule.onNodeWithTag("settings-search").assertExists()
     }
 
     @Test fun settingsSearchDirectlyOpensUpdateActions() {
