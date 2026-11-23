@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.InfoOutlined
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -210,7 +210,7 @@ fun SectionIntro(@Suppress("UNUSED_PARAMETER") eyebrow: String, title: String, s
                     onClick = { showExplanation = true },
                     modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 ) {
-                    Icon(Icons.Outlined.InfoOutlined, contentDescription = "查看" + title + "说明",
+                    Icon(Icons.Outlined.Info, contentDescription = "查看" + title + "说明",
                         tint = Ink.muted)
                 }
             }
