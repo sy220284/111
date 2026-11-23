@@ -299,6 +299,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var advanced by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("config") == "advanced") advanced = true
+    }
     var path by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
     var kind by rememberSaveable { mutableStateOf("text") }

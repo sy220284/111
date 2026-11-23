@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
@@ -183,6 +185,8 @@ fun RequiresThreadPanel(
 @Composable
 fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val status by vm.bridge.status.collectAsState()
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val version = remember(context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
@@ -197,7 +201,17 @@ fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             StatusPill(if (status == EngineStatus.Connected) "本机内核已连接" else "内核需要检查",
                 good = status == EngineStatus.Connected)
             DividerLine()
-            Text("项目来源：sy220284/111", color = Ink.muted)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("项目来源：sy220284/111", color = Ink.muted,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    clipboard.setText(AnnotatedString(
+                        "111 Android v$version · sy220284/111 · Codex app-server"))
+                    copied = true
+                }, modifier = Modifier.testTag("about-copy-version")) {
+                    Text(if (copied) "已复制" else "复制版本信息")
+                }
+            }
             Text("运行核心：Codex app-server（本地进程）", color = Ink.muted)
             Text("工程文件和配置保存在 Android 应用私有目录；登录信息由运行核心管理。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)

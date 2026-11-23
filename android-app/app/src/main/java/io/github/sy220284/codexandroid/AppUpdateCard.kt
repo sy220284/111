@@ -17,13 +17,14 @@ import androidx.compose.ui.unit.dp
 
 /** 设置中默认仅一行；实际检查、下载、校验和安装始终使用原有 AppUpdateManager。 */
 @Composable
-internal fun AppUpdateCard() {
+internal fun AppUpdateCard(autoExpand: Boolean = false) {
     val status by AppUpdateManager.state.collectAsState()
     val activity = LocalActivity.current
     val currentVersion = remember(activity) {
         activity?.packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty()
     }
     var expanded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(autoExpand) { if (autoExpand) expanded = true }
     val busy = status.phase in setOf(UpdatePhase.CHECKING,
         UpdatePhase.DOWNLOADING, UpdatePhase.PATCHING)
     val showDetails = expanded || busy || status.phase in setOf(

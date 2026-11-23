@@ -254,7 +254,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-limits").assertDoesNotExist()
         rule.onNodeWithTag("settings-route-usage").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
-        rule.onNodeWithText("额度", substring = false).performClick()
+        // 搜索直接选中额度标签，无须第二次手动切换。
         rule.onNodeWithText("额度窗口").assertExists()
     }
 
@@ -512,6 +512,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithTag("appearance-font-heading").assertExists()
         rule.onNodeWithTag("appearance-font-controls").assertExists()
+    }
+
+    @Test fun settingsSearchDirectlyOpensUpdateActions() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("检查更新")
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("update-check"))
+        rule.onNodeWithTag("update-check").assertExists()
+    }
+
+    @Test fun settingsSearchDirectlyExpandsAdvancedConfig() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("高级配置")
+        rule.onNodeWithTag("settings-route-config").performClick()
+        rule.onNodeWithText("自定义配置", substring = false).assertExists()
     }
 
     @Test fun settingsSearchDoesNotExposeTaskOperations() {

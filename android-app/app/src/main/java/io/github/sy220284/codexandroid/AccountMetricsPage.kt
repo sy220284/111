@@ -25,7 +25,10 @@ import java.util.Locale
  */
 @Composable
 fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
-    var selectedTab by rememberSaveable(id) { mutableStateOf(if (id == "limits") "limits" else "usage") }
+    val requestedTab = remember(id) { SettingsDeepLink.take("usage") }
+    var selectedTab by rememberSaveable(id, requestedTab) {
+        mutableStateOf(if (id == "limits" || requestedTab == "limits") "limits" else "usage")
+    }
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()

@@ -133,6 +133,15 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 .firstOrNull { it.optString("id") == id }
             val name = app.optString("name", id)
             val installUrl = app.optString("installUrl")
+            val callable = active?.optBoolean("callable") == true
+            val enabled = app.optBoolean("isEnabled", true)
+            val appStatus = when {
+                !enabled -> "已停用"
+                callable -> "已连接"
+                !app.optBoolean("isAccessible") -> "待授权"
+                active?.optBoolean("enabled") == true -> "等待工具就绪"
+                else -> "尚未连接"
+            }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
@@ -143,13 +152,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text(if (active?.optBoolean("callable") == true) "可供智能体使用" else
-                            if (active?.optBoolean("enabled") == true) "已启用，等待工具就绪" else
-                            if (app.optBoolean("isAccessible")) "可访问" else "尚未授权或不可用",
+                        Text(if (callable) "可供任务调用工具" else
+                            if (appStatus == "待授权") "完成授权后可在任务中调用" else
+                            if (appStatus == "已停用") "可重新启用应用" else
+                            "可以刷新连接状态查看服务是否可用",
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
-                    StatusPill(if (app.optBoolean("isEnabled", true)) "已启用" else "已禁用",
-                        app.optBoolean("isEnabled", true))
+                    StatusPill(appStatus, callable)
                 }
                 PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Ink.muted)

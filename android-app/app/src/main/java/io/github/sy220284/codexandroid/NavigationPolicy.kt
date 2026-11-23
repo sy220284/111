@@ -47,11 +47,17 @@ object NavigationPolicy {
     data class SettingsSpot(val route: String, val target: String, val label: String, val terms: List<String>)
     val settingsSpots = listOf(
         SettingsSpot("appearance", "font", "文字大小", listOf("字号", "字体", "字体大小", "font size", "文字放大")),
+        SettingsSpot("appearance", "compact", "紧凑布局", listOf("界面密度", "紧凑模式", "减少间距")),
+        SettingsSpot("appearance", "shadow", "柔和阴影", listOf("阴影效果", "材质效果")),
+        SettingsSpot("appearance", "motion", "减少动效", listOf("关闭动画", "减少动画", "动效开关")),
         SettingsSpot("appearance", "theme", "界面配色", listOf("主题", "深色", "浅色", "夜间", "配色")),
         SettingsSpot("plugins", "discover", "发现和安装插件", listOf("插件市场", "发现插件", "安装插件", "扩展商店")),
         SettingsSpot("environments", "remote", "连接其他设备", listOf("远程主机", "远程执行", "远程执行服务", "外部设备")),
         SettingsSpot("providers", "custom", "配置模型服务商", listOf("API Key", "Base URL", "接口地址", "自定义服务商", "密钥变量")),
-        SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查"))
+        SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查")),
+        SettingsSpot("config", "advanced", "高级自定义配置", listOf("高级配置", "自定义配置", "配置键值")),
+        SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
+        SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
     )
     fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
         val q = query.trim()

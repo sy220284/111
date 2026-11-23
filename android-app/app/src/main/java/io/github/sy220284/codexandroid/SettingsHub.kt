@@ -2,6 +2,8 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -30,6 +32,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showModels by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showAppearance by rememberSaveable { mutableStateOf(false) }
+    var appearanceTarget by remember { mutableStateOf<String?>(null) }
     val status by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val isAccountLoaded = data["account"] != null
@@ -143,13 +146,16 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     when(entry.id) {
                                         "models" -> showModels = true
                                         "appearance" -> {
+                                            appearanceTarget = spot?.target
                                             showAppearance = if (spot != null) true else !showAppearance
-                                            val groupIndex = groups.indexOfFirst { (group, _) ->
-                                                "appearance" in group.routes
-                                            }
-                                            if (groupIndex >= 0) listScope.launch {
-                                                listState.animateScrollToItem(
-                                                    (if (query.isBlank()) 2 else 1) + groupIndex)
+                                            if (spot == null) {
+                                                val groupIndex = groups.indexOfFirst { (group, _) ->
+                                                    "appearance" in group.routes
+                                                }
+                                                if (groupIndex >= 0) listScope.launch {
+                                                    listState.animateScrollToItem(
+                                                        (if (query.isBlank()) 2 else 1) + groupIndex)
+                                                }
                                             }
                                         }
                                         "about" -> showAbout = true
@@ -158,14 +164,15 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 }
                                 if (entry.id == "appearance" && showAppearance) {
                                     HorizontalDivider(color = Ink.border)
-                                    AppearanceInlineControls()
+                                    AppearanceInlineControls(focusTarget = appearanceTarget)
                                 }
                             }
                         }
                     }
                 }
                 if ("update" in group.routes) {
-                    if (showUpdate) AppUpdateCard()
+                    if (showUpdate) AppUpdateCard(autoExpand =
+                        query.isNotBlank() && NavigationPolicy.matchedSettingSpot("update", query) != null)
                     if (showTransfers) LocalDataTransferCard(vm)
                 }
             }
@@ -198,7 +205,21 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun AppearanceInlineControls() {
+fun AppearanceInlineControls(focusTarget: String? = null) {
+    val themeRequester = remember { BringIntoViewRequester() }
+    val compactRequester = remember { BringIntoViewRequester() }
+    val shadowRequester = remember { BringIntoViewRequester() }
+    val motionRequester = remember { BringIntoViewRequester() }
+    val fontRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(focusTarget) {
+        when (focusTarget) {
+            "theme" -> themeRequester.bringIntoView()
+            "compact" -> compactRequester.bringIntoView()
+            "shadow" -> shadowRequester.bringIntoView()
+            "motion" -> motionRequester.bringIntoView()
+            "font" -> fontRequester.bringIntoView()
+        }
+    }
     val compact by UiPreferences.compact.collectAsState()
     val softMaterial by UiPreferences.softMaterial.collectAsState()
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
@@ -206,7 +227,8 @@ fun AppearanceInlineControls() {
     val darkMode by UiPreferences.darkMode.collectAsState()
     Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 7.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("界面配色", style = MaterialTheme.typography.titleMedium)
+        Text("界面配色", style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.bringIntoViewRequester(themeRequester))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ThemePreviewCard(
                 title = "典雅白", background = Color(0xFFFFFFFF),
@@ -219,11 +241,18 @@ fun AppearanceInlineControls() {
                 selected = darkMode, modifier = Modifier.weight(1f)
             ) { UiPreferences.setDarkMode(true) }
         }
-        AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
-        AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
-        AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
+        Box(Modifier.bringIntoViewRequester(compactRequester)) {
+            AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
+        }
+        Box(Modifier.bringIntoViewRequester(shadowRequester)) {
+            AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
+        }
+        Box(Modifier.bringIntoViewRequester(motionRequester)) {
+            AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
+        }
         Text("文字大小", style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 6.dp).testTag("appearance-font-heading"))
+            modifier = Modifier.padding(top = 6.dp).bringIntoViewRequester(fontRequester)
+                .testTag("appearance-font-heading"))
         Row(Modifier.fillMaxWidth().testTag("appearance-font-controls"),
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")

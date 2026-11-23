@@ -257,6 +257,13 @@ fun SkillsPage(vm: CodexViewModel) {
     val skills = groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() }
     val readErrors = groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 }
     val mutationLoading by vm.loading.collectAsState()
+    var filter by rememberSaveable { mutableStateOf("all") }
+    val visibleSkills = when (filter) {
+        "enabled" -> skills.filter { it.optBoolean("enabled") }
+        "available" -> skills.filter { !it.optBoolean("enabled") }
+        "errors" -> emptyList()
+        else -> skills
+    }
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
     LaunchedEffect(Unit) {
         vm.ensureCatalog("skills", "skills/list",
@@ -270,7 +277,19 @@ fun SkillsPage(vm: CodexViewModel) {
             Text("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用 / ${skills.size} 项",
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
-        skills.forEach { skill ->
+        if (skills.isNotEmpty() || readErrors > 0) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("all" to "全部", "enabled" to "已启用",
+                    "available" to "可用未启用", "errors" to "异常").forEach { (id, label) ->
+                    FilterChip(selected = filter == id, onClick = { filter = id },
+                        modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("skills-filter-" + id),
+                        label = { Text(label) })
+                }
+            }
+        }
+        visibleSkills.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
                 var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
                 MaterialPanel(Modifier.fillMaxWidth()) {
@@ -305,6 +324,12 @@ fun SkillsPage(vm: CodexViewModel) {
         if (readErrors > 0) {
             CodexNotice("有 $readErrors 项技能暂未读取成功，可在诊断与日志中查看原因。",
                 NoticeTone.Warning)
+        } else if (filter == "errors" && data["skills"] != null) {
+            CodexEmptyState("当前没有技能读取异常", "所有已返回的技能均已成功读取。")
+        } else if (filter in setOf("enabled", "available") &&
+            visibleSkills.isEmpty() && data["skills"] != null) {
+            CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
+                actionLabel = "查看全部", onAction = { filter = "all" })
         }
         ProtocolFeedback(vm, listOf("skillsWrite"))
         if ("skillsWrite" in mutationLoading) {

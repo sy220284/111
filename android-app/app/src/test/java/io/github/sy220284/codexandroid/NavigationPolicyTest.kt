@@ -27,6 +27,10 @@ class NavigationPolicyTest {
         assertNull(NavigationPolicy.matchedSettingSpot("providers", "模型服务商"))
         assertNull(NavigationPolicy.matchedSettingSpot("plugins", "插件"))
         assertNull(NavigationPolicy.matchedSettingSpot("appearance", "外观与交互"))
+        assertEquals("limits", NavigationPolicy.matchedSettingSpot("usage", "额度")?.target)
+        assertEquals("advanced", NavigationPolicy.matchedSettingSpot("config", "高级配置")?.target)
+        assertEquals("check", NavigationPolicy.matchedSettingSpot("update", "检查更新")?.target)
+        assertEquals("motion", NavigationPolicy.matchedSettingSpot("appearance", "减少动效")?.target)
         assertEquals("custom", NavigationPolicy.matchedSettingSpot(
             "providers", "配置模型服务商")?.target)
     }
