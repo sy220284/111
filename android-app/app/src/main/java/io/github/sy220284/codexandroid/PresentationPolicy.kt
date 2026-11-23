@@ -94,21 +94,15 @@ object PresentationPolicy {
         val value = meaningful(raw).lowercase()
         return when {
             value.contains("failed") || value.contains("error") -> "连接失败"
+            value == "authenticationrequired" -> "需要授权"
+            value == "disabled" -> "已停用"
+            value == "cancelled" -> "已断开"
+            value == "notstarted" -> "待连接"
             value.contains("disconnected") || value.contains("notconnected") -> "未连接"
             value.contains("starting") || value.contains("connecting") -> "正在连接"
             value.contains("running") || value.contains("ready") ||
                 value.contains("connected") -> "已连接"
             else -> "未连接"
-        }
-    }
-
-    fun authorizationState(raw: String?): String {
-        val value = meaningful(raw).lowercase()
-        return when {
-            value.contains("unauthorized") || value.contains("required") ||
-                value.contains("notlogged") -> "需要授权"
-            value.contains("authorized") || value.contains("authenticated") -> "已授权"
-            else -> "待确认"
         }
     }
 
@@ -160,6 +154,19 @@ object PresentationPolicy {
             Regex("""^[A-Za-z][\w-]*(?:/[\w-]+)+[：:]\s*"""), ""
         )
         if (raw.isEmpty()) return "当前操作没有返回详细原因"
+        // OAuth/DCR errors may embed the entire ChatGPT HTML page. Preserve the
+        // actionable HTTP status without exposing page markup or runtime metadata.
+        if (Regex("""(?i)<!doctype\s+html|<html(?:\s|>)""").containsMatchIn(raw)) {
+            val status = Regex("""(?i)\bHTTP\s+([1-5][0-9]{2})\b""")
+                .find(raw)?.groupValues?.get(1)
+            return if (status == "405") {
+                "服务拒绝了当前授权注册方式（HTTP 405）。请核对 MCP 服务地址与认证方式。"
+            } else {
+                "服务返回了网页而非接口响应" +
+                    (status?.let { "（HTTP $it）" } ?: "") +
+                    "。请核对服务地址、连接及认证配置。"
+            }
+        }
         return raw.replace(
             Regex("""/data/(?:user/[0-9]+|data)/[^\s\n,;)}]+"""),
             "应用私有目录"

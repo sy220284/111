@@ -1,0 +1,38 @@
+package io.github.sy220284.codexandroid
+
+import org.json.JSONObject
+
+/**
+ * A status card is visible only when its MCP server has a usable live connection.
+ * An OAuth configuration or cached tool catalog by itself is not a connection.
+ */
+internal object McpAvailableServices {
+    fun visible(servers: List<JSONObject>): List<JSONObject> =
+        servers.filter(::isUsable).sortedWith(
+            compareBy(String.CASE_INSENSITIVE_ORDER) { displayName(it) }
+        )
+
+    fun displayName(server: JSONObject): String {
+        val original = server.optString("name")
+        return if (original == "codex_apps") "ChatGPT 扩展服务"
+        else original.trim().ifEmpty { "未命名服务" }
+    }
+
+    fun isUsable(server: JSONObject): Boolean {
+        if (server.isNull("name") || server.optString("name").isBlank()) return false
+        if (server.optString("runtimeStatus") != "connected") return false
+        if (server.optString("authStatus") == "notLoggedIn") return false
+
+        val catalogHasError = !server.isNull("toolsError") &&
+            server.optString("toolsError").isNotBlank()
+        val toolsReady = !catalogHasError &&
+            (server.optJSONObject("tools")?.length() ?: 0) > 0
+        val resourcesReady = (server.optJSONArray("resources")?.length() ?: 0) > 0 ||
+            (server.optJSONArray("resourceTemplates")?.length() ?: 0) > 0
+        val promptsReady = server.optJSONObject("serverCapabilities")
+            ?.optJSONObject("prompts") != null
+        // A live socket without any usable tool, resource, or prompt is not an
+        // actionable MCP service; cached tools are excluded when discovery failed.
+        return toolsReady || resourcesReady || promptsReady
+    }
+}

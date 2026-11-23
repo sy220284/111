@@ -16,6 +16,20 @@ internal object CodexNotificationDispatcher {
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
         if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
+        // MCP registration and OAuth are agent/runtime responsibilities.
+        // Refresh only live service availability after their lifecycle events.
+        if (method == "mcpServer/oauthLogin/completed") {
+            refreshMcpServices()
+            return
+        }
+        if (method == "mcpServer/startupStatus/updated") {
+            val targetThread = params.optString("threadId").takeIf { it.isNotBlank() }
+            if ((targetThread == null || targetThread == activeThread.value) &&
+                params.optString("status") in setOf("ready", "failed", "cancelled")) {
+                refreshMcpServices()
+            }
+            return
+        }
         if (method == "account/login/completed") {
             val result = AccountLoginContract.completion(params, activeLoginId.value)
             if (result != null) {
@@ -27,11 +41,16 @@ internal object CodexNotificationDispatcher {
                 else errors.value = errors.value + ("account" to
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
-                if (result.success) catalogWarmup.accountChanged()
+                if (result.success) {
+                    catalogWarmup.accountChanged()
+                    refresh("mcp", "mcpServerStatus/list",
+                        CatalogRequestContract.mcpStatus(activeThread.value))
+                }
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
             catalogWarmup.accountChanged()
+            refreshMcpServices()
         }
         if (method == "project/changed") {
             val changedId = params.optString("projectId")

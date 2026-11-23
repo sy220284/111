@@ -28,6 +28,15 @@ class ActionFeedbackCopyTest {
             ActionFeedbackCopy.failure("plugin/install", "plugin/install：连接拒绝").message)
     }
 
+    @Test fun oauthErrorsDoNotExposeServerHtmlInSnackbars() {
+        val receipt = ActionFeedbackCopy.failure("mcpServer/oauth/login",
+            "HTTP 405 Method Not Allowed: <!DOCTYPE html><html data-build='revision'>")
+        assertTrue(receipt.isError)
+        assertTrue(receipt.message.contains("HTTP 405"))
+        assertFalse(receipt.message.contains("<html"))
+        assertFalse(receipt.message.contains("revision"))
+    }
+
     @Test fun unknownActionsHaveSafeHumanReadableFeedback() {
         assertEquals("操作已完成", ActionFeedbackCopy.success("new/method", JSONObject()).message)
         assertTrue(ActionFeedbackCopy.failure("new/method", "").message.contains("请检查"))
