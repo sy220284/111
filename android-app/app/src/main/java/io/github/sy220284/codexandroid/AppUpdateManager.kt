@@ -202,6 +202,13 @@ internal object AppUpdateManager {
     }
 
     fun install(activity: Activity) {
+        // The installer replaces the whole application process. Check all live
+        // sessions, including background turns, not only the visible chat.
+        val current = (activity.application as CodexApplication).session.globalWorkSnapshot()
+        if (!current.canDisruptCoreOrData) {
+            set(UpdatePhase.READY, current.blockReason + "；安装包已保留")
+            return
+        }
         val file = readyApk ?: return
         val hash = readySha ?: return
         scope.launch {
@@ -210,9 +217,13 @@ internal object AppUpdateManager {
                     throw IOException("安装包缓存校验失败，请重新检查更新")
                 }
                 verifyInstalledSigner(activity.applicationContext, file)
-                withContext(Dispatchers.Main) { requestSystemInstall(activity) }
+                withContext(Dispatchers.Main) {
+                    val latest = (activity.application as CodexApplication).session.globalWorkSnapshot()
+                    check(latest.canDisruptCoreOrData) { latest.blockReason }
+                    requestSystemInstall(activity)
+                }
             } catch (e: Exception) {
-                set(UpdatePhase.ERROR, "安装准备失败：${e.message}")
+                set(UpdatePhase.READY, "安装暂缓：" + (e.message ?: "请检查系统授权与任务状态"))
             }
         }
     }
