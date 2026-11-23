@@ -253,8 +253,10 @@ fun ProvidersPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun SkillsPage(vm: CodexViewModel) {
+fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
+    val skillErrors by vm.errors.collectAsState()
     val groups = records(data["skills"])
     val skills = groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() }
     val readErrors = groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 }
@@ -275,6 +277,19 @@ fun SkillsPage(vm: CodexViewModel) {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory)) }
+        if (engineStatus != EngineStatus.Connected && data["skills"] == null) {
+            CodexRecoveryState("连接后可读取技能",
+                "连接运行核心后将显示当前工作区的真实技能。",
+                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+        } else if (data["skills"] == null && "skills" !in mutationLoading &&
+            skillErrors["skills"] != null) {
+            CodexRecoveryState("技能读取失败",
+                "读取目录未成功，可重新请求或查看诊断。",
+                "重新读取", {
+                    vm.refresh("skills", "skills/list",
+                        CatalogRequestContract.workspace(vm.workingDirectory))
+                }, { navigate("diagnostics") })
+        }
         if (skills.isNotEmpty()) {
             Text("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用 / ${skills.size} 项",
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
@@ -364,8 +379,9 @@ fun SkillsPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun PluginsPage(vm: CodexViewModel) {
+fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
     var installedOnly by remember { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     val marketplaces = data[activeKey]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
@@ -400,44 +416,58 @@ fun PluginsPage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("CODEX / MARKETPLACE", "插件",
             "先管理已安装能力，需要新功能时再浏览可用插件。")
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            FilterChip(selected = installedOnly, onClick = { installedOnly = true },
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = installedOnly, onClick = { installedOnly = true },
+                shape = SegmentedButtonDefaults.itemShape(0, 2),
                 modifier = Modifier.testTag("plugins-tab-installed"),
-                label = { Text("已安装") })
-            FilterChip(selected = !installedOnly, onClick = { installedOnly = false },
+                label = { Text("已安装") }
+            )
+            SegmentedButton(
+                selected = !installedOnly, onClick = { installedOnly = false },
+                shape = SegmentedButtonDefaults.itemShape(1, 2),
                 modifier = Modifier.testTag("plugins-tab-catalog"),
-                label = { Text("发现插件") })
+                label = { Text("发现插件") }
+            )
         }
         if (!installedOnly) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("搜索插件", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.testTag("plugins-search-heading"))
+                val searchAvailable = searchDraft.isNotBlank() &&
+                    "pluginSearch:" + searchSubmitted + ":0" !in busy &&
+                    "pluginMutation" !in busy &&
+                    engineStatus == EngineStatus.Connected
+                val performSearch = {
+                    val term = searchDraft.trim()
+                    if (term.isNotEmpty()) {
+                        searchSubmitted = term
+                        searchPage = 0
+                        vm.refresh("pluginSearch:" + term + ":0",
+                            "plugin/search", PluginSearchContract.params(term))
+                    }
+                }
                 OutlinedTextField(
                     value = searchDraft, onValueChange = { searchDraft = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                     label = { Text("插件名称或关键字") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) }
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                    trailingIcon = {
+                        if (searchDraft.isNotBlank()) IconButton(onClick = {
+                            searchDraft = ""; searchSubmitted = ""; searchPage = 0
+                        }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Outlined.Close, "清除搜索词")
+                        }
+                    },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onSearch = { if (searchAvailable) performSearch() })
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            val term = searchDraft.trim()
-                            searchSubmitted = term
-                            searchPage = 0
-                            vm.refresh("pluginSearch:" + term + ":0",
-                                "plugin/search", PluginSearchContract.params(term))
-                        },
-                        enabled = searchDraft.isNotBlank() &&
-                            "pluginSearch:" + searchSubmitted + ":0" !in busy &&
-                                "pluginMutation" !in busy,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                    ) {
-                        Text("搜索插件")
-                    }
-                    TextButton(onClick = {
-                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
-                    }, modifier = Modifier.heightIn(min = 48.dp)) { Text("清除") }
-                }
+                CodexPrimaryButton(
+                    onClick = performSearch, enabled = searchAvailable,
+                    modifier = Modifier.fillMaxWidth().testTag("plugins-search-submit")
+                ) { Text("搜索插件") }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -466,6 +496,22 @@ fun PluginsPage(vm: CodexViewModel) {
                 CatalogRequestContract.workspace(vm.workingDirectory))
             else vm.refresh("plugins", "plugin/list",
                 CatalogRequestContract.workspace(vm.workingDirectory))
+        }
+        if (engineStatus != EngineStatus.Connected && data[activeKey] == null) {
+            CodexRecoveryState("连接后可查看插件",
+                "已安装和可发现的插件由运行核心提供。",
+                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+        } else if (engineStatus == EngineStatus.Connected &&
+            data[activeKey] == null && activeKey !in busy &&
+            errors[activeKey] != null) {
+            CodexRecoveryState("插件目录读取失败",
+                "检查连接或重试读取插件目录。",
+                "重新读取", {
+                    if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
+                        CatalogRequestContract.workspace(vm.workingDirectory))
+                    else vm.refresh("plugins", "plugin/list",
+                        CatalogRequestContract.workspace(vm.workingDirectory))
+                }, { navigate("diagnostics") })
         }
         if (searchActive) {
             if (!submittedMatchesDraft) CodexNotice(
