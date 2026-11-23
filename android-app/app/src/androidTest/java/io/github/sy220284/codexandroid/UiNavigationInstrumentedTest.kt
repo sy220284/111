@@ -896,12 +896,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
+        rule.onNodeWithContentDescription("关闭代码审查").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
-        pressSystemBack()
+        rule.onNodeWithContentDescription("关闭代码审查").performClick()
         rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()
+        rule.onNodeWithTag("goal-sticky-save").assertExists()
+        rule.onNodeWithContentDescription("关闭任务目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
     }
 
