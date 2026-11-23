@@ -66,7 +66,7 @@ val pages = listOf(
     Page("skills", "技能", "能力与扩展", "发现并管理技能", Icons.Outlined.School, "skills/list"),
     Page("plugins", "插件", "能力与扩展", "安装状态与能力", Icons.Outlined.Extension, "plugin/list"),
     Page("apps", "连接应用", "能力与扩展", "应用连接与权限", Icons.Outlined.Apps, "app/list"),
-    Page("mcp", "MCP 服务", "能力与扩展", "工具服务状态", Icons.Outlined.Hub, "mcpServerStatus/list"),
+    Page("mcp", "MCP 服务", "能力与扩展", "已连接的可用服务", Icons.Outlined.Hub, "mcpServerStatus/list"),
     Page("environments", "执行环境", "能力与扩展", "设备和远端环境", Icons.Outlined.Dns, "environment/status", true),
     Page("account", "账号登录", "设置与账户", "ChatGPT 登录与会话", Icons.Outlined.AccountCircle, "account/read"),
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", Icons.Outlined.Tune, "modelProvider/list"),
