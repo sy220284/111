@@ -46,12 +46,6 @@ object UiFeatureCatalog {
     )
     val byRoute = all.associateBy { it.route }
     val sidebarRoutes = listOf("chat","home","files","settings")
-    /** 工作区工具的顺序、分组与导航入口统一从一份目录读取。 */
-    val workspaceToolGroups = listOf(
-        FeatureGroup("项目与文件", listOf("files", "terminal", "diff")),
-        FeatureGroup("当前会话", listOf("review", "goals", "queue"))
-    )
-    val workspaceTools = workspaceToolGroups.flatMap { it.routes }
     /** 以用户的操作意图分组，设置项只有一个固定归属。 */
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage", "limits")),
