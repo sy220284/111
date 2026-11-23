@@ -43,5 +43,8 @@ class UiAdaptiveWindowInstrumentedTest {
         rule.onNodeWithTag("home-task-hero").assertExists()
         rule.onNodeWithTag("tab-chat").performClick()
         rule.onNodeWithTag("composer-input").assertIsDisplayed()
+        rule.waitForIdle()
+        // 截图必须在 Compose Activity 仍处前台时生成，不能在 instrumentation 退出后拍桌面。
+        captureVerifiedDisplayScreenshot("adaptive-workspace-android35.png")
     }
 }

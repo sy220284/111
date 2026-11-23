@@ -234,8 +234,10 @@ jobs:
             mkdir -p ui-adaptive
             adb shell am instrument -w -r -e expect_sidebar ${{ matrix.expect_sidebar }} -e class io.github.sy220284.codexandroid.UiAdaptiveWindowInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-adaptive-result.log
             grep -Fq 'OK (1 test)' ui-adaptive-result.log
-            adb shell screencap -p /sdcard/codex-responsive-check.png
-            adb pull /sdcard/codex-responsive-check.png ui-adaptive/${{ matrix.label }}.png
+            # 读取测试过程中经前台窗口检查的 Compose 截图，避免测试结束后截到系统桌面。
+            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/adaptive-workspace-android35.png ui-adaptive/${{ matrix.label }}.png
+            test -s ui-adaptive/${{ matrix.label }}.png
+            file ui-adaptive/${{ matrix.label }}.png
       - name: 保存横屏与平板真实设备验收证据
         if: always()
         uses: actions/upload-artifact@v4
