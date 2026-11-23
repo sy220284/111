@@ -13,6 +13,18 @@ class ConnectionRestartPolicyTest {
         assertTrue(ConnectionRestartPolicy.canRestart(idle()))
     }
 
+    @Test fun ownedRestartLeaseDoesNotBlockItsOwnSecondSafetyCheck() {
+        val owned = idle().copy(restarting = true)
+        assertFalse(ConnectionRestartPolicy.canRestart(owned))
+        assertTrue(ConnectionRestartPolicy.canContinueOwnedRestart(owned))
+        assertFalse(ConnectionRestartPolicy.canContinueOwnedRestart(
+            owned.copy(executingThreads = 1)))
+        assertFalse(ConnectionRestartPolicy.canContinueOwnedRestart(
+            owned.copy(inFlightRequests = 1)))
+        assertFalse(ConnectionRestartPolicy.canContinueOwnedRestart(
+            owned.copy(dataTransferBusy = true)))
+    }
+
     @Test fun backgroundSessionsAndFirstTurnAlsoBlockDestructiveRestart() {
         assertFalse(ConnectionRestartPolicy.canRestart(idle().copy(executingThreads = 1)))
         assertFalse(ConnectionRestartPolicy.canRestart(idle().copy(creatingThread = true)))
