@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,9 +33,10 @@ internal fun ChatWorkTopBar(
     onNavigate: (String) -> Unit,
     onNewThread: () -> Unit
 ) {
+    val shortWindow = LocalConfiguration.current.screenHeightDp < AdaptiveWorkspaceLayout.compactHeightDp
     Row(
-        Modifier.fillMaxWidth().height(72.dp).background(Ink.canvas)
-            .padding(horizontal = 15.dp),
+        Modifier.fillMaxWidth().height(if (shortWindow) 56.dp else 72.dp).background(Ink.canvas)
+            .padding(horizontal = if (shortWindow) 9.dp else 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
@@ -50,8 +52,9 @@ internal fun ChatWorkTopBar(
             }
         }
         Row(
-            Modifier.width(196.dp).height(49.dp)
-                .background(Color(0xFFF0F0F0), RoundedCornerShape(28.dp))
+            Modifier.width(if (shortWindow) 174.dp else 196.dp)
+                .height(if (shortWindow) 42.dp else 49.dp)
+                .background(Ink.recessed, RoundedCornerShape(28.dp))
                 .padding(4.dp).testTag("chat-work-switch"),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -64,7 +67,7 @@ internal fun ChatWorkTopBar(
                         .testTag("tab-$route"),
                     shape = RoundedCornerShape(25.dp),
                     color = if (chosen) Ink.canvas else Color.Transparent,
-                    border = if (chosen) BorderStroke(.5.dp, Color(0xFFECECEC)) else null,
+                    border = if (chosen) BorderStroke(.5.dp, Ink.border) else null,
                     shadowElevation = if (chosen) 1.dp else 0.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -79,7 +82,7 @@ internal fun ChatWorkTopBar(
             IconButton(
                 onClick = onNewThread, enabled = !running && !switching,
                 modifier = Modifier.size(48.dp)
-                    .background(Color(0xFFF8F8F8), CircleShape)
+                    .background(Ink.recessed, CircleShape)
                     .testTag("top-new-chat")
                     .explainDisabled(running || switching,
                         if (running) "当前任务执行中，请先完成或停止任务" else "正在切换会话")
