@@ -450,10 +450,8 @@ class UiNavigationInstrumentedTest {
                     .put("name", "继续队列测试会话"))))
         }
         rule.waitForIdle()
-        rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("thread-library-row-ci-queue-resume-thread")
-                .fetchSemanticsNodes().isNotEmpty()
-        }
+        // LazyColumn only composes rows as they scroll into view.
+        // Scroll to the keyed row before querying its visible semantics.
         rule.onNodeWithTag("thread-library-list")
             .performScrollToNode(hasTestTag("thread-library-row-ci-queue-resume-thread"))
         rule.onNodeWithText("继续会话").performClick()
