@@ -708,13 +708,13 @@
       "flag": "实验"
     },
     "mcpServer/oauth/login": {
-      "surface": "直接操作",
-      "owner": "MCP 服务/审批",
+      "surface": "后台内部",
+      "owner": "智能体/MCP 授权",
       "flag": "常规/内部"
     },
     "config/mcpServer/reload": {
-      "surface": "高级按需",
-      "owner": "引擎配置/安全",
+      "surface": "后台内部",
+      "owner": "智能体/MCP 配置重载",
       "flag": "常规/内部"
     },
     "mcpServerStatus/list": {

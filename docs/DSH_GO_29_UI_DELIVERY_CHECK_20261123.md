@@ -22,7 +22,7 @@
 | 14 | `skills` | P1 | 已启用/可用未启用/异常筛选；异常和写入状态收敛 | `EcosystemScreens.kt / SkillsPage` | secondarySettingsPagesHaveActualDeviceScreenshots；audit-skills-android35.png；本 PR 设备回归 |
 | 15 | `plugins` | P1 | 发现、搜索、详情、安装/更新、失败重试与状态 | `EcosystemScreens.kt / PluginsPage` | pluginDiscoveryCanOpenSearchWithoutInventedResults；audit-plugin-detail-android35.png |
 | 16 | `apps` | P1 | 可调用/待授权/待就绪/停用可读状态及就地授权 | `IntegrationScreens.kt / ConnectedAppsPage` | secondarySettingsPagesHaveActualDeviceScreenshots；audit-apps-android35.png |
-| 17 | `mcp` | P1 | 服务及授权状态；表单必填校验；多行列表；提交确认 | `IntegrationScreens.kt / McpApprovalScreens.kt` | elicitationRendersOnlyRequiredUserForm；requiredBooleanMcpChoiceMustBeExplicitAndCanBeDeclined |
+| 17 | `mcp` | P1 | 智能体负责接入与授权；页面仅展示实际可用 MCP 服务与刷新入口 | `IntegrationScreens.kt / McpAvailableServices.kt / McpApprovalScreens.kt` | mcpFullPageShowsOnlyUsableServersAndNoRegistrationInterface；elicitationRendersOnlyRequiredUserForm；audit-mcp-usable-directory-android35.png |
 | 18 | `environments` | P1 | 本机与远程二选；仅远程才显示连接表单 | `ExecutionEnvironmentPage.kt` | executionEnvironmentShowsChoiceBeforeConnectionFields；audit-environments-android35.png |
 | 19 | `account` | P1 | 登录/退出与当前账号状态；用量额度统一入口 | `AccountLoginUi.kt` | accountPageExposesNarrowScreenDeviceLoginActions；account-android35.png |
 | 20 | `providers` | P1 | 服务商列表、可读配置与确认表单；API Key 搜索直达 | `EcosystemScreens.kt / ProvidersPage` | approvalsAndChildEditorsHaveReadableStates；settingsSearchOpensPreciseProviderAndRemoteEditors |
@@ -48,3 +48,10 @@
 ## 固定执行顺序
 
 先取最新主线和 PR 变更 → 对照本表核验全部 29 项 → 运行完整 Kotlin/协议/Lint → 进行三档手机竖屏设备截图与交互 → 逐图检查字体、键盘、深浅主题和弹层 → 复查 PR 冲突与 Figma 同步 → 明确区分“代码已提交”“设备已通过”“设计稿已同步”“已合并上线”四种状态。发现失败，修复同一分支后重新执行整条验收链。
+
+
+## 2026-11-23 键盘展开证据补核
+
+- 02 对话页同时核对系统软键盘是否真实可见，以及输入框、发送、附件和任务工具是否仍可操作；设置搜索也必须经真实键盘覆盖测试。旧 CI 可注入文本却不显示键盘，截图文件名不足以证明展开状态。
+- 首轮通过后的旧/新截图哈希完全相同，已确定原因是 Compose 根节点截图排除了系统输入法图层。聊天键盘专项统一改为 Android 系统全屏截图，继续检查系统输入法可见状态与页面操作。
+- 已在三档 Android 35 统一增加软件输入法设置与设备 Insets 状态断言；新 CI 通过和屏幕截图核实前，按“待真实 IME 复核”记账。

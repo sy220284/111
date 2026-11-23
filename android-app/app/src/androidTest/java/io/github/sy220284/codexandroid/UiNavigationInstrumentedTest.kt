@@ -45,6 +45,22 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
     }
 
+    /**
+     * A visible input field alone does not prove keyboard usability. Verify the
+     * platform IME owns real window insets before accepting screenshots/actions.
+     */
+    private fun assertRealSoftKeyboardOpen() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            throw AssertionError("软件键盘验收需要 Android 30 或更新版本")
+        }
+        val imeType = android.view.WindowInsets.Type.ime()
+        rule.waitUntil(10_000L) {
+            val insets = rule.activity.window.decorView.rootWindowInsets
+            insets != null && insets.isVisible(imeType) &&
+                insets.getInsets(imeType).bottom > 0
+        }
+    }
+
     private fun openDrawerRoute(id: String) {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-" + id).performClick()
@@ -199,8 +215,14 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("chat")
         rule.onNodeWithTag("composer-input").performClick()
         rule.onNodeWithTag("composer-input").performTextInput("验证键盘展开后的操作入口")
-        // 提前保存前台截图，即使按钮被键盘遮挡，也能直接回溯视觉证据。
-        capture("chat-keyboard-open-android35.png")
+        rule.onNodeWithTag("composer-input").assertTextContains("验证键盘展开后的操作入口")
+        rule.waitForIdle()
+        // 必须由系统确认软键盘真实展开；仅能输入文字或按钮可见均不足以验收 IME。
+        assertRealSoftKeyboardOpen()
+        // Compose-root captures exclude the Android IME window. Capture the full
+        // device display so the screenshot actually proves keyboard occlusion.
+        captureVerifiedDisplayScreenshot("chat-keyboard-open-android35.png")
+        assertRealSoftKeyboardOpen()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
         rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
@@ -547,7 +569,9 @@ class UiNavigationInstrumentedTest {
 
     @Test fun settingsSearchSurvivesReturningFromDetailPage() {
         openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performClick()
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
+        assertRealSoftKeyboardOpen()
         rule.onNodeWithTag("settings-list")
             .performScrollToNode(hasTestTag("settings-route-diagnostics"))
         rule.onNodeWithTag("settings-route-diagnostics").performClick()

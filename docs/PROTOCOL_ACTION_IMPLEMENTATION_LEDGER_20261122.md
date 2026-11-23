@@ -17,7 +17,7 @@
 | `account/usage/read`、`account/rateLimits/read` | 设置中同一用量/额度页；额度搜索直达对应标签 | 代码已接入；设备以 PR 最新 CI 为准 |
 | `modelProvider/list`、`modelProvider/config/write` | 模型服务商总览；API Key 精确搜索才打开编辑表单 | 代码已接入；服务端写入回读待真环境 |
 | `skills/list`、`skills/config/write`、`plugin/list` | 技能筛选，插件发现、安装、启停就地反馈 | 代码已接入；真实写入待真环境 |
-| `mcpServerStatus/list`、`mcpServer/oauth/login`、Host MCP 表单 | 设置内只管理连接及授权；任务内校验必填、布尔和多行数组输入 | 代码已接入；真实 OAuth 待联调 |
+| `mcpServerStatus/list`、MCP 登录通知与 Host 用户输入 | 设置内只读已连接可用的服务；添加/授权交由任务内智能体 | 服务目录与内部状态回刷已接入；真实账号与跨应用授权仍需专项实测 |
 | `config/read`、`config/value/write`、`configRequirements/read` | 长期安全/高级配置按需展开，审批保留会话上下文 | 代码已接入；真实写入回读待联调 |
 | `server/diagnostics` 与任务终端/队列/目标/差异 | 诊断状态与重连优先，任务按项目或会话展示及恢复 | 代码已接入；设备截图和真实断线恢复分开验收 |
 
@@ -52,7 +52,7 @@
 - **高级按需（52）**：配对、远程控制、实验语音的用户控制、进阶管理等；有真实能力且用户需要时才呈现，绝不按方法目录自动生成页面。
 - **智能体/内核后台（60）**：包括进程管理、语音分片、搜索流维护、插件状态对账、MCP 事件流、运行钩子查询、Host 反向请求。Android 保留原 RPC 能力，具体调用归智能体、内核或连接管理层；只有授权、审批、失败提示需要展示给用户。
 - **平台不适用（2）**：Android 不生成入口。
-- MCP 用户页面只展示服务连接、授权与可恢复错误。手动工具表单及资源浏览组件已移除，底层执行交由任务中的智能体，执行结果继续体现在会话时间线。
+- MCP 页面只展示已连接且可用的服务名称与“可用”标识，不承载注册、授权、配置编辑、工具和资源浏览。新增、变更与授权在任务对话中由智能体及内核处理；必要的用户确认由当前任务的 Host 交互呈现，最终回读实际连接状态。
 - 曾作为独立设置页的只读“触发钩子”已移出导航；保留后台协议，后续出现实际需要用户决定的钩子信任或权限时，直接在审批流程中呈现对应决策。
 - CI 新增界面路由与协议归属交叉检查：后台/Host 接口不得变成常规页面入口，Compose 发起的直接 RPC 不得越过用户操作边界。
 
@@ -295,8 +295,8 @@
 | `skills/config/write` | Android→服务端 | 更新技能启停配置 | `SkillsConfigWriteParams → SkillsConfigWriteResponse` | 直接操作：设置→扩展能力 | 技能行开关（结果回滚） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `plugin/install` | Android→服务端 | 安装插件 | `PluginInstallParams → PluginInstallResponse` | 直接操作：设置→扩展能力 | 插件安装确认（能力/来源/权限） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `plugin/uninstall` | Android→服务端 | 卸载插件 | `PluginUninstallParams → PluginUninstallResponse` | 直接操作：设置→扩展能力 | 插件卸载确认（影响范围） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `mcpServer/oauth/login` | Android→服务端 | 发起 MCP 服务授权 | `McpServerOauthLoginParams → McpServerOauthLoginResponse` | 直接操作：设置→扩展能力 | MCP OAuth 授权 Sheet | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | MCP 服务状态列表＋连接状态标签 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
+| `mcpServer/oauth/login` | Android→服务端 | 发起 MCP 服务授权 | `McpServerOauthLoginParams → McpServerOauthLoginResponse` | 后台处理：智能体/MCP 授权 | 用户 MCP 列表不展示授权按钮；需要用户确认时使用任务内 Host 交互 | 智能体负责服务配置与授权→内核处理 OAuth 与用户确认→完成通知→刷新可用目录 | 已移除页面手动 OAuth 路径并保留协议与后台通知；真实第三方登录联调待验收 | P1 |
+| `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | 只读已连接可用服务名称及可用状态，支持刷新 | 当前线程上下文查询→依据 connected/鉴权/工具错误筛选→后台状态变化后刷新→仅显示真实可用服务 | 代码已通过 [CI #45152370413](https://github.com/sy220284/111/actions/runs/45152370413) 的编译/单测/Lint/协议检查；三档 Android 35 各 73 项设备测试及目录截图通过；外部真实 MCP 待专项 | P1 |
 | `mcpServer/resource/read` | Android→服务端 | 读取 MCP 资源 | `McpResourceReadParams → McpResourceReadResponse` | 后台处理：智能体/MCP 协议层 | 用户端仅呈现服务授权、审批与任务执行反馈 | 智能体自动调用工具或读取资源；Android 不提供手动调用表单 | 已移除手动 UI 入口并保留后台协议；待真实服务验证 | P1 |
 | `mcpServer/event/stream/start` | Android→服务端 | 订阅 MCP 事件流 | `McpServerEventStreamStartParams → McpServerEventStreamStartResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
 | `mcpServer/event/stream/stop` | Android→服务端 | 取消 MCP 事件流 | `McpServerEventStreamStopParams → McpServerEventStreamStopResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
@@ -320,7 +320,7 @@
 | `environment/add` | Android→服务端 | 登记执行环境 | `EnvironmentAddParams → EnvironmentAddResponse` | 上下文操作：设置→主机与安全 | 新增执行环境表单 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `environment/info` | Android→服务端 | 读取执行环境信息 | `EnvironmentInfoParams → EnvironmentInfoResponse` | 上下文操作：设置→主机与安全 | 执行环境详情 Sheet | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `environment/status` | Android→服务端 | 读取执行环境状态 | `EnvironmentStatusParams → EnvironmentStatusResponse` | 上下文操作：设置→主机与安全 | 环境状态汇总卡 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `config/mcpServer/reload` | Android→服务端 | 重新加载 MCP 配置 | `无参 → McpServerRefreshResponse` | 高级按需：设置→主机与安全 | 按对象显示简洁状态；高级接口需能力门禁 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P0 |
+| `config/mcpServer/reload` | Android→服务端 | 重新加载 MCP 配置 | `无参 → McpServerRefreshResponse` | 后台处理：智能体/MCP 配置重载 | 用户端不提供重载按钮；服务列表在检测到智能体修改配置后自动同步 | 本机 config.toml 版本变化→调用内核 reload→成功后重新读取真实服务状态 | McpCatalogController 已接入；[CI #45152370413](https://github.com/sy220284/111/actions/runs/45152370413) Kotlin 构建与 Android 三档验收通过；真实配置变更/第三方授权仍待真实账号核验 | P0 |
 | `windowsSandbox/setupStart` | Android→服务端 | 配置 Windows 沙箱 | `WindowsSandboxSetupStartParams → WindowsSandboxSetupStartResponse` | 无 Android UI | 按对象显示简洁状态；高级接口需能力门禁 | Android 无前端，核心侧保持协议兼容 | 待逐项验证调用入口/响应/实测 | 排除 |
 | `windowsSandbox/readiness` | Android→服务端 | 检查 Windows 沙箱就绪状态 | `无参 → WindowsSandboxReadinessResponse` | 无 Android UI | 按对象显示简洁状态；高级接口需能力门禁 | Android 无前端，核心侧保持协议兼容 | 待逐项验证调用入口/响应/实测 | 排除 |
 | `config/read` | Android→服务端 | 读取引擎配置 | `ConfigReadParams → ConfigReadResponse` | 直接操作：设置→主机与安全 | 设置分组列表与配置来源 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P0 |
@@ -407,6 +407,15 @@
 - 合并提交：[`d7ae30df`](https://github.com/sy220284/111/commit/d7ae30df3eab8473ea5def24a398aebe6f6197bb)；PR 最终 HEAD `ef4fbcbeb702bd1dc413b3b911668fad110a72a7` 的 [UI/协议 CI #45138957127](https://github.com/sy220284/111/actions/runs/45138957127) **4/4 通过**。360/393/411dp 各 69 项 Android 35 仪器测试通过，三档截图归档；393dp 安装器 Install → Open 回归通过。
 - 本次修改手机页面布局、IME 空间策略与屏幕测试范围；195 项官方方法、Rust DTO、UI 归属来源及后台 Host 调用方向保持原实现。真实服务端与 ARM64 厂商真机等专项继续按原状态追踪。
 
+## 2026-11-23 MCP 由智能体管理、页面只读可用服务（PR #70）
+
+- **用户需求**：在任务对话中让智能体负责 MCP 的添加、变更与授权，设置中的 MCP 页面只显示可以实际使用的服务列表。
+- **协议与真实状态**：锁定官方 `McpServerStatus.runtimeStatus` 的 `connected` 为可用基础；还需排除 `authStatus=notLoggedIn`、工具目录出错且没有可用资源的服务。任何仅已配置、启动中、需要授权或连接失败的记录均不进入可用目录。
+- **页面改造**：`IntegrationScreens.kt` 去除授权/账号/配置快捷按钮、网页跳转、确认弹层、工具明细及错误服务列表；`McpAvailableServices.kt` 统一识别和排序；保留可用数量与手动刷新。空列表提示在任务对话中告诉智能体要接入的服务。
+- **智能体执行路径**：APK 启动时 `McpAgentSkillInstaller` 把自包含的 `111-mcp-service-manager` 技能安装到本机 `CODEX_HOME/skills`；智能体只在用户请求时处理本机 MCP 配置、必要权限和连接验证，不依赖桌面版 `codex mcp` 命令。
+- **配置实时生效**：`McpCatalogController` 在页面打开/手动刷新及相关状态事件时识别 `CODEX_HOME/config.toml` 版本变更，仅发生修改时调用 `config/mcpServer/reload`，随后重新读取可用目录；失败保留可见错误与重试入口。
+- **后台分工**：`mcpServer/oauth/login` 在 `ui_surface_policy.json` 划为后台内部，不生成独立 UI 入口；`mcpServerStatus/list` 继续作为只读目录接口；`mcpServer/oauthLogin/completed`、`mcpServer/startupStatus/updated` 和账号变化通知驱动列表更新。真实服务添加、OAuth 授权与 Host 确认交由原 Codex 内核及对话任务管理。
+- **专项验收实绩**：源码提交 `dbe409da9e007df2489c2e9689781affca019c66` 的 [CI #45152370413](https://github.com/sy220284/111/actions/runs/45152370413) **4/4 作业通过**。Gradle 编译、JVM 单元测试、Lint、195 项官方方法校验通过；Android 35 的 360/393/411dp 各 **73 项设备测试通过，共 219 项**。三档均有 `SCREENSHOT_OK audit-mcp-usable-directory`、`audit-mcp-service-boundary`、`audit-mcp-chatgpt-available`，验证仅显示可用服务、无注册入口、Agent 管理技能能在 Android 本机安装。真实第三方 MCP 连接、OAuth 回跳和工具实际调用仍需带账号的 ARM64/外部服务专项验收。
 
 ### 权限方案交互整改（2026-11-23）
 
@@ -415,7 +424,14 @@
 - 当前会话选项使用 `thread/settings/update.permissions`，后续任务默认方案使用 `config/batchWrite`；两种作用范围分离。
 - 验收：代码 SHA `aa6f2013eae96acc0bf3d5db91205efbd98faa15` 的 [CI #45146738738](https://github.com/sy220284/111/actions/runs/45146738738) 四作业全绿，Kotlin 编译、协议单测、Lint 与 Android 35 的 360/393/411dp UI 测试及截图通过；各设备 70 项仪器测试。真实内核的默认权限写入回读和当前会话权限运行生效仍需 ARM64 设备专项。
 
+## 2026-11-23 输入法展开验收证据校正（独立 UI 设备断言）
 
+- **发现来源**：复核 `main@d7ae30df` 的 [Android 35 393dp UI 作业 #45140036669](https://github.com/sy220284/111/actions/runs/45140036669) 原始 `chat-keyboard-open-android35.png`，输入文字和操作按钮可见，但屏幕未显示系统软件键盘。此前 69/69 仪器测试成功仅证明无键盘场景下控件可见；历史“键盘展开截图验收通过”的结论需要补充真实 IME 状态证据。
+- **根因**：旧 `chatKeyboardKeepsComposerActionsAccessible` 用 `performTextInput` 注入文字并检查按钮，未核查系统 `WindowInsets.Type.ime()`；Android 模拟器连接硬件键盘时可成功输入却隐藏软件键盘，形成跨 360/393/411dp 的同类假阳性。
+- **改造位置**：`.github/workflows/check-android-ui.yml` 明确开启模拟器软件键盘并验证输入法服务；`UiNavigationInstrumentedTest.kt` 引入可复用真实 IME Insets 断言，覆盖聊天输入和设置搜索，聊天截图拍摄前后均检查 IME 可见且高度大于零。
+- **截图采集根因追加**：在首轮门禁补测中 `WindowInsets.Type.ime()` 已通过且 [CI #45142934539](https://github.com/sy220284/111/actions/runs/45142934539) 的三档 69/69 也通过，但新旧 `chat-keyboard-open-android35.png` 三档 SHA256 完全相同。查明 `UiNavigationInstrumentedTest.capture()` 调用 Compose `onRoot().captureToImage()`，只能截应用内容，不包含系统输入法窗口；已将键盘截图改用仓库现有 `captureVerifiedDisplayScreenshot()` 的 `UiAutomation.takeScreenshot()` 获取 Android 全屏证据。真实状态断言与截图必须同时成立。
+- **协议影响**：`thread/start`、`turn/start`、设置搜索/导航的真实 RPC、参数和用户数据路径均未改动。本轮只提高设备测试对系统输入法真实状态的证明能力。
+- **验收等级**：代码与 CI 检查已提交至独立分支，最终设备通过状态以此 PR 当前 HEAD 的四作业、三档截图及 `ime` 可见断言结果更新；此前“键盘展开已验收”不沿用作为本轮结论。
 
 ## 2026-11-23 全功能链路与跨会话安全共性整改（PR #71）
 

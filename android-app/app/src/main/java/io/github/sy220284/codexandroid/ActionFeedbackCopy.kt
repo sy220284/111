@@ -50,11 +50,13 @@ object ActionFeedbackCopy {
         return ActionFeedbackReceipt(known[method]?.success ?: "操作已完成")
     }
 
-    fun failure(method: String, reason: String): ActionFeedbackReceipt =
-        ActionFeedbackReceipt(
+    fun failure(method: String, reason: String): ActionFeedbackReceipt {
+        val detail = reason.trim().removePrefix(method + "：").removePrefix(method + ":").trim()
+        return ActionFeedbackReceipt(
             (known[method]?.attempt ?: "执行操作") + "失败：" +
-                reason.trim().removePrefix(method + "：").removePrefix(method + ":")
-                    .trim().ifBlank { "请检查连接及操作权限" },
+                if (detail.isBlank()) "请检查连接及操作权限"
+                else PresentationPolicy.readableError(detail),
             isError = true
         )
+    }
 }
