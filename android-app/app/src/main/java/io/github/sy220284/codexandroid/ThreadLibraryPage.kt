@@ -303,7 +303,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         }
                     }
                 }
-                if ("threadSections" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if ("threadSections" in loading) AtlasOperationProgress("正在读取会话分组")
                 errors["threadSections"]
                     ?.takeUnless { sectionError ->
                         listOfNotNull(errors[key], errors[fullKey]).any {
@@ -327,7 +327,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             } }
         }
         if (fullText) {
-            if (fullPending) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (fullPending) item {
+                AtlasLoadingResults("正在检索历史内容", placeholderRows = 2)
+            }
             errors[fullKey]?.let { item { ErrorText(it) } }
             if (fullSubmitted.isBlank()) {
                 item { CodexEmptyState("搜索历史内容", "输入关键词查找过去的对话。") }
@@ -354,29 +356,29 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 }
             }
         } else {
-        if (key in loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        if (key in loading) item {
+            AtlasLoadingResults("正在读取会话列表", placeholderRows = 3)
+        }
         errors[key]?.let { item { ErrorText(it) } }
         errors["threadLibraryAction"]?.let { item { ErrorText("会话操作失败：$it") } }
         errors["threadLibraryBulk"]?.let { item { ErrorText("批量操作：$it") } }
         errors["sectionEdit"]?.let { item { ErrorText("会话分组失败：$it") } }
         errors["sectionMove"]?.let { item { ErrorText("移动会话失败：$it") } }
         if (response != null) item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (archived) "归档记录" else "最近会话",
-                    style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text("本页 ${entries.size} 项", color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
-                TextButton(
-                    onClick = {
-                        selectionMode = !selectionMode
-                        selectedIds = emptyList()
-                    },
-                    modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
-                    enabled = !busy && !switching && !firstThreadStarting && entries.isNotEmpty()
-                ) {
-                    Text(if (selectionMode) "完成选择" else "批量管理")
+            AtlasListHeading(
+                title = if (archived) "归档记录" else "最近会话",
+                total = entries.size, suffix = "本页会话",
+                action = {
+                    TextButton(
+                        onClick = {
+                            selectionMode = !selectionMode
+                            selectedIds = emptyList()
+                        },
+                        modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
+                        enabled = !busy && !switching && !firstThreadStarting && entries.isNotEmpty()
+                    ) { Text(if (selectionMode) "完成选择" else "批量管理") }
                 }
-            }
+            )
         }
         if (response != null && entries.isEmpty() && key !in loading && key !in errors) {
             item {
