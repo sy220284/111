@@ -114,7 +114,31 @@ fun CodexActionSheet(
     onDismiss: () -> Unit
 ) {
     CodexDetailSheet(title = title, onDismiss = onDismiss) {
-        actions.forEach { action ->
+        CodexActionRows(actions, onDismiss)
+    }
+}
+
+/**
+ * 页面内已经展示底部面板时，操作使用轻量对话框。
+ * 保留同一套按钮、禁用态和危险操作语义，避免两层底部面板相互遮挡。
+ */
+@Composable
+fun CodexActionDialog(
+    title: String,
+    actions: List<CodexSheetAction>,
+    onDismiss: () -> Unit
+) {
+    CodexInfoDialog(title = title, onDismiss = onDismiss) {
+        CodexActionRows(actions, onDismiss)
+    }
+}
+
+@Composable
+private fun ColumnScope.CodexActionRows(
+    actions: List<CodexSheetAction>,
+    onDismiss: () -> Unit
+) {
+    actions.forEach { action ->
             val tone = if (action.destructive) Ink.red else Ink.parchment
             Surface(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
@@ -142,7 +166,6 @@ fun CodexActionSheet(
                     }
                 }
             }
-        }
     }
 }
 
