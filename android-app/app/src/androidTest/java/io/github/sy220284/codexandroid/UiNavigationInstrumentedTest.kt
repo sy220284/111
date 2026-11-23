@@ -714,6 +714,8 @@ class UiNavigationInstrumentedTest {
     @Test fun expandedSecurityAndAboutViewsAreCaptured() {
         openSettingRoute("security")
         rule.onNodeWithTag("security-profiles-toggle").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("可用权限方案", substring = false).assertExists()
+        rule.onNodeWithTag("security-profiles-toggle").performClick()
         rule.onNodeWithText("可用权限方案", substring = false).assertDoesNotExist()
         rule.onNodeWithTag("security-profiles-toggle").performClick()
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
@@ -760,6 +762,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("保存默认权限").assertIsEnabled()
         rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo()
             .assertIsNotEnabled()
+        rule.onNodeWithTag("security-scope-thread").performScrollTo()
+            .assertIsNotEnabled()
+        rule.onNodeWithTag("security-profile-workspace").performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test fun permissionApprovalExplainsActualScope() {
