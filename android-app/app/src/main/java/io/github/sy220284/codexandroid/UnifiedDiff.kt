@@ -15,7 +15,7 @@ data class DiffSection(
 data class DiffLineNumbers(val old: Int?, val new: Int?)
 
 object UnifiedDiff {
-    private val hunkHeader = Regex("""^@@ -(\\d+)(?:,\\d+)? \\+(\\d+)(?:,\\d+)? @@""")
+    private val hunkHeader = Regex("""^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@""")
 
     /** 逐行映射到旧文件和新文件的真实行号；文件头与提示行留白。 */
     fun annotateLines(lines: List<String>): List<DiffLineNumbers> {
