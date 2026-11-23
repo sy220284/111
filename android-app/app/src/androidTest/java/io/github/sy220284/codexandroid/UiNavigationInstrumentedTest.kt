@@ -383,6 +383,18 @@ class UiNavigationInstrumentedTest {
     }
 
 
+    @Test fun settingsSearchSurvivesReturningFromDetailPage() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("诊断")
+        rule.onNodeWithTag("settings-list")
+            .performScrollToNode(hasTestTag("settings-route-diagnostics"))
+        rule.onNodeWithTag("settings-route-diagnostics").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.onNodeWithTag("settings-search").assertTextContains("诊断")
+        rule.onNodeWithTag("settings-route-diagnostics").assertExists()
+    }
+
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("任务队列")
