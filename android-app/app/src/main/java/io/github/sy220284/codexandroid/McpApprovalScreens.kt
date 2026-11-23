@@ -33,7 +33,13 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val isForm = kind in listOf("form", "openai/form", "openaiForm") && fields != null
     val urlReady = kind == "url" && (params.optString("url").startsWith("https://") ||
         params.optString("url").startsWith("http://127.0.0.1:"))
-    val formValid = isForm && runCatching {
+    val requiredCompleted = (0 until required.length()).all { index ->
+        val key = required.optString(index)
+        val entered = answers[key] ?: return@all false
+        val type = fields?.optJSONObject(key)?.optString("type")
+        type !in setOf("string", "number", "integer") || entered.isNotBlank()
+    }
+    val formValid = isForm && requiredCompleted && runCatching {
         McpElicitationContract.respond(params, "accept", answers.toMap())
     }.isSuccess
     val canSubmit = formValid || urlReady
