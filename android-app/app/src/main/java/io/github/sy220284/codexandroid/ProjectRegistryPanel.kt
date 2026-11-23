@@ -225,8 +225,11 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                     else ProjectRequestContract.create(root, currentFolder, name)
                     vm.rpc("projectWrite",
                         if (withThread && currentThread != null) "project/import" else "project/create",
-                        payload, after = { reload() })
-                    name = ""
+                        payload, after = {
+                            name = ""
+                            withThread = false
+                            reload()
+                        })
                     confirmCreate = false
                 }, enabled = name.isNotBlank()) { Text("确认登记") }
             },
@@ -241,8 +244,10 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
             confirmButton = { TextButton(onClick = {
                 vm.rpc("projectWrite", "project/update",
                     ProjectRequestContract.rename(item.optString("id"), renameText),
-                    after = { reload() })
-                editing = null
+                    after = {
+                        editing = null
+                        reload()
+                    })
             }, enabled = renameText.isNotBlank()) { Text("保存") } },
             dismissButton = { TextButton(onClick = { editing = null }) { Text("取消") } }
         )

@@ -285,9 +285,11 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         active?.let { id ->
                             vm.rpc("queueWrite", "thread/queue/update",
                                 ThreadQueueUpdateContract.build(id, item.optString("id"), editText),
-                                after = { refreshQueue() })
+                                after = {
+                                    pendingEdit = null
+                                    refreshQueue()
+                                })
                         }
-                        pendingEdit = null
                     },
                     enabled = active != null && item.optString("id").isNotBlank() &&
                         editText.isNotBlank() && "queueWrite" !in loading
