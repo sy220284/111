@@ -49,6 +49,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-" + id).performClick()
     }
 
+    private fun openThreadLibrary() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-view-all").performScrollTo().performClick()
+        rule.onNodeWithTag("thread-library-sheet").assertExists()
+    }
+
     private fun openSettingRoute(id: String) {
         // 从侧栏进入设置，子页返回后等待搜索框出现；不依赖重复的底栏入口。
         if (rule.onAllNodesWithContentDescription("返回上一页").fetchSemanticsNodes().isNotEmpty()) {
@@ -208,6 +214,12 @@ class UiNavigationInstrumentedTest {
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
         openSettingRoute("terminal")
+        rule.onNodeWithTag("terminal-console").assertExists()
+        rule.onNodeWithTag("terminal-console-empty").assertExists()
+        val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
+        val commandArea = rule.onNodeWithTag("terminal-command-input").fetchSemanticsNode().boundsInRoot
+        assertTrue("终端输出区应位于输入区上方", output.bottom <= commandArea.top)
+        capture("terminal-android35.png")
         rule.onNodeWithText("Shell 命令").performTextInput("pwd")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -258,17 +270,19 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun threadLibraryExposesServerBackedManagementLayout() {
-        openDrawerRoute("threads")
+        openThreadLibrary()
         rule.onNodeWithText("会话资料库").assertExists()
         rule.onNodeWithText("活跃", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
         rule.onNodeWithText("搜索会话标题").assertExists()
         rule.onNodeWithText("全文搜索").assertExists()
+        rule.onNodeWithTag("thread-library-list")
+            .performScrollToNode(hasText("新建任务"))
         rule.onNodeWithText("新建任务").assertExists()
-        capture("thread-library-android35.png")
+        captureOverlay("thread-library-android35.png")
         rule.onNodeWithText("全文搜索").performClick()
         rule.onNodeWithText("搜索历史正文").assertExists()
-        capture("thread-full-search-android35.png")
+        captureOverlay("thread-full-search-android35.png")
     }
 
     @Test fun accountMetricsUsesSharedUsageAndLimitsTabs() {
@@ -321,14 +335,17 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-home").assertExists()
         rule.onNodeWithTag("nav-files").assertExists()
+        rule.onNodeWithTag("nav-threads").assertDoesNotExist()
+        rule.onNodeWithTag("nav-approvals").assertDoesNotExist()
         rule.onNodeWithText("查看更多").assertExists()
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
-        openDrawerRoute("threads")
-        rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
+        openThreadLibrary()
+        rule.onNodeWithText("会话资料库").assertExists()
+        pressSystemBack()
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
@@ -384,9 +401,17 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun approvalsAndChildEditorsHaveReadableStates() {
-        openDrawerRoute("approvals")
-        rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
-        capture("audit-approvals-android35.png")
+        val vm = (rule.activity.application as CodexApplication).session
+        openDrawerRoute("files")
+        rule.runOnUiThread {
+            vm.bridge.prompts.value = listOf(ServerPrompt("ci-sheet-approval",
+                "item/permissions/requestApproval", JSONObject().put("reason", "检查执行范围")))
+        }
+        rule.onNodeWithContentDescription("待审批").performClick()
+        rule.onNodeWithText("待处理审批").assertExists()
+        captureOverlay("audit-approvals-android35.png")
+        pressSystemBack()
+        rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
 
         openSettingRoute("providers")
         rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
@@ -418,7 +443,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun permissionApprovalExplainsActualScope() {
         val vm = (rule.activity.application as CodexApplication).session
-        openDrawerRoute("approvals")
+        openDrawerRoute("files")
         val permissions = JSONObject()
             .put("network", JSONObject().put("enabled", true))
             .put("fileSystem", JSONObject().put("write",
@@ -429,9 +454,11 @@ class UiNavigationInstrumentedTest {
                     JSONObject().put("permissions", permissions))
             )
         }
+        rule.onNodeWithContentDescription("待审批").performClick()
+        rule.onNodeWithText("待处理审批").assertExists()
         rule.onNodeWithText("允许访问网络", substring = true).assertExists()
         rule.onNodeWithText("修改：本机工作区", substring = true).assertExists()
-        capture("audit-permission-request-android35.png")
+        captureOverlay("audit-permission-request-android35.png")
         rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
     }
 
@@ -483,8 +510,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         rule.onNodeWithTag("quick-diff").performClick()
-        // Diff 需要活动会话；未选择时先进入可选会话资料库。
-        rule.onNodeWithTag("screen-title").assertTextEquals("会话历史")
+        // 没有活动会话时，直接打开可关闭的会话管理弹层。
+        rule.onNodeWithText("会话资料库").assertExists()
     }
 
     private fun captureOverlay(fileName: String) {

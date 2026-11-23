@@ -5,14 +5,19 @@ import org.junit.Test
 
 class NavigationPolicyTest {
     @Test fun commonNavigationRemainsCompact() {
-        assertEquals(listOf("home", "chat", "threads", "files", "approvals", "settings"),
+        assertEquals(listOf("home", "chat", "files", "settings"),
             NavigationPolicy.sidebarRoutes)
-        assertTrue(NavigationPolicy.isCommon("approvals"))
+        assertFalse(NavigationPolicy.isCommon("approvals"))
+        assertFalse(NavigationPolicy.isCommon("threads"))
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
         assertFalse(NavigationPolicy.isCommon("review"))
         assertTrue(NavigationPolicy.isSettingsChild("plugins"))
         assertFalse(NavigationPolicy.isSettingsChild("terminal"))
         assertFalse(NavigationPolicy.isSettingsChild("review"))
         assertFalse(NavigationPolicy.isSettingsChild("threads"))
+        assertFalse(NavigationPolicy.isDetailPage("threads"))
+        assertFalse(NavigationPolicy.isDetailPage("approvals"))
         assertTrue(NavigationPolicy.isDetailPage("terminal"))
         assertTrue(NavigationPolicy.isDetailPage("diff"))
         assertTrue(NavigationPolicy.isDetailPage("plugins"))

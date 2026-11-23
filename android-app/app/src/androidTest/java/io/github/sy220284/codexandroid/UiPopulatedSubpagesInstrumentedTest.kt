@@ -384,7 +384,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                 ApprovalQuickSheetContent(vm, listOf(request), onDismiss = {})
             }
         }
-        rule.onNodeWithText("处理当前任务的审批").assertExists()
+        rule.onNodeWithText("待处理审批").assertExists()
         rule.onNodeWithText("命令执行确认").assertExists()
         rule.onNodeWithText("git status").assertExists()
         rule.onNodeWithText("仅本次允许").assertExists()

@@ -31,6 +31,8 @@ class UiProtocolMatrixTest {
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertFalse(UiFeatureCatalog.requiresThread("plugins"))
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("review").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
         assertEquals(FeatureSurface.Inline, UiFeatureCatalog.find("update").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("modes").surface)
         assertTrue(UiFeatureCatalog.settingsGroups.flatMap { it.routes }.distinct().size ==
