@@ -266,8 +266,12 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             }, modifier = Modifier.fillMaxWidth()) { Text("加载更多任务") }
         }
         errors[rootKey]?.let { ErrorText(it) }
-        errors[currentKey]?.let { ErrorText(it) }
-        errors["queueWrite"]?.let { ErrorText(it) }
+        if (currentKey != rootKey) {
+            errors[currentKey]?.takeIf { it != errors[rootKey] }?.let { ErrorText(it) }
+        }
+        errors["queueWrite"]?.takeIf {
+            it != errors[rootKey] && it != errors[currentKey]
+        }?.let { ErrorText(it) }
     }
     pendingEdit?.let { item ->
         AlertDialog(
