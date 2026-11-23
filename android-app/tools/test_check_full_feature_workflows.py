@@ -70,7 +70,7 @@ class FullFeatureWorkflowGateTests(TestCase):
             ).replace("homeOpensScreen；home-android35.png", "unknownEvidence"))
             errors = self.run_audit(root)["issues"]
             self.assertTrue(any("文件已失效" in error for error in errors))
-            self.assertTrue(any("缺少测试或设备截图" in error for error in errors))
+            self.assertTrue(any("未关联实际 JUnit/Android 用例" in error for error in errors))
 
     def test_documented_screenshot_must_be_in_device_capture_manifest(self):
         with TemporaryDirectory() as directory:
@@ -83,6 +83,21 @@ class FullFeatureWorkflowGateTests(TestCase):
             )
             errors = self.run_audit(root)["issues"]
             self.assertTrue(any("文档截图未纳入设备验收" in error for error in errors))
+
+    def test_screenshot_alone_does_not_prove_a_functional_test_exists(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_repo(root)
+            ledger = root / "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
+            ledger.write_text(
+                ledger.read_text(encoding="utf-8").replace(
+                    "homeOpensScreen；home-android35.png", "home-android35.png"
+                ),
+                encoding="utf-8"
+            )
+            errors = self.run_audit(root)["issues"]
+            self.assertTrue(any("未关联实际 JUnit/Android 用例" in error
+                                for error in errors))
 
     def test_host_method_cannot_be_marked_as_normal_page_action(self):
         with TemporaryDirectory() as directory:
