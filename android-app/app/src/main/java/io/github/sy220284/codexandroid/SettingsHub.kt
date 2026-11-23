@@ -38,8 +38,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
-            pages.firstOrNull { it.id == id && NavigationPolicy.matches(
-                query, it.title, it.subtitle, it.id) }
+            pages.firstOrNull { it.id == id &&
+                NavigationPolicy.showInSettingsGroup(id, query) &&
+                NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
         }
     }.filter { (group, entries) ->
         entries.isNotEmpty() || ("update" in group.routes && (showUpdate || showTransfers))
