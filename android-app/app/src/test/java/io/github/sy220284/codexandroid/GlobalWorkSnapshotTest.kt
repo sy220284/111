@@ -45,6 +45,29 @@ class GlobalWorkSnapshotTest {
         assertFalse(idle().copy(dataTransferBusy = true).canStartNewTask)
     }
 
+    @Test fun directWireRequestsAndSettingsReadbackPreventGlobalDisruption() {
+        val states = listOf(
+            idle().copy(inFlightRequests = 1),
+            idle().copy(switchingThread = true),
+            idle().copy(securitySaveBusy = true),
+            idle().copy(coreStarting = true),
+            idle().copy(restarting = true),
+            idle().copy(terminalStarting = true)
+        )
+        states.forEach { snapshot ->
+            assertTrue(snapshot.hasActiveWork)
+            assertFalse(snapshot.canDisruptCoreOrData)
+            assertTrue(snapshot.blockReason.isNotBlank())
+        }
+    }
+
+    @Test fun unrelatedRequestsStillAllowSeparateThreadWorkUntilBackupStarts() {
+        val reading = idle().copy(inFlightRequests = 3, executingThreads = 1)
+        assertFalse(reading.canDisruptCoreOrData)
+        assertTrue(reading.canStartNewTask)
+        assertFalse(reading.copy(dataTransferBusy = true).canStartNewTask)
+    }
+
     @Test fun visibilityOfCurrentConversationCannotHideRunningBackgroundSessions() {
         val background = idle().copy(visibleTurnRunning = false, executingThreads = 1)
         assertTrue(background.hasActiveWork)
