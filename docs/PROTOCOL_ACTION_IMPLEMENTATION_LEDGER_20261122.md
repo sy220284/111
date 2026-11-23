@@ -406,3 +406,14 @@
 
 - 合并提交：[`d7ae30df`](https://github.com/sy220284/111/commit/d7ae30df3eab8473ea5def24a398aebe6f6197bb)；PR 最终 HEAD `ef4fbcbeb702bd1dc413b3b911668fad110a72a7` 的 [UI/协议 CI #45138957127](https://github.com/sy220284/111/actions/runs/45138957127) **4/4 通过**。360/393/411dp 各 69 项 Android 35 仪器测试通过，三档截图归档；393dp 安装器 Install → Open 回归通过。
 - 本次修改手机页面布局、IME 空间策略与屏幕测试范围；195 项官方方法、Rust DTO、UI 归属来源及后台 Host 调用方向保持原实现。真实服务端与 ARM64 厂商真机等专项继续按原状态追踪。
+
+
+## 2026-11-23 全功能链路与跨会话安全共性整改（PR #71）
+
+- **完整审计入口**：`android-app/tools/check_full_feature_workflows.py` 自动从 29 项既有功能清单、28 条路由、Kotlin 源码、回归测试/截图声明及上游 Rust 195 项方法生成 `full-feature-workflows.md/json`；正反例测试和 GitHub Actions 工作流阻断来源文件失效、方法目录冲突或虚假证据登记。详细审计与后续实证缺口见 `docs/111_FULL_FUNCTION_CHAIN_AUDIT_20261123.md`。
+- **静态基线（主线原有 CI 报告）**：29 功能、28/28 页面、280 个静态可交互控件、84 项静态 RPC 调用方法、81/81 可见方法的调用或等效源定位，195 个官方方法中有 187 客户端请求与 8 Host 请求。上述均为静态证据；外部服务真实成功回执、ARM64 核心与厂商真机须单独验收。
+- **发现的 P0 公共根因**：`CodexViewModel.running` 只表示当前会话，后台其他线程在 `threadExecutions` 中继续运行。原数据备份/恢复、内核重启 UI 与执行、系统安装升级、空闲进程回收使用不同且不完整的活动工作判断，可能在后台任务仍执行时触发破坏性操作。
+- **统一实现**：`GlobalWorkSnapshot.kt` 建立可测试的全局工作状态，`GlobalWorkUi.kt` 将同一判断映射到 Compose 控件；`LocalDataTransferCard`、`ConnectionRestartController`、`EngineDiagnosticsPage`、`AppUpdateCard`、`AppUpdateManager` 和 `CodexApplication` 共用判定，导入/导出选文件和安装器交接前重新核查。数据传输期对 `CodexViewModel.sendPrompt`、`TerminalTaskOperations.startTerminalCommand` 做明确阻断，保留原草稿和终端状态。
+- **协议方向与 DTO**：`thread/start`、`turn/start`、`command/exec`、`server/diagnostics` 等业务字段、请求方向、响应封套不变；本次根因修复在主机端运行状态与危险操作入口完成。
+- **验收规则**：`GlobalWorkSnapshotTest`、`ConnectionRestartPolicyTest` 需通过；`UiNavigationInstrumentedTest.offscreenRunningTaskBlocksLocalDataTransferButtons` 需在 Android 35 三档设备确认为后台任务运行时备份/恢复不可选择并保存 `audit-backup-background-block-android35.png`。实际成功的 CI SHA 与链接待 PR 最终执行后追加，未通过前不升级验收等级。
+- **同类排查范围**：文件编辑/导入、会话库整理、任务后续指令、通知保活和独立终端均复查其当前会话/全局运行态归属；其中按线程允许的并行操作沿用独立 ID，破坏性全局操作收敛至统一策略。外部 MCP、真实 ARM64 和 OEM 安装仍需专项回执，#68/#69/#70 以独立 PR 为准。
