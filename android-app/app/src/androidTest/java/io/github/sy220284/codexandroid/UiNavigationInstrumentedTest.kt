@@ -312,8 +312,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("设备码登录").performScrollTo()
         capture("account-android35.png")
-        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("使用量")
+        rule.onNodeWithText("查看用量与额度").performScrollTo().performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
     }
 
     @Test fun featureCatalogKeepsUserFacingRoutesOnly() {

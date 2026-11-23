@@ -48,6 +48,8 @@ class NavigationPolicyTest {
         val settings = NavigationPolicy.settingsRoutes
         assertEquals(15, settings.size)
         assertEquals(settings.size, settings.distinct().size)
+        assertEquals(1, settings.count { it in listOf("usage", "limits") })
+        assertTrue(NavigationPolicy.matchedSettingTopic("usage", "额度") != null)
         assertTrue(settings.containsAll(listOf("models","usage","appearance","about","update")))
         assertFalse(settings.contains("limits"))
         assertTrue(NavigationPolicy.matches("额度", "", "", "usage"))

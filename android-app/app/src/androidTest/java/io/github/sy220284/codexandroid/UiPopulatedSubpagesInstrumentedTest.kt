@@ -419,7 +419,12 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithText("MCP 服务请求用户操作").assertExists()
-        rule.onNodeWithText("核对并提交").assertExists()
+        rule.onNodeWithTag("elicitation-submit").assertExists().assertIsNotEnabled()
+        rule.onNodeWithTag("elicitation-field-title").performTextInput("验收标题")
+        rule.onNodeWithTag("elicitation-submit").assertIsEnabled().performClick()
+        rule.onNodeWithText("向 MCP 服务提交确认").assertExists()
+        rule.onNodeWithText("取消").performClick()
+        rule.onNodeWithText("向 MCP 服务提交确认").assertDoesNotExist()
         capture("audit-mcp-elicitation-android35.png")
     }
 

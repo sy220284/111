@@ -29,6 +29,13 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val fields = schema?.optJSONObject("properties")
     val required = schema?.optJSONArray("required") ?: JSONArray()
     val answers = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
+    val isForm = kind in listOf("form", "openai/form", "openaiForm") && fields != null
+    val urlReady = kind == "url" && (params.optString("url").startsWith("https://") ||
+        params.optString("url").startsWith("http://127.0.0.1:"))
+    val formError = if (isForm) runCatching {
+        McpElicitationContract.respond(params, "accept", answers.toMap())
+    }.exceptionOrNull()?.message else null
+    val canSubmit = (isForm && formError == null) || urlReady
     var confirmation by remember(prompt.id.toString()) { mutableStateOf(false) }
 
     MaterialPanel(Modifier.fillMaxWidth()) {
@@ -45,7 +52,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         DividerLine()
         Text(params.optString("message").ifBlank { params.optString("title") },
             style = MaterialTheme.typography.bodyMedium)
-        if (kind in listOf("form", "openai/form", "openaiForm") && fields != null) {
+        if (isForm && fields != null) {
             for (name in fields.keys().asSequence().toList()) {
                 val field = fields.optJSONObject(name) ?: continue
                 val type = field.optString("type")
@@ -80,7 +87,8 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             OutlinedTextField(
                                 value = answers[name] ?: "",
                                 onValueChange = { answers[name] = it },
-                                label = { Text(label) }, modifier = Modifier.fillMaxWidth(),
+                                label = { Text(label) },
+                                modifier = Modifier.fillMaxWidth().testTag("elicitation-field-" + name),
                                 visualTransformation = if (field.optString("format") == "password") {
                                     PasswordVisualTransformation()
                                 } else VisualTransformation.None
@@ -143,12 +151,20 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) }) { Text("拒绝") }
             TextButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) }) { Text("取消") }
-            if ((kind in listOf("form", "openai/form", "openaiForm") && fields != null)
-                || (kind == "url" && (params.optString("url").startsWith("https://")
-                    || params.optString("url").startsWith("http://127.0.0.1:")))) {
-                OutlinedButton(onClick = { confirmation = true }) { Text("核对并提交") }
+            if (isForm || urlReady) {
+                OutlinedButton(onClick = { confirmation = true },
+                    enabled = canSubmit,
+                    modifier = Modifier.testTag("elicitation-submit")
+                        .explainDisabled(!canSubmit, "请填写必填项目并检查格式")) {
+                    Text("核对并提交")
+                }
             }
         }
+        if (isForm && formError != null) {
+            Text("填写完整并核对格式后，即可提交。",
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+}
     }
     if (confirmation) {
         CodexConfirmDialog(
