@@ -158,7 +158,7 @@
 | `thread/attachmentOwner/list` | Android→服务端 | 查询附件拥有者关系 | `ThreadAttachmentOwnerListParams → ThreadAttachmentOwnerListResponse` | 后台处理：对话页/侧栏/历史资料库 | 分页列表、筛选、加载/空态 | 后台事件/缓存/权限/同步管理；不新增独立按钮 | 待逐项验证调用入口/响应/实测 | P0 |
 | `thread/attachment/remove` | Android→服务端 | 从会话移除附件 | `ThreadAttachmentRemoveParams → ThreadAttachmentRemoveResponse` | 上下文操作：对话页/侧栏/历史资料库 | 附件卡片删除操作及撤销 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 待逐项验证调用入口/响应/实测 | P0 |
 | `thread/section/move` | Android→服务端 | 将会话移动到指定分组 | `ThreadSectionMoveParams → ThreadSectionMoveResponse` | 上下文操作：侧栏/会话分组管理 | 会话行“移动到分组”选择 Sheet | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 待逐项验证调用入口/响应/实测 | P0 |
-| `thread/settings/update` | Android→服务端 | 修改会话高级设置 | `ThreadSettingsUpdateParams → ThreadSettingsUpdateResponse` | 高级按需：对话页/侧栏/历史资料库 | 行内开关/字段表单＋操作回执 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
+| `thread/settings/update` | Android→服务端 | 修改会话高级设置 | `ThreadSettingsUpdateParams → ThreadSettingsUpdateResponse` | 高级按需：对话页/侧栏/历史资料库 | 权限方案按当前会话选择，其他高级设置保留 | SecurityPage 选择当前会话→permissions 字段→RPC→thread/read；权限实际回读待专项 | 已接入权限方案选择；Android 35 交互通过，实际运行中会话权限生效回读待专项 | P2 |
 | `thread/memoryMode/set` | Android→服务端 | 切换会话记忆模式 | `ThreadMemoryModeSetParams → ThreadMemoryModeSetResponse` | 高级按需：对话页/侧栏/历史资料库 | 行内开关/字段表单＋操作回执 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
 | `thread/memory/read` | Android→服务端 | 读取会话关联记忆 | `ThreadMemoryReadParams → ThreadMemoryReadResponse` | 高级按需：对话页/侧栏/历史资料库 | 详情阅读 Sheet / 状态卡 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
 | `rollout/compress` | Android→服务端 | 压缩内部历史记录 | `无参 → RolloutCompressResponse` | 后台处理：会话高级设置 | 按对象显示简洁状态；高级接口需能力门禁 | 后台事件/缓存/权限/同步管理；不新增独立按钮 | 待逐项验证调用入口/响应/实测 | P2 |
@@ -308,7 +308,7 @@
 | 方法 | 方向 | 用途/动作 | 官方请求/响应类型 | 展示责任 | 推荐精确组件 | 具体实现路径 | 源码/验证状态 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `experimentalFeature/list` | Android→服务端 | 列出实验开关 | `ExperimentalFeatureListParams → ExperimentalFeatureListResponse` | 高级按需：设置→主机与安全 | 实验功能开关列表 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
-| `permissionProfile/list` | Android→服务端 | 读取可用权限档位 | `PermissionProfileListParams → PermissionProfileListResponse` | 直接操作：设置→主机与安全 | 权限档位选择器及范围说明 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
+| `permissionProfile/list` | Android→服务端 | 读取可用权限档位 | `PermissionProfileListParams → PermissionProfileListResponse` | 直接操作：设置→主机与安全 | 权限档位选择器及范围说明 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 权限方案选择已接入 SecurityPage；受策略限制时禁用；Android 35 三档设备测试通过（CI #45146738738） | P1 |
 | `experimentalFeature/enablement/set` | Android→服务端 | 调整实验功能开关 | `ExperimentalFeatureEnablementSetParams → ExperimentalFeatureEnablementSetResponse` | 高级按需：设置→主机与安全 | 实验功能危险等级提示与开关 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
 | `remoteControl/enable` | Android→服务端 | 启用远程控制 | `NullableRemoteControlEnableParams → RemoteControlEnableResponse` | 高级按需：高级→远程控制 | 启用远程访问确认 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
 | `remoteControl/disable` | Android→服务端 | 禁用远程控制 | `NullableRemoteControlDisableParams → RemoteControlDisableResponse` | 高级按需：高级→远程控制 | 关闭远程访问确认 | 服务探测成功并通过能力开关后，在高级操作区提供入口；错误原位呈现 | 待逐项验证调用入口/响应/实测 | P2 |
@@ -417,3 +417,9 @@
 - **后台分工**：`mcpServer/oauth/login` 在 `ui_surface_policy.json` 划为后台内部，不生成独立 UI 入口；`mcpServerStatus/list` 继续作为只读目录接口；`mcpServer/oauthLogin/completed`、`mcpServer/startupStatus/updated` 和账号变化通知驱动列表更新。真实服务添加、OAuth 授权与 Host 确认交由原 Codex 内核及对话任务管理。
 - **专项验收标准**：单测覆盖连接、授权、工具目录失败、可用资源及排序；Compose 设备测试确认页面和服务卡不出现手动注册/授权按钮、不可用项与内部工具名。仍需独立进行带真实账号的第三方 MCP 连接和工具调用验收，以记录实际可用性。
 
+### 权限方案交互整改（2026-11-23）
+
+- `SecurityPage` 将原先仅显示“可用”的 `permissionProfile/list` 数据改为可选择方案；依据 `allowed` 与 `configRequirements/read` 的 `allowedPermissionProfiles` 判断是否可操作。
+- 修正 `config/read` 的 `approval_policy`、`sandbox_mode` 字段映射；默认方案通过 `default_permissions` 保存并使用 `config/read` 回读核验，`okOverridden` 不按生效成功处理。
+- 当前会话选项使用 `thread/settings/update.permissions`，后续任务默认方案使用 `config/batchWrite`；两种作用范围分离。
+- 验收：代码 SHA `aa6f2013eae96acc0bf3d5db91205efbd98faa15` 的 [CI #45146738738](https://github.com/sy220284/111/actions/runs/45146738738) 四作业全绿，Kotlin 编译、协议单测、Lint 与 Android 35 的 360/393/411dp UI 测试及截图通过；各设备 70 项仪器测试。真实内核的默认权限写入回读和当前会话权限运行生效仍需 ARM64 设备专项。
