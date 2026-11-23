@@ -136,7 +136,7 @@ internal fun ApprovalQuickSheetContent(
                     key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
                 }
             }
-            if (auditRecords.isNotEmpty() || auditError.isNotBlank()) {
+            if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
                 ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
             }
             Spacer(Modifier.height(12.dp))
