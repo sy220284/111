@@ -41,8 +41,7 @@ import org.json.JSONObject
 import java.io.File
 
 @Composable
-internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
-    onOpenWorkspaceTools: () -> Unit) {
+internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
@@ -64,6 +63,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember { mutableStateOf(false) }
+    var showTerminalSheet by remember { mutableStateOf(false) }
+    var followUpMode by rememberSaveable(thread) { mutableStateOf("queue") }
     var showAttachmentTools by remember { mutableStateOf(false) }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
@@ -81,6 +82,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
 
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
+    val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
+    val queuedInputs = thread?.let { records(models["queue:$it"]) }.orEmpty()
+    val changedFiles = remember(latestDiff) { UnifiedDiff.parse(latestDiff) }
+    LaunchedEffect(thread) {
+        if (thread != null) {
+            vm.refresh("goal:$thread", "thread/goal/get", JSONObject().put("threadId", thread))
+            vm.refresh("queue:$thread", "thread/queue/list",
+                JSONObject().put("threadId", thread).put("limit", 100))
+        }
+    }
     val planApprovalBusy by vm.planApprovalBusy.collectAsState()
     var confirmPlan by remember { mutableStateOf(false) }
     val lastPlanIndex = items.indexOfLast {
@@ -171,36 +182,72 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
-        if (thread != null) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(currentTitle ?: "当前任务",
+                Text(currentTitle ?: if (thread == null) "新任务" else "当前任务",
                     style = MaterialTheme.typography.titleMedium)
                 Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
                     .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            TextButton(onClick = { vm.newThread() }, enabled = !switching &&
-                !(busy && thread == null)) { Text("新建") }
-            IconButton(onClick = { showContextTools = true }, enabled = thread != null && !busy) {
-                Icon(Icons.Outlined.MoreHoriz, "会话工具")
+            IconButton(onClick = { navigate("files") },
+                modifier = Modifier.testTag("chat-project-files")) {
+                Icon(Icons.Outlined.FolderOpen, "打开项目文件")
+            }
+            IconButton(onClick = { showTerminalSheet = true },
+                modifier = Modifier.testTag("chat-project-terminal")) {
+                Icon(Icons.Outlined.Terminal, "展开项目终端")
+            }
+            if (thread != null) {
+                IconButton(onClick = { showContextTools = true }, enabled = !switching) {
+                    Icon(Icons.Outlined.MoreHoriz, "会话选项")
+                }
             }
         }
         DividerLine()
+        if (goal != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
+                    .testTag("chat-goal-banner").clickable { navigate("goals") },
+                color = Ink.elevated,
+                shape = RoundedCornerShape(15.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Flag, null, tint = Ink.copper)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("任务目标 · " + PresentationPolicy.goalStatus(goal.optString("status")),
+                            style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                        Text(goal.optString("objective"), maxLines = 2,
+                            overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.Outlined.ChevronRight, null)
+                }
+            }
         }
-        // 会话导航统一归入侧边栏，正文只保留与当前任务有关的快捷动作。
-        if (latestDiff.isNotBlank()) Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                .padding(horizontal = 13.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AssistChip(
-                onClick = { navigate("diff") },
-                label = { Text("查看最新改动") },
-                leadingIcon = { Icon(Icons.Outlined.Difference, null, modifier = Modifier.size(17.dp)) },
-                modifier = Modifier.heightIn(min = 46.dp)
-            )
+        if (latestDiff.isNotBlank()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
+                    .testTag("chat-changes-summary"),
+                color = Ink.elevated, shape = RoundedCornerShape(15.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Difference, null, tint = Ink.copper)
+                    Spacer(Modifier.width(9.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("代码变更", style = MaterialTheme.typography.titleSmall)
+                        Text("${changedFiles.size} 个文件 · +${changedFiles.sumOf { it.additions }} / −${changedFiles.sumOf { it.deletions }}",
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    }
+                    TextButton(onClick = { navigate("diff") }) { Text("查看") }
+                    TextButton(onClick = { navigate("review") }, enabled = !busy) {
+                        Text("审查")
+                    }
+                }
+            }
         }
         CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
             if (switching) {
@@ -391,6 +438,19 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 ErrorText(attachmentError)
             }
             errors["attachments"]?.let { ErrorText(it) }
+            errors["queueWrite"]?.let { ErrorText(it) }
+            if (queuedInputs.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Schedule, null, tint = Ink.muted,
+                        modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("等待执行 ${queuedInputs.size} 条后续指令",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.weight(1f), color = Ink.muted)
+                    TextButton(onClick = { navigate("queue") },
+                        modifier = Modifier.testTag("chat-queued-followups")) { Text("查看") }
+                }
+            }
             if (busy && attachedImages.isNotEmpty()) {
                 Text("运行中仅支持补充文字；已选图片将在下一轮发送。",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
@@ -408,16 +468,28 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 canStop = busy && !activeTurn.isNullOrBlank(),
                 canSend = status == EngineStatus.Connected && !switching && !attachmentBusy &&
                     (if (busy) draft.isNotBlank() && thread != null &&
-                        !activeTurn.isNullOrBlank() && !steering
+                        (followUpMode == "queue" || (!activeTurn.isNullOrBlank() && !steering))
                      else draft.isNotBlank() || attachedImages.isNotEmpty()),
-                sending = steering || (busy && activeTurn.isNullOrBlank()),
+                sending = steering || "queueWrite" in loading ||
+                    (busy && activeTurn.isNullOrBlank() && followUpMode == "steer"),
+                followUpMode = followUpMode,
+                onFollowUpModeChange = { followUpMode = it },
                 onAttach = { showAttachmentTools = true },
-                onOpenWorkspaceTools = onOpenWorkspaceTools,
                 onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
                 onSend = {
                     val message = draft.trim()
                     val submittedDraft = draft
-                    if (busy) {
+                    if (busy && followUpMode == "queue" && thread != null) {
+                        val params = JSONObject().put("threadId", thread)
+                            .put("clientUserMessageId", java.util.UUID.randomUUID().toString())
+                            .put("input", JSONArray().put(
+                                JSONObject().put("type", "text").put("text", message)))
+                        vm.rpc("queueWrite", "thread/queue/add", params, after = {
+                            vm.clearComposerAfterAccepted(thread, submittedDraft, emptyList())
+                            vm.refresh("queue:$thread", "thread/queue/list",
+                                JSONObject().put("threadId", thread).put("limit", 100))
+                        })
+                    } else if (busy) {
                         vm.steerPrompt(message) {
                             vm.clearComposerAfterAccepted(thread, submittedDraft, emptyList())
                         }
@@ -437,6 +509,25 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     showAttachmentTools = false
                 }
             )
+        }
+    }
+    if (showTerminalSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showTerminalSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Ink.canvas
+        ) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight(.88f).navigationBarsPadding()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("当前项目终端", style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showTerminalSheet = false }) {
+                        Icon(Icons.Outlined.Close, "收起终端")
+                    }
+                }
+                Box(Modifier.weight(1f)) { TerminalPage(vm) }
+            }
         }
     }
     if (showContextTools) {
