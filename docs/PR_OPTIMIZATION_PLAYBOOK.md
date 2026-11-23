@@ -244,3 +244,9 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 
 - `TerminalTaskOperations` 原未主动启动前台服务，`CodexForegroundService` 只按聊天/审批判定任务，造成后台长命令的通知和保活缺口。现在把终端运行态加入同一服务的续存与重连策略，仅有终端时通知明确显示“停止终端”，依终端进程 ID 执行停止，保留会话独立运行态。
 - 关联 `ForegroundTaskPolicyTest` 的终端及后台会话反向回归；真实 Android 切后台的长命令存活和 OEM 通知实际操作须按专项截图和时间序列回执验收。
+
+
+### #71 全局备份独占入口与证据门禁修正
+
+- 早期仅在备份卡片隐藏操作按钮，无法阻止其余页面在归档时改动数据。改由 `CodexShell` 的独占进度弹层统一封锁 UI，`CodexViewModel.request` 在数据传输期间阻断新的用户写请求，全局策略再把已发起 RPC、登录和方案准备加入检查，保护备份文件一致性。
+- 全量页面截图审计曾计算 `missing_screens` 但未据此失败；现对每个截图名称强制匹配设备清单，有截图遗漏就让 CI 失败。两者均配有正反例回归，不再靠人工检查页面级菜单是否齐全。
