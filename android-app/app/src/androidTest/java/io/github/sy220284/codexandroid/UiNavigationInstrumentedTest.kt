@@ -612,7 +612,7 @@ class UiNavigationInstrumentedTest {
         openSettingRoute("environments")
         rule.onNodeWithTag("environment-local-option").assertExists()
         rule.onNodeWithTag("environment-remote-option").assertExists()
-        rule.onNodeWithText("已选择本机工作区").assertExists()
+        rule.onNodeWithContentDescription("已选择").assertExists()
         rule.onNodeWithTag("environment-endpoint").assertDoesNotExist()
         rule.onNodeWithText("本机服务标识：local").assertDoesNotExist()
 
