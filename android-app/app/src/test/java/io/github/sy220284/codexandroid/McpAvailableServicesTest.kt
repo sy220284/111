@@ -49,6 +49,8 @@ class McpAvailableServicesTest {
         assertTrue(McpAvailableServices.isUsable(templates))
         assertTrue(McpAvailableServices.isUsable(
             server("none", "connected").put("toolsError", JSONObject.NULL)))
+        assertFalse(McpAvailableServices.isUsable(
+            server("literal-error", "connected").put("toolsError", "null")))
     }
 
     @Test fun visibleServicesAreSortedAndInternalNamesAreReadable() {
