@@ -380,17 +380,17 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }, { navigate("diagnostics") })
             }
         }
-        TextButton(
-            onClick = { advanced = !advanced },
+        CodexDetailTrigger(
+            label = "高级自定义配置",
+            onClick = { advanced = true },
             modifier = Modifier.fillMaxWidth().testTag("config-advanced-toggle")
-        ) {
-            Icon(if (advanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
-            Spacer(Modifier.width(6.dp))
-            Text(if (advanced) "收起高级配置" else "高级自定义配置")
-        }
-        CodexReveal(advanced) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("自定义配置", style = MaterialTheme.typography.titleMedium)
+        )
+        if (advanced) {
+            CodexDetailSheet(
+                title = "高级自定义配置",
+                subtitle = "请核对设置项和值。保存前还需确认更改范围。",
+                onDismiss = { advanced = false }
+            ) {
                 Text("适用于已经了解目标设置项的用户。修改前核对名称和值；每次只提交一项。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(path, { path = it }, modifier = Modifier.fillMaxWidth(),

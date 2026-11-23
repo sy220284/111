@@ -366,7 +366,11 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-update"))
         rule.onNodeWithTag("settings-update").assertExists()
         rule.onNodeWithTag("settings-update-toggle").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("update-check").assertExists()
+        captureOverlay("settings-update-sheet-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         capture("settings-hub-android35.png")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
         rule.onNodeWithTag("settings-search").performTextInput("外观")
@@ -374,7 +378,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithText("柔和阴影").assertExists()
         rule.onNodeWithText("减少动效").assertExists()
-        capture("appearance-android35.png")
+        captureOverlay("appearance-android35.png")
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
@@ -474,12 +478,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-create-toggle"))
         rule.onNodeWithTag("workspace-create-toggle").performClick()
-        rule.onNodeWithTag("workspace-list").performScrollToNode(
-            hasTestTag("workspace-folder-mode"))
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("workspace-folder-mode").performClick()
         rule.onNodeWithTag("workspace-new-name").performTextInput(name)
-        rule.onNodeWithTag("workspace-list").performScrollToNode(
-            hasTestTag("workspace-create"))
         rule.onNodeWithTag("workspace-create").performClick()
         rule.onNodeWithTag("workspace-new-name").assertDoesNotExist()
         rule.onNodeWithTag("workspace-list").performScrollToNode(
@@ -608,18 +609,23 @@ class UiNavigationInstrumentedTest {
         }
     }
 
-    @Test fun settingsSearchFindsInlineAppearanceControls() {
+    @Test fun settingsSearchOpensAppearanceSheetWithoutInlineExpansion() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("字号")
         rule.onNodeWithTag("settings-route-appearance").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("appearance-font-heading").assertExists()
         rule.onNodeWithTag("appearance-font-controls").assertExists()
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        rule.onNodeWithTag("settings-search").assertExists()
     }
 
     @Test fun settingsSearchDirectlyOpensUpdateActions() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("检查更新")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("update-check"))
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-update"))
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("update-check").assertExists()
     }
 
@@ -627,7 +633,7 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("高级配置")
         rule.onNodeWithTag("settings-route-config").performClick()
-        rule.onNodeWithText("自定义配置", substring = false).assertExists()
+        rule.onNodeWithTag("codex-detail-title").assertTextEquals("高级自定义配置")
     }
 
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
@@ -743,14 +749,18 @@ class UiNavigationInstrumentedTest {
         openSettingRoute("providers")
         rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
         rule.onNodeWithText("服务地址（HTTP / HTTPS）").assertExists()
-        capture("audit-provider-editor-android35.png")
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        captureOverlay("audit-provider-editor-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("config")
         rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
         rule.onNodeWithText("文本值").assertExists()
         rule.onNodeWithText("开关").assertExists()
         rule.onNodeWithText("高级数据").assertExists()
-        capture("audit-config-editor-android35.png")
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        captureOverlay("audit-config-editor-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("environments")
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()

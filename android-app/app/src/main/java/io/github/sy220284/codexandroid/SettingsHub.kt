@@ -59,15 +59,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         item(key = "search") {
-            OutlinedTextField(value = query, onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth().testTag("settings-search"),
-                placeholder = { Text("搜索账号、设置或扩展") },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                trailingIcon = {
-                    if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                        Icon(Icons.Outlined.Close, "清除搜索")
-                    }
-                }, singleLine = true, shape = RoundedCornerShape(22.dp))
+            AtlasSearchField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = "搜索账号、设置或扩展",
+                modifier = Modifier.testTag("settings-search"),
+                onClear = { query = "" }
+            )
         }
         if (query.isBlank()) item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
@@ -147,24 +145,11 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                         "models" -> showModels = true
                                         "appearance" -> {
                                             appearanceTarget = spot?.target
-                                            showAppearance = if (spot != null) true else !showAppearance
-                                            if (spot == null) {
-                                                val groupIndex = groups.indexOfFirst { (group, _) ->
-                                                    "appearance" in group.routes
-                                                }
-                                                if (groupIndex >= 0) listScope.launch {
-                                                    listState.animateScrollToItem(
-                                                        (if (query.isBlank()) 2 else 1) + groupIndex)
-                                                }
-                                            }
+                                            showAppearance = true
                                         }
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
                                     }
-                                }
-                                if (entry.id == "appearance" && showAppearance) {
-                                    HorizontalDivider(color = Ink.border)
-                                    AppearanceInlineControls(focusTarget = appearanceTarget)
                                 }
                             }
                         }
@@ -180,6 +165,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     if (showModels) ModelChoiceSurface(vm) { showModels = false }
     if (showAbout) AboutInfoSheet(vm) { showAbout = false }
+    if (showAppearance) CodexDetailSheet(
+        title = "外观与交互",
+        subtitle = "主题、字号、排版与动效可即时预览",
+        onDismiss = { showAppearance = false }
+    ) {
+        AppearanceInlineControls(focusTarget = appearanceTarget)
+    }
 }
 
 @Composable

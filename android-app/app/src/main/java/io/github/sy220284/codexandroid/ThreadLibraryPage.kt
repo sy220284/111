@@ -168,16 +168,19 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             else load(cursor)
                         }, label = "刷新会话列表")
                 }
-                OutlinedTextField(searchText, { searchText = it },
-                    label = { Text(if (fullText) "搜索历史正文" else "搜索会话标题") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    trailingIcon = {
-                        IconButton(onClick = { submitSearch(searchText) },
-                            enabled = key !in loading && !busy) {
-                            Icon(Icons.Outlined.ArrowForward, "开始搜索")
-                        }
+                AtlasSearchField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    placeholder = if (fullText) "搜索历史正文" else "搜索会话标题",
+                    label = "查找会话",
+                    busy = key in loading || fullPending,
+                    enabled = !busy,
+                    onClear = {
+                        searchText = ""
+                        submitSearch("")
                     },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    onSubmit = { submitSearch(searchText) }
+                )
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = !fullText,
@@ -300,7 +303,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         }
                     }
                 }
-                if ("threadSections" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if ("threadSections" in loading) AtlasOperationProgress("正在读取会话分组")
                 errors["threadSections"]
                     ?.takeUnless { sectionError ->
                         listOfNotNull(errors[key], errors[fullKey]).any {
@@ -324,7 +327,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             } }
         }
         if (fullText) {
-            if (fullPending) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (fullPending) item {
+                AtlasLoadingResults("正在检索历史内容", placeholderRows = 2)
+            }
             errors[fullKey]?.let { item { ErrorText(it) } }
             if (fullSubmitted.isBlank()) {
                 item { CodexEmptyState("搜索历史内容", "输入关键词查找过去的对话。") }
@@ -351,29 +356,29 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 }
             }
         } else {
-        if (key in loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        if (key in loading) item {
+            AtlasLoadingResults("正在读取会话列表", placeholderRows = 3)
+        }
         errors[key]?.let { item { ErrorText(it) } }
         errors["threadLibraryAction"]?.let { item { ErrorText("会话操作失败：$it") } }
         errors["threadLibraryBulk"]?.let { item { ErrorText("批量操作：$it") } }
         errors["sectionEdit"]?.let { item { ErrorText("会话分组失败：$it") } }
         errors["sectionMove"]?.let { item { ErrorText("移动会话失败：$it") } }
         if (response != null) item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (archived) "归档记录" else "最近会话",
-                    style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text("本页 ${entries.size} 项", color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
-                TextButton(
-                    onClick = {
-                        selectionMode = !selectionMode
-                        selectedIds = emptyList()
-                    },
-                    modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
-                    enabled = !busy && !switching && !firstThreadStarting && entries.isNotEmpty()
-                ) {
-                    Text(if (selectionMode) "完成选择" else "批量管理")
+            AtlasListHeading(
+                title = if (archived) "归档记录" else "最近会话",
+                total = entries.size, suffix = "本页会话",
+                action = {
+                    TextButton(
+                        onClick = {
+                            selectionMode = !selectionMode
+                            selectedIds = emptyList()
+                        },
+                        modifier = Modifier.testTag("thread-bulk-toggle").heightIn(min = 48.dp),
+                        enabled = !busy && !switching && !firstThreadStarting && entries.isNotEmpty()
+                    ) { Text(if (selectionMode) "完成选择" else "批量管理") }
                 }
-            }
+            )
         }
         if (response != null && entries.isEmpty() && key !in loading && key !in errors) {
             item {
@@ -456,30 +461,41 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         IconButton(onClick = { menu = true }, enabled = canManage && !selectionMode) {
                             Icon(Icons.Outlined.MoreVert, "管理会话")
                         }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("修改名称") }, onClick = {
-                                menu = false; rename = thread; newName = thread.optString("name")
-                            }, leadingIcon = { Icon(Icons.Outlined.Edit, null) })
-                            DropdownMenuItem(text = {
-                                Text(if (archived) "从归档恢复" else "移入归档")
-                            }, onClick = {
-                                menu = false
-                                action = (if (archived) "unarchive" else "archive") to thread
-                            }, leadingIcon = {
-                                Icon(if (archived) Icons.Outlined.Unarchive
-                                    else Icons.Outlined.Archive, null)
-                            })
-                            if (!archived) DropdownMenuItem(
-                                text = { Text("移至分组") },
-                                onClick = { menu = false; threadToMove = thread },
-                                leadingIcon = { Icon(Icons.Outlined.Folder, null) }
-                            )
-                            DropdownMenuItem(text = { Text("永久删除") }, onClick = {
-                                menu = false; action = "delete" to thread
-                            }, leadingIcon = {
-                                Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red)
-                            })
-                        }
+                        if (menu) CodexActionSheet(
+                            title = "管理会话",
+                            onDismiss = { menu = false },
+                            actions = buildList {
+                                add(CodexSheetAction(
+                                    label = "修改名称",
+                                    icon = Icons.Outlined.Edit,
+                                    description = "为当前会话设置便于查找的名称",
+                                    onClick = {
+                                        rename = thread
+                                        newName = thread.optString("name")
+                                    }
+                                ))
+                                add(CodexSheetAction(
+                                    label = if (archived) "从归档恢复" else "移入归档",
+                                    icon = if (archived) Icons.Outlined.Unarchive
+                                        else Icons.Outlined.Archive,
+                                    onClick = {
+                                        action = (if (archived) "unarchive" else "archive") to thread
+                                    }
+                                ))
+                                if (!archived) add(CodexSheetAction(
+                                    label = "移至分组",
+                                    icon = Icons.Outlined.Folder,
+                                    onClick = { threadToMove = thread }
+                                ))
+                                add(CodexSheetAction(
+                                    label = "永久删除",
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    description = "永久删除前会要求确认",
+                                    destructive = true,
+                                    onClick = { action = "delete" to thread }
+                                ))
+                            }
+                        )
                     }
                 }
                 val updatedAt = ThreadDisplayPolicy.updatedAt(

@@ -37,23 +37,24 @@ internal fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
 @Composable
 private fun DetailToggle(value: JSONObject, label: String = "查看服务信息") {
     var open by remember { mutableStateOf(false) }
-    TextButton(onClick = { open = !open }) {
-        Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
-        Text(if (open) "收起详情" else label)
-    }
-    CodexReveal(open) {
+    CodexDetailTrigger(label, onClick = { open = true })
+    if (open) CodexDetailSheet(
+        title = label.removePrefix("查看").ifBlank { "服务信息" },
+        onDismiss = { open = false }
+    ) {
         val description = PresentationPolicy.meaningful(value.optString("description"))
         val status = PresentationPolicy.meaningful(value.optString("status"))
         if (description.isNotEmpty()) {
             Text(description, style = MaterialTheme.typography.bodyMedium,
-                color = Ink.muted)
+                color = Ink.parchment)
         }
         if (status.isNotEmpty()) {
             Text("当前状态：" + PresentationPolicy.serviceState(status),
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
         }
-        if (description.isEmpty() && status.isEmpty())
-            Text("当前没有更多可展示的服务信息。", color = Ink.muted)
+        if (description.isEmpty() && status.isEmpty()) {
+            CodexEmptyState("暂无更多信息", "服务已返回当前可以展示的全部内容。")
+        }
     }
 }
 
@@ -142,20 +143,18 @@ fun ProvidersPage(vm: CodexViewModel) {
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("服务商配置", style = MaterialTheme.typography.titleMedium)
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                    .clickable { showCustomEditor = !showCustomEditor },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.AddCircleOutline, null, tint = Ink.copper)
-                Spacer(Modifier.width(10.dp))
-                Text("添加自定义服务商", modifier = Modifier.weight(1f))
-                Icon(if (showCustomEditor) Icons.Outlined.ExpandLess
-                    else Icons.Outlined.ChevronRight,
-                    contentDescription = if (showCustomEditor) "收起编辑" else "打开服务商编辑")
-            }
-            CodexReveal(showCustomEditor) {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            AtlasSettingsActionRow(
+                title = "添加自定义服务商",
+                detail = "配置服务名称、连接地址与密钥变量",
+                icon = Icons.Outlined.AddCircleOutline,
+                onClick = { showCustomEditor = true }
+            )
+            if (showCustomEditor) {
+                CodexDetailSheet(
+                    title = "添加自定义服务商",
+                    subtitle = "仅配置连接地址和密钥变量名称",
+                    onDismiss = { showCustomEditor = false }
+                ) {
                     OutlinedTextField(customName, { customName = it },
                         modifier = Modifier.fillMaxWidth(), label = { Text("服务商名称") },
                         singleLine = true)
@@ -177,29 +176,26 @@ fun ProvidersPage(vm: CodexViewModel) {
                 }
             }
             DividerLine()
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable {
-                    showCapabilities = !showCapabilities
-                    if (showCapabilities) vm.refresh("providerCapabilities",
-                        "modelProvider/capabilities/read")
-                },
-                verticalAlignment = Alignment.CenterVertically
+            AtlasSettingsActionRow(
+                title = "查看服务商能力",
+                detail = "读取实际服务能力与已声明的支持情况",
+                icon = Icons.Outlined.Info,
+                onClick = {
+                    showCapabilities = true
+                    vm.refresh("providerCapabilities", "modelProvider/capabilities/read")
+                }
+            )
+            if (showCapabilities) CodexDetailSheet(
+                title = "服务商能力",
+                onDismiss = { showCapabilities = false }
             ) {
-                Icon(Icons.Outlined.Info, null, tint = Ink.muted)
-                Spacer(Modifier.width(10.dp))
-                Text("查看服务商能力", modifier = Modifier.weight(1f))
-                Icon(if (showCapabilities) Icons.Outlined.ExpandLess
-                    else Icons.Outlined.ChevronRight,
-                    contentDescription = if (showCapabilities) "收起能力" else "展开能力")
-            }
-            CodexReveal(showCapabilities) {
                 val caps = data["providerCapabilities"]
                 if (caps != null) {
                     Text("联网搜索：" + if (caps.optBoolean("webSearch")) "支持" else "未声明",
                         color = Ink.muted)
                     Text("图片生成：" + if (caps.optBoolean("imageGeneration")) "支持" else "未声明",
                         color = Ink.muted)
-                } else Text("正在读取服务能力…", color = Ink.muted)
+                } else CodexSkeletonRows(2)
                 val errors by vm.errors.collectAsState()
                 errors["providerCapabilities"]?.let { ErrorText(it) }
             }
@@ -326,10 +322,6 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("搜索插件", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.testTag("plugins-search-heading"))
-                val searchAvailable = searchDraft.isNotBlank() &&
-                    "pluginSearch:" + searchSubmitted + ":0" !in busy &&
-                    "pluginMutation" !in busy &&
-                    engineStatus == EngineStatus.Connected
                 val performSearch = {
                     val term = searchDraft.trim()
                     if (term.isNotEmpty()) {
@@ -339,27 +331,22 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                             "plugin/search", PluginSearchContract.params(term))
                     }
                 }
-                OutlinedTextField(
-                    value = searchDraft, onValueChange = { searchDraft = it },
-                    singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("插件名称或关键字") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    trailingIcon = {
-                        if (searchDraft.isNotBlank()) IconButton(onClick = {
-                            searchDraft = ""; searchSubmitted = ""; searchPage = 0
-                        }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Outlined.Close, "清除搜索词")
-                        }
+                AtlasSearchField(
+                    value = searchDraft,
+                    onValueChange = { searchDraft = it },
+                    placeholder = "插件名称或关键字",
+                    label = "搜索插件",
+                    enabled = engineStatus == EngineStatus.Connected &&
+                        "pluginMutation" !in busy,
+                    busy = "pluginSearch:" + searchSubmitted + ":0" in busy,
+                    onClear = {
+                        searchDraft = ""
+                        searchSubmitted = ""
+                        searchPage = 0
                     },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Search),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onSearch = { if (searchAvailable) performSearch() })
+                    onSubmit = performSearch,
+                    submitTestTag = "plugins-search-submit"
                 )
-                CodexPrimaryButton(
-                    onClick = performSearch, enabled = searchAvailable,
-                    modifier = Modifier.fillMaxWidth().testTag("plugins-search-submit")
-                ) { Text("搜索插件") }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -408,10 +395,10 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (searchActive) {
             if (!submittedMatchesDraft) CodexNotice(
                 "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
-            if (submittedMatchesDraft) Text("插件搜索结果 · ${found.size} 项",
-                style = MaterialTheme.typography.titleMedium)
+            if (submittedMatchesDraft && searchKey !in busy)
+                AtlasListHeading("插件搜索结果", found.size, suffix = "个匹配项")
             if (submittedMatchesDraft && searchKey in busy)
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                AtlasLoadingResults("正在搜索插件目录", placeholderRows = 2)
             if (submittedMatchesDraft) errors[searchKey]?.let {
                 ErrorText("插件搜索失败：$it。可以改用常规插件目录。")
             }
@@ -588,10 +575,12 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             DividerLine()
             val stderr by vm.bridge.recentStderr.collectAsState()
             if (stderr.isNotEmpty()) {
-                TextButton(onClick = { showLogs = !showLogs }) {
-                    Text(if (showLogs) "收起启动日志" else "查看启动日志")
-                }
-                CodexReveal(showLogs) {
+                CodexDetailTrigger("查看启动日志", onClick = { showLogs = true })
+                if (showLogs) CodexDetailSheet(
+                    title = "启动日志",
+                    subtitle = "仅在本机显示，便于排查启动与连接问题",
+                    onDismiss = { showLogs = false }
+                ) {
                     Text(stderr.joinToString("\n"), color = Ink.muted,
                         fontFamily = FontFamily.Monospace,
                         style = MaterialTheme.typography.labelMedium)
@@ -632,13 +621,14 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("本机崩溃记录", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                TextButton(onClick = { showCrashes = !showCrashes }) {
-                    Text(if (showCrashes) "收起" else "查看")
-                }
+                CodexDetailTrigger("查看记录", onClick = { showCrashes = true })
             }
             Text("仅保存异常类型、时间和代码调用位置；不会上传执行内容。",
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-            if (showCrashes) {
+            if (showCrashes) CodexDetailSheet(
+                title = "本机崩溃记录",
+                onDismiss = { showCrashes = false }
+            ) {
                 val stored = remember(showCrashes, crashRevision) {
                     LocalCrashReporter.read(context)
                 }
@@ -657,14 +647,13 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }
         }
         if (status is EngineStatus.Unavailable) {
-            TextButton(onClick = { showRecoverySteps = !showRecoverySteps }) {
-                Text(if (showRecoverySteps) "收起排查步骤" else "查看排查步骤")
-            }
-            CodexReveal(showRecoverySteps) {
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Text("先重新连接运行服务；再核实账号登录状态和失败的功能。若仍无法使用，可查看启动日志。",
-                        color = Ink.muted)
-                }
+            CodexDetailTrigger("查看排查步骤", onClick = { showRecoverySteps = true })
+            if (showRecoverySteps) CodexDetailSheet(
+                title = "连接排查",
+                onDismiss = { showRecoverySteps = false }
+            ) {
+                Text("先重新连接运行服务；再核实账号登录状态和失败的功能。若仍无法使用，可查看启动日志。",
+                    color = Ink.parchment)
             }
         }
     }
