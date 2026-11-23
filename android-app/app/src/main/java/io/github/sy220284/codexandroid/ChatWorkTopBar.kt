@@ -19,12 +19,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /** 原生工作路由与参考图形态一一对应。 */
 @Composable
 internal fun ChatWorkTopBar(
     selected: String,
+    conversationTitle: String = "任务对话",
     newThreadBlockReason: String?,
     onMenu: () -> Unit,
     onNavigate: (String) -> Unit,
@@ -50,10 +52,11 @@ internal fun ChatWorkTopBar(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                if (selected == "chat") "任务对话" else "工作台",
+                conversationTitle,
                 style = MaterialTheme.typography.titleMedium,
                 color = Ink.parchment,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {

@@ -75,7 +75,7 @@ fun ReviewScopePanel(
                 )
             }
             if (running) CodexNotice("当前任务执行中，完成后再发起审查。", NoticeTone.Info)
-            OutlinedButton(
+            CodexPrimaryButton(
                 onClick = { confirm = true },
                 enabled = !running && "review" !in loading &&
                     (selection == "uncommittedChanges" || value.isNotBlank()),
@@ -146,7 +146,13 @@ fun ReviewScopeSheet(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(15.dp)
         ) {
-            Text("发起代码审查", style = MaterialTheme.typography.headlineSmall)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("发起代码审查", style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "关闭代码审查")
+                }
+            }
             Text("选择审查范围；任务由本机 Codex 处理。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             ReviewScopePanel(vm,

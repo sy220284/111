@@ -94,6 +94,7 @@ fun CodexShell(vm: CodexViewModel) {
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
+    val libraryData by vm.data.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val terminalSession by vm.terminalSession.collectAsState()
@@ -268,6 +269,14 @@ fun CodexShell(vm: CodexViewModel) {
                     if (selected == "chat" || selected == "home") {
                         ChatWorkTopBar(
                             selected = selected,
+                            conversationTitle = if (selected == "chat") {
+                                records(libraryData["sidebarThreads"] ?: libraryData["threads"])
+                                    .firstOrNull { it.optString("id") == activeThread }
+                                    ?.let { PresentationPolicy.threadTitle(
+                                        it.optString("name"), it.optString("preview")) }
+                                    ?.ifBlank { "当前会话" }
+                                    ?: if (activeThread == null) "新任务" else "当前会话"
+                            } else "工作台",
                             newThreadBlockReason = newThreadBlockReason,
                             onMenu = { scope.launch { drawer.open() } },
                             onNavigate = move,
