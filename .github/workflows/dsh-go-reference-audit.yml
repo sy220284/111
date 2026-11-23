@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - ux/dsh-go-ui-benchmark-20261123
+      - audit/dsh-go-ui-journey-20261123
     paths:
       - .github/workflows/dsh-go-reference-audit.yml
+      - android-app/tools/capture_dsh_onboarding.py
 
 permissions:
   contents: read
@@ -17,6 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: 检出首次使用页面采集器
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            /android-app/tools/capture_dsh_onboarding.py
+          sparse-checkout-cone-mode: false
       - name: 下载官方安装包并校验签名清单
         shell: bash
         run: |
@@ -60,6 +68,7 @@ jobs:
             adb shell dumpsys activity top > dsh-reference/activity-top.txt || true
             python3 -c 'import xml.etree.ElementTree as E; r=E.parse("dsh-reference/window.xml").getroot(); print("VISIBLE_UI_CONTROLS"); [print((n.get("text") or n.get("content-desc")),n.get("bounds")) for n in r.iter("node") if n.get("text") or n.get("content-desc")]' > dsh-reference/ui-nodes.txt
             cat dsh-reference/ui-nodes.txt
+            python3 android-app/tools/capture_dsh_onboarding.py dsh-reference/flow
 
       - name: 保存官方安装包和界面证据
         if: always()
@@ -86,3 +95,5 @@ jobs:
           grep -q '^Success' dsh-reference/install.log
           test -s dsh-reference/first-screen.png
           test -s dsh-reference/window.xml
+          test -s dsh-reference/flow/01-runtime-choice.png
+          test -s dsh-reference/flow/summary.json
