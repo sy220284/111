@@ -759,7 +759,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("security-profile-workspace").performScrollTo().performClick()
         rule.onNodeWithText("保存默认权限").assertIsEnabled()
         rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo()
-            .assertHasNoClickAction()
+            .assertIsNotEnabled()
     }
 
     @Test fun permissionApprovalExplainsActualScope() {
