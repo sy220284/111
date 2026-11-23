@@ -47,8 +47,11 @@ class McpAvailableServicesTest {
             .put("toolsError", "tool catalog unavailable")
             .put("resourceTemplates", JSONArray().put(JSONObject().put("uriTemplate", "mcp://{id}")))
         assertTrue(McpAvailableServices.isUsable(templates))
-        assertTrue(McpAvailableServices.isUsable(
-            server("none", "connected").put("toolsError", JSONObject.NULL)))
+        val jsonNullError = server("none", "connected")
+            .put("toolsError", JSONObject.NULL)
+        assertTrue("Valid connected tool catalog should remain usable: " +
+            jsonNullError.toString() + ", isNull=" + jsonNullError.isNull("toolsError"),
+            McpAvailableServices.isUsable(jsonNullError))
         assertFalse(McpAvailableServices.isUsable(
             server("literal-error", "connected").put("toolsError", "null")))
     }
