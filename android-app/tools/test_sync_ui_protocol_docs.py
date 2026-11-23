@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 
-from sync_ui_protocol_docs import render_document
+from sync_ui_protocol_docs import render_document, render_kotlin
 
 
 class ProtocolDocumentSyncTests(unittest.TestCase):
@@ -18,6 +18,12 @@ class ProtocolDocumentSyncTests(unittest.TestCase):
         self.assertIn("item/tool/call", result)
         self.assertIn("| 后台内部 | Host | 否 |", result)
         self.assertEqual(result, render_document(self.policy))
+
+    def test_kotlin_matrix_is_generated_from_the_same_policy(self):
+        kotlin = render_kotlin(self.policy)
+        self.assertIn('ProtocolSurface("thread/start", ApiExposure.Direct, "会话", false)', kotlin)
+        self.assertIn('ProtocolSurface("item/tool/call", ApiExposure.Internal, "Host", false)', kotlin)
+        self.assertEqual(3, kotlin.count("        ProtocolSurface("))
 
     def test_new_methods_appear_automatically(self):
         self.policy["methods"]["thread/read"] = {

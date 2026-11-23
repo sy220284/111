@@ -47,32 +47,71 @@ def render_document(policy: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+
+SURFACE_TO_KOTLIN = {"直接操作":"Direct","上下文操作":"Contextual","高级按需":"Advanced","后台内部":"Internal","平台不适用":"Unsupported"}
+KOTLIN_PREFIX = ["package io.github.sy220284.codexandroid","","/**"," * 由 android-app/tools/ui_surface_policy.json 生成。官方协议字段与方法方向由 CI 核验。"," * 元数据用于 UI 入口归属，实际功能接入必须有真实请求/等效操作与设备测试。"," */","enum class ApiExposure { Direct, Contextual, Advanced, Internal, Unsupported }","data class ProtocolSurface(","    val method: String, val exposure: ApiExposure,","    val owner: String, val experimental: Boolean",")","object UiProtocolMatrix {","    val all = listOf("]
+KOTLIN_SUFFIX = ["    )","    val byMethod = all.associateBy { it.method }","    val userFacing = all.filter {","        it.exposure == ApiExposure.Direct || it.exposure == ApiExposure.Contextual","    }","    val advanced = all.filter { it.exposure == ApiExposure.Advanced }","    val systemOnly = all.filter {","        it.exposure == ApiExposure.Internal || it.exposure == ApiExposure.Unsupported","    }","}"]
+
+
+def render_kotlin(policy: dict) -> str:
+    methods = policy["methods"]
+    rows = []
+    for index, (method, record) in enumerate(methods.items()):
+        surface = SURFACE_TO_KOTLIN.get(record["surface"])
+        if not surface:
+            raise ValueError(f"未知展示类别：{method}")
+        experimental = "true" if record["flag"] == "实验" else "false"
+        comma = "," if index < len(methods) - 1 else ""
+        rows.append(
+            "        ProtocolSurface(" +
+            json.dumps(method, ensure_ascii=False) +
+            ", ApiExposure." + surface + ", " +
+            json.dumps(record["owner"], ensure_ascii=False) +
+            ", " + experimental + ")" + comma
+        )
+    return "\n".join(KOTLIN_PREFIX + rows + KOTLIN_SUFFIX) + "\n"
+
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", type=Path, default=Path("android-app/tools/ui_surface_policy.json"))
     parser.add_argument("--output", type=Path, default=Path("docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"))
+    parser.add_argument("--matrix", type=Path, default=Path(
+        "android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt"))
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--write", action="store_true")
     args = parser.parse_args()
     try:
-        generated = render_document(json.loads(args.policy.read_text(encoding="utf-8")))
+        policy = json.loads(args.policy.read_text(encoding="utf-8"))
+        artifacts = {
+            args.output: render_document(policy),
+            args.matrix: render_kotlin(policy),
+        }
         if args.write:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(generated, encoding="utf-8")
-            print(f"已同步 {args.output}")
+            for path, content in artifacts.items():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+                print("已同步 " + str(path))
             return 0
-        existing = args.output.read_text(encoding="utf-8")
+        stale = []
+        for path, content in artifacts.items():
+            old = path.read_text(encoding="utf-8")
+            if old == content:
+                continue
+            stale.append(path)
+            diff = difflib.unified_diff(old.splitlines(), content.splitlines(),
+                                        fromfile=str(path), tofile="统一策略生成", lineterm="")
+            print("\n".join(list(diff)[:80]), file=sys.stderr)
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        print(f"协议映射文档核验失败：{exc}", file=sys.stderr)
+        print("协议资产核验失败：" + str(exc), file=sys.stderr)
         return 1
-    if existing != generated:
-        changes = difflib.unified_diff(existing.splitlines(), generated.splitlines(),
-                                       fromfile=str(args.output), tofile="策略生成结果", lineterm="")
-        print("\n".join(list(changes)[:80]), file=sys.stderr)
-        print("协议映射文档与唯一策略不一致，请运行生成命令后提交。", file=sys.stderr)
+    if stale:
+        print("协议资产有漂移，请重新运行 --write：" +
+              "，".join(map(str, stale)), file=sys.stderr)
         return 1
-    print("UI 协议组件映射与唯一策略完全一致")
+    print("UI 协议 Kotlin 目录与组件文档均和唯一策略完全一致")
     return 0
 
 
