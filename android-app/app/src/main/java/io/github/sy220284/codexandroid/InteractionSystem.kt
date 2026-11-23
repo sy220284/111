@@ -221,6 +221,29 @@ fun CodexEmptyState(
     }
 }
 
+/** 能力页共享的可恢复状态：原因、重试和诊断始终指向真实动作。 */
+@Composable
+fun CodexRecoveryState(
+    title: String,
+    description: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    onDiagnostics: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        CodexEmptyState(
+            title = title, description = description, icon = Icons.Outlined.SyncProblem,
+            actionLabel = actionLabel, onAction = onAction
+        )
+        if (onDiagnostics != null) {
+            TextButton(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("查看诊断", color = Ink.parchment)
+            }
+        }
+    }
+}
+
 /** Refresh actions share touch area, pending animation and disabled state. */
 @Composable
 fun CodexRefreshIcon(
