@@ -103,8 +103,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-chat").assertExists()
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
-        rule.onNodeWithText("查看更多").performClick()
-        rule.onNodeWithTag("nav-plugins").assertExists()
+        rule.onNodeWithTag("sidebar-workspace-tools").assertExists()
+        rule.onNodeWithTag("sidebar-new-chat").assertExists()
+        rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-workspace-tools").performClick()
+        rule.onNodeWithTag("quick-terminal").assertExists()
+        rule.onNodeWithTag("quick-review").assertExists()
     }
 
     @Test fun chatKeepsStopAndSendControlsReachable() {
@@ -206,6 +210,40 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
+        rule.onNodeWithTag("home-task-hero").assertExists()
+        rule.onNodeWithTag("home-primary-action").assertExists()
+        rule.onNodeWithText("常用工作").assertExists()
+        for (id in listOf("files", "threads", "diff", "terminal")) {
+            rule.onNodeWithTag("home-shortcut-$id").assertExists()
+        }
+        rule.onNodeWithTag("home-shortcut-files").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+    }
+
+    @Test fun settingsOverviewAndLocalBackupCanBeFoundByIntent() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-overview").assertExists()
+        rule.onNodeWithTag("settings-account-overview").assertExists()
+        rule.onNodeWithTag("settings-engine-overview").assertExists()
+        rule.onNodeWithTag("settings-search").performTextInput("备份")
+        rule.onNodeWithTag("settings-overview").assertDoesNotExist()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
+        rule.onNodeWithTag("settings-backup").assertExists()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
+        rule.onNodeWithTag("settings-search").performTextClearance()
+        rule.onNodeWithTag("settings-overview").assertExists()
+    }
+
+    @Test fun settingsSearchOpensRealAccountUsageAndLimitsPages() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("额度")
+        rule.onNodeWithTag("settings-route-limits").assertExists()
+        rule.onNodeWithTag("settings-route-usage").assertDoesNotExist()
+        rule.onNodeWithTag("settings-route-limits").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
+    }
+
     @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
         openDrawerRoute("settings")
         rule.onNodeWithText("账户与模型").assertExists()
@@ -224,7 +262,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
-        rule.onNodeWithText("运行命令").performClick()
+        rule.onNodeWithTag("home-shortcut-terminal").performClick()
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
         val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
@@ -351,7 +389,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-threads").assertDoesNotExist()
         rule.onNodeWithTag("nav-approvals").assertDoesNotExist()
-        rule.onNodeWithText("查看更多").assertExists()
+        rule.onNodeWithTag("sidebar-new-chat").assertExists()
+        rule.onNodeWithTag("sidebar-workspace-tools").assertExists()
+        rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
@@ -570,7 +610,6 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertExists()
         capture("audit-environment-editor-android35.png")
     }
-
 
     @Test fun executionEnvironmentShowsChoiceBeforeConnectionFields() {
         openSettingRoute("environments")

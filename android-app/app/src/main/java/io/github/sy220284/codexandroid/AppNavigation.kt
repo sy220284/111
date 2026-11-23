@@ -145,6 +145,11 @@ fun CodexShell(vm: CodexViewModel) {
                 scope.launch { drawer.close() }
                 return@move
             }
+            "workspace-tools" -> {
+                showQuickTools = true
+                scope.launch { drawer.close() }
+                return@move
+            }
             "queue" -> {
                 showQueue = true
                 scope.launch { drawer.close() }
@@ -462,7 +467,6 @@ private fun Sidebar(
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState
 ) {
-    val more = sidebarState.more
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -478,28 +482,37 @@ private fun Sidebar(
                 Icon(Icons.Outlined.Search, "搜索全部会话", tint = Ink.parchment)
             }
         }
-        listOf("chat","home","files").forEach { id ->
+        Button(
+            onClick = onNewThread,
+            enabled = !running,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp)
+                .heightIn(min = 52.dp).testTag("sidebar-new-chat")
+                .explainDisabled(running, "正在执行任务，请先完成或停止后再新建"),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Ink.coral, contentColor = Color.White,
+                disabledContainerColor = Ink.border, disabledContentColor = Ink.muted)
+        ) {
+            Icon(Icons.Outlined.Add, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("新建任务", modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium)
+            Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
+        }
+        listOf("chat", "home", "files").forEach { id ->
             SidebarRoute(id, selected, approvals, onSelect)
         }
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                .clickable { sidebarState.more = !more }.padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        OutlinedButton(
+            onClick = { onSelect("workspace-tools") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
+                .heightIn(min = 48.dp).testTag("sidebar-workspace-tools"),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, Ink.border)
         ) {
-            Icon(Icons.Outlined.MoreHoriz, null, tint = Ink.parchment,
-                modifier = Modifier.size(21.dp))
-            Spacer(Modifier.width(16.dp))
-            Text(if (more) "收起工具" else "查看更多",
-                style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Icon(if (more) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                null, tint = Ink.muted, modifier = Modifier.size(20.dp))
-        }
-        if (more) {
-            Column(Modifier.heightIn(max = 128.dp).verticalScroll(rememberScrollState())) {
-                listOf("terminal","diff","review","skills","plugins","mcp").forEach { id ->
-                    SidebarRoute(id, selected, approvals, onSelect)
-                }
-            }
+            Icon(Icons.Outlined.Widgets, null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(11.dp))
+            Text("工作区工具", modifier = Modifier.weight(1f))
+            Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
         }
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 7.dp),
@@ -510,32 +523,21 @@ private fun Sidebar(
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))
         Row(
-            Modifier.fillMaxWidth().height(74.dp),
+            Modifier.fillMaxWidth().heightIn(min = 58.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Button(
-                onClick = onNewThread, enabled = !running,
-                shape = RoundedCornerShape(27.dp),
-                modifier = Modifier.heightIn(min = 51.dp).testTag("sidebar-new-chat")
-                    .explainDisabled(running, "正在执行任务，请先完成或停止后再新建"),
-                contentPadding = PaddingValues(horizontal = 14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Ink.coral, contentColor = Color.White,
-                    disabledContainerColor = Ink.border, disabledContentColor = Ink.muted
-                )
-            ) {
-                Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("新建聊天")
-            }
-            IconButton(onClick = { onSelect("settings") },
-                modifier = Modifier.size(48.dp).testTag("nav-settings")) {
-                Icon(Icons.Outlined.Settings, "设置", tint = Ink.parchment)
-            }
-            IconButton(onClick = { onSelect("account") },
-                modifier = Modifier.size(48.dp).testTag("nav-account")) {
-                Icon(Icons.Outlined.AccountCircle, "账号", tint = Ink.parchment)
+            Text("账号与设置", style = MaterialTheme.typography.labelMedium,
+                color = Ink.muted, modifier = Modifier.padding(start = 13.dp))
+            Row {
+                IconButton(onClick = { onSelect("account") },
+                    modifier = Modifier.size(48.dp).testTag("nav-account")) {
+                    Icon(Icons.Outlined.AccountCircle, "账号", tint = Ink.parchment)
+                }
+                IconButton(onClick = { onSelect("settings") },
+                    modifier = Modifier.size(48.dp).testTag("nav-settings")) {
+                    Icon(Icons.Outlined.Settings, "设置", tint = Ink.parchment)
+                }
             }
         }
         Row(

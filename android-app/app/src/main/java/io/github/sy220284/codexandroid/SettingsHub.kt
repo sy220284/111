@@ -27,28 +27,28 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
     var showAppearance by rememberSaveable { mutableStateOf(false) }
     val status by vm.bridge.status.collectAsState()
+    val data by vm.data.collectAsState()
+    val isAccountLoaded = data["account"] != null
+    val isSignedIn = data["account"]?.optJSONObject("account") != null
+    val darkMode by UiPreferences.darkMode.collectAsState()
+    val showTransfers = query.isBlank() || listOf("本地数据", "备份", "导入", "导出", "迁移", "恢复").any {
+        it.contains(query.trim(), ignoreCase = true)
+    }
+    val showUpdate = query.isBlank() ||
+        NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
             pages.firstOrNull { it.id == id && NavigationPolicy.matches(
                 query, it.title, it.subtitle, it.id) }
         }
-    }.filter { it.second.isNotEmpty() ||
-        (it.first.title == "通用与外观" && (query.isBlank() ||
-            NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update"))) }
-    val showUpdate = query.isBlank() ||
-        NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
+    }.filter { (group, entries) ->
+        entries.isNotEmpty() || ("update" in group.routes && (showUpdate || showTransfers))
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        item(key = "intro") {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("设置与管理", style = MaterialTheme.typography.titleLarge)
-                Text("账号、模型、扩展和设备设置集中在这里。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
         item(key = "search") {
             OutlinedTextField(value = query, onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth().testTag("settings-search"),
@@ -60,8 +60,55 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }, singleLine = true, shape = RoundedCornerShape(22.dp))
         }
+        if (query.isBlank()) item(key = "overview") {
+            MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 51.dp)
+                        .clickable(role = Role.Button) { navigate("account") }
+                        .testTag("settings-account-overview"),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.AccountCircle, null, tint = Ink.copper,
+                        modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("账号", style = MaterialTheme.typography.titleMedium)
+                        Text(when {
+                            !isAccountLoaded -> "等待账号状态"
+                            isSignedIn -> "已登录"
+                            else -> "未登录 · 点此配置"
+                        }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+                }
+                HorizontalDivider(color = Ink.border.copy(alpha = .5f))
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 51.dp)
+                        .clickable(role = Role.Button) { navigate("diagnostics") }
+                        .testTag("settings-engine-overview"),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (status == EngineStatus.Connected)
+                            Icons.Outlined.CheckCircle else Icons.Outlined.SyncProblem,
+                        null, modifier = Modifier.size(24.dp),
+                        tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("运行服务", style = MaterialTheme.typography.titleMedium)
+                        Text(when(status) {
+                            EngineStatus.Connected -> "已连接"
+                            EngineStatus.Starting -> "正在连接"
+                            is EngineStatus.Unavailable -> "连接中断 · 查看处理方法"
+                        }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+                }
+            }
+        }
         if (groups.isEmpty()) {
-            item { CodexEmptyState("未找到相关功能", "可以按名称或关键字重新查询。",
+            item { CodexEmptyState("未找到相关设置", "试试常用名称，例如字体、API Key 或日志。",
                 actionLabel = "清除搜索", onAction = { query = "" }) }
         }
         items(groups, key = { it.first.title }) { (group, entries) ->
@@ -73,16 +120,16 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         border = BorderStroke(1.dp, Ink.border),
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
-                            entries.forEachIndexed { index, entry ->
-                                if (index > 0) HorizontalDivider(
-                                    modifier = Modifier.padding(start = 58.dp, end = 15.dp),
-                                    color = Ink.border.copy(alpha = .46f), thickness = .5.dp)
+                            entries.forEach { entry ->
                                 SettingRouteRow(page = entry, detail = NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
-                                    "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待检查"
-                                    "security" -> "执行授权"
-                                    "models" -> "选择模型"
-                                    "appearance" -> if (UiPreferences.darkMode.value) "深色工作台" else "典雅白"
-                                    else -> if (entry.experimental) "实验" else ""
+                                    "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
+                                    "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
+                                    "security" -> "执行权限与审批"
+                                    "environments" -> "本机或其他设备"
+                                    "models" -> "选择任务模型"
+                                    "appearance" -> if (darkMode) "深色" else "浅色"
+                                    "plugins" -> "安装与管理"
+                                    else -> ""
                                 }) {
                                     when(entry.id) {
                                         "models" -> showModels = true
@@ -99,9 +146,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     }
                 }
-                if (group.title == "通用与外观" && showUpdate) {
-                    AppUpdateCard()
-                    LocalDataTransferCard(vm)
+                if ("update" in group.routes) {
+                    if (showUpdate) AppUpdateCard()
+                    if (showTransfers) LocalDataTransferCard(vm)
                 }
             }
         }
@@ -112,33 +159,23 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 @Composable
 private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
-    val tone = when(page.section) {
-        "能力与扩展" -> Ink.copper
-        "项目与代码" -> Ink.jade
-        else -> Ink.copper
-    }
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
             .clickable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 8.dp),
+            .heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Surface(modifier = Modifier.size(34.dp), shape = CircleShape,
-            color = Ink.canvas, border = BorderStroke(1.dp, tone.copy(alpha = .33f))) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(page.icon, null, modifier = Modifier.size(19.dp), tint = tone)
-            }
-        }
+        Icon(page.icon, null, modifier = Modifier.size(22.dp), tint = Ink.muted)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (detail.isNotBlank() && detail != "实验") detail else page.subtitle,
+            Text(if (detail.isNotBlank()) detail else page.subtitle,
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
-            modifier = Modifier.size(21.dp))
+            modifier = Modifier.size(19.dp))
     }
 }
 
@@ -260,34 +297,36 @@ fun WorkspaceActionsSheet(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 7.dp, top = 8.dp, bottom = 8.dp))
 
-            val routes = NavigationPolicy.quickToolRoutes
-            routes.forEach { id ->
-                val item = pages.first { it.id == id }
-                val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
-                Surface(
-                    modifier = Modifier.fillMaxWidth().testTag("quick-$id")
-                        .clickable { openTool(id) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = Ink.canvas
-                ) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .padding(horizontal = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            UiFeatureCatalog.workspaceToolGroups.forEach { group ->
+                val title = group.title
+                val routes = group.routes
+                Text(title, modifier = Modifier.padding(start = 9.dp, top = 10.dp, bottom = 3.dp),
+                    style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                routes.forEach { id ->
+                    val item = pages.first { it.id == id }
+                    val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().testTag("quick-$id")
+                            .clickable { openTool(id) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = Ink.canvas
                     ) {
-                        Box(Modifier.size(44.dp).background(Ink.elevated, CircleShape),
-                            contentAlignment = Alignment.Center) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                            .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(item.icon, null, tint = Ink.parchment,
-                                modifier = Modifier.size(23.dp))
-                        }
-                        Spacer(Modifier.width(14.dp))
-                        Text(item.title, style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f), color = Ink.parchment)
-                        if (!allowed) {
-                            Text("先选会话", style = MaterialTheme.typography.labelMedium,
-                                color = Ink.muted)
-                        } else {
-                            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
-                                modifier = Modifier.size(18.dp))
+                                modifier = Modifier.size(21.dp))
+                            Spacer(Modifier.width(14.dp))
+                            Text(item.title, style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f), color = Ink.parchment)
+                            if (!allowed) {
+                                Text("选择会话", style = MaterialTheme.typography.labelMedium,
+                                    color = Ink.muted)
+                            } else {
+                                Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
+                                    modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }

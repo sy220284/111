@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.saveable.listSaver
@@ -274,7 +275,15 @@ internal fun SidebarSessionsContent(
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
             }
         }
-        items(matches, key = { it.optString("id") }) { entry ->
+        itemsIndexed(matches, key = { _, item -> item.optString("id") }) { index, entry ->
+            val group = ThreadDisplayPolicy.dayGroup(entry.opt("updatedAt"), entry.opt("createdAt"))
+            val previousGroup = matches.getOrNull(index - 1)?.let { previous ->
+                ThreadDisplayPolicy.dayGroup(previous.opt("updatedAt"), previous.opt("createdAt"))
+            }
+            if (index == 0 || group != previousGroup) {
+                Text(group, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+            }
             val id = entry.optString("id")
             SidebarSessionRow(
                 item = entry,

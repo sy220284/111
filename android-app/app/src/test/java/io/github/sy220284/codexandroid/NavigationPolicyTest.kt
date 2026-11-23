@@ -5,7 +5,7 @@ import org.junit.Test
 
 class NavigationPolicyTest {
     @Test fun commonNavigationRemainsCompact() {
-        assertEquals(listOf("home", "chat", "files", "settings"),
+        assertEquals(listOf("chat", "home", "files", "settings"),
             NavigationPolicy.sidebarRoutes)
         assertFalse(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("threads"))
@@ -37,17 +37,22 @@ class NavigationPolicyTest {
         assertEquals(27, UiFeatureCatalog.legacyRoutes.distinct().size)
         assertEquals(4, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(14, settings.size)
+        assertEquals(16, settings.size)
         assertEquals(settings.size, settings.distinct().size)
-        assertTrue(settings.containsAll(listOf("models","appearance","about","update")))
+        assertTrue(settings.containsAll(listOf("models","usage","limits","appearance","about","update")))
+        assertTrue(NavigationPolicy.matches("额度", "", "", "limits"))
+        assertTrue(NavigationPolicy.matches("用量", "", "", "usage"))
         assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
         assertEquals(27, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
     @Test fun quickToolsAreTaskScopedAndAllTargetsExist() {
-        assertEquals(listOf("files","diff","terminal","review","goals","queue"),
+        assertEquals(listOf("files","terminal","diff","review","goals","queue"),
             NavigationPolicy.quickToolRoutes)
         assertTrue(NavigationPolicy.quickToolRoutes.all { it in UiFeatureCatalog.byRoute })
+        assertEquals(NavigationPolicy.quickToolRoutes,
+            UiFeatureCatalog.workspaceToolGroups.flatMap { it.routes })
+        assertEquals(2, UiFeatureCatalog.workspaceToolGroups.size)
         assertTrue(UiFeatureCatalog.requiresThread("review"))
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
