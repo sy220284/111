@@ -155,7 +155,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
-        openSettingRoute("diff")
+        rule.onNodeWithText("检查修改").performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
         rule.onNodeWithText("暂无可展示的代码差异").assertExists()
@@ -219,7 +219,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
-        openSettingRoute("terminal")
+        rule.onNodeWithText("运行命令").performClick()
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
         val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
@@ -294,7 +294,8 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun accountMetricsUsesSharedUsageAndLimitsTabs() {
-        openSettingRoute("usage")
+        openSettingRoute("account")
+        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
         rule.onNodeWithText("账号使用概况").assertExists()
         capture("account-usage-android35.png")
         rule.onNodeWithText("额度", substring = false).performClick()
