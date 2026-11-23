@@ -77,3 +77,11 @@
 根据业务用途保留已经合适的原生组件：输入栏、权限档位的直接选择、任务编辑字段、Diff 文件展开、插件已安装/发现分段切换。媒体播放器、卡片轮播、滑动删除、首次引导等仅在业务具备真实数据或明确流程时接入，避免增加空壳入口和误触危险操作。
 
 本轮新增 `CodexInteractionComponentsInstrumentedTest` 对搜索、状态单选、顺序可访问性、真实进度、字段反馈、操作卡整行触控进行验证；`UiNavigationInstrumentedTest` 覆盖设置中的外观弹层、三档 Android 35 截图以及原有项目操作。以最新 CI 为最终验收来源。
+
+## 第三轮：嵌套操作与终端长输出
+
+项目管理本身位于底部面板，其更多菜单使用 `CodexActionDialog`：操作列表与 `CodexActionSheet` 复用同一 `CodexActionRows`，但用轻量对话框承载，避免“底部面板叠底部面板”。菜单的重命名、顺序调整、删除登记仍使用现有项目 RPC、状态检查与确认流程。共享组件位于 `CodexDetailSheet.kt`，`ProjectRegistryPanel.kt` 已接入。
+
+终端长输出原先点击“展开”会把标准输出从 16,000 字符扩至约 128,000 字符，同时拉长页面。现改用已有 `FullTextReaderDialog` 查看完整保留输出，支持全文搜索、复制和返回；终端主页面仍显示最近 16,000 字符，保留实时输出、读取更早本机记录与导出日志的原能力。较早输出也在独立全文阅读器内展示，避免大量历史文本改变命令输入区的位置。
+
+新增 `CodexInteractionComponentsInstrumentedTest.actionDialogInsideParentSheetDoesNotDuplicateBottomSheets` 检查父面板保留、菜单禁用态、动作执行与关闭路径。所有功能仍依赖实际业务回调，组件不再自行构造假数据。
