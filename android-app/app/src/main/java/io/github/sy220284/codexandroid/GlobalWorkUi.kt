@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -54,11 +56,20 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
 @Composable
 internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
     if (!transfer.busy) return
+    val context = LocalContext.current
     Dialog(
-        onDismissRequest = {},
+        // Let back/outside gestures be acknowledged while retaining the modal:
+        // the archive is still writing and dismissing it would expose edit actions.
+        onDismissRequest = {
+            Toast.makeText(
+                context,
+                "本机数据正在处理，完成后即可继续操作",
+                Toast.LENGTH_SHORT
+            ).show()
+        },
         properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
         )
     ) {
         Surface(
