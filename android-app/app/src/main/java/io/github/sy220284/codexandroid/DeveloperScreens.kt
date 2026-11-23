@@ -274,30 +274,39 @@ fun WorkspacePage(vm: CodexViewModel) {
                             modifier = Modifier.testTag("workspace-menu-" + file.name)) {
                             Icon(Icons.Outlined.MoreVert, "管理 " + file.name)
                         }
-                        DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
-                            DropdownMenuItem(text = { Text("重命名") },
-                                leadingIcon = { Icon(Icons.Outlined.Edit, null) },
-                                onClick = {
-                                    optionsOpen = false
-                                    renameName = file.name
-                                    fileAction = "rename" to file
-                                })
-                            DropdownMenuItem(text = { Text("复制") },
-                                leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                                onClick = {
-                                    optionsOpen = false
-                                    copyName = if (file.isDirectory) file.name + "-副本"
-                                        else file.nameWithoutExtension + "-副本" +
-                                            (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
-                                    fileAction = "copy" to file
-                                })
-                            DropdownMenuItem(text = { Text("删除") },
-                                leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red) },
-                                onClick = {
-                                    optionsOpen = false
-                                    fileAction = "delete" to file
-                                })
-                        }
+                        if (optionsOpen) CodexActionSheet(
+                            title = "管理 " + file.name,
+                            onDismiss = { optionsOpen = false },
+                            actions = listOf(
+                                CodexSheetAction(
+                                    label = "重命名",
+                                    description = "更改当前文件或文件夹的名称",
+                                    icon = Icons.Outlined.Edit,
+                                    onClick = {
+                                        renameName = file.name
+                                        fileAction = "rename" to file
+                                    }
+                                ),
+                                CodexSheetAction(
+                                    label = "复制",
+                                    description = "在当前目录建立一份副本",
+                                    icon = Icons.Outlined.ContentCopy,
+                                    onClick = {
+                                        copyName = if (file.isDirectory) file.name + "-副本"
+                                            else file.nameWithoutExtension + "-副本" +
+                                                (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                                        fileAction = "copy" to file
+                                    }
+                                ),
+                                CodexSheetAction(
+                                    label = "删除",
+                                    description = "删除前将再次确认目标",
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    onClick = { fileAction = "delete" to file },
+                                    destructive = true
+                                )
+                            )
+                        )
                     }
                 }
             }
