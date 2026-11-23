@@ -565,9 +565,35 @@ class UiNavigationInstrumentedTest {
         capture("audit-config-editor-android35.png")
 
         openSettingRoute("environments")
-        rule.onNodeWithText("添加外部执行环境").performScrollTo().performClick()
-        rule.onNodeWithText("执行服务 WebSocket URL").assertExists()
+        rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertExists()
+        rule.onNodeWithTag("environment-endpoint").assertExists()
         capture("audit-environment-editor-android35.png")
+    }
+
+
+    @Test fun executionEnvironmentShowsChoiceBeforeConnectionFields() {
+        openSettingRoute("environments")
+        rule.onNodeWithTag("environment-local-option").assertExists()
+        rule.onNodeWithTag("environment-remote-option").assertExists()
+        rule.onNodeWithText("已选择本机工作区").assertExists()
+        rule.onNodeWithTag("environment-endpoint").assertDoesNotExist()
+        rule.onNodeWithText("本机服务标识：local").assertDoesNotExist()
+
+        rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertExists()
+        rule.onNodeWithTag("environment-endpoint").assertExists()
+        rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
+        rule.onNodeWithTag("environment-remote-name").performTextInput("工作电脑")
+        rule.onNodeWithTag("environment-endpoint").performTextInput("wss://example.com/exec")
+        rule.onNodeWithTag("environment-connect").assertIsEnabled()
+
+        rule.onNodeWithTag("environment-local-option").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-endpoint").assertDoesNotExist()
+        rule.onNodeWithTag("environment-local-option").assertExists()
+        rule.onNodeWithTag("environment-remote-option").performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
     }
 
     @Test fun expandedSecurityAndAboutViewsAreCaptured() {
