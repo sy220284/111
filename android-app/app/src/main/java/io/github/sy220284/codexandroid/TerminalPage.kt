@@ -160,31 +160,47 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             )
                         }
                         if (session.running) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            AtlasOperationProgress("命令正在执行")
                             if (session.tty) {
-                                TextButton(onClick = { showTerminalSize = !showTerminalSize },
-                                    modifier = Modifier.heightIn(min = 48.dp)) {
-                                    Text(if (showTerminalSize) "收起终端尺寸" else "调整终端尺寸")
-                                }
-                                if (showTerminalSize) {
-                                Row(Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(ttyRows, { ttyRows = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("行数") }, singleLine = true,
-                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
-                                    OutlinedTextField(ttyCols, { ttyCols = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("列数") }, singleLine = true,
-                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
-                                }
-                                OutlinedButton(onClick = {
-                                    vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
-                                        ttyCols.toIntOrNull() ?: 0)
-                                }, enabled = !session.terminating &&
-                                    ttyRows.toIntOrNull() in 2..300 &&
-                                    ttyCols.toIntOrNull() in 10..400) {
-                                    Text("应用尺寸")
-                                }
-                                errors["terminalResize"]?.let { ErrorText(it) }
+                                CodexDetailTrigger(
+                                    label = "调整终端尺寸",
+                                    onClick = { showTerminalSize = true },
+                                    modifier = Modifier.testTag("terminal-resize-toggle")
+                                )
+                                if (showTerminalSize) CodexDetailSheet(
+                                    title = "终端窗口尺寸",
+                                    subtitle = "调整行数和列数后同步到正在运行的终端",
+                                    onDismiss = { showTerminalSize = false }
+                                ) {
+                                    Row(Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedTextField(ttyRows, {
+                                            ttyRows = it.filter(Char::isDigit).take(3)
+                                        }, label = { Text("行数") }, singleLine = true,
+                                            modifier = Modifier.weight(1f)
+                                                .testTag("terminal-resize-rows"),
+                                            enabled = !session.terminating)
+                                        OutlinedTextField(ttyCols, {
+                                            ttyCols = it.filter(Char::isDigit).take(3)
+                                        }, label = { Text("列数") }, singleLine = true,
+                                            modifier = Modifier.weight(1f)
+                                                .testTag("terminal-resize-cols"),
+                                            enabled = !session.terminating)
+                                    }
+                                    val validSize = ttyRows.toIntOrNull() in 2..300 &&
+                                        ttyCols.toIntOrNull() in 10..400
+                                    if (!validSize) AtlasFieldFeedback(
+                                        "行数 2–300，列数 10–400", isError = true)
+                                    CodexPrimaryButton(
+                                        onClick = {
+                                            vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
+                                                ttyCols.toIntOrNull() ?: 0)
+                                        },
+                                        enabled = !session.terminating && validSize,
+                                        modifier = Modifier.fillMaxWidth()
+                                            .testTag("terminal-resize-apply")
+                                    ) { Text("应用尺寸") }
+                                    errors["terminalResize"]?.let { ErrorText(it) }
                                 }
                             }
                         }
@@ -405,32 +421,33 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                 if (recentCommands.isNotEmpty()) {
                     Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
                         style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    Box {
-                        TextButton(
-                            onClick = { historyVisible = true },
-                            enabled = !session.running,
-                            modifier = Modifier.heightIn(min = 48.dp)
-                        ) {
-                            Icon(Icons.Outlined.History, null)
-                            Spacer(Modifier.width(7.dp))
-                            Text("使用历史命令")
-                        }
-                        DropdownMenu(
-                            expanded = historyVisible,
-                            onDismissRequest = { historyVisible = false }
-                        ) {
-                            recentCommands.forEach { previous ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(previous, maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis)
-                                    },
-                                    onClick = {
-                                        command = previous
-                                        historyPosition = TerminalHistoryPosition()
-                                        historyVisible = false
-                                    }
-                                )
+                    TextButton(
+                        onClick = { historyVisible = true },
+                        enabled = !session.running,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("terminal-history-toggle")
+                    ) {
+                        Icon(Icons.Outlined.History, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text("使用历史命令")
+                    }
+                    if (historyVisible) CodexDetailSheet(
+                        title = "历史命令",
+                        subtitle = "选择后填入输入栏，执行前仍需确认",
+                        onDismiss = { historyVisible = false }
+                    ) {
+                        recentCommands.forEachIndexed { index, previous ->
+                            OutlinedButton(
+                                onClick = {
+                                    command = previous
+                                    historyPosition = TerminalHistoryPosition()
+                                    historyVisible = false
+                                },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .testTag("terminal-history-item-$index")
+                            ) {
+                                Text(previous, maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
