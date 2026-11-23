@@ -44,8 +44,9 @@ internal fun ConversationComposer(
     canStop: Boolean,
     canSend: Boolean,
     sending: Boolean,
+    followUpMode: String,
+    onFollowUpModeChange: (String) -> Unit,
     onAttach: () -> Unit,
-    onOpenWorkspaceTools: () -> Unit,
     onStop: () -> Unit,
     onSend: () -> Unit,
     menuExpanded: Boolean = false,
@@ -91,6 +92,29 @@ internal fun ConversationComposer(
                     }
                 }
             )
+            // Running follow-ups belong in the composer: queue or steer the active turn.
+            if (running) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().testTag("composer-follow-up-mode"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = followUpMode == "queue",
+                        onClick = { onFollowUpModeChange("queue") },
+                        label = { Text("完成后执行") },
+                        enabled = !sending,
+                        modifier = Modifier.testTag("composer-mode-queue")
+                    )
+                    FilterChip(
+                        selected = followUpMode == "steer",
+                        onClick = { onFollowUpModeChange("steer") },
+                        label = { Text("立即纠偏") },
+                        enabled = !sending,
+                        modifier = Modifier.testTag("composer-mode-steer")
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -141,13 +165,6 @@ internal fun ConversationComposer(
 
                     }
                 }
-                IconButton(
-                    onClick = onOpenWorkspaceTools,
-                    modifier = Modifier.size(44.dp).testTag("composer-workspace-tools")
-                ) {
-                    Icon(Icons.Outlined.Widgets, contentDescription = "工作区工具",
-                        tint = Ink.parchment, modifier = Modifier.size(22.dp))
-                }
                 if (attachedCount > 0) {
                     Text("${attachedCount} 张图片",
                         color = Ink.copper, style = MaterialTheme.typography.labelMedium)
@@ -191,7 +208,11 @@ internal fun ConversationComposer(
                             !connected -> "运行核心尚未连接"
                             else -> "输入指令后即可发送"
                         })
-                        .semantics { contentDescription = if (running) "补充任务指令" else "发送给 Codex" },
+                        .semantics { contentDescription = when {
+                            !running -> "发送给 Codex"
+                            followUpMode == "queue" -> "加入后续执行队列"
+                            else -> "立即调整当前任务"
+                        } },
                     shape = androidx.compose.foundation.shape.CircleShape,
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -205,8 +226,11 @@ internal fun ConversationComposer(
                         CircularProgressIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
                             color = Ink.muted)
                     } else {
-                        Icon(if (running) Icons.Outlined.EditNote else Icons.Outlined.ArrowUpward,
-                            null, modifier = Modifier.size(24.dp))
+                        Icon(when {
+                            !running -> Icons.Outlined.ArrowUpward
+                            followUpMode == "queue" -> Icons.Outlined.Schedule
+                            else -> Icons.Outlined.EditNote
+                        }, null, modifier = Modifier.size(24.dp))
                     }
                 }
             }
