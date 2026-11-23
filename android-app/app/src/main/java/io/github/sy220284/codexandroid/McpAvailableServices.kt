@@ -24,10 +24,14 @@ internal object McpAvailableServices {
         if (server.optString("authStatus") == "notLoggedIn") return false
 
         val toolsError = server.optString("toolsError")
-        if (toolsError.isBlank() || toolsError == "null") return true
-
-        // A tool catalog may fail while independently advertised resources remain usable.
-        return (server.optJSONArray("resources")?.length() ?: 0) > 0 ||
+        val toolsReady = (toolsError.isBlank() || toolsError == "null") &&
+            (server.optJSONObject("tools")?.length() ?: 0) > 0
+        val resourcesReady = (server.optJSONArray("resources")?.length() ?: 0) > 0 ||
             (server.optJSONArray("resourceTemplates")?.length() ?: 0) > 0
+        val promptsReady = server.optJSONObject("serverCapabilities")
+            ?.optJSONObject("prompts") != null
+        // A live socket without any usable tool, resource, or prompt is not an
+        // actionable MCP service; cached tools are excluded when discovery failed.
+        return toolsReady || resourcesReady || promptsReady
     }
 }
