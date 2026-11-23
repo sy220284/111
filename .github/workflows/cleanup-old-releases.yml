@@ -1,8 +1,7 @@
 name: 清理 111 旧正式版本
 
 'on':
-  release:
-    types: [published]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -17,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Keep latest three published releases
+      - name: 只保留版本最高的三个正式发行版
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

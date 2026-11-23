@@ -16,6 +16,8 @@ on:
   pull_request:
     paths:
       - ".github/workflows/build-native-codex.yml"
+      # Packaging workflow changes must also run a real PR ARM64 APK build.
+      - ".github/workflows/build-android.yml"
       - "upstream/codex/codex-rs/**"
       - "upstream/codex/.cargo/**"
       - "android-app/tools/prepare_android_mxc.py"

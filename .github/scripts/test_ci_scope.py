@@ -25,6 +25,7 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertGreaterEqual(contents.count('"upstream/codex/codex-rs/**"'), 2)
         self.assertGreaterEqual(contents.count('"upstream/codex/.cargo/**"'), 2)
         self.assertIn("--abis arm64-v8a", contents)
+        self.assertIn('- ".github/workflows/build-android.yml"', contents)
         self.assertNotIn('--branch "${{ github.head_ref || github.ref_name }}"', contents)
 
     def test_android_build_and_ui_share_unit_test_gate(self):
@@ -45,6 +46,24 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("inputs.expected_sha == github.sha", android)
         self.assertIn("inputs.expected_sha == ''", android)
 
+    def test_merged_push_waits_for_native_only_when_relevant(self):
+        android = workflow("build-android.yml")
+        self.assertIn("decide_android_build.py", android)
+        self.assertIn("needs.preflight.outputs.should_build == 'true'", android)
+        self.assertIn("github.event.workflow_run.head_sha == github.sha", android)
+        self.assertIn("if: always() && needs.build.result == 'success'", android)
+        self.assertIn("ARM64 手机安装包二次核验", android)
+        self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", android)
+
+    def test_cleanup_is_reusable_and_only_called_after_real_release(self):
+        cleanup = workflow("cleanup-old-releases.yml")
+        release = workflow("release.yml")
+        self.assertIn("  workflow_call:", cleanup)
+        self.assertIn("  workflow_dispatch:", cleanup)
+        self.assertNotIn("  release:", cleanup)
+        self.assertIn("needs: release", release)
+        self.assertIn("always() && needs.release.result == 'success'", release)
+
     def test_import_requires_manual_action_and_uses_reviewed_pr(self):
         contents = workflow("import-codex.yml")
         self.assertIn("  workflow_dispatch:", contents)
@@ -58,7 +77,10 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("github.event.workflow_run.head_branch == 'main'", contents)
         self.assertIn("github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'", contents)
         self.assertIn("needs.preflight.result == 'success'", contents)
-        self.assertIn("build-android.yml check-android-ui.yml", contents)
+        self.assertIn("verify_release_acceptance.py", contents)
+        self.assertIn("always() && needs.release.result == 'success'", contents)
+        self.assertIn("always() && needs.check-release.result == 'success'", contents)
+        self.assertIn("uses: ./.github/workflows/cleanup-old-releases.yml", contents)
         self.assertNotIn(":app:testDebugUnitTest", contents)
         self.assertIn("release_change_gate.py", contents)
 

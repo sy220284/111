@@ -35,13 +35,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  preflight:
+    name: 判断本次 push 是否等待原生工作流
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_build: ${{ steps.decide.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            .github/scripts
+      - name: 分类本次提交所涉及的构建输入
+        id: decide
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/decide_android_build.py \
+            --before "$BEFORE_SHA" --after "$GITHUB_SHA" --output "$GITHUB_OUTPUT"
+
   build:
+    needs: preflight
     if: >-
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main')) &&
-      (github.event_name != 'workflow_dispatch' ||
-       inputs.expected_sha == '' || inputs.expected_sha == github.sha)
+      always() &&
+      ((github.event_name == 'push' &&
+        needs.preflight.result == 'success' &&
+        needs.preflight.outputs.should_build == 'true') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_sha == github.sha) ||
+       (github.event_name == 'workflow_dispatch' &&
+        (inputs.expected_sha == '' || inputs.expected_sha == github.sha)))
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -145,6 +176,9 @@ jobs:
   verify-apk:
     name: ARM64 手机安装包二次核验
     needs: build
+    # On workflow_run/dispatch, the push-only preflight is skipped. Avoid
+    # inheriting its implicit success() guard through the build dependency.
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
