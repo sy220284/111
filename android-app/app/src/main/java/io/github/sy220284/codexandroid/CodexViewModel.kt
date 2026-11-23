@@ -223,6 +223,46 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         onSuccess: ((JSONObject) -> Unit)? = null
     ) = request(key, method, params, onSuccess)
 
+    /**
+     * Persist a named permission profile and verify the effective config.
+     * The server can accept a write that is overridden by managed policy.
+     */
+    fun saveDefaultPermissionProfile(profileId: String) {
+        val ticket = latestRequests.begin("securitySave")
+        loading.value = loading.value + "securitySave"
+        errors.value = errors.value - "securitySave"
+        viewModelScope.launch {
+            try {
+                val params = JSONObject()
+                    .put("edits", JSONArray().put(JSONObject()
+                        .put("keyPath", "default_permissions")
+                        .put("value", profileId)
+                        .put("mergeStrategy", "replace")))
+                    .put("reloadUserConfig", true)
+                val write = bridge.request("config/batchWrite", params)
+                check(write.optString("status") == "ok") {
+                    "权限设置受到更高优先级策略覆盖"
+                }
+                val read = bridge.request("config/read",
+                    JSONObject().put("includeLayers", true))
+                data.value = data.value + ("config" to read)
+                check(read.getJSONObject("config")
+                    .optString("default_permissions") == profileId) {
+                    "权限已写入但实际生效方案与所选不一致"
+                }
+                actionFeedback.emit(ActionFeedbackReceipt("默认权限已保存并核实生效"))
+            } catch (failure: Exception) {
+                val reason = failure.message ?: "权限保存或回读失败"
+                errors.value = errors.value + ("securitySave" to reason)
+                actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true))
+            } finally {
+                if (latestRequests.complete("securitySave", ticket)) {
+                    loading.value = loading.value - "securitySave"
+                }
+            }
+        }
+    }
+
     fun ensureCatalog(key: String, method: String, params: JSONObject = JSONObject()) =
         catalogWarmup.ensure(key, method, params)
 
