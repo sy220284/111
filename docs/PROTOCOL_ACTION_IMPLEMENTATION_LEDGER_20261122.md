@@ -459,3 +459,9 @@
 - **安装专项**：393dp 的 `self-update-open.json` 为 `status=passed`；系统安装器实际点击 `Install` 与 `Open`，安装时间 `2026-11-23 10:35:08 → 10:36:58`，新进程 `PID 3494` 回到 `io.github.sy220284.codexandroid/.MainActivity`。
 - **此前错误及修正**：先解决 CI 稀疏检出缺失索引、共享 VM 760 行预算、测试断言错误导入，再处理三档测试中弹层状态文字与背景提示重复导致的单节点假失败；最终将断言锁定 `data-transfer-busy-message` 专属控件，并以完整设备测试确认恢复。
 - **独立专项仍需真实环境证据**：ARM64 核心真实长终端切后台/OEM 通知保活、真实账号、外部 MCP/OAuth、真实项目大容量备份恢复、原生权限和各类 RPC 真实服务端成功回读。以上保持“待专项实测”，不因本次 CI 完成而误升等级。
+
+
+### PR #71 与最新主线并行 MCP 合并对齐复核
+
+- 在 PR #71 功能代码及台账提交 `6b00a22b585171124200b2ebaab8566b2d129595` 的 [CI #45158226314](https://github.com/sy220284/111/actions/runs/45158226314) 4/4 通过后，`main` 又合入了 MCP 智能体管理改造 [`b42628a7`](https://github.com/sy220284/111/commit/b42628a7e02d2878405d4596e9873a8bf363a234)，两分支同时涉及 `CodexViewModel`、`AppNavigation` 及接口规范。
+- PR #71 的目标基线已更新至 `main@b42628a7`，依 GitHub 最新实际三方合并状态核验可合并。必须对该新主线组合再次执行完整 Kotlin/协议/Lint 和 Android 35 三档设备测试；仅在新组合测试成功后合入，保护 #70 的 MCP 服务注册归属与本轮跨会话/归档安全改造。
