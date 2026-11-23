@@ -8,6 +8,8 @@ used by the release updater, not by adb install -r.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -111,25 +113,57 @@ def click_system_button(labels: set[str], timeout: float) -> None:
     raise RuntimeError(f"System installer button {sorted(labels)} missing; UI: {last_ui[:2000]}")
 
 
-def wait_until_launched(timeout: float) -> None:
+def parse_last_update_time(package_dump: str) -> str:
+    """Read the installed package's update timestamp from Android PackageManager."""
+    match = re.search(r"(?m)^\\s*lastUpdateTime=(.+)$", package_dump)
+    if match is None or not match.group(1).strip():
+        raise RuntimeError("PackageManager did not expose lastUpdateTime")
+    return match.group(1).strip()
+
+
+def installed_update_time() -> str:
+    return parse_last_update_time(adb("shell", "dumpsys", "package", PACKAGE))
+
+
+def verify_replacement(before: str, after: str) -> None:
+    if before == after:
+        raise RuntimeError(
+            f"System installer Open was visible, but package lastUpdateTime "
+            f"did not change ({before}); APK replacement is unverified"
+        )
+
+
+def capture_screenshot(path: Path) -> None:
+    with path.open("wb") as out:
+        process = subprocess.run(
+            ["adb", "exec-out", "screencap", "-p"],
+            stdout=out, stderr=subprocess.PIPE, check=False,
+        )
+    if process.returncode:
+        raise RuntimeError(
+            f"Failed to capture screen: {process.stderr.decode('utf-8', errors='replace')}"
+        )
+
+
+def wait_until_launched(timeout: float) -> tuple[str, str]:
     deadline = time.monotonic() + timeout
     last_activity = ""
     while time.monotonic() < deadline:
         activities = adb("shell", "dumpsys", "activity", "activities", check=False)
-        focused = [
+        resumed = [
             line.strip() for line in activities.splitlines()
             if "topResumedActivity" in line or "mResumedActivity" in line
         ]
         windows = adb("shell", "dumpsys", "window", check=False)
-        focused += [
+        focused_window = [
             line.strip() for line in windows.splitlines()
-            if "mCurrentFocus=" in line or "mFocusedApp=" in line
+            if "mCurrentFocus=" in line
         ]
-        last_activity = " | ".join(focused)
+        last_activity = " | ".join(resumed + focused_window)
         pid = adb("shell", "pidof", PACKAGE, check=False).strip()
-        if pid and PACKAGE in last_activity and "MainActivity" in last_activity:
-            print(f"PASS: system Open started {PACKAGE}/.MainActivity (PID {pid})", flush=True)
-            return
+        if pid and any(PACKAGE in line and "MainActivity" in line for line in resumed):
+            print(f"PASS: system Open resumed {PACKAGE}/.MainActivity (PID {pid})", flush=True)
+            return pid, last_activity
         time.sleep(1)
     raise RuntimeError(
         "Install completed, but Open did not launch the application; "
@@ -140,20 +174,70 @@ def wait_until_launched(timeout: float) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apk", required=True, type=Path)
+    parser.add_argument("--report", type=Path, default=Path("self-update-open.json"))
+    parser.add_argument("--screenshot", type=Path, default=Path("self-update-after-open.png"))
+    parser.add_argument("--commit", default="")
     args = parser.parse_args()
     if not args.apk.is_file():
         parser.error(f"APK not found: {args.apk}")
-    # The app is the installation source. Authorize it as the CI device owner
-    # would do via Settings > Install unknown apps; retain the actual system
-    # installer confirmation and Open buttons for the end-to-end test.
-    adb("shell", "appops", "set", PACKAGE, "REQUEST_INSTALL_PACKAGES", "allow")
-    copy_fixture(args.apk)
-    launch_install_ui()
-    click_system_button({"install", "update", "安装", "更新"}, timeout=35)
-    click_system_button({"open", "打开"}, timeout=90)
-    wait_until_launched(timeout=25)
-    return 0
 
+    report = {
+        "schema_version": 1,
+        "test_type": "android35_aosp_debug_same_apk",
+        "commit": args.commit,
+        "package": PACKAGE,
+        "apk_sha256": hashlib.sha256(args.apk.read_bytes()).hexdigest(),
+        "android_api": adb("shell", "getprop", "ro.build.version.sdk").strip(),
+        "device_fingerprint": adb("shell", "getprop", "ro.build.fingerprint").strip(),
+        "display_size": adb("shell", "wm", "size").strip(),
+        "status": "running",
+        "installer_buttons": [],
+    }
+    try:
+        # Grant the same app install-source permission a human enables in Settings.
+        # Install and Open remain actual system installer button presses.
+        adb("shell", "appops", "set", PACKAGE, "REQUEST_INSTALL_PACKAGES", "allow")
+        copy_fixture(args.apk)
+        before = installed_update_time()
+        report["last_update_time_before"] = before
+        print(f"PackageManager before installer: lastUpdateTime={before}", flush=True)
+
+        launch_install_ui()
+        previous_pid = adb("shell", "pidof", PACKAGE, check=False).strip()
+        report["pid_before_install"] = previous_pid
+
+        click_system_button({"install", "update", "安装", "更新"}, timeout=35)
+        report["installer_buttons"].append("Install")
+        click_system_button({"open", "打开"}, timeout=90)
+        report["installer_buttons"].append("Open")
+
+        after = installed_update_time()
+        report["last_update_time_after"] = after
+        verify_replacement(before, after)
+        print(f"PASS: PackageManager lastUpdateTime changed: {before} -> {after}", flush=True)
+
+        pid, resumed = wait_until_launched(timeout=25)
+        if previous_pid and previous_pid == pid:
+            raise RuntimeError(f"Installer did not replace old application process PID {pid}")
+        report["pid_after_open"] = pid
+        report["foreground_after_open"] = resumed
+        report["status"] = "passed"
+        print(f"PASS: installer Open launched new application process {pid}", flush=True)
+    except Exception as error:
+        report["status"] = "failed"
+        report["error"] = str(error)
+        raise
+    finally:
+        # Keep a screenshot even on failure, so green CI status is never the only
+        # evidence and failures preserve the actual installer/launcher screen.
+        try:
+            capture_screenshot(args.screenshot)
+            report["screenshot"] = str(args.screenshot)
+        except Exception as screenshot_error:
+            report["screenshot_error"] = str(screenshot_error)
+        args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"Self-update evidence: {args.report} ({report['status']})", flush=True)
+    return 0
 
 if __name__ == "__main__":
     try:
