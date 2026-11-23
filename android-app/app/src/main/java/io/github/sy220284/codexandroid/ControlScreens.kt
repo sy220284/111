@@ -442,81 +442,64 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
     val current = data["config"]?.optJSONObject("config")
-    val requirements = data["securityRequirements"]
-    val permissionProfiles = records(data["permissionProfiles"])
-    val effectiveApproval = current?.optString("approvalPolicy").orEmpty()
-    val effectiveSandbox = current?.optString("sandboxMode").orEmpty()
-    var draftApproval by remember { mutableStateOf<String?>(null) }
-    var draftSandbox by remember { mutableStateOf<String?>(null) }
+    val requirements = data["securityRequirements"]?.optJSONObject("requirements")
+    val profiles = records(data["permissionProfiles"])
+    val defaultProfile = current?.optString("default_permissions").orEmpty()
+    val effectiveApproval = current?.optString("approval_policy").orEmpty()
+    val effectiveSandbox = current?.optString("sandbox_mode").orEmpty()
+    val activeThread by vm.activeThread.collectAsState()
+    var scope by rememberSaveable { mutableStateOf("default") }
+    var draftProfile by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
-    var showProfiles by rememberSaveable { mutableStateOf(false) }
-    val selectedApproval = draftApproval ?: effectiveApproval
-    val selectedSandbox = draftSandbox ?: effectiveSandbox
-    val hasChanges = current != null && (
-        (draftApproval != null && draftApproval != effectiveApproval) ||
-        (draftSandbox != null && draftSandbox != effectiveSandbox)
-    )
-
-    LaunchedEffect(Unit) {
-        if (SettingsDeepLink.take("security") == "profiles") showProfiles = true
+    var showProfiles by rememberSaveable { mutableStateOf(true) }
+    val selected = draftProfile ?: defaultProfile
+    val allowedProfiles = requirements?.optJSONObject("allowedPermissionProfiles")
+    val canSelect: (JSONObject) -> Boolean = { profile ->
+        val id = profile.optString("id")
+        profile.optBoolean("allowed") &&
+            (allowedProfiles == null || !allowedProfiles.has(id) || allowedProfiles.optBoolean(id)) &&
+            (scope != "thread" || activeThread != null)
+    }
+    fun reload() {
         vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
         vm.refresh("securityRequirements", "configRequirements/read")
         vm.refresh("permissionProfiles", "permissionProfile/list",
             JSONObject().put("cwd", vm.workingDirectory))
     }
-
+    LaunchedEffect(vm.workingDirectory) {
+        if (SettingsDeepLink.take("security") == "profiles") showProfiles = true
+        reload()
+    }
     ScreenColumn {
-        SectionIntro("TRUST / EXECUTION", "运行权限与安全", "先读取 Codex 实际生效设置，再明确修改审批与文件访问范围。")
-        ProtocolFeedback(
-            vm, listOf("config", "securityRequirements", "securitySave", "permissionProfiles"),
-            onRetry = {
-                vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-                vm.refresh("securityRequirements", "configRequirements/read")
-                vm.refresh("permissionProfiles", "permissionProfile/list",
-                    JSONObject().put("cwd", vm.workingDirectory))
-            }
-        )
+        SectionIntro("TRUST / EXECUTION", "运行权限与安全",
+            "从 Codex 内核选择实际允许的权限方案，并确认作用范围。")
+        ProtocolFeedback(vm, listOf("config", "securityRequirements", "permissionProfiles",
+            "securitySave", "securityThreadSave"), onRetry = { reload() })
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("当前生效权限", style = MaterialTheme.typography.titleMedium)
-            Text("审批方式：" + PresentationPolicy.approvalMode(effectiveApproval), color = Ink.muted)
+            Text("当前默认权限", style = MaterialTheme.typography.titleMedium)
+            Text("权限方案：" + PresentationPolicy.permissionProfile(defaultProfile),
+                color = Ink.muted)
+            Text("审批：" + PresentationPolicy.approvalMode(effectiveApproval), color = Ink.muted)
             Text("文件访问：" + PresentationPolicy.sandboxMode(effectiveSandbox), color = Ink.muted)
             DividerLine()
-            Text("审批方式", style = MaterialTheme.typography.titleMedium)
-            listOf("untrusted" to "只执行可信操作", "on-request" to "每当需要时请求批准",
-                "never" to "无需请求授权，由 Codex 自行按策略执行").forEach { (mode, title) ->
-                Row(Modifier.fillMaxWidth().clickable(enabled = current != null) { draftApproval = mode },
-                    verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = selectedApproval == mode, onClick = { draftApproval = mode },
-                        enabled = current != null)
+            Text("修改作用范围", style = MaterialTheme.typography.titleMedium)
+            listOf("default" to "后续新任务默认权限",
+                "thread" to "当前会话后续操作").forEach { (value, title) ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .clickable(enabled = value != "thread" || activeThread != null) {
+                        scope = value
+                        draftProfile = null
+                    }, verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = scope == value, onClick = {
+                        scope = value
+                        draftProfile = null
+                    }, enabled = value != "thread" || activeThread != null)
                     Text(title, modifier = Modifier.weight(1f))
                 }
             }
-            DividerLine()
-            Text("工作区文件访问", style = MaterialTheme.typography.titleMedium)
-            listOf("read-only" to "只读", "workspace-write" to "允许编辑工作区").forEach { (mode, title) ->
-                Row(Modifier.fillMaxWidth().clickable(enabled = current != null) { draftSandbox = mode },
-                    verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = selectedSandbox == mode, onClick = { draftSandbox = mode },
-                        enabled = current != null)
-                    Text(title)
-                }
-            }
-            if (hasChanges) {
-                TextButton(onClick = {
-                    draftApproval = null
-                    draftSandbox = null
-                }) { Text("放弃本次修改") }
-            }
-            CodexPrimaryButton(
-                onClick = { confirm = true },
-                enabled = hasChanges && "securitySave" !in loading,
-                busy = "securitySave" in loading,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            ) {
-                Text("保存本次权限调整")
-            }
-            Text("修改权限后，后续任务将按新的执行范围运行。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            if (activeThread == null)
+                Text("当前没有已建立的会话，可先设置新任务默认权限。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         }
         TextButton(onClick = { showProfiles = !showProfiles },
             modifier = Modifier.testTag("security-profiles-toggle")) {
@@ -525,59 +508,77 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text(if (showProfiles) "收起权限方案" else "查看可用权限方案")
         }
         CodexReveal(showProfiles) {
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("可用权限方案", style = MaterialTheme.typography.titleMedium)
-            Text("从当前 Codex 内核读取，显示哪些方案被运行策略允许。新任务默认继承上方生效设置。",
-                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-            if (data["permissionProfiles"] != null && permissionProfiles.isEmpty()) {
-                Text("没有额外权限方案可供选择。", color = Ink.muted)
-            }
-            permissionProfiles.forEach { profile ->
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(PresentationPolicy.permissionProfile(profile.optString("id")),
-                            style = MaterialTheme.typography.titleSmall)
-                        PresentationPolicy.meaningful(profile.optString("description"))
-                            .takeIf { it.isNotBlank() && it != "null" && it.any { c -> c in '\u4e00'..'\u9fff' } }?.let {
-                            Text(it, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("可用权限方案", style = MaterialTheme.typography.titleMedium)
+                Text("仅允许选择当前工作目录与管理策略许可的方案。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                if (profiles.isEmpty()) Text("正在读取权限方案或暂无可用方案。",
+                    color = Ink.muted)
+                profiles.forEach { profile ->
+                    val id = profile.optString("id")
+                    val allowed = canSelect(profile)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                        .clickable(enabled = allowed) { draftProfile = id }
+                        .testTag("security-profile-" + id.removePrefix(":")),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = if (scope == "default") selected == id else draftProfile == id,
+                            onClick = { draftProfile = id }, enabled = allowed)
+                        Column(Modifier.weight(1f)) {
+                            Text(PresentationPolicy.permissionProfile(id),
+                                style = MaterialTheme.typography.titleSmall)
+                            val description = profile.optString("description")
+                            if (description.isNotBlank() && description != "null")
+                                Text(description, color = Ink.muted,
+                                    style = MaterialTheme.typography.bodySmall)
                         }
+                        StatusPill(if (allowed) "可用" else "受策略限制", allowed)
                     }
-                    StatusPill(if (profile.optBoolean("allowed")) "可用" else "受策略限制",
-                        profile.optBoolean("allowed"))
                 }
+                if (draftProfile != null) {
+                    TextButton(onClick = { draftProfile = null }) { Text("放弃本次修改") }
+                }
+                CodexPrimaryButton(
+                    onClick = { confirm = true },
+                    enabled = draftProfile != null &&
+                        (scope == "thread" || draftProfile != defaultProfile) &&
+                        "securitySave" !in loading && "securityThreadSave" !in loading,
+                    busy = "securitySave" in loading || "securityThreadSave" in loading,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) { Text(if (scope == "thread") "应用到当前会话" else "保存默认权限") }
             }
-        }
         }
         if (requirements != null) CodexNotice(
-            "此运行环境还有额外安全规则，授权操作将遵循实际生效的限制。", NoticeTone.Info
+            "权限受当前运行环境和管理策略约束，实际生效范围以保存后的内核状态为准。",
+            NoticeTone.Info)
+    }
+    if (confirm && draftProfile != null) {
+        val id = draftProfile!!
+        CodexConfirmDialog(
+            title = if (id == ":danger-full-access") "确认启用完全访问" else "确认权限调整",
+            message = if (id == ":danger-full-access")
+                "此方案允许访问工作区以外的文件和网络，执行风险较高。"
+                else "权限调整将影响选定范围内的后续操作。",
+            detail = "目标：" + (if (scope == "thread") "当前会话" else "新任务默认权限") +
+                "\n方案：" + PresentationPolicy.permissionProfile(id),
+            confirmLabel = "确认保存",
+            destructive = id == ":danger-full-access",
+            onConfirm = {
+                if (scope == "thread") {
+                    activeThread?.let { threadId ->
+                        vm.rpc("securityThreadSave", "thread/settings/update",
+                            JSONObject().put("threadId", threadId).put("permissions", id),
+                            after = { vm.refresh("securityThreadRead", "thread/read",
+                                JSONObject().put("threadId", threadId)) })
+                    }
+                } else {
+                    vm.saveDefaultPermissionProfile(id)
+                }
+                draftProfile = null
+                confirm = false
+            },
+            onDismiss = { confirm = false }
         )
     }
-    if (confirm) CodexConfirmDialog(
-        title = "确认更新运行权限",
-        message = "更改会影响后续命令审批及工作区文件访问。",
-        detail = "审批：${PresentationPolicy.approvalMode(effectiveApproval)} → ${PresentationPolicy.approvalMode(selectedApproval)}\n文件访问：${PresentationPolicy.sandboxMode(effectiveSandbox)} → ${PresentationPolicy.sandboxMode(selectedSandbox)}",
-        confirmLabel = "确认保存",
-        destructive = true,
-        onConfirm = {
-            val edits = org.json.JSONArray()
-            if (draftApproval != null && draftApproval != effectiveApproval) {
-                edits.put(JSONObject().put("keyPath", "approval_policy")
-                    .put("value", draftApproval).put("mergeStrategy", "replace"))
-            }
-            if (draftSandbox != null && draftSandbox != effectiveSandbox) {
-                edits.put(JSONObject().put("keyPath", "sandbox_mode")
-                    .put("value", draftSandbox).put("mergeStrategy", "replace"))
-            }
-            if (edits.length() > 0) {
-                vm.rpc("securitySave", "config/batchWrite",
-                    JSONObject().put("edits", edits).put("reloadUserConfig", true),
-                    after = { vm.refresh("config", "config/read", JSONObject().put("includeLayers", true)) })
-            }
-            confirm = false
-        },
-        onDismiss = { confirm = false }
-    )
 }
 
 @Composable
