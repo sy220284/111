@@ -16,11 +16,11 @@ object UiFeatureCatalog {
     val all = listOf(
         UiFeature("home", FeatureSurface.Page, FeatureOwner.Global, false),
         UiFeature("chat", FeatureSurface.Page, FeatureOwner.Thread, false),
-        UiFeature("threads", FeatureSurface.Page, FeatureOwner.Thread, false),
-        UiFeature("approvals", FeatureSurface.Page, FeatureOwner.Thread, false),
-        UiFeature("search", FeatureSurface.Inline, FeatureOwner.Thread, true),
+        UiFeature("threads", FeatureSurface.Sheet, FeatureOwner.Global, false),
+        UiFeature("approvals", FeatureSurface.Sheet, FeatureOwner.Global, false),
+        UiFeature("search", FeatureSurface.Sheet, FeatureOwner.Global, false),
         UiFeature("goals", FeatureSurface.Sheet, FeatureOwner.Thread, false),
-        UiFeature("queue", FeatureSurface.Page, FeatureOwner.Thread, true),
+        UiFeature("queue", FeatureSurface.Sheet, FeatureOwner.Thread, true),
         UiFeature("files", FeatureSurface.Page, FeatureOwner.Workspace, false),
         UiFeature("diff", FeatureSurface.Reader, FeatureOwner.Thread, false),
         UiFeature("terminal", FeatureSurface.Page, FeatureOwner.Workspace, false),
@@ -37,7 +37,7 @@ object UiFeatureCatalog {
         UiFeature("config", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("security", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("usage", FeatureSurface.Page, FeatureOwner.Account, false),
-        UiFeature("limits", FeatureSurface.Inline, FeatureOwner.Account, false),
+        UiFeature("limits", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("appearance", FeatureSurface.Inline, FeatureOwner.System, false),
         UiFeature("diagnostics", FeatureSurface.Page, FeatureOwner.System, true),
         UiFeature("about", FeatureSurface.Sheet, FeatureOwner.System, false),
@@ -45,7 +45,7 @@ object UiFeatureCatalog {
         UiFeature("update", FeatureSurface.Inline, FeatureOwner.System, false)
     )
     val byRoute = all.associateBy { it.route }
-    val sidebarRoutes = listOf("home","chat","threads","files","approvals","settings")
+    val sidebarRoutes = listOf("home","chat","files","settings")
     val workspaceTools = listOf("files","diff","terminal","review","goals","queue")
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models")),
@@ -54,8 +54,9 @@ object UiFeatureCatalog {
         FeatureGroup("通用与外观", listOf("appearance", "about", "update"))
     )
     val legacyRoutes = all.filter { it.route != "settings" && it.route != "update" }.map { it.route }
-    val nonSettingsWorkRoutes = listOf("search","goals","queue","diff","terminal","review","modes","limits")
+    val nonSettingsWorkRoutes = listOf("search","goals","queue","diff","terminal","review","modes")
     fun requiresThread(route: String): Boolean = byRoute[route]?.needsThread == true
+    fun isSheet(route: String): Boolean = byRoute[route]?.surface == FeatureSurface.Sheet
     fun find(route: String): UiFeature = requireNotNull(byRoute[route]) {
         "未注册的功能入口：$route"
     }

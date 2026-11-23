@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -86,6 +87,7 @@ fun CodexShell(vm: CodexViewModel) {
     var backHistory by rememberSaveable { mutableStateOf(listOf("home")) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val sidebarState = rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    val pageStateHolder = rememberSaveableStateHolder()
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -118,21 +120,58 @@ fun CodexShell(vm: CodexViewModel) {
     var showMode by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showAttachments by remember { mutableStateOf(false) }
+    var showThreadLibrary by remember { mutableStateOf(false) }
+    var showApprovals by remember { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
+    var showModels by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
+    var libraryInitialFullText by remember { mutableStateOf(false) }
+    // Carry the original action across a successful thread selection.
+    var pendingThreadAction by remember { mutableStateOf<String?>(null) }
+    var pendingResumeRoute by remember { mutableStateOf<String?>(null) }
     val move: (String) -> Unit = move@{ destination ->
+        if (UiFeatureCatalog.requiresThread(destination) && activeThread == null) {
+            pendingThreadAction = destination
+            libraryInitialFullText = false
+            showThreadLibrary = true
+            scope.launch { drawer.close() }
+            return@move
+        }
         when (destination) {
+            "threads", "search" -> {
+                pendingThreadAction = null
+                libraryInitialFullText = destination == "search"
+                showThreadLibrary = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "queue" -> {
+                showQueue = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "models" -> {
+                showModels = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "about" -> {
+                showAbout = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "approvals" -> {
+                showApprovals = true
+                scope.launch { drawer.close() }
+                return@move
+            }
             "review" -> {
-                if (activeThread == null) {
-                    selected = "threads"
-                    backHistory = (backHistory + "threads").takeLast(18)
-                } else showReview = true
+                showReview = true
                 scope.launch { drawer.close() }
                 return@move
             }
             "goals" -> {
-                if (activeThread == null) {
-                    selected = "threads"
-                    backHistory = (backHistory + "threads").takeLast(18)
-                } else showGoal = true
+                showGoal = true
                 scope.launch { drawer.close() }
                 return@move
             }
@@ -143,8 +182,9 @@ fun CodexShell(vm: CodexViewModel) {
             }
             "history-tools", "thread-attachments" -> {
                 if (activeThread == null) {
-                    selected = "threads"
-                    backHistory = (backHistory + "threads").takeLast(18)
+                    pendingThreadAction = destination
+                    libraryInitialFullText = false
+                    showThreadLibrary = true
                 } else if (destination == "history-tools") showHistory = true
                 else showAttachments = true
                 scope.launch { drawer.close() }
@@ -166,6 +206,36 @@ fun CodexShell(vm: CodexViewModel) {
         focusManager.clearFocus()
         keyboard?.hide()
         scope.launch { drawer.close() }
+    }
+    // An older saved route may still point to a screen now owned by an overlay.
+    LaunchedEffect(Unit) {
+        val restored = selected
+        // A previous build could save sheet destinations as full navigation entries.
+        // Strip them from the back stack before either restoring or navigating.
+        val history = NavigationPolicy.pageHistory(backHistory)
+        when {
+            UiFeatureCatalog.isSheet(restored) -> {
+                selected = history.lastOrNull() ?: "home"
+                backHistory = history.ifEmpty { listOf("home") }
+                move(restored)
+            }
+            UiFeatureCatalog.byRoute[restored]?.surface !in
+                setOf(FeatureSurface.Page, FeatureSurface.Reader) -> {
+                selected = "settings"
+                backHistory = (history + "settings").takeLast(18)
+            }
+            else -> {
+                backHistory = (if (history.lastOrNull() == restored) history
+                    else history + restored).takeLast(18)
+            }
+        }
+    }
+    LaunchedEffect(pendingResumeRoute, showThreadLibrary, activeThread) {
+        val route = pendingResumeRoute
+        if (route != null && !showThreadLibrary && activeThread != null) {
+            pendingResumeRoute = null
+            move(route)
+        }
     }
     LaunchedEffect(pendingDeepLink, status) {
         val id = pendingDeepLink
@@ -289,7 +359,7 @@ fun CodexShell(vm: CodexViewModel) {
                     // Only the current page participates in semantics and input.
                     // This prevents stale search fields and buttons from remaining
                     // interactive during rapid settings / feature navigation.
-                    key(selected) {
+                    pageStateHolder.SaveableStateProvider(selected) {
                         CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
                             PageContent(selected, vm, move)
                         }
@@ -342,15 +412,43 @@ fun CodexShell(vm: CodexViewModel) {
         if (showStatus) {
             EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
         }
-        if (showReview) ReviewScopeSheet(
-            vm, onDismiss = { showReview = false }, navigate = move
-        )
-        if (showGoal) ThreadGoalSheet(
-            vm, onDismiss = { showGoal = false }
-        )
+        if (showReview) pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
+            ReviewScopeSheet(vm, onDismiss = { showReview = false }, navigate = move)
+        }
+        if (showGoal) pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
+            ThreadGoalSheet(vm, onDismiss = { showGoal = false })
+        }
         if (showMode) ModeChoiceSurface(vm) { showMode = false }
         if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
         if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
+        if (showThreadLibrary) pageStateHolder.SaveableStateProvider(
+            "sheet:library:${libraryInitialFullText}"
+        ) {
+            ThreadLibraryQuickSheet(vm,
+                initialFullText = libraryInitialFullText,
+                continuationLabel = pendingThreadAction?.let { requested ->
+                    pages.firstOrNull { it.id == requested }?.title ?: "当前操作"
+                },
+                onDismiss = {
+                    showThreadLibrary = false
+                    pendingThreadAction = null
+                    pendingResumeRoute = null
+                },
+                onThreadSelected = { pendingResumeRoute = pendingThreadAction },
+                navigate = { destination ->
+                    showThreadLibrary = false
+                    pendingThreadAction = null
+                    move(destination)
+                })
+        }
+        if (showApprovals) pageStateHolder.SaveableStateProvider("sheet:approvals") {
+            ApprovalQuickSheet(vm) { showApprovals = false }
+        }
+        if (showQueue) pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
+            ThreadQueueQuickSheet(vm) { showQueue = false }
+        }
+        if (showModels) ModelChoiceSurface(vm) { showModels = false }
+        if (showAbout) AboutInfoSheet(vm) { showAbout = false }
     }
 }
 
@@ -373,12 +471,12 @@ private fun Sidebar(
         ) {
             Text("Codex", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
-            IconButton(onClick = { onSelect("threads") },
+            IconButton(onClick = { onSelect("search") },
                 modifier = Modifier.size(48.dp).testTag("sidebar-global-search")) {
                 Icon(Icons.Outlined.Search, "搜索全部会话", tint = Ink.parchment)
             }
         }
-        listOf("chat","home","files","threads","approvals").forEach { id ->
+        listOf("chat","home","files").forEach { id ->
             SidebarRoute(id, selected, approvals, onSelect)
         }
         Row(

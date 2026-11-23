@@ -55,6 +55,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
     val composerDrafts = draftStorage.drafts
+    // Transient form drafts belong to the session, not a ModalBottomSheet's window.
+    internal val taskPanelDrafts = MutableStateFlow<Map<String, TaskPanelDraft>>(emptyMap())
+    internal fun editTaskPanelDraft(threadId: String?, edit: (TaskPanelDraft) -> TaskPanelDraft) {
+        taskPanelDrafts.update { TaskPanelDraftPolicy.change(it, threadId, edit) }
+    }
     private val attachmentController by lazy {
         AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors) {
             threadExecutions.value.values.flatMap { it.images } + firstTurnImages

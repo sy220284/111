@@ -35,11 +35,8 @@ import org.json.JSONObject
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ThreadLibraryPage(
-    vm: CodexViewModel,
-    navigate: (String) -> Unit,
-    initialFullText: Boolean = false
-) {
+fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
+    initialFullText: Boolean = false, onThreadSelected: (() -> Unit)? = null) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -89,6 +86,7 @@ fun ThreadLibraryPage(
         openingThreadId = id
         vm.chooseThread(id) {
             openingThreadId = null
+            onThreadSelected?.invoke()
             navigate("chat")
         }
     }
@@ -147,21 +145,20 @@ fun ThreadLibraryPage(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().testTag("thread-library-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item {
-            SectionIntro("", if (fullText) "全文检索" else "会话资料库",
-                if (fullText) "按正文查找历史任务，打开结果后继续会话。"
-                else "整理正在使用的会话与归档记录。")
+            Text(if (fullText) "全文检索" else "会话资料库",
+                style = MaterialTheme.typography.headlineSmall)
         }
         item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("会话管理", style = MaterialTheme.typography.titleMedium)
-                        Text("按标题或全文检索真实会话记录", color = Ink.muted,
+                        Text("查找会话", style = MaterialTheme.typography.titleMedium)
+                        Text("搜索标题或对话内容", color = Ink.muted,
                             style = MaterialTheme.typography.bodySmall)
                     }
                     CodexRefreshIcon(busy = key in loading || fullPending,
@@ -197,9 +194,6 @@ fun ThreadLibraryPage(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Text(if (fullText) "全文检索由当前内核提供，搜索结果可直接恢复对应会话。" else
-                    "标题搜索支持服务端游标分页。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 val recent = if (fullText) recentFull else recentTitle
                 if (recent.isNotEmpty()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -295,10 +289,17 @@ fun ThreadLibraryPage(
                     }
                 }
                 if ("threadSections" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                errors["threadSections"]?.let {
-                    Text("分组服务暂不可用：$it", color = Ink.muted,
-                        style = MaterialTheme.typography.bodySmall)
-                }
+                errors["threadSections"]
+                    ?.takeUnless { sectionError ->
+                        listOfNotNull(errors[key], errors[fullKey]).any {
+                            PresentationPolicy.readableError(it) ==
+                                PresentationPolicy.readableError(sectionError)
+                        }
+                    }
+                    ?.let {
+                        Text("分组加载失败：" + PresentationPolicy.readableError(it),
+                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     enabled = !firstThreadStarting && !switching) {
@@ -321,7 +322,7 @@ fun ThreadLibraryPage(
             if (fullPending) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             errors[fullKey]?.let { item { ErrorText(it) } }
             if (fullSubmitted.isBlank()) {
-                item { CodexEmptyState("在历史正文中查找", "输入关键词并点击搜索，结果来自当前 Codex 内核。") }
+                item { CodexEmptyState("搜索历史内容", "输入关键词查找过去的对话。") }
             } else if (!showingSubmittedQuery) {
                 item { CodexNotice("搜索词已改变，重新提交后显示对应结果。", NoticeTone.Info) }
             } else if (fullResultsReady && fullResults.isEmpty()) {
@@ -550,7 +551,7 @@ fun ThreadLibraryPage(
             title = "批量" + actionLabel + "会话",
             message = if (kind == "delete")
                 "这些会话的历史将永久删除。操作逐条执行，失败时保留未完成的选择，便于核查后重试。"
-            else "操作将逐条交由本机 Codex 内核执行，完成后刷新列表。",
+            else "将逐条处理所选会话，完成后刷新列表。",
             detail = "已选择 $count 条会话。请确认范围。",
             confirmLabel = "确认" + actionLabel,
             destructive = kind == "delete",
@@ -704,5 +705,37 @@ fun ThreadLibraryPage(
             },
             onDismiss = { action = null }
         )
+    }
+}
+
+/** Full-text search and bulk management stay available without a navigation jump. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThreadLibraryQuickSheet(
+    vm: CodexViewModel,
+    onDismiss: () -> Unit,
+    navigate: (String) -> Unit,
+    initialFullText: Boolean = false,
+    continuationLabel: String? = null,
+    onThreadSelected: (() -> Unit)? = null
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Ink.canvas,
+        contentColor = Ink.parchment
+    ) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+            .testTag("thread-library-sheet")) {
+            if (continuationLabel != null) {
+                Text("选择会话后继续：$continuationLabel",
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            }
+            Box(Modifier.weight(1f)) {
+                ThreadLibraryPage(vm, navigate, initialFullText, onThreadSelected)
+            }
+        }
     }
 }
