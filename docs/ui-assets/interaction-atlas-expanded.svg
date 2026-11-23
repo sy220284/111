@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1464" height="820" viewBox="0 0 1464 820" role="img" aria-label="111 Android 交互组件扩展图谱"><rect width="1464" height="820" fill="#F5F7F8"/><g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif"><rect x="24" y="127" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="38" y="141" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="48" y="160" font-size="13" fill="#C8483E" font-weight="700">01</text>
+<text x="79" y="161" font-size="17" fill="#263139" font-weight="700">统一搜索框</text>
+<text x="40" y="189" font-size="12" fill="#56646D" font-weight="500">关键词 / 清除 / 提交 / 键盘</text>
+<rect x="40" y="207" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="53" y="228" width="214" height="46" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="65" y="257" font-size="22" fill="#56646D" font-weight="500">⌕</text>
+<text x="101" y="257" font-size="14" fill="#56646D" font-weight="500">搜索会话或项目</text>
+<text x="235" y="257" font-size="18" fill="#C8483E" font-weight="500">➜</text>
+<text x="57" y="308" font-size="13" fill="#56646D" font-weight="500">输入后键盘可直接搜索</text>
+<rect x="53" y="325" width="214" height="37" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="66" y="349" font-size="13" fill="#263139" font-weight="500">已输入：修复权限页</text>
+<rect x="312" y="127" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="326" y="141" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="336" y="160" font-size="13" fill="#C8483E" font-weight="700">02</text>
+<text x="367" y="161" font-size="17" fill="#263139" font-weight="700">任务状态选择</text>
+<text x="328" y="189" font-size="12" fill="#56646D" font-weight="500">单选 / 语义颜色 / 回读</text>
+<rect x="328" y="207" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="341" y="223" width="101" height="52" rx="10" fill="#FFF2EE" stroke="#C8483E"/>
+<circle cx="358" cy="249" r="8" fill="#805A3F"/>
+<text x="373" y="254" font-size="13" fill="#263139" font-weight="500">进行中</text>
+<rect x="451" y="223" width="101" height="52" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="468" cy="249" r="8" fill="#56646D"/>
+<text x="483" y="254" font-size="13" fill="#263139" font-weight="500">已暂停</text>
+<rect x="341" y="285" width="101" height="52" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="358" cy="311" r="8" fill="#A76E32"/>
+<text x="373" y="316" font-size="13" fill="#263139" font-weight="500">遇到阻碍</text>
+<rect x="451" y="285" width="101" height="52" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="468" cy="311" r="8" fill="#246F54"/>
+<text x="483" y="316" font-size="13" fill="#263139" font-weight="500">已完成</text>
+<text x="341" y="361" font-size="12" fill="#56646D" font-weight="500">仅一项处于选中状态</text>
+<rect x="600" y="127" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="614" y="141" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="624" y="160" font-size="13" fill="#C8483E" font-weight="700">03</text>
+<text x="655" y="161" font-size="17" fill="#263139" font-weight="700">任务序号徽标</text>
+<text x="616" y="189" font-size="12" fill="#56646D" font-weight="500">顺序 / 上移 / 下移 / 编辑</text>
+<rect x="616" y="207" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<circle cx="650" cy="237" r="15" fill="#246F54"/>
+<text x="645" y="243" font-size="15" fill="#FFFFFF" font-weight="700">1</text>
+<text x="677" y="242" font-size="14" fill="#263139" font-weight="500">检查代码</text>
+<text x="801" y="243" font-size="14" fill="#56646D" font-weight="500">↑ ↓</text>
+<path d="M650 252 L650 265" stroke="#D8DEE1" stroke-width="2" fill="none"/>
+<circle cx="650" cy="283" r="15" fill="#E9EEEE"/>
+<text x="645" y="289" font-size="15" fill="#263139" font-weight="700">2</text>
+<text x="677" y="288" font-size="14" fill="#263139" font-weight="500">生成方案</text>
+<text x="801" y="289" font-size="14" fill="#56646D" font-weight="500">↑ ↓</text>
+<path d="M650 298 L650 311" stroke="#D8DEE1" stroke-width="2" fill="none"/>
+<circle cx="650" cy="329" r="15" fill="#E9EEEE"/>
+<text x="645" y="335" font-size="15" fill="#263139" font-weight="700">3</text>
+<text x="677" y="334" font-size="14" fill="#263139" font-weight="500">完成复查</text>
+<text x="801" y="335" font-size="14" fill="#56646D" font-weight="500">↑ ↓</text>
+<rect x="888" y="127" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="902" y="141" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="912" y="160" font-size="13" fill="#C8483E" font-weight="700">04</text>
+<text x="943" y="161" font-size="17" fill="#263139" font-weight="700">状态化进度</text>
+<text x="904" y="189" font-size="12" fill="#56646D" font-weight="500">确定比例 / 未知进度</text>
+<rect x="904" y="207" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<text x="919" y="239" font-size="14" fill="#263139" font-weight="500">正在导入项目</text>
+<text x="1100" y="239" font-size="14" fill="#246F54" font-weight="500">40%</text>
+<rect x="919" y="258" width="210" height="9" rx="5" fill="#D8DEE1"/>
+<rect x="919" y="258" width="84" height="9" rx="5" fill="#C8483E"/>
+<text x="919" y="317" font-size="14" fill="#263139" font-weight="500">正在读取会话列表</text>
+<rect x="919" y="336" width="210" height="9" rx="5" fill="#D8DEE1"/>
+<rect x="919" y="336" width="72" height="9" rx="5" fill="#805A3F"/>
+<text x="919" y="363" font-size="11" fill="#56646D" font-weight="500">进度未知时不显示假百分比</text>
+<rect x="1176" y="127" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="1190" y="141" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="1200" y="160" font-size="13" fill="#C8483E" font-weight="700">05</text>
+<text x="1231" y="161" font-size="17" fill="#263139" font-weight="700">字段就地反馈</text>
+<text x="1192" y="189" font-size="12" fill="#56646D" font-weight="500">成功 / 校验 / 说明</text>
+<rect x="1192" y="207" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="1204" y="221" width="216" height="40" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="1216" y="247" font-size="14" fill="#56646D" font-weight="500">项目名称</text>
+<rect x="1204" y="275" width="216" height="40" rx="12" fill="#FFFFFF" stroke="#C8483E"/>
+<text x="1216" y="301" font-size="14" fill="#C8483E" font-weight="500">? 无效字符</text>
+<text x="1208" y="337" font-size="12" fill="#C8483E" font-weight="500">! 名称只能包含有效字符</text>
+<text x="1208" y="363" font-size="12" fill="#56646D" font-weight="500">反馈贴近字段，减少打断</text>
+<rect x="24" y="455" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="38" y="469" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="48" y="488" font-size="13" fill="#C8483E" font-weight="700">06</text>
+<text x="79" y="489" font-size="17" fill="#263139" font-weight="700">结果骨架屏</text>
+<text x="40" y="517" font-size="12" fill="#56646D" font-weight="500">等待数据 / 稳定占位</text>
+<rect x="40" y="535" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="55" y="550" width="44" height="32" rx="6" fill="#E5E9EB" stroke="none"/>
+<rect x="112" y="555" width="100" height="9" rx="5" fill="#DFE4E6"/>
+<rect x="112" y="573" width="71" height="9" rx="5" fill="#EDF0F2"/>
+<rect x="55" y="598" width="44" height="32" rx="6" fill="#E5E9EB" stroke="none"/>
+<rect x="112" y="603" width="124" height="9" rx="5" fill="#DFE4E6"/>
+<rect x="112" y="621" width="99" height="9" rx="5" fill="#EDF0F2"/>
+<rect x="55" y="646" width="44" height="32" rx="6" fill="#E5E9EB" stroke="none"/>
+<rect x="112" y="651" width="100" height="9" rx="5" fill="#DFE4E6"/>
+<rect x="112" y="669" width="71" height="9" rx="5" fill="#EDF0F2"/>
+<rect x="312" y="455" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="326" y="469" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="336" y="488" font-size="13" fill="#C8483E" font-weight="700">07</text>
+<text x="367" y="489" font-size="17" fill="#263139" font-weight="700">列表结果摘要</text>
+<text x="328" y="517" font-size="12" fill="#56646D" font-weight="500">数量 / 当前范围 / 批量操作</text>
+<rect x="328" y="535" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<text x="344" y="572" font-size="17" fill="#263139" font-weight="700">最近会话</text>
+<text x="344" y="594" font-size="13" fill="#56646D" font-weight="500">本页 12 项</text>
+<rect x="468" y="554" width="84" height="38" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="480" y="579" font-size="13" fill="#263139" font-weight="500">批量管理</text>
+<path d="M344 614 L552 614" stroke="#D8DEE1" stroke-width="2" fill="none"/>
+<text x="344" y="643" font-size="14" fill="#263139" font-weight="500">文档整理</text>
+<text x="344" y="667" font-size="14" fill="#263139" font-weight="500">项目构建检查</text>
+<text x="344" y="691" font-size="14" fill="#263139" font-weight="500">界面验收记录</text>
+<rect x="600" y="455" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="614" y="469" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="624" y="488" font-size="13" fill="#C8483E" font-weight="700">08</text>
+<text x="655" y="489" font-size="17" fill="#263139" font-weight="700">整行快捷设置</text>
+<text x="616" y="517" font-size="12" fill="#56646D" font-weight="500">说明 / 入口 / 触控面积</text>
+<rect x="616" y="535" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="628" y="553" width="216" height="60" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="649" cy="583" r="13" fill="#805A3F"/>
+<text x="671" y="578" font-size="14" fill="#263139" font-weight="600">添加服务商</text>
+<text x="671" y="597" font-size="12" fill="#56646D" font-weight="500">连接地址与密钥</text>
+<text x="817" y="588" font-size="23" fill="#56646D" font-weight="500">›</text>
+<rect x="628" y="625" width="216" height="60" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="649" cy="655" r="13" fill="#246F54"/>
+<text x="671" y="650" font-size="14" fill="#263139" font-weight="600">查看能力</text>
+<text x="671" y="669" font-size="12" fill="#56646D" font-weight="500">真实接口状态</text>
+<text x="817" y="660" font-size="23" fill="#56646D" font-weight="500">›</text>
+<rect x="888" y="455" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="902" y="469" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="912" y="488" font-size="13" fill="#C8483E" font-weight="700">09</text>
+<text x="943" y="489" font-size="17" fill="#263139" font-weight="700">详情底部面板</text>
+<text x="904" y="517" font-size="12" fill="#56646D" font-weight="500">稳定页面 / 拖拽 / 关闭</text>
+<rect x="904" y="535" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="924" y="545" width="200" height="150" rx="16" fill="#EDF0F1" stroke="#D8DEE1"/>
+<rect x="939" y="577" width="170" height="110" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="1004" y="584" width="41" height="9" rx="5" fill="#D8DEE1"/>
+<text x="953" y="623" font-size="16" fill="#263139" font-weight="700">服务详情</text>
+<text x="1086" y="622" font-size="23" fill="#56646D" font-weight="500">×</text>
+<rect x="953" y="645" width="128" height="9" rx="5" fill="#E8EBEC"/>
+<rect x="953" y="664" width="94" height="9" rx="5" fill="#E8EBEC"/>
+<rect x="1176" y="455" width="272" height="311" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="1190" y="469" width="33" height="28" rx="8" fill="#FFF2EE" stroke="none"/>
+<text x="1200" y="488" font-size="13" fill="#C8483E" font-weight="700">10</text>
+<text x="1231" y="489" font-size="17" fill="#263139" font-weight="700">统一上下文菜单</text>
+<text x="1192" y="517" font-size="12" fill="#56646D" font-weight="500">复制 / 移动 / 删除确认</text>
+<rect x="1192" y="535" width="240" height="174" rx="13" fill="#FAFBFB" stroke="#D8DEE1"/>
+<rect x="1208" y="550" width="206" height="143" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="1223" y="578" font-size="16" fill="#263139" font-weight="700">文件操作</text>
+<path d="M1222 589 L1399 589" stroke="#D8DEE1" stroke-width="2" fill="none"/>
+<text x="1224" y="613" font-size="14" fill="#263139" font-weight="500">复制路径</text>
+<text x="1224" y="641" font-size="14" fill="#263139" font-weight="500">移动到分组</text>
+<text x="1224" y="671" font-size="14" fill="#C8483E" font-weight="500">删除（需确认）</text>
+<text x="28" y="51" font-size="32" fill="#263139" font-weight="750">111 · 移动端交互组件扩展库</text>
+<text x="28" y="82" font-size="15" fill="#56646D" font-weight="500">可编辑 SVG · 与 Android Compose 组件同步 · 功能优先、状态真实、统一反馈</text>
+<text x="32" y="797" font-size="13" fill="#56646D" font-weight="500">设计来源：用户提供的十张交互图谱  ·  实际行为以 GitHub 组件源码及 Android CI 验证为准</text></g></svg>
