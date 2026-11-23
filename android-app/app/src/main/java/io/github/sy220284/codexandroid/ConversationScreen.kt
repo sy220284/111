@@ -26,7 +26,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,8 +82,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
         imported.message else ""
 
-    // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
-    val compactWorkArea = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    // 小高度横屏与输入法弹出同一套紧凑规则，优先确保发送和内容可见。
+    val compactWorkArea = WindowInsets.isImeVisible ||
+        LocalConfiguration.current.screenHeightDp < AdaptiveWorkspaceLayout.compactHeightDp
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }

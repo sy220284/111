@@ -259,7 +259,12 @@ fun CodexShell(vm: CodexViewModel) {
         goBack()
     }
 
-    Box(Modifier.fillMaxSize().background(Ink.canvas)) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Ink.canvas)
+    ) {
+        val wide = AdaptiveWorkspaceLayout.persistentSidebar(maxWidth.value, maxHeight.value)
         val content: @Composable () -> Unit = {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -268,7 +273,7 @@ fun CodexShell(vm: CodexViewModel) {
                 topBar = {
                     if (selected == "chat" || selected == "home") {
                         ChatWorkTopBar(
-                            selected = selected,
+                            selected = selected, wide = wide,
                             newThreadBlockReason = newThreadBlockReason,
                             onMenu = { scope.launch { drawer.open() } },
                             onNavigate = move,
@@ -292,18 +297,22 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         navigationIcon = {
-                            val isNested = NavigationPolicy.isDetailPage(selected)
-                            IconButton(
-                                onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
-                                modifier = Modifier.padding(start = 6.dp).size(45.dp)
-                                    .border(1.dp, Ink.border, CircleShape)
-                            ) {
-                                Icon(if (isNested) Icons.Outlined.ArrowBack else Icons.Outlined.Menu,
-                                    if (isNested) "返回上一页" else "打开侧边导航")
+                            if (!wide) {
+                                // Workspace files remain a primary location with a stable drawer.
+                                // A contextual return action is offered separately when opened from chat.
+                                val isNested = NavigationPolicy.isDetailPage(selected)
+                                IconButton(
+                                    onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
+                                    modifier = Modifier.padding(start = 6.dp).size(45.dp)
+                                        .border(1.dp, Ink.border, CircleShape)
+                                ) {
+                                    Icon(if (isNested) Icons.Outlined.ArrowBack else Icons.Outlined.Menu,
+                                        if (isNested) "返回上一页" else "打开侧边导航")
+                                }
                             }
                         },
                         actions = {
-                            if (selected == "files" &&
+                            if (!wide && selected == "files" &&
                                 backHistory.dropLast(1).lastOrNull() == "chat") {
                                 IconButton(
                                     onClick = goBack,
@@ -347,28 +356,39 @@ fun CodexShell(vm: CodexViewModel) {
                 }
             }
         }
-        ModalNavigationDrawer(
-            drawerState = drawer,
-            gesturesEnabled = true,
-            drawerContent = {
-                ModalDrawerSheet(
-                    modifier = Modifier.widthIn(max = 318.dp)
-                        .then(if (drawer.isOpen) Modifier else Modifier.clearAndSetSemantics {}),
-                    drawerContainerColor = Ink.recessed,
-                    drawerContentColor = Ink.parchment
-                ) { Sidebar(Modifier.fillMaxHeight(), selected,
-                    { id ->
-                        if (id == "status") {
-                            showStatus = true
-                            scope.launch { drawer.close() }
-                        } else move(id)
-                    }, status, pending.size, newThreadBlockReason,
+        if (wide) {
+            Row(Modifier.fillMaxSize()) {
+                Sidebar(Modifier.width(272.dp), selected,
+                    { id -> if (id == "status") showStatus = true else move(id) },
+                    status, pending.size, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,
                     { id -> vm.chooseThread(id) { move("chat") } },
-                    sidebarState) }
+                    sidebarState)
+                Box(Modifier.weight(1f)) { content() }
             }
-        ) { content() }
-
+        } else {
+            ModalNavigationDrawer(
+                drawerState = drawer,
+                gesturesEnabled = true,
+                drawerContent = {
+                    ModalDrawerSheet(
+                        modifier = Modifier.widthIn(max = 318.dp)
+                            .then(if (drawer.isOpen) Modifier else Modifier.clearAndSetSemantics {}),
+                        drawerContainerColor = Ink.recessed,
+                        drawerContentColor = Ink.parchment
+                    ) { Sidebar(Modifier.fillMaxHeight(), selected,
+                        { id ->
+                            if (id == "status") {
+                                showStatus = true
+                                scope.launch { drawer.close() }
+                            } else move(id)
+                        }, status, pending.size, newThreadBlockReason,
+                        { vm.newThread(); move("chat") }, vm,
+                        { id -> vm.chooseThread(id) { move("chat") } },
+                        sidebarState) }
+                }
+            ) { content() }
+        }
         if (showStatus) {
             EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
         }

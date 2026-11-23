@@ -21,14 +21,14 @@
 | `config/read`、`config/value/write`、`configRequirements/read` | 长期安全/高级配置按需展开，审批保留会话上下文 | 代码已接入；真实写入回读待联调 |
 | `server/diagnostics` 与任务终端/队列/目标/差异 | 诊断状态与重连优先，任务按项目或会话展示及恢复 | 代码已接入；设备截图和真实断线恢复分开验收 |
 
-**验收区分**：提交代码、Kotlin/协议/Lint、Android 三档手机竖屏模拟器截图、真实内核运行回执、ARM64 真机和正式安装互不代替。截图必须经过应用前台归属校验，同一 SHA 作业全部成功后才记录设备验收通过。
+**验收区分**：提交代码、Kotlin/协议/Lint、Android 五屏宽模拟器截图、真实内核运行回执、ARM64 真机和正式安装互不代替。截图必须经过应用前台归属校验，同一 SHA 作业全部成功后才记录设备验收通过。
 
 ## 2026-11-23 多会话新建入口归属与跨模块整改记录
 
 - **关联方法**：`thread/start`、`turn/start`、`thread/list`、`thread/resume`、`thread/read`。保持官方 Rust DTO、请求方向、Host 处理、响应契约及 195 项 UI 分类不变。
 - **根因和处理**：顶栏以当前会话的 `running` 禁用全局新建，侧栏仅在会话创建/恢复期间禁用，导致同一操作在不同入口呈现矛盾；统一走 `NavigationPolicy.newThreadBlockReason`，顶栏、侧栏和会话资料库同步显示真实禁用原因，移除已经被会话弹层替代的不可达按钮。
 - **功能链及恢复**：用户在任一入口新建→`CodexViewModel.newThread` 检查首会话创建与切换竞争态→清除当前页面归属并保护已有运行会话的任务索引→用户在新对话提交后交由已有 `thread/start`/`turn/start` 处理；失败与草稿保护沿用原有协调器，不改接口字段。
-- **验证级别**：新增 `NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 单元测试；本次提交 SHA 的 Kotlin/协议/Lint、Android 35 三档手机竖屏截图必须以实际 CI 核验后追加结果；真实 ARM64 核心并行执行仍需独立专项回执，未将其记为通过。
+- **验证级别**：新增 `NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 单元测试；本次提交 SHA 的 Kotlin/协议/Lint、Android 35 三种手机宽度及横屏/平板截图必须以实际 CI 核验后追加结果；真实 ARM64 核心并行执行仍需独立专项回执，未将其记为通过。
 
 ## 核查结论和数字
 
@@ -379,10 +379,3 @@
 6. 在 PR 检查中产出协议目录覆盖率、正确参数覆盖率、真实操作覆盖率三个独立数值；后续新增协议自动生成待办条目。
 
 > 变更边界：本文是审计与实施台账，不声称以上待办已经修改、测试或合入；实施顺序以 P0→P1→P2 按完整业务链验收推进。当前仓库运行时行为以实际 CI、Android 模拟器和 ARM64 实机回执为准。
-
-## 2026-11-23 手机竖屏界面归属与验收范围更新
-
-- Android 主入口固定为竖屏；常驻侧栏、横屏、平板分支及其专项仪器测试已经删除，统一从抽屉导航进入 29 项既有功能，不改变接口归属。
-- 目标和队列保留按实际内容分配弹层高度的 `PhoneSheetLayout`，输入区由 `WindowInsets.ime` 感知键盘可用空间。
-- 原有 `thread/start`、`thread/list`、`thread/resume`、`plugin/search` 的请求字段、方向及回执处理保持一致；插件搜索测试用唯一 UI 标记定位，解决同文案重复匹配。
-- 按最终 SHA 检查 Kotlin、协议单元测试、Lint 和 Android 35 360/393/411dp 模拟器截图；实际 ARM64 核心、厂商真机与安装升级按原有专项门槛独立验收。

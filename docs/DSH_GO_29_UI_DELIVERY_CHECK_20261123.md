@@ -11,7 +11,7 @@
 | 03 | `threads` | P1 | 会话侧栏保留筛选与切换上下文；统一触控反馈 | `SidebarSessions.kt / ThreadLibraryPage.kt` | sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection；sidebar-android35.png |
 | 04 | `approvals` | P1 | 任务内权限范围、一次/会话授权、拒绝及历史 | `ControlScreens.kt / ApprovalQuickSheetContent` | permissionApprovalExplainsActualScope；audit-approvals-android35.png |
 | 05 | `search` | P1 | 历史全文检索无结果可切标题并沿用关键词 | `ThreadLibraryPage.kt` | threadLibraryExposesServerBackedManagementLayout；thread-full-search-android35.png |
-| 06 | `goals` | P1 | 目标摘要就近展示；会话草稿；随内容量变化高度的编辑弹层 | `TaskManagementScreens.kt / ThreadGoalSheet.kt` | audit-goals-sheet-android35.png；PhoneSheetLayoutTest |
+| 06 | `goals` | P1 | 目标摘要就近展示；会话草稿；自适应编辑弹层 | `TaskManagementScreens.kt / ThreadGoalSheet.kt` | audit-goals-sheet-android35.png；AdaptiveWorkspaceLayoutTest |
 | 07 | `queue` | P0 | 短 Sheet；无实验徽标；指令增删排队与草稿保留 | `TaskManagementScreens.kt` | queueDraftSurvivesClosingAndReopeningSheet；audit-queue-android35.png |
 | 08 | `files` | P1 | 当前目录及导入固定近文件列表；项目管理按需展开 | `DeveloperScreens.kt / ProjectRegistryPanel.kt` | workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation；workspace-files-android35.png |
 | 09 | `diff` | P1 | 文件摘要工具条；新旧行号；折行或横滚；复制及审查 | `DiffReaderPage.kt / UnifiedDiff.kt` | UnifiedDiffTest；diffReaderShowsFileFirstSummaryAndReviewAction |
@@ -39,7 +39,7 @@
 ## 不遗漏的统一验收门槛
 
 1. **代码与接口**：29 项功能入口与页面归属保持一一对应；用户任务操作不混入长期设置；无空点击处理器；官方 Codex RPC 的方向、入参和结果校验通过。检查器：`android-app/tools/audit_ui_feature_coverage.py` 与 `check_ui_protocol_matrix.py`。
-2. **手机竖屏**：Android 35 360dp、393dp、411dp 三档均通过真实设备交互及前台截图才算验收。检查输入栏/键盘、抽屉导航、弹层高度和返回路径；横屏、平板已从交付范围移除。
+2. **手机与横屏**：Android 35 的 360dp、393dp、411dp、915×412 横屏、1100×800 平板全部通过真实设备交互及截图。验证输入栏/键盘、横屏单列、平板侧栏、Sheet 高度和返回路径。
 3. **状态与视觉**：断连、重试、加载、空态、授权、运行中、确认、失败均检查；另含深色模式、系统 200% 字号、RTL、批量操作与草稿保留。逐项打开截图，而非只看 CI 绿灯。
 4. **功能链路**：文件操作、账号登录、插件与 MCP 授权、服务商写入、技能启停、终端命令、自更新等继续使用原有真实业务调用。设备里使用的固定协议样例用于 UI 检查，线上可用性由真实连接及状态响应判定。
 5. **PR 一致性**：以 [PR #63](https://github.com/sy220284/111/pull/63) 为整合分支；并行 PR #64 涉及的 MCP 表单和页面层级校验已经纳入，但合并前仍应复查两个分支的相互覆盖。
@@ -47,4 +47,4 @@
 
 ## 固定执行顺序
 
-先取最新主线和 PR 变更 → 对照本表核验全部 29 项 → 运行完整 Kotlin/协议/Lint → 进行三档手机竖屏设备截图与交互 → 逐图检查字体、键盘、深浅主题和弹层 → 复查 PR 冲突与 Figma 同步 → 明确区分“代码已提交”“设备已通过”“设计稿已同步”“已合并上线”四种状态。发现失败，修复同一分支后重新执行整条验收链。
+先取最新主线和 PR 变更 → 对照本表核验全部 29 项 → 运行完整 Kotlin/协议/Lint → 进行五尺寸设备截图与交互 → 逐图检查字体、键盘、深浅主题和弹层 → 复查 PR 冲突与 Figma 同步 → 明确区分“代码已提交”“设备已通过”“设计稿已同步”“已合并上线”四种状态。发现失败，修复同一分支后重新执行整条验收链。
