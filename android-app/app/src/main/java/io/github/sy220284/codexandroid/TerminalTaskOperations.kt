@@ -45,6 +45,16 @@ internal class TerminalTaskOperations(
         }
         val id = UUID.randomUUID().toString()
         val args = TerminalSessionContract.execute(command, cwd, id, tty)
+        // Terminal PTY may run with the UI in the background. Start the same
+        // foreground protection used by turns before marking the command active.
+        try {
+            CodexForegroundService.start(vm.getApplication())
+        } catch (failure: Exception) {
+            errors.value = errors.value + ("terminal" to
+                ("无法为终端任务启动后台保护：" +
+                    (failure.message ?: "系统拒绝启动前台服务")))
+            return
+        }
         terminalSession.value = TerminalSessionState.start(id, command, tty)
         errors.value = errors.value - "terminal"
         scope.launch {
