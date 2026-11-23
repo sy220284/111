@@ -15,12 +15,18 @@ internal data class GlobalWorkSnapshot(
     val dataTransferBusy: Boolean,
     val inFlightRequests: Int = 0,
     val loginBusy: Boolean = false,
-    val planApprovalBusy: Boolean = false
+    val planApprovalBusy: Boolean = false,
+    val switchingThread: Boolean = false,
+    val terminalStarting: Boolean = false,
+    val securitySaveBusy: Boolean = false,
+    val coreStarting: Boolean = false,
+    val restarting: Boolean = false
 ) {
     val hasActiveWork: Boolean
         get() = visibleTurnRunning || executingThreads > 0 ||
             creatingThread || terminalRunning || pendingApprovals > 0 ||
-            inFlightRequests > 0 || loginBusy || planApprovalBusy
+            inFlightRequests > 0 || loginBusy || planApprovalBusy ||
+            switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting
 
     val canDisruptCoreOrData: Boolean
         get() = !hasActiveWork && !dataTransferBusy
@@ -31,7 +37,8 @@ internal data class GlobalWorkSnapshot(
     val blockReason: String
         get() = when {
             dataTransferBusy -> "本机数据正在备份或恢复，请完成后再操作"
-            inFlightRequests > 0 || loginBusy || planApprovalBusy ->
+            inFlightRequests > 0 || loginBusy || planApprovalBusy ||
+                switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting ->
                 "请求或授权操作正在处理，请完成后再备份、恢复或重启"
             hasActiveWork -> "仍有会话任务、终端命令或审批待处理，请完成后再操作"
             else -> ""
@@ -46,7 +53,12 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     terminalRunning = terminalSession.value.running,
     pendingApprovals = bridge.prompts.value.size,
     dataTransferBusy = AppDataTransfer.state.value.busy,
-    inFlightRequests = loading.value.size,
+    inFlightRequests = loading.value.size + bridge.activeRpcRequests.value.size,
     loginBusy = loginBusy.value,
-    planApprovalBusy = planApprovalBusy.value
+    planApprovalBusy = planApprovalBusy.value,
+    switchingThread = threadSwitching.value,
+    terminalStarting = terminalStarting.value,
+    securitySaveBusy = securitySaveBusy.value,
+    coreStarting = bridge.status.value == EngineStatus.Starting,
+    restarting = connectionRestarter.busy.value
 )
