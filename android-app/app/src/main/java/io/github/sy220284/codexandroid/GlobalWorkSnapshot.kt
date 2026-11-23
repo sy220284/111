@@ -12,11 +12,15 @@ internal data class GlobalWorkSnapshot(
     val creatingThread: Boolean,
     val terminalRunning: Boolean,
     val pendingApprovals: Int,
-    val dataTransferBusy: Boolean
+    val dataTransferBusy: Boolean,
+    val inFlightRequests: Int = 0,
+    val loginBusy: Boolean = false,
+    val planApprovalBusy: Boolean = false
 ) {
     val hasActiveWork: Boolean
         get() = visibleTurnRunning || executingThreads > 0 ||
-            creatingThread || terminalRunning || pendingApprovals > 0
+            creatingThread || terminalRunning || pendingApprovals > 0 ||
+            inFlightRequests > 0 || loginBusy || planApprovalBusy
 
     val canDisruptCoreOrData: Boolean
         get() = !hasActiveWork && !dataTransferBusy
@@ -27,7 +31,7 @@ internal data class GlobalWorkSnapshot(
     val blockReason: String
         get() = when {
             dataTransferBusy -> "本机数据正在备份或恢复，请完成后再操作"
-            hasActiveWork -> "仍有会话任务、终端命令或审批待处理，请完成后再操作"
+            hasActiveWork -> "仍有会话任务、请求或审批待处理，请完成后再操作"
             else -> ""
         }
 }
@@ -39,5 +43,8 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     creatingThread = firstThreadStarting.value,
     terminalRunning = terminalSession.value.running,
     pendingApprovals = bridge.prompts.value.size,
-    dataTransferBusy = AppDataTransfer.state.value.busy
+    dataTransferBusy = AppDataTransfer.state.value.busy,
+    inFlightRequests = loading.value.size,
+    loginBusy = loginBusy.value,
+    planApprovalBusy = planApprovalBusy.value
 )
