@@ -31,6 +31,9 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
     def test_large_font_rtl_evidence_is_mandatory(self):
         self.assertIn("audit-rtl-200font-bulk", REQUIRED_SCREENS)
 
+    def test_offscreen_work_protection_evidence_is_mandatory(self):
+        self.assertIn("audit-backup-background-block", REQUIRED_SCREENS)
+
 
 if __name__ == "__main__":
     unittest.main()
