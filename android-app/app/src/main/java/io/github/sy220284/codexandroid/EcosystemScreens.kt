@@ -143,17 +143,12 @@ fun ProvidersPage(vm: CodexViewModel) {
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("服务商配置", style = MaterialTheme.typography.titleMedium)
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                    .clickable { showCustomEditor = true },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.AddCircleOutline, null, tint = Ink.copper)
-                Spacer(Modifier.width(10.dp))
-                Text("添加自定义服务商", modifier = Modifier.weight(1f))
-                Icon(Icons.Outlined.ChevronRight,
-                    contentDescription = "打开服务商编辑")
-            }
+            AtlasSettingsActionRow(
+                title = "添加自定义服务商",
+                detail = "配置服务名称、连接地址与密钥变量",
+                icon = Icons.Outlined.AddCircleOutline,
+                onClick = { showCustomEditor = true }
+            )
             if (showCustomEditor) {
                 CodexDetailSheet(
                     title = "添加自定义服务商",
@@ -181,20 +176,15 @@ fun ProvidersPage(vm: CodexViewModel) {
                 }
             }
             DividerLine()
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable {
+            AtlasSettingsActionRow(
+                title = "查看服务商能力",
+                detail = "读取实际服务能力与已声明的支持情况",
+                icon = Icons.Outlined.Info,
+                onClick = {
                     showCapabilities = true
-                    vm.refresh("providerCapabilities",
-                        "modelProvider/capabilities/read")
-                },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.Info, null, tint = Ink.muted)
-                Spacer(Modifier.width(10.dp))
-                Text("查看服务商能力", modifier = Modifier.weight(1f))
-                Icon(Icons.Outlined.ChevronRight,
-                    contentDescription = "查看服务商能力")
-            }
+                    vm.refresh("providerCapabilities", "modelProvider/capabilities/read")
+                }
+            )
             if (showCapabilities) CodexDetailSheet(
                 title = "服务商能力",
                 onDismiss = { showCapabilities = false }
@@ -332,10 +322,6 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("搜索插件", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.testTag("plugins-search-heading"))
-                val searchAvailable = searchDraft.isNotBlank() &&
-                    "pluginSearch:" + searchSubmitted + ":0" !in busy &&
-                    "pluginMutation" !in busy &&
-                    engineStatus == EngineStatus.Connected
                 val performSearch = {
                     val term = searchDraft.trim()
                     if (term.isNotEmpty()) {
@@ -409,10 +395,10 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (searchActive) {
             if (!submittedMatchesDraft) CodexNotice(
                 "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
-            if (submittedMatchesDraft) Text("插件搜索结果 · ${found.size} 项",
-                style = MaterialTheme.typography.titleMedium)
+            if (submittedMatchesDraft && searchKey !in busy)
+                AtlasListHeading("插件搜索结果", found.size, suffix = "个匹配项")
             if (submittedMatchesDraft && searchKey in busy)
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                AtlasLoadingResults("正在搜索插件目录", placeholderRows = 2)
             if (submittedMatchesDraft) errors[searchKey]?.let {
                 ErrorText("插件搜索失败：$it。可以改用常规插件目录。")
             }
