@@ -361,7 +361,9 @@ fun CodexShell(vm: CodexViewModel) {
                     // interactive during rapid settings / feature navigation.
                     pageStateHolder.SaveableStateProvider(selected) {
                         CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
-                            PageContent(selected, vm, move)
+                            PageContent(selected, vm, move, onOpenWorkspaceTools = {
+                                showQuickTools = true
+                            })
                         }
                     }
                 }

@@ -45,13 +45,12 @@ internal fun ConversationComposer(
     canSend: Boolean,
     sending: Boolean,
     onAttach: () -> Unit,
+    onOpenWorkspaceTools: () -> Unit,
     onStop: () -> Unit,
     onSend: () -> Unit,
     menuExpanded: Boolean = false,
-    hasThread: Boolean = false,
     imageImporting: Boolean = false,
     onMenuDismiss: () -> Unit = {},
-    onMenuRoute: (String) -> Unit = {},
     onPickImage: () -> Unit = {}
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
@@ -129,7 +128,7 @@ internal fun ConversationComposer(
                             leadingIcon = {
                                 Box(
                                     Modifier.size(42.dp)
-                                        .background(Color(0xFFF1F1F1), CircleShape),
+                                        .background(Ink.elevated, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Outlined.AddPhotoAlternate,
@@ -139,37 +138,15 @@ internal fun ConversationComposer(
                             },
                             onClick = onPickImage
                         )
-                        listOf("files", "terminal", "diff", "review",
-                            "goals", "plugins", "modes").forEach { route ->
-                            val info = pages.first { it.id == route }
-                            val needsThread = UiFeatureCatalog.requiresThread(route)
-                            DropdownMenuItem(
-                                modifier = Modifier.testTag("quick-$route"),
-                                text = {
-                                    Text(if (route == "files") "工作区文件"
-                                        else info.title)
-                                },
-                                leadingIcon = {
-                                    Box(Modifier.size(42.dp)
-                                            .background(Color(0xFFF1F1F1), CircleShape),
-                                        contentAlignment = Alignment.Center) {
-                                        Icon(info.icon, null, tint = Ink.parchment,
-                                            modifier = Modifier.size(22.dp))
-                                    }
-                                },
-                                trailingIcon = {
-                                    if (needsThread && !hasThread)
-                                        Text("先选会话",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Ink.muted)
-                                },
-                                onClick = {
-                                    onMenuRoute(if (needsThread && !hasThread)
-                                        "threads" else route)
-                                }
-                            )
-                        }
+
                     }
+                }
+                IconButton(
+                    onClick = onOpenWorkspaceTools,
+                    modifier = Modifier.size(44.dp).testTag("composer-workspace-tools")
+                ) {
+                    Icon(Icons.Outlined.Widgets, contentDescription = "工作区工具",
+                        tint = Ink.parchment, modifier = Modifier.size(22.dp))
                 }
                 if (attachedCount > 0) {
                     Text("${attachedCount} 张图片",

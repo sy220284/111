@@ -41,7 +41,8 @@ import org.json.JSONObject
 import java.io.File
 
 @Composable
-internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit,
+    onOpenWorkspaceTools: () -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
@@ -65,7 +66,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showContextTools by remember { mutableStateOf(false) }
     var showAttachmentTools by remember { mutableStateOf(false) }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
-    var pendingAttachmentRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
     var showApprovalQuick by remember { mutableStateOf(false) }
@@ -119,12 +119,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    LaunchedEffect(showAttachmentTools, pendingAttachmentRoute, pendingImagePick) {
+    LaunchedEffect(showAttachmentTools, pendingImagePick) {
         if (!showAttachmentTools) {
-            pendingAttachmentRoute?.let { destination ->
-                pendingAttachmentRoute = null
-                navigate(destination)
-            }
             if (pendingImagePick) {
                 pendingImagePick = false
                 val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -416,6 +412,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                      else draft.isNotBlank() || attachedImages.isNotEmpty()),
                 sending = steering || (busy && activeTurn.isNullOrBlank()),
                 onAttach = { showAttachmentTools = true },
+                onOpenWorkspaceTools = onOpenWorkspaceTools,
                 onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
                 onSend = {
                     val message = draft.trim()
@@ -433,13 +430,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 },
                 menuExpanded = showAttachmentTools,
-                hasThread = thread != null,
                 imageImporting = attachmentBusy,
                 onMenuDismiss = { showAttachmentTools = false },
-                onMenuRoute = { destination ->
-                    pendingAttachmentRoute = destination
-                    showAttachmentTools = false
-                },
                 onPickImage = {
                     if (vm.beginImageSelection(thread)) pendingImagePick = true
                     showAttachmentTools = false

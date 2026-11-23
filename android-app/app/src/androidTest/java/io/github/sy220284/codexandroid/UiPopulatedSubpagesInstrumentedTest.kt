@@ -240,7 +240,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     attachedCount = 0, connected = true, running = false,
                     stopping = false, canStop = false,
                     canSend = text.isNotBlank(), sending = false,
-                    onAttach = {}, onStop = {}, onSend = { submitted = text }
+                    onAttach = {}, onOpenWorkspaceTools = {}, onStop = {}, onSend = { submitted = text }
                 )
             }
         }
@@ -357,7 +357,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     attachedCount = 0, connected = true,
                     running = true, stopping = false,
                     canStop = true, canSend = true, sending = false,
-                    onAttach = {}, onStop = { stopped = true }, onSend = { sent = true }
+                    onAttach = {}, onOpenWorkspaceTools = {}, onStop = { stopped = true }, onSend = { sent = true }
                 )
             }
         }

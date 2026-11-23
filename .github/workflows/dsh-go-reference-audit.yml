@@ -1,0 +1,88 @@
+name: DSH Go 安卓安装与界面参考验收
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ux/dsh-go-ui-benchmark-20261123
+    paths:
+      - .github/workflows/dsh-go-reference-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    name: DSH Go v1.3.0 安装、静态检查与首屏截图
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: 下载官方安装包并校验签名清单
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dsh-reference
+          base=https://github.com/ccch1mneyyy/dsh-Go/releases/download/v1.3.0
+          curl -fL --retry 4 --retry-all-errors --connect-timeout 30 -o dsh-go-1.3.0-arm64.apk "$base/dsh-go-1.3.0-arm64.apk"
+          curl -fL --retry 4 --retry-all-errors --connect-timeout 30 -o SHA256SUMS "$base/SHA256SUMS"
+          grep -F 'dsh-go-1.3.0-arm64.apk' SHA256SUMS | sha256sum --check
+          sha256sum dsh-go-1.3.0-arm64.apk > dsh-reference/apk.sha256
+          stat --printf='APK_BYTES=%s\n' dsh-go-1.3.0-arm64.apk > dsh-reference/build-details.txt
+          unzip -Z1 dsh-go-1.3.0-arm64.apk > dsh-reference/apk-entries.txt
+          grep '^lib/' dsh-reference/apk-entries.txt | cut -d/ -f2 | sort -u > dsh-reference/native-abis.txt
+      - name: 开启安卓模拟器硬件加速
+        run: |
+          sudo adduser "$USER" kvm || true
+          sudo chmod 666 /dev/kvm
+      - name: 在隔离的 Android 35 模拟器安装并截图
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            mkdir -p dsh-reference
+            adb shell getprop ro.product.cpu.abilist > dsh-reference/emulator-abis.txt
+            adb shell getprop ro.dalvik.vm.native.bridge > dsh-reference/native-bridge.txt
+            adb shell wm size 393x800
+            adb shell wm density 160
+            adb install -r dsh-go-1.3.0-arm64.apk > dsh-reference/install.log 2>&1 || echo INSTALL_FAILED > dsh-reference/install-failed.txt
+            cat dsh-reference/install.log
+            # 测试机预先处理通知授权，只为观察 App 自身引导页；不作为用户真实授权结论。
+            adb shell pm grant io.github.ccch1mneyyy.dsh_app android.permission.POST_NOTIFICATIONS || true
+            adb shell monkey -p io.github.ccch1mneyyy.dsh_app 1 > dsh-reference/launch.log 2>&1 || true
+            sleep 8
+            adb exec-out screencap -p > dsh-reference/first-screen.png || true
+            adb shell uiautomator dump /sdcard/window.xml > dsh-reference/window-dump.log 2>&1 || true
+            adb pull /sdcard/window.xml dsh-reference/window.xml || true
+            adb shell dumpsys activity top > dsh-reference/activity-top.txt || true
+            python3 -c 'import xml.etree.ElementTree as E; r=E.parse("dsh-reference/window.xml").getroot(); print("VISIBLE_UI_CONTROLS"); [print((n.get("text") or n.get("content-desc")),n.get("bounds")) for n in r.iter("node") if n.get("text") or n.get("content-desc")]' > dsh-reference/ui-nodes.txt
+            cat dsh-reference/ui-nodes.txt
+
+      - name: 保存官方安装包和界面证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-go-v1.3.0-android-reference
+          path: |
+            dsh-reference/
+            dsh-go-1.3.0-arm64.apk
+            SHA256SUMS
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 0
+      - name: 单独保存可查看的页面与界面层级
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-go-v1.3.0-ui-evidence
+          path: dsh-reference/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: 验证安卓安装结果
+        run: |
+          grep -q '^Success' dsh-reference/install.log
+          test -s dsh-reference/first-screen.png
+          test -s dsh-reference/window.xml
