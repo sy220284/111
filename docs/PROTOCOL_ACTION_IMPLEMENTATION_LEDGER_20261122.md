@@ -449,3 +449,13 @@
 - 已从 CI `full-feature-workflows.json` 回读 29 项、28 路由、195 协议登记全部完整。其中 `review`、`skills`、`apps`、`diagnostics` 原仅登记截图，现明确绑定已真实覆盖其页面的 `taskSpecificSheetsAreReachableAndReadable` / `secondarySettingsPagesHaveActualDeviceScreenshots`。CI 强制每一行包含存在于 Android/JUnit 源码的测试声明，截图和源码路径同时复核。
 - 完整行为保护落在共享模块：`GlobalWorkSnapshot` 现额外收敛所有在途请求、账号登录、方案审批；`DataTransferMutationGate` 统一阻断迁移中的用户 RPC 写操作；全页面 `DataTransferBusyOverlay` 显式解释退回或外点期间的锁定，并保证操作结束后回到原页面。
 - 真正的验收区分：`GlobalWorkSnapshotTest` 为状态纯逻辑；`UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage` 为 Android 系统全屏截图、返回键行为和原页面恢复；账号、真实项目写回、ARM64/OEM 文件操作仍需专项完整实证。若三档 CI 有任一失败，按该提交记录失败并继续修复。
+
+
+### PR #71 全量链路与跨会话安全最终实测证据（2026-11-23）
+
+- **实际验收代码**：`931d46ce96cf16505a28cbead8b4019b2c0acd94`；[Android UI 与协议 CI #45156766925](https://github.com/sy220284/111/actions/runs/45156766925) 四个作业均为 `success`，包括 Kotlin 编译、261 项 JVM 单测、Lint、官方 Rust 方法/方向/DTO/线缆样例、全功能证据校验。
+- **功能证据分级**：`full-feature-workflows.json` 中 29/29 项功能、28/28 个页面路由、195/195 项官方方法、每项至少一个可执行 JUnit/Android 测试引用，静态缺口为零；用户交互与真实服务回包按原业务链单独核算，195 项目录覆盖不能当作 195 项真内核端到端通过。
+- **Android 35 设备验收**：360dp、393dp、411dp 三档，各 **75/75** 项仪器测试通过；每档设备 artifact 中 `manifest.json` 记录 **55 个必检、66 张实得、0 个缺失**，`ui-instrument-result.log` 显示 `OK (75 tests)`。逐档原图 `audit-backup-background-block-android35.png` 确认后台执行任务时备份/恢复按钮被禁用并告知原因；`audit-backup-in-progress-android35.png` 系统级截图确认独占进度弹层遮挡主界面，设备测试额外验证返回键无法结束正在执行的归档且处理结束后原设置页仍在。
+- **安装专项**：393dp 的 `self-update-open.json` 为 `status=passed`；系统安装器实际点击 `Install` 与 `Open`，安装时间 `2026-11-23 10:35:08 → 10:36:58`，新进程 `PID 3494` 回到 `io.github.sy220284.codexandroid/.MainActivity`。
+- **此前错误及修正**：先解决 CI 稀疏检出缺失索引、共享 VM 760 行预算、测试断言错误导入，再处理三档测试中弹层状态文字与背景提示重复导致的单节点假失败；最终将断言锁定 `data-transfer-busy-message` 专属控件，并以完整设备测试确认恢复。
+- **独立专项仍需真实环境证据**：ARM64 核心真实长终端切后台/OEM 通知保活、真实账号、外部 MCP/OAuth、真实项目大容量备份恢复、原生权限和各类 RPC 真实服务端成功回读。以上保持“待专项实测”，不因本次 CI 完成而误升等级。
