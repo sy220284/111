@@ -1,0 +1,85 @@
+# PR #48：vivo/OriginOS 真机内置升级验收
+
+**唯一待验目标**：在安装了 PR #48 修复的正式签名版本之后，通过**下一次应用内更新**升级至更高版本。系统安装器完成后，只点击一次「打开」，应直接进入 111 的首页并能正常操作。不得用桌面图标或 ADB 手工启动替代安装器「打开」。
+
+## 验收前准备（只做一次）
+
+- 记录 vivo 型号、OriginOS 版本、Android 版本和系统构建号。
+- 基线 APK 必须包含 PR #48（合并提交 `8f36e8f`）及其后续修复；目标 Release 的 `versionCode` 必须高于基线，包名为 `io.github.sy220284.codexandroid`，两版保持相同正式签名。
+- 两版均通过正式 Release 分发，保留版本标签、Release 链接及 APK SHA-256；禁止以调试签名 APK 或 `adb install -r` 代替本次升级。
+
+## 最小操作（三步）
+
+1. **录屏开始**：从已安装的基线版首页进入设置 → 应用更新，点击「检查并下载更新」；首次授权「允许此应用安装未知应用」后返回继续。
+2. **执行升级**：在系统安装器点击「安装/更新」，等待完成，只点击系统安装器的「打开」。录屏中保留系统安装成功和「打开」按钮。
+3. **确认首页**：观察是否直接进入 111 首页，点击一次应用内控件确认能操作；此过程中**不触碰桌面应用图标**。随后停止录屏。
+
+通过条件同时满足：系统报告已安装目标版本、安装器「打开」直接启动首页、界面可操作、全程没有手动从桌面启动。失败时记下点击「打开」后的具体画面（桌面/安装器停留/崩溃/无响应）。
+
+## 统一证据记录
+
+填写一份记录（字段不要留成推断值），附原始录屏；若失败，额外附 Android 系统日志。
+
+```json
+{
+  "test": "vivo-originos-in-app-update-installer-open",
+  "device": {
+    "model": "",
+    "origin_os": "",
+    "android_version": "",
+    "build_number": ""
+  },
+  "baseline": {"release": "", "version_code": "", "apk_sha256": ""},
+  "target": {"release": "", "version_code": "", "apk_sha256": ""},
+  "installation": {
+    "source": "app-settings-update",
+    "installer_install_clicked": true,
+    "installer_open_clicked": true,
+    "desktop_launcher_clicked": false
+  },
+  "result": {
+    "installed_target_version": null,
+    "main_activity_visible_after_open": null,
+    "home_interaction_works": null,
+    "status": "pending",
+    "failure_screen": ""
+  },
+  "evidence": {
+    "screen_recording": "",
+    "before_package_dump": "",
+    "after_package_dump": "",
+    "after_activity_dump": "",
+    "after_logcat_if_failed": ""
+  }
+}
+```
+
+`status` 只能填写 `pass` 或 `fail`（未执行时为 `pending`），三个结果布尔值依据现场观察和系统记录填写。缺少录屏或版本信息时标记为 **证据不完整**，保持待验状态。
+
+### ADB 辅助取证（有电脑时推荐；失败时必需）
+
+在点击「检查并下载更新」前执行（设备已打开 USB 调试）：
+
+```bash
+PKG=io.github.sy220284.codexandroid
+adb shell dumpsys package "$PKG" > vivo-before-package.txt
+adb logcat -c
+```
+
+点击系统安装器「打开」且录屏结束后，**先取证，再进行其他启动操作**：
+
+```bash
+adb shell dumpsys package "$PKG" > vivo-after-package.txt
+adb shell dumpsys activity activities > vivo-after-activity.txt
+adb shell dumpsys window > vivo-after-window.txt
+adb shell pidof "$PKG" > vivo-after-pid.txt
+adb logcat -d -v threadtime -b main -b system -b events > vivo-after-logcat.txt
+```
+
+重点核对 `versionCode`、`lastUpdateTime`、`topResumedActivity` / `mResumedActivity`、PID，以及 `PackageInstaller` / `ActivityTaskManager` / `ActivityManager` 相关消息。分享日志前删除账号、令牌和无关个人数据。
+
+## CI 已覆盖与真机边界
+
+- [PR #48 的通过记录](https://github.com/sy220284/111/actions/runs/45032846460)：Android 35 AOSP 模拟器在 393dp 点击安装器真实「安装」「打开」后，`MainActivity` 恢复前台；360/393/411dp 的常规界面测试成功。
+- 本验收新增 CI 强制核对安装前后 `lastUpdateTime` 变化、新应用进程与前台 `MainActivity`，并保存 `self-update-open.json`、`self-update-after-open.png`、`self-update-open.log`。
+- CI 使用**相同调试签名 APK 重新安装**；真实 vivo 验收使用**两个不同正式 Release**、完整应用内检查/下载/校验/安装流程及 OriginOS 系统安装器。这是发布完成前必须独立补齐的证据。

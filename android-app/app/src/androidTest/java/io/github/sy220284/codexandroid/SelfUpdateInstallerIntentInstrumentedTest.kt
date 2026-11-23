@@ -3,6 +3,8 @@ package io.github.sy220284.codexandroid
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -47,4 +49,37 @@ class SelfUpdateInstallerIntentInstrumentedTest {
         assertEquals(Intent.ACTION_MAIN, launch.action)
         assertTrue(launch.categories?.contains(Intent.CATEGORY_LAUNCHER) == true)
     }
+    @Test
+    fun updateProviderSharesOnlyTheVerifiedUpdateCache() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val updateDir = File(app.cacheDir, "updates")
+        assertTrue(updateDir.isDirectory || updateDir.mkdirs())
+        val fixture = File(updateDir, "uri-permission-test.apk")
+        fixture.writeText("verified fixture")
+        val authority = "${app.packageName}.updateprovider"
+        try {
+            val uri = FileProvider.getUriForFile(app, authority, fixture)
+            assertEquals("content", uri.scheme)
+            assertEquals(authority, uri.authority)
+            assertTrue(uri.path?.startsWith("/verified_updates/") == true)
+            app.contentResolver.openInputStream(uri).use { stream ->
+                assertNotNull("Update FileProvider must serve the real cache path", stream)
+                assertEquals("verified fixture", stream!!.bufferedReader().readText())
+            }
+            val intent = AppUpdateManager.systemInstallIntent(uri)
+            assertEquals(uri, intent.data)
+            assertEquals(uri, intent.clipData?.getItemAt(0)?.uri)
+            assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+
+            try {
+                FileProvider.getUriForFile(app, authority, File(app.cacheDir, "outside-updates.apk"))
+                org.junit.Assert.fail("FileProvider must not expose arbitrary cache files")
+            } catch (_: IllegalArgumentException) {
+                // Only cache/updates is declared in update_paths.xml.
+            }
+        } finally {
+            fixture.delete()
+        }
+    }
+
 }

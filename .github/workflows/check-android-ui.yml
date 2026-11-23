@@ -144,6 +144,8 @@ jobs:
           python3 android-app/tools/test_check_design_system_tokens.py
       - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
         run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
+      - name: 验证自更新证据判定与安装完成条件
+        run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 验证 Compose、协议测试与静态检查
         run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
@@ -248,7 +250,7 @@ jobs:
             # Only the 393dp emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
-            if [ "${{ matrix.width_dp }}" = "393" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk 2>&1 | tee self-update-open.log'; fi
+            if [ "${{ matrix.width_dp }}" = "393" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
         uses: actions/upload-artifact@v4
@@ -257,6 +259,8 @@ jobs:
           path: |
             ui-instrument-result.log
             self-update-open.log
+            self-update-open.json
+            self-update-after-open.png
             ui-screenshots/
           if-no-files-found: ignore
           retention-days: 14
