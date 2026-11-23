@@ -426,6 +426,32 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
     }
 
+    @Test fun selectingSessionResumesTheOriginalQueueAction() {
+        val vm = (rule.activity.application as CodexApplication).session
+        openDrawerRoute("files")
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-queue").performClick()
+        rule.onNodeWithTag("thread-library-sheet").assertExists()
+
+        // Exercise chooseThread's successful already-open callback without a live server.
+        // A real server resume invokes the same callback after thread/read and thread/resume.
+        rule.runOnUiThread {
+            val selectedId = "ci-queue-resume-thread"
+            val key = ThreadLibraryQuery.key(false, "", "", null)
+            vm.activeThread.value = selectedId
+            vm.data.value = vm.data.value + (key to JSONObject().put("data",
+                JSONArray().put(JSONObject().put("id", selectedId)
+                    .put("name", "继续队列测试会话"))))
+        }
+        rule.waitForIdle()
+        rule.onNodeWithText("继续会话").performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
+        rule.onNodeWithText("任务队列").assertExists()
+    }
+
     @Test fun queueDraftSurvivesClosingAndReopeningSheet() {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-draft" }
