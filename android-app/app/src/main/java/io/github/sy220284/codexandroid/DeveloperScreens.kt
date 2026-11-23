@@ -484,7 +484,7 @@ fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun ReviewPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     ScreenColumn {
-        SectionIntro("CODE / QUALITY", "代码审查", "选择范围并提交给当前会话。")
+        SectionIntro("代码审查", "选择范围并提交给当前会话。")
         ReviewScopePanel(vm, onStarted = { navigate("chat") }, onSelectThread = { navigate("threads") })
     }
 }

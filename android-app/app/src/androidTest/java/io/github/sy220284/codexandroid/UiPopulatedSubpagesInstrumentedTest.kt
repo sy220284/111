@@ -563,7 +563,7 @@ class UiPopulatedSubpagesInstrumentedTest {
 
     @Test fun pageIntroKeepsExplanationInSecondLevel() {
         rule.setContent { CodexTheme {
-            SectionIntro("EXTENSIONS / SKILLS", "技能", "技能可在任务中调用，按需启用。")
+            SectionIntro("技能", "技能可在任务中调用，按需启用。")
         } }
         rule.onNodeWithText("技能可在任务中调用，按需启用。").assertDoesNotExist()
         rule.onNodeWithContentDescription("查看技能说明").performClick()
