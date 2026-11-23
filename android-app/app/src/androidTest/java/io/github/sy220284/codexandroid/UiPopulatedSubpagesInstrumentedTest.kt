@@ -69,6 +69,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         val server = JSONObject().put("name", "codex_apps")
             .put("runtimeStatus", "connected")
             .put("authStatus", "bearerToken")
+            .put("tools", JSONObject().put("chatgpt_tool", JSONObject()))
         rule.setContent { CodexTheme { McpServiceStatusCard(server) } }
         rule.onNodeWithText("ChatGPT 扩展服务").assertExists()
         rule.onNodeWithText("可用").assertExists()
