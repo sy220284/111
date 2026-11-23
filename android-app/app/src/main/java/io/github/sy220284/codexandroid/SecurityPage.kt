@@ -12,10 +12,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
+import kotlinx.coroutines.launch
 
 @Composable
 fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val data by vm.data.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    var saveMessage by remember { mutableStateOf<String?>(null) }
+    var saveError by remember { mutableStateOf(false) }
     val loading by vm.loading.collectAsState()
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]?.optJSONObject("requirements")
@@ -53,6 +58,9 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             "从 Codex 内核选择实际允许的权限方案，并确认作用范围。")
         ProtocolFeedback(vm, listOf("config", "securityRequirements", "permissionProfiles",
             "securitySave", "securityThreadSave"), onRetry = { reload() })
+        saveMessage?.let { message ->
+            if (saveError) ErrorText(message) else CodexNotice(message, NoticeTone.Info)
+        }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("当前默认权限", style = MaterialTheme.typography.titleMedium)
             Text("权限方案：" + PresentationPolicy.permissionProfile(defaultProfile),
@@ -119,8 +127,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     onClick = { confirm = true },
                     enabled = draftProfile != null &&
                         (scope == "thread" || draftProfile != defaultProfile) &&
-                        "securitySave" !in loading && "securityThreadSave" !in loading,
-                    busy = "securitySave" in loading || "securityThreadSave" in loading,
+                        !saving && "securityThreadSave" !in loading,
+                    busy = saving || "securityThreadSave" in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 ) { Text(if (scope == "thread") "应用到当前会话" else "保存默认权限") }
             }
@@ -149,7 +157,22 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 JSONObject().put("threadId", threadId)) })
                     }
                 } else {
-                    vm.saveDefaultPermissionProfile(id)
+                    coroutineScope.launch {
+                        saving = true
+                        saveMessage = null
+                        try {
+                            val verified = SecurityPermissionController.saveDefault(vm.bridge, id)
+                            vm.data.value = vm.data.value + ("config" to verified)
+                            saveMessage = "默认权限已保存并核实生效"
+                            saveError = false
+                        } catch (failure: Exception) {
+                            saveMessage = failure.message ?: "权限保存或回读失败"
+                            saveError = true
+                            reload()
+                        } finally {
+                            saving = false
+                        }
+                    }
                 }
                 draftProfile = null
                 confirm = false
