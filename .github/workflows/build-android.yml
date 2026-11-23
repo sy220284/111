@@ -176,6 +176,9 @@ jobs:
   verify-apk:
     name: ARM64 手机安装包二次核验
     needs: build
+    # On workflow_run/dispatch, the push-only preflight is skipped. Avoid
+    # inheriting its implicit success() guard through the build dependency.
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
