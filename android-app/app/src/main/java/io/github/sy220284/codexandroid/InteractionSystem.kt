@@ -217,7 +217,8 @@ fun CodexChoiceSheet(
     choices: List<CodexChoice>,
     selectedId: String?,
     onSelect: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    enabled: Boolean = true
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -242,7 +243,7 @@ fun CodexChoiceSheet(
                         val active = choice.id == selectedId
                         Surface(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
-                                .clickable(role = Role.RadioButton) { onSelect(choice.id) },
+                                .clickable(enabled = enabled, role = Role.RadioButton) { onSelect(choice.id) },
                             color = Ink.canvas,
                             border = BorderStroke(1.dp, if (active) Ink.copper else Ink.border),
                             shape = RoundedCornerShape(15.dp)
@@ -252,11 +253,12 @@ fun CodexChoiceSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(choice.title, style = MaterialTheme.typography.titleMedium)
+                                    Text(choice.title, style = MaterialTheme.typography.titleMedium,
+                                        color = if (enabled) Ink.parchment else Ink.muted)
                                     if (choice.description.isNotBlank())
                                         Text(choice.description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                                 }
-                                RadioButton(selected = active, onClick = null)
+                                RadioButton(selected = active, onClick = null, enabled = enabled)
                             }
                         }
                     }

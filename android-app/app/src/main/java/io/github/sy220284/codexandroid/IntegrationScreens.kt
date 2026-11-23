@@ -29,7 +29,14 @@ fun CollaborationModesPage(vm: CodexViewModel) {
     val payload by vm.data.collectAsState()
     val selected by vm.selectedMode.collectAsState()
     val catalog = records(payload["modes"])
-    LaunchedEffect(Unit) { vm.refresh("modes", "collaborationMode/list") }
+    val running by vm.running.collectAsState()
+    val loading by vm.loading.collectAsState()
+    val status by vm.bridge.status.collectAsState()
+    val planSupported = catalog.any { it.optString("mode") == "plan" }
+    val refreshing = "modes" in loading
+    LaunchedEffect(status) {
+        if (status == EngineStatus.Connected) vm.refresh("modes", "collaborationMode/list")
+    }
     ScreenColumn {
         SectionIntro("WORKFLOW / BEHAVIOR", "协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -38,11 +45,15 @@ fun CollaborationModesPage(vm: CodexViewModel) {
             Text("更改后从下一轮对话生效。不会自动开启派生智能体。", color = Ink.muted)
         }
         IntegrationState(vm, "modes") { vm.refresh("modes", "collaborationMode/list") }
+        if (running) CodexNotice("任务正在执行，结束或停止后即可切换协作方式。", NoticeTone.Info)
+        else if (status != EngineStatus.Connected)
+            CodexNotice("连接本机运行核心后可查看全部支持的方式。", NoticeTone.Warning,
+                actionLabel = "重新连接", onAction = { vm.connect() })
         listOf(
             Triple("default", "标准执行", "直接分析任务，并按允许的权限执行步骤。"),
             Triple("plan", "先制定计划", "先展示方案与关键决策，适合复杂改造和多阶段任务。")
         ).forEach { (id, name, description) ->
-            val available = catalog.any { it.optString("mode") == id }
+            val canSelect = ModeSelectionPolicy.maySelect(id, planSupported, running, refreshing)
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(if (id == "plan") Icons.Outlined.Assignment else Icons.Outlined.Build,
@@ -53,9 +64,9 @@ fun CollaborationModesPage(vm: CodexViewModel) {
                         Text(description, color = Ink.muted)
                     }
                     RadioButton(selected == id, onClick = { vm.selectedMode.value = id },
-                        enabled = id == "default" || available)
+                        enabled = canSelect)
                 }
-                if (id == "plan" && !available)
+                if (id == "plan" && !planSupported)
                     Text("当前服务未公布该模式，请刷新模型与模式目录。", color = Ink.muted)
             }
         }
@@ -64,7 +75,8 @@ fun CollaborationModesPage(vm: CodexViewModel) {
             catalog.forEach { entry ->
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Text(entry.optString("name"), style = MaterialTheme.typography.titleMedium)
-                    Text("模式：" + entry.optString("mode"), color = Ink.muted)
+                    Text(if (entry.optString("mode") == "plan") "适合复杂任务规划"
+                        else "适合直接完成任务", color = Ink.muted)
                     entry.optString("model").takeIf { it.isNotBlank() }?.let {
                         Text("推荐模型：" + it, color = Ink.muted)
                     }
