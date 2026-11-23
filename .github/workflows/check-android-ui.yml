@@ -234,6 +234,12 @@ jobs:
             # The three phone-width checks share the same Android 35 APK, and never run 320dp.
             adb shell wm size ${{ matrix.width_dp }}x800
             adb shell wm density 160
+            # The emulator has a hardware keyboard. Explicitly allow the software IME,
+            # otherwise performTextInput succeeds while keyboard screenshots are false positives.
+            adb shell settings put secure show_ime_with_hard_keyboard 1
+            test "$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')" = "1"
+            adb shell ime list -s
+            test "$(adb shell ime list -s | tr -d '\r' | grep -c .)" -gt 0
             test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_dp }}x800"
             test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
             # The instrumentation test captures the home screen after a visible

@@ -423,3 +423,12 @@
 - 修正 `config/read` 的 `approval_policy`、`sandbox_mode` 字段映射；默认方案通过 `default_permissions` 保存并使用 `config/read` 回读核验，`okOverridden` 不按生效成功处理。
 - 当前会话选项使用 `thread/settings/update.permissions`，后续任务默认方案使用 `config/batchWrite`；两种作用范围分离。
 - 验收：代码 SHA `aa6f2013eae96acc0bf3d5db91205efbd98faa15` 的 [CI #45146738738](https://github.com/sy220284/111/actions/runs/45146738738) 四作业全绿，Kotlin 编译、协议单测、Lint 与 Android 35 的 360/393/411dp UI 测试及截图通过；各设备 70 项仪器测试。真实内核的默认权限写入回读和当前会话权限运行生效仍需 ARM64 设备专项。
+
+## 2026-11-23 输入法展开验收证据校正（独立 UI 设备断言）
+
+- **发现来源**：复核 `main@d7ae30df` 的 [Android 35 393dp UI 作业 #45140036669](https://github.com/sy220284/111/actions/runs/45140036669) 原始 `chat-keyboard-open-android35.png`，输入文字和操作按钮可见，但屏幕未显示系统软件键盘。此前 69/69 仪器测试成功仅证明无键盘场景下控件可见；历史“键盘展开截图验收通过”的结论需要补充真实 IME 状态证据。
+- **根因**：旧 `chatKeyboardKeepsComposerActionsAccessible` 用 `performTextInput` 注入文字并检查按钮，未核查系统 `WindowInsets.Type.ime()`；Android 模拟器连接硬件键盘时可成功输入却隐藏软件键盘，形成跨 360/393/411dp 的同类假阳性。
+- **改造位置**：`.github/workflows/check-android-ui.yml` 明确开启模拟器软件键盘并验证输入法服务；`UiNavigationInstrumentedTest.kt` 引入可复用真实 IME Insets 断言，覆盖聊天输入和设置搜索，聊天截图拍摄前后均检查 IME 可见且高度大于零。
+- **截图采集根因追加**：在首轮门禁补测中 `WindowInsets.Type.ime()` 已通过且 [CI #45142934539](https://github.com/sy220284/111/actions/runs/45142934539) 的三档 69/69 也通过，但新旧 `chat-keyboard-open-android35.png` 三档 SHA256 完全相同。查明 `UiNavigationInstrumentedTest.capture()` 调用 Compose `onRoot().captureToImage()`，只能截应用内容，不包含系统输入法窗口；已将键盘截图改用仓库现有 `captureVerifiedDisplayScreenshot()` 的 `UiAutomation.takeScreenshot()` 获取 Android 全屏证据。真实状态断言与截图必须同时成立。
+- **协议影响**：`thread/start`、`turn/start`、设置搜索/导航的真实 RPC、参数和用户数据路径均未改动。本轮只提高设备测试对系统输入法真实状态的证明能力。
+- **验收等级**：代码与 CI 检查已提交至独立分支，最终设备通过状态以此 PR 当前 HEAD 的四作业、三档截图及 `ime` 可见断言结果更新；此前“键盘展开已验收”不沿用作为本轮结论。
