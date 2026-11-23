@@ -30,13 +30,19 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val terminal by vm.terminalSession.collectAsState()
     val approvals by vm.bridge.prompts.collectAsState()
     val transfer by AppDataTransfer.state.collectAsState()
+    val requests by vm.loading.collectAsState()
+    val login by vm.loginBusy.collectAsState()
+    val planApproval by vm.planApprovalBusy.collectAsState()
     return GlobalWorkSnapshot(
         visibleTurnRunning = visible,
         executingThreads = executions.size,
         creatingThread = creating,
         terminalRunning = terminal.running,
         pendingApprovals = approvals.size,
-        dataTransferBusy = transfer.busy
+        dataTransferBusy = transfer.busy,
+        inFlightRequests = requests.size,
+        loginBusy = login,
+        planApprovalBusy = planApproval
     )
 }
 
