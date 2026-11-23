@@ -1,11 +1,25 @@
 # UI V5 接口到组件全量映射
 
-数据源：本仓 App Server 195 项请求、V5 功能展现清单及 UI 审计。此表为实施与回归唯一基线。
+> 自动生成文件：修改接口归属时编辑 `android-app/tools/ui_surface_policy.json`，然后运行 `python3 android-app/tools/sync_ui_protocol_docs.py --write`。CI 会检查差异。以锁定的 Rust App Server 协议及 Kotlin `UiProtocolMatrix.kt` 为执行契约。
 
-分类：**直接操作 40、上下文操作 44、高级按需 71、后台内部 38、平台不适用 2**。共有 84 项直接或上下文操作应由用户可见的工作流程触发；71 项高级能力按真实服务可用性和业务上下文展示；40 项内部或平台不适用接口由后台管理或不创建 UI。分类是展示责任，接口返回需要真实证据，不能以有按钮即断言已接入。
+## 当前协议职责分类
 
-| 方法 | 类别 | 功能归属 | 实验 |
-|---|---|---|---|
+分类控制功能展示责任。表中接口出现仅证明已登记；实际调用、参数与设备端执行另行验收。
+
+**总数 195：直接 38、上下文 43、高级 52、后台 60、平台不适用 2。**
+
+| 类别 | 数量 | 使用方式 |
+| --- | ---: | --- |
+| 直接操作 | 38 | 页面、快捷入口与用户明确操作 |
+| 上下文操作 | 43 | 选中当前会话、文件或其他对象后使用的动作 |
+| 高级按需 | 52 | 能力探测、业务需要和授权满足后展示 |
+| 后台内部 | 60 | 智能体、内核、事件、流传输及 Host 请求，按需展示审批 |
+| 平台不适用 | 2 | Android 无适用运行环境 |
+
+## 官方方法逐项归属
+
+| 官方方法 | 类别 | 功能归属 | 实验 |
+| --- | --- | --- | --- |
 | `server/diagnostics` | 高级按需 | 诊断 | 是 |
 | `userVerification/status` | 后台内部 | 身份验证后台 | 是 |
 | `userVerification/enroll` | 后台内部 | 身份验证后台 | 是 |
@@ -15,15 +29,15 @@
 | `thread/start` | 直接操作 | 会话/对话 | 否 |
 | `thread/resume` | 直接操作 | 会话/对话 | 否 |
 | `thread/fork` | 上下文操作 | 会话/对话 | 否 |
-| `thread/sample` | 高级按需 | 会话/对话 | 是 |
-| `thread/sample/cancel` | 高级按需 | 会话/对话 | 是 |
+| `thread/sample` | 后台内部 | 会话/对话 | 是 |
+| `thread/sample/cancel` | 后台内部 | 会话/对话 | 是 |
 | `thread/archive` | 直接操作 | 会话/对话 | 否 |
 | `thread/delete` | 直接操作 | 会话/对话 | 否 |
-| `thread/unsubscribe` | 后台内部 | 会话/对话 | 否 |
 | `thread/increment_elicitation` | 后台内部 | 会话审批计时 | 是 |
 | `thread/decrement_elicitation` | 后台内部 | 会话审批计时 | 是 |
+| `thread/unsubscribe` | 后台内部 | 会话/对话 | 否 |
 | `thread/name/set` | 直接操作 | 会话/对话 | 否 |
-| `thread/prediction/request` | 高级按需 | 会话/对话 | 是 |
+| `thread/prediction/request` | 后台内部 | 会话/对话 | 是 |
 | `thread/goal/set` | 上下文操作 | 会话/对话 | 否 |
 | `thread/goal/get` | 上下文操作 | 会话/对话 | 否 |
 | `thread/goal/clear` | 上下文操作 | 会话/对话 | 否 |
@@ -33,7 +47,7 @@
 | `thread/queue/delete` | 上下文操作 | 会话/对话 | 是 |
 | `thread/queue/reorder` | 上下文操作 | 会话/对话 | 是 |
 | `thread/queue/start` | 高级按需 | 会话/对话 | 是 |
-| `thread/metadata/update` | 高级按需 | 会话/对话 | 否 |
+| `thread/metadata/update` | 后台内部 | 会话/对话 | 否 |
 | `thread/attachment/add` | 上下文操作 | 会话/对话 | 否 |
 | `thread/attachment/list` | 上下文操作 | 会话/对话 | 否 |
 | `thread/attachmentOwner/list` | 后台内部 | 会话/对话 | 否 |
@@ -66,29 +80,29 @@
 | `threadSection/update` | 上下文操作 | 会话历史 | 否 |
 | `threadSection/delete` | 上下文操作 | 会话历史 | 否 |
 | `thread/search` | 直接操作 | 会话/对话 | 是 |
-| `thread/search/stream` | 高级按需 | 会话/对话 | 是 |
+| `thread/search/stream` | 后台内部 | 会话/对话 | 是 |
 | `thread/search/cancel` | 高级按需 | 会话/对话 | 是 |
-| `thread/search/stream/cancel` | 高级按需 | 会话/对话 | 是 |
+| `thread/search/stream/cancel` | 后台内部 | 会话/对话 | 是 |
 | `thread/searchOccurrences` | 高级按需 | 会话/对话 | 是 |
 | `thread/loaded/list` | 后台内部 | 会话/对话 | 否 |
 | `thread/read` | 直接操作 | 会话/对话 | 否 |
-| `thread/readState/update` | 高级按需 | 会话/对话 | 是 |
+| `thread/readState/update` | 后台内部 | 会话/对话 | 是 |
 | `thread/turns/list` | 上下文操作 | 会话/对话 | 否 |
 | `thread/items/list` | 上下文操作 | 会话/对话 | 否 |
 | `thread/inject_items` | 后台内部 | 会话历史注入 | 否 |
 | `thread/items/read` | 上下文操作 | 会话/对话 | 是 |
-| `thread/guardianReview` | 高级按需 | 会话/对话 | 是 |
+| `thread/guardianReview` | 后台内部 | 会话/对话 | 是 |
 | `thread/prepareApprovedPlan` | 高级按需 | 会话/对话 | 是 |
 | `skills/list` | 直接操作 | 技能 | 否 |
 | `skills/extraRoots/set` | 后台内部 | 技能 | 否 |
-| `hooks/list` | 高级按需 | 触发钩子 | 否 |
+| `hooks/list` | 后台内部 | 触发钩子 | 否 |
 | `marketplace/add` | 高级按需 | 插件/市场 | 否 |
 | `marketplace/remove` | 高级按需 | 插件/市场 | 否 |
 | `marketplace/upgrade` | 高级按需 | 插件/市场 | 否 |
 | `plugin/list` | 直接操作 | 插件 | 否 |
 | `plugin/search` | 上下文操作 | 插件 | 是 |
 | `plugin/installed` | 直接操作 | 插件 | 否 |
-| `plugin/reconcile` | 高级按需 | 插件 | 否 |
+| `plugin/reconcile` | 后台内部 | 插件 | 否 |
 | `plugin/read` | 直接操作 | 插件 | 否 |
 | `plugin/skill/read` | 上下文操作 | 插件 | 否 |
 | `plugin/share/save` | 高级按需 | 插件 | 否 |
@@ -96,7 +110,7 @@
 | `plugin/share/list` | 高级按需 | 插件 | 否 |
 | `plugin/share/checkout` | 高级按需 | 插件 | 否 |
 | `plugin/share/delete` | 高级按需 | 插件 | 否 |
-| `app/read` | 直接操作 | 连接应用 | 否 |
+| `app/read` | 后台内部 | 连接应用 | 否 |
 | `app/list` | 直接操作 | 连接应用 | 否 |
 | `app/installed` | 直接操作 | 连接应用 | 否 |
 | `fs/readFile` | 上下文操作 | 工作区文件 | 否 |
@@ -116,9 +130,9 @@
 | `turn/steer` | 上下文操作 | 任务对话 | 否 |
 | `turn/interrupt` | 直接操作 | 任务对话 | 否 |
 | `thread/realtime/start` | 高级按需 | 会话/对话 | 是 |
-| `thread/realtime/appendAudio` | 高级按需 | 会话/对话 | 是 |
-| `thread/realtime/appendText` | 高级按需 | 会话/对话 | 是 |
-| `thread/realtime/appendSpeech` | 高级按需 | 会话/对话 | 是 |
+| `thread/realtime/appendAudio` | 后台内部 | 会话/对话 | 是 |
+| `thread/realtime/appendText` | 后台内部 | 会话/对话 | 是 |
+| `thread/realtime/appendSpeech` | 后台内部 | 会话/对话 | 是 |
 | `thread/realtime/stop` | 高级按需 | 会话/对话 | 是 |
 | `thread/timeline/list` | 上下文操作 | 会话/对话 | 是 |
 | `thread/realtime/list` | 高级按需 | 会话/对话 | 是 |
@@ -150,10 +164,10 @@
 | `mcpServer/oauth/login` | 直接操作 | MCP 服务/审批 | 否 |
 | `config/mcpServer/reload` | 高级按需 | 引擎配置/安全 | 否 |
 | `mcpServerStatus/list` | 直接操作 | MCP 服务 | 否 |
-| `mcpServer/resource/read` | 直接操作 | MCP 服务/审批 | 否 |
-| `mcpServer/event/stream/start` | 高级按需 | MCP 服务/审批 | 是 |
-| `mcpServer/event/stream/stop` | 高级按需 | MCP 服务/审批 | 是 |
-| `mcpServer/tool/call` | 上下文操作 | MCP 服务/审批 | 否 |
+| `mcpServer/resource/read` | 后台内部 | MCP 服务/审批 | 否 |
+| `mcpServer/event/stream/start` | 后台内部 | MCP 服务/审批 | 是 |
+| `mcpServer/event/stream/stop` | 后台内部 | MCP 服务/审批 | 是 |
+| `mcpServer/tool/call` | 后台内部 | MCP 服务/审批 | 否 |
 | `windowsSandbox/setupStart` | 平台不适用 | Windows 专用 | 否 |
 | `windowsSandbox/readiness` | 平台不适用 | Windows 专用 | 否 |
 | `account/login/start` | 直接操作 | 账号/额度 | 否 |
@@ -177,10 +191,10 @@
 | `command/exec/write` | 上下文操作 | 终端 | 否 |
 | `command/exec/terminate` | 上下文操作 | 终端 | 否 |
 | `command/exec/resize` | 上下文操作 | 终端 | 否 |
-| `process/spawn` | 高级按需 | 终端高级 | 是 |
-| `process/writeStdin` | 高级按需 | 终端高级 | 是 |
-| `process/kill` | 高级按需 | 终端高级 | 是 |
-| `process/resizePty` | 高级按需 | 终端高级 | 是 |
+| `process/spawn` | 后台内部 | 终端高级 | 是 |
+| `process/writeStdin` | 后台内部 | 终端高级 | 是 |
+| `process/kill` | 后台内部 | 终端高级 | 是 |
+| `process/resizePty` | 后台内部 | 终端高级 | 是 |
 | `config/read` | 直接操作 | 引擎配置/安全 | 否 |
 | `externalAgentConfig/detect` | 高级按需 | 诊断与导入 | 否 |
 | `externalAgentConfig/import` | 高级按需 | 诊断与导入 | 否 |
@@ -202,14 +216,22 @@
 | `account/chatgptAuthTokens/refresh` | 后台内部 | 账号/额度 | 否 |
 | `attestation/generate` | 后台内部 | 可信证明后台 | 否 |
 
-## 四技能执行约束
+本地文件操作等效实现登记：**6** 项。
 
-- finesse-ui：组件设计、白底层级、尺寸、状态、触控与可读性
-- finesse-brief：当前用户工作场景决定页面、Sheet、确认框、行内按钮及返回
-- frame-smith：按压 110ms、展开 210ms、跳转 240ms，尊重减弱动效和真实状态
-- finesse-term：确认动作写明后果，失败指出下一步，中文主文案与协议字段分离
+## UI 与后台能力边界
 
-## 完整接入的验收规则
+- 直接及上下文操作按「入口 → 业务对象 → 条件校验 → 真实 RPC/本地等效 → 响应/错误/审批 → 页面刷新」逐项验收。
+- 高级能力由内核实际可用性和业务上下文控制。尚未支持的能力显示具体限制和处理路径。
+- 后台内部接口不生成独立工具按钮；需要用户决策时在对应任务提供审批表单，按请求 ID 返回合法结果。
+- 用户界面呈现中文业务名称，内部 RPC、UUID、配置字段和诊断内容按需展开。
 
-对每个直接/上下文方法按“入口→操作对象→权限或条件→真实 RPC→响应/错误/审批→返回原场景”逐项查验。
-高级按需需要真实服务支持和功能开关；不应通过临时可点的虚假按钮冒充可用。
+## 设计与交互验收
+
+- 移动与大屏保持侧边栏的统一功能归属；对话/任务优先，设置只承载长期配置。
+- 统一反馈：输入校验、加载中、审批等待、成功回执、错误原因、恢复操作和当前对象状态。
+- 控件最小触控区 48dp，适配 360/393/411dp、系统大字体、TalkBack 及减弱动画。
+- Figma 的颜色、组件和页面结构与 `docs/DESIGN_SYSTEM.md` 及 Compose 代码保持一致。
+
+## 验证级别
+
+目录一致性、静态调用路径、真实参数契约、模拟器交互与真实 ARM64 内核运行分别留证。静态引用及模拟数据截图不能替代完整运行验收。

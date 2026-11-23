@@ -28,22 +28,70 @@ METHOD = re.compile(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"')
 OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
 
 
-# Count identifiable RPC expressions separately from strings in descriptors.
-# A static callsite is not proof of a successful device interaction.
-RPC_CALL = re.compile(
-    r'\b(?:(?:bridge|vm)\.)?(?:request|rpc|refresh|ensureCatalog)\s*\(\s*'
-    r'(?:(?:"[^"\n]*"|[A-Za-z_]\w*)\s*,\s*)?'
-    r'"(?P<method>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"',
-    re.M,
+# 静态调用证据与方法名称引用分开计数。解析参数括号，避免漏掉拼接 key。
+RPC_CALL_HEAD = re.compile(
+    r'\b(?P<callee>(?:(?:vm\.)?bridge\.)?request|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
+)
+DYNAMIC_METHOD = re.compile(
+    r'\bval\s+(?P<variable>[A-Za-z_]\w*)\s*=\s*if\s*\([^)]*\)\s*'
+    r'"(?P<first>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*else\s*'
+    r'"(?P<second>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"'
 )
 
 
-def find_rpc_calls(code: str, official: set[str]) -> set[str]:
-    return {
-        match.group("method") for match in RPC_CALL.finditer(code)
-        if match.group("method") in official
-    }
+def _call_arguments(source: str, begin: int) -> list[str]:
+    """切分 Kotlin 实参，忽略嵌套表达式和引号中的逗号、括号。"""
+    args: list[str] = []
+    stack: list[str] = []
+    quoted = False
+    escaped = False
+    start = begin
+    for i in range(begin, len(source)):
+        ch = source[i]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                quoted = False
+            continue
+        if ch == '"':
+            quoted = True
+        elif ch in "([{":
+            stack.append(ch)
+        elif ch in ")]}":
+            if not stack and ch == ")":
+                args.append(source[start:i].strip())
+                return args
+            if not stack:
+                return []
+            opening = stack.pop()
+            if (opening, ch) not in (("(", ")"), ("[", "]"), ("{", "}")):
+                return []
+        elif ch == "," and not stack:
+            args.append(source[start:i].strip())
+            start = i + 1
+    return []
 
+
+def find_rpc_calls(code: str, official: set[str]) -> set[str]:
+    """只提取 RPC 的 method 实参，包括 when 分流和验证过的局部 if 分流。"""
+    found: set[str] = set()
+    candidates = {
+        m.group("variable"): {m.group("first"), m.group("second")}
+        for m in DYNAMIC_METHOD.finditer(code)
+    }
+    for match in RPC_CALL_HEAD.finditer(code):
+        args = _call_arguments(code, match.end())
+        index = 0 if match.group("callee").endswith("request") else 1
+        if len(args) <= index:
+            continue
+        expression = args[index]
+        found.update(name for name in METHOD.findall(expression) if name in official)
+        if expression in candidates:
+            found.update(candidates[expression] & official)
+    return found
 
 
 def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
@@ -149,6 +197,9 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         unmapped = sorted(user_facing - set(called) - set(equivalents))
         if unmapped:
             raise ValueError("用户可见请求缺少实际代码引用或等效路径：" + ", ".join(unmapped))
+        untraced = sorted(user_facing - set(call_sites) - set(equivalents))
+        if untraced:
+            raise ValueError("用户可见请求仅有字符串引用、缺少可追踪调用：" + ", ".join(untraced))
 
     missing = sorted(set(ids) - set(routes))
     unknown = sorted(set(routes) - set(ids))
@@ -170,6 +221,7 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         "hostRequestMethods": sorted(host_requests),
         "referencedRequests": len(called),
         "rpcCallsiteRequests": len(call_sites),
+        "tracedUserFacingRequests": len(user_facing & (set(call_sites) | set(equivalents))),
         "rpcCallsiteSources": dict(sorted(call_sites.items())),
         "methodOnlyReferences": sorted(set(called) - set(call_sites)),
         "userFacingRequests": len(user_facing),
@@ -196,6 +248,7 @@ def report_markdown(result: dict) -> str:
         f"- Android 非声明目录代码中显式引用的官方请求：**{result['referencedRequests']}**",
         f"- Android 静态 RPC 调用表达式所涉及方法：**{result['rpcCallsiteRequests']}**",
         f"- 用户可见请求总数：**{result['userFacingRequests']}**",
+        f"- 经可追踪调用或本地等效验证的用户请求：**{result['tracedUserFacingRequests']}**",
         f"- 已核对的本地等效/条件实现：**{result['equivalentRequests']}**",
         "",
         "说明：方法名称引用与静态调用表达式单独统计。静态表达式仍可能被条件分支阻断；页面点击和实际运行成功须经 Android 设备验证。", 

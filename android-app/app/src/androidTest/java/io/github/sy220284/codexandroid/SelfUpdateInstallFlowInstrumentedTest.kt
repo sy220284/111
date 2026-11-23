@@ -22,13 +22,18 @@ class SelfUpdateInstallFlowInstrumentedTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val fixture = File(context.cacheDir, "updates/ci-self-update.apk")
         assertTrue("Missing self-update APK fixture: ${fixture.absolutePath}", fixture.isFile)
-        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.onActivity { activity ->
-                val uri = FileProvider.getUriForFile(
-                    activity, "${activity.packageName}.updateprovider", fixture
-                )
-                activity.startActivity(AppUpdateManager.systemInstallIntent(uri))
-            }
+        // Dedicated instrumentation invocation: keep the source Activity alive until
+        // the system installer's separate task takes over. Closing ActivityScenario
+        // immediately after startActivity races the asynchronous installer launch and
+        // may return the emulator to the launcher before the installer becomes visible.
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        scenario.onActivity { activity ->
+            val uri = FileProvider.getUriForFile(
+                activity, "${activity.packageName}.updateprovider", fixture
+            )
+            activity.startActivity(AppUpdateManager.systemInstallIntent(uri))
         }
+        // The host-side flow replaces this package, terminating the source activity.
+        // This test is run by itself, so no subsequent test inherits its activity.
     }
 }

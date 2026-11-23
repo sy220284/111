@@ -2,6 +2,7 @@
 """Validate the documented Android/Figma palette against actual Compose Ink tokens."""
 from __future__ import annotations
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -84,12 +85,52 @@ def verify(source: str, spec: str) -> list[str]:
     return errors
 
 
+def verify_asset_tokens(source: str, asset_json: str) -> list[str]:
+    """Figma 导入变量与 Compose 的亮/暗语义颜色必须逐项一致。"""
+    try:
+        tokens = json.loads(asset_json)
+    except (json.JSONDecodeError, TypeError) as exc:
+        return ["Figma tokens.json 无法解析：" + str(exc)]
+    modes = tokens.get("modes")
+    if not isinstance(modes, dict):
+        return ["Figma tokens.json 缺少 modes 对象"]
+    errors: list[str] = []
+    palette_names: set[str] | None = None
+    for mode, object_name in (("light", "InkLight"), ("dark", "InkDark")):
+        match = re.search(r'\bobject\s+' + object_name + r'\s*\{(.*?)\n\}', source, re.S)
+        if match is None:
+            errors.append("Compose 主题缺少 " + object_name)
+            continue
+        actual_matches = list(TOKEN.finditer(match.group(1)))
+        actual = {item.group(1): "#" + item.group(2).upper() for item in actual_matches}
+        wanted = modes.get(mode)
+        if not isinstance(wanted, dict):
+            errors.append("Figma tokens.json 缺少 " + mode + " 模式")
+            continue
+        if len(actual_matches) != len(actual):
+            errors.append(object_name + " 存在重复颜色定义")
+        if palette_names is not None and set(actual) != palette_names:
+            errors.append("Compose 亮暗模式的语义颜色键集合不一致")
+        palette_names = set(actual)
+        for name in sorted(set(actual) | set(wanted)):
+            if actual.get(name) != str(wanted.get(name, "")).upper():
+                errors.append("Figma " + mode + " Ink." + name + " 与 Compose 颜色不一致")
+    sizes = tokens.get("sizes", {})
+    if not isinstance(sizes, dict) or sizes.get("touchTargetDp", 0) < 48:
+        errors.append("Figma 触控规格应至少为 48dp")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', required=True, type=Path)
     parser.add_argument('--spec', required=True, type=Path)
+    parser.add_argument('--tokens', type=Path)
     args = parser.parse_args()
-    errors = verify(args.source.read_text(encoding='utf-8'), args.spec.read_text(encoding='utf-8'))
+    source = args.source.read_text(encoding='utf-8')
+    errors = verify(source, args.spec.read_text(encoding='utf-8'))
+    if args.tokens is not None:
+        errors += verify_asset_tokens(source, args.tokens.read_text(encoding='utf-8'))
     if errors:
         for error in errors:
             print('设计色彩核验失败：' + error, file=sys.stderr)

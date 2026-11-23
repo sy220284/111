@@ -1,8 +1,8 @@
 package io.github.sy220284.codexandroid
 
 /**
- * 源自本仓 app-server 195 项请求的展示决策；公开动作必须绑定业务对象及实际 RPC。
- * 此表只用于界面入口归属和协议完整性审计，不允许把未接入方法直接生成“执行”按钮。
+ * 由 android-app/tools/ui_surface_policy.json 生成。官方协议字段与方法方向由 CI 核验。
+ * 元数据用于 UI 入口归属，实际功能接入必须有真实请求/等效操作与设备测试。
  */
 enum class ApiExposure { Direct, Contextual, Advanced, Internal, Unsupported }
 data class ProtocolSurface(
@@ -24,9 +24,9 @@ object UiProtocolMatrix {
         ProtocolSurface("thread/sample/cancel", ApiExposure.Internal, "会话/对话", true),
         ProtocolSurface("thread/archive", ApiExposure.Direct, "会话/对话", false),
         ProtocolSurface("thread/delete", ApiExposure.Direct, "会话/对话", false),
-        ProtocolSurface("thread/unsubscribe", ApiExposure.Internal, "会话/对话", false),
         ProtocolSurface("thread/increment_elicitation", ApiExposure.Internal, "会话审批计时", true),
         ProtocolSurface("thread/decrement_elicitation", ApiExposure.Internal, "会话审批计时", true),
+        ProtocolSurface("thread/unsubscribe", ApiExposure.Internal, "会话/对话", false),
         ProtocolSurface("thread/name/set", ApiExposure.Direct, "会话/对话", false),
         ProtocolSurface("thread/prediction/request", ApiExposure.Internal, "会话/对话", true),
         ProtocolSurface("thread/goal/set", ApiExposure.Contextual, "会话/对话", false),

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Regression test for palette drift detection."""
 import unittest
-from check_design_system_tokens import verify
+import json
+from check_design_system_tokens import verify, verify_asset_tokens
 
 SOURCE = '''object Ink {
     val canvas = Color(0xFFFFFFFF)
@@ -56,6 +57,42 @@ class DesignTokenGateTests(unittest.TestCase):
         self.assertTrue(any('深色' in error or '未绑定' in error
                             for error in verify(derived, MARKDOWN)))
 
+
+    def test_figma_assets_use_the_same_semantic_color_keys(self):
+        source = '''
+private object InkLight {
+    val canvas = Color(0xFFFFFFFF)
+    val parchment = Color(0xFF263139)
+}
+private object InkDark {
+    val canvas = Color(0xFF111A22)
+    val parchment = Color(0xFFF0F2F3)
+}
+'''
+        tokens = {"modes": {
+            "light": {"canvas": "#FFFFFF", "parchment": "#263139"},
+            "dark": {"canvas": "#111A22", "parchment": "#F0F2F3"}
+        }, "sizes": {"touchTargetDp": 48}}
+        self.assertEqual([], verify_asset_tokens(source, json.dumps(tokens)))
+        tokens["modes"]["dark"]["parchment"] = "#FFFFFF"
+        self.assertTrue(any("dark Ink.parchment" in error
+                            for error in verify_asset_tokens(source, json.dumps(tokens))))
+
+    def test_figma_tokens_need_complete_modes_and_touch_target(self):
+        self.assertTrue(verify_asset_tokens("", "{}"))
+        source = '''
+private object InkLight {
+    val canvas = Color(0xFFFFFFFF)
+}
+private object InkDark {
+    val canvas = Color(0xFF111A22)
+}
+'''
+        tokens = {"modes": {"light": {"canvas": "#FFFFFF"},
+                            "dark": {"canvas": "#111A22"}},
+                  "sizes": {"touchTargetDp": 32}}
+        self.assertTrue(any("48dp" in error
+                            for error in verify_asset_tokens(source, json.dumps(tokens))))
 
 if __name__ == '__main__':
     unittest.main()
