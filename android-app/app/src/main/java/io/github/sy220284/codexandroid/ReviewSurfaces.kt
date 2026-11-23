@@ -26,8 +26,10 @@ fun ReviewScopePanel(
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
-    var selection by remember { mutableStateOf("uncommittedChanges") }
-    var value by remember { mutableStateOf("") }
+    val taskDrafts by vm.taskPanelDrafts.collectAsState()
+    val reviewDraft = taskDrafts[active] ?: TaskPanelDraft()
+    val selection = reviewDraft.reviewScope
+    val value = reviewDraft.reviewText
     var confirm by remember { mutableStateOf(false) }
     var submitted by remember(active) { mutableStateOf(false) }
 
@@ -43,11 +45,15 @@ fun ReviewScopePanel(
                 Triple("custom", "自定义范围", "输入具体审查要求")
             ).forEach { (id, label, description) ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { selection = id }
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        vm.editTaskPanelDraft(active) { it.copy(reviewScope = id) }
+                    }
                         .heightIn(min = 55.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RadioButton(selected = selection == id, onClick = { selection = id })
+                    RadioButton(selected = selection == id, onClick = {
+                        vm.editTaskPanelDraft(active) { it.copy(reviewScope = id) }
+                    })
                     Column {
                         Text(label, style = MaterialTheme.typography.bodyLarge)
                         Text(description, style = MaterialTheme.typography.labelMedium,
@@ -57,7 +63,9 @@ fun ReviewScopePanel(
             }
             if (selection != "uncommittedChanges") {
                 OutlinedTextField(
-                    value = value, onValueChange = { value = it },
+                    value = value, onValueChange = { text ->
+                        vm.editTaskPanelDraft(active) { it.copy(reviewText = text) }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(when(selection) {
                         "baseBranch" -> "基线分支"

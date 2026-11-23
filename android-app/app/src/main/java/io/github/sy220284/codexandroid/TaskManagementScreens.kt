@@ -26,9 +26,11 @@ fun ThreadGoalPage(vm: CodexViewModel) {
     val loading by vm.loading.collectAsState()
     val key = "goal:" + (active ?: "none")
     val goal = data[key]?.optJSONObject("goal")
-    var objective by rememberSaveable(active) { mutableStateOf("") }
-    var status by rememberSaveable(active) { mutableStateOf("active") }
-    var budget by rememberSaveable(active) { mutableStateOf("") }
+    val taskDrafts by vm.taskPanelDrafts.collectAsState()
+    val panelDraft = taskDrafts[active] ?: TaskPanelDraft()
+    val objective = panelDraft.goalText
+    val status = panelDraft.goalStatus
+    val budget = panelDraft.goalBudget
     var confirmClear by remember(active) { mutableStateOf(false) }
     val safeBudget = budget.isBlank() || (budget.toLongOrNull()?.let { it > 0 } == true)
 
@@ -69,28 +71,43 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                 Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
                     goal.optLong("timeUsedSeconds"), color = Ink.muted)
                 OutlinedButton(onClick = {
-                    objective = goal.optString("objective")
-                    status = goal.optString("status").ifBlank { "active" }
-                    budget = goal.opt("tokenBudget")?.takeIf { it != JSONObject.NULL }?.toString() ?: ""
+                    vm.editTaskPanelDraft(active) {
+                        it.copy(
+                            goalText = goal.optString("objective"),
+                            goalStatus = goal.optString("status").ifBlank { "active" },
+                            goalBudget = goal.opt("tokenBudget")
+                                ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty()
+                        )
+                    }
                 }) { Text("编辑当前目标") }
                 TextButton(onClick = { confirmClear = true }) { Text("清除目标") }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text(if (goal == null) "设置新目标" else "更新目标", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(objective, { objective = it }, modifier = Modifier.fillMaxWidth(),
+            OutlinedTextField(objective, { text ->
+                vm.editTaskPanelDraft(active) { it.copy(goalText = text) }
+            }, modifier = Modifier.fillMaxWidth(),
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
                 minLines = 3, maxLines = 7)
             Text("执行状态", style = MaterialTheme.typography.titleMedium)
             listOf("active" to "进行中", "paused" to "已暂停",
                 "blocked" to "遇到阻碍", "complete" to "已完成").forEach { (value, title) ->
-                Row(Modifier.fillMaxWidth().clickable { status = value },
+                Row(Modifier.fillMaxWidth().clickable {
+                    vm.editTaskPanelDraft(active) { it.copy(goalStatus = value) }
+                },
                     verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(status == value, onClick = { status = value })
+                    RadioButton(status == value, onClick = {
+                        vm.editTaskPanelDraft(active) { it.copy(goalStatus = value) }
+                    })
                     Text(title)
                 }
             }
-            OutlinedTextField(budget, { budget = it.filter(Char::isDigit) },
+            OutlinedTextField(budget, { text ->
+                vm.editTaskPanelDraft(active) {
+                    it.copy(goalBudget = text.filter(Char::isDigit))
+                }
+            },
                 label = { Text("Token 上限（可留空）") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
             if (!safeBudget) Text("Token 上限必须是正整数", color = Ink.red)
@@ -124,9 +141,13 @@ fun ThreadGoalPage(vm: CodexViewModel) {
         onConfirm = {
             vm.rpc("goalWrite", "thread/goal/clear",
                 JSONObject().put("threadId", active).put("origin", "user"),
-                after = { vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active)) })
+                after = {
+                    vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
+                    vm.editTaskPanelDraft(active) {
+                        it.copy(goalText = "", goalStatus = "active", goalBudget = "")
+                    }
+                })
             confirmClear = false
-            objective = ""; budget = ""; status = "active"
         },
         onDismiss = { confirmClear = false }
     )
@@ -140,7 +161,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     val loading by vm.loading.collectAsState()
     val rootKey = "queue:" + (active ?: "none")
     var pageCount by remember(active) { mutableIntStateOf(0) }
-    var draft by rememberSaveable(active) { mutableStateOf("") }
+    val taskDrafts by vm.taskPanelDrafts.collectAsState()
+    val draft = taskDrafts[active]?.queueText.orEmpty()
     var pendingDelete by remember(active) { mutableStateOf<JSONObject?>(null) }
     var pendingEdit by remember(active) { mutableStateOf<JSONObject?>(null) }
     var editText by rememberSaveable(active) { mutableStateOf("") }
@@ -176,8 +198,9 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("添加待执行任务", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(draft, { draft = it },
-                modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
+            OutlinedTextField(draft, { text ->
+                vm.editTaskPanelDraft(active) { it.copy(queueText = text) }
+            }, modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
                 minLines = 2, maxLines = 6,
                 label = { Text("下一步要做什么") },
                 placeholder = { Text("描述明确任务及完成条件") })
@@ -187,7 +210,10 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     .put("clientUserMessageId", UUID.randomUUID().toString())
                     .put("input", JSONArray().put(JSONObject().put("type", "text").put("text", draft.trim())))
                 vm.rpc("queueWrite", "thread/queue/add", args, after = {
-                    draft = ThreadDisplayPolicy.afterAcceptedDraft(draft, originalDraft)
+                    vm.editTaskPanelDraft(active) {
+                        it.copy(queueText =
+                            ThreadDisplayPolicy.afterAcceptedDraft(it.queueText, originalDraft))
+                    }
                     refreshQueue()
                 })
             }, enabled = draft.isNotBlank() && "queueWrite" !in loading,
