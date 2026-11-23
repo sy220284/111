@@ -31,6 +31,18 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
     def test_large_font_rtl_evidence_is_mandatory(self):
         self.assertIn("audit-rtl-200font-bulk", REQUIRED_SCREENS)
 
+    def test_mcp_only_usable_services_evidence_is_mandatory(self):
+        for screenshot in (
+            "audit-mcp-usable-directory",
+            "audit-mcp-chatgpt-available",
+            "audit-mcp-service-boundary",
+        ):
+            self.assertIn(screenshot, REQUIRED_SCREENS)
+
+    def test_offscreen_work_protection_evidence_is_mandatory(self):
+        self.assertIn("audit-backup-background-block", REQUIRED_SCREENS)
+        self.assertIn("audit-backup-in-progress", REQUIRED_SCREENS)
+
 
 if __name__ == "__main__":
     unittest.main()

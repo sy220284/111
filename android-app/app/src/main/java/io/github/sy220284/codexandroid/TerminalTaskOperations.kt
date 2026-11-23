@@ -22,6 +22,11 @@ internal class TerminalTaskOperations(
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
     fun startTerminalCommand(command: String, tty: Boolean = false) {
+        if (!vm.globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("terminal" to
+                "本机数据正在备份或恢复，完成后再执行终端命令")
+            return
+        }
         if (vm.connectionRestarter.busy.value) {
             errors.value = errors.value + ("terminal" to "正在重新连接内核，请稍后执行命令")
             return
@@ -40,6 +45,16 @@ internal class TerminalTaskOperations(
         }
         val id = UUID.randomUUID().toString()
         val args = TerminalSessionContract.execute(command, cwd, id, tty)
+        // Terminal PTY may run with the UI in the background. Start the same
+        // foreground protection used by turns before marking the command active.
+        try {
+            CodexForegroundService.start(vm.getApplication())
+        } catch (failure: Exception) {
+            errors.value = errors.value + ("terminal" to
+                ("无法为终端任务启动后台保护：" +
+                    (failure.message ?: "系统拒绝启动前台服务")))
+            return
+        }
         terminalSession.value = TerminalSessionState.start(id, command, tty)
         errors.value = errors.value - "terminal"
         scope.launch {

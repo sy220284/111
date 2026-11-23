@@ -377,7 +377,8 @@ fun CodexConfirmDialog(
     onDismiss: () -> Unit,
     confirmLabel: String = "确认",
     detail: String = "",
-    destructive: Boolean = false
+    destructive: Boolean = false,
+    confirmEnabled: Boolean = true
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -417,6 +418,7 @@ fun CodexConfirmDialog(
         confirmButton = {
             OutlinedButton(
                 onClick = onConfirm,
+                enabled = confirmEnabled,
                 colors = if (destructive) ButtonDefaults.outlinedButtonColors(containerColor = Ink.canvas, contentColor = Ink.red)
                 else ButtonDefaults.outlinedButtonColors(),
                 modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-accept"),

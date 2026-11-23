@@ -17,9 +17,10 @@ import androidx.compose.ui.unit.dp
 
 /** 设置中默认仅一行；实际检查、下载、校验和安装始终使用原有 AppUpdateManager。 */
 @Composable
-internal fun AppUpdateCard(autoExpand: Boolean = false) {
+internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
     val status by AppUpdateManager.state.collectAsState()
     val activity = LocalActivity.current
+    val work = observeGlobalWorkSnapshot(vm)
     val currentVersion = remember(activity) {
         activity?.packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty()
     }
@@ -76,12 +77,25 @@ internal fun AppUpdateCard(autoExpand: Boolean = false) {
                         if (status.phase in setOf(UpdatePhase.READY,
                                 UpdatePhase.NEEDS_PERMISSION, UpdatePhase.INSTALLING)) {
                             OutlinedButton(
-                                onClick = { activity?.let(AppUpdateManager::install) },
-                                enabled = activity != null,
+                                onClick = {
+                                    if (work.canDisruptCoreOrData) {
+                                        activity?.let(AppUpdateManager::install)
+                                    } else {
+                                        vm.errors.value = vm.errors.value + (
+                                            "update" to work.blockReason)
+                                    }
+                                },
+                                enabled = activity != null && work.canDisruptCoreOrData,
                                 modifier = Modifier.testTag("update-install"),
                                 shape = RoundedCornerShape(16.dp)
                             ) { Text("安装更新") }
                         }
+                    }
+                    if (status.phase in setOf(
+                            UpdatePhase.READY, UpdatePhase.NEEDS_PERMISSION,
+                            UpdatePhase.INSTALLING) && !work.canDisruptCoreOrData) {
+                        Text(work.blockReason, color = Ink.warning,
+                            style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

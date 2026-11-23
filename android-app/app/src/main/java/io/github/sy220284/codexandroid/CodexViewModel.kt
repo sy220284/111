@@ -156,19 +156,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
-    // Bound transient library-query state. The source of truth remains the local Codex core.
-    private val dynamicRequestHistory = ArrayDeque<String>()
-    private fun retainRecentQuery(key: String) {
-        if (!key.startsWith("library:") && !key.startsWith("fullSearch:")) return
-        dynamicRequestHistory.remove(key)
-        dynamicRequestHistory.addLast(key)
-        while (dynamicRequestHistory.size > 32) {
-            val oldest = dynamicRequestHistory.removeFirst()
-            latestRequests.cancel(oldest)
-            data.value = data.value - oldest
-            errors.value = errors.value - oldest
-            loading.value = loading.value - oldest
-        }
+    // Query cache ownership is independent of the ViewModel's RPC orchestration.
+    private val dynamicRequestHistory by lazy {
+        TransientRequestCache(latestRequests, data, errors, loading)
     }
 
     private fun request(
@@ -178,6 +168,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         onSuccess: ((JSONObject) -> Unit)?,
         userAction: Boolean = false
     ) {
+        if (userAction && DataTransferMutationGate.refuse(this, key, method)) return
         if (method in setOf("thread/delete", "thread/archive") &&
             params.optString("threadId") in threadExecutions.value) {
             val reason = "所选会话仍有执行中的任务，请先停止或等待完成后再整理"
@@ -187,7 +178,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
-        retainRecentQuery(key)
+        dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
         data.value = data.value - key
         errors.value = errors.value - key
@@ -422,6 +413,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         attachmentController.clearAfterAccepted(threadId, text, images)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: (String) -> Unit = {}) {
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("conversation" to
+                "本机数据正在备份或恢复，完成后再发送指令")
+            return
+        }
         if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
         val prompt = text.trim()
         if (threadSwitching.value) {

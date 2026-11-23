@@ -432,3 +432,59 @@
 - **截图采集根因追加**：在首轮门禁补测中 `WindowInsets.Type.ime()` 已通过且 [CI #45142934539](https://github.com/sy220284/111/actions/runs/45142934539) 的三档 69/69 也通过，但新旧 `chat-keyboard-open-android35.png` 三档 SHA256 完全相同。查明 `UiNavigationInstrumentedTest.capture()` 调用 Compose `onRoot().captureToImage()`，只能截应用内容，不包含系统输入法窗口；已将键盘截图改用仓库现有 `captureVerifiedDisplayScreenshot()` 的 `UiAutomation.takeScreenshot()` 获取 Android 全屏证据。真实状态断言与截图必须同时成立。
 - **协议影响**：`thread/start`、`turn/start`、设置搜索/导航的真实 RPC、参数和用户数据路径均未改动。本轮只提高设备测试对系统输入法真实状态的证明能力。
 - **验收等级**：代码与 CI 检查已提交至独立分支，最终设备通过状态以此 PR 当前 HEAD 的四作业、三档截图及 `ime` 可见断言结果更新；此前“键盘展开已验收”不沿用作为本轮结论。
+
+## 2026-11-23 全功能链路与跨会话安全共性整改（PR #71）
+
+- **完整审计入口**：`android-app/tools/check_full_feature_workflows.py` 自动从 29 项既有功能清单、28 条路由、Kotlin 源码、回归测试/截图声明及上游 Rust 195 项方法生成 `full-feature-workflows.md/json`；正反例测试和 GitHub Actions 工作流阻断来源文件失效、方法目录冲突或虚假证据登记。详细审计与后续实证缺口见 `docs/111_FULL_FUNCTION_CHAIN_AUDIT_20261123.md`。
+- **静态基线（主线原有 CI 报告）**：29 功能、28/28 页面、280 个静态可交互控件、84 项静态 RPC 调用方法、81/81 可见方法的调用或等效源定位，195 个官方方法中有 187 客户端请求与 8 Host 请求。上述均为静态证据；外部服务真实成功回执、ARM64 核心与厂商真机须单独验收。
+- **发现的 P0 公共根因**：`CodexViewModel.running` 只表示当前会话，后台其他线程在 `threadExecutions` 中继续运行。原数据备份/恢复、内核重启 UI 与执行、系统安装升级、空闲进程回收使用不同且不完整的活动工作判断，可能在后台任务仍执行时触发破坏性操作。
+- **统一实现**：`GlobalWorkSnapshot.kt` 建立可测试的全局工作状态，`GlobalWorkUi.kt` 将同一判断映射到 Compose 控件；`LocalDataTransferCard`、`ConnectionRestartController`、`EngineDiagnosticsPage`、`AppUpdateCard`、`AppUpdateManager` 和 `CodexApplication` 共用判定，导入/导出选文件和安装器交接前重新核查。数据传输期对 `CodexViewModel.sendPrompt`、`TerminalTaskOperations.startTerminalCommand` 做明确阻断，保留原草稿和终端状态。
+- **协议方向与 DTO**：`thread/start`、`turn/start`、`command/exec`、`server/diagnostics` 等业务字段、请求方向、响应封套不变；本次根因修复在主机端运行状态与危险操作入口完成。
+- **验收规则**：`GlobalWorkSnapshotTest`、`ConnectionRestartPolicyTest` 需通过；`UiNavigationInstrumentedTest.offscreenRunningTaskBlocksLocalDataTransferButtons` 需在 Android 35 三档设备确认为后台任务运行时备份/恢复不可选择并保存 `audit-backup-background-block-android35.png`。实际成功的 CI SHA 与链接待 PR 最终执行后追加，未通过前不升级验收等级。
+- **同类排查范围**：文件编辑/导入、会话库整理、任务后续指令、通知保活和独立终端均复查其当前会话/全局运行态归属；其中按线程允许的并行操作沿用独立 ID，破坏性全局操作收敛至统一策略。外部 MCP、真实 ARM64 和 OEM 安装仍需专项回执，#68/#69/#70 以独立 PR 为准。
+
+
+### 本轮延伸查出的终端后台保活链路（PR #71）
+
+- **真实源码缺口**：`TerminalTaskOperations.startTerminalCommand` 原先没有启动前台服务；`CodexForegroundService` 的保活及重连循环仅观察当前可见会话/审批，既不包含终端进程，也遗漏不在当前页的执行会话。手机退到后台时，长终端命令可能丢失保活，通知缺少正确的停止终端语义。
+- **共享修复**：终端成功启动前先调用现有 `CodexForegroundService.start`，服务将终端运行态和后台线程并入持续通知、重连和停止条件；通知在仅有终端时显示“终端命令正在执行”及“停止终端”，按任务实际归属调用 `stopTerminalCommand`，终端/会话完成后服务正常退出。
+- **验收**：`ForegroundTaskPolicyTest` 新增终端独立执行、终端断连重连、后台任务保持与无任务关闭等 JVM 回归。真实 ARM64 长终端命令切后台、厂家系统通知、停止按钮及进程存活仍列专项验证，设备 UI 测试不可直接替代。
+
+
+### PR #71 全局维护期间交互与数据一致性补充
+
+- 复查所有功能后发现：即使禁止发送消息、终端执行，`LocalDataTransfer` 备份期间仍可能从其他页面触发文件编辑、配置或扩展写入；此前 `GlobalWorkSnapshot` 也没有把在途 UI RPC、账号登录、方案准备算入活动工作。
+- 共享方案：`CodexShell` 顶层渲染 `DataTransferBusyOverlay`，在归档的整个 `busy` 生命周期内拦截全部页面和子弹层交互，完成后恢复原页面；`CodexViewModel.request` 对用户发起的 RPC 变更增加数据迁移期间的入口保护。全局共享策略还涵盖 `loading`、`loginBusy`、`planApprovalBusy`，归档需等已有请求结束后方可开始。
+- 负向证据：`GlobalWorkSnapshotTest.pendingRpcAuthorizationAndPlanPreparationMustFinishBeforeBackup` 覆盖在途请求、登录与方案审批；`CodexOverlayInstrumentedTest.dataArchiveExclusiveDialogAppearsAndClearsWithoutLosingPage` 覆盖全局独占弹层出现、解除及原页面保存；所有 29 项页面不再分别复制 busy 拦截。
+- 审计门禁纠正：`check_full_feature_workflows.py` 对每张文档声明截图检查是否已进入必检/选检设备截图列表；之前 `missing_screens` 虽计算但没有导致失败，现加入明确阻断与反向测试。
+- 验收等级：以本 PR 最新 SHA 的协议/单测/Lint、三档 Android 真正运行回执和截图为准；对真实大容量备份、文件变化并发及厂商保存框仍需要 ARM64/真机专项证明。
+
+
+### 全量功能审计 29/29 可执行用例关联及备份快照保护（PR #71 延伸）
+
+- 已从 CI `full-feature-workflows.json` 回读 29 项、28 路由、195 协议登记全部完整。其中 `review`、`skills`、`apps`、`diagnostics` 原仅登记截图，现明确绑定已真实覆盖其页面的 `taskSpecificSheetsAreReachableAndReadable` / `secondarySettingsPagesHaveActualDeviceScreenshots`。CI 强制每一行包含存在于 Android/JUnit 源码的测试声明，截图和源码路径同时复核。
+- 完整行为保护落在共享模块：`GlobalWorkSnapshot` 现额外收敛所有在途请求、账号登录、方案审批；`DataTransferMutationGate` 统一阻断迁移中的用户 RPC 写操作；全页面 `DataTransferBusyOverlay` 显式解释退回或外点期间的锁定，并保证操作结束后回到原页面。
+- 真正的验收区分：`GlobalWorkSnapshotTest` 为状态纯逻辑；`UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage` 为 Android 系统全屏截图、返回键行为和原页面恢复；账号、真实项目写回、ARM64/OEM 文件操作仍需专项完整实证。若三档 CI 有任一失败，按该提交记录失败并继续修复。
+
+
+### PR #71 全量链路与跨会话安全最终实测证据（2026-11-23）
+
+- **实际验收代码**：`931d46ce96cf16505a28cbead8b4019b2c0acd94`；[Android UI 与协议 CI #45156766925](https://github.com/sy220284/111/actions/runs/45156766925) 四个作业均为 `success`，包括 Kotlin 编译、261 项 JVM 单测、Lint、官方 Rust 方法/方向/DTO/线缆样例、全功能证据校验。
+- **功能证据分级**：`full-feature-workflows.json` 中 29/29 项功能、28/28 个页面路由、195/195 项官方方法、每项至少一个可执行 JUnit/Android 测试引用，静态缺口为零；用户交互与真实服务回包按原业务链单独核算，195 项目录覆盖不能当作 195 项真内核端到端通过。
+- **Android 35 设备验收**：360dp、393dp、411dp 三档，各 **75/75** 项仪器测试通过；每档设备 artifact 中 `manifest.json` 记录 **55 个必检、66 张实得、0 个缺失**，`ui-instrument-result.log` 显示 `OK (75 tests)`。逐档原图 `audit-backup-background-block-android35.png` 确认后台执行任务时备份/恢复按钮被禁用并告知原因；`audit-backup-in-progress-android35.png` 系统级截图确认独占进度弹层遮挡主界面，设备测试额外验证返回键无法结束正在执行的归档且处理结束后原设置页仍在。
+- **安装专项**：393dp 的 `self-update-open.json` 为 `status=passed`；系统安装器实际点击 `Install` 与 `Open`，安装时间 `2026-11-23 10:35:08 → 10:36:58`，新进程 `PID 3494` 回到 `io.github.sy220284.codexandroid/.MainActivity`。
+- **此前错误及修正**：先解决 CI 稀疏检出缺失索引、共享 VM 760 行预算、测试断言错误导入，再处理三档测试中弹层状态文字与背景提示重复导致的单节点假失败；最终将断言锁定 `data-transfer-busy-message` 专属控件，并以完整设备测试确认恢复。
+- **独立专项仍需真实环境证据**：ARM64 核心真实长终端切后台/OEM 通知保活、真实账号、外部 MCP/OAuth、真实项目大容量备份恢复、原生权限和各类 RPC 真实服务端成功回读。以上保持“待专项实测”，不因本次 CI 完成而误升等级。
+
+
+### PR #71 与最新主线并行 MCP 合并对齐复核
+
+- 在 PR #71 功能代码及台账提交 `6b00a22b585171124200b2ebaab8566b2d129595` 的 [CI #45158226314](https://github.com/sy220284/111/actions/runs/45158226314) 4/4 通过后，`main` 又合入了 MCP 智能体管理改造 [`b42628a7`](https://github.com/sy220284/111/commit/b42628a7e02d2878405d4596e9873a8bf363a234)，两分支同时涉及 `CodexViewModel`、`AppNavigation` 及接口规范。
+- PR #71 的目标基线已更新至 `main@b42628a7`，依 GitHub 最新实际三方合并状态核验可合并。必须对该新主线组合再次执行完整 Kotlin/协议/Lint 和 Android 35 三档设备测试；仅在新组合测试成功后合入，保护 #70 的 MCP 服务注册归属与本轮跨会话/归档安全改造。
+
+
+#### 新主线 #70 + #71 的 ViewModel 结构冲突消除（2026-11-23）
+
+- 以 `main@b42628a7` 和 #71 合并候选树 `b2c21cdd7d62db50e9a4dd0f71740251e6be7379` 实际读取源码，发现 `CodexViewModel.kt` 合并后 766 行，超过 760 行源文件预算，属于两项功能在同一类中不断累积职责的结构性风险。
+- 已将 `library:`、`fullSearch:` 两类临时结果缓存的最近使用顺序、超过 32 条时的淘汰、旧请求所有权撤销、成功/错误/加载状态共同清理提取为独立 `TransientRequestCache.kt`，由 ViewModel 委托执行。保留 #70 MCP 账号与服务管理功能及 #71 全局状态控制；没有更改 Codex RPC 字段或用户数据。
+- 新增 `TransientRequestCacheTest.kt` 覆盖缓存淘汰时三类状态与旧回执共同失效、重复访问刷新最近使用顺序、常驻键不被淘汰、无效缓存容量被拒绝。新合并候选需运行完整 Kotlin/协议/Lint 与三档模拟器验收后方可合并，结果按当前 PR HEAD 登记。

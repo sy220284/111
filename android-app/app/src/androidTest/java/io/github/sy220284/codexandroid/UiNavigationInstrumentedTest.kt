@@ -112,6 +112,59 @@ class UiNavigationInstrumentedTest {
         capture("chat-android35.png")
     }
 
+    @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
+        val vm = (rule.activity.application as CodexApplication).session
+        openDrawerRoute("settings")
+        // The backup card lives inside a lazily composed settings group.
+        // Search and scroll to the actual section before asserting child actions.
+        rule.onNodeWithTag("settings-search").performTextInput("备份")
+        rule.onNodeWithTag("settings-list").performScrollToNode(
+            hasTestTag("settings-backup"))
+        rule.onNodeWithTag("backup-export").assertExists()
+        try {
+            rule.runOnUiThread {
+                vm.activeThread.value = null
+                vm.running.value = false
+                vm.threadExecutions.value = mapOf(
+                    "offscreen-active" to ThreadExecution(turnId = "running-turn"))
+            }
+            rule.waitForIdle()
+            rule.onNodeWithTag("backup-export").assertIsNotEnabled()
+            rule.onNodeWithTag("backup-import").assertIsNotEnabled()
+            rule.onNodeWithText(
+                "仍有会话任务、终端命令或审批待处理，请完成后再操作").assertExists()
+            capture("audit-backup-background-block-android35.png")
+        } finally {
+            rule.runOnUiThread { vm.threadExecutions.value = emptyMap() }
+            rule.waitForIdle()
+        }
+    }
+
+    @Test fun globalArchiveOverlayProtectsSettingsAndRestoresThePage() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("备份")
+        try {
+            rule.runOnUiThread {
+                AppDataTransfer.state.value = DataTransferState(
+                    busy = true, result = "正在验证本机备份…")
+            }
+            rule.waitForIdle()
+            rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
+            rule.onNodeWithTag("data-transfer-busy-message")
+                .assertTextEquals("正在验证本机备份…")
+            captureVerifiedDisplayScreenshot("audit-backup-in-progress-android35.png")
+            // Pressing Back acknowledges the blocked operation without exposing
+            // file/editor controls until the archive reports completion.
+            pressSystemBack()
+            rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
+        } finally {
+            rule.runOnUiThread { AppDataTransfer.state.value = DataTransferState() }
+            rule.waitForIdle()
+        }
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
+        rule.onNodeWithTag("settings-search").assertExists()
+    }
+
     @Test fun chatAndWorkTabsPreserveTheSamePrimaryNavigation() {
         rule.onNodeWithTag("tab-chat").performClick()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()

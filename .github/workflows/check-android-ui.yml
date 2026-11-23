@@ -8,6 +8,7 @@ on:
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
+      - "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
       - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - "docs/UI_V5_COMPONENT_INTEGRATION.md"
       - "docs/ui-assets/tokens.json"
@@ -23,6 +24,7 @@ on:
     paths:
       - "android-app/**"
       - "docs/DESIGN_SYSTEM.md"
+      - "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
       - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - "docs/UI_V5_COMPONENT_INTEGRATION.md"
       - "docs/ui-assets/tokens.json"
@@ -59,6 +61,7 @@ jobs:
             /.github/workflows/
             /.github/scripts/
             /docs/DESIGN_SYSTEM.md
+            /docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md
             /docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md
             /docs/ui-assets/tokens.json
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
@@ -119,6 +122,13 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
+      - name: 全量核查 29 项入口、路由、回归证据与 195 项官方方法
+        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_check_full_feature_workflows.py'
+          python3 android-app/tools/check_full_feature_workflows.py \
+            --repository . \
+            --json-report full-feature-workflows.json \
+            --report full-feature-workflows.md
       - name: 从唯一协议策略核对 UI 组件映射文档
         run: |
           python3 android-app/tools/sync_ui_protocol_docs.py --check
@@ -176,6 +186,8 @@ jobs:
             android-app/app/build/test-results/testDebugUnitTest/
             ui-coverage.md
             ui-coverage.json
+            full-feature-workflows.md
+            full-feature-workflows.json
             protocol-contract-audit.json
             wire-fixtures-audit.json
             android-app/app/build/protocol-fixtures/requests.json

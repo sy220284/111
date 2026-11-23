@@ -1,8 +1,12 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
@@ -10,6 +14,81 @@ import org.junit.Test
 /** Verifies a real Material 3 overlay, including explicit dismiss without side effects. */
 class CodexOverlayInstrumentedTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test
+    fun dataArchiveExclusiveDialogAppearsAndClearsWithoutLosingPage() {
+        val transfer = mutableStateOf(DataTransferState())
+        rule.setContent {
+            CodexTheme {
+                Column {
+                    androidx.compose.material3.Text("原有项目编辑状态")
+                    DataTransferBusyOverlay(transfer.value)
+                }
+            }
+        }
+        rule.onNodeWithText("原有项目编辑状态").assertExists()
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
+        rule.runOnUiThread {
+            transfer.value = DataTransferState(busy = true, result = "正在导出本机工作数据…")
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
+        rule.onNodeWithText("正在导出本机工作数据…").assertExists()
+        rule.runOnUiThread {
+            transfer.value = DataTransferState(busy = false, result = "导出完成")
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
+        rule.onNodeWithText("原有项目编辑状态").assertExists()
+    }
+
+    @Test
+    fun blockedConfirmationShowsReasonAndCannotAccept() {
+        var confirmed = false
+        rule.setContent {
+            CodexTheme {
+                CodexConfirmDialog(
+                    title = "确认导入本机备份",
+                    message = "仍有会话任务、终端命令或审批待处理，请完成后再操作",
+                    onConfirm = { confirmed = true },
+                    onDismiss = {},
+                    confirmLabel = "核对并导入",
+                    destructive = true,
+                    confirmEnabled = false
+                )
+            }
+        }
+        rule.onNodeWithText("仍有会话任务、终端命令或审批待处理，请完成后再操作")
+            .assertExists()
+        rule.onNodeWithTag("confirm-dialog-accept").assertIsNotEnabled()
+        rule.runOnIdle { org.junit.Assert.assertFalse(confirmed) }
+    }
+
+    @Test
+    fun confirmationDisablesImmediatelyWhenBackgroundTaskStarts() {
+        val allowed = mutableStateOf(true)
+        var accepted = false
+        rule.setContent {
+            CodexTheme {
+                CodexConfirmDialog(
+                    title = "核对并导入",
+                    message = if (allowed.value) "准备导入" else
+                        "仍有会话任务、终端命令或审批待处理，请完成后再操作",
+                    confirmLabel = "核对并导入",
+                    confirmEnabled = allowed.value,
+                    onConfirm = { accepted = true },
+                    onDismiss = {}
+                )
+            }
+        }
+        rule.onNodeWithTag("confirm-dialog-accept").assertIsEnabled()
+        rule.runOnUiThread { allowed.value = false }
+        rule.waitForIdle()
+        rule.onNodeWithTag("confirm-dialog-accept").assertIsNotEnabled()
+        rule.onNodeWithText("仍有会话任务、终端命令或审批待处理，请完成后再操作")
+            .assertExists()
+        rule.runOnIdle { org.junit.Assert.assertFalse(accepted) }
+    }
 
     @Test
     fun evidenceSheetShowsReadableResultAndCloses() {

@@ -45,10 +45,8 @@ class CodexApplication : Application() {
                 // core. Idle background sessions release native child resources.
                 if (activityCount == 0 && holder.isInitialized()) {
                     val current = holder.value
-                    if (!current.running.value && current.threadExecutions.value.isEmpty() &&
-                        !current.firstThreadStarting.value &&
-                        !current.terminalSession.value.running &&
-                        current.bridge.prompts.value.isEmpty()) current.bridge.close()
+                    if (current.globalWorkSnapshot().canDisruptCoreOrData)
+                        current.bridge.close()
                 }
             }
         }

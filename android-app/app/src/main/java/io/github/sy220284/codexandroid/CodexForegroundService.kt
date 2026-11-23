@@ -28,9 +28,12 @@ import kotlinx.coroutines.launch
  * currently emitting tokens. Its stop action uses the same validated VM RPC.
  */
 internal object ForegroundTaskPolicy {
-    fun shouldKeepAlive(running: Boolean, approvals: Int): Boolean = running || approvals > 0
-    fun shouldReconnect(connected: Boolean, running: Boolean, approvals: Int): Boolean =
-        !connected && shouldKeepAlive(running, approvals)
+    fun shouldKeepAlive(running: Boolean, terminalRunning: Boolean, approvals: Int): Boolean =
+        running || terminalRunning || approvals > 0
+
+    fun shouldReconnect(
+        connected: Boolean, running: Boolean, terminalRunning: Boolean, approvals: Int
+    ): Boolean = !connected && shouldKeepAlive(running, terminalRunning, approvals)
 }
 
 class CodexForegroundService : Service() {
@@ -41,6 +44,7 @@ class CodexForegroundService : Service() {
     private data class TaskNotificationState(
         val running: Boolean,
         val threads: Int,
+        val terminalRunning: Boolean,
         val approvals: Int,
         val connected: Boolean,
         val events: Int,
@@ -57,7 +61,7 @@ class CodexForegroundService : Service() {
         ).apply { description = "长任务进度、审批提醒和停止操作" })
 
         // A foreground notification must exist immediately, before collecting flows.
-        showNotification(TaskNotificationState(true, 1, 0, true, 0, false), foreground = true)
+        showNotification(TaskNotificationState(true, 1, false, 0, true, 0, false), foreground = true)
 
         val session = (application as CodexApplication).session
         watch = scope.launch {
@@ -66,20 +70,24 @@ class CodexForegroundService : Service() {
             ) { visibleRunning, executions, starting ->
                 executions.size + if (starting || (visibleRunning && executions.isEmpty())) 1 else 0
             }
+            val activeWork = combine(
+                activeCount, session.terminalSession, session.bridge.prompts
+            ) { count, terminal, prompts -> Triple(count, terminal.running, prompts.size) }
             combine(
-                activeCount, session.bridge.prompts, session.bridge.status,
-                session.timeline, session.activeTurn
-            ) { count, prompts, status, timeline, turn ->
+                activeWork, session.bridge.status, session.timeline, session.activeTurn
+            ) { work, status, timeline, turn ->
                 TaskNotificationState(
-                    running = count > 0,
-                    threads = count,
-                    approvals = prompts.size,
+                    running = work.first > 0,
+                    threads = work.first,
+                    terminalRunning = work.second,
+                    approvals = work.third,
                     connected = status == EngineStatus.Connected,
                     events = timeline.size,
-                    canStop = session.running.value && !turn.isNullOrBlank()
+                    canStop = (session.running.value && !turn.isNullOrBlank()) || work.second
                 )
             }.distinctUntilChanged().collectLatest { state ->
-                if (!ForegroundTaskPolicy.shouldKeepAlive(state.running, state.approvals)) {
+                if (!ForegroundTaskPolicy.shouldKeepAlive(
+                        state.running, state.terminalRunning, state.approvals)) {
                     reconnectWatcher?.cancel()
                     stopSelf()
                 } else {
@@ -88,12 +96,16 @@ class CodexForegroundService : Service() {
                     // Reconnect while the foreground service is legitimately active;
                     // exponential backoff avoids thrashing a failed native child.
                     if (ForegroundTaskPolicy.shouldReconnect(
-                            state.connected, state.running, state.approvals
+                            state.connected, state.running,
+                            state.terminalRunning, state.approvals
                         ) && reconnectWatcher?.isActive != true) {
                         reconnectWatcher = scope.launch {
                             var interval = 2_000L
                             while (isActive && ForegroundTaskPolicy.shouldKeepAlive(
-                                    session.running.value, session.bridge.prompts.value.size
+                                    session.threadExecutions.value.isNotEmpty() ||
+                                        session.running.value || session.firstThreadStarting.value,
+                                    session.terminalSession.value.running,
+                                    session.bridge.prompts.value.size
                                 ) && session.bridge.status.value != EngineStatus.Connected) {
                                 delay(interval)
                                 session.reconnectIfNeeded()
@@ -111,7 +123,12 @@ class CodexForegroundService : Service() {
         if (intent?.action == ACTION_STOP) {
             // A notification action is an explicit user request; use the same
             // thread/turn validation and RPC as the in-app stop control.
-            (application as CodexApplication).session.interrupt()
+            val session = (application as CodexApplication).session
+            if (session.running.value && !session.activeTurn.value.isNullOrBlank()) {
+                session.interrupt()
+            } else if (session.terminalSession.value.running) {
+                session.stopTerminalCommand()
+            }
         }
         return START_NOT_STICKY
     }
@@ -133,12 +150,14 @@ class CodexForegroundService : Service() {
             !state.connected -> "Codex 运行核心连接中断"
             state.approvals > 0 -> "Codex 有 ${state.approvals} 项操作等待确认"
             state.threads > 1 -> "Codex 正在执行 ${state.threads} 条会话任务"
+            state.terminalRunning && state.threads == 0 -> "Codex 终端命令正在执行"
             else -> "Codex 正在执行任务"
         }
         val detail = when {
             !state.connected -> "点按返回应用，重新连接并检查执行结果"
             state.approvals > 0 -> "点击返回任务对话，查看内容并决定是否允许"
             state.threads > 1 -> "多会话任务持续运行，点按查看并切换会话"
+            state.terminalRunning && state.threads == 0 -> "终端仍在运行，点按查看输出或停止命令"
             else -> "已记录 ${state.events} 条执行事件，点按查看详情"
         }
         val builder = Notification.Builder(this, CHANNEL)
@@ -149,11 +168,14 @@ class CodexForegroundService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_SERVICE)
-            .setProgress(0, 0, state.running && state.approvals == 0 && state.connected)
+            .setProgress(0, 0,
+                (state.running || state.terminalRunning) && state.approvals == 0 && state.connected)
 
         if (state.canStop && state.connected) {
             builder.addAction(Notification.Action.Builder(
-                R.drawable.ic_codex_stop, "停止任务", stopIntent
+                R.drawable.ic_codex_stop,
+                if (state.terminalRunning && state.threads == 0) "停止终端" else "停止任务",
+                stopIntent
             ).build())
         }
         val note = builder.build()
