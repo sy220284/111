@@ -30,7 +30,7 @@ private fun JSONArray.objects(): List<JSONObject> =
     (0 until length()).mapNotNull { optJSONObject(it) }
 
 @Composable
-private fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
+internal fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
     ProtocolFeedback(vm, listOf(key), onRetry = retry)
 }
 
