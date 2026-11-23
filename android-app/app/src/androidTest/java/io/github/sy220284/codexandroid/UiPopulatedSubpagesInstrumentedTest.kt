@@ -104,6 +104,31 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("授权登录").assertDoesNotExist()
     }
 
+    @Test fun mcpFullPageShowsOnlyUsableServersAndNoRegistrationInterface() {
+        val usable = JSONObject().put("name", "可调用的工具服务")
+            .put("runtimeStatus", "connected")
+            .put("authStatus", "oAuth")
+            .put("tools", JSONObject().put("toolA", JSONObject()))
+        val unavailable = JSONObject().put("name", "尚未授权的服务")
+            .put("runtimeStatus", "authenticationRequired")
+            .put("authStatus", "notLoggedIn")
+        val noCapability = JSONObject().put("name", "无能力的连接")
+            .put("runtimeStatus", "connected")
+            .put("authStatus", "oAuth")
+        val vm = viewModel()
+        vm.data.value = mapOf("mcp" to JSONObject()
+            .put("servers", JSONArray().put(usable).put(unavailable).put(noCapability)))
+        rule.setContent { CodexTheme { McpServicesPage(vm) } }
+        rule.onNodeWithText("可用服务 1 项").assertExists()
+        rule.onNodeWithText("可调用的工具服务").assertExists()
+        rule.onNodeWithText("尚未授权的服务").assertDoesNotExist()
+        rule.onNodeWithText("无能力的连接").assertDoesNotExist()
+        rule.onNodeWithText("授权登录").assertDoesNotExist()
+        rule.onNodeWithText("查看配置").assertDoesNotExist()
+        rule.onNodeWithText("toolA").assertDoesNotExist()
+        capture("audit-mcp-usable-directory-android35.png")
+    }
+
     @Test fun androidMcpManagementSkillInstallsLocallyAndRemainsIdempotent() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val root = File(context.cacheDir, "mcp-skill-test-" + UUID.randomUUID())
