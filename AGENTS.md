@@ -17,7 +17,7 @@
 - 用户界面以中文描述操作、状态、风险、下一步；内部 RPC、UUID、文件绝对路径、JSON、null 等仅在主动展开的专业诊断和执行依据中出现。
 - 主操作沿用现有典雅白与珊瑚色 token；以 `docs/DESIGN_SYSTEM.md`、`VisualSystem.kt` 和现行截图为准。保留主题一致性、48dp 触控、减弱动效、200% 字体、键盘和窄宽屏适配。输入区采用系统 `adjustResize` 与实际 IME 状态统一计算可用空间，避免父子组件重复添加键盘高度内边距。
 - `android-app/tools/ui_surface_policy.json` 是协议归属唯一来源；通过现有生成/校验器同步 Kotlin 和文档。以锁定上游 Rust DTO 校验真实参数、响应、事件和 Host 方向。
-- **MCP 授权入口必须以官方协议状态和服务身份为准**：`codex_apps` 复用 ChatGPT 账号，按账号登录与连接状态检查；普通 MCP 仅在 `authStatus=notLoggedIn` 时提供 OAuth 授权，`oAuth`、`bearerToken`、`unsupported`、`unknown` 各自展示真实状态与适用动作。OAuth 请求带上当前服务的 `environmentId` 和适用的 `threadId`；用匹配的 `loginId` 处理完成通知并刷新状态。遇到 HTML/HTTP 错误时普通界面给出可恢复的中文摘要，原始诊断保留于内核，不展示整页网页源码。
+- **MCP 采用“智能体管理 + 只读可用目录”**：用户在任务对话中提出接入、更新或移除 MCP 服务，由当前 Codex 智能体处理配置、认证步骤及连接验证；授权需要用户参与时只在任务交互里提供明确确认。MCP 页面通过 `mcpServerStatus/list` 仅显示运行时 `connected` 且确实可用的服务名称与“可用”标识，支持刷新；待连接、失败、未授权服务不进入可用列表，注册表单、OAuth 按钮、账户/配置快捷操作、工具调用与内部字段均不出现在 MCP 页面。后台保留标准 OAuth、MCP 资源/工具和 Host 交互能力，收到账号变化、OAuth 完成或服务启动状态通知后刷新目录；真实连接与调用结果作为最终验收依据。原始 HTTP/HTML 错误只进入专业诊断，用户只见有行动价值的中文信息。
 - 用户数据、未发送的草稿/附件要安全持久化；按会话 ID 隔离执行状态。先得到有效服务响应再清空输入或更改完成态。多会话并行和长任务后台保活延续已有方案；顶栏、侧栏与会话资料库的新建任务必须共用 `NavigationPolicy.newThreadBlockReason`，只在首会话创建或会话切换期间禁用，其他会话执行中允许继续新建任务。
 - 正式手机版交付 ARM64；Android 35 360/393/411dp 模拟器用于 UI 回归。发布与厂商真机采用独立真实验收证据。
 
