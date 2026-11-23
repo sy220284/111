@@ -45,31 +45,16 @@ internal fun ChatWorkTopBar(
                 Icon(Icons.Outlined.Menu, "打开侧边导航", tint = Ink.parchment)
             }
         }
-        Row(
-            Modifier.width(196.dp).height(49.dp)
-                .background(Ink.recessed, RoundedCornerShape(28.dp))
-                .padding(4.dp).testTag("chat-work-switch"),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            Modifier.weight(2f).testTag("conversation-top-title"),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            listOf("chat" to "聊天", "home" to "工作").forEach { (route, label) ->
-                val chosen = selected == route
-                Surface(
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                        .semantics { this.selected = chosen }
-                        .clickable(role = Role.Tab) { onNavigate(route) }
-                        .testTag("tab-$route"),
-                    shape = RoundedCornerShape(25.dp),
-                    color = if (chosen) Ink.canvas else Color.Transparent,
-                    border = if (chosen) BorderStroke(.5.dp, Ink.border) else null,
-                    shadowElevation = if (chosen) 1.dp else 0.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(label, style = MaterialTheme.typography.bodyLarge,
-                            color = Ink.parchment,
-                            fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal)
-                    }
-                }
-            }
+            Text(
+                if (selected == "chat") "任务对话" else "工作台",
+                style = MaterialTheme.typography.titleMedium,
+                color = Ink.parchment,
+                maxLines = 1
+            )
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             IconButton(
