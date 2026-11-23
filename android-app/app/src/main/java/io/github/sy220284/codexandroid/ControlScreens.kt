@@ -72,7 +72,7 @@ fun ApprovalsPage(vm: CodexViewModel) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
     ScreenColumn {
-        SectionIntro("HUMAN / APPROVAL", "待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
+        SectionIntro("待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
         errors["approvals"]?.let { ErrorText(it) }
         if (prompts.isEmpty()) {
             CodexEmptyState("目前没有等待授权的操作",
@@ -338,7 +338,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val ready = data["config"] != null
 
     ScreenColumn {
-        SectionIntro("RUNTIME / PREFERENCES", "引擎配置",
+        SectionIntro("引擎配置",
             "常用设置可直接在设置页管理；这里只处理需要手动填写的高级参数。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -491,7 +491,7 @@ fun AppearancePage() {
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
     val softMaterial by UiPreferences.softMaterial.collectAsState()
     ScreenColumn {
-        SectionIntro("DESIGN / SURFACES", "外观与交互", "全局典雅白底，暖铜文字与边框强调操作，支持轻阴影和精简动效。")
+        SectionIntro("外观与交互", "全局典雅白底，暖铜文字与边框强调操作，支持轻阴影和精简动效。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("界面材料", style = MaterialTheme.typography.titleMedium)
             Text("典雅白底 / 柔和细边 / 清晰文字层级", color = Ink.muted)
@@ -544,7 +544,7 @@ fun AboutPage(vm: CodexViewModel) {
         appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName.orEmpty()
     }
     ScreenColumn {
-        SectionIntro("CODEX / OPEN SOURCE", "关于 Codex Android", "官方运行核心 + 原生 Android 操作界面")
+        SectionIntro("关于 Codex Android", "官方运行核心 + 原生 Android 操作界面")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("v$version · Android 29+", style = MaterialTheme.typography.titleLarge)
             Text("上游官方项目：openai/codex", color = Ink.muted)

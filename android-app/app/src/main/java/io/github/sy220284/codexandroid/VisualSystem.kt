@@ -10,11 +10,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -190,25 +194,36 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 
 val LocalWorkPageTitle = compositionLocalOf { "" }
 
-/** 页面正文共享的导语：顶栏已有标题时保留层次，而不重复大标题。 */
+/** 页面导语只保留标题；操作说明按需进入二级弹层。不再保留无效英文分类参数。 */
 @Composable
-fun SectionIntro(eyebrow: String, title: String, subtitle: String = "") {
+fun SectionIntro(title: String, subtitle: String = "") {
     val showTitle = title != LocalWorkPageTitle.current
+    var showExplanation by remember(title, subtitle) { mutableStateOf(false) }
     if (showTitle || subtitle.isNotBlank()) {
-        Column(
-            Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (showTitle) {
-                Text(title, color = Ink.parchment,
-                    style = MaterialTheme.typography.titleLarge)
-            }
+                Text(title, color = Ink.parchment, style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f))
+            } else Spacer(Modifier.weight(1f))
             if (subtitle.isNotBlank()) {
-                Text(subtitle, color = Ink.muted,
-                    style = MaterialTheme.typography.bodyMedium)
+                IconButton(
+                    onClick = { showExplanation = true },
+                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                ) {
+                    Icon(Icons.Outlined.Info, contentDescription = "查看" + title + "说明",
+                        tint = Ink.muted)
+                }
             }
         }
     }
+    if (showExplanation) AlertDialog(
+        onDismissRequest = { showExplanation = false },
+        title = { Text(title) },
+        text = { Text(subtitle) },
+        confirmButton = {
+            TextButton(onClick = { showExplanation = false }) { Text("关闭") }
+        }
+    )
 }
 
 enum class StatusTone { Neutral, Info, Success, Warning, Danger }

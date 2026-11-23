@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,24 +38,31 @@ internal fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
 @Composable
 private fun DetailToggle(value: JSONObject, label: String = "查看服务信息") {
     var open by remember { mutableStateOf(false) }
-    TextButton(onClick = { open = !open }) {
-        Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
-        Text(if (open) "收起详情" else label)
+    val description = PresentationPolicy.meaningful(value.optString("description"))
+    val status = PresentationPolicy.meaningful(value.optString("status"))
+    val address = PresentationPolicy.meaningful(value.optString("baseUrl"))
+    TextButton(onClick = { open = true }) {
+        Icon(Icons.Outlined.Info, null)
+        Text(label)
     }
-    CodexReveal(open) {
-        val description = PresentationPolicy.meaningful(value.optString("description"))
-        val status = PresentationPolicy.meaningful(value.optString("status"))
-        if (description.isNotEmpty()) {
-            Text(description, style = MaterialTheme.typography.bodyMedium,
-                color = Ink.muted)
-        }
-        if (status.isNotEmpty()) {
-            Text("当前状态：" + PresentationPolicy.serviceState(status),
-                style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-        }
-        if (description.isEmpty() && status.isEmpty())
-            Text("当前没有更多可展示的服务信息。", color = Ink.muted)
-    }
+    if (open) AlertDialog(
+        onDismissRequest = { open = false },
+        title = { Text(label) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (description.isNotEmpty()) Text(description)
+                if (status.isNotEmpty())
+                    Text("当前状态：" + PresentationPolicy.serviceState(status))
+                if (address.isNotEmpty()) Text("服务地址：" + address)
+                if (value.optBoolean("canEdit"))
+                    Text("可在运行核心高级配置中修改具体参数。")
+                if (description.isEmpty() && status.isEmpty() && address.isEmpty())
+                    Text("当前没有更多可展示的服务信息。")
+            }
+        },
+        confirmButton = { TextButton(onClick = { open = false }) { Text("关闭") } }
+    )
 }
 
 @Composable
@@ -63,9 +71,10 @@ fun ModelsPage(vm: CodexViewModel) {
     val chosen by vm.modelId.collectAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val items = records(data["models"])
+    var selectedModelDetail by remember { mutableStateOf<Pair<String, String>?>(null) }
     LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
     ScreenColumn {
-        SectionIntro("MODELS / SELECTION", "模型目录", "直接从官方模型目录选择新会话的运行模型。")
+        SectionIntro("模型目录", "直接从官方模型目录选择新会话的运行模型。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("新会话使用的模型", style = MaterialTheme.typography.titleMedium)
             Text(chosen.ifBlank { "遵循 Codex 默认模型" }, color = Ink.copper)
@@ -93,9 +102,17 @@ fun ModelsPage(vm: CodexViewModel) {
                         Icon(Icons.Outlined.AutoAwesome, null, tint = if (chosenNow) Ink.copper else Ink.muted)
                         Spacer(Modifier.width(11.dp))
                         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        val description = PresentationPolicy.meaningful(item.optString("description"))
+                        if (description.isNotEmpty()) {
+                            IconButton(
+                                onClick = { selectedModelDetail = title to description },
+                                modifier = Modifier.testTag("model-detail-" + id)
+                            ) {
+                                Icon(Icons.Outlined.Info, contentDescription = "查看" + title + "说明")
+                            }
+                        }
                         RadioButton(chosenNow, onClick = { vm.modelId.value = id })
                     }
-                    Text(item.optString("description"), color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         if (item.optBoolean("isDefault")) StatusPill("官方默认")
                         if (chosenNow) StatusPill("已选择")
@@ -109,6 +126,16 @@ fun ModelsPage(vm: CodexViewModel) {
                 }
             }
         }
+    }
+    selectedModelDetail?.let { (title, description) ->
+        AlertDialog(
+            onDismissRequest = { selectedModelDetail = null },
+            title = { Text(title) },
+            text = { Text(description) },
+            confirmButton = {
+                TextButton(onClick = { selectedModelDetail = null }) { Text("关闭") }
+            }
+        )
     }
 }
 
@@ -129,7 +156,7 @@ fun ProvidersPage(vm: CodexViewModel) {
         vm.ensureCatalog("providers", "modelProvider/list")
     }
     ScreenColumn {
-        SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
+        SectionIntro("模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("默认服务商", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             val defaultName = entries.firstOrNull { it.optString("id") == defaultId }
@@ -214,12 +241,6 @@ fun ProvidersPage(vm: CodexViewModel) {
                     Text(PresentationPolicy.providerName(item.optString("name")),
                         style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     if (defaultId == item.optString("id")) StatusPill("当前默认")
-                }
-                item.optString("baseUrl").takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                }
-                if (item.optBoolean("canEdit")) {
-                    Text("可在原生配置页修改具体参数。", color = Ink.muted)
                 }
                 if (defaultId != item.optString("id")) {
                     OutlinedButton(onClick = { toSelect = item }, enabled = data["providers"]?.optBoolean("canChangeDefault") == true) {
@@ -306,7 +327,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             CatalogRequestContract.workspace(vm.workingDirectory))
     }
     ScreenColumn {
-        SectionIntro("CODEX / MARKETPLACE", "插件",
+        SectionIntro("插件",
             "先管理已安装能力，需要新功能时再浏览可用插件。")
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             SegmentedButton(
@@ -433,11 +454,6 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                             modifier = Modifier.weight(1f))
                         if (item.optBoolean("installed")) StatusPill("已安装", true)
                     }
-                    Text("来源：" + market.optString("name"), color = Ink.muted,
-                        style = MaterialTheme.typography.labelMedium)
-                    Text(item.optJSONObject("interface")?.optString("shortDescription")
-                        .orEmpty().ifBlank { item.optString("description") },
-                        color = Ink.muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (!item.optBoolean("installed")) {
                             OutlinedButton(onClick = { action = Triple(market, item, true) },
@@ -478,9 +494,12 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                         Spacer(Modifier.width(11.dp))
                         Text(meta.optString("displayName").ifBlank { item.optString("name") },
                             style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        StatusPill(if (item.optBoolean("installed")) "已安装" else "可发现", item.optBoolean("enabled"))
+                        StatusPill(
+                            PresentationPolicy.pluginInstallStatus(
+                                item.optBoolean("installed"), item.optString("installPolicy")),
+                            item.optBoolean("installed") ||
+                                item.optString("installPolicy") != "NOT_AVAILABLE")
                     }
-                    Text(meta.optString("shortDescription"), color = Ink.muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (item.optBoolean("installed")) {
                             OutlinedButton(onClick = { action = Triple(market, item, false) },
@@ -568,7 +587,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     ScreenColumn {
-        SectionIntro("ENGINE / DIAGNOSTICS", "内核诊断", "查看真实运行状态与官方诊断接口结果。")
+        SectionIntro("内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Memory, null, tint = Ink.copper)

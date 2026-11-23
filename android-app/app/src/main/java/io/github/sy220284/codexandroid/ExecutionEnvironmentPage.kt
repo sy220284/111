@@ -67,7 +67,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     }
 
     ScreenColumn {
-        SectionIntro("EXECUTION / ENVIRONMENT", "执行环境",
+        SectionIntro("执行环境",
             "选择工作在这台手机上完成，或连接已部署的外部执行服务。")
         Text("在哪里执行任务", style = MaterialTheme.typography.titleLarge)
         Text("先选择运行位置，需要连接时再填写配置。", color = Ink.muted)

@@ -62,7 +62,7 @@ fun ThreadContextTools(
                 .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
-            SectionIntro("THREAD / OPERATIONS", "会话工具",
+            SectionIntro("会话工具",
                 "管理当前任务的历史、资料和审查；复制分支与上下文整理位于下方。")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

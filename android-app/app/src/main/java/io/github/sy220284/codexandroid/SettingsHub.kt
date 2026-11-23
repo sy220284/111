@@ -131,7 +131,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Column {
                             entries.forEach { entry ->
                                 val spot = NavigationPolicy.matchedSettingSpot(entry.id, query)
-                                SettingRouteRow(page = entry, detail = spot?.label
+                                SettingRouteRow(page = entry, showDetail = query.isNotBlank(), detail = spot?.label
                                     ?: NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
@@ -183,11 +183,11 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
+private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
             .codexPressable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 7.dp),
+            .heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -195,9 +195,11 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (detail.isNotBlank()) detail else page.subtitle,
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (showDetail) {
+                Text(if (detail.isNotBlank()) detail else page.subtitle,
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
         Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
             modifier = Modifier.size(19.dp))

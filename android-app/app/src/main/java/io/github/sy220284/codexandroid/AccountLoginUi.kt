@@ -63,7 +63,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
 
     ScreenColumn {
-        SectionIntro("IDENTITY / ACCESS", "账号与身份")
+        SectionIntro("账号与身份")
 
         if (!connected && !pending) {
             Text("选择登录方式", style = MaterialTheme.typography.titleMedium)

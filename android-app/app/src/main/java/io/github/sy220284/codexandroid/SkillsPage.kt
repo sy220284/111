@@ -46,12 +46,13 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         else -> skills
     }
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
+    var selectedSkill by remember { mutableStateOf<JSONObject?>(null) }
     LaunchedEffect(Unit) {
         vm.ensureCatalog("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory))
     }
     ScreenColumn {
-        SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
+        SectionIntro("技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory)) }
         if (engineStatus != EngineStatus.Connected && data["skills"] == null) {
@@ -85,7 +86,6 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         }
         visibleSkills.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
-                var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.School, null, tint = Ink.copper)
@@ -101,17 +101,10 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                             confirmation = skill to enabled
                         }, enabled = "skillsWrite" !in mutationLoading && "skills" !in mutationLoading)
                     }
-                    val description = meta.optString("shortDescription").ifBlank {
-                        skill.optString("description")
-                    }
-                    Text(PresentationPolicy.readableSkillSummary(description),
-                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                    if (PresentationPolicy.meaningful(description).isNotEmpty()) {
-                        TextButton(onClick = { expanded = !expanded }) {
-                            Text(if (expanded) "收起说明" else "查看技能说明")
-                        }
-                        if (expanded) Text(description,
-                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { selectedSkill = skill },
+                        modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
+                            .testTag("skill-open-detail")) {
+                        Text("查看详情")
                     }
                 }
         }
@@ -136,6 +129,9 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 onAction = { vm.refresh("skills", "skills/list",
                     CatalogRequestContract.workspace(vm.workingDirectory)) })
         }
+    }
+    selectedSkill?.let { skill ->
+        SkillDetailSheet(skill, onDismiss = { selectedSkill = null })
     }
     confirmation?.let { (skill, enabled) ->
         CodexConfirmDialog(
