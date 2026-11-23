@@ -40,7 +40,7 @@ def render_document(policy: dict) -> str:
     lines += AFTER_COUNTS
     for method, record in methods.items():
         experimental = "是" if record["flag"] == "实验" else "否"
-        lines.append(f"| \`{method}\` | {record['surface']} | {record['owner']} | {experimental} |")
+        lines.append(f"| {chr(96)}{method}{chr(96)} | {record['surface']} | {record['owner']} | {experimental} |")
     equivalents = policy.get("implementationEquivalents", {})
     lines += ["", f"本地文件操作等效实现登记：**{len(equivalents)}** 项。"]
     lines += FOOTER

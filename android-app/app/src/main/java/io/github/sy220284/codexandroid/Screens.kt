@@ -366,43 +366,55 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
 
 @Composable
 private fun ThreadSearchPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var submittedQuery by rememberSaveable { mutableStateOf("") }
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
-    val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
+    val currentSearch = ThreadSearchSubmission.matches(query, submittedQuery)
+    val searchLoading = "search" in loading
+
     ScreenColumn {
-        SectionIntro("SEARCH / THREADS", "全文检索", "通过 Codex 的历史检索定位旧任务。")
-        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-            label = { Text("搜索词") }, leadingIcon = { Icon(Icons.Outlined.Search, null) })
+        SectionIntro("", "全文检索", "搜索过往任务，打开结果即可继续工作。")
+        OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(),
+            singleLine = true, label = { Text("搜索词") },
+            leadingIcon = { Icon(Icons.Outlined.Search, null) })
         CodexPrimaryButton(
-            onClick = { vm.refresh("search", "thread/search",
-                JSONObject().put("searchTerm", query.trim())) },
-            enabled = query.isNotBlank() && "search" !in loading,
-            busy = "search" in loading,
+            onClick = {
+                submittedQuery = ThreadSearchSubmission.normalize(query)
+                vm.refresh("search", "thread/search",
+                    JSONObject().put("searchTerm", submittedQuery))
+            },
+            enabled = ThreadSearchSubmission.canSubmit(query, searchLoading),
+            busy = searchLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Outlined.Search, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(7.dp))
             Text("查找历史会话")
         }
-        ProtocolFeedback(vm, listOf("search"), onRetry = {
-            vm.refresh("search", "thread/search",
-                JSONObject().put("searchTerm", query.trim()))
-        })
-        if (data["search"] != null && records(data["search"]).isEmpty() &&
-            "search" !in loading && errors["search"] == null) {
-            CodexEmptyState("没有找到相关会话",
-                "尝试换一个关键词，或返回会话历史查看全部记录。",
-                actionLabel = "查看全部会话", onAction = { navigate("threads") })
+        if (submittedQuery.isNotBlank() && !currentSearch) {
+            CodexNotice("搜索词已修改，点击查询可更新结果。", NoticeTone.Info)
         }
-        records(data["search"]).forEach { entry ->
-            ThreadRow(entry, enabled = !switching && !firstThreadStarting) {
-                if (activeThread != entry.optString("id")) vm.chooseThread(entry.optString("id"))
-                navigate("chat")
+        if (currentSearch) {
+            ProtocolFeedback(vm, listOf("search"), onRetry = {
+                vm.refresh("search", "thread/search",
+                    JSONObject().put("searchTerm", submittedQuery))
+            })
+            if (data["search"] != null && records(data["search"]).isEmpty() &&
+                !searchLoading && errors["search"] == null) {
+                CodexEmptyState("没有找到相关会话",
+                    "试着换一个关键词，或返回会话历史查看全部记录。",
+                    actionLabel = "查看全部会话", onAction = { navigate("threads") })
+            }
+            records(data["search"]).forEach { entry ->
+                ThreadRow(entry, enabled = !switching && !firstThreadStarting) {
+                    if (activeThread != entry.optString("id")) vm.chooseThread(entry.optString("id"))
+                    navigate("chat")
+                }
             }
         }
     }
