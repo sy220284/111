@@ -58,7 +58,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "plugins" -> PluginsPage(vm)
         "modes" -> CollaborationModesPage(vm)
         "apps" -> ConnectedAppsPage(vm, navigate)
-        "mcp" -> McpServicesPage(vm, navigate)
+        "mcp" -> McpServicesPage(vm)
         "environments" -> EnvironmentsPage(vm)
         "diagnostics" -> EngineDiagnosticsPage(vm)
         "usage", "limits" -> AccountMetricsPage(id, vm, navigate)
