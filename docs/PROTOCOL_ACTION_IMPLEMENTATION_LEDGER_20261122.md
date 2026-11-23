@@ -386,3 +386,9 @@
 - 目标和队列保留按实际内容分配弹层高度的 `PhoneSheetLayout`，输入区由 `WindowInsets.ime` 感知键盘可用空间。
 - 原有 `thread/start`、`thread/list`、`thread/resume`、`plugin/search` 的请求字段、方向及回执处理保持一致；插件搜索测试用唯一 UI 标记定位，解决同文案重复匹配。
 - 按最终 SHA 检查 Kotlin、协议单元测试、Lint 和 Android 35 360/393/411dp 模拟器截图；实际 ARM64 核心、厂商真机与安装升级按原有专项门槛独立验收。
+
+### 手机竖屏输入区重复窗口高度扣减的修复
+
+- `ConversationScreen` 与 `MainActivity` 的系统 `adjustResize` 曾同时处理 IME 底部高度，造成真实设备下输入栏被推出屏幕。已将输入区主容器统一为 `fillMaxSize`，仅用 `WindowInsets.ime` 驱动紧凑控件显示。
+- 影响链路：发送、附件添加、模式切换、任务选项、会话草稿和结果展示；本次保持全部 RPC、响应与本地草稿逻辑不变。
+- 失败证据：PR #66 / Android 35 360dp 与 411dp [CI 45136362520](https://github.com/sy220284/111/actions/runs/45136362520) 均为 69 项中 1 项失败，截图已复查；新提交必须经三档竖屏设备截图和交互重新验证，才记录修复成功。

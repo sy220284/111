@@ -185,7 +185,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             unreadSteps += added
         }
     }
-    Column(Modifier.fillMaxSize().imePadding()) {
+    // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
+    // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
+    Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp,
             vertical = if (compactWorkArea) 0.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically) {

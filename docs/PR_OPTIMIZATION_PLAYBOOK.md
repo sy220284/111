@@ -210,3 +210,9 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 - 键盘可见状态由手机输入法的实际 Insets 判断；保留紧凑输入区，不把横屏当作独立场景。
 - 三档手机宽度 360/393/411dp 的编译、协议、单测、Lint、真实交互及截图构成当前交付门槛。历史大屏截图仅供追溯。
 - 插件搜索的“搜索插件”标题/按钮同名，测试以唯一 `plugins-search-heading` 标记定位，避免文字匹配引发重复节点假故障。
+
+### 手机竖屏输入区真实设备回归（#66）
+
+- 原因：主 Activity 已配置 `adjustResize`，对话主容器再叠加 `imePadding()`，键盘弹出时压缩两次，真实 360/411dp 截图只显示顶栏，发送区不可见。该问题曾被仅检查按钮节点存在的静态验收遗漏。
+- 共享处理：删除 `ConversationScreen` 主容器重复的 IME 内边距，仅以系统窗口调整和实际 `WindowInsets.ime` 驱动紧凑输入区；保持发送、附件、任务工具的交互与数据写入不变。
+- 证据：原始失败 CI [#45136362520](https://github.com/sy220284/111/actions/runs/45136362520) 在 360/411dp 的 69 项设备测试中各有 1 失败，截图 `chat-keyboard-open-android35.png` 显示输入栏不可见。修复后的独立 CI 以新 SHA 核验。
