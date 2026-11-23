@@ -13,6 +13,13 @@ object NavigationPolicy {
      */
     fun showInSettingsGroup(route: String, query: String): Boolean =
         query.isNotBlank() || route !in setOf("account", "diagnostics")
+    /** 全局新建任务入口共享同一状态判断，允许在其他会话执行时并行创建。 */
+    fun newThreadBlockReason(firstThreadStarting: Boolean, switching: Boolean): String? = when {
+        firstThreadStarting -> "正在创建会话，完成后可新建任务"
+        switching -> "正在切换会话，完成后可新建任务"
+        else -> null
+    }
+
     fun isCommon(id: String) = id in sidebarRoutes
     /** Old saved stacks may still contain routes that are now shown as sheets. */
     fun pageHistory(routes: List<String>): List<String> = routes.filter {

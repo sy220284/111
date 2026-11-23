@@ -91,7 +91,6 @@ fun CodexShell(vm: CodexViewModel) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val running by vm.running.collectAsState()
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
@@ -112,6 +111,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
+    val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
+        firstThreadStarting, switching
+    )
     var showStatus by remember { mutableStateOf(false) }
     var showReview by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
@@ -271,8 +273,8 @@ fun CodexShell(vm: CodexViewModel) {
                 topBar = {
                     if (selected == "chat" || selected == "home") {
                         ChatWorkTopBar(
-                            selected = selected, wide = wide, running = running,
-                            switching = switching,
+                            selected = selected, wide = wide,
+                            newThreadBlockReason = newThreadBlockReason,
                             onMenu = { scope.launch { drawer.open() } },
                             onNavigate = move,
                             onNewThread = { vm.newThread(); move("chat") }
@@ -368,7 +370,7 @@ fun CodexShell(vm: CodexViewModel) {
             Row(Modifier.fillMaxSize()) {
                 Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size, firstThreadStarting || switching,
+                    status, pending.size, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,
                     { id -> vm.chooseThread(id) { move("chat") } },
                     sidebarState)
@@ -390,7 +392,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size, firstThreadStarting || switching,
+                        }, status, pending.size, newThreadBlockReason,
                         { vm.newThread(); move("chat") }, vm,
                         { id -> vm.chooseThread(id) { move("chat") } },
                         sidebarState) }
@@ -444,7 +446,7 @@ fun CodexShell(vm: CodexViewModel) {
 @Composable
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
-    status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit,
+    status: EngineStatus, approvals: Int, newThreadBlockReason: String?, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState
 ) {
@@ -466,10 +468,10 @@ private fun Sidebar(
         }
         Button(
             onClick = onNewThread,
-            enabled = !running,
+            enabled = newThreadBlockReason == null,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp)
                 .heightIn(min = 52.dp).testTag("sidebar-new-chat")
-                .explainDisabled(running, "正在执行任务，请先完成或停止后再新建"),
+                .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty()),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Ink.coral, contentColor = Color.White,

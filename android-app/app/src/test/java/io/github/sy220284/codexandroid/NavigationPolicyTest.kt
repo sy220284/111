@@ -4,6 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
+    @Test fun newThreadAvailabilityMatchesAcrossTopBarAndSidebar() {
+        // 其他会话正在运行也能继续新建；只有创建或切换的真实竞争状态需要阻断。
+        assertNull(NavigationPolicy.newThreadBlockReason(false, false))
+        assertEquals("正在创建会话，完成后可新建任务",
+            NavigationPolicy.newThreadBlockReason(true, false))
+        assertEquals("正在切换会话，完成后可新建任务",
+            NavigationPolicy.newThreadBlockReason(false, true))
+        assertEquals("正在创建会话，完成后可新建任务",
+            NavigationPolicy.newThreadBlockReason(true, true))
+    }
+
     @Test fun preciseSettingsSearchOpensActualControlContext() {
         val samples = mapOf(
             "字号" to ("appearance" to "font"),

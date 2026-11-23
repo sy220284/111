@@ -27,8 +27,7 @@ import androidx.compose.ui.unit.dp
 internal fun ChatWorkTopBar(
     selected: String,
     wide: Boolean,
-    running: Boolean,
-    switching: Boolean,
+    newThreadBlockReason: String?,
     onMenu: () -> Unit,
     onNavigate: (String) -> Unit,
     onNewThread: () -> Unit
@@ -80,15 +79,14 @@ internal fun ChatWorkTopBar(
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             IconButton(
-                onClick = onNewThread, enabled = !running && !switching,
+                onClick = onNewThread, enabled = newThreadBlockReason == null,
                 modifier = Modifier.size(48.dp)
                     .background(Ink.recessed, CircleShape)
                     .testTag("top-new-chat")
-                    .explainDisabled(running || switching,
-                        if (running) "当前任务执行中，请先完成或停止任务" else "正在切换会话")
+                    .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
             ) {
                 Icon(Icons.Outlined.ChatBubbleOutline, "新建聊天",
-                    tint = if (running || switching) Ink.muted else Ink.parchment)
+                    tint = if (newThreadBlockReason != null) Ink.muted else Ink.parchment)
             }
         }
     }
