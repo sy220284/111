@@ -243,7 +243,7 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
     }
 }
 
-/** 重点操作以白底、暖铜文字和较强描边呈现。 */
+/** 主操作使用深墨实心，对应真正需要完成的当前决策。 */
 @Composable
 fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
     enabled: Boolean = true, busy: Boolean = false,
@@ -257,14 +257,13 @@ fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
         animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduced)),
         label = "primary-action-press"
     )
-    OutlinedButton(
+    Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = scale; scaleY = scale },
         enabled = enabled && !busy, shape = shape, interactionSource = press,
-        border = BorderStroke(1.3.dp, if (enabled && !busy) Ink.coral else Ink.border),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Ink.canvas, contentColor = Ink.coral,
-            disabledContainerColor = Ink.canvas, disabledContentColor = Ink.muted)
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Ink.parchment, contentColor = Ink.canvas,
+            disabledContainerColor = Ink.border, disabledContentColor = Ink.muted)
     ) {
         if (busy) {
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Ink.muted)
@@ -272,6 +271,25 @@ fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
             Text("正在处理…")
         } else content()
     }
+}
+
+/** 次级操作以中性描边表达，适用于取消、拒绝和辅助流程。 */
+@Composable
+fun CodexSecondaryButton(
+    onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 48.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Ink.canvas, contentColor = Ink.parchment,
+            disabledContentColor = Ink.muted
+        ),
+        border = BorderStroke(1.dp, Ink.border),
+        content = content
+    )
 }
 
 /** 所有开关轨道保持白色，状态通过边框与滑块辨认。 */

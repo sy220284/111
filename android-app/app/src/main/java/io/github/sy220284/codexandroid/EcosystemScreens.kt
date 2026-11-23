@@ -31,7 +31,7 @@ private fun JSONArray.objects(): List<JSONObject> =
     (0 until length()).mapNotNull { optJSONObject(it) }
 
 @Composable
-private fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
+internal fun SourceState(vm: CodexViewModel, key: String, retry: () -> Unit) {
     ProtocolFeedback(vm, listOf(key), onRetry = retry)
 }
 
@@ -168,12 +168,18 @@ fun ProvidersPage(vm: CodexViewModel) {
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("服务商配置", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                TextButton(onClick = { showCustomEditor = !showCustomEditor }) {
-                    Text(if (showCustomEditor) "收起" else "添加自定义服务商")
-                }
+            Text("服务商配置", style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                    .clickable { showCustomEditor = !showCustomEditor },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AddCircleOutline, null, tint = Ink.copper)
+                Spacer(Modifier.width(10.dp))
+                Text("添加自定义服务商", modifier = Modifier.weight(1f))
+                Icon(if (showCustomEditor) Icons.Outlined.ExpandLess
+                    else Icons.Outlined.ChevronRight,
+                    contentDescription = if (showCustomEditor) "收起编辑" else "打开服务商编辑")
             }
             CodexReveal(showCustomEditor) {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -189,18 +195,30 @@ fun ProvidersPage(vm: CodexViewModel) {
                         singleLine = true)
                     Text("密钥值由本机环境管理；这里仅填写变量名称。",
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                    OutlinedButton(
+                    CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
-                            (customUrl.startsWith("https://") || customUrl.startsWith("http://"))
+                            (customUrl.startsWith("https://") || customUrl.startsWith("http://")),
+                        modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }
             }
-            TextButton(onClick = {
-                showCapabilities = !showCapabilities
-                if (showCapabilities) vm.refresh("providerCapabilities",
-                    "modelProvider/capabilities/read")
-            }) { Text(if (showCapabilities) "收起能力信息" else "查看服务商能力") }
+            DividerLine()
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable {
+                    showCapabilities = !showCapabilities
+                    if (showCapabilities) vm.refresh("providerCapabilities",
+                        "modelProvider/capabilities/read")
+                },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Info, null, tint = Ink.muted)
+                Spacer(Modifier.width(10.dp))
+                Text("查看服务商能力", modifier = Modifier.weight(1f))
+                Icon(if (showCapabilities) Icons.Outlined.ExpandLess
+                    else Icons.Outlined.ChevronRight,
+                    contentDescription = if (showCapabilities) "收起能力" else "展开能力")
+            }
             CodexReveal(showCapabilities) {
                 val caps = data["providerCapabilities"]
                 if (caps != null) {
@@ -274,117 +292,9 @@ fun ProvidersPage(vm: CodexViewModel) {
 }
 
 @Composable
-fun SkillsPage(vm: CodexViewModel) {
+fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectAsState()
-    val groups = records(data["skills"])
-    val skills = groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() }
-    val readErrors = groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 }
-    val mutationLoading by vm.loading.collectAsState()
-    var filter by rememberSaveable { mutableStateOf("all") }
-    val visibleSkills = when (filter) {
-        "enabled" -> skills.filter { it.optBoolean("enabled") }
-        "available" -> skills.filter { !it.optBoolean("enabled") }
-        "errors" -> emptyList()
-        else -> skills
-    }
-    var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
-    var selectedSkill by remember { mutableStateOf<JSONObject?>(null) }
-    LaunchedEffect(Unit) {
-        vm.ensureCatalog("skills", "skills/list",
-            CatalogRequestContract.workspace(vm.workingDirectory))
-    }
-    ScreenColumn {
-        SectionIntro("技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
-        SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
-            CatalogRequestContract.workspace(vm.workingDirectory)) }
-        if (skills.isNotEmpty()) {
-            Text("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用 / ${skills.size} 项",
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-        }
-        if (skills.isNotEmpty() || readErrors > 0) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("all" to "全部", "enabled" to "已启用",
-                    "available" to "可用未启用", "errors" to "异常").forEach { (id, label) ->
-                    FilterChip(selected = filter == id, onClick = { filter = id },
-                        modifier = Modifier.heightIn(min = 48.dp)
-                            .testTag("skills-filter-" + id),
-                        label = { Text(label) })
-                }
-            }
-        }
-        visibleSkills.forEach { skill ->
-                val meta = skill.optJSONObject("interface") ?: JSONObject()
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.School, null, tint = Ink.copper)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(PresentationPolicy.meaningful(meta.optString("displayName")).ifEmpty {
-                                PresentationPolicy.skillName(skill.optString("name")) },
-                                style = MaterialTheme.typography.titleMedium)
-                            Text(if (skill.optBoolean("enabled")) "已启用 · 可在对话中调用" else "已停用",
-                                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        }
-                        WhiteSwitch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
-                            confirmation = skill to enabled
-                        }, enabled = "skillsWrite" !in mutationLoading && "skills" !in mutationLoading)
-                    }
-                    TextButton(
-                        onClick = { selectedSkill = skill },
-                        modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
-                            .testTag("skill-open-detail")
-                    ) {
-                        Text("查看详情")
-                    }
-                }
-        }
-        if (readErrors > 0) {
-            CodexNotice("有 $readErrors 项技能暂未读取成功，可在诊断与日志中查看原因。",
-                NoticeTone.Warning)
-        } else if (filter == "errors" && data["skills"] != null) {
-            CodexEmptyState("当前没有技能读取异常", "所有已返回的技能均已成功读取。")
-        } else if (filter in setOf("enabled", "available") &&
-            visibleSkills.isEmpty() && data["skills"] != null) {
-            CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
-                actionLabel = "查看全部", onAction = { filter = "all" })
-        }
-        ProtocolFeedback(vm, listOf("skillsWrite"))
-        if ("skillsWrite" in mutationLoading) {
-            CodexNotice("正在保存技能状态，完成后自动刷新列表。", NoticeTone.Info)
-        }
-        if (skills.isEmpty() && data["skills"] != null && readErrors == 0) {
-            CodexEmptyState("当前工作区没有可用技能",
-                "可以安装技能包并刷新目录，启用后即可在对话中使用。",
-                icon = Icons.Outlined.School, actionLabel = "重新读取技能",
-                onAction = { vm.refresh("skills", "skills/list",
-                    CatalogRequestContract.workspace(vm.workingDirectory)) })
-        }
-    }
-    confirmation?.let { (skill, enabled) ->
-        CodexConfirmDialog(
-            title = if (enabled) "启用技能" else "停用技能",
-            message = "将修改此技能在 Codex 中的启用状态。",
-            detail = "技能：" + PresentationPolicy.skillName(skill.optString("name")),
-            confirmLabel = if (enabled) "确认启用" else "确认停用",
-            onConfirm = {
-                vm.rpc("skillsWrite", "skills/config/write",
-                    JSONObject().put("path", skill.optString("path")).put("enabled", enabled),
-                    after = { vm.refresh("skills", "skills/list",
-                        CatalogRequestContract.workspace(vm.workingDirectory)) })
-                confirmation = null
-            },
-            onDismiss = { confirmation = null }
-        )
-    }
-    selectedSkill?.let { skill ->
-        SkillDetailSheet(skill, onDismiss = { selectedSkill = null })
-    }
-}
-
-@Composable
-fun PluginsPage(vm: CodexViewModel) {
-    val data by vm.data.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
     var installedOnly by remember { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     val marketplaces = data[activeKey]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
@@ -419,44 +329,58 @@ fun PluginsPage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("插件",
             "先管理已安装能力，需要新功能时再浏览可用插件。")
-        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            FilterChip(selected = installedOnly, onClick = { installedOnly = true },
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = installedOnly, onClick = { installedOnly = true },
+                shape = SegmentedButtonDefaults.itemShape(0, 2),
                 modifier = Modifier.testTag("plugins-tab-installed"),
-                label = { Text("已安装") })
-            FilterChip(selected = !installedOnly, onClick = { installedOnly = false },
+                label = { Text("已安装") }
+            )
+            SegmentedButton(
+                selected = !installedOnly, onClick = { installedOnly = false },
+                shape = SegmentedButtonDefaults.itemShape(1, 2),
                 modifier = Modifier.testTag("plugins-tab-catalog"),
-                label = { Text("发现插件") })
+                label = { Text("发现插件") }
+            )
         }
         if (!installedOnly) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("搜索插件", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.testTag("plugins-search-heading"))
+                val searchAvailable = searchDraft.isNotBlank() &&
+                    "pluginSearch:" + searchSubmitted + ":0" !in busy &&
+                    "pluginMutation" !in busy &&
+                    engineStatus == EngineStatus.Connected
+                val performSearch = {
+                    val term = searchDraft.trim()
+                    if (term.isNotEmpty()) {
+                        searchSubmitted = term
+                        searchPage = 0
+                        vm.refresh("pluginSearch:" + term + ":0",
+                            "plugin/search", PluginSearchContract.params(term))
+                    }
+                }
                 OutlinedTextField(
                     value = searchDraft, onValueChange = { searchDraft = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                     label = { Text("插件名称或关键字") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) }
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                    trailingIcon = {
+                        if (searchDraft.isNotBlank()) IconButton(onClick = {
+                            searchDraft = ""; searchSubmitted = ""; searchPage = 0
+                        }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Outlined.Close, "清除搜索词")
+                        }
+                    },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onSearch = { if (searchAvailable) performSearch() })
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            val term = searchDraft.trim()
-                            searchSubmitted = term
-                            searchPage = 0
-                            vm.refresh("pluginSearch:" + term + ":0",
-                                "plugin/search", PluginSearchContract.params(term))
-                        },
-                        enabled = searchDraft.isNotBlank() &&
-                            "pluginSearch:" + searchSubmitted + ":0" !in busy &&
-                                "pluginMutation" !in busy,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                    ) {
-                        Text("搜索插件")
-                    }
-                    TextButton(onClick = {
-                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
-                    }, modifier = Modifier.heightIn(min = 48.dp)) { Text("清除") }
-                }
+                CodexPrimaryButton(
+                    onClick = performSearch, enabled = searchAvailable,
+                    modifier = Modifier.fillMaxWidth().testTag("plugins-search-submit")
+                ) { Text("搜索插件") }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -485,6 +409,22 @@ fun PluginsPage(vm: CodexViewModel) {
                 CatalogRequestContract.workspace(vm.workingDirectory))
             else vm.refresh("plugins", "plugin/list",
                 CatalogRequestContract.workspace(vm.workingDirectory))
+        }
+        if (engineStatus != EngineStatus.Connected && data[activeKey] == null) {
+            CodexRecoveryState("连接后可查看插件",
+                "已安装和可发现的插件由运行核心提供。",
+                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+        } else if (engineStatus == EngineStatus.Connected &&
+            data[activeKey] == null && activeKey !in busy &&
+            errors[activeKey] != null) {
+            CodexRecoveryState("插件目录读取失败",
+                "检查连接或重试读取插件目录。",
+                "重新读取", {
+                    if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
+                        CatalogRequestContract.workspace(vm.workingDirectory))
+                    else vm.refresh("plugins", "plugin/list",
+                        CatalogRequestContract.workspace(vm.workingDirectory))
+                }, { navigate("diagnostics") })
         }
         if (searchActive) {
             if (!submittedMatchesDraft) CodexNotice(

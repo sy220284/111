@@ -69,7 +69,8 @@ class UiNavigationInstrumentedTest {
     private fun openThreadLibrary() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("sidebar-view-all").performScrollTo().performClick()
-        rule.onNodeWithTag("thread-library-sheet").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertExists()
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
     private fun openSettingRoute(id: String) {
@@ -107,7 +108,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("关闭会话搜索").performClick()
         capture("sidebar-android35.png")
         rule.onNodeWithTag("nav-chat").performClick()
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
         capture("chat-android35.png")
     }
@@ -165,10 +166,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-search").assertExists()
     }
 
-    @Test fun chatAndWorkTabsPreserveTheSamePrimaryNavigation() {
-        rule.onNodeWithTag("tab-chat").performClick()
+    @Test fun sidebarKeepsChatAndWorkbenchAsOneNavigationPath() {
+        openDrawerRoute("chat")
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithTag("tab-home").performClick()
+        openDrawerRoute("home")
         rule.onNodeWithText("从一项任务开始").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
@@ -234,18 +235,13 @@ class UiNavigationInstrumentedTest {
         // 模式由真实内核恢复，可能是「执行」或「先计划」；校验实际可交互的按钮。
         rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
         rule.onNodeWithContentDescription("查看内核运行诊断").assertIsDisplayed()
-        rule.onNodeWithContentDescription("添加附件").assertIsDisplayed()
+        rule.onNodeWithContentDescription("选择照片").assertIsDisplayed()
         capture("chat-toolbar-android35.png")
-        rule.onNodeWithTag("composer-plus").performClick()
-        rule.onNodeWithText("添加附件").assertExists()
-        rule.onNodeWithTag("attachment-pick-image").assertExists()
-        // Attachment entry only selects media; workspace actions are elsewhere.
-        rule.onNodeWithTag("quick-terminal").assertDoesNotExist()
-        rule.onNodeWithTag("quick-review").assertDoesNotExist()
-        rule.onNodeWithTag("quick-goals").assertDoesNotExist()
+        // 单一照片来源直接调用系统选择器，省去一层菜单。
+        rule.onNodeWithTag("composer-plus").assertHasClickAction()
+        rule.onNodeWithText("添加附件").assertDoesNotExist()
         captureOverlay("attachment-sheet-android35.png")
-        pressSystemBack()
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithTag("chat-project-terminal").performClick()
         rule.onNodeWithText("项目终端").assertExists()
         captureOverlay("terminal-sheet-android35.png")
@@ -300,7 +296,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun androidBackReturnsToPreviousScreen() {
         openDrawerRoute("chat")
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.waitForIdle()
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
@@ -318,9 +314,9 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithText("先计划").assertExists()
         } else {
             // 计划模式不可用时按真实核心连接状态给出可操作的恢复入口。
-            val canReconnect = rule.onAllNodesWithText("连接运行核心")
+            val canReconnect = rule.onAllNodesWithText("重新连接")
                 .fetchSemanticsNodes().isNotEmpty()
-            val canReload = rule.onAllNodesWithText("检查可用协作方式")
+            val canReload = rule.onAllNodesWithText("重新检查")
                 .fetchSemanticsNodes().isNotEmpty()
             assertTrue("应明确提供重新连接或重新读取能力目录的入口",
                 canReconnect || canReload)
@@ -449,14 +445,12 @@ class UiNavigationInstrumentedTest {
 
     @Test fun threadLibraryExposesServerBackedManagementLayout() {
         openThreadLibrary()
-        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertExists()
         rule.onNodeWithText("活跃", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
         rule.onNodeWithText("搜索会话标题").assertExists()
         rule.onNodeWithText("全文搜索").assertExists()
-        rule.onNodeWithTag("thread-library-list")
-            .performScrollToNode(hasText("新建任务"))
-        rule.onNodeWithText("新建任务").assertExists()
+        rule.onNodeWithTag("library-new-thread").assertExists()
         captureOverlay("thread-library-android35.png")
         rule.onNodeWithText("全文搜索").performClick()
         rule.onNodeWithText("搜索历史正文").assertExists()
@@ -525,12 +519,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-project-context").assertExists()
         rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
         rule.onNodeWithTag("nav-chat").performClick()
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         openThreadLibrary()
-        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertExists()
         pressSystemBack()
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
@@ -694,7 +688,8 @@ class UiNavigationInstrumentedTest {
         val vm = (rule.activity.application as CodexApplication).session
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("sidebar-global-search").performClick()
-        rule.onNodeWithTag("thread-library-sheet").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertExists()
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
         rule.onNodeWithText("搜索历史正文").assertExists()
         captureOverlay("thread-global-search-android35.png")
         pressSystemBack()
@@ -891,22 +886,25 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("返回回合历史").performClick()
         rule.onNodeWithText("查看完整时间线（实验）").assertExists()
         pressSystemBack()
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
+        rule.onNodeWithContentDescription("关闭代码审查").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
-        pressSystemBack()
-        rule.onNodeWithTag("tab-chat").assertExists()
+        rule.onNodeWithContentDescription("关闭代码审查").performClick()
+        rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()
+        rule.onNodeWithTag("goal-sticky-save").assertExists()
+        rule.onNodeWithContentDescription("关闭任务目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
     }
 

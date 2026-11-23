@@ -8,9 +8,9 @@
 |---|---|---|---|---|---|
 | 01 | `home` | P1 | 单一任务主动作；离线重连；紧凑项目和最近会话 | `Screens.kt / HomePage` | taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts；home-android35.png |
 | 02 | `chat` | P0 | 两列完整快捷建议；自增高输入；Queue/Steer；断连单处反馈 | `ConversationScreen.kt / ConversationComposer.kt` | chatSuggestionsStayVisibleWithinThePhoneWidth；chatKeyboardKeepsComposerActionsAccessible |
-| 03 | `threads` | P1 | 会话侧栏保留筛选与切换上下文；统一触控反馈 | `SidebarSessions.kt / ThreadLibraryPage.kt` | sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection；sidebar-android35.png |
+| 03 | `threads` | P1 | 历史资料库为全屏页，搜索置顶、底部批量管理；侧栏保留继续会话 | `SidebarSessions.kt / ThreadLibraryPage.kt` | sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection；sidebar-android35.png |
 | 04 | `approvals` | P1 | 任务内权限范围、一次/会话授权、拒绝及历史 | `ControlScreens.kt / ApprovalQuickSheetContent` | permissionApprovalExplainsActualScope；audit-approvals-android35.png |
-| 05 | `search` | P1 | 历史全文检索无结果可切标题并沿用关键词 | `ThreadLibraryPage.kt` | threadLibraryExposesServerBackedManagementLayout；thread-full-search-android35.png |
+| 05 | `search` | P1 | 全文检索为全屏页，分段筛选、返回明确，无结果可转标题并沿用关键词 | `ThreadLibraryPage.kt` | threadLibraryExposesServerBackedManagementLayout；thread-full-search-android35.png |
 | 06 | `goals` | P1 | 目标摘要就近展示；会话草稿；随内容量变化高度的编辑弹层 | `TaskManagementScreens.kt / ThreadGoalSheet.kt` | audit-goals-sheet-android35.png；PhoneSheetLayoutTest |
 | 07 | `queue` | P0 | 短 Sheet；无实验徽标；指令增删排队与草稿保留 | `TaskManagementScreens.kt` | queueDraftSurvivesClosingAndReopeningSheet；audit-queue-android35.png |
 | 08 | `files` | P1 | 当前目录及导入固定近文件列表；项目管理按需展开 | `DeveloperScreens.kt / ProjectRegistryPanel.kt` | workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation；workspace-files-android35.png |

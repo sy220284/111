@@ -227,21 +227,38 @@ fun AppearanceInlineControls(focusTarget: String? = null) {
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
     val fontScale by UiPreferences.fontScale.collectAsState()
     val darkMode by UiPreferences.darkMode.collectAsState()
-    Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 7.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    val largeTypography = androidx.compose.ui.platform.LocalDensity.current.fontScale * fontScale >= 1.55f
+    Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp)
+        .padding(top = 18.dp, bottom = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("界面配色", style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.bringIntoViewRequester(themeRequester))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ThemePreviewCard(
-                title = "典雅白", background = Color(0xFFFFFFFF),
-                foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
-                selected = !darkMode, modifier = Modifier.weight(1f)
-            ) { UiPreferences.setDarkMode(false) }
-            ThemePreviewCard(
-                title = "深色工作台", background = Color(0xFF111A22),
-                foreground = Color(0xFFF0F2F3), accent = Color(0xFFFF9386),
-                selected = darkMode, modifier = Modifier.weight(1f)
-            ) { UiPreferences.setDarkMode(true) }
+            modifier = Modifier.padding(top = 7.dp).bringIntoViewRequester(themeRequester))
+        if (largeTypography) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ThemePreviewCard(
+                    title = "典雅白", background = Color(0xFFFFFFFF),
+                    foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                    selected = !darkMode, modifier = Modifier.fillMaxWidth()
+                ) { UiPreferences.setDarkMode(false) }
+                ThemePreviewCard(
+                    title = "深色工作台", background = Color(0xFF111A22),
+                    foreground = Color(0xFFF0F2F3), accent = Color(0xFFFF9386),
+                    selected = darkMode, modifier = Modifier.fillMaxWidth()
+                ) { UiPreferences.setDarkMode(true) }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ThemePreviewCard(
+                    title = "典雅白", background = Color(0xFFFFFFFF),
+                    foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                    selected = !darkMode, modifier = Modifier.weight(1f)
+                ) { UiPreferences.setDarkMode(false) }
+                ThemePreviewCard(
+                    title = "深色工作台", background = Color(0xFF111A22),
+                    foreground = Color(0xFFF0F2F3), accent = Color(0xFFFF9386),
+                    selected = darkMode, modifier = Modifier.weight(1f)
+                ) { UiPreferences.setDarkMode(true) }
+            }
         }
         Box(Modifier.bringIntoViewRequester(compactRequester)) {
             AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)

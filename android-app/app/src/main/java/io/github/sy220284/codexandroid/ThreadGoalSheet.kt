@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,10 +19,20 @@ fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
-        Box(Modifier.fillMaxWidth()
+        Column(Modifier.fillMaxWidth()
             .fillMaxHeight(PhoneSheetLayout.goalFraction(hasGoal))
             .navigationBarsPadding()) {
-            ThreadGoalPage(vm)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("任务目标", style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "关闭任务目标")
+                }
+            }
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                ThreadGoalPage(vm, inSheet = true)
+            }
         }
     }
 }

@@ -91,6 +91,9 @@ fun CollaborationModesPage(vm: CodexViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val engineStatus by vm.bridge.status.collectAsState()
+    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val apps = records(data["apps"])
@@ -107,8 +110,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("应用连接", style = MaterialTheme.typography.titleMedium)
-                Text(if (data["apps"] != null) "${apps.size} 个可用应用" else "正在读取应用",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                Text(when {
+                    engineStatus != EngineStatus.Connected -> "运行核心未连接"
+                    "apps" in loading || "appInstalled" in loading -> "正在读取应用"
+                    errors["apps"] != null || errors["appInstalled"] != null -> "读取应用失败"
+                    data["apps"] != null -> "${apps.size} 个可用应用"
+                    else -> "尚未读取"
+                }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
@@ -123,6 +131,19 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
             vm.refresh("appInstalled", "app/installed")
         })
+        if (engineStatus != EngineStatus.Connected && data["apps"] == null) {
+            CodexRecoveryState("连接后可查看应用",
+                "连接运行核心后会显示真实的应用授权与可用状态。",
+                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+        } else if (engineStatus == EngineStatus.Connected &&
+            data["apps"] == null && "apps" !in loading && errors["apps"] != null) {
+            CodexRecoveryState("读取应用失败",
+                "当前应用目录未返回有效结果，可重新读取或查看诊断。",
+                "重新读取", {
+                    vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
+                    vm.refresh("appInstalled", "app/installed")
+                }, { navigate("diagnostics") })
+        }
         if (apps.isEmpty() && data["apps"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
             Text("检查登录状态，或进入插件管理查看可用的扩展。",
@@ -246,7 +267,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel) {
+fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
@@ -270,31 +291,72 @@ fun McpServicesPage(vm: CodexViewModel) {
         }
         ProtocolFeedback(vm, listOf("mcp", "mcpReload"),
             onRetry = { vm.refreshMcpServices() })
-        if (usable.isEmpty() && "mcp" !in loading &&
-            (data["mcp"] != null || engineStatus != EngineStatus.Connected)) {
-            CodexEmptyState(
-                "暂无可用 MCP 服务",
-                if (engineStatus != EngineStatus.Connected) "连接本机运行核心后查看可用服务。"
-                else "在任务对话中告诉智能体要接入的 MCP 服务。配置并连接成功后会显示在这里。",
-                icon = Icons.Outlined.Hub
-            )
+        if (usable.isEmpty() && "mcp" !in loading) {
+            if (engineStatus != EngineStatus.Connected) {
+                CodexRecoveryState("连接后可查看 MCP 服务",
+                    "由智能体管理服务，连接成功的可用服务才会显示。",
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+            } else if (data["mcp"] != null) {
+                CodexEmptyState(
+                    "暂无可用 MCP 服务",
+                    "在任务对话中要求智能体接入 MCP 服务，连通后会自动显示。",
+                    icon = Icons.Outlined.Hub,
+                    actionLabel = "刷新服务", onAction = { vm.refreshMcpServices() }
+                )
+            } else {
+                CodexRecoveryState("MCP 目录尚未读取",
+                    "连接成功后可以重新检查服务目录。",
+                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") })
+            }
         }
         usable.forEach { McpServiceStatusCard(it) }
     }
 }
 
-/** The management screen deliberately renders no registration, OAuth or tool controls. */
+/** MCP is a read-only directory. Intelligent-agent setup and authorization remain task-owned. */
 @Composable
 internal fun McpServiceStatusCard(server: JSONObject) {
     if (!McpAvailableServices.isUsable(server)) return
+    var details by remember(server.optString("name")) { mutableStateOf(false) }
+    val toolCount = server.optJSONObject("tools")?.length() ?: 0
+    val resourceCount = (server.optJSONArray("resources")?.length() ?: 0) +
+        (server.optJSONArray("resourceTemplates")?.length() ?: 0)
+    val summary = buildList {
+        if (toolCount > 0) add("$toolCount 项工具")
+        if (resourceCount > 0) add("$resourceCount 项资源")
+        if (server.optJSONObject("serverCapabilities")?.optJSONObject("prompts") != null)
+            add("支持指令模板")
+    }.joinToString(" · ")
     MaterialPanel(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { details = !details },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
             Spacer(Modifier.width(10.dp))
-            Text(McpAvailableServices.displayName(server),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f), maxLines = 2)
+            Column(Modifier.weight(1f)) {
+                Text(McpAvailableServices.displayName(server),
+                    style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                if (summary.isNotEmpty()) {
+                    Text(summary, color = Ink.muted,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
             StatusPill("可用", true)
+            Spacer(Modifier.width(4.dp))
+            Icon(if (details) Icons.Outlined.ExpandLess else Icons.Outlined.ChevronRight,
+                contentDescription = if (details) "收起服务详情" else "查看服务详情",
+                tint = Ink.muted)
+        }
+        CodexReveal(details) {
+            DividerLine()
+            Text(server.optString("description").ifBlank {
+                "服务已连接，可用能力由智能体在任务中选择调用。"
+            }, style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            Text("工具 $toolCount 项 · 资源 $resourceCount 项",
+                style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
+            Text("由智能体管理连接与授权；此处仅展示已就绪的服务。",
+                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
         }
     }
 }

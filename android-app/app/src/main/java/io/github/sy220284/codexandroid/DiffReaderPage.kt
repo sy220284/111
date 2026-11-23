@@ -69,7 +69,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    OutlinedButton(onClick = { navigate("review") },
+                    CodexPrimaryButton(onClick = { navigate("review") },
                         enabled = active != null && files.isNotEmpty(),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Icon(Icons.Outlined.FactCheck, null, modifier = Modifier.size(18.dp))

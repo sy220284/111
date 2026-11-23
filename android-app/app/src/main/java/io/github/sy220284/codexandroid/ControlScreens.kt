@@ -163,6 +163,8 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val answers = remember(prompt.id.toString()) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
     var grantSession by remember(prompt.id.toString()) { mutableStateOf(false) }
     var grantPermissions by remember(prompt.id.toString()) { mutableStateOf(false) }
+    var morePermissions by remember(prompt.id.toString()) { mutableStateOf(false) }
+    var commandExpanded by remember(prompt.id.toString()) { mutableStateOf(false) }
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.AdminPanelSettings, null, tint = Ink.copper)
@@ -184,7 +186,13 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         if (reason.isNotBlank()) Text(reason, color = Ink.parchment)
         if (command.isNotBlank()) {
             Text("待执行命令", color = Ink.copper, style = MaterialTheme.typography.labelMedium)
-            Text(command, fontFamily = FontFamily.Monospace, color = Ink.parchment)
+            Text(
+                if (commandExpanded || command.length <= 240) command else command.take(240) + "…",
+                fontFamily = FontFamily.Monospace, color = Ink.parchment
+            )
+            if (command.length > 240) TextButton(
+                onClick = { commandExpanded = !commandExpanded }
+            ) { Text(if (commandExpanded) "收起完整命令" else "查看完整命令") }
         }
         prompt.params.optString("cwd").takeIf { it.isNotBlank() }?.let {
             Text("工作区：" + PresentationPolicy.workspaceName(it),
@@ -233,17 +241,23 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!question) OutlinedButton(
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (!question) CodexSecondaryButton(
                 onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) },
-                modifier = Modifier.heightIn(min = 48.dp)
+                modifier = Modifier.weight(1f)
             ) { Text("拒绝") }
             if (normal) {
-                OutlinedButton(onClick = { vm.answerApproval(prompt, ApprovalAction.AllowOnce) },
-                    modifier = Modifier.heightIn(min = 48.dp)) { Text("仅本次允许") }
+                CodexPrimaryButton(
+                    onClick = { vm.answerApproval(prompt, ApprovalAction.AllowOnce) },
+                    modifier = Modifier.weight(1.35f)
+                ) { Text("仅本次允许") }
             } else if (permission) {
-                OutlinedButton(onClick = { grantPermissions = true },
-                    modifier = Modifier.heightIn(min = 48.dp)) { Text("授权本轮") }
+                CodexPrimaryButton(onClick = { grantPermissions = true },
+                    modifier = Modifier.weight(1.35f)) { Text("授权本轮") }
             } else if (question) {
                 val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
                 val allAnswered = (0 until questions.length()).all {
@@ -251,20 +265,31 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     answers[id]?.isNotBlank() == true
                 }
                 val canSubmit = allAnswered && questions.length() > 0
-                OutlinedButton(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
+                CodexPrimaryButton(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
                     enabled = canSubmit,
-                    modifier = Modifier.heightIn(min = 48.dp)
-                        .explainDisabled(!canSubmit, "需要先回答全部问题才能提交")
+                    modifier = Modifier.weight(1f).explainDisabled(!canSubmit,
+                        "需要先回答全部问题才能提交")
                 ) { Text("提交全部回答") }
+            }
+            if (normal && kind != "humanCommand") {
+                Box {
+                    IconButton(onClick = { morePermissions = true },
+                        modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.MoreHoriz, contentDescription = "更多授权选项")
+                    }
+                    DropdownMenu(expanded = morePermissions, onDismissRequest = {
+                        morePermissions = false
+                    }) {
+                        DropdownMenuItem(
+                            text = { Text("在本会话持续允许") },
+                            onClick = { morePermissions = false; grantSession = true }
+                        )
+                    }
+                }
             }
         }
         if (question) Text("等待回答时可返回对话查看任务；停止任务可取消本次提问。",
             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
-        if (normal && kind != "humanCommand") {
-            TextButton(onClick = { grantSession = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("在当前会话内持续允许此类操作")
-            }
-        }
     }
     if (grantSession) CodexConfirmDialog(
         title = "确认本会话授权",
@@ -293,8 +318,10 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val engineStatus by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -319,7 +346,12 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("当前配置", style = MaterialTheme.typography.titleMedium)
-                    Text(if (ready) "已读取本机配置" else "等待读取",
+                    Text(when {
+                        ready -> "已读取本机配置"
+                        "config" in loading -> "正在读取"
+                        errors["config"] != null -> "读取失败"
+                        else -> "未读取"
+                    },
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
                 IconButton(onClick = {
@@ -333,6 +365,21 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
         errors["config"]?.let { ErrorText(it) }
+        if (!ready && "config" !in loading) {
+            if (engineStatus != EngineStatus.Connected) {
+                CodexRecoveryState("连接后可读取引擎配置",
+                    "运行核心连接后可查看生效配置并编辑高级参数。",
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+            } else {
+                CodexRecoveryState(
+                    if (errors["config"] != null) "配置读取失败" else "配置尚未读取",
+                    "可重新请求本机生效配置，读取后再修改。",
+                    "重新读取", {
+                        vm.refresh("config", "config/read",
+                            JSONObject().put("includeLayers", true))
+                    }, { navigate("diagnostics") })
+            }
+        }
         TextButton(
             onClick = { advanced = !advanced },
             modifier = Modifier.fillMaxWidth().testTag("config-advanced-toggle")
@@ -350,20 +397,20 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     label = { Text("设置项名称") }, singleLine = true,
                     placeholder = { Text("approval_policy") })
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    listOf(
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    val types = listOf(
                         "text" to "文本", "boolean" to "开关",
                         "number" to "数字", "json" to "高级数据"
-                    ).forEach { (id, title) ->
-                        FilterChip(
-                            selected = kind == id,
-                            onClick = { kind = id },
-                            label = { Text(title) },
-                            modifier = Modifier.heightIn(min = 48.dp)
-                        )
+                    )
+                    SingleChoiceSegmentedButtonRow(Modifier.width(464.dp)) {
+                        types.forEachIndexed { index, pair ->
+                            SegmentedButton(
+                                selected = kind == pair.first,
+                                onClick = { kind = pair.first },
+                                shape = SegmentedButtonDefaults.itemShape(index, types.size),
+                                label = { Text(pair.second) }
+                            )
+                        }
                     }
                 }
                 if (kind == "boolean") {
@@ -396,7 +443,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }) }
                     )
                 }
-                OutlinedButton(
+                CodexPrimaryButton(
                     onClick = {
                         try {
                             require(path.isNotBlank()) { "请填写设置项名称" }

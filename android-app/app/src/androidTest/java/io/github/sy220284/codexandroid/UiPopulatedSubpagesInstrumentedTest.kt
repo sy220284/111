@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
@@ -207,6 +208,15 @@ class UiPopulatedSubpagesInstrumentedTest {
         val delete = rule.onNodeWithTag("thread-bulk-delete").fetchSemanticsNode().boundsInRoot
         assertTrue("Large-font actions must stack vertically", delete.top > archive.top)
         assertTrue("Touch targets remain at least 48dp tall", archive.height >= 48f && delete.height >= 48f)
+        val selectAll = rule.onNodeWithTag("thread-bulk-select-all")
+            .fetchSemanticsNode().boundsInRoot
+        val done = rule.onNodeWithTag("thread-bulk-finish")
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue("Select-all and finish must fit the 360dp container",
+            selectAll.left >= 0f && done.left >= 0f &&
+                selectAll.right <= 360f && done.right <= 360f)
+        assertTrue("Large-font actions must not overlap",
+            selectAll.right <= done.left || done.right <= selectAll.left)
         capture("audit-rtl-200font-bulk-android35.png")
     }
 
@@ -217,8 +227,10 @@ class UiPopulatedSubpagesInstrumentedTest {
             rule.setContent {
                 CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
                     CodexTheme {
-                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                            AppearanceInlineControls()
+                        Surface(Modifier.fillMaxSize(), color = Ink.canvas) {
+                            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                                AppearanceInlineControls()
+                            }
                         }
                     }
                 }
@@ -226,6 +238,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             rule.onNodeWithTag("appearance-font-controls").performScrollTo().assertIsDisplayed()
             rule.onNodeWithText("最大", substring = false).assertIsDisplayed()
             rule.onNodeWithText("减少动效").performScrollTo().assertIsDisplayed()
+            rule.onNodeWithText("深色工作台").performScrollTo().assertIsDisplayed()
+            rule.onNodeWithText("界面配色").performScrollTo().assertIsDisplayed()
             capture("audit-dark-200font-appearance-android35.png")
         } finally {
             rule.runOnIdle { UiPreferences.setDarkMode(originalDark) }
@@ -299,8 +313,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
-        rule.onNodeWithText("全选本页").performClick()
-        rule.onNodeWithText("已选 2 条 · 仅针对当前筛选页").assertExists()
+        rule.onNodeWithContentDescription("全选本页").performClick()
+        rule.onNodeWithText("已选 2 条").assertExists()
         rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
         rule.onNodeWithTag("thread-bulk-delete").performClick()
         rule.runOnIdle { assertEquals("delete", requested) }
@@ -336,7 +350,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     stopping = false, canStop = false,
                     canSend = text.isNotBlank(), sending = false,
                     followUpMode = "queue", onFollowUpModeChange = {},
-                    onAttach = {}, onStop = {}, onSend = { submitted = text }
+                    onStop = {}, onSend = { submitted = text }
                 )
             }
         }
@@ -455,7 +469,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     running = true, stopping = false,
                     canStop = true, canSend = true, sending = false,
                     followUpMode = mode, onFollowUpModeChange = { mode = it },
-                    onAttach = {}, onStop = { stopped = true }, onSend = { sent = true }
+                    onStop = { stopped = true }, onSend = { sent = true }
                 )
             }
         }

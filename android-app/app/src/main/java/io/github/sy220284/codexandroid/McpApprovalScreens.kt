@@ -177,10 +177,15 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) }) { Text("拒绝") }
-            TextButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) }) { Text("取消") }
+            TextButton(
+                onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) },
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) { Text("稍后处理") }
+            CodexSecondaryButton(
+                onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) }
+            ) { Text("拒绝请求") }
             if (isForm || urlReady) {
-                OutlinedButton(onClick = { confirmation = true },
+                CodexPrimaryButton(onClick = { confirmation = true },
                     enabled = canSubmit,
                     modifier = Modifier.testTag("elicitation-submit")
                         .explainDisabled(!canSubmit, "请填写必填项目并检查格式")) {

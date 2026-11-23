@@ -221,6 +221,29 @@ fun CodexEmptyState(
     }
 }
 
+/** 能力页共享的可恢复状态：原因、重试和诊断始终指向真实动作。 */
+@Composable
+fun CodexRecoveryState(
+    title: String,
+    description: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    onDiagnostics: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        CodexEmptyState(
+            title = title, description = description, icon = Icons.Outlined.SyncProblem,
+            actionLabel = actionLabel, onAction = onAction
+        )
+        if (onDiagnostics != null) {
+            TextButton(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("查看诊断", color = Ink.parchment)
+            }
+        }
+    }
+}
+
 /** Refresh actions share touch area, pending animation and disabled state. */
 @Composable
 fun CodexRefreshIcon(
@@ -248,7 +271,10 @@ fun CodexChoiceSheet(
     selectedId: String?,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    recoveryLabel: String? = null,
+    onRecovery: (() -> Unit)? = null,
+    recoveryMessage: String = "请先恢复运行核心，再选择可用选项。"
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -258,9 +284,22 @@ fun CodexChoiceSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
     ) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "关闭选择面板")
+                }
+            }
             Spacer(Modifier.height(5.dp))
             Text(description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            if (recoveryLabel != null && onRecovery != null) {
+                Spacer(Modifier.height(12.dp))
+                CodexNotice(
+                    recoveryMessage, NoticeTone.Warning,
+                    actionLabel = recoveryLabel, onAction = onRecovery
+                )
+            }
             Spacer(Modifier.height(17.dp))
             if (choices.isEmpty()) {
                 CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
@@ -416,13 +455,15 @@ fun CodexConfirmDialog(
             }
         },
         confirmButton = {
-            OutlinedButton(
+            Button(
                 onClick = onConfirm,
                 enabled = confirmEnabled,
-                colors = if (destructive) ButtonDefaults.outlinedButtonColors(containerColor = Ink.canvas, contentColor = Ink.red)
-                else ButtonDefaults.outlinedButtonColors(),
-                modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-accept"),
-                border = BorderStroke(1.dp, if (destructive) Ink.red else Ink.copper)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (destructive) Ink.red else Ink.parchment,
+                    contentColor = Ink.canvas,
+                    disabledContainerColor = Ink.border, disabledContentColor = Ink.muted
+                ),
+                modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-accept")
             ) { Text(confirmLabel) }
         },
         dismissButton = {

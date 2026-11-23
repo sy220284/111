@@ -100,22 +100,21 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
             errors["models"] != null -> "读取模型目录失败：${errors["models"]}。可手动重新加载。"
             else -> "更改只影响后续任务；已运行任务沿用当前模型。"
         },
-        choices = if (choices.isEmpty()) listOf(
-            CodexChoice(
-                if (engineStatus == EngineStatus.Connected) "__reload" else "__connect",
-                if (engineStatus == EngineStatus.Connected) "重新加载模型目录" else "连接本机内核",
-                if (engineStatus == EngineStatus.Connected) "重新读取可用模型" else "连接后读取模型目录"
-            ),
-            CodexChoice("", "遵循默认模型", "保留内核的默认模型设置")
-        ) else listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
+        choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
         selectedId = selected,
-        onSelect = { id ->
-            when (id) {
-                "__reload" -> vm.refresh("models", "model/list")
-                "__connect" -> vm.connect()
-                else -> { vm.modelId.value = id; onDismiss() }
-            }
+        enabled = engineStatus == EngineStatus.Connected && "models" !in loading,
+        recoveryLabel = if (engineStatus == EngineStatus.Connected) "重新读取" else "重新连接",
+        onRecovery = {
+            if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
+            else vm.connect()
         },
+        recoveryMessage = when {
+            engineStatus != EngineStatus.Connected -> "运行核心未连接，恢复后才可更改模型。"
+            errors["models"] != null -> "模型目录读取失败，可重试。"
+            choices.isEmpty() -> "当前没有可用模型，检查服务状态后刷新。"
+            else -> "可重新读取模型目录，已选择的模型不会因此改变。"
+        },
+        onSelect = { id -> vm.modelId.value = id; onDismiss() },
         onDismiss = onDismiss
     )
 }
@@ -138,11 +137,6 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val choices = buildList {
         add(CodexChoice("default", "直接执行", "按照要求完成任务，过程中展示进度"))
         if (planSupported) add(CodexChoice("plan", "先制定计划", "先形成方案，确认后再执行"))
-        if (!planSupported) add(
-            CodexChoice(if (connected) "__reload" else "__connect",
-                if (connected) "检查可用协作方式" else "连接运行核心",
-                if (connected) "从当前内核重新查询模式" else "连接后读取支持的模式")
-        )
     }
     val description = when {
         busy -> "当前任务正在执行，结束或停止后才能切换。"
@@ -154,15 +148,17 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     CodexChoiceSheet(
         title = "选择协作方式", description = description,
         choices = choices, selectedId = selected,
-        enabled = !busy && !refreshing,
+        enabled = connected && !busy && !refreshing,
+        recoveryLabel = if (connected) "重新检查" else "重新连接",
+        onRecovery = {
+            if (connected) vm.refresh("modes", "collaborationMode/list") else vm.connect()
+        },
+        recoveryMessage = if (connected) "可重新查询当前内核支持的工作方式。"
+            else "运行核心未连接，恢复连接后再选择工作方式。",
         onSelect = { id ->
-            when {
-                id == "__reload" -> vm.refresh("modes", "collaborationMode/list")
-                id == "__connect" -> vm.connect()
-                ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing) -> {
-                    vm.selectedMode.value = id
-                    onDismiss()
-                }
+            if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
+                vm.selectedMode.value = id
+                onDismiss()
             }
         }, onDismiss = onDismiss
     )

@@ -19,7 +19,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 @Composable
-fun ThreadGoalPage(vm: CodexViewModel) {
+fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     val active by vm.activeThread.collectAsState()
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -38,8 +38,9 @@ fun ThreadGoalPage(vm: CodexViewModel) {
     LaunchedEffect(active) {
         if (active != null) vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
     }
-    ScreenColumn {
-        SectionIntro("任务目标", "设定希望达成的结果，并查看当前任务进度。")
+    Column(Modifier.fillMaxSize()) {
+    ScreenColumn(modifier = Modifier.weight(1f)) {
+        if (!inSheet) SectionIntro("任务目标", "设定希望达成的结果，并查看当前任务进度。")
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先从历史记录或任务对话打开一个会话", style = MaterialTheme.typography.titleMedium)
@@ -134,7 +135,15 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                     modifier = Modifier.fillMaxWidth())
                 if (!safeBudget) Text("Token 上限必须是正整数", color = Ink.red)
             }
-            OutlinedButton(
+
+        }
+        PresentationPolicy.visibleErrors(errors, listOf(key, "goalWrite"))
+            .forEach { ErrorText(it) }
+    }
+    if (active != null) {
+        Surface(Modifier.fillMaxWidth(), color = Ink.elevated,
+            border = BorderStroke(1.dp, Ink.border)) {
+            CodexPrimaryButton(
                 onClick = {
                     val threadId = requireNotNull(active) { "请先打开任务会话" }
                     val params = ThreadGoalRequestContract.set(
@@ -146,13 +155,14 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                         vm.refresh("goal:$threadId", "thread/goal/get",
                             JSONObject().put("threadId", threadId))
                     })
-                }, enabled = objective.isNotBlank() &&
+                },
+                enabled = objective.isNotBlank() &&
                     (!showAdvancedBudget || safeBudget) && "goalWrite" !in loading,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)
+                    .testTag("goal-sticky-save")
             ) { Text("保存目标") }
         }
-        PresentationPolicy.visibleErrors(errors, listOf(key, "goalWrite"))
-            .forEach { ErrorText(it) }
+    }
     }
     if (confirmClear) CodexConfirmDialog(
         title = "清除当前任务目标",

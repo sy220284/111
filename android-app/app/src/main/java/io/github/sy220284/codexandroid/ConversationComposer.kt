@@ -46,12 +46,9 @@ internal fun ConversationComposer(
     sending: Boolean,
     followUpMode: String,
     onFollowUpModeChange: (String) -> Unit,
-    onAttach: () -> Unit,
     onStop: () -> Unit,
     onSend: () -> Unit,
-    menuExpanded: Boolean = false,
     imageImporting: Boolean = false,
-    onMenuDismiss: () -> Unit = {},
     onPickImage: () -> Unit = {},
     compactControls: Boolean = false,
     compactCanReconnect: Boolean = false,
@@ -131,50 +128,17 @@ internal fun ConversationComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Box {
-                    IconButton(
-                        onClick = onAttach,
-                        modifier = Modifier.size(48.dp).testTag("composer-plus")
-                    ) {
-                        Icon(Icons.Outlined.Add,
-                            contentDescription = "添加附件", tint = Ink.parchment,
-                            modifier = Modifier.size(27.dp))
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = onMenuDismiss,
-                        modifier = Modifier.width(268.dp).heightIn(max = 460.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .testTag("composer-attachment-menu"),
-                        offset = DpOffset(0.dp, (-8).dp),
-                        containerColor = Ink.canvas,
-                        shadowElevation = 9.dp
-                    ) {
-                        Text("添加附件",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Ink.parchment,
-                            modifier = Modifier.padding(start = 19.dp,
-                                top = 10.dp, bottom = 6.dp))
-                        DropdownMenuItem(
-                            modifier = Modifier.testTag("attachment-pick-image"),
-                            enabled = !imageImporting &&
-                                attachedCount < LocalImageAttachments.MAX_FILES,
-                            text = { Text("照片") },
-                            leadingIcon = {
-                                Box(
-                                    Modifier.size(42.dp)
-                                        .background(Ink.elevated, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Outlined.AddPhotoAlternate,
-                                        null, tint = Ink.parchment,
-                                        modifier = Modifier.size(22.dp))
-                                }
-                            },
-                            onClick = onPickImage
-                        )
-
-                    }
+                IconButton(
+                    onClick = onPickImage,
+                    enabled = !imageImporting &&
+                        attachedCount < LocalImageAttachments.MAX_FILES,
+                    modifier = Modifier.size(48.dp).testTag("composer-plus")
+                        .explainDisabled(attachedCount >= LocalImageAttachments.MAX_FILES,
+                            "最多可添加 ${LocalImageAttachments.MAX_FILES} 张照片")
+                ) {
+                    Icon(Icons.Outlined.AttachFile,
+                        contentDescription = "选择照片",
+                        tint = Ink.parchment, modifier = Modifier.size(25.dp))
                 }
                 if (compactControls) {
                     Box {
