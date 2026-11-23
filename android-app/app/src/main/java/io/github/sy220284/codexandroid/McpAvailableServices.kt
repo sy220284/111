@@ -15,11 +15,11 @@ internal object McpAvailableServices {
     fun displayName(server: JSONObject): String {
         val original = server.optString("name")
         return if (original == "codex_apps") "ChatGPT 扩展服务"
-        else PresentationPolicy.meaningful(original).ifEmpty { "未命名服务" }
+        else original.trim().ifEmpty { "未命名服务" }
     }
 
     fun isUsable(server: JSONObject): Boolean {
-        if (PresentationPolicy.meaningful(server.optString("name")).isEmpty()) return false
+        if (server.isNull("name") || server.optString("name").isBlank()) return false
         if (server.optString("runtimeStatus") != "connected") return false
         if (server.optString("authStatus") == "notLoggedIn") return false
 
