@@ -8,6 +8,16 @@
 
 > 审计基线：`sy220284/111`，`main@99519677e157efc3bed6bd4055583b8d0e6adeab`（PR #34 合并后）。官方权威为锁定的 `upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs` 及 `v2` Rust 类型。下表 195 项由 `ui_surface_policy.json` 与官方协议方法集逐项交叉生成。**“已定位调用”仅指源码证据，尚不等于设备验收通过**。
 
+## 2026-11-23 近20个PR复查后共享协议与任务安全整改
+
+| 协议/链路 | 确认的根因 | 当前修复入口 | 已具备的验证与边界 |
+| --- | --- | --- | --- |
+| `config/mcpServer/reload` | Rust `Option<()>` 无参数契约与原 Android 默认 `{}` 编码不一致；目录可能显示旧配置结果 | `RpcWireRequest`、`CodexConnection.request(JSONObject?)`、`McpCatalogController.refresh`：明确省略 `params`，重载成功后重读目录 | 新增线缆格式单测；实际 MCP 服务重新连接/授权需要真环境复查 |
+| `thread/read`、`thread/resume`、`config/batchWrite`、`config/read` | 直接使用 `bridge.request` 不经过原 `vm.loading` 记录；全局备份和重启可能漏判 | 内核统一 `activeRpcRequests` 持续跟踪，同时统计 `threadSwitching`、`securitySaveBusy`、`bridge.status` 和重启中状态 | 新增全局状态回归；所有 Compose 全局操作按钮及调用时共享相同占用依据；真机竞争时序待验 |
+| `command/exec`、`thread/start`、`turn/start` | 请求启动前台服务不等于 `startForeground` 已完成；异步启动失败可导致后台任务无保护 | `ForegroundServiceReadiness`、`CodexForegroundService.startAndAwaitReady`；聊天和终端均等待真实服务就绪，终端启动保留占用态 | 状态/失败/超时单测，Android 服务真实启动仪器测试；厂商后台行为待真机验 |
+
+此处的“新增测试”表示代码已加入当前修复分支；最终通过次数、提交 SHA 和设备截图均以该分支最新 GitHub CI 原始记录为准。原 195 项方法、28 个路由、29 项功能和手机竖屏 UI 归属保持不变，未添加用户手动 MCP 管理页面。
+
 ## 2026-11-23 UI 落地与原协议归属补充（PR #63）
 
 本轮已对照主线 #64 的页面层级、#65 的优化规范和 29 项 DSH Go 交互清单，保持原有 Codex 195 项 RPC 分类、Rust DTO、Host 方向和后台职责不变。用户 UI 的实际入口、状态反馈、授权表单、任务弹层和截图验收索引见 `docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md`。
