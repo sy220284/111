@@ -156,8 +156,8 @@ object PresentationPolicy {
         if (raw.isEmpty()) return "当前操作没有返回详细原因"
         // OAuth/DCR errors may embed the entire ChatGPT HTML page. Preserve the
         // actionable HTTP status without exposing page markup or runtime metadata.
-        if (Regex("""(?i)<!doctype\\s+html|<html(?:\\s|>)""").containsMatchIn(raw)) {
-            val status = Regex("""(?i)\\bHTTP\\s+([1-5][0-9]{2})\\b""")
+        if (Regex("""(?i)<!doctype\s+html|<html(?:\s|>)""").containsMatchIn(raw)) {
+            val status = Regex("""(?i)\bHTTP\s+([1-5][0-9]{2})\b""")
                 .find(raw)?.groupValues?.get(1)
             return if (status == "405") {
                 "服务拒绝了当前授权注册方式（HTTP 405）。请核对 MCP 服务地址与认证方式。"
