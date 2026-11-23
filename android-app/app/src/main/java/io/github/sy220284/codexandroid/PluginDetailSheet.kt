@@ -71,10 +71,24 @@ fun PluginDetailSheet(
                 val version = summary.optString("version")
                 if (version.isNotBlank()) Text("版本 " + version,
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                Text(PresentationPolicy.readableSkillSummary(detail?.optString("description")?.ifBlank { summary.optJSONObject("interface")
-                    ?.optString("shortDescription").orEmpty() }
-                    ?: entry.optJSONObject("interface")?.optString("shortDescription").orEmpty()),
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                val originalDescription = PresentationPolicy.meaningful(
+                    detail?.optString("description")?.ifBlank {
+                        summary.optJSONObject("interface")?.optString("shortDescription").orEmpty()
+                    } ?: entry.optJSONObject("interface")?.optString("shortDescription").orEmpty()
+                )
+                val chineseSummary = if (originalDescription.any { it in '\u4e00'..'\u9fff' })
+                    originalDescription.take(140)
+                else "插件功能可在下方能力清单查看。"
+                Text(chineseSummary, color = Ink.muted,
+                    style = MaterialTheme.typography.bodyMedium)
+                if (originalDescription.isNotEmpty() && originalDescription != chineseSummary) {
+                    TextButton(onClick = {
+                        readerTitle = "插件原始说明"
+                        readerText = originalDescription
+                    }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("查看插件原始说明")
+                    }
+                }
                 OutlinedButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.Refresh, null)
