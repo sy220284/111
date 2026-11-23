@@ -37,7 +37,8 @@ fun AtlasSearchField(
     onClear: (() -> Unit)? = null,
     enabled: Boolean = true,
     busy: Boolean = false,
-    label: String? = null
+    label: String? = null,
+    submitTestTag: String? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -62,7 +63,9 @@ fun AtlasSearchField(
                     IconButton(
                         onClick = onSubmit,
                         enabled = enabled && !busy && value.isNotBlank(),
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(48.dp).let {
+                            if (submitTestTag == null) it else it.testTag(submitTestTag)
+                        }
                     ) {
                         if (busy) CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
