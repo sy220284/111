@@ -32,6 +32,12 @@ object PresentationPolicy {
     fun providerName(name: String?): String =
         meaningful(name).ifEmpty { "未命名服务商" }
 
+    fun pluginInstallStatus(installed: Boolean, installPolicy: String?): String = when {
+        installed -> "已安装"
+        installPolicy == "NOT_AVAILABLE" -> "暂不可安装"
+        else -> "可安装"
+    }
+
     fun skillName(name: String?): String {
         val raw = meaningful(name)
         if (raw.isEmpty()) return "未命名技能"

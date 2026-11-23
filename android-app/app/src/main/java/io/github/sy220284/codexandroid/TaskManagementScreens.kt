@@ -39,7 +39,7 @@ fun ThreadGoalPage(vm: CodexViewModel) {
         if (active != null) vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
     }
     ScreenColumn {
-        SectionIntro("TASK / OBJECTIVE", "任务目标", "设定希望达成的结果，并查看当前任务进度。")
+        SectionIntro("任务目标", "设定希望达成的结果，并查看当前任务进度。")
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先从历史记录或任务对话打开一个会话", style = MaterialTheme.typography.titleMedium)
@@ -208,7 +208,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     }
 
     ScreenColumn {
-        SectionIntro("TASK / QUEUE", "后续指令", "当前任务结束后按顺序执行的指令，可以修改、排序或删除。")
+        SectionIntro("后续指令", "当前任务结束后按顺序执行的指令，可以修改、排序或删除。")
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先打开一个任务会话", style = MaterialTheme.typography.titleMedium)

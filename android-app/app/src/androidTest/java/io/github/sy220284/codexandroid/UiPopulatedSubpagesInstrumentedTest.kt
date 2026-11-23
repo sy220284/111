@@ -561,6 +561,80 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("第一项", substring = true).assertExists()
     }
 
+    @Test fun pageIntroKeepsExplanationInSecondLevel() {
+        rule.setContent { CodexTheme {
+            SectionIntro("技能", "技能可在任务中调用，按需启用。")
+        } }
+        rule.onNodeWithText("技能可在任务中调用，按需启用。").assertDoesNotExist()
+        rule.onNodeWithContentDescription("查看技能说明").performClick()
+        rule.onNodeWithText("技能可在任务中调用，按需启用。").assertIsDisplayed()
+    }
+
+    @Test fun skillDescriptionAppearsOnlyAfterOpeningDetail() {
+        val vm = viewModel()
+        val skill = JSONObject().put("name", "demo-skill").put("path", "/skills/demo-skill")
+            .put("enabled", true)
+            .put("description", "示例技能的详细使用方式，只有打开详情后才出现。")
+            .put("interface", JSONObject().put("displayName", "示例技能"))
+        vm.data.value = mapOf("skills" to JSONObject().put("data", JSONArray()
+            .put(JSONObject().put("skills", JSONArray().put(skill)))))
+        rule.setContent { CodexTheme { SkillsPage(vm) } }
+        rule.onNodeWithText("示例技能").assertExists()
+        rule.onNodeWithText("示例技能的详细使用方式，只有打开详情后才出现。")
+            .assertDoesNotExist()
+        rule.onNodeWithTag("skill-open-detail").performClick()
+        rule.onNodeWithText("示例技能的详细使用方式，只有打开详情后才出现。")
+            .assertIsDisplayed()
+    }
+
+    @Test fun connectedAppDescriptionAppearsOnlyAfterOpeningDetail() {
+        val vm = viewModel()
+        val app = JSONObject().put("id", "demo_app").put("name", "示例应用")
+            .put("isEnabled", true)
+            .put("description", "应用连接的完整功能说明，进入详情后可查看。")
+        rule.setContent { CodexTheme { ConnectedAppsPage(vm) {} } }
+        rule.waitForIdle()
+        vm.data.value = vm.data.value + ("apps" to JSONObject()
+            .put("apps", JSONArray().put(app)))
+        rule.onNodeWithText("示例应用").assertExists()
+        rule.onNodeWithText("应用连接的完整功能说明，进入详情后可查看。")
+            .assertDoesNotExist()
+        rule.onNodeWithText("示例应用").performClick()
+        rule.onNodeWithText("应用连接的完整功能说明，进入详情后可查看。")
+            .assertIsDisplayed()
+    }
+
+    @Test fun modelDescriptionOpensSecondLevelWithoutChangingSelection() {
+        val vm = viewModel()
+        val entry = JSONObject().put("id", "audit-model")
+            .put("displayName", "测试模型")
+            .put("description", "模型说明从列表进入详情后展示。")
+        rule.setContent { CodexTheme { ModelsPage(vm) } }
+        rule.waitForIdle()
+        vm.data.value = vm.data.value + ("models" to JSONObject()
+            .put("data", JSONArray().put(entry)))
+        rule.onNodeWithText("测试模型").assertExists()
+        rule.onNodeWithText("模型说明从列表进入详情后展示。").assertDoesNotExist()
+        rule.onNodeWithTag("model-detail-audit-model").performClick()
+        rule.onNodeWithText("模型说明从列表进入详情后展示。").assertIsDisplayed()
+        assertEquals("", vm.modelId.value)
+    }
+
+    @Test fun pluginOriginalEnglishDescriptionIsAvailableOnlyOnDemand() {
+        val vm = viewModel()
+        val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")
+        val entry = JSONObject().put("id", "english").put("name", "english")
+        val detail = JSONObject().put("description", "This plugin checks project results.")
+        rule.setContent { CodexTheme { PluginDetailSheet(market, entry, vm, {}) } }
+        rule.waitForIdle()
+        vm.data.value = vm.data.value + ("pluginDetail:样例插件源:english" to
+            JSONObject().put("plugin", detail))
+        rule.onNodeWithText("插件功能可在下方能力清单查看。").assertExists()
+        rule.onNodeWithText("This plugin checks project results.").assertDoesNotExist()
+        rule.onNodeWithText("查看插件原始说明").performClick()
+        rule.onNodeWithText("This plugin checks project results.").assertIsDisplayed()
+    }
+
     @Test fun pluginDetailShowsCapabilitiesRatherThanRawMetadata() {
         val vm = viewModel()
         val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")

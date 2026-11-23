@@ -312,9 +312,10 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     val engineStatus by vm.bridge.status.collectAsState()
     val payload = result[page.id]
     val entries = records(payload)
+    var selectedDetail by remember(page.id) { mutableStateOf<Pair<String, String>?>(null) }
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
     ScreenColumn {
-        SectionIntro("", page.title, page.subtitle)
+        SectionIntro(page.title, page.subtitle)
         if (page.experimental) StatusPill("实验功能", tone = StatusTone.Neutral)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -341,8 +342,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     val status = PresentationPolicy.timelineStatus(entry.optString("status"))
                     if (status.isNotEmpty()) StatusPill(status)
                     if (summary.isNotEmpty()) {
-                        Text(summary, color = Ink.muted,
-                            style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { selectedDetail = display to summary }) {
+                            Text("查看详情")
+                        }
                     }
                 }
             }
@@ -364,6 +366,16 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
             )
         }
     }
+    selectedDetail?.let { (title, description) ->
+        AlertDialog(
+            onDismissRequest = { selectedDetail = null },
+            title = { Text(title) },
+            text = { Text(description) },
+            confirmButton = {
+                TextButton(onClick = { selectedDetail = null }) { Text("关闭") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -374,7 +386,7 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
     val payload by vm.data.collectAsState()
     val method = page.rpc ?: return
     ScreenColumn {
-        SectionIntro("THREAD / CONTEXT", page.title, page.subtitle)
+        SectionIntro(page.title, page.subtitle)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("需要先打开一个会话", style = MaterialTheme.typography.titleMedium)

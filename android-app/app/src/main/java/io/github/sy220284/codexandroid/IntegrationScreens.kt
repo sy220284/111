@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,7 +40,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
         if (status == EngineStatus.Connected) vm.refresh("modes", "collaborationMode/list")
     }
     ScreenColumn {
-        SectionIntro("WORKFLOW / BEHAVIOR", "协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
+        SectionIntro("协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("新任务使用的工作方式", style = MaterialTheme.typography.titleMedium)
             StatusPill(if (selected == "plan") "计划模式" else "标准执行模式", true)
@@ -86,6 +88,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
@@ -93,13 +96,14 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val apps = records(data["apps"])
     val installed = data["appInstalled"]?.optJSONArray("apps")
     var target by remember { mutableStateOf<JSONObject?>(null) }
+    var inspecting by remember { mutableStateOf<JSONObject?>(null) }
     var desired by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
         vm.refresh("appInstalled", "app/installed", JSONObject())
     }
     ScreenColumn {
-        SectionIntro("CONNECTORS / APPS", "已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
+        SectionIntro("已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("应用连接", style = MaterialTheme.typography.titleMedium)
@@ -132,7 +136,6 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             val active = (0 until (installed?.length() ?: 0)).mapNotNull { installed?.optJSONObject(it) }
                 .firstOrNull { it.optString("id") == id }
             val name = app.optString("name", id)
-            val installUrl = app.optString("installUrl")
             val callable = active?.optBoolean("callable") == true
             val enabled = app.optBoolean("isEnabled", true)
             val appStatus = when {
@@ -143,7 +146,11 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 else -> "尚未连接"
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { inspecting = app }
+                        .heightIn(min = 48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
                         border = BorderStroke(1.dp, Ink.copperDim)) {
                         Icon(Icons.Outlined.Apps, null, tint = Ink.copper,
@@ -152,33 +159,66 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text(if (callable) "可供任务调用工具" else
-                            if (appStatus == "待授权") "完成授权后可在任务中调用" else
-                            if (appStatus == "已停用") "可重新启用应用" else
-                            "可以刷新连接状态查看服务是否可用",
-                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                     StatusPill(appStatus, callable)
+                    Spacer(Modifier.width(7.dp))
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = "查看应用详情",
+                        tint = Ink.muted)
                 }
-                PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = Ink.muted)
-                }
+            }
+        }
+    }
+    inspecting?.let { app ->
+        val id = app.optString("id")
+        val name = app.optString("name", id)
+        val description = PresentationPolicy.meaningful(app.optString("description"))
+        val installUrl = app.optString("installUrl")
+        val enabled = app.optBoolean("isEnabled", true)
+        val active = (0 until (installed?.length() ?: 0))
+            .mapNotNull { installed?.optJSONObject(it) }
+            .firstOrNull { it.optString("id") == id }
+        val appStatus = when {
+            !enabled -> "已停用"
+            active?.optBoolean("callable") == true -> "已连接"
+            !app.optBoolean("isAccessible") -> "待授权"
+            active?.optBoolean("enabled") == true -> "等待工具就绪"
+            else -> "尚未连接"
+        }
+        ModalBottomSheet(
+            onDismissRequest = { inspecting = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Ink.recessed, contentColor = Ink.parchment
+        ) {
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(name, style = MaterialTheme.typography.headlineSmall)
+                StatusPill(appStatus, appStatus == "已连接")
+                Text("应用说明", style = MaterialTheme.typography.titleMedium)
+                Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
                 if (installUrl.startsWith("https://")) {
-                    TextButton(onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
-                    }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    ) {
                         Icon(Icons.Outlined.OpenInNew, null)
                         Spacer(Modifier.width(8.dp))
                         Text("管理应用授权")
                     }
                 }
                 if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
-                    val enable = !app.optBoolean("isEnabled", true)
-                    TextButton(onClick = { desired = enable; target = app }) {
-                        Text(if (enable) "启用应用" else "停用应用")
-                    }
+                    OutlinedButton(
+                        onClick = {
+                            desired = !enabled
+                            target = app
+                            inspecting = null
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    ) { Text(if (enabled) "停用应用" else "启用应用") }
                 }
-
             }
         }
     }

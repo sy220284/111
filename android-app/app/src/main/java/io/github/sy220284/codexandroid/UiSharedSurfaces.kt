@@ -89,8 +89,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val choices = records(models["models"]).filter { !it.optBoolean("hidden") }
         .map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
-            CodexChoice(id, item.optString("displayName").ifBlank { id },
-                item.optString("description"))
+            CodexChoice(id, item.optString("displayName").ifBlank { id })
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     CodexChoiceSheet(
         title = "选择运行模型",
