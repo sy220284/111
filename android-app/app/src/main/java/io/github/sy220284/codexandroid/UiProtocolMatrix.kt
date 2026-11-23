@@ -153,7 +153,7 @@ object UiProtocolMatrix {
         ProtocolSurface("environment/info", ApiExposure.Contextual, "执行环境", true),
         ProtocolSurface("environment/status", ApiExposure.Contextual, "执行环境", true),
         ProtocolSurface("mcpServer/oauth/login", ApiExposure.Internal, "智能体/MCP 授权", false),
-        ProtocolSurface("config/mcpServer/reload", ApiExposure.Advanced, "引擎配置/安全", false),
+        ProtocolSurface("config/mcpServer/reload", ApiExposure.Internal, "智能体/MCP 配置重载", false),
         ProtocolSurface("mcpServerStatus/list", ApiExposure.Direct, "MCP 服务", false),
         ProtocolSurface("mcpServer/resource/read", ApiExposure.Internal, "MCP 服务/审批", false),
         ProtocolSurface("mcpServer/event/stream/start", ApiExposure.Internal, "MCP 服务/审批", true),
