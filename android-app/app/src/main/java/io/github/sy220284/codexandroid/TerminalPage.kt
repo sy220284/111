@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -31,6 +33,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -312,6 +315,15 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 fontFamily = FontFamily.Monospace,
                                 style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                         }
+                        Text("常用命令 · 选择后可核对再执行",
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("pwd", "ls -la", "git status").forEach { example ->
+                                AssistChip(onClick = { command = example },
+                                    label = { Text(example, fontFamily = FontFamily.Monospace) })
+                            }
+                        }
                     }
                 }
                 }
@@ -382,6 +394,12 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             true
                         },
                     maxLines = 5,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        if (command.isNotBlank() && !session.running && !terminalStarting) {
+                            confirm = true
+                        }
+                    }),
                     enabled = !session.running
                 )
                 if (recentCommands.isNotEmpty()) {
@@ -426,7 +444,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     Switch(checked = interactive, onCheckedChange = { interactive = it },
                         enabled = !session.running && !terminalStarting)
                 }
-                OutlinedButton(onClick = { confirm = true },
+                CodexPrimaryButton(onClick = { confirm = true },
                     enabled = command.isNotBlank() && !session.running && !terminalStarting,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.PlayArrow, null)
