@@ -267,6 +267,7 @@ fun SkillsPage(vm: CodexViewModel) {
         else -> skills
     }
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
+    var selectedSkill by remember { mutableStateOf<JSONObject?>(null) }
     LaunchedEffect(Unit) {
         vm.ensureCatalog("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory))
@@ -293,7 +294,6 @@ fun SkillsPage(vm: CodexViewModel) {
         }
         visibleSkills.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
-                var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.School, null, tint = Ink.copper)
@@ -309,17 +309,12 @@ fun SkillsPage(vm: CodexViewModel) {
                             confirmation = skill to enabled
                         }, enabled = "skillsWrite" !in mutationLoading && "skills" !in mutationLoading)
                     }
-                    val description = meta.optString("shortDescription").ifBlank {
-                        skill.optString("description")
-                    }
-                    Text(PresentationPolicy.readableSkillSummary(description),
-                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                    if (PresentationPolicy.meaningful(description).isNotEmpty()) {
-                        TextButton(onClick = { expanded = !expanded }) {
-                            Text(if (expanded) "收起说明" else "查看技能说明")
-                        }
-                        if (expanded) Text(description,
-                            color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    TextButton(
+                        onClick = { selectedSkill = skill },
+                        modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
+                            .testTag("skill-open-detail")
+                    ) {
+                        Text("查看详情")
                     }
                 }
         }
@@ -360,6 +355,43 @@ fun SkillsPage(vm: CodexViewModel) {
             },
             onDismiss = { confirmation = null }
         )
+    }
+    selectedSkill?.let { skill ->
+        SkillDetailSheet(skill, onDismiss = { selectedSkill = null })
+    }
+}
+
+/** 技能说明留在二级详情中；列表只承担识别与开关。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SkillDetailSheet(skill: JSONObject, onDismiss: () -> Unit) {
+    val meta = skill.optJSONObject("interface") ?: JSONObject()
+    val name = PresentationPolicy.meaningful(meta.optString("displayName"))
+        .ifEmpty { PresentationPolicy.skillName(skill.optString("name")) }
+    val description = PresentationPolicy.meaningful(skill.optString("description"))
+        .ifEmpty { PresentationPolicy.meaningful(meta.optString("shortDescription")) }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Ink.recessed, contentColor = Ink.parchment
+    ) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = 680.dp).navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(name, style = MaterialTheme.typography.headlineSmall)
+            StatusPill(if (skill.optBoolean("enabled")) "已启用" else "已停用",
+                skill.optBoolean("enabled"))
+            Text("技能说明", style = MaterialTheme.typography.titleMedium)
+            SelectionContainer {
+                Text(description.ifBlank { "该技能暂未提供说明。" },
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            }
+            Text("在任务对话中使用已启用的技能。可返回列表调整启用状态。",
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 
@@ -495,11 +527,6 @@ fun PluginsPage(vm: CodexViewModel) {
                             modifier = Modifier.weight(1f))
                         if (item.optBoolean("installed")) StatusPill("已安装", true)
                     }
-                    Text("来源：" + market.optString("name"), color = Ink.muted,
-                        style = MaterialTheme.typography.labelMedium)
-                    Text(item.optJSONObject("interface")?.optString("shortDescription")
-                        .orEmpty().ifBlank { item.optString("description") },
-                        color = Ink.muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (!item.optBoolean("installed")) {
                             OutlinedButton(onClick = { action = Triple(market, item, true) },
@@ -540,9 +567,8 @@ fun PluginsPage(vm: CodexViewModel) {
                         Spacer(Modifier.width(11.dp))
                         Text(meta.optString("displayName").ifBlank { item.optString("name") },
                             style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        StatusPill(if (item.optBoolean("installed")) "已安装" else "可发现", item.optBoolean("enabled"))
+                        StatusPill(if (item.optBoolean("installed")) "已安装" else "可安装", item.optBoolean("enabled"))
                     }
-                    Text(meta.optString("shortDescription"), color = Ink.muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (item.optBoolean("installed")) {
                             OutlinedButton(onClick = { action = Triple(market, item, false) },

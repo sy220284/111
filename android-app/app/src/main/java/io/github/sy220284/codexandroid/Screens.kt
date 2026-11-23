@@ -312,6 +312,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
     val engineStatus by vm.bridge.status.collectAsState()
     val payload = result[page.id]
     val entries = records(payload)
+    var selectedDetail by remember(page.id) { mutableStateOf<Pair<String, String>?>(null) }
     LaunchedEffect(page.id) { page.rpc?.let { vm.refresh(page.id, it) } }
     ScreenColumn {
         SectionIntro("", page.title, page.subtitle)
@@ -341,8 +342,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     val status = PresentationPolicy.timelineStatus(entry.optString("status"))
                     if (status.isNotEmpty()) StatusPill(status)
                     if (summary.isNotEmpty()) {
-                        Text(summary, color = Ink.muted,
-                            style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { selectedDetail = display to summary }) {
+                            Text("查看详情")
+                        }
                     }
                 }
             }
@@ -363,6 +365,16 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     else R.drawable.ic_empty_connection
             )
         }
+    }
+    selectedDetail?.let { (title, description) ->
+        AlertDialog(
+            onDismissRequest = { selectedDetail = null },
+            title = { Text(title) },
+            text = { Text(description) },
+            confirmButton = {
+                TextButton(onClick = { selectedDetail = null }) { Text("关闭") }
+            }
+        )
     }
 }
 
