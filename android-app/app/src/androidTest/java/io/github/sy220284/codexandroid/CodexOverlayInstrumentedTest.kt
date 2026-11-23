@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
