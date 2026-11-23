@@ -71,6 +71,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     OutlinedButton(onClick = { navigate("review") },
+                        enabled = active != null && files.isNotEmpty(),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Icon(Icons.Outlined.FactCheck, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(5.dp))
@@ -162,7 +163,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             item {
-                Text("差异来自 Codex 本次任务的实时事件；历史版本需通过工程文件和版本记录核对。",
+                Text("变更来源：实时执行事件及会话历史保存的文件修改记录。",
                     color = Ink.muted,
                     style = MaterialTheme.typography.bodySmall)
             }
