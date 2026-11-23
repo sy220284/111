@@ -336,7 +336,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     stopping = false, canStop = false,
                     canSend = text.isNotBlank(), sending = false,
                     followUpMode = "queue", onFollowUpModeChange = {},
-                    onAttach = {}, onStop = {}, onSend = { submitted = text }
+                    onStop = {}, onSend = { submitted = text }
                 )
             }
         }
@@ -455,7 +455,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     running = true, stopping = false,
                     canStop = true, canSend = true, sending = false,
                     followUpMode = mode, onFollowUpModeChange = { mode = it },
-                    onAttach = {}, onStop = { stopped = true }, onSend = { sent = true }
+                    onStop = { stopped = true }, onSend = { sent = true }
                 )
             }
         }
