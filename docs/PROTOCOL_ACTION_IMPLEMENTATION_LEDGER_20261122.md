@@ -21,14 +21,14 @@
 | `config/read`、`config/value/write`、`configRequirements/read` | 长期安全/高级配置按需展开，审批保留会话上下文 | 代码已接入；真实写入回读待联调 |
 | `server/diagnostics` 与任务终端/队列/目标/差异 | 诊断状态与重连优先，任务按项目或会话展示及恢复 | 代码已接入；设备截图和真实断线恢复分开验收 |
 
-**验收区分**：提交代码、Kotlin/协议/Lint、Android 五屏宽模拟器截图、真实内核运行回执、ARM64 真机和正式安装互不代替。截图必须经过应用前台归属校验，同一 SHA 作业全部成功后才记录设备验收通过。
+**验收区分**：提交代码、Kotlin/协议/Lint、Android 三档手机竖屏模拟器截图、真实内核运行回执、ARM64 真机和正式安装互不代替。截图必须经过应用前台归属校验，同一 SHA 作业全部成功后才记录设备验收通过。
 
 ## 2026-11-23 多会话新建入口归属与跨模块整改记录
 
 - **关联方法**：`thread/start`、`turn/start`、`thread/list`、`thread/resume`、`thread/read`。保持官方 Rust DTO、请求方向、Host 处理、响应契约及 195 项 UI 分类不变。
 - **根因和处理**：顶栏以当前会话的 `running` 禁用全局新建，侧栏仅在会话创建/恢复期间禁用，导致同一操作在不同入口呈现矛盾；统一走 `NavigationPolicy.newThreadBlockReason`，顶栏、侧栏和会话资料库同步显示真实禁用原因，移除已经被会话弹层替代的不可达按钮。
 - **功能链及恢复**：用户在任一入口新建→`CodexViewModel.newThread` 检查首会话创建与切换竞争态→清除当前页面归属并保护已有运行会话的任务索引→用户在新对话提交后交由已有 `thread/start`/`turn/start` 处理；失败与草稿保护沿用原有协调器，不改接口字段。
-- **验证级别**：新增 `NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 单元测试；本次提交 SHA 的 Kotlin/协议/Lint、Android 35 三种手机宽度及横屏/平板截图必须以实际 CI 核验后追加结果；真实 ARM64 核心并行执行仍需独立专项回执，未将其记为通过。
+- **验证级别**：新增 `NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 单元测试；本次提交 SHA 的 Kotlin/协议/Lint、Android 35 三档手机竖屏截图必须以实际 CI 核验后追加结果；真实 ARM64 核心并行执行仍需独立专项回执，未将其记为通过。
 
 ## 核查结论和数字
 
@@ -379,3 +379,25 @@
 6. 在 PR 检查中产出协议目录覆盖率、正确参数覆盖率、真实操作覆盖率三个独立数值；后续新增协议自动生成待办条目。
 
 > 变更边界：本文是审计与实施台账，不声称以上待办已经修改、测试或合入；实施顺序以 P0→P1→P2 按完整业务链验收推进。当前仓库运行时行为以实际 CI、Android 模拟器和 ARM64 实机回执为准。
+
+## 2026-11-23 手机竖屏界面归属与验收范围更新
+
+- Android 主入口固定为竖屏；常驻侧栏、横屏、平板分支及其专项仪器测试已经删除，统一从抽屉导航进入 29 项既有功能，不改变接口归属。
+- 目标和队列保留按实际内容分配弹层高度的 `PhoneSheetLayout`，输入区由 `WindowInsets.ime` 感知键盘可用空间。
+- 原有 `thread/start`、`thread/list`、`thread/resume`、`plugin/search` 的请求字段、方向及回执处理保持一致；插件搜索测试用唯一 UI 标记定位，解决同文案重复匹配。
+- 按最终 SHA 检查 Kotlin、协议单元测试、Lint 和 Android 35 360/393/411dp 模拟器截图；实际 ARM64 核心、厂商真机与安装升级按原有专项门槛独立验收。
+
+### 手机竖屏输入区重复窗口高度扣减的修复
+
+- `ConversationScreen` 与 `MainActivity` 的系统 `adjustResize` 曾同时处理 IME 底部高度，造成真实设备下输入栏被推出屏幕。已将输入区主容器统一为 `fillMaxSize`，仅用 `WindowInsets.ime` 驱动紧凑控件显示。
+- 影响链路：发送、附件添加、模式切换、任务选项、会话草稿和结果展示；本次保持全部 RPC、响应与本地草稿逻辑不变。
+- 失败证据：PR #66 / Android 35 360dp 与 411dp [CI 45136362520](https://github.com/sy220284/111/actions/runs/45136362520) 均为 69 项中 1 项失败，截图已复查；新提交必须经三档竖屏设备截图和交互重新验证，才记录修复成功。
+
+## 2026-11-23 手机竖屏最终设备验收（PR #66）
+
+- **已通过的代码 SHA**：`94dc912baee1a0654b502956b70f95256087c8e4`。完整 [CI #45137545421](https://github.com/sy220284/111/actions/runs/45137545421) 四个作业全部通过：Kotlin 编译、254 项单元测试、Android Lint、Rust DTO/Schema/方向及字段样例验证通过。
+- **官方协议与调用证据**：29 个注册入口，28/28 页面路由，195 个官方方法，81/81 用户操作方法实际追踪到代码调用；未发现遗漏路由、空处理器或表层归属冲突。
+- **真实 Android 35**：360dp、393dp、411dp 三档均为 69/69 仪器测试通过；各 63 张前台截图，`missing.txt` 为空。键盘展开的 `chat-keyboard-open-android35.png` 已独立复查，输入、附件、任务选项、发送入口全部在可见区域。
+- **自更新专项**：393dp 调用了系统安装器真实 `Install` → `Open`，验证安装时间更新、重启后 PID、前台 `MainActivity` 与截图；`self-update-open.json` 明确记录 `status=passed`。
+- **不扩张声明**：本轮验证对象为 Android 35 x86_64 模拟器和相应本机 UI/协议测试；ARM64 原生核心真实多会话并行、厂商兼容、实际账号授权和发布签名仍沿用各自专项门槛。第二轮 100 项旧统计不因本轮整体 CI 通过自动增加。
+- **结论**：用户明确取消的横屏/平板专用代码、导航分支及 CI 设备矩阵已清理；手机竖屏三档验收全部通过。

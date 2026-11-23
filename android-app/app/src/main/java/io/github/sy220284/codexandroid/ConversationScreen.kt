@@ -26,7 +26,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,9 +82,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
         imported.message else ""
 
-    // 小高度横屏与输入法弹出同一套紧凑规则，优先确保发送和内容可见。
-    val compactWorkArea = WindowInsets.isImeVisible ||
-        LocalConfiguration.current.screenHeightDp < AdaptiveWorkspaceLayout.compactHeightDp
+    // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
+    val compactWorkArea = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
@@ -186,8 +185,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             unreadSteps += added
         }
     }
-    // Activity 已设置 adjustResize，Scaffold 会在输入法打开后缩小可用内容区。
-    // 此处叠加 imePadding 会再次扣除键盘高度，导致编辑器整个移出画面。
+    // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
+    // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp,
             vertical = if (compactWorkArea) 0.dp else 8.dp),
