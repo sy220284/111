@@ -71,3 +71,18 @@
 审计产物 `full-feature-workflows.json` 已复核 29/29 功能、28/28 路由、195/195 Rust 方法登记。逐项核对发现 11 审查、14 技能、16 连接应用、26 诊断四行此前只有截图、缺少命名测试。已在原 29 行索引补充代码中真实运行的页面测试：`taskSpecificSheetsAreReachableAndReadable` 负责打开审查弹层，`secondarySettingsPagesHaveActualDeviceScreenshots` 实际进入技能/应用/诊断页面并采集设备截图。新门禁规定 29/29 功能均需关联至少一个可执行 JUnit/Android 用例，缺少时 CI 报错。该门槛是可追踪功能和设备操作证据，外部账号/RPC 成功仍需另一等级证据。
 
 Android 全局数据归档专项新增加实际设备截图 `audit-backup-in-progress-android35.png`，同时按返回键验证归档仍在时弹层不消失，处理完成后保留原设置页面；`DataTransferMutationGate` 负责全部页面后端用户写请求的双重保护。
+
+
+## 九、实际运行验收回执（2026-11-23）
+
+**已验证的代码 SHA**：`931d46ce96cf16505a28cbead8b4019b2c0acd94`，CI：[45156766925](https://github.com/sy220284/111/actions/runs/45156766925)，四项作业全部通过。Kotlin、261 项单测、官方协议 DTO/方法方向、Lint、UI 全量静态审计检查成功。全量目录 29/29 功能、28/28 路由、195/195 方法、各功能均有可执行回归名称；真实联网逐方法执行需要另行记录。
+
+| Android 35 手机宽度 | 仪器用例 | 设备截图 | 后台会话阻断备份 | 全局归档进度弹层 |
+| --- | ---: | ---: | --- | --- |
+| 360dp | 75/75 | 66 张、缺 0 | 原图已核对 | 原图已核对 |
+| 393dp | 75/75 | 66 张、缺 0 | 原图已核对 | 原图已核对 |
+| 411dp | 75/75 | 66 张、缺 0 | 原图已核对 | 原图已核对 |
+
+393dp 实际系统安装器 `Install → Open` 验收通过，`lastUpdateTime` 10:35:08 更新至 10:36:58，新 PID 3494 的 `MainActivity` 成为前台，原始回执 `self-update-open.json` 为 `passed`。上述证据由该作业的 `codex-android-ui-device-evidence-360dp/393dp/411dp` 三档 artifact 直接回读；静态报告来自 `codex-android-ui-check-reports`。
+
+后续专项仍含真正 ARM64 核心、长命令离开屏幕后的厂商通知保持、大容量真实项目备份与失败恢复、OAuth/MCP 和每类官方请求真实服务端结果；区分代码覆盖与业务实际跑通。
