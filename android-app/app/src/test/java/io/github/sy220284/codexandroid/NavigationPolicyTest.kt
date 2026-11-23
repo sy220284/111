@@ -18,6 +18,8 @@ class NavigationPolicyTest {
         assertFalse(NavigationPolicy.isSettingsChild("threads"))
         assertFalse(NavigationPolicy.isDetailPage("threads"))
         assertFalse(NavigationPolicy.isDetailPage("approvals"))
+        assertFalse(NavigationPolicy.isDetailPage("queue"))
+        assertFalse(NavigationPolicy.isDetailPage("search"))
         assertTrue(NavigationPolicy.isDetailPage("terminal"))
         assertTrue(NavigationPolicy.isDetailPage("diff"))
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
@@ -43,6 +45,9 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.quickToolRoutes.all { it in UiFeatureCatalog.byRoute })
         assertTrue(UiFeatureCatalog.requiresThread("review"))
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("search").surface)
+        assertEquals(FeatureOwner.Global, UiFeatureCatalog.find("search").owner)
         assertFalse(UiFeatureCatalog.requiresThread("terminal"))
     }
 
