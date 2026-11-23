@@ -262,7 +262,7 @@ fun CodexShell(vm: CodexViewModel) {
             .fillMaxSize()
             .background(Ink.canvas)
     ) {
-        val wide = maxWidth >= 720.dp
+        val wide = AdaptiveWorkspaceLayout.persistentSidebar(maxWidth.value, maxHeight.value)
         val content: @Composable () -> Unit = {
             Scaffold(
                 containerColor = Color.Transparent,

@@ -59,6 +59,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createName by remember { mutableStateOf("") }
     var createKind by remember { mutableStateOf("file") }
     var showCreate by rememberSaveable { mutableStateOf(false) }
+    var showProjectManager by rememberSaveable { mutableStateOf(false) }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
     var copyName by remember { mutableStateOf("") }
@@ -119,60 +120,59 @@ fun WorkspacePage(vm: CodexViewModel) {
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        item { SectionIntro("LOCAL / FILES", "工作区文件",
-            "本机工程与文件统一管理，支持新建、导入、复制、重命名与安全删除。") }
-        item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("当前目录", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                Text(folder.relativeTo(root).path.takeIf { it != "." }
-                    ?.let { "projects/" + it } ?: "projects/",
-                    fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        folder.parentFile?.let {
-                            if (it.path == root.path ||
-                                it.path.startsWith(root.path + File.separator)) folder = it
-                        }
-                    }, enabled = folder != root) {
-                        Icon(Icons.Outlined.ArrowBack, null)
-                        Spacer(Modifier.width(5.dp))
-                        Text("上一级")
+        item(key = "workspace-path") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.FolderOpen, null, tint = Ink.jade, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("当前目录", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    Text(folder.relativeTo(root).path.takeIf { it != "." }
+                        ?.let { "projects/" + it } ?: "projects/",
+                        fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconButton(onClick = {
+                    folder.parentFile?.let {
+                        if (it.path == root.path ||
+                            it.path.startsWith(root.path + File.separator)) folder = it
                     }
-                    OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) },
-                        enabled = !actionBusy) {
-                        Icon(Icons.Outlined.FileUpload, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("导入")
-                    }
+                }, enabled = folder != root,
+                    modifier = Modifier.testTag("workspace-parent")) {
+                    Icon(Icons.Outlined.ArrowBack, "上一级")
+                }
+                IconButton(onClick = { picker.launch(arrayOf("*/*")) },
+                    enabled = !actionBusy, modifier = Modifier.testTag("workspace-import")) {
+                    Icon(Icons.Outlined.FileUpload, "导入")
                 }
             }
         }
-        item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("当前任务项目", style = MaterialTheme.typography.titleMedium)
-                Text(File(selectedWorkspace).relativeTo(root).path.takeIf { it != "." }
-                    ?.let { "projects/" + it } ?: "projects/",
-                    color = Ink.muted, fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodyMedium)
-                Text("新对话和本机终端在此目录执行。切换项目会开启新的任务上下文。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        item(key = "workspace-context") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("任务项目", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    Text(PresentationPolicy.workspaceName(selectedWorkspace),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 if (selectedWorkspace != folder.canonicalPath) {
-                    OutlinedButton(
-                        onClick = { pendingWorkspace = folder },
+                    TextButton(onClick = { pendingWorkspace = folder },
                         enabled = !running && !terminal.running && !actionBusy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .testTag("workspace-select-current")
-                    ) {
-                        Icon(Icons.Outlined.FolderOpen, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("将当前目录设为任务项目")
+                        modifier = Modifier.testTag("workspace-select-current")) {
+                        Text("设为当前项目", maxLines = 1)
                     }
                 } else {
-                    StatusPill("正在使用此目录", true)
+                    StatusPill("当前项目", true)
+                }
+                IconButton(onClick = { showProjectManager = !showProjectManager },
+                    modifier = Modifier.testTag("workspace-project-management")) {
+                    Icon(if (showProjectManager) Icons.Outlined.ExpandLess
+                        else Icons.Outlined.AccountTree, "管理项目")
                 }
             }
         }
-        item { ProjectRegistryPanel(vm, folder) }
+        if (showProjectManager) item(key = "workspace-projects") {
+            ProjectRegistryPanel(vm, folder)
+        }
         vmErrors["workspace"]?.let { warning ->
             item { ErrorText(warning) }
         }

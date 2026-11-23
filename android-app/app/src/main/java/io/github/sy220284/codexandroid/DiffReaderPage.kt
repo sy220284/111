@@ -38,15 +38,12 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     val clipboard = LocalClipboardManager.current
     var copied by remember(diff) { mutableStateOf(false) }
+    var wrapLines by remember { mutableStateOf(true) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        item {
-            SectionIntro("PATCH / REVIEW", "代码差异",
-                "逐文件查看修改、增删行数与实际变更内容。")
-        }
         item {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -86,6 +83,12 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Spacer(Modifier.width(5.dp))
                         Text(if (copied) "已复制" else "复制全部差异")
                     }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = wrapLines, onCheckedChange = { wrapLines = it },
+                        modifier = Modifier.testTag("diff-line-wrap"))
+                    Text("长代码行自动换行", style = MaterialTheme.typography.labelMedium,
+                        color = Ink.muted)
                 }
             }
         }
@@ -152,11 +155,12 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             SelectionContainer {
                                 Text(line.ifEmpty { " " },
                                     modifier = Modifier.fillMaxWidth()
+                                        .then(if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState()))
                                         .padding(horizontal = 9.dp, vertical = 3.dp),
                                     color = tone,
                                     fontFamily = FontFamily.Monospace,
                                     style = MaterialTheme.typography.labelMedium,
-                                    softWrap = true)
+                                    softWrap = wrapLines)
                             }
                         }
                     }

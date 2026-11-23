@@ -204,7 +204,6 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 
     ScreenColumn {
         SectionIntro("TASK / QUEUE", "后续指令", "当前任务结束后按顺序执行的指令，可以修改、排序或删除。")
-        StatusPill("试用功能", tone = StatusTone.Neutral)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先打开一个任务会话", style = MaterialTheme.typography.titleMedium)
@@ -374,13 +373,18 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
+    val active by vm.activeThread.collectAsState()
+    val data by vm.data.collectAsState()
+    val count = records(data["queue:" + (active ?: "none")]).size
+    val shortWindow = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 480
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas,
         contentColor = Ink.parchment
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+        Column(Modifier.fillMaxWidth()
+            .fillMaxHeight(AdaptiveWorkspaceLayout.queueSheetFraction(count, shortWindow))
             .testTag("thread-queue-sheet")) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 IconButton(

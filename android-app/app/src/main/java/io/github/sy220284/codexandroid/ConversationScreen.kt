@@ -269,7 +269,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        errors["protocol"]?.let { reason ->
+        (if (status == EngineStatus.Connected) errors["protocol"] else null)?.let { reason ->
             CodexNotice(reason, NoticeTone.Warning,
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
@@ -280,7 +280,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else if (items.isEmpty()) {
                 val shortViewport = maxHeight < 345.dp
                 Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.Center)
+                    modifier = Modifier.fillMaxWidth().align(Alignment.Center).verticalScroll(rememberScrollState())
                         .padding(horizontal = 19.dp, vertical = if (shortViewport) 5.dp else 15.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 10.dp)
@@ -294,34 +294,42 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         textAlign = TextAlign.Center)
                     if (!busy) {
                         Spacer(Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Column(
+                            modifier = Modifier.fillMaxWidth().testTag("chat-suggestions"),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            AssistChip(
-                                onClick = { navigate("files") },
-                                label = { Text("浏览文件") },
-                                leadingIcon = { Icon(Icons.Outlined.FolderOpen, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
-                            AssistChip(
-                                onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
-                                label = { Text("写个脚本") },
-                                leadingIcon = { Icon(Icons.Outlined.Code, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
-                            AssistChip(
-                                onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
-                                label = { Text("新建项目") },
-                                leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
-                            AssistChip(
-                                onClick = { navigate(if (thread == null) "threads" else "review") },
-                                label = { Text("代码审查") },
-                                leadingIcon = { Icon(Icons.Outlined.FactCheck, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AssistChip(
+                                    onClick = { navigate("files") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-files"),
+                                    label = { Text("浏览文件", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp)) }
+                                )
+                                AssistChip(
+                                    onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-script"),
+                                    label = { Text("写个脚本", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.Code, null, Modifier.size(18.dp)) }
+                                )
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AssistChip(
+                                    onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-project"),
+                                    label = { Text("新建项目", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(18.dp)) }
+                                )
+                                AssistChip(
+                                    onClick = { navigate(if (thread == null) "threads" else "review") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-review"),
+                                    label = { Text("代码审查", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.FactCheck, null, Modifier.size(18.dp)) }
+                                )
+                            }
                         }
                     }
                 }
@@ -378,7 +386,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             CodexNotice(reason, NoticeTone.Warning,
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
-        errors["conversation"]?.let { reason ->
+        (if (status == EngineStatus.Connected) errors["conversation"] else null)?.let { reason ->
             CodexNotice(
                 reason, NoticeTone.Error,
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
