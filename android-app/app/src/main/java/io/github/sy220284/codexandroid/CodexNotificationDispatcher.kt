@@ -16,24 +16,20 @@ internal object CodexNotificationDispatcher {
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
         if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
+        // MCP registration and OAuth are agent/runtime responsibilities.
+        // Refresh only live service availability after their lifecycle events.
         if (method == "mcpServer/oauthLogin/completed") {
-            val matching = McpServiceAuthPolicy.matchesCompletion(data.value["mcpLogin"], params)
-            if (matching) {
-                data.value = data.value - "mcpLogin"
-                if (params.optBoolean("success")) {
-                    errors.value = errors.value - "mcpLogin"
-                    actionFeedback.emit(ActionFeedbackReceipt("扩展服务授权已完成，正在核对连接状态"))
-                } else {
-                    val reason = params.optString("error").ifBlank { "请重新进行授权" }
-                    errors.value = errors.value + ("mcpLogin" to reason)
-                    actionFeedback.emit(ActionFeedbackReceipt(
-                        "扩展服务授权失败：" + PresentationPolicy.readableError(reason),
-                        isError = true
-                    ))
-                }
-            }
             refresh("mcp", "mcpServerStatus/list",
                 CatalogRequestContract.mcpStatus(activeThread.value))
+            return
+        }
+        if (method == "mcpServer/startupStatus/updated") {
+            val targetThread = params.optString("threadId").takeIf { it.isNotBlank() }
+            if ((targetThread == null || targetThread == activeThread.value) &&
+                params.optString("status") in setOf("ready", "failed", "cancelled")) {
+                refresh("mcp", "mcpServerStatus/list",
+                    CatalogRequestContract.mcpStatus(activeThread.value))
+            }
             return
         }
         if (method == "account/login/completed") {
