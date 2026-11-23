@@ -521,13 +521,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Column(Modifier.fillMaxWidth().fillMaxHeight(.88f).navigationBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("当前项目终端", style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text("项目终端", style = MaterialTheme.typography.titleMedium)
+                        Text(PresentationPolicy.workspaceName(selectedWorkspace),
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    }
                     IconButton(onClick = { showTerminalSheet = false }) {
                         Icon(Icons.Outlined.Close, "收起终端")
                     }
                 }
-                Box(Modifier.weight(1f)) { TerminalPage(vm) }
+                Box(Modifier.weight(1f)) { TerminalPage(vm, embedded = true) }
             }
         }
     }
