@@ -9,6 +9,11 @@ object NavigationPolicy {
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }
     fun isCommon(id: String) = id in sidebarRoutes
+    /** Old saved stacks may still contain routes that are now shown as sheets. */
+    fun pageHistory(routes: List<String>): List<String> = routes.filter {
+        UiFeatureCatalog.byRoute[it]?.surface in
+            setOf(FeatureSurface.Page, FeatureSurface.Reader)
+    }
     // 设置归属只用于设置项高亮；任务工具与工作区页面有独立归属。
     fun isSettingsChild(id: String) = id in settingsRoutes
     // 所有二级全屏页面保留返回按钮，返回实际来路而非误认为设置页。

@@ -26,6 +26,10 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))
+        assertEquals(listOf("home", "chat", "limits"),
+            NavigationPolicy.pageHistory(listOf("home", "threads", "chat", "queue", "limits")))
+        assertEquals(emptyList<String>(),
+            NavigationPolicy.pageHistory(listOf("search", "approvals", "about")))
     }
 
     @Test fun userRoutesRemainRegisteredAndSettingsExcludeWorkActions() {

@@ -210,10 +210,24 @@ fun CodexShell(vm: CodexViewModel) {
     // An older saved route may still point to a screen now owned by an overlay.
     LaunchedEffect(Unit) {
         val restored = selected
-        if (UiFeatureCatalog.isSheet(restored)) {
-            selected = "home"
-            backHistory = listOf("home")
-            move(restored)
+        // A previous build could save sheet destinations as full navigation entries.
+        // Strip them from the back stack before either restoring or navigating.
+        val history = NavigationPolicy.pageHistory(backHistory)
+        when {
+            UiFeatureCatalog.isSheet(restored) -> {
+                selected = history.lastOrNull() ?: "home"
+                backHistory = history.ifEmpty { listOf("home") }
+                move(restored)
+            }
+            UiFeatureCatalog.byRoute[restored]?.surface !in
+                setOf(FeatureSurface.Page, FeatureSurface.Reader) -> {
+                selected = "settings"
+                backHistory = (history + "settings").takeLast(18)
+            }
+            else -> {
+                backHistory = (if (history.lastOrNull() == restored) history
+                    else history + restored).takeLast(18)
+            }
         }
     }
     LaunchedEffect(pendingResumeRoute, showThreadLibrary, activeThread) {
