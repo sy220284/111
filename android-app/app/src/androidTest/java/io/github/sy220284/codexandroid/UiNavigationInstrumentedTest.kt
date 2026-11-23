@@ -217,8 +217,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
         val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
+        val emptyPanel = rule.onNodeWithTag("terminal-console-empty").fetchSemanticsNode().boundsInRoot
         val commandArea = rule.onNodeWithTag("terminal-command-input").fetchSemanticsNode().boundsInRoot
         assertTrue("终端输出区应位于输入区上方", output.bottom <= commandArea.top)
+        assertTrue("空输出面板应填满终端输出区", emptyPanel.height >= output.height - 8f)
         capture("terminal-android35.png")
         rule.onNodeWithText("输入命令").performTextInput("pwd")
         rule.runOnUiThread {
