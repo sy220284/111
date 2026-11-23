@@ -295,8 +295,8 @@
 | `skills/config/write` | Android→服务端 | 更新技能启停配置 | `SkillsConfigWriteParams → SkillsConfigWriteResponse` | 直接操作：设置→扩展能力 | 技能行开关（结果回滚） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `plugin/install` | Android→服务端 | 安装插件 | `PluginInstallParams → PluginInstallResponse` | 直接操作：设置→扩展能力 | 插件安装确认（能力/来源/权限） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `plugin/uninstall` | Android→服务端 | 卸载插件 | `PluginUninstallParams → PluginUninstallResponse` | 直接操作：设置→扩展能力 | 插件卸载确认（影响范围） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `mcpServer/oauth/login` | Android→服务端 | 发起 MCP 服务授权 | `McpServerOauthLoginParams → McpServerOauthLoginResponse` | 直接操作：设置→扩展能力 | MCP OAuth 授权 Sheet | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | MCP 服务状态列表＋连接状态标签 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
+| `mcpServer/oauth/login` | Android→服务端 | 发起 MCP 服务授权 | `McpServerOauthLoginParams → McpServerOauthLoginResponse` | 直接操作：设置→扩展能力 | 仅 authStatus=notLoggedIn 的第三方服务可发起 OAuth；codex_apps 转 ChatGPT 账号 | 核对服务身份与官方 authStatus→按环境/线程范围提交 OAuth→匹配 loginId 的完成通知→刷新状态与失败恢复 | Android 认证分流及通知回刷已实现；单测和设备 CI 待验收，外部 OAuth 真环境待联调 | P1 |
+| `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | MCP 服务状态列表＋官方认证状态、账号/配置入口及重试 | 读取当前线程状态→按官方五态显示权限→账号变更或 OAuth 完成后刷新→验证实际连接 | Android 页面与状态映射已修改；单测和设备 CI 待验收，真实 ChatGPT 托管服务待联调 | P1 |
 | `mcpServer/resource/read` | Android→服务端 | 读取 MCP 资源 | `McpResourceReadParams → McpResourceReadResponse` | 后台处理：智能体/MCP 协议层 | 用户端仅呈现服务授权、审批与任务执行反馈 | 智能体自动调用工具或读取资源；Android 不提供手动调用表单 | 已移除手动 UI 入口并保留后台协议；待真实服务验证 | P1 |
 | `mcpServer/event/stream/start` | Android→服务端 | 订阅 MCP 事件流 | `McpServerEventStreamStartParams → McpServerEventStreamStartResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
 | `mcpServer/event/stream/stop` | Android→服务端 | 取消 MCP 事件流 | `McpServerEventStreamStopParams → McpServerEventStreamStopResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
@@ -406,3 +406,11 @@
 
 - 合并提交：[`d7ae30df`](https://github.com/sy220284/111/commit/d7ae30df3eab8473ea5def24a398aebe6f6197bb)；PR 最终 HEAD `ef4fbcbeb702bd1dc413b3b911668fad110a72a7` 的 [UI/协议 CI #45138957127](https://github.com/sy220284/111/actions/runs/45138957127) **4/4 通过**。360/393/411dp 各 69 项 Android 35 仪器测试通过，三档截图归档；393dp 安装器 Install → Open 回归通过。
 - 本次修改手机页面布局、IME 空间策略与屏幕测试范围；195 项官方方法、Rust DTO、UI 归属来源及后台 Host 调用方向保持原实现。真实服务端与 ARM64 厂商真机等专项继续按原状态追踪。
+
+## 2026-11-23 MCP 登录方式与错误呈现专项核查（修复分支）
+
+- 截图复现症状：`codex_apps` 登录触发 Dynamic Client Registration，返回 HTTP 405 与 ChatGPT HTML 页面；UI 错误卡直接展示网页源码。
+- 上游契约核实：`codex_apps` 来自 `hosted_plugin_runtime_mcp_server_config`，使用 `McpServerAuth::ChatGpt`；锁定 `McpAuthStatus` 为 `unknown / unsupported / notLoggedIn / bearerToken / oAuth`。此前 Android 只判断“已授权”字面量，错误地放开所有服务的 OAuth 按钮。
+- 修复位置：`McpServiceAuthPolicy.kt` 收口认证类型、OAuth 资格及 `environmentId/threadId`；`IntegrationScreens.kt` 仅提供匹配的账号、OAuth、配置动作；`CodexNotificationDispatcher.kt` 用 `loginId` 匹配授权完成并刷新状态；`PresentationPolicy.kt` 与 `ActionFeedbackCopy.kt` 将 HTTP/HTML 错误变成可行动的中文摘要，保留原始错误于运行时。
+- 跨模块检查：`PresentationPolicy.serviceState` 对 `authenticationRequired / disabled / cancelled / notStarted` 统一中文状态；账号登录完成和切换后刷新 MCP 列表；智能体后台 MCP 工具、资源与审批接口保持原有归属。
+- 验收分级：认证策略单测、交互仪器测试与 CI 均以实际成功记录为准；ChatGPT 托管端真实连接、第三方 OAuth 回跳及 ARM64 真机网络验证单列，不以 UI 截图替代。
