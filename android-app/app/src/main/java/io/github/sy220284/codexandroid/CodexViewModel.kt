@@ -154,19 +154,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
-    // Bound transient library-query state. The source of truth remains the local Codex core.
-    private val dynamicRequestHistory = ArrayDeque<String>()
-    private fun retainRecentQuery(key: String) {
-        if (!key.startsWith("library:") && !key.startsWith("fullSearch:")) return
-        dynamicRequestHistory.remove(key)
-        dynamicRequestHistory.addLast(key)
-        while (dynamicRequestHistory.size > 32) {
-            val oldest = dynamicRequestHistory.removeFirst()
-            latestRequests.cancel(oldest)
-            data.value = data.value - oldest
-            errors.value = errors.value - oldest
-            loading.value = loading.value - oldest
-        }
+    // Query cache ownership is independent of the ViewModel's RPC orchestration.
+    private val dynamicRequestHistory by lazy {
+        TransientRequestCache(latestRequests, data, errors, loading)
     }
 
     private fun request(
@@ -186,7 +176,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
-        retainRecentQuery(key)
+        dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
         data.value = data.value - key
         errors.value = errors.value - key
