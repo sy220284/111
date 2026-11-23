@@ -59,6 +59,7 @@ internal object AppUpdateManager {
 
     @Volatile private var readyApk: File? = null
     @Volatile private var readySha: String? = null
+    @Volatile private var readyVersionCode: Long? = null
     @Volatile private var waitingForPermission = false
     private var task: Job? = null
 
@@ -69,10 +70,12 @@ internal object AppUpdateManager {
         val owner = WeakReference(activity)
         readyApk = null
         readySha = null
+        readyVersionCode = null
         waitingForPermission = false
         task = scope.launch {
             var temporary: File? = null
             var recovered: File? = null
+            var stagingRoot: File? = null
             try {
                 val info = app.packageManager.getPackageInfo(app.packageName, 0)
                 val installedVersion = info.versionName.orEmpty()
@@ -107,17 +110,14 @@ internal object AppUpdateManager {
                 }
                 val apkUrl = urls[manifest.apk.name]
                     ?: throw IOException("正式版 APK 下载地址缺失")
-                val outputDir = File(app.cacheDir, "updates")
-                if (!outputDir.isDirectory && !outputDir.mkdirs()) {
-                    throw IOException("无法创建更新缓存目录")
-                }
+                // An explicit update attempt supersedes the last installer handoff.
+                // The staging directory starts empty; a verified APK is protected
+                // only once ownership is transferred to the system installer.
+                val outputDir = UpdateCache.prepare(
+                    app.cacheDir, installedCode, System.currentTimeMillis()
+                )
+                stagingRoot = outputDir
                 val output = File(outputDir, "codex-update-${manifest.targetVersion}.apk")
-                outputDir.listFiles()?.filter { file ->
-                    file.isFile && file.name.startsWith("codex-update-") &&
-                        file.name.endsWith(".apk") && file != output
-                }?.forEach { stale ->
-                    if (!stale.delete()) throw IOException("无法清理过期的安装包缓存")
-                }
                 temporary = File(outputDir, "update-download.part")
                 recovered = File(outputDir, "update-reconstructed.part")
                 temporary.delete()
@@ -171,6 +171,7 @@ internal object AppUpdateManager {
                 verifyInstalledSigner(app, output)
                 readyApk = output
                 readySha = manifest.apk.sha256
+                readyVersionCode = requireNotNull(UpdateManifest.versionCode(manifest.targetVersion))
                 mutableState.value = AppUpdateState(
                     UpdatePhase.READY,
                     (if (deltaUsed) "增量更新已完成。" else fallbackNotice) +
@@ -183,9 +184,11 @@ internal object AppUpdateManager {
                     withContext(Dispatchers.Main) { requestSystemInstall(activeActivity) }
                 }
             } catch (e: CancellationException) {
+                if (readyApk == null) stagingRoot?.let(UpdateCache::discard)
                 set(UpdatePhase.IDLE, "更新已取消。")
                 throw e
             } catch (e: Exception) {
+                if (readyApk == null) stagingRoot?.let(UpdateCache::discard)
                 set(UpdatePhase.ERROR, "更新失败：${e.message ?: e.javaClass.simpleName}")
             } finally {
                 temporary?.delete()
@@ -224,6 +227,8 @@ internal object AppUpdateManager {
 
     private fun requestSystemInstall(activity: Activity) {
         val file = readyApk ?: return
+        val targetVersionCode = readyVersionCode ?: return
+        val app = activity.applicationContext
         if (!activity.packageManager.canRequestPackageInstalls()) {
             waitingForPermission = true
             set(UpdatePhase.NEEDS_PERMISSION, "下载完成。需要允许此 App 安装更新，授权后继续。")
@@ -240,8 +245,13 @@ internal object AppUpdateManager {
         waitingForPermission = false
         try {
             val uri = FileProvider.getUriForFile(
-                activity, "${activity.packageName}.updateprovider", file)
-            activity.startActivity(systemInstallIntent(uri))
+                app, "${app.packageName}.updateprovider", file)
+            // The installer may read this APK after Android terminates our process.
+            UpdateCache.markInstallerHandoff(
+                File(app.cacheDir, "updates"), file,
+                targetVersionCode, System.currentTimeMillis()
+            )
+            app.startActivity(systemInstallIntent(uri))
             set(UpdatePhase.INSTALLING, "安装包已交给 Android 系统，请确认安装。")
         } catch (e: Exception) {
             set(UpdatePhase.READY, "系统安装界面打开失败：${e.message}，可重试。")
@@ -249,9 +259,9 @@ internal object AppUpdateManager {
     }
 
     /**
-     * A self-update replaces and stops the process that owns the current Activity.
-     * Keep the system installer in its own task so its "Open" action does not rely
-     * on an activity stack belonging to the application being replaced.
+     * Match 777: hand the installer a verified content URI from application Context
+     * using NEW_TASK. MULTIPLE_TASK would force extra task instances and can alter
+     * the OEM installer's Open/back-stack behavior without any benefit here.
      */
     internal fun systemInstallIntent(uri: Uri): Intent =
         Intent(Intent.ACTION_VIEW)
@@ -259,8 +269,7 @@ internal object AppUpdateManager {
             .apply { clipData = ClipData.newRawUri("verified-update", uri) }
             .addFlags(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                    Intent.FLAG_ACTIVITY_NEW_TASK
             )
 
     private fun set(
