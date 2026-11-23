@@ -20,10 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-/**
- * A shared reactive projection for every UI that can interrupt core work or
- * touch the process-wide local archive. All six inputs trigger recomposition.
- */
+/** One reactive projection for all core/data disruption controls. */
 @Composable
 internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val visible by vm.running.collectAsState()
@@ -33,8 +30,14 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val approvals by vm.bridge.prompts.collectAsState()
     val transfer by AppDataTransfer.state.collectAsState()
     val requests by vm.loading.collectAsState()
+    val wireRequests by vm.bridge.activeRpcRequests.collectAsState()
     val login by vm.loginBusy.collectAsState()
     val planApproval by vm.planApprovalBusy.collectAsState()
+    val threadSwitching by vm.threadSwitching.collectAsState()
+    val terminalStarting by vm.terminalStarting.collectAsState()
+    val securitySave by vm.securitySaveBusy.collectAsState()
+    val coreStatus by vm.bridge.status.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsState()
     return GlobalWorkSnapshot(
         visibleTurnRunning = visible,
         executingThreads = executions.size,
@@ -42,9 +45,14 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
         terminalRunning = terminal.running,
         pendingApprovals = approvals.size,
         dataTransferBusy = transfer.busy,
-        inFlightRequests = requests.size,
+        inFlightRequests = requests.size + wireRequests.size,
         loginBusy = login,
-        planApprovalBusy = planApproval
+        planApprovalBusy = planApproval,
+        switchingThread = threadSwitching,
+        terminalStarting = terminalStarting,
+        securitySaveBusy = securitySave,
+        coreStarting = coreStatus == EngineStatus.Starting,
+        restarting = restarting
     )
 }
 

@@ -30,6 +30,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeThread = MutableStateFlow<String?>(null)
     internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
+    /** True across the entire permissions save + effective-config readback. */
+    val securitySaveBusy = MutableStateFlow(false)
+    /** Reserved before asynchronous foreground-service startup for terminal commands. */
+    val terminalStarting = MutableStateFlow(false)
     val activeTurn = MutableStateFlow<String?>(null)
     val running = MutableStateFlow(false)
     /** All running threads, including tasks no longer visible on the current page. */
@@ -164,13 +168,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private fun request(
         key: String,
         method: String,
-        params: JSONObject,
+        params: JSONObject?,
         onSuccess: ((JSONObject) -> Unit)?,
         userAction: Boolean = false
     ) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return
         if (method in setOf("thread/delete", "thread/archive") &&
-            params.optString("threadId") in threadExecutions.value) {
+            params?.optString("threadId")?.let { it in threadExecutions.value } == true) {
             val reason = "所选会话仍有执行中的任务，请先停止或等待完成后再整理"
             errors.value = errors.value + (key to reason)
             if (userAction) viewModelScope.launch {
@@ -212,7 +216,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh(
         key: String,
         method: String,
-        params: JSONObject = JSONObject(),
+        params: JSONObject? = JSONObject(),
         onSuccess: ((JSONObject) -> Unit)? = null
     ) = request(key, method, params, onSuccess)
 
@@ -240,6 +244,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         val targets = ThreadBulkActionPolicy.uniqueIds(ids)
         if (targets.isEmpty()) return
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("threadLibraryBulk" to "本机备份或恢复正在进行，完成后再整理会话")
+            return
+        }
         if (firstThreadStarting.value || threadSwitching.value ||
             targets.any { it in threadExecutions.value } ||
             "threadLibraryBulk" in loading.value) {
@@ -291,6 +299,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun chooseThread(id: String, onOpened: (() -> Unit)? = null) {
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再切换会话")
+            return
+        }
         // Serialize resume requests: multiple rapid taps must not race the active session.
         if (threadSwitching.value) return
         if (firstThreadStarting.value) {
@@ -372,6 +384,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun approvePlan(markdown: String) = workspaceTasks.approvePlan(markdown)
 
     fun newThread() {
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再新建会话")
+            return
+        }
         if (threadSwitching.value) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后再新建任务")
             return
@@ -442,23 +458,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 threadActivities.value, submittedThread, ThreadActivity.Running)
         }
         running.value = true
-        try {
-            CodexForegroundService.start(getApplication())
-        } catch (failure: Exception) {
-            if (submittedThread == null) {
-                firstThreadStarting.value = false
-                firstTurnImages = emptyList()
-            } else {
-                threadExecutions.value = ThreadExecutionPolicy.finish(
-                    threadExecutions.value, submittedThread)
-                threadActivities.value = ThreadActivityPolicy.updated(
-                    threadActivities.value, submittedThread, ThreadActivity.Idle)
-            }
-            running.value = false
-            errors.value = errors.value + ("conversation" to
-                ("无法启动后台任务保护：" + (failure.message ?: "系统拒绝启动前台服务")))
-            return
-        }
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
         val chosenWorkspace = activeWorkspace.value
@@ -473,6 +472,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"),
                 "sending")
             try {
+                // Android must confirm foreground mode before any turn RPC is sent.
+                CodexForegroundService.startAndAwaitReady(getApplication())
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
                 }

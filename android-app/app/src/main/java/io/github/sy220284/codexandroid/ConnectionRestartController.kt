@@ -10,6 +10,12 @@ import kotlinx.coroutines.withContext
 internal object ConnectionRestartPolicy {
     fun canRestart(snapshot: GlobalWorkSnapshot): Boolean =
         snapshot.canDisruptCoreOrData
+
+    /** The caller already owns the restart lease. Ignore only that lease while
+     * rechecking unrelated work immediately before disposing the core.
+     */
+    fun canContinueOwnedRestart(snapshot: GlobalWorkSnapshot): Boolean =
+        snapshot.copy(restarting = false).canDisruptCoreOrData
 }
 
 internal class ConnectionRestartController(private val vm: CodexViewModel) {
@@ -36,7 +42,7 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
         if (!busy.compareAndSet(false, true)) return
         vm.viewModelScope.launch {
             try {
-                check(ConnectionRestartPolicy.canRestart(vm.globalWorkSnapshot())) {
+                check(ConnectionRestartPolicy.canContinueOwnedRestart(vm.globalWorkSnapshot())) {
                     "任务或数据备份状态已变化，内核重启已取消"
                 }
                 withContext(Dispatchers.IO) { vm.bridge.close() }

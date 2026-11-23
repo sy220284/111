@@ -85,6 +85,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectAsState()
+    val terminalStarting by vm.terminalStarting.collectAsState()
     val errors by vm.errors.collectAsState()
     var historicalStdout by remember(session.processId) { mutableStateOf("") }
     var historicalOffset by remember(session.processId) { mutableStateOf<Long?>(null) }
@@ -423,14 +424,14 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
                     Switch(checked = interactive, onCheckedChange = { interactive = it },
-                        enabled = !session.running)
+                        enabled = !session.running && !terminalStarting)
                 }
                 OutlinedButton(onClick = { confirm = true },
-                    enabled = command.isNotBlank() && !session.running,
+                    enabled = command.isNotBlank() && !session.running && !terminalStarting,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.PlayArrow, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("执行命令")
+                    Text(if (terminalStarting) "正在启动后台保护…" else "执行命令")
                 }
             }
         }

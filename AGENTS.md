@@ -25,6 +25,14 @@
 - 所有 29 项功能必须经过 `check_full_feature_workflows.py` 的注册路由、源码归属、回归测试/截图声明和 Rust 方法校验；生成的证据表只证明静态路径，真实核心回执与真机专项必须另行记录，不能把 195 个方法的目录覆盖计为 195 个功能验证通过。
 - 正式手机版交付 ARM64；Android 35 360/393/411dp 模拟器用于 UI 回归。发布与厂商真机采用独立真实验收证据。
 
+## 2026-11-23 共享底层请求、全局占用与后台服务就绪规则
+
+- **RPC 线缆语义集中管理**：使用 `RpcWireRequest` 序列化。对 Rust `Option<()>` 的无参数方法，必须省略 `params`；对其他方法明确的空对象保持 `{}`。MCP `config/mcpServer/reload` 先完成有效重载，随后读取并展示新状态；旧配置下的连接目录在重载期间清除。
+- **全局占用从真实内核请求统一汇总**：`CodexConnection.activeRpcRequests` 为一切在途直接 RPC（含配置保存、会话恢复、终端请求）的权威来源；全局门禁额外包含会话切换、终端启动、权限保存回读、核心启动及重启过渡态。备份/恢复、重启、安装升级和后台释放采用同一 `GlobalWorkSnapshot`，用户操作入口与执行时二次核验。日常并行会话发送保持可用。
+- **前台服务的成功由 Android 实际回执决定**：`startForegroundService` 只表示已请求启动；`CodexForegroundService` 成功调用 `startForeground` 后才发出就绪状态。聊天与终端长任务都应等待就绪回执，再发送执行 RPC；失败/超时明确反馈且保留用户输入。终端待启动状态进入全局占用及通知续存，防止服务刚启动便被空闲回收。
+- **权限保存跨页面延续**：默认权限写入、有效配置回读由进程级 `viewModelScope` 持有，保存前同步占用状态，直至读回或明确失败才释放，离开页面不截断操作。
+- **验收级别**：`RpcWireRequestTest`、`GlobalWorkSnapshotTest`、`ForegroundServiceReadinessTest` 与真实 Android `RuntimeOwnershipInstrumentedTest` 共同覆盖代码和设备级前台服务启动。厂商后台限制及真实第三方 MCP 授权继续要求独立真机回执。
+
 ## 十条固定优化执行规则（全模块强制适用）
 
 执行角色：111 项目的产品架构、Android 开发、UI 交互、协议和测试整合负责人。

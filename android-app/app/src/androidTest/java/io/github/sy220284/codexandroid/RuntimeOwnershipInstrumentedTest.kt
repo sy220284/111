@@ -6,6 +6,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,6 +14,18 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RuntimeOwnershipInstrumentedTest {
+    @Test fun foregroundServiceReportsReadyOnlyAfterAndroidPromotion() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+            .applicationContext as CodexApplication
+        // Keep service alive during readiness verification, then return control.
+        app.session.terminalStarting.value = true
+        try {
+            CodexForegroundService.startAndAwaitReady(app)
+        } finally {
+            app.session.terminalStarting.value = false
+        }
+    }
+
     @Test fun serviceAndActivityReferToSameProcessRuntime() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
             .applicationContext as CodexApplication

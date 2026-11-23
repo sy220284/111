@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,7 +62,16 @@ class CodexForegroundService : Service() {
         ).apply { description = "长任务进度、审批提醒和停止操作" })
 
         // A foreground notification must exist immediately, before collecting flows.
-        showNotification(TaskNotificationState(true, 1, false, 0, true, 0, false), foreground = true)
+        try {
+            showNotification(TaskNotificationState(true, 1, false, 0, true, 0, false), foreground = true)
+            readiness.ready()
+        } catch (failure: Exception) {
+            val reason = failure.message ?: "系统拒绝前台服务启动"
+            Log.e("CodexForegroundService", "前台服务未能进入就绪状态", failure)
+            readiness.failed(reason)
+            stopSelf()
+            return
+        }
 
         val session = (application as CodexApplication).session
         watch = scope.launch {
@@ -71,8 +81,10 @@ class CodexForegroundService : Service() {
                 executions.size + if (starting || (visibleRunning && executions.isEmpty())) 1 else 0
             }
             val activeWork = combine(
-                activeCount, session.terminalSession, session.bridge.prompts
-            ) { count, terminal, prompts -> Triple(count, terminal.running, prompts.size) }
+                activeCount, session.terminalSession, session.terminalStarting, session.bridge.prompts
+            ) { count, terminal, starting, prompts ->
+                Triple(count, terminal.running || starting, prompts.size)
+            }
             combine(
                 activeWork, session.bridge.status, session.timeline, session.activeTurn
             ) { work, status, timeline, turn ->
@@ -83,7 +95,8 @@ class CodexForegroundService : Service() {
                     approvals = work.third,
                     connected = status == EngineStatus.Connected,
                     events = timeline.size,
-                    canStop = (session.running.value && !turn.isNullOrBlank()) || work.second
+                    canStop = (session.running.value && !turn.isNullOrBlank()) ||
+                        session.terminalSession.value.running
                 )
             }.distinctUntilChanged().collectLatest { state ->
                 if (!ForegroundTaskPolicy.shouldKeepAlive(
@@ -104,7 +117,8 @@ class CodexForegroundService : Service() {
                             while (isActive && ForegroundTaskPolicy.shouldKeepAlive(
                                     session.threadExecutions.value.isNotEmpty() ||
                                         session.running.value || session.firstThreadStarting.value,
-                                    session.terminalSession.value.running,
+                                    session.terminalSession.value.running ||
+                                        session.terminalStarting.value,
                                     session.bridge.prompts.value.size
                                 ) && session.bridge.status.value != EngineStatus.Connected) {
                                 delay(interval)
@@ -191,6 +205,7 @@ class CodexForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        readiness.stopped()
         watch?.cancel()
         reconnectWatcher?.cancel()
         scope.cancel()
@@ -201,11 +216,24 @@ class CodexForegroundService : Service() {
         private const val ID = 1101
         private const val CHANNEL = "codex-active-turn"
         private const val ACTION_STOP = "io.github.sy220284.codexandroid.STOP_ACTIVE_TURN"
+        private val readiness = ForegroundServiceReadiness()
 
         fun start(context: Context) {
-            androidx.core.content.ContextCompat.startForegroundService(
-                context, Intent(context, CodexForegroundService::class.java)
-            )
+            readiness.begin()
+            try {
+                androidx.core.content.ContextCompat.startForegroundService(
+                    context, Intent(context, CodexForegroundService::class.java)
+                )
+            } catch (failure: Exception) {
+                readiness.failed(failure.message ?: "无法启动前台服务")
+                throw failure
+            }
+        }
+
+        /** Only dispatch a long terminal RPC after Android has started foreground mode. */
+        suspend fun startAndAwaitReady(context: Context) {
+            start(context)
+            readiness.awaitReady()
         }
     }
 }

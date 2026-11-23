@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -32,6 +33,8 @@ class CodexConnection(private val appContext: Context) {
     private val lifecycleMutex = Mutex()
     private val sequence = AtomicLong(1)
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
+    /** Live wire requests, including direct calls from settings, session recovery and terminal. */
+    internal val activeRpcRequests = MutableStateFlow<Set<Long>>(emptySet())
     @Volatile private var process: Process? = null
     @Volatile private var wire: RpcProcessChannel? = null
     private val shutdownHook = Thread({ close() }, "codex-native-process-cleanup")
@@ -205,7 +208,7 @@ class CodexConnection(private val appContext: Context) {
 
     suspend fun request(
         method: String,
-        params: JSONObject = JSONObject(),
+        params: JSONObject? = JSONObject(),
         timeoutMillis: Long? = when (method) {
             "thread/read", "thread/resume" -> 120_000L
             else -> 45_000L
@@ -215,8 +218,9 @@ class CodexConnection(private val appContext: Context) {
         val id = sequence.getAndIncrement()
         val deferred = CompletableDeferred<JSONObject>()
         waiting[id] = deferred
+        activeRpcRequests.update { it + id }
         try {
-            write(JSONObject().put("method", method).put("id", id).put("params", params))
+            write(RpcWireRequest.envelope(method, id, params))
             // Long-running terminal sessions have a user-visible Stop action.
             // All ordinary RPCs retain the bounded 45-second timeout.
             val response = if (timeoutMillis == null) deferred.await()
@@ -224,6 +228,7 @@ class CodexConnection(private val appContext: Context) {
             return RpcResponseContract.requireResult(method, response)
         } finally {
             waiting.remove(id)
+            activeRpcRequests.update { it - id }
         }
     }
 
