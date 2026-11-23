@@ -417,3 +417,10 @@
 - **协议方向与 DTO**：`thread/start`、`turn/start`、`command/exec`、`server/diagnostics` 等业务字段、请求方向、响应封套不变；本次根因修复在主机端运行状态与危险操作入口完成。
 - **验收规则**：`GlobalWorkSnapshotTest`、`ConnectionRestartPolicyTest` 需通过；`UiNavigationInstrumentedTest.offscreenRunningTaskBlocksLocalDataTransferButtons` 需在 Android 35 三档设备确认为后台任务运行时备份/恢复不可选择并保存 `audit-backup-background-block-android35.png`。实际成功的 CI SHA 与链接待 PR 最终执行后追加，未通过前不升级验收等级。
 - **同类排查范围**：文件编辑/导入、会话库整理、任务后续指令、通知保活和独立终端均复查其当前会话/全局运行态归属；其中按线程允许的并行操作沿用独立 ID，破坏性全局操作收敛至统一策略。外部 MCP、真实 ARM64 和 OEM 安装仍需专项回执，#68/#69/#70 以独立 PR 为准。
+
+
+### 本轮延伸查出的终端后台保活链路（PR #71）
+
+- **真实源码缺口**：`TerminalTaskOperations.startTerminalCommand` 原先没有启动前台服务；`CodexForegroundService` 的保活及重连循环仅观察当前可见会话/审批，既不包含终端进程，也遗漏不在当前页的执行会话。手机退到后台时，长终端命令可能丢失保活，通知缺少正确的停止终端语义。
+- **共享修复**：终端成功启动前先调用现有 `CodexForegroundService.start`，服务将终端运行态和后台线程并入持续通知、重连和停止条件；通知在仅有终端时显示“终端命令正在执行”及“停止终端”，按任务实际归属调用 `stopTerminalCommand`，终端/会话完成后服务正常退出。
+- **验收**：`ForegroundTaskPolicyTest` 新增终端独立执行、终端断连重连、后台任务保持与无任务关闭等 JVM 回归。真实 ARM64 长终端命令切后台、厂家系统通知、停止按钮及进程存活仍列专项验证，设备 UI 测试不可直接替代。
