@@ -134,7 +134,8 @@ class UiNavigationInstrumentedTest {
             }
             rule.waitForIdle()
             rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
-            rule.onNodeWithText("正在验证本机备份…").assertExists()
+            rule.onNodeWithTag("data-transfer-busy-message")
+                .assertTextEquals("正在验证本机备份…")
             captureVerifiedDisplayScreenshot("audit-backup-in-progress-android35.png")
             // Pressing Back acknowledges the blocked operation without exposing
             // file/editor controls until the archive reports completion.
