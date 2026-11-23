@@ -592,9 +592,10 @@ class UiPopulatedSubpagesInstrumentedTest {
         val app = JSONObject().put("id", "demo_app").put("name", "示例应用")
             .put("isEnabled", true)
             .put("description", "应用连接的完整功能说明，进入详情后可查看。")
-        vm.data.value = mapOf("apps" to JSONObject()
-            .put("apps", JSONArray().put(app)))
         rule.setContent { CodexTheme { ConnectedAppsPage(vm) {} } }
+        rule.waitForIdle()
+        vm.data.value = vm.data.value + ("apps" to JSONObject()
+            .put("apps", JSONArray().put(app)))
         rule.onNodeWithText("示例应用").assertExists()
         rule.onNodeWithText("应用连接的完整功能说明，进入详情后可查看。")
             .assertDoesNotExist()
