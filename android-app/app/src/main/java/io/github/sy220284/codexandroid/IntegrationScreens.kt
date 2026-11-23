@@ -273,18 +273,50 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     }
 }
 
-/** The management screen deliberately renders no registration, OAuth or tool controls. */
+/** MCP is a read-only directory. Intelligent-agent setup and authorization remain task-owned. */
 @Composable
 internal fun McpServiceStatusCard(server: JSONObject) {
     if (!McpAvailableServices.isUsable(server)) return
+    var details by remember(server.optString("name")) { mutableStateOf(false) }
+    val toolCount = server.optJSONObject("tools")?.length() ?: 0
+    val resourceCount = (server.optJSONArray("resources")?.length() ?: 0) +
+        (server.optJSONArray("resourceTemplates")?.length() ?: 0)
+    val summary = buildList {
+        if (toolCount > 0) add("$toolCount 项工具")
+        if (resourceCount > 0) add("$resourceCount 项资源")
+        if (server.optJSONObject("serverCapabilities")?.optJSONObject("prompts") != null)
+            add("支持指令模板")
+    }.joinToString(" · ")
     MaterialPanel(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { details = !details },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
             Spacer(Modifier.width(10.dp))
-            Text(McpAvailableServices.displayName(server),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f), maxLines = 2)
+            Column(Modifier.weight(1f)) {
+                Text(McpAvailableServices.displayName(server),
+                    style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                if (summary.isNotEmpty()) {
+                    Text(summary, color = Ink.muted,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
             StatusPill("可用", true)
+            Spacer(Modifier.width(4.dp))
+            Icon(if (details) Icons.Outlined.ExpandLess else Icons.Outlined.ChevronRight,
+                contentDescription = if (details) "收起服务详情" else "查看服务详情",
+                tint = Ink.muted)
+        }
+        CodexReveal(details) {
+            DividerLine()
+            Text(server.optString("description").ifBlank {
+                "服务已连接，可用能力由智能体在任务中选择调用。"
+            }, style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            Text("工具 $toolCount 项 · 资源 $resourceCount 项",
+                style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
+            Text("由智能体管理连接与授权；此处仅展示已就绪的服务。",
+                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
         }
     }
 }
