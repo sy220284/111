@@ -88,6 +88,9 @@ fun CollaborationModesPage(vm: CodexViewModel) {
 
 @Composable
 fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+    val engineStatus by vm.bridge.status.collectAsState()
+    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val apps = records(data["apps"])
@@ -103,8 +106,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("应用连接", style = MaterialTheme.typography.titleMedium)
-                Text(if (data["apps"] != null) "${apps.size} 个可用应用" else "正在读取应用",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                Text(when {
+                    engineStatus != EngineStatus.Connected -> "运行核心未连接"
+                    "apps" in loading || "appInstalled" in loading -> "正在读取应用"
+                    errors["apps"] != null || errors["appInstalled"] != null -> "读取应用失败"
+                    data["apps"] != null -> "${apps.size} 个可用应用"
+                    else -> "尚未读取"
+                }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
@@ -119,6 +127,19 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
             vm.refresh("appInstalled", "app/installed")
         })
+        if (engineStatus != EngineStatus.Connected && data["apps"] == null) {
+            CodexRecoveryState("连接后可查看应用",
+                "连接运行核心后会显示真实的应用授权与可用状态。",
+                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+        } else if (engineStatus == EngineStatus.Connected &&
+            data["apps"] == null && "apps" !in loading && errors["apps"] != null) {
+            CodexRecoveryState("读取应用失败",
+                "当前应用目录未返回有效结果，可重新读取或查看诊断。",
+                "重新读取", {
+                    vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
+                    vm.refresh("appInstalled", "app/installed")
+                }, { navigate("diagnostics") })
+        }
         if (apps.isEmpty() && data["apps"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
             Text("检查登录状态，或进入插件管理查看可用的扩展。",
@@ -206,7 +227,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel) {
+fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
@@ -230,14 +251,23 @@ fun McpServicesPage(vm: CodexViewModel) {
         }
         ProtocolFeedback(vm, listOf("mcp", "mcpReload"),
             onRetry = { vm.refreshMcpServices() })
-        if (usable.isEmpty() && "mcp" !in loading &&
-            (data["mcp"] != null || engineStatus != EngineStatus.Connected)) {
-            CodexEmptyState(
-                "暂无可用 MCP 服务",
-                if (engineStatus != EngineStatus.Connected) "连接本机运行核心后查看可用服务。"
-                else "在任务对话中告诉智能体要接入的 MCP 服务。配置并连接成功后会显示在这里。",
-                icon = Icons.Outlined.Hub
-            )
+        if (usable.isEmpty() && "mcp" !in loading) {
+            if (engineStatus != EngineStatus.Connected) {
+                CodexRecoveryState("连接后可查看 MCP 服务",
+                    "由智能体管理服务，连接成功的可用服务才会显示。",
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+            } else if (data["mcp"] != null) {
+                CodexEmptyState(
+                    "暂无可用 MCP 服务",
+                    "在任务对话中要求智能体接入 MCP 服务，连通后会自动显示。",
+                    icon = Icons.Outlined.Hub,
+                    actionLabel = "刷新服务", onAction = { vm.refreshMcpServices() }
+                )
+            } else {
+                CodexRecoveryState("MCP 目录尚未读取",
+                    "连接成功后可以重新检查服务目录。",
+                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") })
+            }
         }
         usable.forEach { McpServiceStatusCard(it) }
     }
