@@ -35,7 +35,11 @@ import org.json.JSONObject
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
+fun ThreadLibraryPage(
+    vm: CodexViewModel,
+    navigate: (String) -> Unit,
+    initialFullText: Boolean = false
+) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -60,7 +64,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var archived by rememberSaveable { mutableStateOf(false) }
     var searchText by rememberSaveable { mutableStateOf("") }
     var searchTerm by rememberSaveable { mutableStateOf("") }
-    var fullText by rememberSaveable { mutableStateOf(false) }
+    var fullText by rememberSaveable(initialFullText) { mutableStateOf(initialFullText) }
     var fullSubmitted by rememberSaveable { mutableStateOf("") }
     var selectedSection by rememberSaveable { mutableStateOf("") }
     var showSectionEditor by remember { mutableStateOf(false) }
@@ -79,6 +83,15 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var rename by remember { mutableStateOf<JSONObject?>(null) }
     var newName by rememberSaveable { mutableStateOf("") }
     var action by remember { mutableStateOf<Pair<String, JSONObject>?>(null) }
+    var openingThreadId by remember { mutableStateOf<String?>(null) }
+    fun openThread(id: String) {
+        if (id.isBlank()) return
+        openingThreadId = id
+        vm.chooseThread(id) {
+            openingThreadId = null
+            navigate("chat")
+        }
+    }
     // Bind the result to the exact server query: switching filters or pages
     // must never display results from a previous selection.
     val key = ThreadLibraryQuery.key(archived, searchTerm, selectedSection, cursor)
@@ -89,6 +102,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val fullKey = ThreadLibraryQuery.fullTextKey(fullSubmitted)
     val fullResults = if (fullSubmitted.isNotBlank()) records(data[fullKey]) else emptyList()
     val fullPending = fullSubmitted.isNotBlank() && fullKey in loading
+    val showingSubmittedQuery = ThreadSearchSubmission.matches(searchText, fullSubmitted)
+    val fullResultsReady = data[fullKey] != null && !fullPending &&
+        fullKey !in errors && showingSubmittedQuery
 
     fun load(pageCursor: String?) {
         vm.refresh(key, "thread/list",
@@ -136,8 +152,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         item {
-            SectionIntro("WORKSPACE / THREADS", "会话资料库",
-                "整理正在使用的会话与归档记录，所有操作交由 Codex 内核执行。")
+            SectionIntro("", if (fullText) "全文检索" else "会话资料库",
+                if (fullText) "按正文查找历史任务，打开结果后继续会话。"
+                else "整理正在使用的会话与归档记录。")
         }
         item {
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -292,18 +309,28 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
+        if (openingThreadId != null && switching) item {
+            CodexNotice("正在恢复所选会话，完成后将进入任务对话。", NoticeTone.Info)
+        }
+        if (openingThreadId != null && !switching) {
+            errors["conversation"]?.let { item {
+                CodexNotice(PresentationPolicy.readableError(it), NoticeTone.Error)
+            } }
+        }
         if (fullText) {
             if (fullPending) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             errors[fullKey]?.let { item { ErrorText(it) } }
             if (fullSubmitted.isBlank()) {
                 item { CodexEmptyState("在历史正文中查找", "输入关键词并点击搜索，结果来自当前 Codex 内核。") }
-            } else if (!fullPending && fullResults.isEmpty() && fullKey !in errors) {
+            } else if (!showingSubmittedQuery) {
+                item { CodexNotice("搜索词已改变，重新提交后显示对应结果。", NoticeTone.Info) }
+            } else if (fullResultsReady && fullResults.isEmpty()) {
                 item { CodexEmptyState("没有全文检索结果", "尝试减少关键词或切回标题搜索。") }
             }
-            items(fullResults, key = { "full-" + it.optString("id") }) { thread ->
+            items(if (fullResultsReady) fullResults else emptyList(),
+                key = { "full-" + it.optString("id") }) { thread ->
                 ThreadRow(thread, enabled = !switching && !firstThreadStarting) {
-                    vm.chooseThread(thread.optString("id"))
-                    navigate("chat")
+                    openThread(thread.optString("id"))
                 }
             }
         } else {
@@ -477,7 +504,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("恢复会话")
                     }
                 } else if (!selectionMode) {
-                    OutlinedButton(onClick = { vm.chooseThread(id); navigate("chat") },
+                    OutlinedButton(onClick = { openThread(id) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = !firstThreadStarting && !switching && id.isNotBlank()) {
                         Icon(Icons.Outlined.PlayArrow, null)

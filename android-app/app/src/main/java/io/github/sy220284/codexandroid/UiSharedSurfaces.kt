@@ -124,25 +124,44 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val selected by vm.selectedMode.collectAsState()
     val data by vm.data.collectAsState()
     val busy by vm.running.collectAsState()
-    LaunchedEffect(Unit) { vm.refresh("modes", "collaborationMode/list") }
-    val supported = records(data["modes"])
-        .any { it.optString("mode") == "plan" }
+    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
+    val status by vm.bridge.status.collectAsState()
+    LaunchedEffect(status) {
+        if (status == EngineStatus.Connected)
+            vm.refresh("modes", "collaborationMode/list")
+    }
+    val planSupported = records(data["modes"]).any { it.optString("mode") == "plan" }
+    val connected = status == EngineStatus.Connected
+    val refreshing = "modes" in loading
     val choices = buildList {
-        add(CodexChoice("default", "直接执行", "按要求执行，并报告真实进度"))
-        if (supported || selected == "plan") add(
-            CodexChoice("plan", "先制定计划", "先展示方案，再由你决定推进步骤")
+        add(CodexChoice("default", "直接执行", "按照要求完成任务，过程中展示进度"))
+        if (planSupported) add(CodexChoice("plan", "先制定计划", "先形成方案，确认后再执行"))
+        if (!planSupported) add(
+            CodexChoice(if (connected) "__reload" else "__connect",
+                if (connected) "检查可用协作方式" else "连接运行核心",
+                if (connected) "从当前内核重新查询模式" else "连接后读取支持的模式")
         )
-        if (!supported) add(CodexChoice("__reload", "检查计划模式支持情况", "从运行核心刷新可用模式"))
+    }
+    val description = when {
+        busy -> "当前任务正在执行，结束或停止后才能切换。"
+        !connected -> "运行核心尚未连接，当前仅显示默认方式。"
+        refreshing -> "正在检查内核支持的协作方式。"
+        errors["modes"] != null -> "读取模式失败，请重新查询。"
+        else -> "仅显示当前内核支持的选项，更改从下一轮生效。"
     }
     CodexChoiceSheet(
-        title = "选择协作方式",
-        description = if (busy) "当前任务执行中，模式将在下一轮调整。" else
-            "仅提供内核支持的执行方式。",
+        title = "选择协作方式", description = description,
         choices = choices, selectedId = selected,
+        enabled = !busy && !refreshing,
         onSelect = { id ->
             when {
                 id == "__reload" -> vm.refresh("modes", "collaborationMode/list")
-                !busy -> { vm.selectedMode.value = id; onDismiss() }
+                id == "__connect" -> vm.connect()
+                ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing) -> {
+                    vm.selectedMode.value = id
+                    onDismiss()
+                }
             }
         }, onDismiss = onDismiss
     )

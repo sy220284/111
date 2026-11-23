@@ -185,7 +185,13 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithText("先制定计划").performClick()
             rule.onNodeWithText("先计划").assertExists()
         } else {
-            rule.onNodeWithText("检查计划模式支持情况").assertExists()
+            // 计划模式不可用时按真实核心连接状态给出可操作的恢复入口。
+            val canReconnect = rule.onAllNodesWithText("连接运行核心")
+                .fetchSemanticsNodes().isNotEmpty()
+            val canReload = rule.onAllNodesWithText("检查可用协作方式")
+                .fetchSemanticsNodes().isNotEmpty()
+            assertTrue("应明确提供重新连接或重新读取能力目录的入口",
+                canReconnect || canReload)
         }
     }
 

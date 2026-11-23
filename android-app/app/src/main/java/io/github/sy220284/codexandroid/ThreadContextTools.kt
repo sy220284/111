@@ -143,7 +143,7 @@ fun ThreadContextTools(
                 forkId?.let { fork ->
                     CodexNotice("服务端已建立新的会话分支。", NoticeTone.Success)
                     OutlinedButton(onClick = {
-                        vm.chooseThread(fork); openSubpage("chat")
+                        vm.chooseThread(fork) { openSubpage("chat") }
                     }, enabled = !switching && !firstThreadStarting) {
                         Text("打开新建分支")
                     }

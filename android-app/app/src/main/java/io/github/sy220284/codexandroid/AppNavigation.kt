@@ -171,8 +171,7 @@ fun CodexShell(vm: CodexViewModel) {
         val id = pendingDeepLink
         if (id != null && status == EngineStatus.Connected) {
             app.pendingDeepLink.value = null
-            vm.chooseThread(id)
-            move("chat")
+            vm.chooseThread(id) { move("chat") }
         }
     }
     LaunchedEffect(showQuickTools, pendingQuickRoute) {
@@ -304,7 +303,7 @@ fun CodexShell(vm: CodexViewModel) {
                     { id -> if (id == "status") showStatus = true else move(id) },
                     status, pending.size, firstThreadStarting || switching,
                     { vm.newThread(); move("chat") }, vm,
-                    { id -> if (activeThread != id) vm.chooseThread(id); move("chat") },
+                    { id -> vm.chooseThread(id) { move("chat") } },
                     sidebarState)
                 Box(Modifier.weight(1f)) { content() }
             }
@@ -326,7 +325,7 @@ fun CodexShell(vm: CodexViewModel) {
                             } else move(id)
                         }, status, pending.size, firstThreadStarting || switching,
                         { vm.newThread(); move("chat") }, vm,
-                        { id -> if (activeThread != id) vm.chooseThread(id); move("chat") },
+                        { id -> vm.chooseThread(id) { move("chat") } },
                         sidebarState) }
                 }
             ) { content() }

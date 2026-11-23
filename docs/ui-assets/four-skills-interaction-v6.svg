@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-label="111 Android 四技能 UI 接口组件设计板">
+<rect x="0" y="0" width="1600" height="940" rx="0" fill="#F7F8F9" stroke="#F7F8F9"/>
+<text x="34" y="46" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700">111 / 四技能交互重设计 · 可编辑组件参考</text>
+<text x="35" y="78" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">按任务归属呈现能力。右侧截图均为状态设计示意；真实运行效果以 Android Compose 与设备 CI 为准。</text>
+<rect x="35" y="116" width="345" height="680" rx="20" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="53" y="151" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">01 统一搜索 · 一次提交</text>
+<text x="53" y="177" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">finesse-ui / finesse-brief</text>
+<line x1="53" x2="363" y1="194" y2="194" stroke="#D8DEE1"/>
+<rect x="430" y="116" width="345" height="680" rx="20" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="448" y="151" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">02 恢复任务 · 状态闭环</text>
+<text x="448" y="177" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">finesse-brief / finesse-term</text>
+<line x1="448" x2="758" y1="194" y2="194" stroke="#D8DEE1"/>
+<rect x="825" y="116" width="345" height="680" rx="20" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="843" y="151" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">03 协作方式 · 可用即选</text>
+<text x="843" y="177" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">finesse-ui / frame-smith</text>
+<line x1="843" x2="1153" y1="194" y2="194" stroke="#D8DEE1"/>
+<rect x="1220" y="116" width="345" height="680" rx="20" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="1238" y="151" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">04 能力管理 · 读写分离</text>
+<text x="1238" y="177" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">finesse-term / finesse-ui</text>
+<line x1="1238" x2="1548" y1="194" y2="194" stroke="#D8DEE1"/>
+<text x="55" y="226" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="17" font-weight="700">会话资料库</text>
+<rect x="55" y="243" width="103" height="34" rx="15" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="69" y="265" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">标题搜索</text>
+<rect x="167" y="243" width="103" height="34" rx="15" fill="#FFFFFF" stroke="#C8483E"/>
+<text x="181" y="265" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="700">全文检索</text>
+<rect x="55" y="297" width="303" height="47" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="67" y="326" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">搜索：运行日志</text>
+<rect x="55" y="355" width="303" height="42" rx="13" fill="#FFFFFF" stroke="#C8483E"/>
+<text x="174" y="382" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="700">查找历史会话</text>
+<text x="55" y="425" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="600">找到 2 个匹配会话</text>
+<rect x="55" y="441" width="303" height="92" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="70" y="473" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="700">调试登录失败</text>
+<text x="70" y="501" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">最后更新：今天 08:30</text>
+<text x="327" y="490" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="600">›</text>
+<rect x="55" y="542" width="303" height="92" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="70" y="574" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="700">修复应用启动日志</text>
+<text x="70" y="602" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">上次修改：昨天</text>
+<text x="327" y="592" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="600">›</text>
+<line x1="55" x2="358" y1="656" y2="656" stroke="#D8DEE1"/>
+<text x="57" y="683" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="500">修改搜索词后隐藏旧结果</text>
+<text x="57" y="708" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">无结果仅在服务端返回后展示</text>
+<text x="450" y="226" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="700">正在打开：调试登录失败</text>
+<rect x="450" y="243" width="303" height="77" rx="12" fill="#FFF9F6" stroke="#D8DEE1"/>
+<text x="465" y="272" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="700">正在恢复会话</text>
+<text x="465" y="297" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">读取历史 → 连接会话 → 载入任务</text>
+<circle cx="462" cy="349" r="7" fill="#246F54"/>
+<text x="480" y="354" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="500">读取历史完成</text>
+<line x1="480" x2="748" y1="366" y2="366" stroke="#D8DEE1"/>
+<circle cx="462" cy="394" r="7" fill="#C8483E"/>
+<text x="480" y="399" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="500">正在恢复原任务</text>
+<line x1="480" x2="748" y1="411" y2="411" stroke="#D8DEE1"/>
+<circle cx="462" cy="440" r="7" fill="#D8DEE1"/>
+<text x="480" y="445" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="500">完成后进入对话</text>
+<text x="450" y="485" fill="#8A6437" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="600">恢复失败时</text>
+<rect x="450" y="499" width="303" height="109" rx="12" fill="#FFFFFF" stroke="#8A6437"/>
+<text x="463" y="530" fill="#AC363A" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="700">无法读取该会话</text>
+<text x="463" y="554" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">保留当前任务与全部未发送草稿</text>
+<text x="650" y="583" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="700">重新尝试</text>
+<line x1="450" x2="753" y1="643" y2="643" stroke="#D8DEE1"/>
+<text x="450" y="672" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="500">恢复成功后才执行导航</text>
+<text x="450" y="696" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">避免打开错误任务与状态跳闪</text>
+<text x="845" y="226" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="17" font-weight="700">选择协作方式</text>
+<text x="845" y="251" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">根据运行核心提供的能力选择</text>
+<rect x="845" y="272" width="303" height="95" rx="14" fill="#FFFFFF" stroke="#C8483E"/>
+<circle cx="868" cy="317" r="9" fill="#C8483E"/>
+<circle cx="868" cy="317" r="4" fill="#FFFFFF"/>
+<text x="890" y="308" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="700">直接执行</text>
+<text x="890" y="334" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">正常任务可选，当前已选中</text>
+<rect x="845" y="378" width="303" height="95" rx="14" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="868" cy="421" r="9" fill="#D8DEE1"/>
+<text x="890" y="415" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="700">先制定计划</text>
+<text x="890" y="440" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">内核未确认支持时不可选择</text>
+<rect x="845" y="491" width="303" height="80" rx="12" fill="#FFF9F6" stroke="#D8DEE1"/>
+<text x="858" y="523" fill="#8A6437" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="700">任务正在执行</text>
+<text x="858" y="550" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">运行期间选项停用，结束后再切换</text>
+<line x1="845" x2="1148" y1="603" y2="603" stroke="#D8DEE1"/>
+<text x="845" y="630" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="500">加载中：禁用选择并展示进度</text>
+<text x="845" y="654" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="500">断开连接：提供重新连接动作</text>
+<text x="845" y="679" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">动效克制，遵循系统减弱动画</text>
+<text x="1240" y="226" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="17" font-weight="700">技能与插件管理</text>
+<rect x="1240" y="247" width="303" height="101" rx="13" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="1255" y="277" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="700">代码审查助手</text>
+<text x="1255" y="301" fill="#8A6437" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">状态：正在保存</text>
+<rect x="1483" y="265" width="45" height="25" rx="13" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="1495" cy="277" r="9" fill="#D8DEE1"/>
+<rect x="1240" y="364" width="303" height="90" rx="12" fill="#FFF9F6" stroke="#D8DEE1"/>
+<text x="1253" y="395" fill="#C8483E" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="700">正在修改安装状态…</text>
+<text x="1253" y="419" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">写入中暂时禁用重复操作</text>
+<text x="1240" y="484" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="600">最近操作</text>
+<rect x="1240" y="500" width="303" height="87" rx="12" fill="#FFFFFF" stroke="#AC363A"/>
+<text x="1253" y="530" fill="#AC363A" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="700">保存失败：服务暂不可用</text>
+<text x="1253" y="555" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">保留开关状态及原有输入</text>
+<text x="1240" y="616" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="500">用户操作与目录刷新独立追踪</text>
+<text x="1240" y="642" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">实际响应成功后更新可见状态</text>
+<text x="1240" y="668" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">搜索结果绑定已提交关键词</text>
+<line x1="35" x2="1565" y1="837" y2="837" stroke="#D8DEE1"/>
+<text x="35" y="867" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="500">典雅白 #FFFFFF    主要操作 #C8483E    正文 #263139    辅助 #56646D    细线 #D8DEE1</text>
+<text x="35" y="901" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">触控区域 ≥ 48dp  ·  原生 Material 3  ·  自动反馈真实 RPC  ·  无底部导航</text>
+</svg>

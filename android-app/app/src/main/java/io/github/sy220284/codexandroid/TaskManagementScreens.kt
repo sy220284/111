@@ -273,11 +273,16 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             onDismissRequest = { pendingEdit = null },
             title = { Text("编辑排队任务") },
             text = {
-                OutlinedTextField(
-                    value = editText, onValueChange = { editText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("任务内容") }, minLines = 2, maxLines = 6
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = editText, onValueChange = { editText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("任务内容") }, minLines = 2, maxLines = 6
+                    )
+                    errors["queueWrite"]?.let {
+                        Text("保存失败：" + PresentationPolicy.readableError(it), color = Ink.red)
+                    }
+                }
             },
             confirmButton = {
                 OutlinedButton(
@@ -285,9 +290,11 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         active?.let { id ->
                             vm.rpc("queueWrite", "thread/queue/update",
                                 ThreadQueueUpdateContract.build(id, item.optString("id"), editText),
-                                after = { refreshQueue() })
+                                after = {
+                                    pendingEdit = null
+                                    refreshQueue()
+                                })
                         }
-                        pendingEdit = null
                     },
                     enabled = active != null && item.optString("id").isNotBlank() &&
                         editText.isNotBlank() && "queueWrite" !in loading

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -250,6 +251,7 @@ fun ProvidersPage(vm: CodexViewModel) {
 fun SkillsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val groups = records(data["skills"])
+    val mutationLoading by vm.loading.collectAsState()
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
     LaunchedEffect(Unit) {
         vm.ensureCatalog("skills", "skills/list",
@@ -277,7 +279,7 @@ fun SkillsPage(vm: CodexViewModel) {
                         }
                         WhiteSwitch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
                             confirmation = skill to enabled
-                        })
+                        }, enabled = "skillsWrite" !in mutationLoading && "skills" !in mutationLoading)
                     }
                     val description = meta.optString("shortDescription").ifBlank {
                         skill.optString("description")
@@ -297,6 +299,10 @@ fun SkillsPage(vm: CodexViewModel) {
                 ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
             }
         }
+        ProtocolFeedback(vm, listOf("skillsWrite"))
+        if ("skillsWrite" in mutationLoading) {
+            CodexNotice("正在保存技能状态，完成后自动刷新列表。", NoticeTone.Info)
+        }
         if (groups.isEmpty() && data["skills"] != null) {
             CodexEmptyState("当前工作区没有可用技能",
                 "可以安装技能包并刷新目录，启用后即可在对话中使用。",
@@ -312,7 +318,7 @@ fun SkillsPage(vm: CodexViewModel) {
             detail = "技能：" + PresentationPolicy.skillName(skill.optString("name")),
             confirmLabel = if (enabled) "确认启用" else "确认停用",
             onConfirm = {
-                vm.rpc("skills", "skills/config/write",
+                vm.rpc("skillsWrite", "skills/config/write",
                     JSONObject().put("path", skill.optString("path")).put("enabled", enabled),
                     after = { vm.refresh("skills", "skills/list",
                         CatalogRequestContract.workspace(vm.workingDirectory)) })
@@ -333,18 +339,19 @@ fun PluginsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
-    var searchDraft by remember { mutableStateOf("") }
-    var searchSubmitted by remember { mutableStateOf("") }
+    var searchDraft by rememberSaveable { mutableStateOf("") }
+    var searchSubmitted by rememberSaveable { mutableStateOf("") }
     var searchPage by remember { mutableIntStateOf(0) }
     val searchActive = !installedOnly && searchSubmitted.isNotBlank()
+    val submittedMatchesDraft = ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
     val searchKey = searchPrefix + searchPage
-    val found = if (searchActive) (0..searchPage)
+    val found = if (searchActive && submittedMatchesDraft) (0..searchPage)
         .flatMap { PluginSearchContract.entries(data[searchPrefix + it]) }
         .distinctBy { it.marketplace.optString("name") + ":" +
             it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
         else emptyList()
-    val searchCursor = if (searchActive)
+    val searchCursor = if (searchActive && submittedMatchesDraft && data[searchKey] != null)
         data[searchKey]?.optString("nextCursor").orEmpty()
     else ""
     LaunchedEffect(installedOnly) {
@@ -385,7 +392,8 @@ fun PluginsPage(vm: CodexViewModel) {
                                 "plugin/search", PluginSearchContract.params(term))
                         },
                         enabled = searchDraft.isNotBlank() &&
-                            "pluginSearch:" + searchSubmitted + ":0" !in busy,
+                            "pluginSearch:" + searchSubmitted + ":0" !in busy &&
+                                "pluginMutation" !in busy,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                     ) {
                         Text("搜索插件")
@@ -414,6 +422,9 @@ fun PluginsPage(vm: CodexViewModel) {
                 }
             }
         }
+        ProtocolFeedback(vm, listOf("pluginMutation"))
+        if ("pluginMutation" in busy) CodexNotice(
+            "正在修改插件安装状态，完成后自动更新已安装列表。", NoticeTone.Info)
         SourceState(vm, activeKey) {
             if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
                 CatalogRequestContract.workspace(vm.workingDirectory))
@@ -421,11 +432,17 @@ fun PluginsPage(vm: CodexViewModel) {
                 CatalogRequestContract.workspace(vm.workingDirectory))
         }
         if (searchActive) {
-            Text("插件搜索结果 · ${found.size} 项",
+            if (!submittedMatchesDraft) CodexNotice(
+                "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
+            if (submittedMatchesDraft) Text("插件搜索结果 · ${found.size} 项",
                 style = MaterialTheme.typography.titleMedium)
-            if (searchKey in busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            errors[searchKey]?.let { ErrorText("插件搜索失败：$it。可以改用常规插件目录。") }
-            if (searchKey !in busy && found.isEmpty() && searchKey !in errors) {
+            if (submittedMatchesDraft && searchKey in busy)
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (submittedMatchesDraft) errors[searchKey]?.let {
+                ErrorText("插件搜索失败：$it。可以改用常规插件目录。")
+            }
+            if (submittedMatchesDraft && data[searchPrefix + "0"] != null &&
+                searchKey !in busy && found.isEmpty() && searchKey !in errors) {
                 CodexEmptyState("没有搜索结果",
                     "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。")
             }
@@ -450,11 +467,13 @@ fun PluginsPage(vm: CodexViewModel) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (!item.optBoolean("installed")) {
                             OutlinedButton(onClick = { action = Triple(market, item, true) },
-                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE") {
+                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE" &&
+                                     "pluginMutation" !in busy) {
                                 Text("安装插件")
                             }
                         }
-                        TextButton(onClick = { selectedPlugin = market to item }) {
+                        TextButton(onClick = { selectedPlugin = market to item },
+                         enabled = "pluginMutation" !in busy) {
                             Text("查看详情")
                         }
                     }
@@ -467,7 +486,9 @@ fun PluginsPage(vm: CodexViewModel) {
                     vm.refresh(searchPrefix + next, "plugin/search",
                         PluginSearchContract.params(searchSubmitted, searchCursor))
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = searchKey !in busy) { Text("加载更多结果") }
+                    enabled = searchKey !in busy && "pluginMutation" !in busy) {
+                    Text("加载更多结果")
+                }
             }
         }
         if (!searchActive) marketplaces.forEach { market ->
@@ -488,13 +509,16 @@ fun PluginsPage(vm: CodexViewModel) {
                     Text(meta.optString("shortDescription"), color = Ink.muted)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (item.optBoolean("installed")) {
-                            OutlinedButton(onClick = { action = Triple(market, item, false) }) { Text("卸载") }
+                            OutlinedButton(onClick = { action = Triple(market, item, false) },
+                                enabled = "pluginMutation" !in busy) { Text("卸载") }
                         } else {
                             OutlinedButton(onClick = { action = Triple(market, item, true) },
-                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE") { Text("安装插件") }
+                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE" &&
+                                     "pluginMutation" !in busy) { Text("安装插件") }
                         }
                     }
                     TextButton(onClick = { selectedPlugin = market to item },
+                        enabled = "pluginMutation" !in busy,
                         modifier = Modifier.heightIn(min = 48.dp)) {
                         Icon(Icons.Outlined.Info, null)
                         Spacer(Modifier.width(6.dp))
@@ -533,14 +557,14 @@ fun PluginsPage(vm: CodexViewModel) {
                     val path = market.optString("path")
                     if (path.isNotBlank()) params.put("marketplacePath", path)
                     else params.put("remoteMarketplaceName", market.optString("name"))
-                    vm.rpc("plugins", "plugin/install", params,
+                    vm.rpc("pluginMutation", "plugin/install", params,
                         after = {
                             vm.refresh("plugins", "plugin/list")
                             vm.refresh("installedPlugins", "plugin/installed",
                                 CatalogRequestContract.workspace(vm.workingDirectory))
                         })
                 } else {
-                    vm.rpc("plugins", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
+                    vm.rpc("pluginMutation", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
                         after = {
                             vm.refresh("plugins", "plugin/list")
                             vm.refresh("installedPlugins", "plugin/installed",
