@@ -709,9 +709,9 @@ class UiNavigationInstrumentedTest {
         captureOverlay("audit-goals-sheet-android35.png")
     }
 
-    @Test fun toolbarQuickActionsCanOpenProjectTools() {
-        rule.onNodeWithTag("tab-chat").performClick()
-        rule.onNodeWithTag("composer-workspace-tools").performClick()
+    @Test fun sidebarQuickActionsCanOpenProjectTools() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-workspace-tools").performClick()
         rule.onNodeWithTag("quick-terminal").assertExists()
         rule.onNodeWithTag("quick-diff").performClick()
         // 没有活动会话时，直接打开可关闭的会话管理弹层。
