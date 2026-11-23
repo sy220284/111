@@ -30,7 +30,7 @@ class ActionFeedbackCopyTest {
 
     @Test fun oauthErrorsDoNotExposeServerHtmlInSnackbars() {
         val receipt = ActionFeedbackCopy.failure("mcpServer/oauth/login",
-            "HTTP 405 Method Not Allowed: <!DOCTYPE html><html data-build=\\\"revision\\\">")
+            "HTTP 405 Method Not Allowed: <!DOCTYPE html><html data-build='revision'>")
         assertTrue(receipt.isError)
         assertTrue(receipt.message.contains("HTTP 405"))
         assertFalse(receipt.message.contains("<html"))
