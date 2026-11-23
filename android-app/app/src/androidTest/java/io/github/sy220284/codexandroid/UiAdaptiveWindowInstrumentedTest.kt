@@ -38,6 +38,9 @@ class UiAdaptiveWindowInstrumentedTest {
         rule.onNodeWithTag("conversation-composer").assertExists()
         rule.onNodeWithTag("composer-input").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        if (height < AdaptiveWorkspaceLayout.compactHeightDp) {
+            rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
+        }
         rule.onNodeWithTag("tab-chat").assertExists()
         rule.onNodeWithTag("tab-home").performClick()
         rule.onNodeWithTag("home-task-hero").assertExists()

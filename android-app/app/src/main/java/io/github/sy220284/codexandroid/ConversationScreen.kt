@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -81,6 +82,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
         imported.message else ""
 
+    // 小高度横屏与输入法弹出同一套紧凑规则，优先确保发送和内容可见。
+    val compactWorkArea = WindowInsets.isImeVisible ||
+        LocalConfiguration.current.screenHeightDp < AdaptiveWorkspaceLayout.compactHeightDp
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
@@ -183,14 +187,17 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp,
+            vertical = if (compactWorkArea) 0.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(currentTitle ?: if (thread == null) "新任务" else "当前任务",
                     style = MaterialTheme.typography.titleMedium)
-                Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
-                    .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                if (!compactWorkArea) {
+                    Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
+                        .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                }
             }
             IconButton(onClick = { navigate("files") },
                 modifier = Modifier.testTag("chat-project-files")) {
@@ -278,7 +285,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (switching) {
                 ConversationLoadingSkeleton(Modifier.fillMaxSize())
             } else if (items.isEmpty()) {
-                val shortViewport = maxHeight < 345.dp
+                val shortViewport = compactWorkArea || maxHeight < 345.dp
                 Column(
                     modifier = Modifier.fillMaxWidth().align(Alignment.Center).verticalScroll(rememberScrollState())
                         .padding(horizontal = 19.dp, vertical = if (shortViewport) 5.dp else 15.dp),
@@ -289,9 +296,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         style = if (shortViewport) MaterialTheme.typography.titleLarge
                             else MaterialTheme.typography.headlineSmall,
                         color = Ink.parchment, textAlign = TextAlign.Center)
-                    Text("描述一个目标，或从快捷任务开始",
-                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center)
+                    if (!shortViewport) {
+                        Text("描述一个目标，或从快捷任务开始",
+                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center)
+                    }
                     if (!busy) {
                         Spacer(Modifier.height(4.dp))
                         Column(
@@ -412,8 +421,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         errors["steer"]?.let { ErrorText(it) }
         errors["interrupt"]?.let { ErrorText(it) }
         DividerLine()
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            ConversationControlBar(
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp,
+            vertical = if (compactWorkArea) 4.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 9.dp)) {
+            if (!compactWorkArea) ConversationControlBar(
                 modelName = vm.modelId.collectAsState().value,
                 mode = selectedMode,
                 connected = status == EngineStatus.Connected,
@@ -422,13 +433,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onMode = { showModes = true },
                 onDiagnostics = { showEngineStatus = true }
             )
-            if (status is EngineStatus.Unavailable) {
+            if (status is EngineStatus.Unavailable && !compactWorkArea) {
                 CodexNotice(
                     "运行核心连接中断，未发送文字已保留在本机。",
                     NoticeTone.Warning, actionLabel = "重新连接",
                     onAction = { vm.connect() }
                 )
-            } else if (status == EngineStatus.Starting) {
+            } else if (status == EngineStatus.Starting && !compactWorkArea) {
                 Text("正在连接本机运行核心…",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
@@ -516,7 +527,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onPickImage = {
                     if (vm.beginImageSelection(thread)) pendingImagePick = true
                     showAttachmentTools = false
-                }
+                },
+                compactControls = compactWorkArea,
+                compactCanReconnect = status is EngineStatus.Unavailable,
+                compactModelLabel = vm.modelId.collectAsState().value,
+                compactModeLabel = selectedMode,
+                onModel = { showModels = true },
+                onMode = { showModes = true },
+                onDiagnostics = { showEngineStatus = true },
+                onReconnect = { vm.connect() }
             )
         }
     }

@@ -144,9 +144,11 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("chat")
         rule.onNodeWithTag("composer-input").performClick()
         rule.onNodeWithTag("composer-input").performTextInput("验证键盘展开后的操作入口")
+        // 提前保存前台截图，即使按钮被键盘遮挡，也能直接回溯视觉证据。
+        capture("chat-keyboard-open-android35.png")
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
-        capture("chat-keyboard-open-android35.png")
+        rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
     }
 
     @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
@@ -474,7 +476,7 @@ class UiNavigationInstrumentedTest {
     @Test fun pluginDiscoveryCanOpenSearchWithoutInventedResults() {
         openSettingRoute("plugins")
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
-        rule.onNodeWithText("搜索插件", substring = false).assertExists()
+        rule.onNodeWithTag("plugins-search-heading").assertExists()
         rule.onNodeWithText("插件名称或关键字").assertExists()
         capture("plugin-search-android35.png")
     }

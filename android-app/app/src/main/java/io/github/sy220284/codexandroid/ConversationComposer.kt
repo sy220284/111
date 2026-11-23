@@ -52,9 +52,18 @@ internal fun ConversationComposer(
     menuExpanded: Boolean = false,
     imageImporting: Boolean = false,
     onMenuDismiss: () -> Unit = {},
-    onPickImage: () -> Unit = {}
+    onPickImage: () -> Unit = {},
+    compactControls: Boolean = false,
+    compactCanReconnect: Boolean = false,
+    compactModelLabel: String = "",
+    compactModeLabel: String = "",
+    onModel: () -> Unit = {},
+    onMode: () -> Unit = {},
+    onDiagnostics: () -> Unit = {},
+    onReconnect: () -> Unit = {}
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    var compactMenuExpanded by remember { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("conversation-composer"),
         shape = RoundedCornerShape(28.dp),
@@ -64,13 +73,15 @@ internal fun ConversationComposer(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(start = 13.dp, end = 10.dp,
-                top = 10.dp, bottom = 8.dp),
+                top = if (compactControls) 6.dp else 10.dp,
+                bottom = if (compactControls) 6.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
+                modifier = Modifier.fillMaxWidth()
+                    .heightIn(min = if (compactControls) 32.dp else 40.dp)
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
                 minLines = 1,
@@ -165,11 +176,46 @@ internal fun ConversationComposer(
 
                     }
                 }
+                if (compactControls) {
+                    Box {
+                        IconButton(onClick = { compactMenuExpanded = true },
+                            modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
+                            Icon(Icons.Outlined.Tune, "模型、模式和诊断")
+                        }
+                        DropdownMenu(expanded = compactMenuExpanded,
+                            onDismissRequest = { compactMenuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("选择模型 · " +
+                                    compactModelLabel.ifBlank { "默认模型" },
+                                    maxLines = 1) },
+                                leadingIcon = { Icon(Icons.Outlined.Memory, null) },
+                                onClick = { compactMenuExpanded = false; onModel() },
+                                modifier = Modifier.testTag("composer-compact-model"))
+                            DropdownMenuItem(
+                                text = { Text("任务模式 · " +
+                                    (if (compactModeLabel == "plan") "先计划" else "执行")) },
+                                leadingIcon = { Icon(Icons.Outlined.Tune, null) },
+                                onClick = { compactMenuExpanded = false; onMode() },
+                                modifier = Modifier.testTag("composer-compact-mode"))
+                            DropdownMenuItem(
+                                text = { Text("运行诊断与状态") },
+                                leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                                onClick = { compactMenuExpanded = false; onDiagnostics() },
+                                modifier = Modifier.testTag("composer-compact-diagnostics"))
+                        }
+                    }
+                    if (compactCanReconnect) {
+                        TextButton(onClick = onReconnect,
+                            modifier = Modifier.heightIn(min = 48.dp)
+                                .testTag("composer-reconnect")) { Text("重连") }
+                    }
+                }
                 if (attachedCount > 0) {
                     Text("${attachedCount} 张图片",
                         color = Ink.copper, style = MaterialTheme.typography.labelMedium)
                 } else if (running || !connected) {
-                    Text(if (running) "执行中" else "等待连接",
+                    Text(if (running) "执行中"
+                        else if (compactControls) "草稿保留" else "等待连接",
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
                 Spacer(Modifier.weight(1f))

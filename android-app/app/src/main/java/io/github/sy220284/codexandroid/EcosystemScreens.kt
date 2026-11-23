@@ -410,7 +410,8 @@ fun PluginsPage(vm: CodexViewModel) {
         }
         if (!installedOnly) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("搜索插件", style = MaterialTheme.typography.titleMedium)
+                Text("搜索插件", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.testTag("plugins-search-heading"))
                 OutlinedTextField(
                     value = searchDraft, onValueChange = { searchDraft = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
