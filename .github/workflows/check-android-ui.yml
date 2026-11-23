@@ -260,7 +260,7 @@ jobs:
             mkdir -p ui-screenshots
             # Clipboard-copy validation creates an Android system preview overlay. Run it last
             # so the overlay cannot cover screenshots of later business pages.
-            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.SelfUpdateInstallerIntentInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
+            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexInteractionComponentsInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.SelfUpdateInstallerIntentInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
             # The emulator runner executes each script line separately.
             # A single Python process collects all screenshots even after test failure.
             python3 android-app/tools/collect_ui_screenshots.py

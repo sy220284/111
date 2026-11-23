@@ -75,15 +75,21 @@ fun ThreadContextTools(
                     }
                     StatusPill(if (running) "执行中" else "可操作", !running)
                 }
-                TextButton(onClick = {
+                CodexDetailTrigger("查看会话信息", onClick = {
                     threadId?.let {
                         vm.refresh("threadContext", "thread/read",
                             JSONObject().put("threadId", it))
                     }
-                    showDetail = !showDetail
-                }) { Text(if (showDetail) "隐藏会话信息" else "查看会话信息") }
-                CodexReveal(showDetail) {
-                    data["threadContext"]?.let { payload ->
+                    showDetail = true
+                })
+                if (showDetail) CodexInfoDialog(
+                    title = "当前会话信息",
+                    onDismiss = { showDetail = false }
+                ) {
+                    val payload = data["threadContext"]
+                    if (payload == null) {
+                        CodexSkeletonRows(2)
+                    } else {
                         val info = payload.optJSONObject("thread")
                         val title = PresentationPolicy.threadTitle(
                             info?.optString("name"), info?.optString("preview"))
