@@ -314,9 +314,9 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithText("先计划").assertExists()
         } else {
             // 计划模式不可用时按真实核心连接状态给出可操作的恢复入口。
-            val canReconnect = rule.onAllNodesWithText("连接运行核心")
+            val canReconnect = rule.onAllNodesWithText("重新连接")
                 .fetchSemanticsNodes().isNotEmpty()
-            val canReload = rule.onAllNodesWithText("检查可用协作方式")
+            val canReload = rule.onAllNodesWithText("重新检查")
                 .fetchSemanticsNodes().isNotEmpty()
             assertTrue("应明确提供重新连接或重新读取能力目录的入口",
                 canReconnect || canReload)
@@ -445,14 +445,12 @@ class UiNavigationInstrumentedTest {
 
     @Test fun threadLibraryExposesServerBackedManagementLayout() {
         openThreadLibrary()
-        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertExists()
         rule.onNodeWithText("活跃", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
         rule.onNodeWithText("搜索会话标题").assertExists()
         rule.onNodeWithText("全文搜索").assertExists()
-        rule.onNodeWithTag("thread-library-list")
-            .performScrollToNode(hasText("新建任务"))
-        rule.onNodeWithText("新建任务").assertExists()
+        rule.onNodeWithTag("library-new-thread").assertExists()
         captureOverlay("thread-library-android35.png")
         rule.onNodeWithText("全文搜索").performClick()
         rule.onNodeWithText("搜索历史正文").assertExists()
@@ -526,7 +524,7 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         openThreadLibrary()
-        rule.onNodeWithText("会话资料库").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertExists()
         pressSystemBack()
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
