@@ -4,6 +4,27 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
+    @Test fun preciseSettingsSearchOpensActualControlContext() {
+        val samples = mapOf(
+            "字号" to ("appearance" to "font"),
+            "深色" to ("appearance" to "theme"),
+            "插件市场" to ("plugins" to "discover"),
+            "远程主机" to ("environments" to "remote"),
+            "API Key" to ("providers" to "custom"),
+            "启动日志" to ("diagnostics" to "logs")
+        )
+        for ((query, expected) in samples) {
+            val spot = NavigationPolicy.matchedSettingSpot(expected.first, query)
+            assertNotNull("找不到具体设置项：$query", spot)
+            assertEquals(expected.second, spot!!.target)
+            SettingsDeepLink.select(spot.route, spot.target)
+            assertNull(SettingsDeepLink.take("other"))
+            assertEquals(spot.target, SettingsDeepLink.take(spot.route))
+            assertNull(SettingsDeepLink.take(spot.route))
+        }
+        assertTrue(NavigationPolicy.settingsSpots.all { it.route in NavigationPolicy.settingsRoutes })
+    }
+
     @Test fun settingsOverviewAvoidsDuplicateEntriesWithoutHidingSearchResults() {
         assertFalse(NavigationPolicy.showInSettingsGroup("account", ""))
         assertFalse(NavigationPolicy.showInSettingsGroup("diagnostics", ""))

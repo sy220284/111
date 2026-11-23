@@ -40,6 +40,9 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var useRemote by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("environments") == "remote") useRemote = true
+    }
     var remoteName by rememberSaveable { mutableStateOf("") }
     var endpoint by rememberSaveable { mutableStateOf("") }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }

@@ -64,17 +64,17 @@ internal fun ConversationComposer(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(start = 13.dp, end = 10.dp,
-                top = 13.dp, bottom = 9.dp),
+                top = 10.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 45.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp)
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
-                minLines = 2,
-                maxLines = 5,
+                minLines = 1,
+                maxLines = 6,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = Ink.parchment),
                 cursorBrush = SolidColor(Ink.copper),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),

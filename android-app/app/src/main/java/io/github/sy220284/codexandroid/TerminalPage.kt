@@ -301,7 +301,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         }
                     }
                 } else {
-                    MaterialPanel(Modifier.fillMaxWidth().heightIn(min = consoleHeight)
+                    MaterialPanel(Modifier.fillMaxWidth().heightIn(min = minOf(consoleHeight.value, 172f).dp)
                         .testTag("terminal-console-empty")) {
                         Text("等待执行命令", style = MaterialTheme.typography.titleMedium)
                         DividerLine()

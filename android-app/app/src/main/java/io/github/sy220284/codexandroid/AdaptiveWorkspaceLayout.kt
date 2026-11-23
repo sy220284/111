@@ -11,6 +11,12 @@ internal object AdaptiveWorkspaceLayout {
     fun persistentSidebar(widthDp: Float, heightDp: Float): Boolean =
         widthDp >= expandedWidthDp && heightDp >= compactHeightDp
 
+    fun goalSheetFraction(hasGoal: Boolean, compactHeight: Boolean): Float = when {
+        compactHeight -> 0.94f
+        hasGoal -> 0.82f
+        else -> 0.68f
+    }
+
     /** 少量条目时只占适度空间；列表扩展后才让弹层使用大部分屏幕。 */
     fun queueSheetFraction(itemCount: Int, compactHeight: Boolean): Float = when {
         compactHeight -> 0.94f

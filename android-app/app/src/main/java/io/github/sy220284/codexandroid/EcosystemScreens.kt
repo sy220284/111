@@ -122,7 +122,10 @@ fun ProvidersPage(vm: CodexViewModel) {
     var customEnvKey by remember { mutableStateOf("") }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.ensureCatalog("providers", "modelProvider/list") }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("providers") == "custom") showCustomEditor = true
+        vm.ensureCatalog("providers", "modelProvider/list")
+    }
     ScreenColumn {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -358,6 +361,9 @@ fun PluginsPage(vm: CodexViewModel) {
     val searchCursor = if (searchActive && submittedMatchesDraft && data[searchKey] != null)
         data[searchKey]?.optString("nextCursor").orEmpty()
     else ""
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("plugins") == "discover") installedOnly = false
+    }
     LaunchedEffect(installedOnly) {
         if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
             CatalogRequestContract.workspace(vm.workingDirectory))
@@ -377,9 +383,7 @@ fun PluginsPage(vm: CodexViewModel) {
         }
         if (!installedOnly) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("搜索插件（实验）", style = MaterialTheme.typography.titleMedium)
-                Text("按照名称或用途搜索可用插件，结果来自当前运行内核。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                Text("搜索插件", style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(
                     value = searchDraft, onValueChange = { searchDraft = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -588,6 +592,10 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
     var showLogs by remember { mutableStateOf(false) }
+    var showRecoverySteps by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("diagnostics") == "logs") showLogs = true
+    }
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val taskRunning by vm.running.collectAsState()
     val terminalRunning by vm.terminalSession.collectAsState()
@@ -648,8 +656,10 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
             }
         }
-        errors["diagnostics"]?.let { ErrorText(it) }
-        errors["engine"]?.let { ErrorText(it) }
+        if (status == EngineStatus.Connected) {
+            PresentationPolicy.visibleErrors(errors, listOf("diagnostics", "engine"))
+                .forEach { ErrorText(it) }
+        }
         data["diagnostics"]?.let {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("诊断结果", style = MaterialTheme.typography.titleMedium)
@@ -685,10 +695,14 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }
         }
         if (status is EngineStatus.Unavailable) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("连接问题处理", style = MaterialTheme.typography.titleMedium)
-                Text("1. 尝试重新连接运行服务\n2. 检查账号登录状态\n3. 重新打开失败的功能\n4. 如仍失败，可展开上方启动日志查看原因",
-                    color = Ink.muted)
+            TextButton(onClick = { showRecoverySteps = !showRecoverySteps }) {
+                Text(if (showRecoverySteps) "收起排查步骤" else "查看排查步骤")
+            }
+            CodexReveal(showRecoverySteps) {
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Text("先重新连接运行服务；再核实账号登录状态和失败的功能。若仍无法使用，可查看启动日志。",
+                        color = Ink.muted)
+                }
             }
         }
     }

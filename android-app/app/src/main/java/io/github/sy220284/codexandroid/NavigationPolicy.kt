@@ -43,6 +43,26 @@ object NavigationPolicy {
         SettingsTopic("about", "应用版本信息", listOf("应用版本", "版本号", "关于")),
         SettingsTopic("update", "检查与安装更新", listOf("更新", "升级", "安装包", "新版本"))
     )
+    /** 搜索结果包含具体操作目标；入口和表单共用同一注册位置。 */
+    data class SettingsSpot(val route: String, val target: String, val label: String, val terms: List<String>)
+    val settingsSpots = listOf(
+        SettingsSpot("appearance", "font", "文字大小", listOf("字号", "字体", "字体大小", "font size", "文字放大")),
+        SettingsSpot("appearance", "theme", "界面配色", listOf("主题", "深色", "浅色", "夜间", "配色")),
+        SettingsSpot("plugins", "discover", "发现和安装插件", listOf("插件市场", "发现插件", "安装插件", "扩展商店")),
+        SettingsSpot("environments", "remote", "连接其他设备", listOf("远程主机", "远程执行", "远程执行服务", "外部设备")),
+        SettingsSpot("providers", "custom", "配置模型服务商", listOf("API Key", "Base URL", "接口地址", "自定义服务商", "密钥变量")),
+        SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查"))
+    )
+    fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
+        val q = query.trim()
+        if (q.isBlank()) return null
+        return settingsSpots.firstOrNull { spot ->
+            spot.route == id &&
+                (spot.label.contains(q, ignoreCase = true) ||
+                    spot.terms.any { it.contains(q, ignoreCase = true) })
+        }
+    }
+
     fun matchedSettingTopic(id: String, query: String): String? {
         val q = query.trim()
         if (q.isBlank()) return null
@@ -55,6 +75,20 @@ object NavigationPolicy {
     fun matches(query: String, title: String, subtitle: String, id: String): Boolean {
         val q = query.trim()
         return q.isBlank() || listOf(title, subtitle, id).any { it.contains(q, ignoreCase = true) } ||
-            matchedSettingTopic(id, q) != null
+            (matchedSettingSpot(id, q) != null || matchedSettingTopic(id, q) != null)
+    }
+}
+
+/** 一次性页面定位请求：导航成功后由所属页面消费，不跨会话保存。 */
+internal object SettingsDeepLink {
+    private var pending: Pair<String, String>? = null
+    @Synchronized fun select(route: String, target: String?) {
+        pending = if (target.isNullOrBlank()) null else route to target
+    }
+    @Synchronized fun take(route: String): String? {
+        val found = pending ?: return null
+        if (found.first != route) return null
+        pending = null
+        return found.second
     }
 }

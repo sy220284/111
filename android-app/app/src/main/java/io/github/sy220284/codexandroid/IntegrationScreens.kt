@@ -212,23 +212,14 @@ fun McpServicesPage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("EXTENSIONS / MCP", "MCP 服务",
             "管理扩展服务的连接与授权。工具由智能体在任务中按需调用。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("已连接的服务", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                Text(servers.count {
-                    PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
-                }.toString() + " / " + servers.size,
-                    style = MaterialTheme.typography.titleMedium)
-            }
-            Text("只有服务连接或授权需要你操作；工具运行结果可在对应任务中查看。",
-                color = Ink.muted)
-            OutlinedButton(onClick = { refreshMcpServices() },
-                modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Refresh, null)
-                Spacer(Modifier.width(8.dp))
-                Text("刷新连接状态")
-            }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("已连接 " + servers.count {
+                PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
+            } + " / " + servers.size + " 项",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f))
+            CodexRefreshIcon(busy = false, onRefresh = { refreshMcpServices() },
+                label = "刷新连接状态")
         }
         IntegrationState(vm, "mcp") { refreshMcpServices() }
         if (servers.isEmpty() && data["mcp"] != null) {

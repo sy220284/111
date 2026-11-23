@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,11 +19,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val listScope = rememberCoroutineScope()
     var showModels by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showAppearance by rememberSaveable { mutableStateOf(false) }
@@ -47,6 +51,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
+        state = listState,
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
@@ -122,7 +127,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
                             entries.forEach { entry ->
-                                SettingRouteRow(page = entry, detail = NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
+                                val spot = NavigationPolicy.matchedSettingSpot(entry.id, query)
+                                SettingRouteRow(page = entry, detail = spot?.label
+                                    ?: NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "security" -> "执行权限与审批"
@@ -132,9 +139,19 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     "plugins" -> "安装与管理"
                                     else -> ""
                                 }) {
+                                    SettingsDeepLink.select(entry.id, spot?.target)
                                     when(entry.id) {
                                         "models" -> showModels = true
-                                        "appearance" -> showAppearance = !showAppearance
+                                        "appearance" -> {
+                                            showAppearance = if (spot != null) true else !showAppearance
+                                            val groupIndex = groups.indexOfFirst { (group, _) ->
+                                                "appearance" in group.routes
+                                            }
+                                            if (groupIndex >= 0) listScope.launch {
+                                                listState.animateScrollToItem(
+                                                    (if (query.isBlank()) 2 else 1) + groupIndex)
+                                            }
+                                        }
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
                                     }
