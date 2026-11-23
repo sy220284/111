@@ -679,3 +679,24 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         )
     }
 }
+
+/** Full-text search and bulk management stay available without a navigation jump. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThreadLibraryQuickSheet(
+    vm: CodexViewModel,
+    onDismiss: () -> Unit,
+    navigate: (String) -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Ink.canvas,
+        contentColor = Ink.parchment
+    ) {
+        Box(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+            .testTag("thread-library-sheet")) {
+            ThreadLibraryPage(vm, navigate)
+        }
+    }
+}

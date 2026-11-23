@@ -105,6 +105,8 @@ fun ApprovalQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
 internal fun ApprovalQuickSheetContent(
     vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit
 ) {
+    val auditRecords by vm.approvalAudit.records.collectAsState()
+    val auditError by vm.approvalAudit.error.collectAsState()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -116,7 +118,7 @@ internal fun ApprovalQuickSheetContent(
                 .padding(horizontal = 18.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("处理当前任务的审批", style = MaterialTheme.typography.headlineSmall)
+            Text("待处理审批", style = MaterialTheme.typography.headlineSmall)
             Text("请根据具体命令、文件和权限范围作出决定。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             if (prompts.isEmpty()) {
@@ -134,6 +136,7 @@ internal fun ApprovalQuickSheetContent(
                     key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
                 }
             }
+            ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
             Spacer(Modifier.height(12.dp))
         }
     }

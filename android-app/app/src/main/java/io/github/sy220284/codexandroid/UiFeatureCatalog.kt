@@ -16,8 +16,8 @@ object UiFeatureCatalog {
     val all = listOf(
         UiFeature("home", FeatureSurface.Page, FeatureOwner.Global, false),
         UiFeature("chat", FeatureSurface.Page, FeatureOwner.Thread, false),
-        UiFeature("threads", FeatureSurface.Page, FeatureOwner.Thread, false),
-        UiFeature("approvals", FeatureSurface.Page, FeatureOwner.Thread, false),
+        UiFeature("threads", FeatureSurface.Sheet, FeatureOwner.Global, false),
+        UiFeature("approvals", FeatureSurface.Sheet, FeatureOwner.Global, false),
         UiFeature("search", FeatureSurface.Inline, FeatureOwner.Thread, true),
         UiFeature("goals", FeatureSurface.Sheet, FeatureOwner.Thread, false),
         UiFeature("queue", FeatureSurface.Page, FeatureOwner.Thread, true),
@@ -45,7 +45,7 @@ object UiFeatureCatalog {
         UiFeature("update", FeatureSurface.Inline, FeatureOwner.System, false)
     )
     val byRoute = all.associateBy { it.route }
-    val sidebarRoutes = listOf("home","chat","threads","files","approvals","settings")
+    val sidebarRoutes = listOf("home","chat","files","settings")
     val workspaceTools = listOf("files","diff","terminal","review","goals","queue")
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models")),

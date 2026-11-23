@@ -118,20 +118,30 @@ fun CodexShell(vm: CodexViewModel) {
     var showMode by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showAttachments by remember { mutableStateOf(false) }
+    var showThreadLibrary by remember { mutableStateOf(false) }
+    var showApprovals by remember { mutableStateOf(false) }
     val move: (String) -> Unit = move@{ destination ->
         when (destination) {
+            "threads" -> {
+                showThreadLibrary = true
+                scope.launch { drawer.close() }
+                return@move
+            }
+            "approvals" -> {
+                showApprovals = true
+                scope.launch { drawer.close() }
+                return@move
+            }
             "review" -> {
                 if (activeThread == null) {
-                    selected = "threads"
-                    backHistory = (backHistory + "threads").takeLast(18)
+                    showThreadLibrary = true
                 } else showReview = true
                 scope.launch { drawer.close() }
                 return@move
             }
             "goals" -> {
                 if (activeThread == null) {
-                    selected = "threads"
-                    backHistory = (backHistory + "threads").takeLast(18)
+                    showThreadLibrary = true
                 } else showGoal = true
                 scope.launch { drawer.close() }
                 return@move
@@ -143,8 +153,7 @@ fun CodexShell(vm: CodexViewModel) {
             }
             "history-tools", "thread-attachments" -> {
                 if (activeThread == null) {
-                    selected = "threads"
-                    backHistory = (backHistory + "threads").takeLast(18)
+                    showThreadLibrary = true
                 } else if (destination == "history-tools") showHistory = true
                 else showAttachments = true
                 scope.launch { drawer.close() }
@@ -352,6 +361,13 @@ fun CodexShell(vm: CodexViewModel) {
         if (showMode) ModeChoiceSurface(vm) { showMode = false }
         if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
         if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
+        if (showThreadLibrary) ThreadLibraryQuickSheet(vm,
+            onDismiss = { showThreadLibrary = false },
+            navigate = { destination ->
+                showThreadLibrary = false
+                move(destination)
+            })
+        if (showApprovals) ApprovalQuickSheet(vm) { showApprovals = false }
     }
 }
 
@@ -379,7 +395,7 @@ private fun Sidebar(
                 Icon(Icons.Outlined.Search, "搜索全部会话", tint = Ink.parchment)
             }
         }
-        listOf("chat","home","files","threads","approvals").forEach { id ->
+        listOf("chat","home","files").forEach { id ->
             SidebarRoute(id, selected, approvals, onSelect)
         }
         Row(
