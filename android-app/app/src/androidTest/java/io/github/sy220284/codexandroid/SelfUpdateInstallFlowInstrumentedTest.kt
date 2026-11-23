@@ -22,8 +22,24 @@ class SelfUpdateInstallFlowInstrumentedTest {
     @Test
     fun openSystemInstallerFromTheAppBeingUpdated() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val fixture = File(context.cacheDir, "updates/ci-self-update.apk")
-        assertTrue("Missing self-update APK fixture: ${fixture.absolutePath}", fixture.isFile)
+        val source = File(context.filesDir, "ci-self-update.apk")
+        assertTrue("Missing self-update APK fixture: ${source.absolutePath}", source.isFile)
+        // The application has already completed its startup cache sweep.
+        // Copy the fixture into a fresh staging directory, then protect it
+        // with the same marker the release updater writes before handoff.
+        val currentCode =
+            context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+        val root = UpdateCache.prepare(
+            context.cacheDir, currentCode, System.currentTimeMillis()
+        )
+        val fixture = File(root, "ci-self-update.apk")
+        source.copyTo(fixture)
+        assertTrue("Could not clear the pre-staging APK", source.delete())
+        // The CI installs the same debug APK (same versionCode), so use a
+        // synthetic future target solely to test protection across restart.
+        UpdateCache.markInstallerHandoff(
+            root, fixture, currentCode + 1, System.currentTimeMillis()
+        )
         // Dedicated instrumentation invocation: keep the source Activity alive until
         // the system installer's separate task takes over. Closing ActivityScenario
         // immediately after startActivity races the asynchronous installer launch and
@@ -31,9 +47,9 @@ class SelfUpdateInstallFlowInstrumentedTest {
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         scenario.onActivity { activity ->
             val uri = FileProvider.getUriForFile(
-                activity, "${activity.packageName}.updateprovider", fixture
+                activity.applicationContext, "${activity.packageName}.updateprovider", fixture
             )
-            activity.startActivity(AppUpdateManager.systemInstallIntent(uri))
+            activity.applicationContext.startActivity(AppUpdateManager.systemInstallIntent(uri))
         }
         // startActivity returns before the remote installer completes its launch.
         // Verify the actual system confirmation UI before ending instrumentation,
