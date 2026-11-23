@@ -724,6 +724,33 @@ class UiNavigationInstrumentedTest {
         captureOverlay("audit-about-android35.png")
     }
 
+    @Test fun permissionProfilesCanBeSelectedAndRestrictedProfilesCannot() {
+        val vm = (rule.activity.application as CodexApplication).session
+        openSettingRoute("security")
+        rule.runOnUiThread {
+            vm.data.value = vm.data.value + mapOf(
+                "config" to JSONObject().put("config", JSONObject()
+                    .put("default_permissions", ":read-only")
+                    .put("approval_policy", "on-request")
+                    .put("sandbox_mode", "read-only")),
+                "securityRequirements" to JSONObject().put("requirements", JSONObject()
+                    .put("allowedPermissionProfiles", JSONObject()
+                        .put(":read-only", true)
+                        .put(":workspace", true)
+                        .put(":danger-full-access", false))),
+                "permissionProfiles" to JSONObject().put("data", JSONArray()
+                    .put(JSONObject().put("id", ":read-only").put("allowed", true))
+                    .put(JSONObject().put("id", ":workspace").put("allowed", true))
+                    .put(JSONObject().put("id", ":danger-full-access").put("allowed", true)))
+            )
+        }
+        rule.onNodeWithTag("security-profiles-toggle").performScrollTo().performClick()
+        rule.onNodeWithTag("security-profile-workspace").performScrollTo().performClick()
+        rule.onNodeWithText("保存默认权限").assertIsEnabled()
+        rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo()
+            .assertHasNoClickAction()
+    }
+
     @Test fun permissionApprovalExplainsActualScope() {
         val vm = (rule.activity.application as CodexApplication).session
         openDrawerRoute("files")
