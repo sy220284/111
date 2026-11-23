@@ -16,6 +16,26 @@ internal object CodexNotificationDispatcher {
         val params = message.optJSONObject("params") ?: JSONObject()
         val threadId = params.optString("threadId")
         if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
+        if (method == "mcpServer/oauthLoginCompleted") {
+            val matching = McpServiceAuthPolicy.matchesCompletion(data.value["mcpLogin"], params)
+            if (matching) {
+                data.value = data.value - "mcpLogin"
+                if (params.optBoolean("success")) {
+                    errors.value = errors.value - "mcpLogin"
+                    actionFeedback.emit(ActionFeedbackReceipt("扩展服务授权已完成，正在核对连接状态"))
+                } else {
+                    val reason = params.optString("error").ifBlank { "请重新进行授权" }
+                    errors.value = errors.value + ("mcpLogin" to reason)
+                    actionFeedback.emit(ActionFeedbackReceipt(
+                        "扩展服务授权失败：" + PresentationPolicy.readableError(reason),
+                        isError = true
+                    ))
+                }
+            }
+            refresh("mcp", "mcpServerStatus/list",
+                CatalogRequestContract.mcpStatus(activeThread.value))
+            return
+        }
         if (method == "account/login/completed") {
             val result = AccountLoginContract.completion(params, activeLoginId.value)
             if (result != null) {
@@ -27,11 +47,17 @@ internal object CodexNotificationDispatcher {
                 else errors.value = errors.value + ("account" to
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
-                if (result.success) catalogWarmup.accountChanged()
+                if (result.success) {
+                    catalogWarmup.accountChanged()
+                    refresh("mcp", "mcpServerStatus/list",
+                        CatalogRequestContract.mcpStatus(activeThread.value))
+                }
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
             catalogWarmup.accountChanged()
+            refresh("mcp", "mcpServerStatus/list",
+                CatalogRequestContract.mcpStatus(activeThread.value))
         }
         if (method == "project/changed") {
             val changedId = params.optString("projectId")
