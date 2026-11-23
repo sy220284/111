@@ -417,6 +417,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         attachmentController.clearAfterAccepted(threadId, text, images)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: (String) -> Unit = {}) {
+        if (!globalWorkSnapshot().canStartNewTask) {
+            errors.value = errors.value + ("conversation" to
+                "本机数据正在备份或恢复，完成后再发送指令")
+            return
+        }
         if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
         val prompt = text.trim()
         if (threadSwitching.value) {
