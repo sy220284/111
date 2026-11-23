@@ -136,6 +136,10 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
             rule.onNodeWithText("正在验证本机备份…").assertExists()
             captureVerifiedDisplayScreenshot("audit-backup-in-progress-android35.png")
+            // Pressing Back acknowledges the blocked operation without exposing
+            // file/editor controls until the archive reports completion.
+            pressSystemBack()
+            rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
         } finally {
             rule.runOnUiThread { AppDataTransfer.state.value = DataTransferState() }
             rule.waitForIdle()
