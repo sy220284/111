@@ -97,7 +97,7 @@ class PresentationPolicyTest {
     @Test fun htmlMcpOAuthErrorKeepsHttpCodeWithoutLeakingWebPage() {
         val raw = "failed to login to MCP server 'codex_apps': " +
             "Dynamic registration failed: HTTP 405 Method Not Allowed: " +
-            "<!DOCTYPE html><html class=\\\"chatgpt-theme\\\" data-build=\\\"hash\\\">"
+            "<!DOCTYPE html><html class='chatgpt-theme' data-build='hash'>"
         val readable = PresentationPolicy.readableError(raw)
         assertTrue(readable.contains("HTTP 405"))
         assertTrue(readable.contains("认证方式"))
