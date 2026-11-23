@@ -620,6 +620,21 @@ class UiPopulatedSubpagesInstrumentedTest {
         assertEquals("", vm.modelId.value)
     }
 
+    @Test fun pluginOriginalEnglishDescriptionIsAvailableOnlyOnDemand() {
+        val vm = viewModel()
+        val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")
+        val entry = JSONObject().put("id", "english").put("name", "english")
+        val detail = JSONObject().put("description", "This plugin checks project results.")
+        rule.setContent { CodexTheme { PluginDetailSheet(market, entry, vm, {}) } }
+        rule.waitForIdle()
+        vm.data.value = vm.data.value + ("pluginDetail:样例插件源:english" to
+            JSONObject().put("plugin", detail))
+        rule.onNodeWithText("插件功能可在下方能力清单查看。").assertExists()
+        rule.onNodeWithText("This plugin checks project results.").assertDoesNotExist()
+        rule.onNodeWithText("查看插件原始说明").performClick()
+        rule.onNodeWithText("This plugin checks project results.").assertIsDisplayed()
+    }
+
     @Test fun pluginDetailShowsCapabilitiesRatherThanRawMetadata() {
         val vm = viewModel()
         val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")
