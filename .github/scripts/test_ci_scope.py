@@ -25,6 +25,7 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertGreaterEqual(contents.count('"upstream/codex/codex-rs/**"'), 2)
         self.assertGreaterEqual(contents.count('"upstream/codex/.cargo/**"'), 2)
         self.assertIn("--abis arm64-v8a", contents)
+        self.assertIn('- ".github/workflows/build-android.yml"', contents)
         self.assertNotIn('--branch "${{ github.head_ref || github.ref_name }}"', contents)
 
     def test_android_build_and_ui_share_unit_test_gate(self):
