@@ -299,8 +299,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
-        rule.onNodeWithText("全选本页").performClick()
-        rule.onNodeWithText("已选 2 条 · 仅针对当前筛选页").assertExists()
+        rule.onNodeWithContentDescription("全选本页").performClick()
+        rule.onNodeWithText("已选 2 条").assertExists()
         rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
         rule.onNodeWithTag("thread-bulk-delete").performClick()
         rule.runOnIdle { assertEquals("delete", requested) }
