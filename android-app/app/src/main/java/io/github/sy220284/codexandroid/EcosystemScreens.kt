@@ -142,10 +142,17 @@ fun ProvidersPage(vm: CodexViewModel) {
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("服务商配置", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                CodexDetailTrigger("添加自定义服务商", onClick = { showCustomEditor = true })
+            Text("服务商配置", style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                    .clickable { showCustomEditor = true },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AddCircleOutline, null, tint = Ink.copper)
+                Spacer(Modifier.width(10.dp))
+                Text("添加自定义服务商", modifier = Modifier.weight(1f))
+                Icon(Icons.Outlined.ChevronRight,
+                    contentDescription = "打开服务商编辑")
             }
             if (showCustomEditor) {
                 CodexDetailSheet(
@@ -165,18 +172,29 @@ fun ProvidersPage(vm: CodexViewModel) {
                         singleLine = true)
                     Text("密钥值由本机环境管理；这里仅填写变量名称。",
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                    OutlinedButton(
+                    CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
-                            (customUrl.startsWith("https://") || customUrl.startsWith("http://"))
+                            (customUrl.startsWith("https://") || customUrl.startsWith("http://")),
+                        modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }
             }
-            TextButton(onClick = {
-                showCapabilities = true
-                vm.refresh("providerCapabilities",
-                    "modelProvider/capabilities/read")
-            }) { Text("查看服务商能力") }
+            DividerLine()
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable {
+                    showCapabilities = true
+                    vm.refresh("providerCapabilities",
+                        "modelProvider/capabilities/read")
+                },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Info, null, tint = Ink.muted)
+                Spacer(Modifier.width(10.dp))
+                Text("查看服务商能力", modifier = Modifier.weight(1f))
+                Icon(Icons.Outlined.ChevronRight,
+                    contentDescription = "查看服务商能力")
+            }
             if (showCapabilities) CodexDetailSheet(
                 title = "服务商能力",
                 onDismiss = { showCapabilities = false }
