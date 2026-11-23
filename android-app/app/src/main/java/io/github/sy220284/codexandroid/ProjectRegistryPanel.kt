@@ -239,8 +239,16 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
     editing?.let { item ->
         AlertDialog(onDismissRequest = { editing = null },
             title = { Text("修改项目名称") },
-            text = { OutlinedTextField(renameText, { renameText = it },
-                label = { Text("项目名称") }, singleLine = true) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(renameText, { renameText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("项目名称") }, singleLine = true)
+                    errors["projectWrite"]?.let {
+                        Text("保存失败：" + PresentationPolicy.readableError(it), color = Ink.red)
+                    }
+                }
+            },
             confirmButton = { TextButton(onClick = {
                 vm.rpc("projectWrite", "project/update",
                     ProjectRequestContract.rename(item.optString("id"), renameText),
