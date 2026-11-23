@@ -358,7 +358,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 threadFailures.value[id]?.let { reason ->
                     errors.value = errors.value + ("conversation" to reason)
                 }
-                latestDiff.value = ""
+                latestDiff.value = ThreadDiffHistory.latest(turns)
                 timeline.value = newest
                 onOpened?.invoke()
             } catch (failure: Exception) {

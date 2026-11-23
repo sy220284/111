@@ -72,7 +72,7 @@ val pages = listOf(
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", Icons.Outlined.Tune, "modelProvider/list"),
     Page("config", "引擎配置", "设置与账户", "逐项读取和写入官方配置", Icons.Outlined.Settings, "config/read"),
     Page("security", "权限与安全", "设置与账户", "审批、沙箱和网络策略", Icons.Outlined.Security, "configRequirements/read"),
-    Page("usage", "使用量", "设置与账户", "额度与调用统计", Icons.Outlined.Insights, "account/usage/read"),
+    Page("usage", "使用量", "设置与账户", "调用统计与使用记录", Icons.Outlined.Insights, "account/usage/read"),
     Page("limits", "使用限额", "设置与账户", "限额和重置时间", Icons.Outlined.Speed, "account/rateLimits/read"),
     Page("appearance", "外观与交互", "设置与账户", "显示密度、材质和动效", Icons.Outlined.Palette),
     Page("diagnostics", "诊断与日志", "设置与账户", "本机连接与运行状态", Icons.Outlined.BugReport, "server/diagnostics", true),
@@ -112,8 +112,6 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
-    var showQuickTools by rememberSaveable { mutableStateOf(false) }
-    var pendingQuickRoute by remember { mutableStateOf<String?>(null) }
     var showStatus by remember { mutableStateOf(false) }
     var showReview by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
@@ -142,11 +140,6 @@ fun CodexShell(vm: CodexViewModel) {
                 pendingThreadAction = null
                 libraryInitialFullText = destination == "search"
                 showThreadLibrary = true
-                scope.launch { drawer.close() }
-                return@move
-            }
-            "workspace-tools" -> {
-                showQuickTools = true
                 scope.launch { drawer.close() }
                 return@move
             }
@@ -249,14 +242,6 @@ fun CodexShell(vm: CodexViewModel) {
             vm.chooseThread(id) { move("chat") }
         }
     }
-    LaunchedEffect(showQuickTools, pendingQuickRoute) {
-        if (!showQuickTools) {
-            pendingQuickRoute?.let { destination ->
-                pendingQuickRoute = null
-                move(destination)
-            }
-        }
-    }
 
     val goBack: () -> Unit = {
         if (backHistory.size > 1) {
@@ -311,6 +296,8 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         navigationIcon = {
                             if (!wide) {
+                                // Workspace files remain a primary location with a stable drawer.
+                                // A contextual return action is offered separately when opened from chat.
                                 val isNested = NavigationPolicy.isDetailPage(selected)
                                 IconButton(
                                     onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
@@ -323,9 +310,14 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         actions = {
-                            if (selected in setOf("home", "chat", "files")) {
-                                IconButton(onClick = { showQuickTools = true }) {
-                                    Icon(Icons.Outlined.Widgets, contentDescription = "快捷工具")
+                            if (!wide && selected == "files" &&
+                                backHistory.dropLast(1).lastOrNull() == "chat") {
+                                IconButton(
+                                    onClick = goBack,
+                                    modifier = Modifier.testTag("files-return-to-conversation")
+                                ) {
+                                    Icon(Icons.Outlined.ArrowBack,
+                                        contentDescription = "返回上一页")
                                 }
                             }
                             if (selected == "threads") {
@@ -366,9 +358,7 @@ fun CodexShell(vm: CodexViewModel) {
                     // interactive during rapid settings / feature navigation.
                     pageStateHolder.SaveableStateProvider(selected) {
                         CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
-                            PageContent(selected, vm, move, onOpenWorkspaceTools = {
-                                showQuickTools = true
-                            })
+                            PageContent(selected, vm, move)
                         }
                     }
                 }
@@ -406,15 +396,6 @@ fun CodexShell(vm: CodexViewModel) {
                         sidebarState) }
                 }
             ) { content() }
-        }
-        if (showQuickTools) {
-            WorkspaceActionsSheet(
-                onDismiss = { showQuickTools = false },
-                navigate = { destination ->
-                    pendingQuickRoute = destination
-                    showQuickTools = false
-                }, hasThread = activeThread != null
-            )
         }
         if (showStatus) {
             EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
@@ -467,6 +448,7 @@ private fun Sidebar(
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState
 ) {
+    val activeWorkspace by vm.activeWorkspace.collectAsState()
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -502,17 +484,26 @@ private fun Sidebar(
         listOf("chat", "home", "files").forEach { id ->
             SidebarRoute(id, selected, approvals, onSelect)
         }
-        OutlinedButton(
-            onClick = { onSelect("workspace-tools") },
+        Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
-                .heightIn(min = 48.dp).testTag("sidebar-workspace-tools"),
+                .testTag("sidebar-project-context")
+                .clickable { onSelect("files") },
             shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.dp, Ink.border)
+            color = Ink.elevated
         ) {
-            Icon(Icons.Outlined.Widgets, null, modifier = Modifier.size(19.dp))
-            Spacer(Modifier.width(11.dp))
-            Text("工作区工具", modifier = Modifier.weight(1f))
-            Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.FolderOpen, null, modifier = Modifier.size(21.dp))
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("当前项目", style = MaterialTheme.typography.labelSmall,
+                        color = Ink.muted)
+                    Text(PresentationPolicy.workspaceName(activeWorkspace),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
+            }
         }
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 7.dp),

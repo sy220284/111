@@ -38,8 +38,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
-            pages.firstOrNull { it.id == id && NavigationPolicy.matches(
-                query, it.title, it.subtitle, it.id) }
+            pages.firstOrNull { it.id == id &&
+                NavigationPolicy.showInSettingsGroup(id, query) &&
+                NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
         }
     }.filter { (group, entries) ->
         entries.isNotEmpty() || ("update" in group.routes && (showUpdate || showTransfers))
@@ -264,79 +265,5 @@ private fun AppearanceSettingToggle(
             Text(description, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
         WhiteSwitch(value, onCheckedChange = onChange)
-    }
-}
-
-/** 文件和任务扩展入口统一使用一列明确操作，输入区模式采用参考截图的圆形图标列表。 */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WorkspaceActionsSheet(
-    onDismiss: () -> Unit, navigate: (String) -> Unit, hasThread: Boolean = false,
-) {
-    fun openTool(route: String) {
-        // 先完成关闭，再交由宿主处理真实路由，避免多张浮层同时出现。
-        onDismiss()
-        navigate(route)
-    }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Ink.canvas,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(color = Ink.border)
-        }
-    ) {
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = 500.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 19.dp, vertical = 12.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
-        ) {
-            Text("工作区工具",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 7.dp, top = 8.dp, bottom = 8.dp))
-
-            UiFeatureCatalog.workspaceToolGroups.forEach { group ->
-                val title = group.title
-                val routes = group.routes
-                Text(title, modifier = Modifier.padding(start = 9.dp, top = 10.dp, bottom = 3.dp),
-                    style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                routes.forEach { id ->
-                    val item = pages.first { it.id == id }
-                    val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().testTag("quick-$id")
-                            .clickable { openTool(id) },
-                        shape = RoundedCornerShape(14.dp),
-                        color = Ink.canvas
-                    ) {
-                        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                            .padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(item.icon, null, tint = Ink.parchment,
-                                modifier = Modifier.size(21.dp))
-                            Spacer(Modifier.width(14.dp))
-                            Text(item.title, style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f), color = Ink.parchment)
-                            if (!allowed) {
-                                Text("选择会话", style = MaterialTheme.typography.labelMedium,
-                                    color = Ink.muted)
-                            } else {
-                                Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
-                                    modifier = Modifier.size(18.dp))
-                            }
-                        }
-                    }
-                }
-            }
-            if (!hasThread) {
-                Text("选择历史会话后可使用代码审查、目标和队列工具。",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
-            }
-            Spacer(Modifier.height(8.dp))
-        }
     }
 }

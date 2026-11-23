@@ -122,6 +122,27 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
+        // Keep thread-owned goal and queue UI synchronized with agent-side mutations.
+        // These notifications are emitted even when changes do not originate in the UI.
+        if (threadId.isNotBlank() && threadId == activeThread.value) {
+            when (method) {
+                "thread/goal/updated" -> {
+                    data.value = data.value + ("goal:$threadId" to JSONObject()
+                        .put("goal", params.optJSONObject("goal") ?: JSONObject.NULL))
+                    return
+                }
+                "thread/goal/cleared" -> {
+                    data.value = data.value + ("goal:$threadId" to JSONObject()
+                        .put("goal", JSONObject.NULL))
+                    return
+                }
+                "thread/queue/changed" -> {
+                    refresh("queue:$threadId", "thread/queue/list",
+                        JSONObject().put("threadId", threadId).put("limit", 100))
+                    return
+                }
+            }
+        }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
             "item/agentMessage/delta", "item/plan/delta",

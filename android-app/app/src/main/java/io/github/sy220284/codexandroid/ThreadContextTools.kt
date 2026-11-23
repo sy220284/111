@@ -95,7 +95,7 @@ fun ThreadContextTools(
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
-                Text("和此会话相关的目标、队列与历史操作集中管理。",
+                Text("查看当前目标、后续指令、历史记录及关联资料。",
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-goals")) {
@@ -107,7 +107,7 @@ fun ThreadContextTools(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
                     Icon(Icons.Outlined.ViewList, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("待办队列（实验）")
+                    Text("后续指令")
                 }
                 OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {

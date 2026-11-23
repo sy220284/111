@@ -5,9 +5,14 @@ data class FeatureGroup(val title: String, val routes: List<String>)
 
 object NavigationPolicy {
     val sidebarRoutes get() = UiFeatureCatalog.sidebarRoutes
-    val quickToolRoutes get() = UiFeatureCatalog.workspaceTools
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }
+    /**
+     * The settings overview already links directly to account and connection health.
+     * When filtering, expose their full routes as precise search results.
+     */
+    fun showInSettingsGroup(route: String, query: String): Boolean =
+        query.isNotBlank() || route !in setOf("account", "diagnostics")
     fun isCommon(id: String) = id in sidebarRoutes
     /** Old saved stacks may still contain routes that are now shown as sheets. */
     fun pageHistory(routes: List<String>): List<String> = routes.filter {

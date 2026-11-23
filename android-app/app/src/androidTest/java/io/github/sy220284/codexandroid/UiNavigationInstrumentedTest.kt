@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -103,12 +104,11 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-chat").assertExists()
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
-        rule.onNodeWithTag("sidebar-workspace-tools").assertExists()
+        rule.onNodeWithTag("sidebar-project-context").assertExists()
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
-        rule.onNodeWithTag("sidebar-workspace-tools").performClick()
-        rule.onNodeWithTag("quick-terminal").assertExists()
-        rule.onNodeWithTag("quick-review").assertExists()
+        rule.onNodeWithTag("sidebar-project-context").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
     }
 
     @Test fun chatKeepsStopAndSendControlsReachable() {
@@ -140,9 +140,9 @@ class UiNavigationInstrumentedTest {
         captureOverlay("attachment-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("工作区工具").performClick()
-        rule.onNodeWithTag("quick-terminal").assertExists()
-        captureOverlay("tools-sheet-android35.png")
+        rule.onNodeWithTag("chat-project-terminal").performClick()
+        rule.onNodeWithText("项目终端").assertExists()
+        captureOverlay("terminal-sheet-android35.png")
     }
 
     @Test fun statusButtonHasStableMeaningAndSeparatesActions() {
@@ -162,23 +162,34 @@ class UiNavigationInstrumentedTest {
 
     @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
         val vm = (rule.activity.application as CodexApplication).session
-        rule.runOnUiThread { vm.activeThread.value = "ci-diff-thread" }
-        rule.waitForIdle()
-        rule.onNodeWithTag("home-shortcut-diff").performClick()
+        val sampleDiff = "diff --git a/src/main.kt b/src/main.kt\n" +
+            "@@ -1 +1 @@\n-before\n+after"
+        rule.runOnUiThread {
+            vm.activeThread.value = "ci-diff-thread"
+            vm.latestDiff.value = sampleDiff
+        }
+        openDrawerRoute("chat")
+        rule.onNodeWithTag("chat-changes-summary").assertExists()
+        rule.onNodeWithText("查看", substring = false).performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
-        rule.onNodeWithText("暂无可展示的代码差异").assertExists()
+        rule.onNodeWithText("src/main.kt").assertExists()
         capture("diff-reader-android35.png")
     }
 
-    @Test fun workspaceToolBackNavigatesToWorkspaceRatherThanSettings() {
-        openDrawerRoute("files")
+    @Test fun projectTerminalAndFilesReturnToConversation() {
+        openDrawerRoute("chat")
+        rule.onNodeWithTag("chat-project-terminal").performClick()
+        rule.onNodeWithText("项目终端").assertExists()
+        rule.onNodeWithContentDescription("收起终端").performClick()
+        rule.onNodeWithTag("conversation-composer").assertExists()
+        rule.onNodeWithTag("chat-project-files").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
-        rule.onNodeWithContentDescription("快捷工具").performClick()
-        rule.onNodeWithTag("quick-terminal").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("终端")
+        // Project files offer both a global session drawer and a contextual return.
+        rule.onNodeWithContentDescription("打开侧边导航").assertExists()
+        rule.onNodeWithTag("files-return-to-conversation").assertExists()
         rule.onNodeWithContentDescription("返回上一页").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("conversation-composer").assertExists()
     }
 
     @Test fun androidBackReturnsToPreviousScreen() {
@@ -213,10 +224,11 @@ class UiNavigationInstrumentedTest {
     @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
         rule.onNodeWithTag("home-task-hero").assertExists()
         rule.onNodeWithTag("home-primary-action").assertExists()
-        rule.onNodeWithText("常用工作").assertExists()
-        for (id in listOf("files", "threads", "diff", "terminal")) {
-            rule.onNodeWithTag("home-shortcut-$id").assertExists()
-        }
+        rule.onNodeWithText("当前项目").assertExists()
+        rule.onNodeWithTag("home-project-context").assertExists()
+        rule.onNodeWithTag("home-shortcut-files").assertExists()
+        rule.onNodeWithTag("home-shortcut-terminal").assertExists()
+        rule.onNodeWithTag("home-shortcut-diff").assertDoesNotExist()
         rule.onNodeWithTag("home-shortcut-files").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
     }
@@ -239,8 +251,7 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("额度")
         rule.onNodeWithTag("settings-route-limits").assertExists()
-        // “额度”也关联用量统计，两个真实账号功能均应可访问。
-        rule.onNodeWithTag("settings-route-usage").assertExists()
+        rule.onNodeWithTag("settings-route-usage").assertDoesNotExist()
         rule.onNodeWithTag("settings-route-limits").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
     }
@@ -313,6 +324,11 @@ class UiNavigationInstrumentedTest {
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
         assertEquals(16, NavigationPolicy.settingsRoutes.size)
+        assertEquals(NavigationPolicy.settingsRoutes.size,
+            NavigationPolicy.settingsRoutes.toSet().size)
+        assertFalse(NavigationPolicy.settingsRoutes.any {
+            it in setOf("goals", "queue", "review", "diff", "terminal")
+        })
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
         openSettingRoute("config")
@@ -391,7 +407,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-threads").assertDoesNotExist()
         rule.onNodeWithTag("nav-approvals").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
-        rule.onNodeWithTag("sidebar-workspace-tools").assertExists()
+        rule.onNodeWithTag("sidebar-project-context").assertExists()
         rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("tab-chat").assertExists()
@@ -465,62 +481,35 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
     }
 
-    @Test fun missingSessionKeepsOriginalToolWhenOpeningPicker() {
-        openDrawerRoute("files")
-        rule.onNodeWithContentDescription("快捷工具").performClick()
-        rule.onNodeWithTag("quick-queue").performClick()
-        rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("thread-library-sheet").fetchSemanticsNodes().isNotEmpty()
-        }
-        rule.onNodeWithText("选择会话后继续：任务队列").assertExists()
-        pressSystemBack()
+    @Test fun noSessionStillOpensProjectResourcesDirectly() {
+        openDrawerRoute("chat")
+        rule.onNodeWithTag("chat-project-terminal").assertExists()
+        rule.onNodeWithTag("chat-project-files").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
-        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("chat-project-terminal").performClick()
+        rule.onNodeWithText("项目终端").assertExists()
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
-    @Test fun selectingSessionResumesTheOriginalQueueAction() {
+    @Test fun activeThreadOpensItsQueueWithoutHistoryPicker() {
         val vm = (rule.activity.application as CodexApplication).session
-        openDrawerRoute("files")
-        rule.onNodeWithContentDescription("快捷工具").performClick()
-        rule.onNodeWithTag("quick-queue").performClick()
-        rule.onNodeWithTag("thread-library-sheet").assertExists()
-
-        // Let the library's initial server query finish before seeding the offline fixture.
-        // request() clears the previous result when it starts a refresh.
-        val key = ThreadLibraryQuery.key(false, "", "", null)
-        rule.waitUntil(10_000L) {
-            key !in vm.loading.value &&
-                (key in vm.errors.value || key in vm.data.value)
-        }
-        // Exercise chooseThread's successful already-open callback without a live server.
-        // A real server resume invokes the same callback after thread/read and thread/resume.
-        rule.runOnUiThread {
-            val selectedId = "ci-queue-resume-thread"
-            vm.activeThread.value = selectedId
-            vm.data.value = vm.data.value + (key to JSONObject().put("data",
-                JSONArray().put(JSONObject().put("id", selectedId)
-                    .put("name", "继续队列测试会话"))))
-        }
-        rule.waitForIdle()
-        // LazyColumn only composes rows as they scroll into view.
-        // Scroll to the keyed row before querying its visible semantics.
-        rule.onNodeWithTag("thread-library-list")
-            .performScrollToNode(hasTestTag("thread-library-row-ci-queue-resume-thread"))
-        rule.onNodeWithText("继续会话").performClick()
+        rule.runOnUiThread { vm.activeThread.value = "ci-current-queue" }
+        openDrawerRoute("chat")
+        rule.onNodeWithContentDescription("会话选项").performClick()
+        rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
-        rule.onNodeWithText("任务队列").assertExists()
     }
 
     @Test fun queueDraftSurvivesClosingAndReopeningSheet() {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-draft" }
         rule.waitForIdle()
-        openDrawerRoute("files")
-        rule.onNodeWithContentDescription("快捷工具").performClick()
-        rule.onNodeWithTag("quick-queue").performClick()
+        openDrawerRoute("chat")
+        rule.onNodeWithContentDescription("会话选项").performClick()
+        rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -533,8 +522,8 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
         }
-        rule.onNodeWithContentDescription("快捷工具").performClick()
-        rule.onNodeWithTag("quick-queue").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
+        rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
     }
 
@@ -548,16 +537,16 @@ class UiNavigationInstrumentedTest {
         pressSystemBack()
 
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
-        openDrawerRoute("files")
-        rule.onNodeWithContentDescription("快捷工具").performClick()
-        rule.onNodeWithTag("quick-queue").performClick()
+        openDrawerRoute("chat")
+        rule.onNodeWithContentDescription("会话选项").performClick()
+        rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-sheet").assertExists()
-        rule.onNodeWithText("任务队列").assertExists()
+        rule.onNodeWithText("后续指令").assertExists()
         assertTrue("同一队列请求错误只显示一次",
             rule.onAllNodesWithText("Codex 内核尚未连接").fetchSemanticsNodes().size <= 1)
         captureOverlay("audit-queue-android35.png")
         pressSystemBack()
-        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("conversation-composer").assertExists()
     }
 
     @Test fun secondarySettingsPagesHaveActualDeviceScreenshots() {
@@ -674,7 +663,7 @@ class UiNavigationInstrumentedTest {
             vm.running.value = false
         }
         openDrawerRoute("chat")
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("复制会话分支").assertExists()
         captureOverlay("audit-thread-context-android35.png")
         rule.onNodeWithText("回合历史与回退").performScrollTo().performClick()
@@ -692,31 +681,30 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("查看完整时间线（实验）").assertExists()
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("tab-chat").assertExists()
-        rule.onNodeWithContentDescription("会话工具").performClick()
+        rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
     }
 
-    @Test fun toolbarQuickActionsCanOpenProjectTools() {
-        rule.onNodeWithTag("tab-chat").performClick()
-        rule.onNodeWithTag("composer-workspace-tools").performClick()
-        rule.onNodeWithTag("quick-terminal").assertExists()
-        rule.onNodeWithTag("quick-diff").performClick()
-        // 没有活动会话时，直接打开可关闭的会话管理弹层。
-        rule.onNodeWithText("会话资料库").assertExists()
+    @Test fun sidebarProjectContextOpensFilesWithoutHistoryPicker() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-project-context").assertExists()
+        rule.onNodeWithTag("sidebar-project-context").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
     private fun captureOverlay(fileName: String) {

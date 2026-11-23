@@ -23,6 +23,11 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
             ["audit-rtl-200font-bulk"], parse_discovered_screens(output)
         )
 
+    def test_project_terminal_sheet_replaces_removed_global_tool_menu(self):
+        self.assertIn("terminal-sheet", REQUIRED_SCREENS)
+        self.assertNotIn("tools-sheet", REQUIRED_SCREENS)
+        self.assertEqual(len(REQUIRED_SCREENS), len(set(REQUIRED_SCREENS)))
+
     def test_large_font_rtl_evidence_is_mandatory(self):
         self.assertIn("audit-rtl-200font-bulk", REQUIRED_SCREENS)
 

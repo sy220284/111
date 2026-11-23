@@ -41,12 +41,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
-fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit,
-    onOpenWorkspaceTools: () -> Unit) {
+fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     when (id) {
         "home" -> HomePage(vm, navigate)
         "settings" -> SettingsHubPage(vm, navigate)
-        "chat" -> ConversationPage(vm, navigate, onOpenWorkspaceTools)
+        "chat" -> ConversationPage(vm, navigate)
         "threads" -> ThreadLibraryPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
@@ -180,31 +179,42 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 NoticeTone.Warning,
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
-        Text("常用工作", style = MaterialTheme.typography.titleMedium,
+        Text("当前项目", style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 5.dp, top = 9.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            WelcomeActionCard(
-                title = "项目文件", subtitle = "浏览与编辑文件",
-                icon = Icons.Outlined.FolderOpen, tone = Ink.jade,
-                onClick = { navigate("files") }, modifier = Modifier.weight(1f).testTag("home-shortcut-files")
-            )
-            WelcomeActionCard(
-                title = "会话历史", subtitle = "继续之前的任务",
-                icon = Icons.Outlined.History, tone = Ink.copper,
-                onClick = { navigate("threads") }, modifier = Modifier.weight(1f).testTag("home-shortcut-threads")
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            WelcomeActionCard(
-                title = "代码差异", subtitle = "查看任务修改",
-                icon = Icons.Outlined.Difference, tone = Ink.copper,
-                onClick = { navigate("diff") }, modifier = Modifier.weight(1f).testTag("home-shortcut-diff")
-            )
-            WelcomeActionCard(
-                title = "终端", subtitle = "运行命令",
-                icon = Icons.Outlined.Terminal, tone = Ink.jade,
-                onClick = { navigate("terminal") }, modifier = Modifier.weight(1f).testTag("home-shortcut-terminal")
-            )
+        val homeWorkspace by vm.activeWorkspace.collectAsState()
+        MaterialPanel(Modifier.fillMaxWidth().testTag("home-project-context")) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.FolderOpen, null, tint = Ink.jade,
+                    modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(PresentationPolicy.workspaceName(homeWorkspace),
+                        style = MaterialTheme.typography.titleMedium, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
+                    Text("文件与命令均在此项目目录操作",
+                        style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = { navigate("files") },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        .testTag("home-shortcut-files")
+                ) {
+                    Icon(Icons.Outlined.FolderOpen, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("浏览文件")
+                }
+                OutlinedButton(
+                    onClick = { navigate("terminal") },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        .testTag("home-shortcut-terminal")
+                ) {
+                    Icon(Icons.Outlined.Terminal, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("打开终端")
+                }
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 9.dp),

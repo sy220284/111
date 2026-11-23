@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
+    @Test fun settingsOverviewAvoidsDuplicateEntriesWithoutHidingSearchResults() {
+        assertFalse(NavigationPolicy.showInSettingsGroup("account", ""))
+        assertFalse(NavigationPolicy.showInSettingsGroup("diagnostics", ""))
+        assertTrue(NavigationPolicy.showInSettingsGroup("account", "登录"))
+        assertTrue(NavigationPolicy.showInSettingsGroup("diagnostics", "日志"))
+        assertTrue(NavigationPolicy.showInSettingsGroup("plugins", ""))
+        assertTrue(NavigationPolicy.showInSettingsGroup("environments", ""))
+    }
+
     @Test fun commonNavigationRemainsCompact() {
         assertEquals(listOf("chat", "home", "files", "settings"),
             NavigationPolicy.sidebarRoutes)
@@ -46,21 +55,18 @@ class NavigationPolicyTest {
         assertEquals(27, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
-    @Test fun quickToolsAreTaskScopedAndAllTargetsExist() {
-        assertEquals(listOf("files","terminal","diff","review","goals","queue"),
-            NavigationPolicy.quickToolRoutes)
-        assertTrue(NavigationPolicy.quickToolRoutes.all { it in UiFeatureCatalog.byRoute })
-        assertEquals(NavigationPolicy.quickToolRoutes,
-            UiFeatureCatalog.workspaceToolGroups.flatMap { it.routes })
-        assertEquals(2, UiFeatureCatalog.workspaceToolGroups.size)
+    @Test fun projectAndThreadToolsUseTheirOwnContext() {
+        assertEquals(FeatureOwner.Workspace, UiFeatureCatalog.find("files").owner)
+        assertEquals(FeatureOwner.Workspace, UiFeatureCatalog.find("terminal").owner)
+        assertFalse(UiFeatureCatalog.requiresThread("files"))
+        assertFalse(UiFeatureCatalog.requiresThread("terminal"))
         assertTrue(UiFeatureCatalog.requiresThread("review"))
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
+        assertTrue(UiFeatureCatalog.requiresThread("goals"))
+        assertEquals(FeatureSurface.Reader, UiFeatureCatalog.find("diff").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("search").surface)
         assertEquals(FeatureOwner.Global, UiFeatureCatalog.find("search").owner)
-        assertFalse(UiFeatureCatalog.requiresThread("terminal"))
     }
-
 
     @Test fun settingsSearchResolvesCommonNamesToRegisteredDestinations() {
         val samples = mapOf(
