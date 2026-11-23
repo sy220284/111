@@ -379,6 +379,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-create"))
         rule.onNodeWithTag("workspace-create").performClick()
+        rule.onNodeWithTag("workspace-new-name").assertDoesNotExist()
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()

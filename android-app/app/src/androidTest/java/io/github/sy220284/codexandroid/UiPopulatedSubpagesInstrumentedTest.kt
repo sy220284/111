@@ -441,7 +441,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("每行填写一项").assertExists()
         rule.onNodeWithText("JSON 数组").assertDoesNotExist()
-        rule.onNodeWithText("每行填写一项").performTextInput("第一项\\n第二项")
+        rule.onNodeWithText("每行填写一项").performTextInput("第一项\n第二项")
         rule.onNodeWithText("第一项", substring = true).assertExists()
     }
 
