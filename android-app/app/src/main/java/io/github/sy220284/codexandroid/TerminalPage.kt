@@ -313,115 +313,115 @@ fun TerminalPage(vm: CodexViewModel) {
                         style = MaterialTheme.typography.titleSmall)
                     if (session.tty) StatusPill("交互式终端", false, StatusTone.Info)
                 }
-                            OutlinedTextField(
-                                value = input, onValueChange = { input = it },
-                                label = { Text("向运行中的命令输入一行") },
-                                modifier = Modifier.fillMaxWidth(), maxLines = 3,
-                                enabled = !session.terminating
-                            )
-                            Row(Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedButton(onClick = {
-                                    val submitted = input
-                                    vm.sendTerminalInput(submitted) {
-                                        input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
-                                    }
-                                }, enabled = input.isNotEmpty() && !session.terminating,
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                                    Text("发送输入")
-                                }
-                                OutlinedButton(onClick = { vm.stopTerminalCommand() },
-                                    enabled = !session.terminating,
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
-                                    Icon(Icons.Outlined.StopCircle, null)
-                                    Spacer(Modifier.width(5.dp))
-                                    Text("停止")
-                                }
-                            }
-                            errors["terminalInput"]?.let { ErrorText(it) }
-                            errors["terminalStop"]?.let { ErrorText(it) }
-            }
-        } else {
-                MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-composer-panel")) {
-                    OutlinedTextField(
-                        command,
-                        onValueChange = {
-                            command = it
-                            // Editing an old command starts a fresh history traversal.
-                            historyPosition = TerminalHistoryPosition()
-                        },
-                        label = { Text("Shell 命令") },
-                        placeholder = { Text("pwd && ls -la") },
-                        modifier = Modifier.fillMaxWidth()
-                            .testTag("terminal-command-input")
-                            .onPreviewKeyEvent { event ->
-                                if (session.running || event.type != KeyEventType.KeyDown ||
-                                    '\n' in command) return@onPreviewKeyEvent false
-                                val choice = when (event.key) {
-                                    Key.DirectionUp -> TerminalHistoryNavigation.previous(
-                                        command, recentCommands, historyPosition)
-                                    Key.DirectionDown -> TerminalHistoryNavigation.next(
-                                        recentCommands, historyPosition)
-                                    else -> null
-                                } ?: return@onPreviewKeyEvent false
-                                command = choice.command
-                                historyPosition = choice.position
-                                true
-                            },
-                        maxLines = 5,
-                        enabled = !session.running
-                    )
-                    if (recentCommands.isNotEmpty()) {
-                        Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
-                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                        Box {
-                            TextButton(
-                                onClick = { historyVisible = true },
-                                enabled = !session.running,
-                                modifier = Modifier.heightIn(min = 48.dp)
-                            ) {
-                                Icon(Icons.Outlined.History, null)
-                                Spacer(Modifier.width(7.dp))
-                                Text("使用历史命令")
-                            }
-                            DropdownMenu(
-                                expanded = historyVisible,
-                                onDismissRequest = { historyVisible = false }
-                            ) {
-                                recentCommands.forEach { previous ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(previous, maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis)
-                                        },
-                                        onClick = {
-                                            command = previous
-                                            historyPosition = TerminalHistoryPosition()
-                                            historyVisible = false
-                                        }
-                                    )
-                                }
-                            }
+                OutlinedTextField(
+                    value = input, onValueChange = { input = it },
+                    label = { Text("向运行中的命令输入一行") },
+                    modifier = Modifier.fillMaxWidth(), maxLines = 3,
+                    enabled = !session.terminating
+                )
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = {
+                        val submitted = input
+                        vm.sendTerminalInput(submitted) {
+                            input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
                         }
+                    }, enabled = input.isNotEmpty() && !session.terminating,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                        Text("发送输入")
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("交互式终端", style = MaterialTheme.typography.bodyMedium)
-                            Text("启用 PTY 后支持交互命令与终端尺寸调整",
-                                color = Ink.muted, style = MaterialTheme.typography.labelSmall)
-                        }
-                        Switch(checked = interactive, onCheckedChange = { interactive = it },
-                            enabled = !session.running)
-                    }
-                    OutlinedButton(onClick = { confirm = true },
-                        enabled = command.isNotBlank() && !session.running,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Icon(Icons.Outlined.PlayArrow, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("执行命令")
+                    OutlinedButton(onClick = { vm.stopTerminalCommand() },
+                        enabled = !session.terminating,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
+                        Icon(Icons.Outlined.StopCircle, null)
+                        Spacer(Modifier.width(5.dp))
+                        Text("停止")
                     }
                 }
+                errors["terminalInput"]?.let { ErrorText(it) }
+                errors["terminalStop"]?.let { ErrorText(it) }
+            }
+        } else {
+            MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-composer-panel")) {
+                OutlinedTextField(
+                    command,
+                    onValueChange = {
+                        command = it
+                        // Editing an old command starts a fresh history traversal.
+                        historyPosition = TerminalHistoryPosition()
+                    },
+                    label = { Text("输入命令") },
+                    placeholder = { Text("pwd && ls -la") },
+                    modifier = Modifier.fillMaxWidth()
+                        .testTag("terminal-command-input")
+                        .onPreviewKeyEvent { event ->
+                            if (session.running || event.type != KeyEventType.KeyDown ||
+                                '\n' in command) return@onPreviewKeyEvent false
+                            val choice = when (event.key) {
+                                Key.DirectionUp -> TerminalHistoryNavigation.previous(
+                                    command, recentCommands, historyPosition)
+                                Key.DirectionDown -> TerminalHistoryNavigation.next(
+                                    recentCommands, historyPosition)
+                                else -> null
+                            } ?: return@onPreviewKeyEvent false
+                            command = choice.command
+                            historyPosition = choice.position
+                            true
+                        },
+                    maxLines = 5,
+                    enabled = !session.running
+                )
+                if (recentCommands.isNotEmpty()) {
+                    Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
+                        style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    Box {
+                        TextButton(
+                            onClick = { historyVisible = true },
+                            enabled = !session.running,
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) {
+                            Icon(Icons.Outlined.History, null)
+                            Spacer(Modifier.width(7.dp))
+                            Text("使用历史命令")
+                        }
+                        DropdownMenu(
+                            expanded = historyVisible,
+                            onDismissRequest = { historyVisible = false }
+                        ) {
+                            recentCommands.forEach { previous ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(previous, maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis)
+                                    },
+                                    onClick = {
+                                        command = previous
+                                        historyPosition = TerminalHistoryPosition()
+                                        historyVisible = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("交互式终端", style = MaterialTheme.typography.bodyMedium)
+                        Text("需要持续输入或运行交互程序时开启",
+                            color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Switch(checked = interactive, onCheckedChange = { interactive = it },
+                        enabled = !session.running)
+                }
+                OutlinedButton(onClick = { confirm = true },
+                    enabled = command.isNotBlank() && !session.running,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Icons.Outlined.PlayArrow, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("执行命令")
+                }
+            }
         }
         errors["terminal"]?.let { ErrorText(it) }
     }
