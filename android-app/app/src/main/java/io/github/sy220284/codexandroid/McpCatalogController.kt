@@ -20,7 +20,7 @@ internal class McpCatalogController(private val vm: CodexViewModel) {
         val version = if (config.isFile) "${config.lastModified()}:${config.length()}"
             else "missing"
         if (version == appliedConfigVersion || "mcpReload" in vm.loading.value) return
-        vm.refresh("mcpReload", "config/mcpServer/reload", onSuccess = {
+        vm.refresh("mcpReload", "config/mcpServer/reload", params = null, onSuccess = {
             appliedConfigVersion = version
             vm.refresh("mcp", "mcpServerStatus/list",
                 CatalogRequestContract.mcpStatus(vm.activeThread.value))
