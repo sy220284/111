@@ -423,7 +423,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("elicitation-field-title").performTextInput("验收标题")
         rule.onNodeWithTag("elicitation-submit").assertIsEnabled().performClick()
         rule.onNodeWithText("向 MCP 服务提交确认").assertExists()
-        rule.onNodeWithText("取消").performClick()
+        rule.onNodeWithTag("confirm-dialog-cancel").assertExists().performClick()
         rule.onNodeWithText("向 MCP 服务提交确认").assertDoesNotExist()
         capture("audit-mcp-elicitation-android35.png")
     }
