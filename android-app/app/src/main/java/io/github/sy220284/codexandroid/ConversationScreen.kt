@@ -67,7 +67,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showContextTools by remember { mutableStateOf(false) }
     var showTerminalSheet by remember { mutableStateOf(false) }
     var followUpMode by rememberSaveable(thread) { mutableStateOf("queue") }
-    var showAttachmentTools by remember { mutableStateOf(false) }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
@@ -134,17 +133,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    LaunchedEffect(showAttachmentTools, pendingImagePick) {
-        if (!showAttachmentTools) {
-            if (pendingImagePick) {
-                pendingImagePick = false
-                val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                when ((LocalImageAttachments.MAX_FILES - attachedImages.size).coerceAtLeast(0)) {
-                    0 -> vm.reportFullAttachmentSelection(thread)
-                    1 -> oneImagePicker.launch(request)
-                    2 -> twoImagePicker.launch(request)
-                    else -> threeImagePicker.launch(request)
-                }
+    LaunchedEffect(pendingImagePick) {
+        if (pendingImagePick) {
+            pendingImagePick = false
+            val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            when ((LocalImageAttachments.MAX_FILES - attachedImages.size).coerceAtLeast(0)) {
+                0 -> vm.reportFullAttachmentSelection(thread)
+                1 -> oneImagePicker.launch(request)
+                2 -> twoImagePicker.launch(request)
+                else -> threeImagePicker.launch(request)
             }
         }
     }
@@ -495,7 +492,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     (busy && activeTurn.isNullOrBlank() && followUpMode == "steer"),
                 followUpMode = followUpMode,
                 onFollowUpModeChange = { followUpMode = it },
-                onAttach = { showAttachmentTools = true },
                 onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
                 onSend = {
                     val message = draft.trim()
@@ -522,12 +518,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     }
                 },
-                menuExpanded = showAttachmentTools,
                 imageImporting = attachmentBusy,
-                onMenuDismiss = { showAttachmentTools = false },
                 onPickImage = {
                     if (vm.beginImageSelection(thread)) pendingImagePick = true
-                    showAttachmentTools = false
                 },
                 compactControls = compactWorkArea,
                 compactCanReconnect = status is EngineStatus.Unavailable,
