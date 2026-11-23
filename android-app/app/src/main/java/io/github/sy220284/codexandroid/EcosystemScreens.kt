@@ -345,27 +345,22 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                             "plugin/search", PluginSearchContract.params(term))
                     }
                 }
-                OutlinedTextField(
-                    value = searchDraft, onValueChange = { searchDraft = it },
-                    singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("插件名称或关键字") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    trailingIcon = {
-                        if (searchDraft.isNotBlank()) IconButton(onClick = {
-                            searchDraft = ""; searchSubmitted = ""; searchPage = 0
-                        }, modifier = Modifier.size(48.dp)) {
-                            Icon(Icons.Outlined.Close, "清除搜索词")
-                        }
+                AtlasSearchField(
+                    value = searchDraft,
+                    onValueChange = { searchDraft = it },
+                    placeholder = "插件名称或关键字",
+                    label = "搜索插件",
+                    enabled = engineStatus == EngineStatus.Connected &&
+                        "pluginMutation" !in busy,
+                    busy = "pluginSearch:" + searchSubmitted + ":0" in busy,
+                    onClear = {
+                        searchDraft = ""
+                        searchSubmitted = ""
+                        searchPage = 0
                     },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Search),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onSearch = { if (searchAvailable) performSearch() })
+                    onSubmit = performSearch,
+                    submitTestTag = "plugins-search-submit"
                 )
-                CodexPrimaryButton(
-                    onClick = performSearch, enabled = searchAvailable,
-                    modifier = Modifier.fillMaxWidth().testTag("plugins-search-submit")
-                ) { Text("搜索插件") }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
