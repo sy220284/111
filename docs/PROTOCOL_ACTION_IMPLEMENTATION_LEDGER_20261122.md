@@ -465,3 +465,10 @@
 
 - 在 PR #71 功能代码及台账提交 `6b00a22b585171124200b2ebaab8566b2d129595` 的 [CI #45158226314](https://github.com/sy220284/111/actions/runs/45158226314) 4/4 通过后，`main` 又合入了 MCP 智能体管理改造 [`b42628a7`](https://github.com/sy220284/111/commit/b42628a7e02d2878405d4596e9873a8bf363a234)，两分支同时涉及 `CodexViewModel`、`AppNavigation` 及接口规范。
 - PR #71 的目标基线已更新至 `main@b42628a7`，依 GitHub 最新实际三方合并状态核验可合并。必须对该新主线组合再次执行完整 Kotlin/协议/Lint 和 Android 35 三档设备测试；仅在新组合测试成功后合入，保护 #70 的 MCP 服务注册归属与本轮跨会话/归档安全改造。
+
+
+#### 新主线 #70 + #71 的 ViewModel 结构冲突消除（2026-11-23）
+
+- 以 `main@b42628a7` 和 #71 合并候选树 `b2c21cdd7d62db50e9a4dd0f71740251e6be7379` 实际读取源码，发现 `CodexViewModel.kt` 合并后 766 行，超过 760 行源文件预算，属于两项功能在同一类中不断累积职责的结构性风险。
+- 已将 `library:`、`fullSearch:` 两类临时结果缓存的最近使用顺序、超过 32 条时的淘汰、旧请求所有权撤销、成功/错误/加载状态共同清理提取为独立 `TransientRequestCache.kt`，由 ViewModel 委托执行。保留 #70 MCP 账号与服务管理功能及 #71 全局状态控制；没有更改 Codex RPC 字段或用户数据。
+- 新增 `TransientRequestCacheTest.kt` 覆盖缓存淘汰时三类状态与旧回执共同失效、重复访问刷新最近使用顺序、常驻键不被淘汰、无效缓存容量被拒绝。新合并候选需运行完整 Kotlin/协议/Lint 与三档模拟器验收后方可合并，结果按当前 PR HEAD 登记。
