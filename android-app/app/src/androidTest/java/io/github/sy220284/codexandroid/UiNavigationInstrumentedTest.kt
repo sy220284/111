@@ -471,6 +471,30 @@ class UiNavigationInstrumentedTest {
         capture("account-limits-android35.png")
     }
 
+    @Test fun workspaceProjectManagerOpensWithoutExpandingTheFileList() {
+        openDrawerRoute("files")
+        rule.onNodeWithTag("workspace-project-management").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.onNodeWithTag("codex-detail-title").assertTextEquals("项目列表与管理")
+        captureOverlay("audit-project-manager-sheet-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        rule.onNodeWithTag("workspace-list").assertExists()
+    }
+
+    @Test fun executionEnvironmentDiagnosticsUseSeparateDetailSheet() {
+        openSettingRoute("environments")
+        rule.onNodeWithTag("environment-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.onNodeWithTag("codex-detail-title").assertTextEquals("执行环境检查")
+        rule.onNodeWithTag("environment-check-status").assertExists()
+        rule.onNodeWithTag("environment-info").assertExists()
+        captureOverlay("audit-environment-diagnostics-sheet-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        rule.onNodeWithTag("environment-advanced-toggle").assertExists()
+    }
+
     @Test fun workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation() {
         val name = "ui-folder-" + System.currentTimeMillis()
         openDrawerRoute("files")
