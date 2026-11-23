@@ -19,16 +19,14 @@ internal object CodexNotificationDispatcher {
         // MCP registration and OAuth are agent/runtime responsibilities.
         // Refresh only live service availability after their lifecycle events.
         if (method == "mcpServer/oauthLogin/completed") {
-            refresh("mcp", "mcpServerStatus/list",
-                CatalogRequestContract.mcpStatus(activeThread.value))
+            refreshMcpServices()
             return
         }
         if (method == "mcpServer/startupStatus/updated") {
             val targetThread = params.optString("threadId").takeIf { it.isNotBlank() }
             if ((targetThread == null || targetThread == activeThread.value) &&
                 params.optString("status") in setOf("ready", "failed", "cancelled")) {
-                refresh("mcp", "mcpServerStatus/list",
-                    CatalogRequestContract.mcpStatus(activeThread.value))
+                refreshMcpServices()
             }
             return
         }
@@ -52,8 +50,7 @@ internal object CodexNotificationDispatcher {
         } else if (method == "account/updated") {
             refresh("account", "account/read")
             catalogWarmup.accountChanged()
-            refresh("mcp", "mcpServerStatus/list",
-                CatalogRequestContract.mcpStatus(activeThread.value))
+            refreshMcpServices()
         }
         if (method == "project/changed") {
             val changedId = params.optString("projectId")
