@@ -33,7 +33,7 @@ import org.json.JSONObject
  * Server-backed paginated conversation library. Each mode has its own result key,
  * so home-screen refreshes cannot overwrite archived or searched results.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     initialFullText: Boolean = false, onThreadSelected: (() -> Unit)? = null) {
@@ -147,15 +147,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
         selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
     }
 
+    Column(Modifier.fillMaxSize()) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().testTag("thread-library-list"),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(13.dp)
+        modifier = Modifier.weight(1f).testTag("thread-library-list"),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item {
-            Text(if (fullText) "全文检索" else "会话资料库",
-                style = MaterialTheme.typography.headlineSmall)
-        }
         item {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -171,22 +168,6 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             else load(cursor)
                         }, label = "刷新会话列表")
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !fullText, onClick = {
-                        fullText = false; fullSubmitted = ""; cursor = null; history = emptyList()
-                    }, label = { Text("标题搜索") })
-                    FilterChip(selected = fullText, onClick = {
-                        fullText = true; fullSubmitted = ""; cursor = null; history = emptyList()
-                    }, label = { Text("全文搜索") })
-                }
-                if (!fullText) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !archived, onClick = {
-                        archived = false; cursor = null; history = emptyList()
-                    }, label = { Text("活跃") })
-                    FilterChip(selected = archived, onClick = {
-                        archived = true; cursor = null; history = emptyList()
-                    }, label = { Text("已归档") })
-                }
                 OutlinedTextField(searchText, { searchText = it },
                     label = { Text(if (fullText) "搜索历史正文" else "搜索会话标题") },
                     leadingIcon = { Icon(Icons.Outlined.Search, null) },
@@ -197,6 +178,34 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         }
                     },
                     modifier = Modifier.fillMaxWidth(), singleLine = true)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !fullText,
+                        onClick = { fullText = false; fullSubmitted = ""; cursor = null; history = emptyList() },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        label = { Text("标题搜索") }
+                    )
+                    SegmentedButton(
+                        selected = fullText,
+                        onClick = { fullText = true; fullSubmitted = ""; cursor = null; history = emptyList() },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        label = { Text("全文搜索") }
+                    )
+                }
+                if (!fullText) SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !archived,
+                        onClick = { archived = false; cursor = null; history = emptyList() },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        label = { Text("活跃") }
+                    )
+                    SegmentedButton(
+                        selected = archived,
+                        onClick = { archived = true; cursor = null; history = emptyList() },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        label = { Text("已归档") }
+                    )
+                }
                 val recent = if (fullText) recentFull else recentTitle
                 if (recent.isNotEmpty()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -303,14 +312,6 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         Text("分组加载失败：" + PresentationPolicy.readableError(it),
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
-                OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                        .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty()),
-                    enabled = newThreadBlockReason == null) {
-                    Icon(Icons.Outlined.Add, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text("新建任务")
-                }
                 }
             }
         }
@@ -400,28 +401,6 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     TextButton(onClick = { vm.bulkActionSummary.value = "" },
                         modifier = Modifier.heightIn(min = 48.dp)) { Text("关闭") }
                 }
-            }
-        }
-        if (entries.isNotEmpty()) item(key = "bulk-toolbar") {
-            AnimatedVisibility(
-                visible = selectionMode,
-                enter = expandVertically(animationSpec = tween(CodexMotion.duration(180, reducedMotion))) +
-                    fadeIn(animationSpec = tween(CodexMotion.duration(160, reducedMotion))),
-                exit = shrinkVertically(animationSpec = tween(CodexMotion.duration(120, reducedMotion))) +
-                    fadeOut(animationSpec = tween(CodexMotion.duration(100, reducedMotion)))
-            ) {
-            ThreadBulkToolbar(
-                selectedCount = selectedIds.size,
-                archived = archived,
-                enabled = !busy && !switching && !firstThreadStarting,
-                onSelectAll = {
-                    selectedIds = entries.map { it.optString("id") }
-                        .filter { it.isNotBlank() && it !in executions }
-                        .distinct()
-                },
-                onClear = { selectedIds = emptyList() },
-                onAction = { bulkConfirm = it }
-            )
             }
         }
         itemsIndexed(entries, key = { _, it -> it.optString("id") }) { index, thread ->
@@ -552,6 +531,26 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             }
         }
 
+        }
+    }
+        AnimatedVisibility(
+            visible = !fullText && selectionMode && entries.isNotEmpty(),
+            enter = expandVertically(animationSpec = tween(CodexMotion.duration(180, reducedMotion))) +
+                fadeIn(animationSpec = tween(CodexMotion.duration(160, reducedMotion))),
+            exit = shrinkVertically(animationSpec = tween(CodexMotion.duration(120, reducedMotion))) +
+                fadeOut(animationSpec = tween(CodexMotion.duration(100, reducedMotion)))
+        ) {
+            ThreadBulkToolbar(
+                selectedCount = selectedIds.size,
+                archived = archived,
+                enabled = !busy && !switching && !firstThreadStarting,
+                onSelectAll = {
+                    selectedIds = entries.map { it.optString("id") }
+                        .filter { it.isNotBlank() && it !in executions }.distinct()
+                },
+                onClear = { selectedIds = emptyList() },
+                onAction = { bulkConfirm = it }
+            )
         }
     }
 
@@ -740,8 +739,16 @@ fun ThreadLibraryQuickSheet(
         containerColor = Ink.canvas,
         contentColor = Ink.parchment
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.86f)
             .testTag("thread-library-sheet")) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("选择会话", style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "关闭会话选择")
+                }
+            }
             if (continuationLabel != null) {
                 Text("选择会话后继续：$continuationLabel",
                     modifier = Modifier.fillMaxWidth()
