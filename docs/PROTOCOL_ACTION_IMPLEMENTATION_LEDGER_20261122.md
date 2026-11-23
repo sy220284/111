@@ -433,3 +433,12 @@
 - **真实源码缺口**：`TerminalTaskOperations.startTerminalCommand` 原先没有启动前台服务；`CodexForegroundService` 的保活及重连循环仅观察当前可见会话/审批，既不包含终端进程，也遗漏不在当前页的执行会话。手机退到后台时，长终端命令可能丢失保活，通知缺少正确的停止终端语义。
 - **共享修复**：终端成功启动前先调用现有 `CodexForegroundService.start`，服务将终端运行态和后台线程并入持续通知、重连和停止条件；通知在仅有终端时显示“终端命令正在执行”及“停止终端”，按任务实际归属调用 `stopTerminalCommand`，终端/会话完成后服务正常退出。
 - **验收**：`ForegroundTaskPolicyTest` 新增终端独立执行、终端断连重连、后台任务保持与无任务关闭等 JVM 回归。真实 ARM64 长终端命令切后台、厂家系统通知、停止按钮及进程存活仍列专项验证，设备 UI 测试不可直接替代。
+
+
+### PR #71 全局维护期间交互与数据一致性补充
+
+- 复查所有功能后发现：即使禁止发送消息、终端执行，`LocalDataTransfer` 备份期间仍可能从其他页面触发文件编辑、配置或扩展写入；此前 `GlobalWorkSnapshot` 也没有把在途 UI RPC、账号登录、方案准备算入活动工作。
+- 共享方案：`CodexShell` 顶层渲染 `DataTransferBusyOverlay`，在归档的整个 `busy` 生命周期内拦截全部页面和子弹层交互，完成后恢复原页面；`CodexViewModel.request` 对用户发起的 RPC 变更增加数据迁移期间的入口保护。全局共享策略还涵盖 `loading`、`loginBusy`、`planApprovalBusy`，归档需等已有请求结束后方可开始。
+- 负向证据：`GlobalWorkSnapshotTest.pendingRpcAuthorizationAndPlanPreparationMustFinishBeforeBackup` 覆盖在途请求、登录与方案审批；`CodexOverlayInstrumentedTest.dataArchiveExclusiveDialogAppearsAndClearsWithoutLosingPage` 覆盖全局独占弹层出现、解除及原页面保存；所有 29 项页面不再分别复制 busy 拦截。
+- 审计门禁纠正：`check_full_feature_workflows.py` 对每张文档声明截图检查是否已进入必检/选检设备截图列表；之前 `missing_screens` 虽计算但没有导致失败，现加入明确阻断与反向测试。
+- 验收等级：以本 PR 最新 SHA 的协议/单测/Lint、三档 Android 真正运行回执和截图为准；对真实大容量备份、文件变化并发及厂商保存框仍需要 ARM64/真机专项证明。
