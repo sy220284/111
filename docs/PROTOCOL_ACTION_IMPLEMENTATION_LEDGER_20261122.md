@@ -442,3 +442,10 @@
 - 负向证据：`GlobalWorkSnapshotTest.pendingRpcAuthorizationAndPlanPreparationMustFinishBeforeBackup` 覆盖在途请求、登录与方案审批；`CodexOverlayInstrumentedTest.dataArchiveExclusiveDialogAppearsAndClearsWithoutLosingPage` 覆盖全局独占弹层出现、解除及原页面保存；所有 29 项页面不再分别复制 busy 拦截。
 - 审计门禁纠正：`check_full_feature_workflows.py` 对每张文档声明截图检查是否已进入必检/选检设备截图列表；之前 `missing_screens` 虽计算但没有导致失败，现加入明确阻断与反向测试。
 - 验收等级：以本 PR 最新 SHA 的协议/单测/Lint、三档 Android 真正运行回执和截图为准；对真实大容量备份、文件变化并发及厂商保存框仍需要 ARM64/真机专项证明。
+
+
+### 全量功能审计 29/29 可执行用例关联及备份快照保护（PR #71 延伸）
+
+- 已从 CI `full-feature-workflows.json` 回读 29 项、28 路由、195 协议登记全部完整。其中 `review`、`skills`、`apps`、`diagnostics` 原仅登记截图，现明确绑定已真实覆盖其页面的 `taskSpecificSheetsAreReachableAndReadable` / `secondarySettingsPagesHaveActualDeviceScreenshots`。CI 强制每一行包含存在于 Android/JUnit 源码的测试声明，截图和源码路径同时复核。
+- 完整行为保护落在共享模块：`GlobalWorkSnapshot` 现额外收敛所有在途请求、账号登录、方案审批；`DataTransferMutationGate` 统一阻断迁移中的用户 RPC 写操作；全页面 `DataTransferBusyOverlay` 显式解释退回或外点期间的锁定，并保证操作结束后回到原页面。
+- 真正的验收区分：`GlobalWorkSnapshotTest` 为状态纯逻辑；`UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage` 为 Android 系统全屏截图、返回键行为和原页面恢复；账号、真实项目写回、ARM64/OEM 文件操作仍需专项完整实证。若三档 CI 有任一失败，按该提交记录失败并继续修复。
