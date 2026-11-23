@@ -176,7 +176,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("添加待执行任务", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(draft, { draft = it }, modifier = Modifier.fillMaxWidth(),
+            OutlinedTextField(draft, { draft = it },
+                modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
                 minLines = 2, maxLines = 6,
                 label = { Text("下一步要做什么") },
                 placeholder = { Text("描述明确任务及完成条件") })

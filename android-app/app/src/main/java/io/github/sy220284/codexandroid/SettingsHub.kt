@@ -307,7 +307,7 @@ fun WorkspaceActionsSheet(
                 val allowed = !UiFeatureCatalog.requiresThread(id) || hasThread
                 Surface(
                     modifier = Modifier.fillMaxWidth().testTag("quick-$id")
-                        .clickable { openTool(if (allowed) id else "threads") },
+                        .clickable { openTool(id) },
                     shape = RoundedCornerShape(16.dp),
                     color = Ink.canvas
                 ) {

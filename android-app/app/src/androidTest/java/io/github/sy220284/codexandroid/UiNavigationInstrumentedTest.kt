@@ -155,6 +155,9 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread { vm.activeThread.value = "ci-diff-thread" }
+        rule.waitForIdle()
         rule.onNodeWithText("检查修改").performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
@@ -408,6 +411,33 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("未找到相关功能").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
         rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
+    }
+
+    @Test fun missingSessionKeepsOriginalToolWhenOpeningPicker() {
+        openDrawerRoute("files")
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-queue").performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("thread-library-sheet").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText("选择会话后继续：任务队列").assertExists()
+        pressSystemBack()
+        rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+    }
+
+    @Test fun queueDraftSurvivesClosingAndReopeningSheet() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread { vm.activeThread.value = "ci-queue-draft" }
+        rule.waitForIdle()
+        openDrawerRoute("files")
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-queue").performClick()
+        rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
+        pressSystemBack()
+        rule.onNodeWithContentDescription("快捷工具").performClick()
+        rule.onNodeWithTag("quick-queue").performClick()
+        rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
     }
 
     @Test fun queueAndFullSearchOpenAsTaskSheets() {

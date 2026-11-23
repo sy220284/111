@@ -126,19 +126,27 @@ fun CodexShell(vm: CodexViewModel) {
     var showModels by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var libraryInitialFullText by remember { mutableStateOf(false) }
+    // Carry the original action across a successful thread selection.
+    var pendingThreadAction by remember { mutableStateOf<String?>(null) }
+    var pendingResumeRoute by remember { mutableStateOf<String?>(null) }
     val move: (String) -> Unit = move@{ destination ->
+        if (UiFeatureCatalog.requiresThread(destination) && activeThread == null) {
+            pendingThreadAction = destination
+            libraryInitialFullText = false
+            showThreadLibrary = true
+            scope.launch { drawer.close() }
+            return@move
+        }
         when (destination) {
             "threads", "search" -> {
+                pendingThreadAction = null
                 libraryInitialFullText = destination == "search"
                 showThreadLibrary = true
                 scope.launch { drawer.close() }
                 return@move
             }
             "queue" -> {
-                if (activeThread == null) {
-                    libraryInitialFullText = false
-                    showThreadLibrary = true
-                } else showQueue = true
+                showQueue = true
                 scope.launch { drawer.close() }
                 return@move
             }
@@ -158,16 +166,12 @@ fun CodexShell(vm: CodexViewModel) {
                 return@move
             }
             "review" -> {
-                if (activeThread == null) {
-                    showThreadLibrary = true
-                } else showReview = true
+                showReview = true
                 scope.launch { drawer.close() }
                 return@move
             }
             "goals" -> {
-                if (activeThread == null) {
-                    showThreadLibrary = true
-                } else showGoal = true
+                showGoal = true
                 scope.launch { drawer.close() }
                 return@move
             }
@@ -178,6 +182,8 @@ fun CodexShell(vm: CodexViewModel) {
             }
             "history-tools", "thread-attachments" -> {
                 if (activeThread == null) {
+                    pendingThreadAction = destination
+                    libraryInitialFullText = false
                     showThreadLibrary = true
                 } else if (destination == "history-tools") showHistory = true
                 else showAttachments = true
@@ -200,6 +206,22 @@ fun CodexShell(vm: CodexViewModel) {
         focusManager.clearFocus()
         keyboard?.hide()
         scope.launch { drawer.close() }
+    }
+    // An older saved route may still point to a screen now owned by an overlay.
+    LaunchedEffect(Unit) {
+        val restored = selected
+        if (UiFeatureCatalog.isSheet(restored)) {
+            selected = "home"
+            backHistory = listOf("home")
+            move(restored)
+        }
+    }
+    LaunchedEffect(pendingResumeRoute, showThreadLibrary, activeThread) {
+        val route = pendingResumeRoute
+        if (route != null && !showThreadLibrary && activeThread != null) {
+            pendingResumeRoute = null
+            move(route)
+        }
     }
     LaunchedEffect(pendingDeepLink, status) {
         val id = pendingDeepLink
@@ -376,24 +398,41 @@ fun CodexShell(vm: CodexViewModel) {
         if (showStatus) {
             EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
         }
-        if (showReview) ReviewScopeSheet(
-            vm, onDismiss = { showReview = false }, navigate = move
-        )
-        if (showGoal) ThreadGoalSheet(
-            vm, onDismiss = { showGoal = false }
-        )
+        if (showReview) pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
+            ReviewScopeSheet(vm, onDismiss = { showReview = false }, navigate = move)
+        }
+        if (showGoal) pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
+            ThreadGoalSheet(vm, onDismiss = { showGoal = false })
+        }
         if (showMode) ModeChoiceSurface(vm) { showMode = false }
         if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
         if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
-        if (showThreadLibrary) ThreadLibraryQuickSheet(vm,
-            initialFullText = libraryInitialFullText,
-            onDismiss = { showThreadLibrary = false },
-            navigate = { destination ->
-                showThreadLibrary = false
-                move(destination)
-            })
-        if (showApprovals) ApprovalQuickSheet(vm) { showApprovals = false }
-        if (showQueue) ThreadQueueQuickSheet(vm) { showQueue = false }
+        if (showThreadLibrary) pageStateHolder.SaveableStateProvider(
+            "sheet:library:${libraryInitialFullText}"
+        ) {
+            ThreadLibraryQuickSheet(vm,
+                initialFullText = libraryInitialFullText,
+                continuationLabel = pendingThreadAction?.let { requested ->
+                    pages.firstOrNull { it.id == requested }?.title ?: "当前操作"
+                },
+                onDismiss = {
+                    showThreadLibrary = false
+                    pendingThreadAction = null
+                    pendingResumeRoute = null
+                },
+                onThreadSelected = { pendingResumeRoute = pendingThreadAction },
+                navigate = { destination ->
+                    showThreadLibrary = false
+                    pendingThreadAction = null
+                    move(destination)
+                })
+        }
+        if (showApprovals) pageStateHolder.SaveableStateProvider("sheet:approvals") {
+            ApprovalQuickSheet(vm) { showApprovals = false }
+        }
+        if (showQueue) pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
+            ThreadQueueQuickSheet(vm) { showQueue = false }
+        }
         if (showModels) ModelChoiceSurface(vm) { showModels = false }
         if (showAbout) AboutInfoSheet(vm) { showAbout = false }
     }

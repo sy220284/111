@@ -36,7 +36,7 @@ import org.json.JSONObject
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
-    initialFullText: Boolean = false) {
+    initialFullText: Boolean = false, onThreadSelected: (() -> Unit)? = null) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -86,6 +86,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
         openingThreadId = id
         vm.chooseThread(id) {
             openingThreadId = null
+            onThreadSelected?.invoke()
             navigate("chat")
         }
     }
@@ -709,7 +710,9 @@ fun ThreadLibraryQuickSheet(
     vm: CodexViewModel,
     onDismiss: () -> Unit,
     navigate: (String) -> Unit,
-    initialFullText: Boolean = false
+    initialFullText: Boolean = false,
+    continuationLabel: String? = null,
+    onThreadSelected: (() -> Unit)? = null
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -717,9 +720,17 @@ fun ThreadLibraryQuickSheet(
         containerColor = Ink.canvas,
         contentColor = Ink.parchment
     ) {
-        Box(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
             .testTag("thread-library-sheet")) {
-            ThreadLibraryPage(vm, navigate, initialFullText)
+            if (continuationLabel != null) {
+                Text("选择会话后继续：$continuationLabel",
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            }
+            Box(Modifier.weight(1f)) {
+                ThreadLibraryPage(vm, navigate, initialFullText, onThreadSelected)
+            }
         }
     }
 }
