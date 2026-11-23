@@ -6,7 +6,7 @@
 
 - `icons/`：16 个 24×24 线性 SVG：Codex 标记、执行、审批、完成、失败、会话、终端、差异、附件、项目、设置、搜索、侧栏、停止、重试、历史。所有路径可单独编辑；颜色只使用 `tokens.json` 的语义色。
 - `illustrations/`：4 个 320×226 空态插画：新会话、待审批、无差异、断连。小屏仅显示有用的标题和行动说明，装饰不得挤压输入区。
-- `tokens.json`：严格对应 `VisualSystem.kt` 典雅白主题；未启用的深色模式不放在此版本冒充现有实现。
+- `tokens.json`：包含与 `VisualSystem.kt` 对应的亮色与深色语义颜色；CI 对两个模式逐项核验，供 Figma 按同名变量导入。
 - 安卓系统通知使用 `app/src/main/res/drawable/ic_codex_status.xml` 与 `ic_codex_stop.xml`，保持单色、24dp、系统原生尺寸。
 
 ## 用法与约束
