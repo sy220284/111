@@ -296,7 +296,7 @@
 | `plugin/install` | Android→服务端 | 安装插件 | `PluginInstallParams → PluginInstallResponse` | 直接操作：设置→扩展能力 | 插件安装确认（能力/来源/权限） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `plugin/uninstall` | Android→服务端 | 卸载插件 | `PluginUninstallParams → PluginUninstallResponse` | 直接操作：设置→扩展能力 | 插件卸载确认（影响范围） | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `mcpServer/oauth/login` | Android→服务端 | 发起 MCP 服务授权 | `McpServerOauthLoginParams → McpServerOauthLoginResponse` | 后台处理：智能体/MCP 授权 | 用户 MCP 列表不展示授权按钮；需要用户确认时使用任务内 Host 交互 | 智能体负责服务配置与授权→内核处理 OAuth 与用户确认→完成通知→刷新可用目录 | 已移除页面手动 OAuth 路径并保留协议与后台通知；真实第三方登录联调待验收 | P1 |
-| `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | 只读已连接可用服务名称及可用状态，支持刷新 | 当前线程上下文查询→依据 connected/鉴权/工具错误筛选→后台状态变化后刷新→仅显示真实可用服务 | 已实现可用服务筛选与只读页面，待本次 Kotlin/设备 CI 验收；真机真实 MCP 使用待验证 | P1 |
+| `mcpServerStatus/list` | Android→服务端 | 查询 MCP 服务连接状态 | `ListMcpServerStatusParams → ListMcpServerStatusResponse` | 直接操作：设置→扩展能力 | 只读已连接可用服务名称及可用状态，支持刷新 | 当前线程上下文查询→依据 connected/鉴权/工具错误筛选→后台状态变化后刷新→仅显示真实可用服务 | 代码已通过 [CI #45152370413](https://github.com/sy220284/111/actions/runs/45152370413) 的编译/单测/Lint/协议检查；三档 Android 35 各 73 项设备测试及目录截图通过；外部真实 MCP 待专项 | P1 |
 | `mcpServer/resource/read` | Android→服务端 | 读取 MCP 资源 | `McpResourceReadParams → McpResourceReadResponse` | 后台处理：智能体/MCP 协议层 | 用户端仅呈现服务授权、审批与任务执行反馈 | 智能体自动调用工具或读取资源；Android 不提供手动调用表单 | 已移除手动 UI 入口并保留后台协议；待真实服务验证 | P1 |
 | `mcpServer/event/stream/start` | Android→服务端 | 订阅 MCP 事件流 | `McpServerEventStreamStartParams → McpServerEventStreamStartResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
 | `mcpServer/event/stream/stop` | Android→服务端 | 取消 MCP 事件流 | `McpServerEventStreamStopParams → McpServerEventStreamStopResponse` | 后台处理：连接层/智能体 | 不设置独立入口；需要授权或审批时才展示对话内确认卡 | 内核/智能体按需调用，错误反馈到对应任务或诊断，不创建工具按钮 | 已校正后台归属；待真实运行验证 | P2 |
@@ -320,7 +320,7 @@
 | `environment/add` | Android→服务端 | 登记执行环境 | `EnvironmentAddParams → EnvironmentAddResponse` | 上下文操作：设置→主机与安全 | 新增执行环境表单 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `environment/info` | Android→服务端 | 读取执行环境信息 | `EnvironmentInfoParams → EnvironmentInfoResponse` | 上下文操作：设置→主机与安全 | 执行环境详情 Sheet | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
 | `environment/status` | Android→服务端 | 读取执行环境状态 | `EnvironmentStatusParams → EnvironmentStatusResponse` | 上下文操作：设置→主机与安全 | 环境状态汇总卡 | 用户选中当前对象→Sheet/菜单操作→必要确认→调用 RPC→刷新对象并返回原场景 | 已定位 Android RPC 引用；待端到端实测 | P1 |
-| `config/mcpServer/reload` | Android→服务端 | 重新加载 MCP 配置 | `无参 → McpServerRefreshResponse` | 后台处理：智能体/MCP 配置重载 | 用户端不提供重载按钮；服务列表在检测到智能体修改配置后自动同步 | 本机 config.toml 版本变化→调用内核 reload→成功后重新读取真实服务状态 | `McpCatalogController` 已接入自动变更检测和状态回读；最终构建与设备验收待记录 | P0 |
+| `config/mcpServer/reload` | Android→服务端 | 重新加载 MCP 配置 | `无参 → McpServerRefreshResponse` | 后台处理：智能体/MCP 配置重载 | 用户端不提供重载按钮；服务列表在检测到智能体修改配置后自动同步 | 本机 config.toml 版本变化→调用内核 reload→成功后重新读取真实服务状态 | McpCatalogController 已接入；[CI #45152370413](https://github.com/sy220284/111/actions/runs/45152370413) Kotlin 构建与 Android 三档验收通过；真实配置变更/第三方授权仍待真实账号核验 | P0 |
 | `windowsSandbox/setupStart` | Android→服务端 | 配置 Windows 沙箱 | `WindowsSandboxSetupStartParams → WindowsSandboxSetupStartResponse` | 无 Android UI | 按对象显示简洁状态；高级接口需能力门禁 | Android 无前端，核心侧保持协议兼容 | 待逐项验证调用入口/响应/实测 | 排除 |
 | `windowsSandbox/readiness` | Android→服务端 | 检查 Windows 沙箱就绪状态 | `无参 → WindowsSandboxReadinessResponse` | 无 Android UI | 按对象显示简洁状态；高级接口需能力门禁 | Android 无前端，核心侧保持协议兼容 | 待逐项验证调用入口/响应/实测 | 排除 |
 | `config/read` | Android→服务端 | 读取引擎配置 | `ConfigReadParams → ConfigReadResponse` | 直接操作：设置→主机与安全 | 设置分组列表与配置来源 | 页面/快捷入口→填写必填参数→点击操作→真实 RPC→成功更新与失败恢复 | 已定位 Android RPC 引用；待端到端实测 | P0 |
@@ -415,7 +415,7 @@
 - **智能体执行路径**：APK 启动时 `McpAgentSkillInstaller` 把自包含的 `111-mcp-service-manager` 技能安装到本机 `CODEX_HOME/skills`；智能体只在用户请求时处理本机 MCP 配置、必要权限和连接验证，不依赖桌面版 `codex mcp` 命令。
 - **配置实时生效**：`McpCatalogController` 在页面打开/手动刷新及相关状态事件时识别 `CODEX_HOME/config.toml` 版本变更，仅发生修改时调用 `config/mcpServer/reload`，随后重新读取可用目录；失败保留可见错误与重试入口。
 - **后台分工**：`mcpServer/oauth/login` 在 `ui_surface_policy.json` 划为后台内部，不生成独立 UI 入口；`mcpServerStatus/list` 继续作为只读目录接口；`mcpServer/oauthLogin/completed`、`mcpServer/startupStatus/updated` 和账号变化通知驱动列表更新。真实服务添加、OAuth 授权与 Host 确认交由原 Codex 内核及对话任务管理。
-- **专项验收标准**：单测覆盖连接、授权、工具目录失败、可用资源及排序；Compose 设备测试确认页面和服务卡不出现手动注册/授权按钮、不可用项与内部工具名。仍需独立进行带真实账号的第三方 MCP 连接和工具调用验收，以记录实际可用性。
+- **专项验收实绩**：源码提交 `dbe409da9e007df2489c2e9689781affca019c66` 的 [CI #45152370413](https://github.com/sy220284/111/actions/runs/45152370413) **4/4 作业通过**。Gradle 编译、JVM 单元测试、Lint、195 项官方方法校验通过；Android 35 的 360/393/411dp 各 **73 项设备测试通过，共 219 项**。三档均有 `SCREENSHOT_OK audit-mcp-usable-directory`、`audit-mcp-service-boundary`、`audit-mcp-chatgpt-available`，验证仅显示可用服务、无注册入口、Agent 管理技能能在 Android 本机安装。真实第三方 MCP 连接、OAuth 回跳和工具实际调用仍需带账号的 ARM64/外部服务专项验收。
 
 ### 权限方案交互整改（2026-11-23）
 
