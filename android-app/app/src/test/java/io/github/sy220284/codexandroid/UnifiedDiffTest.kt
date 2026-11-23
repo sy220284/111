@@ -32,6 +32,24 @@ new file mode 100644
         assertEquals(0, sections[1].deletions)
     }
 
+    @Test fun computesOldAndNewLineNumbersAcrossHunks() {
+        val lines = listOf(
+            "diff --git a/a.txt b/a.txt", "--- a/a.txt", "+++ b/a.txt",
+            "@@ -3,2 +8,3 @@", " same", "-old", "+new", "+extra",
+            "\\ No newline at end of file", "@@ -20 +24 @@", "-last", "+now"
+        )
+        val numbers = UnifiedDiff.annotateLines(lines)
+        assertEquals(DiffLineNumbers(null, null), numbers[0])
+        assertEquals(DiffLineNumbers(null, null), numbers[3])
+        assertEquals(DiffLineNumbers(3, 8), numbers[4])
+        assertEquals(DiffLineNumbers(4, null), numbers[5])
+        assertEquals(DiffLineNumbers(null, 9), numbers[6])
+        assertEquals(DiffLineNumbers(null, 10), numbers[7])
+        assertEquals(DiffLineNumbers(null, null), numbers[8])
+        assertEquals(DiffLineNumbers(20, null), numbers[10])
+        assertEquals(DiffLineNumbers(null, 24), numbers[11])
+    }
+
     @Test fun emptyDiffHasNoPhantomFiles() {
         assertTrue(UnifiedDiff.parse("").isEmpty())
         assertTrue(UnifiedDiff.parse("  \n").isEmpty())

@@ -40,6 +40,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val clipboard = LocalClipboardManager.current
     var copied by remember(diff) { mutableStateOf(false) }
     var wrapLines by remember { mutableStateOf(true) }
+    val lineNumbers = remember(files) { files.map { UnifiedDiff.annotateLines(it.lines) } }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
@@ -153,15 +154,29 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             border = BorderStroke(.5.dp, Ink.border.copy(alpha = .32f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            SelectionContainer {
-                                Text(line.ifEmpty { " " },
-                                    modifier = Modifier.fillMaxWidth()
-                                        .then(if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState()))
-                                        .padding(horizontal = 9.dp, vertical = 3.dp),
-                                    color = tone,
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                val numbers = lineNumbers[index][lineIndex]
+                                Text(
+                                    listOf(numbers.old?.toString().orEmpty(),
+                                        numbers.new?.toString().orEmpty())
+                                        .joinToString(" ", transform = { it.padStart(4) }),
+                                    modifier = Modifier.padding(start = 4.dp, top = 3.dp)
+                                        .width(76.dp).testTag("diff-line-numbers-$index-$lineIndex"),
+                                    color = Ink.muted,
                                     fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    softWrap = wrapLines)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    softWrap = false
+                                )
+                                SelectionContainer(Modifier.weight(1f)) {
+                                    Text(line.ifEmpty { " " },
+                                        modifier = Modifier
+                                            .then(if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState()))
+                                            .padding(horizontal = 5.dp, vertical = 3.dp),
+                                        color = tone,
+                                        fontFamily = FontFamily.Monospace,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        softWrap = wrapLines)
+                                }
                             }
                         }
                     }
