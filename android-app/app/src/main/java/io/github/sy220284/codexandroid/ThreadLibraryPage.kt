@@ -168,16 +168,19 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             else load(cursor)
                         }, label = "刷新会话列表")
                 }
-                OutlinedTextField(searchText, { searchText = it },
-                    label = { Text(if (fullText) "搜索历史正文" else "搜索会话标题") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    trailingIcon = {
-                        IconButton(onClick = { submitSearch(searchText) },
-                            enabled = key !in loading && !busy) {
-                            Icon(Icons.Outlined.ArrowForward, "开始搜索")
-                        }
+                AtlasSearchField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    placeholder = if (fullText) "搜索历史正文" else "搜索会话标题",
+                    label = "查找会话",
+                    busy = key in loading || fullPending,
+                    enabled = !busy,
+                    onClear = {
+                        searchText = ""
+                        submitSearch("")
                     },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    onSubmit = { submitSearch(searchText) }
+                )
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = !fullText,
