@@ -322,16 +322,6 @@ fun CodexShell(vm: CodexViewModel) {
                                         contentDescription = "返回上一页")
                                 }
                             }
-                            if (selected == "threads") {
-                                IconButton(
-                                    onClick = { vm.newThread(); move("chat") },
-                                    enabled = !firstThreadStarting && !switching,
-                                    modifier = Modifier.explainDisabled(firstThreadStarting || switching,
-                                        if (firstThreadStarting) "正在创建会话，创建完成后可新建" else "正在切换会话")
-                                ) {
-                                    Icon(Icons.Outlined.AddCircleOutline, "新建任务")
-                                }
-                            }
                             if (pending.isNotEmpty()) {
                                 BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
                                         modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {

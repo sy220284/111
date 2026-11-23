@@ -113,7 +113,7 @@
 
 ## 2026-11-23 多会话入口一致性关联（不更改原编号、验收数字）
 
-- **#99 多会话并行**：顶栏与侧栏原先按不同状态禁用新建任务；在共享 `NavigationPolicy.newThreadBlockReason` 集中只阻断首次会话创建和切换，其他会话运行中可继续新建。关联 `ChatWorkTopBar.kt`、`AppNavigation.kt`、`NavigationPolicyTest.kt`。真实 ARM64 跨会话联调尚待专项，维持原状态。
+- **#99 多会话并行**：顶栏、侧栏与会话资料库原先分散判断新建任务状态；在共享 `NavigationPolicy.newThreadBlockReason` 集中只阻断首次会话创建和切换，其他会话运行中可继续新建。关联 `ChatWorkTopBar.kt`、`AppNavigation.kt`、`NavigationPolicyTest.kt`。真实 ARM64 跨会话联调尚待专项，维持原状态。
 - **#39 禁用说明**：入口只在对应的竞争状态禁用，说明改为实际阻断原因；最终 Android 设备截图/点击证据以当前修改 SHA 的 CI 结果补录。
 
 ## 本次专项验收证据

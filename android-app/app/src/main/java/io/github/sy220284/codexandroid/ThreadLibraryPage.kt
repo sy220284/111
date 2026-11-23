@@ -45,6 +45,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
+    val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
+        firstThreadStarting, switching
+    )
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
     val bulkSummary by vm.bulkActionSummary.collectAsState()
@@ -301,8 +304,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = !firstThreadStarting && !switching) {
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty()),
+                    enabled = newThreadBlockReason == null) {
                     Icon(Icons.Outlined.Add, null)
                     Spacer(Modifier.width(7.dp))
                     Text("新建任务")

@@ -26,7 +26,7 @@
 ## 2026-11-23 多会话新建入口归属与跨模块整改记录
 
 - **关联方法**：`thread/start`、`turn/start`、`thread/list`、`thread/resume`、`thread/read`。保持官方 Rust DTO、请求方向、Host 处理、响应契约及 195 项 UI 分类不变。
-- **根因和处理**：顶栏以当前会话的 `running` 禁用全局新建，侧栏仅在会话创建/恢复期间禁用，导致同一操作在不同入口呈现矛盾；统一走 `NavigationPolicy.newThreadBlockReason`，两处同步显示真实禁用原因。
+- **根因和处理**：顶栏以当前会话的 `running` 禁用全局新建，侧栏仅在会话创建/恢复期间禁用，导致同一操作在不同入口呈现矛盾；统一走 `NavigationPolicy.newThreadBlockReason`，顶栏、侧栏和会话资料库同步显示真实禁用原因，移除已经被会话弹层替代的不可达按钮。
 - **功能链及恢复**：用户在任一入口新建→`CodexViewModel.newThread` 检查首会话创建与切换竞争态→清除当前页面归属并保护已有运行会话的任务索引→用户在新对话提交后交由已有 `thread/start`/`turn/start` 处理；失败与草稿保护沿用原有协调器，不改接口字段。
 - **验证级别**：新增 `NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 单元测试；本次提交 SHA 的 Kotlin/协议/Lint、Android 35 三种手机宽度及横屏/平板截图必须以实际 CI 核验后追加结果；真实 ARM64 核心并行执行仍需独立专项回执，未将其记为通过。
 

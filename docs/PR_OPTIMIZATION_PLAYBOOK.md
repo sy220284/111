@@ -199,6 +199,6 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 ## 8. 多会话新建入口的共因整改（2026-11-23）
 
 - **历史链**：#17 的单会话限制已由 #47 的按会话隔离多任务方案替代；#63/#64 页面整合时发现顶栏新建仍以当前 `running` 禁用，侧栏按首会话创建或切换锁定，两个入口行为冲突。
-- **共享修复**：由 `NavigationPolicy.newThreadBlockReason` 统一判断；`ChatWorkTopBar` 和 `AppNavigation.Sidebar` 接收同一禁用原因，运行中另一会话可正常新建，创建/恢复竞争态仍防重入。
+- **共享修复**：由 `NavigationPolicy.newThreadBlockReason` 统一判断；`ChatWorkTopBar`、`AppNavigation.Sidebar` 和 `ThreadLibraryPage` 接收同一禁用原因；旧 `threads` 常驻页的不可达“新建”按钮已移除，运行中另一会话可正常新建，创建/恢复竞争态仍防重入。
 - **横向影响**：首页继续按自身“开始或继续任务”语义处理；对话输入、队列、审批、会话状态仍按 threadId 隔离，无需修改 Rust DTO 或新增页面。
 - **验证边界**：`NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 是共享规则单测，Android 设备交互和 ARM64 原生多任务仍需以最终 SHA 的独立实测为准。
