@@ -156,7 +156,7 @@ fun ThreadContextTools(
                     Spacer(Modifier.width(10.dp))
                     Text("压缩长会话上下文", style = MaterialTheme.typography.titleMedium)
                 }
-                Text("由 Codex 核心整理历史上下文，压缩会影响后续可直接引用的细节。",
+                Text("整理较早的对话内容后，部分细节可能无法继续直接引用。",
                     color = Ink.muted)
                 OutlinedButton(onClick = { action = "compact" },
                     enabled = !running && !busy && !threadId.isNullOrBlank(),

@@ -8,6 +8,28 @@
 
 > 审计基线：`sy220284/111`，`main@99519677e157efc3bed6bd4055583b8d0e6adeab`（PR #34 合并后）。官方权威为锁定的 `upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs` 及 `v2` Rust 类型。下表 195 项由 `ui_surface_policy.json` 与官方协议方法集逐项交叉生成。**“已定位调用”仅指源码证据，尚不等于设备验收通过**。
 
+## 2026-11-23 UI 落地与原协议归属补充（PR #63）
+
+本轮已对照主线 #64 的页面层级、#65 的优化规范和 29 项 DSH Go 交互清单，保持原有 Codex 195 项 RPC 分类、Rust DTO、Host 方向和后台职责不变。用户 UI 的实际入口、状态反馈、授权表单、任务弹层和截图验收索引见 `docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md`。
+
+| 现有方法族 | UI 归属与交互改进 | 证据级别 |
+| --- | --- | --- |
+| `account/usage/read`、`account/rateLimits/read` | 设置中同一用量/额度页；额度搜索直达对应标签 | 代码已接入；设备以 PR 最新 CI 为准 |
+| `modelProvider/list`、`modelProvider/config/write` | 模型服务商总览；API Key 精确搜索才打开编辑表单 | 代码已接入；服务端写入回读待真环境 |
+| `skills/list`、`skills/config/write`、`plugin/list` | 技能筛选，插件发现、安装、启停就地反馈 | 代码已接入；真实写入待真环境 |
+| `mcpServerStatus/list`、`mcpServer/oauth/login`、Host MCP 表单 | 设置内只管理连接及授权；任务内校验必填、布尔和多行数组输入 | 代码已接入；真实 OAuth 待联调 |
+| `config/read`、`config/value/write`、`configRequirements/read` | 长期安全/高级配置按需展开，审批保留会话上下文 | 代码已接入；真实写入回读待联调 |
+| `server/diagnostics` 与任务终端/队列/目标/差异 | 诊断状态与重连优先，任务按项目或会话展示及恢复 | 代码已接入；设备截图和真实断线恢复分开验收 |
+
+**验收区分**：提交代码、Kotlin/协议/Lint、Android 五屏宽模拟器截图、真实内核运行回执、ARM64 真机和正式安装互不代替。截图必须经过应用前台归属校验，同一 SHA 作业全部成功后才记录设备验收通过。
+
+## 2026-11-23 多会话新建入口归属与跨模块整改记录
+
+- **关联方法**：`thread/start`、`turn/start`、`thread/list`、`thread/resume`、`thread/read`。保持官方 Rust DTO、请求方向、Host 处理、响应契约及 195 项 UI 分类不变。
+- **根因和处理**：顶栏以当前会话的 `running` 禁用全局新建，侧栏仅在会话创建/恢复期间禁用，导致同一操作在不同入口呈现矛盾；统一走 `NavigationPolicy.newThreadBlockReason`，顶栏、侧栏和会话资料库同步显示真实禁用原因，移除已经被会话弹层替代的不可达按钮。
+- **功能链及恢复**：用户在任一入口新建→`CodexViewModel.newThread` 检查首会话创建与切换竞争态→清除当前页面归属并保护已有运行会话的任务索引→用户在新对话提交后交由已有 `thread/start`/`turn/start` 处理；失败与草稿保护沿用原有协调器，不改接口字段。
+- **验证级别**：新增 `NavigationPolicyTest.newThreadAvailabilityMatchesAcrossTopBarAndSidebar` 单元测试；本次提交 SHA 的 Kotlin/协议/Lint、Android 35 三种手机宽度及横屏/平板截图必须以实际 CI 核验后追加结果；真实 ARM64 核心并行执行仍需独立专项回执，未将其记为通过。
+
 ## 核查结论和数字
 
 | 维度 | 数量 | 判定 |

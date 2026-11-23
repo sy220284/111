@@ -299,6 +299,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var advanced by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("config") == "advanced") advanced = true
+    }
     var path by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
     var kind by rememberSaveable { mutableStateOf("text") }
@@ -309,7 +312,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
     ScreenColumn {
         SectionIntro("RUNTIME / PREFERENCES", "引擎配置",
-            "常用配置已经归入对应功能页面，其他选项可在下方自定义调整。")
+            "常用设置可直接在设置页管理；这里只处理需要手动填写的高级参数。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.SettingsSuggest, null, tint = Ink.copper)
@@ -455,6 +458,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     )
 
     LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("security") == "profiles") showProfiles = true
         vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
         vm.refresh("securityRequirements", "configRequirements/read")
         vm.refresh("permissionProfiles", "permissionProfile/list",
@@ -511,7 +515,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ) {
                 Text("保存本次权限调整")
             }
-            Text("Android 应用私有空间由系统隔离；Codex 的沙箱与网络策略仍由实际运行环境执行。",
+            Text("修改权限后，后续任务将按新的执行范围运行。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
         TextButton(onClick = { showProfiles = !showProfiles },

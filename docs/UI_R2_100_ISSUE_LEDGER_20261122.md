@@ -111,6 +111,11 @@
 | 99 | D | 多会话并行执行+任务中心（单 active 限制的产品化放宽） | 已提交待专项验收 | [PR #47](https://github.com/sy220284/111/pull/47) 已合并；ThreadExecutionPolicy.kt、CodexNotificationDispatcher.kt、CodexViewModel.kt、SidebarSessions.kt、ThreadExecutionPolicyTest.kt、UiPopulatedSubpagesInstrumentedTest.kt；Kotlin/Android UI CI 与真实 ARM64 核心多任务待分别验收 |
 | 100 | D | 深链 codex://thread/xxx 外部直达会话 | 已提交待专项验收 | CodexDeepLink.kt |
 
+## 2026-11-23 多会话入口一致性关联（不更改原编号、验收数字）
+
+- **#99 多会话并行**：顶栏、侧栏与会话资料库原先分散判断新建任务状态；在共享 `NavigationPolicy.newThreadBlockReason` 集中只阻断首次会话创建和切换，其他会话运行中可继续新建。关联 `ChatWorkTopBar.kt`、`AppNavigation.kt`、`NavigationPolicyTest.kt`。真实 ARM64 跨会话联调尚待专项，维持原状态。
+- **#39 禁用说明**：入口只在对应的竞争状态禁用，说明改为实际阻断原因；最终 Android 设备截图/点击证据以当前修改 SHA 的 CI 结果补录。
+
 ## 本次专项验收证据
 
 - **#11**：官方 `thread/status/changed` 和 `ThreadStatus` 契约已核实；`ThreadActivityPolicyTest` 验证五种可见状态与过期列表覆盖；新增 `audit-sidebar-background-status-android35.png` 截图在 360dp、393dp、411dp 各自的仪器测试中采集，三档验收均通过。[CI 证据](https://github.com/sy220284/111/actions/runs/45015762628)。

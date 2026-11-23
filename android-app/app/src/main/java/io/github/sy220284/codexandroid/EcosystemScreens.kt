@@ -5,6 +5,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -122,7 +124,10 @@ fun ProvidersPage(vm: CodexViewModel) {
     var customEnvKey by remember { mutableStateOf("") }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { vm.ensureCatalog("providers", "modelProvider/list") }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("providers") == "custom") showCustomEditor = true
+        vm.ensureCatalog("providers", "modelProvider/list")
+    }
     ScreenColumn {
         SectionIntro("MODEL / PROVIDERS", "模型服务商", "显示服务商来源与当前默认配置。")
         MaterialPanel(Modifier.fillMaxWidth()) {
@@ -251,7 +256,16 @@ fun ProvidersPage(vm: CodexViewModel) {
 fun SkillsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val groups = records(data["skills"])
+    val skills = groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() }
+    val readErrors = groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 }
     val mutationLoading by vm.loading.collectAsState()
+    var filter by rememberSaveable { mutableStateOf("all") }
+    val visibleSkills = when (filter) {
+        "enabled" -> skills.filter { it.optBoolean("enabled") }
+        "available" -> skills.filter { !it.optBoolean("enabled") }
+        "errors" -> emptyList()
+        else -> skills
+    }
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
     LaunchedEffect(Unit) {
         vm.ensureCatalog("skills", "skills/list",
@@ -261,12 +275,23 @@ fun SkillsPage(vm: CodexViewModel) {
         SectionIntro("EXTENSIONS / SKILLS", "技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
         SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
             CatalogRequestContract.workspace(vm.workingDirectory)) }
-        if (groups.any { (it.optJSONArray("skills")?.length() ?: 0) > 0 }) {
-            Text("当前工作区技能", color = Ink.muted,
-                style = MaterialTheme.typography.titleMedium)
+        if (skills.isNotEmpty()) {
+            Text("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用 / ${skills.size} 项",
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
-        groups.forEach { group ->
-            group.optJSONArray("skills")?.objects()?.forEach { skill ->
+        if (skills.isNotEmpty() || readErrors > 0) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("all" to "全部", "enabled" to "已启用",
+                    "available" to "可用未启用", "errors" to "异常").forEach { (id, label) ->
+                    FilterChip(selected = filter == id, onClick = { filter = id },
+                        modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("skills-filter-" + id),
+                        label = { Text(label) })
+                }
+            }
+        }
+        visibleSkills.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
                 var expanded by remember(skill.optString("path")) { mutableStateOf(false) }
                 MaterialPanel(Modifier.fillMaxWidth()) {
@@ -297,16 +322,22 @@ fun SkillsPage(vm: CodexViewModel) {
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-            }
         }
-        if (groups.any { (it.optJSONArray("errors")?.length() ?: 0) > 0 }) {
-            ErrorText("部分技能读取失败，可在诊断与日志中查看原因")
+        if (readErrors > 0) {
+            CodexNotice("有 $readErrors 项技能暂未读取成功，可在诊断与日志中查看原因。",
+                NoticeTone.Warning)
+        } else if (filter == "errors" && data["skills"] != null) {
+            CodexEmptyState("当前没有技能读取异常", "所有已返回的技能均已成功读取。")
+        } else if (filter in setOf("enabled", "available") &&
+            visibleSkills.isEmpty() && data["skills"] != null) {
+            CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
+                actionLabel = "查看全部", onAction = { filter = "all" })
         }
         ProtocolFeedback(vm, listOf("skillsWrite"))
         if ("skillsWrite" in mutationLoading) {
             CodexNotice("正在保存技能状态，完成后自动刷新列表。", NoticeTone.Info)
         }
-        if (groups.isEmpty() && data["skills"] != null) {
+        if (skills.isEmpty() && data["skills"] != null && readErrors == 0) {
             CodexEmptyState("当前工作区没有可用技能",
                 "可以安装技能包并刷新目录，启用后即可在对话中使用。",
                 icon = Icons.Outlined.School, actionLabel = "重新读取技能",
@@ -357,6 +388,9 @@ fun PluginsPage(vm: CodexViewModel) {
     val searchCursor = if (searchActive && submittedMatchesDraft && data[searchKey] != null)
         data[searchKey]?.optString("nextCursor").orEmpty()
     else ""
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("plugins") == "discover") installedOnly = false
+    }
     LaunchedEffect(installedOnly) {
         if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
             CatalogRequestContract.workspace(vm.workingDirectory))
@@ -376,9 +410,8 @@ fun PluginsPage(vm: CodexViewModel) {
         }
         if (!installedOnly) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("搜索插件（实验）", style = MaterialTheme.typography.titleMedium)
-                Text("按照名称或用途搜索可用插件，结果来自当前运行内核。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                Text("搜索插件", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.testTag("plugins-search-heading"))
                 OutlinedTextField(
                     value = searchDraft, onValueChange = { searchDraft = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -587,12 +620,15 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
     var showLogs by remember { mutableStateOf(false) }
+    var showRecoverySteps by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (SettingsDeepLink.take("diagnostics") == "logs") showLogs = true
+    }
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val taskRunning by vm.running.collectAsState()
     val terminalRunning by vm.terminalSession.collectAsState()
     val promptItems by vm.bridge.prompts.collectAsState()
     var showCrashes by remember { mutableStateOf(false) }
-    var showTroubleshooting by rememberSaveable { mutableStateOf(false) }
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     ScreenColumn {
@@ -602,19 +638,18 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 Icon(Icons.Outlined.Memory, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("运行服务", style = MaterialTheme.typography.titleMedium)
+                    Text("本机运行服务", style = MaterialTheme.typography.titleMedium)
                     StatusPill(if (status == EngineStatus.Connected) "已连接" else "连接异常", status == EngineStatus.Connected)
                 }
             }
             val statusSnapshot = status
             Text(when (statusSnapshot) {
-                EngineStatus.Starting -> "正在启动任务运行服务。"
-                EngineStatus.Connected -> "已准备好执行任务。"
+                EngineStatus.Starting -> "正在启动运行服务。"
+                EngineStatus.Connected -> "运行服务正常，可以继续处理任务。"
                 is EngineStatus.Unavailable ->
-                    "连接中断，可以尝试重新连接或查看日志。"
+                    "本机内核连接失败，可尝试重新连接或查看启动日志。"
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
-            Text("运行位置：此设备", color = Ink.muted)
             val stderr by vm.bridge.recentStderr.collectAsState()
             if (stderr.isNotEmpty()) {
                 TextButton(onClick = { showLogs = !showLogs }) {
@@ -642,15 +677,17 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                     Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
                 OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
-                    enabled = status == EngineStatus.Connected) { Text("检查运行状态") }
+                    enabled = status == EngineStatus.Connected) { Text("检查运行状况") }
             }
             if (taskRunning || terminalRunning.running || promptItems.isNotEmpty()) {
                 Text("运行期间保留当前内核进程，避免中断正在执行的任务。",
                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
             }
         }
-        errors["diagnostics"]?.let { ErrorText(it) }
-        errors["engine"]?.let { ErrorText(it) }
+        if (status == EngineStatus.Connected) {
+            PresentationPolicy.visibleErrors(errors, listOf("diagnostics", "engine"))
+                .forEach { ErrorText(it) }
+        }
         data["diagnostics"]?.let {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("诊断结果", style = MaterialTheme.typography.titleMedium)
@@ -685,18 +722,15 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 }
             }
         }
-        TextButton(onClick = { showTroubleshooting = !showTroubleshooting },
-            modifier = Modifier.testTag("diagnostics-advanced-toggle")) {
-            Icon(if (showTroubleshooting) Icons.Outlined.ExpandLess
-                else Icons.Outlined.ExpandMore, null)
-            Spacer(Modifier.width(6.dp))
-            Text(if (showTroubleshooting) "收起排查方法" else "查看故障排查方法")
-        }
-        CodexReveal(showTroubleshooting) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("故障排查方法", style = MaterialTheme.typography.titleMedium)
-                Text("1. 检查运行组件是否完成安装\n2. 确认任务运行服务已连接\n3. 检查账号登录状态\n4. 确认当前设备支持所需能力",
-                    color = Ink.muted)
+        if (status is EngineStatus.Unavailable) {
+            TextButton(onClick = { showRecoverySteps = !showRecoverySteps }) {
+                Text(if (showRecoverySteps) "收起排查步骤" else "查看排查步骤")
+            }
+            CodexReveal(showRecoverySteps) {
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Text("先重新连接运行服务；再核实账号登录状态和失败的功能。若仍无法使用，可查看启动日志。",
+                        color = Ink.muted)
+                }
             }
         }
     }

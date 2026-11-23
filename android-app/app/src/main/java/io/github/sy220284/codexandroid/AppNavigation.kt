@@ -72,7 +72,7 @@ val pages = listOf(
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", Icons.Outlined.Tune, "modelProvider/list"),
     Page("config", "引擎配置", "设置与账户", "逐项读取和写入官方配置", Icons.Outlined.Settings, "config/read"),
     Page("security", "权限与安全", "设置与账户", "审批、沙箱和网络策略", Icons.Outlined.Security, "configRequirements/read"),
-    Page("usage", "用量与额度", "设置与账户", "查看使用记录、限额与重置时间", Icons.Outlined.Insights, "account/usage/read"),
+    Page("usage", "用量与额度", "设置与账户", "调用统计、额度窗口与重置时间", Icons.Outlined.Insights, "account/usage/read"),
     Page("limits", "使用限额", "设置与账户", "限额和重置时间", Icons.Outlined.Speed, "account/rateLimits/read"),
     Page("appearance", "外观与交互", "设置与账户", "显示密度、材质和动效", Icons.Outlined.Palette),
     Page("diagnostics", "诊断与日志", "设置与账户", "本机连接与运行状态", Icons.Outlined.BugReport, "server/diagnostics", true),
@@ -91,7 +91,6 @@ fun CodexShell(vm: CodexViewModel) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val running by vm.running.collectAsState()
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
@@ -112,6 +111,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val page = pages.firstOrNull { it.id == selected } ?: pages.first()
+    val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
+        firstThreadStarting, switching
+    )
     var showStatus by remember { mutableStateOf(false) }
     var showReview by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
@@ -262,7 +264,7 @@ fun CodexShell(vm: CodexViewModel) {
             .fillMaxSize()
             .background(Ink.canvas)
     ) {
-        val wide = maxWidth >= 720.dp
+        val wide = AdaptiveWorkspaceLayout.persistentSidebar(maxWidth.value, maxHeight.value)
         val content: @Composable () -> Unit = {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -271,8 +273,8 @@ fun CodexShell(vm: CodexViewModel) {
                 topBar = {
                     if (selected == "chat" || selected == "home") {
                         ChatWorkTopBar(
-                            selected = selected, wide = wide, running = running,
-                            switching = switching,
+                            selected = selected, wide = wide,
+                            newThreadBlockReason = newThreadBlockReason,
                             onMenu = { scope.launch { drawer.open() } },
                             onNavigate = move,
                             onNewThread = { vm.newThread(); move("chat") }
@@ -320,16 +322,6 @@ fun CodexShell(vm: CodexViewModel) {
                                         contentDescription = "返回上一页")
                                 }
                             }
-                            if (selected == "threads") {
-                                IconButton(
-                                    onClick = { vm.newThread(); move("chat") },
-                                    enabled = !firstThreadStarting && !switching,
-                                    modifier = Modifier.explainDisabled(firstThreadStarting || switching,
-                                        if (firstThreadStarting) "正在创建会话，创建完成后可新建" else "正在切换会话")
-                                ) {
-                                    Icon(Icons.Outlined.AddCircleOutline, "新建任务")
-                                }
-                            }
                             if (pending.isNotEmpty()) {
                                 BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
                                         modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {
@@ -368,7 +360,7 @@ fun CodexShell(vm: CodexViewModel) {
             Row(Modifier.fillMaxSize()) {
                 Sidebar(Modifier.width(272.dp), selected,
                     { id -> if (id == "status") showStatus = true else move(id) },
-                    status, pending.size, firstThreadStarting || switching,
+                    status, pending.size, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,
                     { id -> vm.chooseThread(id) { move("chat") } },
                     sidebarState)
@@ -390,7 +382,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 showStatus = true
                                 scope.launch { drawer.close() }
                             } else move(id)
-                        }, status, pending.size, firstThreadStarting || switching,
+                        }, status, pending.size, newThreadBlockReason,
                         { vm.newThread(); move("chat") }, vm,
                         { id -> vm.chooseThread(id) { move("chat") } },
                         sidebarState) }
@@ -444,7 +436,7 @@ fun CodexShell(vm: CodexViewModel) {
 @Composable
 private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
-    status: EngineStatus, approvals: Int, running: Boolean, onNewThread: () -> Unit,
+    status: EngineStatus, approvals: Int, newThreadBlockReason: String?, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState
 ) {
@@ -466,10 +458,10 @@ private fun Sidebar(
         }
         Button(
             onClick = onNewThread,
-            enabled = !running,
+            enabled = newThreadBlockReason == null,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp)
                 .heightIn(min = 52.dp).testTag("sidebar-new-chat")
-                .explainDisabled(running, "正在执行任务，请先完成或停止后再新建"),
+                .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty()),
             shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Ink.coral, contentColor = Color.White,
@@ -586,8 +578,8 @@ private fun SidebarRoute(
         modifier = Modifier.testTag("nav-$id").heightIn(min = 48.dp),
         shape = RoundedCornerShape(14.dp),
         colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = Color(0xFFF2F2F2),
-            selectedIconColor = Ink.parchment,
+            selectedContainerColor = Ink.coralSoft.copy(alpha = .12f),
+            selectedIconColor = Ink.coral,
             selectedTextColor = Ink.parchment,
             unselectedContainerColor = Ink.canvas,
             unselectedIconColor = Ink.parchment,

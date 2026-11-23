@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -159,7 +160,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if (connected && authMode.isNotBlank()) {
-                    Text("认证方式 · $authMode", color = Ink.muted,
+                    Text("登录方式 · " + PresentationPolicy.accountAuthMethod(authMode), color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
                 }
                 DividerLine()
@@ -199,10 +200,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text("账号与工作区切换（实验）")
             }
             OutlinedButton(onClick = { navigate("usage") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("account-usage-limits")) {
                 Icon(Icons.Outlined.Insights, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("查看用量与额度")
+                Text("查看用量与额度", modifier = Modifier.weight(1f))
+                Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
             }
             TextButton(onClick = { navigate("providers") }) {
                 Text("管理模型服务商")

@@ -64,17 +64,17 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.AccountTree, null)
             Spacer(Modifier.width(8.dp))
-            Text("Codex 项目管理", style = MaterialTheme.typography.titleMedium,
+            Text("项目列表与管理", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
             TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "收起" else "展开")
+                Text(if (expanded) "收起" else "管理")
             }
         }
-        Text("将本机目录登记为 Codex 项目，并关联后续任务。项目登记与文件管理分别操作。",
-            style = MaterialTheme.typography.bodySmall)
         if (expanded) {
+            Text("将当前文件夹加入项目列表，之后便可快速切换项目。",
+                style = MaterialTheme.typography.bodySmall)
             if (status != EngineStatus.Connected) {
-                Text("先连接本机 Codex 核心后再管理项目。",
+                Text("请先连接运行服务，再管理项目。",
                     style = MaterialTheme.typography.bodySmall)
             } else {
                 OutlinedButton(onClick = { reload() },

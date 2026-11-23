@@ -13,6 +13,13 @@ object NavigationPolicy {
      */
     fun showInSettingsGroup(route: String, query: String): Boolean =
         query.isNotBlank() || route !in setOf("account", "diagnostics")
+    /** 全局新建任务入口共享同一状态判断，允许在其他会话执行时并行创建。 */
+    fun newThreadBlockReason(firstThreadStarting: Boolean, switching: Boolean): String? = when {
+        firstThreadStarting -> "正在创建会话，完成后可新建任务"
+        switching -> "正在切换会话，完成后可新建任务"
+        else -> null
+    }
+
     fun isCommon(id: String) = id in sidebarRoutes
     /** Old saved stacks may still contain routes that are now shown as sheets. */
     fun pageHistory(routes: List<String>): List<String> = routes.filter {
@@ -30,7 +37,7 @@ object NavigationPolicy {
         SettingsTopic("account", "账户登录与切换", listOf("登录", "退出", "账户切换", "绑定", "订阅")),
         SettingsTopic("providers", "API 密钥和模型服务商", listOf("API Key", "密钥", "模型渠道", "接口地址", "Base URL", "自定义服务商")),
         SettingsTopic("models", "运行模型选择", listOf("模型选择", "模型列表", "思考模型")),
-        SettingsTopic("usage", "账户用量与额度", listOf("使用量", "用量", "调用量", "消耗", "调用统计", "额度", "限额", "速率", "重置时间")),
+        SettingsTopic("usage", "用量与额度", listOf("使用量", "用量", "调用量", "消耗", "调用统计", "限额", "额度", "频率", "速率", "剩余额度")),
         SettingsTopic("skills", "技能启用和配置", listOf("技能开关", "技能管理", "skill")),
         SettingsTopic("plugins", "插件安装和管理", listOf("插件市场", "安装插件", "扩展商店")),
         SettingsTopic("apps", "连接应用与授权", listOf("应用授权", "连接应用", "连接器")),
@@ -43,6 +50,33 @@ object NavigationPolicy {
         SettingsTopic("about", "应用版本信息", listOf("应用版本", "版本号", "关于")),
         SettingsTopic("update", "检查与安装更新", listOf("更新", "升级", "安装包", "新版本"))
     )
+    /** 搜索结果包含具体操作目标；入口和表单共用同一注册位置。 */
+    data class SettingsSpot(val route: String, val target: String, val label: String, val terms: List<String>)
+    val settingsSpots = listOf(
+        SettingsSpot("appearance", "font", "文字大小", listOf("字号", "字体", "字体大小", "font size", "文字放大")),
+        SettingsSpot("appearance", "compact", "紧凑布局", listOf("界面密度", "紧凑模式", "减少间距")),
+        SettingsSpot("appearance", "shadow", "柔和阴影", listOf("阴影效果", "材质效果")),
+        SettingsSpot("appearance", "motion", "减少动效", listOf("关闭动画", "减少动画", "动效开关")),
+        SettingsSpot("appearance", "theme", "界面配色", listOf("主题", "深色", "浅色", "夜间", "配色")),
+        SettingsSpot("plugins", "discover", "发现和安装插件", listOf("插件市场", "发现插件", "安装插件", "扩展商店")),
+        SettingsSpot("environments", "remote", "连接其他设备", listOf("远程主机", "远程执行", "远程执行服务", "外部设备")),
+        SettingsSpot("providers", "custom", "配置模型服务商", listOf("API Key", "Base URL", "接口地址", "自定义服务商", "密钥变量")),
+        SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查")),
+        SettingsSpot("config", "advanced", "高级自定义配置", listOf("高级配置", "自定义配置", "配置键值")),
+        SettingsSpot("security", "profiles", "可用权限方案", listOf("权限方案", "授权方案", "执行权限方案")),
+        SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
+        SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
+    )
+    fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
+        val q = query.trim()
+        if (q.isBlank()) return null
+        return settingsSpots.firstOrNull { spot ->
+            spot.route == id &&
+                (q.contains(spot.label, ignoreCase = true) ||
+                    spot.terms.any { q.contains(it, ignoreCase = true) })
+        }
+    }
+
     fun matchedSettingTopic(id: String, query: String): String? {
         val q = query.trim()
         if (q.isBlank()) return null
@@ -55,6 +89,20 @@ object NavigationPolicy {
     fun matches(query: String, title: String, subtitle: String, id: String): Boolean {
         val q = query.trim()
         return q.isBlank() || listOf(title, subtitle, id).any { it.contains(q, ignoreCase = true) } ||
-            matchedSettingTopic(id, q) != null
+            (matchedSettingSpot(id, q) != null || matchedSettingTopic(id, q) != null)
+    }
+}
+
+/** 一次性页面定位请求：导航成功后由所属页面消费，不跨会话保存。 */
+internal object SettingsDeepLink {
+    private var pending: Pair<String, String>? = null
+    @Synchronized fun select(route: String, target: String?) {
+        pending = if (target.isNullOrBlank()) null else route to target
+    }
+    @Synchronized fun take(route: String): String? {
+        val found = pending ?: return null
+        if (found.first != route) return null
+        pending = null
+        return found.second
     }
 }

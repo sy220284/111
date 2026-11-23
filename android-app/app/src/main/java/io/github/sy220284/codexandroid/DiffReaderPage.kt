@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,15 +39,13 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     val clipboard = LocalClipboardManager.current
     var copied by remember(diff) { mutableStateOf(false) }
+    var wrapLines by remember { mutableStateOf(true) }
+    val lineNumbers = remember(files) { files.map { UnifiedDiff.annotateLines(it.lines) } }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        item {
-            SectionIntro("PATCH / REVIEW", "代码差异",
-                "逐文件查看修改、增删行数与实际变更内容。")
-        }
         item {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -86,6 +85,12 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Spacer(Modifier.width(5.dp))
                         Text(if (copied) "已复制" else "复制全部差异")
                     }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = wrapLines, onCheckedChange = { wrapLines = it },
+                        modifier = Modifier.testTag("diff-line-wrap"))
+                    Text("长代码行自动换行", style = MaterialTheme.typography.labelMedium,
+                        color = Ink.muted)
                 }
             }
         }
@@ -149,23 +154,33 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             border = BorderStroke(.5.dp, Ink.border.copy(alpha = .32f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            SelectionContainer {
-                                Text(line.ifEmpty { " " },
-                                    modifier = Modifier.fillMaxWidth()
-                                        .padding(horizontal = 9.dp, vertical = 3.dp),
-                                    color = tone,
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                val numbers = lineNumbers[index][lineIndex]
+                                Text(
+                                    listOf(numbers.old?.toString().orEmpty(),
+                                        numbers.new?.toString().orEmpty())
+                                        .joinToString(" ", transform = { it.padStart(4) }),
+                                    modifier = Modifier.padding(start = 4.dp, top = 3.dp)
+                                        .width(76.dp).testTag("diff-line-numbers-$index-$lineIndex"),
+                                    color = Ink.muted,
                                     fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    softWrap = true)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    softWrap = false
+                                )
+                                SelectionContainer(Modifier.weight(1f)) {
+                                    Text(line.ifEmpty { " " },
+                                        modifier = Modifier
+                                            .then(if (wrapLines) Modifier else Modifier.horizontalScroll(rememberScrollState()))
+                                            .padding(horizontal = 5.dp, vertical = 3.dp),
+                                        color = tone,
+                                        fontFamily = FontFamily.Monospace,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        softWrap = wrapLines)
+                                }
                             }
                         }
                     }
                 }
-            }
-            item {
-                Text("变更来源：实时执行事件及会话历史保存的文件修改记录。",
-                    color = Ink.muted,
-                    style = MaterialTheme.typography.bodySmall)
             }
         }
     }

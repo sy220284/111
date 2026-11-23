@@ -142,6 +142,28 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-rtl-200font-bulk-android35.png")
     }
 
+    @Test fun darkAppearanceWithSystemDoubleFontRemainsReachable() {
+        val originalDark = UiPreferences.darkMode.value
+        try {
+            rule.runOnIdle { UiPreferences.setDarkMode(true) }
+            rule.setContent {
+                CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
+                    CodexTheme {
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                            AppearanceInlineControls()
+                        }
+                    }
+                }
+            }
+            rule.onNodeWithTag("appearance-font-controls").performScrollTo().assertIsDisplayed()
+            rule.onNodeWithText("最大", substring = false).assertIsDisplayed()
+            rule.onNodeWithText("减少动效").performScrollTo().assertIsDisplayed()
+            capture("audit-dark-200font-appearance-android35.png")
+        } finally {
+            rule.runOnIdle { UiPreferences.setDarkMode(originalDark) }
+        }
+    }
+
     @Test fun disabledBatchActionsExplainTheirStateToScreenReaders() {
         rule.setContent {
             CodexTheme {
@@ -447,6 +469,28 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("elicitation-submit").assertIsNotEnabled()
         rule.onNodeWithTag("elicitation-deny-permission").performClick()
         rule.onNodeWithTag("elicitation-submit").assertIsEnabled()
+    }
+
+    @Test fun extensionStringListUsesReadableMultiLineForm() {
+        val vm = viewModel()
+        val entries = JSONObject().put("type", "array")
+            .put("title", "需要处理的文件")
+            .put("items", JSONObject().put("type", "string"))
+        val params = JSONObject().put("serverName", "文件整理服务")
+            .put("type", "form").put("message", "填写文件名称")
+            .put("requestedSchema", JSONObject().put("type", "object")
+                .put("properties", JSONObject().put("files", entries))
+                .put("required", JSONArray().put("files")))
+        val prompt = ServerPrompt("ci-list-form", "mcpServer/elicitation/request", params)
+        rule.setContent {
+            CodexTheme {
+                Column { McpElicitationRequestCard(vm, prompt) }
+            }
+        }
+        rule.onNodeWithText("每行填写一项").assertExists()
+        rule.onNodeWithText("JSON 数组").assertDoesNotExist()
+        rule.onNodeWithText("每行填写一项").performTextInput("第一项\n第二项")
+        rule.onNodeWithText("第一项", substring = true).assertExists()
     }
 
     @Test fun pluginDetailShowsCapabilitiesRatherThanRawMetadata() {

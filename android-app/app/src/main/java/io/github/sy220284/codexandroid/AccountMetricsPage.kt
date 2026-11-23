@@ -25,7 +25,10 @@ import java.util.Locale
  */
 @Composable
 fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
-    var selectedTab by rememberSaveable(id) { mutableStateOf(if (id == "limits") "limits" else "usage") }
+    val requestedTab = remember(id) { SettingsDeepLink.take("usage") }
+    var selectedTab by rememberSaveable(id, requestedTab) {
+        mutableStateOf(if (id == "limits" || requestedTab == "limits") "limits" else "usage")
+    }
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -42,8 +45,6 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 onClick = { selectedTab = "limits" }, label = { Text("额度") },
                 modifier = Modifier.weight(1f))
         }
-        Text(if (usage) "用量概览" else "额度详情",
-            style = MaterialTheme.typography.titleMedium)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(if (usage) Icons.Outlined.Insights else Icons.Outlined.Speed,
@@ -52,7 +53,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 Column(Modifier.weight(1f)) {
                     Text(if (usage) "账号使用概况" else "额度窗口",
                         style = MaterialTheme.typography.titleMedium)
-                    Text("由已登录的 Codex 账号实时提供",
+                    Text("与当前登录账号同步",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
                 CodexRefreshIcon(busy = selectedTab in loading,

@@ -12,7 +12,36 @@ data class DiffSection(
     }
 }
 
+data class DiffLineNumbers(val old: Int?, val new: Int?)
+
 object UnifiedDiff {
+    private val hunkHeader = Regex("""^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@""")
+
+    /** 逐行映射到旧文件和新文件的真实行号；文件头与提示行留白。 */
+    fun annotateLines(lines: List<String>): List<DiffLineNumbers> {
+        var old = 0
+        var new = 0
+        var inHunk = false
+        return lines.map { line ->
+            val header = hunkHeader.find(line)
+            if (header != null) {
+                old = header.groupValues[1].toInt()
+                new = header.groupValues[2].toInt()
+                inHunk = true
+                DiffLineNumbers(null, null)
+            } else if (!inHunk) {
+                DiffLineNumbers(null, null)
+            } else when {
+                line.startsWith("+") && !line.startsWith("+++") ->
+                    DiffLineNumbers(null, new++)
+                line.startsWith("-") && !line.startsWith("---") ->
+                    DiffLineNumbers(old++, null)
+                line.startsWith(" ") -> DiffLineNumbers(old++, new++)
+                else -> DiffLineNumbers(null, null)
+            }
+        }
+    }
+
     fun parse(raw: String): List<DiffSection> {
         if (raw.isBlank()) return emptyList()
         data class SectionBuffer(val path: String, val lines: MutableList<String> = mutableListOf())

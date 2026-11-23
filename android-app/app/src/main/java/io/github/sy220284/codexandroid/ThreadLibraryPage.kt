@@ -45,6 +45,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
+    val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
+        firstThreadStarting, switching
+    )
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
     val bulkSummary by vm.bulkActionSummary.collectAsState()
@@ -301,8 +304,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                 OutlinedButton(onClick = { vm.newThread(); navigate("chat") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = !firstThreadStarting && !switching) {
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty()),
+                    enabled = newThreadBlockReason == null) {
                     Icon(Icons.Outlined.Add, null)
                     Spacer(Modifier.width(7.dp))
                     Text("新建任务")
@@ -326,7 +330,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             } else if (!showingSubmittedQuery) {
                 item { CodexNotice("搜索词已改变，重新提交后显示对应结果。", NoticeTone.Info) }
             } else if (fullResultsReady && fullResults.isEmpty()) {
-                item { CodexEmptyState("没有全文检索结果", "尝试减少关键词或切回标题搜索。") }
+                item {
+                    CodexEmptyState("没有全文检索结果", "可以尝试仅搜索会话标题。",
+                        actionLabel = "切换到标题搜索",
+                        onAction = {
+                            searchTerm = fullSubmitted
+                            searchText = fullSubmitted
+                            fullSubmitted = ""
+                            fullText = false
+                            cursor = null
+                            history = emptyList()
+                        })
+                }
             }
             items(if (fullResultsReady) fullResults else emptyList(),
                 key = { "full-" + it.optString("id") }) { thread ->

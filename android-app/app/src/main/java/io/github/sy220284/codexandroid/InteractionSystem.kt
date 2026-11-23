@@ -12,6 +12,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -60,6 +62,33 @@ fun CodexReveal(visible: Boolean, content: @Composable () -> Unit) {
             fadeOut(tween(CodexMotion.duration(CodexMotion.feedback, reducedMotion))),
         content = { content() }
     )
+}
+
+/**
+ * 同一按压反馈用于设置行与会话列表：保留 Material ripple，
+ * 并在减少动态效果时立即关闭位移动画。
+ */
+fun Modifier.codexPressable(
+    enabled: Boolean = true,
+    role: Role? = null,
+    onClick: () -> Unit
+): Modifier = composed {
+    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (enabled && pressed && !reduceMotion) .985f else 1f,
+        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduceMotion)),
+        label = "codex-row-press"
+    )
+    this.graphicsLayer { scaleX = scale; scaleY = scale }
+        .clickable(
+            enabled = enabled,
+            role = role,
+            interactionSource = interaction,
+            indication = LocalIndication.current,
+            onClick = onClick
+        )
 }
 
 data class CodexChoice(

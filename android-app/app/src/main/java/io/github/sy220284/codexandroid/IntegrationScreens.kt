@@ -100,14 +100,20 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     ScreenColumn {
         SectionIntro("CONNECTORS / APPS", "已连接应用", "查看服务连接与授权；具体工具由智能体在任务中使用。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("应用目录", style = MaterialTheme.typography.titleMedium)
-            Text(if (data["apps"] != null) "已发现 ${apps.size} 个应用" else "等待同步可用应用", color = Ink.copper)
-            Text("应用登录、授权与可用能力由当前连接状态决定。", color = Ink.muted)
-            OutlinedButton(onClick = {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("应用连接", style = MaterialTheme.typography.titleMedium)
+                Text(if (data["apps"] != null) "${apps.size} 个可用应用" else "正在读取应用",
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            TextButton(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
-            }) { Icon(Icons.Outlined.Refresh, null); Text("刷新连接状态") }
+            }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(6.dp))
+                Text("刷新")
+            }
         }
         ProtocolFeedback(vm, listOf("apps", "appInstalled"), onRetry = {
             vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
@@ -127,6 +133,15 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 .firstOrNull { it.optString("id") == id }
             val name = app.optString("name", id)
             val installUrl = app.optString("installUrl")
+            val callable = active?.optBoolean("callable") == true
+            val enabled = app.optBoolean("isEnabled", true)
+            val appStatus = when {
+                !enabled -> "已停用"
+                callable -> "已连接"
+                !app.optBoolean("isAccessible") -> "待授权"
+                active?.optBoolean("enabled") == true -> "等待工具就绪"
+                else -> "尚未连接"
+            }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
@@ -137,13 +152,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text(if (active?.optBoolean("callable") == true) "可供智能体使用" else
-                            if (active?.optBoolean("enabled") == true) "已启用，等待工具就绪" else
-                            if (app.optBoolean("isAccessible")) "可访问" else "尚未授权或不可用",
+                        Text(if (callable) "可供任务调用工具" else
+                            if (appStatus == "待授权") "完成授权后可在任务中调用" else
+                            if (appStatus == "已停用") "可重新启用应用" else
+                            "可以刷新连接状态查看服务是否可用",
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
-                    StatusPill(if (app.optBoolean("isEnabled", true)) "已启用" else "已禁用",
-                        app.optBoolean("isEnabled", true))
+                    StatusPill(appStatus, callable)
                 }
                 PresentationPolicy.meaningful(app.optString("description")).takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Ink.muted)
@@ -206,23 +221,14 @@ fun McpServicesPage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("EXTENSIONS / MCP", "MCP 服务",
             "管理扩展服务的连接与授权。工具由智能体在任务中按需调用。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("已连接的服务", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                Text(servers.count {
-                    PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
-                }.toString() + " / " + servers.size,
-                    style = MaterialTheme.typography.titleMedium)
-            }
-            Text("只有服务连接或授权需要你操作；工具运行结果可在对应任务中查看。",
-                color = Ink.muted)
-            OutlinedButton(onClick = { refreshMcpServices() },
-                modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Refresh, null)
-                Spacer(Modifier.width(8.dp))
-                Text("刷新连接状态")
-            }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("已连接 " + servers.count {
+                PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
+            } + " / " + servers.size + " 项",
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f))
+            CodexRefreshIcon(busy = false, onRefresh = { refreshMcpServices() },
+                label = "刷新连接状态")
         }
         IntegrationState(vm, "mcp") { refreshMcpServices() }
         if (servers.isEmpty() && data["mcp"] != null) {

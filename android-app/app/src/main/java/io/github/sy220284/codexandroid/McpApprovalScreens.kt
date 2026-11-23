@@ -12,8 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -30,6 +30,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     val fields = schema?.optJSONObject("properties")
     val required = schema?.optJSONArray("required") ?: JSONArray()
     val answers = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
+    val multilineDrafts = remember(prompt.id.toString()) { mutableStateMapOf<String, String>() }
     val isForm = kind in listOf("form", "openai/form", "openaiForm") && fields != null
     val urlReady = kind == "url" && (params.optString("url").startsWith("https://") ||
         params.optString("url").startsWith("http://127.0.0.1:"))
@@ -136,11 +137,25 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                     Text(choice)
                                 }
                             }
+                        } else if (field.optJSONObject("items")?.optString("type") == "string") {
+                            OutlinedTextField(
+                                value = multilineDrafts[name] ?: "",
+                                onValueChange = { input ->
+                                    multilineDrafts[name] = input
+                                    answers[name] = JSONArray(input.lines()
+                                        .map { it.trim() }.filter { it.isNotBlank() }).toString()
+                                },
+                                label = { Text("每行填写一项") },
+                                supportingText = { Text("可以填写多行，提交时自动整理为列表。") },
+                                minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth()
+                            )
                         } else {
                             OutlinedTextField(
                                 value = answers[name] ?: "[]",
                                 onValueChange = { answers[name] = it },
-                                label = { Text("JSON 数组") }, modifier = Modifier.fillMaxWidth()
+                                label = { Text("高级列表数据（JSON）") },
+                                supportingText = { Text("此服务要求结构化列表格式。") },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }

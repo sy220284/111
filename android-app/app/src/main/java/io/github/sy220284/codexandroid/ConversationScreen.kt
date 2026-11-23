@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,7 +41,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
@@ -81,6 +82,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
         imported.message else ""
 
+    // 小高度横屏与输入法弹出同一套紧凑规则，优先确保发送和内容可见。
+    val compactWorkArea = WindowInsets.isImeVisible ||
+        LocalConfiguration.current.screenHeightDp < AdaptiveWorkspaceLayout.compactHeightDp
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
@@ -182,15 +186,20 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             unreadSteps += added
         }
     }
-    Column(Modifier.fillMaxSize().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+    // Activity 已设置 adjustResize，Scaffold 会在输入法打开后缩小可用内容区。
+    // 此处叠加 imePadding 会再次扣除键盘高度，导致编辑器整个移出画面。
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp,
+            vertical = if (compactWorkArea) 0.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(currentTitle ?: if (thread == null) "新任务" else "当前任务",
                     style = MaterialTheme.typography.titleMedium)
-                Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
-                    .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                if (!compactWorkArea) {
+                    Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
+                        .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                }
             }
             IconButton(onClick = { navigate("files") },
                 modifier = Modifier.testTag("chat-project-files")) {
@@ -269,7 +278,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         }
-        errors["protocol"]?.let { reason ->
+        (if (status == EngineStatus.Connected) errors["protocol"] else null)?.let { reason ->
             CodexNotice(reason, NoticeTone.Warning,
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
@@ -278,9 +287,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (switching) {
                 ConversationLoadingSkeleton(Modifier.fillMaxSize())
             } else if (items.isEmpty()) {
-                val shortViewport = maxHeight < 345.dp
+                val shortViewport = compactWorkArea || maxHeight < 345.dp
                 Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.Center)
+                    modifier = Modifier.fillMaxWidth().align(Alignment.Center).verticalScroll(rememberScrollState())
                         .padding(horizontal = 19.dp, vertical = if (shortViewport) 5.dp else 15.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 10.dp)
@@ -289,39 +298,49 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         style = if (shortViewport) MaterialTheme.typography.titleLarge
                             else MaterialTheme.typography.headlineSmall,
                         color = Ink.parchment, textAlign = TextAlign.Center)
-                    Text("描述一个目标，或从快捷任务开始",
-                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center)
+                    if (!shortViewport) {
+                        Text("描述一个目标，或从快捷任务开始",
+                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center)
+                    }
                     if (!busy) {
                         Spacer(Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Column(
+                            modifier = Modifier.fillMaxWidth().testTag("chat-suggestions"),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            AssistChip(
-                                onClick = { navigate("files") },
-                                label = { Text("浏览文件") },
-                                leadingIcon = { Icon(Icons.Outlined.FolderOpen, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
-                            AssistChip(
-                                onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
-                                label = { Text("写个脚本") },
-                                leadingIcon = { Icon(Icons.Outlined.Code, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
-                            AssistChip(
-                                onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
-                                label = { Text("新建项目") },
-                                leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
-                            AssistChip(
-                                onClick = { navigate(if (thread == null) "threads" else "review") },
-                                label = { Text("代码审查") },
-                                leadingIcon = { Icon(Icons.Outlined.FactCheck, null,
-                                    modifier = Modifier.size(18.dp)) }
-                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AssistChip(
+                                    onClick = { navigate("files") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-files"),
+                                    label = { Text("浏览文件", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp)) }
+                                )
+                                AssistChip(
+                                    onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-script"),
+                                    label = { Text("写个脚本", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.Code, null, Modifier.size(18.dp)) }
+                                )
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AssistChip(
+                                    onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-project"),
+                                    label = { Text("新建项目", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(18.dp)) }
+                                )
+                                AssistChip(
+                                    onClick = { navigate(if (thread == null) "threads" else "review") },
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                                        .testTag("chat-suggestion-review"),
+                                    label = { Text("代码审查", maxLines = 1) },
+                                    leadingIcon = { Icon(Icons.Outlined.FactCheck, null, Modifier.size(18.dp)) }
+                                )
+                            }
                         }
                     }
                 }
@@ -378,7 +397,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             CodexNotice(reason, NoticeTone.Warning,
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         }
-        errors["conversation"]?.let { reason ->
+        (if (status == EngineStatus.Connected) errors["conversation"] else null)?.let { reason ->
             CodexNotice(
                 reason, NoticeTone.Error,
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -404,8 +423,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         errors["steer"]?.let { ErrorText(it) }
         errors["interrupt"]?.let { ErrorText(it) }
         DividerLine()
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            ConversationControlBar(
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp,
+            vertical = if (compactWorkArea) 4.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 9.dp)) {
+            if (!compactWorkArea) ConversationControlBar(
                 modelName = vm.modelId.collectAsState().value,
                 mode = selectedMode,
                 connected = status == EngineStatus.Connected,
@@ -414,13 +435,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onMode = { showModes = true },
                 onDiagnostics = { showEngineStatus = true }
             )
-            if (status is EngineStatus.Unavailable) {
+            if (status is EngineStatus.Unavailable && !compactWorkArea) {
                 CodexNotice(
                     "运行核心连接中断，未发送文字已保留在本机。",
                     NoticeTone.Warning, actionLabel = "重新连接",
                     onAction = { vm.connect() }
                 )
-            } else if (status == EngineStatus.Starting) {
+            } else if (status == EngineStatus.Starting && !compactWorkArea) {
                 Text("正在连接本机运行核心…",
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
@@ -508,7 +529,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onPickImage = {
                     if (vm.beginImageSelection(thread)) pendingImagePick = true
                     showAttachmentTools = false
-                }
+                },
+                compactControls = compactWorkArea,
+                compactCanReconnect = status is EngineStatus.Unavailable,
+                compactModelLabel = vm.modelId.collectAsState().value,
+                compactModeLabel = selectedMode,
+                onModel = { showModels = true },
+                onMode = { showModes = true },
+                onDiagnostics = { showEngineStatus = true },
+                onReconnect = { vm.connect() }
             )
         }
     }

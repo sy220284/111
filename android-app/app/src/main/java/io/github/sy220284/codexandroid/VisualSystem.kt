@@ -181,7 +181,8 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
         tonalElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier.padding(if (compact) 12.dp else 17.dp),
+            modifier = Modifier.padding(if (compact) 12.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
             content = content
         )
     }

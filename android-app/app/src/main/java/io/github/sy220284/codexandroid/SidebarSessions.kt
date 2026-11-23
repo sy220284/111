@@ -352,7 +352,7 @@ internal fun SidebarSessionRow(
     Surface(
         modifier = Modifier.fillMaxWidth()
             .testTag("sidebar-thread-" + id)
-            .clickable(enabled = enabled, onClick = onClick),
+            .codexPressable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(13.dp),
         color = surfaceColor,
         border = if (active) BorderStroke(1.dp, Ink.coral.copy(alpha = .24f)) else null

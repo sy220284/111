@@ -49,7 +49,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
             Text("会话关联资料", style = MaterialTheme.typography.headlineSmall)
-            Text("资料与当前会话关联并由 Codex 持久保存；下方备注不作为任务指令发送。",
+            Text("资料保存在当前会话中；备注不会作为新指令发送。",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
             if (active == null) CodexEmptyState("请先打开会话", "会话资料属于具体任务。")
             else {

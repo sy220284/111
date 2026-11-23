@@ -191,6 +191,63 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  ui-adaptive-emulator:
+    name: Android 35 · ${{ matrix.label }} 响应式工作区
+    needs: verify-ui
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: 横屏915x412
+            size: 915x412
+            expect_sidebar: "false"
+          - label: 平板1100x800
+            size: 1100x800
+            expect_sidebar: "true"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: 下载同一版本的 UI 与测试 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: codex-android-ui-apks
+          path: apks
+      - name: 允许模拟器使用硬件加速
+        run: |
+          sudo adduser "$USER" kvm || true
+          sudo chmod 666 /dev/kvm
+      - name: 横屏与平板逐项验收侧栏、会话、输入栏与切换
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            set -e
+            adb install -r apks/debug/app-debug.apk
+            adb install -r apks/androidTest/debug/app-debug-androidTest.apk
+            adb shell wm size ${{ matrix.size }}
+            adb shell wm density 160
+            adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
+            mkdir -p ui-adaptive
+            adb shell am instrument -w -r -e expect_sidebar ${{ matrix.expect_sidebar }} -e class io.github.sy220284.codexandroid.UiAdaptiveWindowInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-adaptive-result.log
+            grep -Fq 'OK (1 test)' ui-adaptive-result.log
+            # 读取测试过程中经前台窗口检查的 Compose 截图，避免测试结束后截到系统桌面。
+            adb pull /sdcard/Android/data/io.github.sy220284.codexandroid/files/adaptive-workspace-android35.png ui-adaptive/${{ matrix.label }}.png
+            test -s ui-adaptive/${{ matrix.label }}.png
+            file ui-adaptive/${{ matrix.label }}.png
+      - name: 保存横屏与平板真实设备验收证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-ui-adaptive-${{ matrix.label }}
+          path: |
+            ui-adaptive-result.log
+            ui-adaptive/
+          retention-days: 14
+
   ui-emulator:
     name: Android 35 · ${{ matrix.width_dp }}dp UI 交互与截图验收
     needs: verify-ui

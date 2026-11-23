@@ -2,7 +2,10 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,14 +21,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val listScope = rememberCoroutineScope()
     var showModels by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showAppearance by rememberSaveable { mutableStateOf(false) }
+    var appearanceTarget by remember { mutableStateOf<String?>(null) }
     val status by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val isAccountLoaded = data["account"] != null
@@ -47,6 +54,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
+        state = listState,
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
@@ -122,7 +130,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
                             entries.forEach { entry ->
-                                SettingRouteRow(page = entry, detail = NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
+                                val spot = NavigationPolicy.matchedSettingSpot(entry.id, query)
+                                SettingRouteRow(page = entry, detail = spot?.label
+                                    ?: NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "security" -> "执行权限与审批"
@@ -132,23 +142,37 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     "plugins" -> "安装与管理"
                                     else -> ""
                                 }) {
+                                    SettingsDeepLink.select(entry.id, spot?.target)
                                     when(entry.id) {
                                         "models" -> showModels = true
-                                        "appearance" -> showAppearance = !showAppearance
+                                        "appearance" -> {
+                                            appearanceTarget = spot?.target
+                                            showAppearance = if (spot != null) true else !showAppearance
+                                            if (spot == null) {
+                                                val groupIndex = groups.indexOfFirst { (group, _) ->
+                                                    "appearance" in group.routes
+                                                }
+                                                if (groupIndex >= 0) listScope.launch {
+                                                    listState.animateScrollToItem(
+                                                        (if (query.isBlank()) 2 else 1) + groupIndex)
+                                                }
+                                            }
+                                        }
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
                                     }
                                 }
                                 if (entry.id == "appearance" && showAppearance) {
                                     HorizontalDivider(color = Ink.border)
-                                    AppearanceInlineControls()
+                                    AppearanceInlineControls(focusTarget = appearanceTarget)
                                 }
                             }
                         }
                     }
                 }
                 if ("update" in group.routes) {
-                    if (showUpdate) AppUpdateCard()
+                    if (showUpdate) AppUpdateCard(autoExpand =
+                        query.isNotBlank() && NavigationPolicy.matchedSettingSpot("update", query) != null)
                     if (showTransfers) LocalDataTransferCard(vm)
                 }
             }
@@ -162,7 +186,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
-            .clickable(role = Role.Button, onClick = onClick)
+            .codexPressable(role = Role.Button, onClick = onClick)
             .heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -181,7 +205,21 @@ private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun AppearanceInlineControls() {
+fun AppearanceInlineControls(focusTarget: String? = null) {
+    val themeRequester = remember { BringIntoViewRequester() }
+    val compactRequester = remember { BringIntoViewRequester() }
+    val shadowRequester = remember { BringIntoViewRequester() }
+    val motionRequester = remember { BringIntoViewRequester() }
+    val fontRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(focusTarget) {
+        when (focusTarget) {
+            "theme" -> themeRequester.bringIntoView()
+            "compact" -> compactRequester.bringIntoView()
+            "shadow" -> shadowRequester.bringIntoView()
+            "motion" -> motionRequester.bringIntoView()
+            "font" -> fontRequester.bringIntoView()
+        }
+    }
     val compact by UiPreferences.compact.collectAsState()
     val softMaterial by UiPreferences.softMaterial.collectAsState()
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
@@ -189,7 +227,8 @@ fun AppearanceInlineControls() {
     val darkMode by UiPreferences.darkMode.collectAsState()
     Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 7.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("界面配色", style = MaterialTheme.typography.titleMedium)
+        Text("界面配色", style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.bringIntoViewRequester(themeRequester))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ThemePreviewCard(
                 title = "典雅白", background = Color(0xFFFFFFFF),
@@ -202,12 +241,20 @@ fun AppearanceInlineControls() {
                 selected = darkMode, modifier = Modifier.weight(1f)
             ) { UiPreferences.setDarkMode(true) }
         }
-        AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
-        AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
-        AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
+        Box(Modifier.bringIntoViewRequester(compactRequester)) {
+            AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)
+        }
+        Box(Modifier.bringIntoViewRequester(shadowRequester)) {
+            AppearanceSettingToggle("柔和阴影", "白底细边框与轻阴影分层", softMaterial, UiPreferences::setSoftMaterial)
+        }
+        Box(Modifier.bringIntoViewRequester(motionRequester)) {
+            AppearanceSettingToggle("减少动效", "保留静态反馈，关闭多余位移", lessMotion, UiPreferences::setReducedMotion)
+        }
         Text("文字大小", style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            modifier = Modifier.padding(top = 6.dp).bringIntoViewRequester(fontRequester)
+                .testTag("appearance-font-heading"))
+        Row(Modifier.fillMaxWidth().testTag("appearance-font-controls"),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
                 .forEach { (scale, label) ->
                     FilterChip(
