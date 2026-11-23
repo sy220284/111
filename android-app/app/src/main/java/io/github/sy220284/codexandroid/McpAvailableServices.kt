@@ -23,12 +23,8 @@ internal object McpAvailableServices {
         if (server.optString("runtimeStatus") != "connected") return false
         if (server.optString("authStatus") == "notLoggedIn") return false
 
-        val toolsError = server.opt("toolsError")
-        val catalogHasError = when {
-            toolsError == null || toolsError === JSONObject.NULL -> false
-            toolsError is String -> toolsError.isNotBlank()
-            else -> true
-        }
+        val catalogHasError = !server.isNull("toolsError") &&
+            server.optString("toolsError").isNotBlank()
         val toolsReady = !catalogHasError &&
             (server.optJSONObject("tools")?.length() ?: 0) > 0
         val resourcesReady = (server.optJSONArray("resources")?.length() ?: 0) > 0 ||
