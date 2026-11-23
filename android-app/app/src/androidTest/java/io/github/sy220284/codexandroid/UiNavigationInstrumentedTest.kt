@@ -164,7 +164,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-input").performTextInput("验证键盘展开后的操作入口")
         // 必须由系统确认软键盘真实展开；仅能输入文字或按钮可见均不足以验收 IME。
         assertRealSoftKeyboardOpen()
-        capture("chat-keyboard-open-android35.png")
+        // Compose-root captures exclude the Android IME window. Capture the full
+        // device display so the screenshot actually proves keyboard occlusion.
+        captureVerifiedDisplayScreenshot("chat-keyboard-open-android35.png")
         assertRealSoftKeyboardOpen()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
