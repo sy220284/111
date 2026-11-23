@@ -30,7 +30,7 @@ object NavigationPolicy {
         SettingsTopic("account", "账户登录与切换", listOf("登录", "退出", "账户切换", "绑定", "订阅")),
         SettingsTopic("providers", "API 密钥和模型服务商", listOf("API Key", "密钥", "模型渠道", "接口地址", "Base URL", "自定义服务商")),
         SettingsTopic("models", "运行模型选择", listOf("模型选择", "模型列表", "思考模型")),
-        SettingsTopic("usage", "用量与调用统计", listOf("使用量", "用量", "调用量", "消耗", "调用统计")),
+        SettingsTopic("usage", "账户用量与额度", listOf("使用量", "用量", "调用量", "消耗", "调用统计", "额度", "限额", "速率", "重置时间")),
         SettingsTopic("limits", "模型速率与额度限制", listOf("限额", "额度", "频率", "速率", "剩余额度")),
         SettingsTopic("skills", "技能启用和配置", listOf("技能开关", "技能管理", "skill")),
         SettingsTopic("plugins", "插件安装和管理", listOf("插件市场", "安装插件", "扩展商店")),

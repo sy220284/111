@@ -250,10 +250,12 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchOpensRealAccountUsageAndLimitsPages() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("额度")
-        rule.onNodeWithTag("settings-route-limits").assertExists()
-        rule.onNodeWithTag("settings-route-usage").assertDoesNotExist()
-        rule.onNodeWithTag("settings-route-limits").performClick()
-        rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
+        rule.onNodeWithTag("settings-route-usage").assertExists()
+        rule.onNodeWithTag("settings-route-limits").assertDoesNotExist()
+        rule.onNodeWithTag("settings-route-usage").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
+        rule.onNodeWithText("额度", substring = false).performClick()
+        rule.onNodeWithText("额度窗口").assertExists()
     }
 
     @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
@@ -355,7 +357,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun accountMetricsUsesSharedUsageAndLimitsTabs() {
         openSettingRoute("account")
-        rule.onNodeWithText("使用量", substring = false).performScrollTo().performClick()
+        rule.onNodeWithText("查看用量与额度").performScrollTo().performClick()
         rule.onNodeWithText("账号使用概况").assertExists()
         capture("account-usage-android35.png")
         rule.onNodeWithText("额度", substring = false).performClick()
