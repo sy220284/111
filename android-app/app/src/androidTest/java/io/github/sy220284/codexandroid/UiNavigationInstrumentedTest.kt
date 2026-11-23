@@ -444,6 +444,8 @@ class UiNavigationInstrumentedTest {
                     .put("name", "继续队列测试会话"))))
         }
         rule.waitForIdle()
+        rule.onNodeWithTag("thread-library-list")
+            .performScrollToNode(hasText("继续会话"))
         rule.onNodeWithText("继续会话").performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
@@ -466,8 +468,14 @@ class UiNavigationInstrumentedTest {
             rule.activity.currentFocus?.clearFocus()
         }
         rule.waitForIdle()
+        // Android may consume the first Back to finish dismissing the IME.
         pressSystemBack()
-        rule.onNodeWithTag("thread-queue-sheet").assertDoesNotExist()
+        if (rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()) {
+            pressSystemBack()
+        }
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
+        }
         rule.onNodeWithContentDescription("快捷工具").performClick()
         rule.onNodeWithTag("quick-queue").performClick()
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
