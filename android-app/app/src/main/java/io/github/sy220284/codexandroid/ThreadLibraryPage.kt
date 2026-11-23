@@ -456,30 +456,41 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         IconButton(onClick = { menu = true }, enabled = canManage && !selectionMode) {
                             Icon(Icons.Outlined.MoreVert, "管理会话")
                         }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("修改名称") }, onClick = {
-                                menu = false; rename = thread; newName = thread.optString("name")
-                            }, leadingIcon = { Icon(Icons.Outlined.Edit, null) })
-                            DropdownMenuItem(text = {
-                                Text(if (archived) "从归档恢复" else "移入归档")
-                            }, onClick = {
-                                menu = false
-                                action = (if (archived) "unarchive" else "archive") to thread
-                            }, leadingIcon = {
-                                Icon(if (archived) Icons.Outlined.Unarchive
-                                    else Icons.Outlined.Archive, null)
-                            })
-                            if (!archived) DropdownMenuItem(
-                                text = { Text("移至分组") },
-                                onClick = { menu = false; threadToMove = thread },
-                                leadingIcon = { Icon(Icons.Outlined.Folder, null) }
-                            )
-                            DropdownMenuItem(text = { Text("永久删除") }, onClick = {
-                                menu = false; action = "delete" to thread
-                            }, leadingIcon = {
-                                Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red)
-                            })
-                        }
+                        if (menu) CodexActionSheet(
+                            title = "管理会话",
+                            onDismiss = { menu = false },
+                            actions = buildList {
+                                add(CodexSheetAction(
+                                    label = "修改名称",
+                                    icon = Icons.Outlined.Edit,
+                                    description = "为当前会话设置便于查找的名称",
+                                    onClick = {
+                                        rename = thread
+                                        newName = thread.optString("name")
+                                    }
+                                ))
+                                add(CodexSheetAction(
+                                    label = if (archived) "从归档恢复" else "移入归档",
+                                    icon = if (archived) Icons.Outlined.Unarchive
+                                        else Icons.Outlined.Archive,
+                                    onClick = {
+                                        action = (if (archived) "unarchive" else "archive") to thread
+                                    }
+                                ))
+                                if (!archived) add(CodexSheetAction(
+                                    label = "移至分组",
+                                    icon = Icons.Outlined.Folder,
+                                    onClick = { threadToMove = thread }
+                                ))
+                                add(CodexSheetAction(
+                                    label = "永久删除",
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    description = "永久删除前会要求确认",
+                                    destructive = true,
+                                    onClick = { action = "delete" to thread }
+                                ))
+                            }
+                        )
                     }
                 }
                 val updatedAt = ThreadDisplayPolicy.updatedAt(
