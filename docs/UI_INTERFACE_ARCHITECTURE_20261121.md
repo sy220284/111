@@ -1,5 +1,7 @@
 # 111 Android 全量 UI/协议与四技能体验审计
 
+> 历史审计存档（2026-11-21）。下文早期底部五槽导航方案已由桌面式侧栏替换，当前设计以 `docs/DESIGN_SYSTEM.md`、`UiFeatureCatalog.kt`、`AppNavigation.kt` 为准；接口分类以自动生成的 `docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md` 为准。
+
 > 2026-11-21 实施补充：页面、卡片、弹层、选中态与强调背景全部采用典雅白；暖铜、青绿和红色仅用于文字图标与描边，详细规则以 [典雅白 V3 设计系统](DESIGN_SYSTEM.md) 为准。
 
 核查日期：2026-11-21。以本仓锁定的 `upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs`、`AppNavigation.kt` 和 Kotlin 代码为设计依据。
