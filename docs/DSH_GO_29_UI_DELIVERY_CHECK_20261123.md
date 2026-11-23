@@ -16,12 +16,12 @@
 | 08 | `files` | P1 | 当前目录及导入固定近文件列表；项目管理按需展开 | `DeveloperScreens.kt / ProjectRegistryPanel.kt` | workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation；workspace-files-android35.png |
 | 09 | `diff` | P1 | 文件摘要工具条；新旧行号；折行或横滚；复制及审查 | `DiffReaderPage.kt / UnifiedDiff.kt` | UnifiedDiffTest；diffReaderShowsFileFirstSummaryAndReviewAction |
 | 10 | `terminal` | P1 | 空态缩小；输出优先；固定命令输入、停止与日志导出 | `TerminalPage.kt` | terminalExecutionShowsReadableConfirmation；terminal-confirm-android35.png |
-| 11 | `review` | P1 | 审查范围选择与不可选原因、提交后返回任务 | `ReviewSurfaces.kt` | audit-review-sheet-android35.png |
+| 11 | `review` | P1 | 审查范围选择与不可选原因、提交后返回任务 | `ReviewSurfaces.kt` | taskSpecificSheetsAreReachableAndReadable；audit-review-sheet-android35.png |
 | 12 | `models` | P1 | 当前模型和可用目录；连接故障解释；过长名称可读 | `UiSharedSurfaces.kt / ModelChoiceSurface` | modelChoiceUsesOneSharedBottomSheet；model-sheet-android35.png |
 | 13 | `modes` | P2 | 当前执行模式、下一轮生效范围与禁用原因 | `UiSharedSurfaces.kt / ModeChoiceSurface` | modeSheetRespectsRealEngineCapability；mode-sheet-android35.png |
-| 14 | `skills` | P1 | 已启用/可用未启用/异常筛选；异常和写入状态收敛 | `EcosystemScreens.kt / SkillsPage` | audit-skills-android35.png；本 PR 设备回归 |
+| 14 | `skills` | P1 | 已启用/可用未启用/异常筛选；异常和写入状态收敛 | `EcosystemScreens.kt / SkillsPage` | secondarySettingsPagesHaveActualDeviceScreenshots；audit-skills-android35.png；本 PR 设备回归 |
 | 15 | `plugins` | P1 | 发现、搜索、详情、安装/更新、失败重试与状态 | `EcosystemScreens.kt / PluginsPage` | pluginDiscoveryCanOpenSearchWithoutInventedResults；audit-plugin-detail-android35.png |
-| 16 | `apps` | P1 | 可调用/待授权/待就绪/停用可读状态及就地授权 | `IntegrationScreens.kt / ConnectedAppsPage` | audit-apps-android35.png |
+| 16 | `apps` | P1 | 可调用/待授权/待就绪/停用可读状态及就地授权 | `IntegrationScreens.kt / ConnectedAppsPage` | secondarySettingsPagesHaveActualDeviceScreenshots；audit-apps-android35.png |
 | 17 | `mcp` | P1 | 服务及授权状态；表单必填校验；多行列表；提交确认 | `IntegrationScreens.kt / McpApprovalScreens.kt` | elicitationRendersOnlyRequiredUserForm；requiredBooleanMcpChoiceMustBeExplicitAndCanBeDeclined |
 | 18 | `environments` | P1 | 本机与远程二选；仅远程才显示连接表单 | `ExecutionEnvironmentPage.kt` | executionEnvironmentShowsChoiceBeforeConnectionFields；audit-environments-android35.png |
 | 19 | `account` | P1 | 登录/退出与当前账号状态；用量额度统一入口 | `AccountLoginUi.kt` | accountPageExposesNarrowScreenDeviceLoginActions；account-android35.png |
@@ -31,7 +31,7 @@
 | 23 | `usage` | P2 | 用量/额度同屏切换，服务端数据和空态可理解 | `AccountMetricsPage.kt` | accountMetricsUsesSharedUsageAndLimitsTabs；account-usage-android35.png |
 | 24 | `limits` | P2 | 旧路由保留；额度搜索直接选中额度窗口标签 | `AccountMetricsPage.kt / NavigationPolicy.kt` | settingsSearchOpensUnifiedAccountMetrics；account-limits-android35.png |
 | 25 | `appearance` | P2 | 主题实时预览、字号/密度/阴影/减动效与可见焦点 | `SettingsHub.kt / AppearanceInlineControls` | settingsSearchFindsInlineAppearanceControls；darkAppearanceWithSystemDoubleFontRemainsReachable |
-| 26 | `diagnostics` | P0 | 状态+重连优先，日志和排查按需展开并合并错误提示 | `EcosystemScreens.kt / EngineDiagnosticsPage` | audit-diagnostics-android35.png |
+| 26 | `diagnostics` | P0 | 状态+重连优先，日志和排查按需展开并合并错误提示 | `EcosystemScreens.kt / EngineDiagnosticsPage` | secondarySettingsPagesHaveActualDeviceScreenshots；audit-diagnostics-android35.png |
 | 27 | `about` | P2 | 版本、来源与隐私清楚；支持复制版本信息 | `UiSharedSurfaces.kt / AboutInfoSheet` | expandedSecurityAndAboutViewsAreCaptured；audit-about-android35.png |
 | 28 | `settings` | P1 | 设置归属唯一；搜索直达目标控件并保留返回上下文 | `SettingsHub.kt / NavigationPolicy.kt` | NavigationPolicyTest；settingsSearchDirectlyOpensUpdateActions |
 | 29 | `update` | P2 | 检查→下载→校验→安装状态连续显示；搜索展开操作 | `AppUpdateCard.kt / AppUpdateManager` | settingsGroupsAndInlineAppearanceAndUpdate；settingsSearchDirectlyOpensUpdateActions |
