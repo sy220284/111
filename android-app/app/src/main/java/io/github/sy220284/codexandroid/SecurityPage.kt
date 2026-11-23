@@ -229,8 +229,15 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 JSONObject().put("threadId", threadId)) })
                     }
                 } else {
+                    val snapshot = vm.globalWorkSnapshot()
+                    if (!snapshot.canStartNewTask) {
+                        saveMessage = snapshot.blockReason
+                        saveError = true
+                    } else {
+                    // Reserve ownership before launching: backup cannot start in the gap.
+                    vm.securitySaveBusy.value = true
+                    saving = true
                     coroutineScope.launch {
-                        saving = true
                         saveMessage = null
                         try {
                             val verified = SecurityPermissionController.saveDefault(vm.bridge, id)
@@ -242,8 +249,10 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             saveError = true
                             reload()
                         } finally {
+                            vm.securitySaveBusy.value = false
                             saving = false
                         }
+                    }
                     }
                 }
                 draftProfile = null
