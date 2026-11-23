@@ -329,24 +329,6 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("配置保存在当前设备，修改成功后影响后续任务。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("按功能管理", style = MaterialTheme.typography.titleMedium)
-            listOf(
-                Triple("security", "权限与安全", "审批方式和工作区文件访问"),
-                Triple("providers", "模型服务商", "默认服务商和接入配置"),
-                Triple("models", "模型目录", "任务模型及思考能力")
-            ).forEach { (id, title, summary) ->
-                OutlinedButton(onClick = { navigate(id) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                        Text(title, style = MaterialTheme.typography.bodyLarge)
-                        Text(summary, color = Ink.muted,
-                            style = MaterialTheme.typography.labelMedium)
-                    }
-                    Icon(Icons.Outlined.ChevronRight, null)
-                }
-            }
-        }
         errors["config"]?.let { ErrorText(it) }
         TextButton(
             onClick = { advanced = !advanced },

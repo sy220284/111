@@ -57,6 +57,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var refresh by remember { mutableIntStateOf(0) }
     var notice by remember { mutableStateOf("") }
     var createName by remember { mutableStateOf("") }
+    var showCreate by rememberSaveable { mutableStateOf(false) }
     var createKind by remember { mutableStateOf("file") }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
@@ -180,7 +181,22 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
         if (actionBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("目录内容", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                Text("${children.size} 项", style = MaterialTheme.typography.labelMedium,
+                    color = Ink.muted)
+                Spacer(Modifier.width(10.dp))
+                TextButton(onClick = { showCreate = !showCreate },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("workspace-create-open")) {
+                    Icon(if (showCreate) Icons.Outlined.Close else Icons.Outlined.Add, null)
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (showCreate) "收起新建" else "新建")
+                }
+            }
+        }
+        if (showCreate) item {
+            MaterialPanel(Modifier.fillMaxWidth().testTag("workspace-create-panel")) {
                 Text("新建项目内容", style = MaterialTheme.typography.titleMedium)
                 Text("在当前目录创建文件或文件夹。",
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
@@ -203,6 +219,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         else WorkspaceFileActions.createFolder(root, folder, createName)
                         notice = "已创建：" + created.name
                         createName = ""
+                        showCreate = false
                         focusManager.clearFocus()
                         keyboardController?.hide()
                         refresh++
@@ -218,14 +235,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
             }
         }
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("目录内容", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                Text("${children.size} 项", style = MaterialTheme.typography.labelMedium,
-                    color = Ink.muted)
-            }
-        }
+
         if (children.isEmpty()) item {
             CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
                 icon = Icons.Outlined.FolderOpen)

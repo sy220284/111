@@ -369,6 +369,11 @@ class UiNavigationInstrumentedTest {
         val name = "ui-folder-" + System.currentTimeMillis()
         openDrawerRoute("files")
         rule.onNodeWithTag("workspace-list").performScrollToNode(
+            hasTestTag("workspace-create-open"))
+        rule.onNodeWithTag("workspace-create-panel").assertDoesNotExist()
+        rule.onNodeWithTag("workspace-create-open").performClick()
+        rule.onNodeWithTag("workspace-create-panel").assertExists()
+        rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-folder-mode"))
         rule.onNodeWithTag("workspace-folder-mode").performClick()
         rule.onNodeWithTag("workspace-new-name").performTextInput(name)
