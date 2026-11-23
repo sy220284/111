@@ -56,3 +56,24 @@
 ## 避免重复建设
 
 此文件是 `AGENTS.md` 的实施细则，长期唯一规则仍写在 `AGENTS.md`。新模块直接复用已有共享组件和矢量素材，减少另起一套“更多按钮—展开块”的代码。接口方向与可用性继续由 `docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md` 及源码决定；本次仅变更呈现容器，没有修改任何 RPC 参数或接口能力。
+
+## 第二轮扩展：按功能替换现有控件
+
+参考十张图的表单、步骤、进度、系统反馈与交互菜单部分，新增 `AtlasInteractionComponents.kt`（原生 Compose）并与原有 Ink 设计令牌统一；`docs/ui-assets/interaction-atlas-expanded.svg` 是对应的十宫格矢量扩展图谱。
+
+| 新共享组件 | 实际调用与使用价值 |
+| --- | --- |
+| `AtlasSearchField` | 设置、会话列表与插件目录，统一清除按钮、键盘提交、加载可用性和搜索触点；插件搜索去掉重复的独立提交按钮 |
+| `AtlasStatusSelector` | 任务目标的执行状态，确保四个状态单选并以状态语义提示 |
+| `AtlasSequenceBadge` | 后续指令的真实顺序，保留上移、下移、编辑和删除能力 |
+| `AtlasOperationProgress` | 队列加载、会话分组加载，以及 `ProtocolFeedback` 通用请求状态；真实百分比未知时只表示处理中 |
+| `AtlasFieldFeedback` | 任务额度输入校验，就地显示错误并保留原始业务校验 |
+| `AtlasListHeading` | 会话列表、队列、插件搜索结果，统一标题/数量/右侧操作层级 |
+| `AtlasLoadingResults` | 会话历史和插件搜索，展示稳定骨架，不占用真实结果位置 |
+| `AtlasSettingsActionRow` | 模型服务商的“添加”和“能力”入口，整行可点击并保持子级弹层 |
+| `CodexDetailSheet` / `CodexActionSheet` | 外观设置、服务详情、文件和会话操作，避免在列表下方挤出大块内容 |
+| `CodexInfoDialog` / `CodexSkeletonRows` | 弹层内简短信息及实际接口等待，占位不伪造进度 |
+
+根据业务用途保留已经合适的原生组件：输入栏、权限档位的直接选择、任务编辑字段、Diff 文件展开、插件已安装/发现分段切换。媒体播放器、卡片轮播、滑动删除、首次引导等仅在业务具备真实数据或明确流程时接入，避免增加空壳入口和误触危险操作。
+
+本轮新增 `CodexInteractionComponentsInstrumentedTest` 对搜索、状态单选、顺序可访问性、真实进度、字段反馈、操作卡整行触控进行验证；`UiNavigationInstrumentedTest` 覆盖设置中的外观弹层、三档 Android 35 截图以及原有项目操作。以最新 CI 为最终验收来源。
