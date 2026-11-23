@@ -62,7 +62,7 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("  workflow_dispatch:", cleanup)
         self.assertNotIn("  release:", cleanup)
         self.assertIn("needs: release", release)
-        self.assertIn("needs.release.result == 'success'", release)
+        self.assertIn("always() && needs.release.result == 'success'", release)
 
     def test_import_requires_manual_action_and_uses_reviewed_pr(self):
         contents = workflow("import-codex.yml")
@@ -78,7 +78,8 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'", contents)
         self.assertIn("needs.preflight.result == 'success'", contents)
         self.assertIn("verify_release_acceptance.py", contents)
-        self.assertIn("needs.release.result == 'success'", contents)
+        self.assertIn("always() && needs.release.result == 'success'", contents)
+        self.assertIn("always() && needs.check-release.result == 'success'", contents)
         self.assertIn("uses: ./.github/workflows/cleanup-old-releases.yml", contents)
         self.assertNotIn(":app:testDebugUnitTest", contents)
         self.assertIn("release_change_gate.py", contents)
