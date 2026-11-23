@@ -161,12 +161,18 @@ class UiNavigationInstrumentedTest {
 
     @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
         val vm = (rule.activity.application as CodexApplication).session
-        rule.runOnUiThread { vm.activeThread.value = "ci-diff-thread" }
-        rule.waitForIdle()
-        rule.onNodeWithText("检查修改").performClick()
+        val sampleDiff = "diff --git a/src/main.kt b/src/main.kt\n" +
+            "@@ -1 +1 @@\n-before\n+after"
+        rule.runOnUiThread {
+            vm.activeThread.value = "ci-diff-thread"
+            vm.latestDiff.value = sampleDiff
+        }
+        openDrawerRoute("chat")
+        rule.onNodeWithTag("chat-changes-summary").assertExists()
+        rule.onNodeWithText("查看", substring = false).performClick()
         rule.onNodeWithText("本次改动").assertExists()
         rule.onNodeWithText("代码审查").assertExists()
-        rule.onNodeWithText("暂无可展示的代码差异").assertExists()
+        rule.onNodeWithText("src/main.kt").assertExists()
         capture("diff-reader-android35.png")
     }
 
@@ -313,7 +319,12 @@ class UiNavigationInstrumentedTest {
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(14, NavigationPolicy.settingsRoutes.size)
+        assertEquals(16, NavigationPolicy.settingsRoutes.size)
+        assertEquals(NavigationPolicy.settingsRoutes.size,
+            NavigationPolicy.settingsRoutes.toSet().size)
+        assertFalse(NavigationPolicy.settingsRoutes.any {
+            it in setOf("goals", "queue", "review", "diff", "terminal")
+        })
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
         openSettingRoute("config")
@@ -461,7 +472,7 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("任务队列")
-        rule.onNodeWithText("未找到相关功能").assertExists()
+        rule.onNodeWithText("未找到相关设置").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
         rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
     }
