@@ -476,8 +476,39 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("API Key")
         rule.onNodeWithTag("settings-route-providers").assertExists()
-        rule.onNodeWithText("API 密钥和模型服务商").assertExists()
+        rule.onNodeWithText("配置模型服务商").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
+    }
+
+    @Test fun chatSuggestionsStayVisibleWithinThePhoneWidth() {
+        openDrawerRoute("chat")
+        rule.onNodeWithTag("chat-suggestions").assertExists()
+        listOf("files", "script", "project", "review").forEach { item ->
+            rule.onNodeWithTag("chat-suggestion-" + item).assertIsDisplayed()
+        }
+    }
+
+    @Test fun settingsSearchOpensPreciseProviderAndRemoteEditors() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("API Key")
+        rule.onNodeWithTag("settings-route-providers").performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithText("服务商名称").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.onNodeWithTag("settings-search").performTextClearance()
+        rule.onNodeWithTag("settings-search").performTextInput("远程主机")
+        rule.onNodeWithTag("settings-route-environments").performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("environment-endpoint").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test fun settingsSearchFindsInlineAppearanceControls() {
+        openDrawerRoute("settings")
+        rule.onNodeWithTag("settings-search").performTextInput("字号")
+        rule.onNodeWithTag("settings-route-appearance").performClick()
+        rule.onNodeWithText("文字大小").assertExists()
     }
 
     @Test fun settingsSearchDoesNotExposeTaskOperations() {

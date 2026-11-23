@@ -586,8 +586,8 @@ private fun SidebarRoute(
         modifier = Modifier.testTag("nav-$id").heightIn(min = 48.dp),
         shape = RoundedCornerShape(14.dp),
         colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = Color(0xFFF2F2F2),
-            selectedIconColor = Ink.parchment,
+            selectedContainerColor = Ink.coralSoft.copy(alpha = .12f),
+            selectedIconColor = Ink.coral,
             selectedTextColor = Ink.parchment,
             unselectedContainerColor = Ink.canvas,
             unselectedIconColor = Ink.parchment,

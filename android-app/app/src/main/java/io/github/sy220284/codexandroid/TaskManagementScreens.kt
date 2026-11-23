@@ -91,16 +91,21 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
                 minLines = 3, maxLines = 7)
             Text("执行状态", style = MaterialTheme.typography.titleMedium)
-            listOf("active" to "进行中", "paused" to "已暂停",
-                "blocked" to "遇到阻碍", "complete" to "已完成").forEach { (value, title) ->
-                Row(Modifier.fillMaxWidth().clickable {
-                    vm.editTaskPanelDraft(active) { it.copy(goalStatus = value) }
-                },
-                    verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(status == value, onClick = {
-                        vm.editTaskPanelDraft(active) { it.copy(goalStatus = value) }
-                    })
-                    Text(title)
+            listOf(
+                listOf("active" to "进行中", "paused" to "已暂停"),
+                listOf("blocked" to "遇到阻碍", "complete" to "已完成")
+            ).forEach { choices ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    choices.forEach { (value, title) ->
+                        FilterChip(
+                            selected = status == value,
+                            onClick = { vm.editTaskPanelDraft(active) {
+                                it.copy(goalStatus = value)
+                            } },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            label = { Text(title, maxLines = 1) }
+                        )
+                    }
                 }
             }
             TextButton(onClick = {

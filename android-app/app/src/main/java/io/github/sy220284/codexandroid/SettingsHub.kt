@@ -179,7 +179,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 private fun SettingRouteRow(page: Page, detail: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
-            .clickable(role = Role.Button, onClick = onClick)
+            .codexPressable(role = Role.Button, onClick = onClick)
             .heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
