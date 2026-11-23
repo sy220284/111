@@ -53,7 +53,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var recentCommands by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var historyVisible by rememberSaveable { mutableStateOf(false) }
     var historyPosition by remember { mutableStateOf(TerminalHistoryPosition()) }
-    var expandedOutput by rememberSaveable { mutableStateOf(false) }
+    var showFullOutput by rememberSaveable { mutableStateOf(false) }
+    var showOlderOutput by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -235,10 +236,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 Text("复制")
                             }
                             TextButton(
-                                onClick = { expandedOutput = !expandedOutput },
+                                onClick = { showFullOutput = true },
                                 enabled = session.stdoutText.length > 16_000,
                                 modifier = Modifier.heightIn(min = 48.dp)
-                            ) { Text(if (expandedOutput) "收起" else "展开") }
+                                    .testTag("terminal-full-stdout")
+                            ) { Text("查看完整输出") }
                         }
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
                             OutlinedButton(
@@ -275,11 +277,14 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         if (historicalStdout.isNotBlank()) {
                             Text("较早的标准输出（本机分页读取）",
                                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                            SelectionContainer {
-                                Text(historicalStdout, color = Ink.parchment,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.testTag("terminal-older-stdout"))
+                            TextButton(
+                                onClick = { showOlderOutput = true },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .testTag("terminal-older-stdout-open")
+                            ) {
+                                Icon(Icons.Outlined.OpenInFull, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("阅读较早输出 · ${historicalStdout.length} 字符")
                             }
                         }
                         if (transcriptAvailable) {
@@ -304,7 +309,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 style = MaterialTheme.typography.labelMedium)
                         DividerLine()
                         SelectionContainer {
-                            Text(session.stdoutText.takeLast(if (expandedOutput) 128_000 else 16_000).ifBlank {
+                            Text(session.stdoutText.takeLast(16_000).ifBlank {
                                 if (session.running) "等待命令输出…" else "(无标准输出)"
                             }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
                                 style = MaterialTheme.typography.bodySmall,
@@ -472,6 +477,16 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
         }
         errors["terminal"]?.let { ErrorText(it) }
     }
+    if (showFullOutput) FullTextReaderDialog(
+        title = "终端标准输出",
+        text = session.stdoutText,
+        onDismiss = { showFullOutput = false }
+    )
+    if (showOlderOutput) FullTextReaderDialog(
+        title = "较早的标准输出",
+        text = historicalStdout,
+        onDismiss = { showOlderOutput = false }
+    )
     if (confirm) CodexConfirmDialog(
         title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
         message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
