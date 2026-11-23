@@ -238,3 +238,9 @@ docs/PROTOCOL_ACTION_IMPLEMENTATION_LEDGER_20261122.md，
 - **推广模块**：本机备份与恢复（含系统选择器返回）、诊断重启按钮及实际重启、系统更新安装器交接、长时间后台空闲释放、数据备份期间发送指令与终端命令。
 - **长期自动核对**：全部 29 项功能借原有回归索引自动关联注册路由、源码文件、测试/截图声明及 Rust 195 项方法。CLI 输出 `full-feature-workflows.json`、`full-feature-workflows.md`，存入相同 SHA 的 CI artifact；真实内核、OEM 和外部账号验收等级保持独立。
 - **验证要求**：请以 [PR #71](https://github.com/sy220284/111/pull/71) 当前提交的 Kotlin/JVM/Lint、Android 35 360/393/411dp 与完整报告为准；不要用历史模拟器截图或静态数字替代跨会话恢复实测。#68 键盘、#69 权限、#70 MCP 三项并行工作保留，不相互覆盖。
+
+
+### #71 延伸：终端长任务的前台服务归属
+
+- `TerminalTaskOperations` 原未主动启动前台服务，`CodexForegroundService` 只按聊天/审批判定任务，造成后台长命令的通知和保活缺口。现在把终端运行态加入同一服务的续存与重连策略，仅有终端时通知明确显示“停止终端”，依终端进程 ID 执行停止，保留会话独立运行态。
+- 关联 `ForegroundTaskPolicyTest` 的终端及后台会话反向回归；真实 Android 切后台的长命令存活和 OEM 通知实际操作须按专项截图和时间序列回执验收。
