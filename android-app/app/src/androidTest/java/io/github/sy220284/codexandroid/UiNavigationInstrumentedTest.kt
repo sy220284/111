@@ -185,6 +185,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-composer").assertExists()
         rule.onNodeWithTag("chat-project-files").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        // Project files offer both a global session drawer and a contextual return.
+        rule.onNodeWithContentDescription("打开侧边导航").assertExists()
+        rule.onNodeWithTag("files-return-to-conversation").assertExists()
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("conversation-composer").assertExists()
     }
