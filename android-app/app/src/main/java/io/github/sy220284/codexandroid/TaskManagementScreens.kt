@@ -91,23 +91,19 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
                 minLines = 3, maxLines = 7)
             Text("执行状态", style = MaterialTheme.typography.titleMedium)
-            listOf(
-                listOf("active" to "进行中", "paused" to "已暂停"),
-                listOf("blocked" to "遇到阻碍", "complete" to "已完成")
-            ).forEach { choices ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    choices.forEach { (value, title) ->
-                        FilterChip(
-                            selected = status == value,
-                            onClick = { vm.editTaskPanelDraft(active) {
-                                it.copy(goalStatus = value)
-                            } },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            label = { Text(title, maxLines = 1) }
-                        )
-                    }
-                }
-            }
+            AtlasStatusSelector(
+                selected = status,
+                options = listOf(
+                    AtlasStatusOption("active", "进行中", StatusTone.Info),
+                    AtlasStatusOption("paused", "已暂停", StatusTone.Neutral),
+                    AtlasStatusOption("blocked", "遇到阻碍", StatusTone.Warning),
+                    AtlasStatusOption("complete", "已完成", StatusTone.Success)
+                ),
+                onSelect = { value ->
+                    vm.editTaskPanelDraft(active) { it.copy(goalStatus = value) }
+                },
+                modifier = Modifier.testTag("goal-status-selector")
+            )
             TextButton(onClick = {
                 if (!showAdvancedBudget && budget.isBlank()) {
                     // Exposing the advanced control must preserve the server's existing limit.
@@ -132,7 +128,7 @@ fun ThreadGoalPage(vm: CodexViewModel) {
                 },
                     label = { Text("Token 上限（可留空）" ) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
-                if (!safeBudget) Text("Token 上限必须是正整数", color = Ink.red)
+                if (!safeBudget) AtlasFieldFeedback("Token 上限必须是正整数", isError = true)
             }
             OutlinedButton(
                 onClick = {
@@ -243,13 +239,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 Text("排入后续")
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("等待执行 · " + all.size, style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = { refreshQueue() }) { Icon(Icons.Outlined.Refresh, "刷新") }
+        AtlasListHeading(title = "等待执行", total = all.size, action = {
+            IconButton(onClick = { refreshQueue() }) {
+                Icon(Icons.Outlined.Refresh, contentDescription = "刷新指令")
+            }
+        })
+        if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading }) {
+            AtlasOperationProgress("正在读取后续指令")
         }
-        if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading })
-            LinearProgressIndicator(Modifier.fillMaxWidth())
         if (all.isEmpty() && data[rootKey] != null && rootKey !in loading) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("暂无后续指令", style = MaterialTheme.typography.titleMedium)
             Text("任务运行时，也可以在输入栏选择「完成后执行」来添加。", color = Ink.muted)
@@ -260,8 +257,11 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("第 " + (index + 1) + " 项", color = Ink.copper,
-                        style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                    AtlasSequenceBadge(index + 1, all.size)
+                    Spacer(Modifier.width(9.dp))
+                    Text("第 " + (index + 1) + " 项",
+                        color = Ink.copper, style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.weight(1f))
                     IconButton(onClick = {
                         val order = ids.toMutableList()
                         val swap = order[index - 1]
