@@ -296,7 +296,11 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         navigationIcon = {
                             if (!wide) {
-                                val isNested = NavigationPolicy.isDetailPage(selected)
+                                // File browsing opened from a conversation returns to the task.
+                                // A direct sidebar visit still retains the normal sidebar button.
+                                val fromConversation = selected == "files" &&
+                                    backHistory.dropLast(1).lastOrNull() == "chat"
+                                val isNested = NavigationPolicy.isDetailPage(selected) || fromConversation
                                 IconButton(
                                     onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
                                     modifier = Modifier.padding(start = 6.dp).size(45.dp)
