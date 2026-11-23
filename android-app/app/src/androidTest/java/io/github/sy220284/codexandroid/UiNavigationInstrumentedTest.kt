@@ -325,7 +325,7 @@ class UiNavigationInstrumentedTest {
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(16, NavigationPolicy.settingsRoutes.size)
+        assertEquals(15, NavigationPolicy.settingsRoutes.size)
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
