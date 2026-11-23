@@ -458,23 +458,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 threadActivities.value, submittedThread, ThreadActivity.Running)
         }
         running.value = true
-        try {
-            CodexForegroundService.start(getApplication())
-        } catch (failure: Exception) {
-            if (submittedThread == null) {
-                firstThreadStarting.value = false
-                firstTurnImages = emptyList()
-            } else {
-                threadExecutions.value = ThreadExecutionPolicy.finish(
-                    threadExecutions.value, submittedThread)
-                threadActivities.value = ThreadActivityPolicy.updated(
-                    threadActivities.value, submittedThread, ThreadActivity.Idle)
-            }
-            running.value = false
-            errors.value = errors.value + ("conversation" to
-                ("无法启动后台任务保护：" + (failure.message ?: "系统拒绝启动前台服务")))
-            return
-        }
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
         val chosenWorkspace = activeWorkspace.value
@@ -489,6 +472,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"),
                 "sending")
             try {
+                // Android must confirm foreground mode before any turn RPC is sent.
+                CodexForegroundService.startAndAwaitReady(getApplication())
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
                 }
