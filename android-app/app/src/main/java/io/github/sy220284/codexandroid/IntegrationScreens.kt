@@ -206,118 +206,57 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val context = LocalContext.current
+fun McpServicesPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
-    val servers = records(data["mcp"])
-    val login = data["mcpLogin"]?.optString("authorizationUrl").orEmpty()
-    var confirmLogin by remember { mutableStateOf<JSONObject?>(null) }
-    val currentThread by vm.activeThread.collectAsState()
-    fun refreshMcpServices() {
+    val activeThread by vm.activeThread.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsState()
+    val usable = McpAvailableServices.visible(records(data["mcp"]))
+
+    fun refreshServices() {
         vm.refresh("mcp", "mcpServerStatus/list",
-            CatalogRequestContract.mcpStatus(currentThread))
+            CatalogRequestContract.mcpStatus(activeThread))
     }
-    LaunchedEffect(currentThread) { refreshMcpServices() }
+
+    LaunchedEffect(activeThread, engineStatus) {
+        if (engineStatus == EngineStatus.Connected) refreshServices()
+    }
+
     ScreenColumn {
-        SectionIntro("EXTENSIONS / MCP", "MCP 服务",
-            "管理扩展服务的连接与授权。工具由智能体在任务中按需调用。")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("已连接 " + servers.count {
-                PresentationPolicy.serviceState(it.opt("runtimeStatus")?.toString()) == "已连接"
-            } + " / " + servers.size + " 项",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+            Text("可用服务 " + usable.size + " 项", color = Ink.muted,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f))
-            CodexRefreshIcon(busy = "mcp" in loading, onRefresh = { refreshMcpServices() },
-                label = "刷新连接状态")
-        }
-        IntegrationState(vm, "mcp") { refreshMcpServices() }
-        if (servers.isEmpty() && data["mcp"] != null) {
-            CodexEmptyState("尚未连接扩展服务",
-                "可以在引擎配置中添加 MCP 服务，或安装提供服务的插件。",
-                icon = Icons.Outlined.Hub)
-        }
-        servers.forEach { server ->
-            McpServiceStatusCard(
-                server = server,
-                authenticating = "mcpLogin" in loading,
-                onAuthorize = { confirmLogin = it },
-                onOpenAccount = { navigate("account") },
-                onOpenConfig = { navigate("config") }
+            CodexRefreshIcon(
+                busy = "mcp" in loading,
+                onRefresh = { refreshServices() },
+                label = "刷新可用服务"
             )
         }
-        if (login.startsWith("https://") || login.startsWith("http://127.0.0.1")) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("完成扩展服务授权", style = MaterialTheme.typography.titleMedium)
-                OutlinedButton(onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(login)))
-                }, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.OpenInNew, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("在浏览器中继续")
-                }
-            }
+        IntegrationState(vm, "mcp") { refreshServices() }
+        if (usable.isEmpty() && "mcp" !in loading) {
+            CodexEmptyState(
+                "暂无可用 MCP 服务",
+                if (engineStatus != EngineStatus.Connected) "连接本机运行核心后查看可用服务。"
+                else "在任务对话中告诉智能体要接入的 MCP 服务。配置并连接成功后会显示在这里。",
+                icon = Icons.Outlined.Hub
+            )
         }
-        ProtocolFeedback(vm, listOf("mcpLogin"))
+        usable.forEach { McpServiceStatusCard(it) }
     }
-    val selected = confirmLogin
-    if (selected != null) CodexConfirmDialog(
-        title = "授权 MCP 服务",
-        message = "将为选定的 MCP 服务发起独立的 OAuth 授权流程。",
-        detail = selected.optString("name"),
-        confirmLabel = "发起授权",
-        onConfirm = {
-            vm.rpc("mcpLogin", "mcpServer/oauth/login",
-                McpServiceAuthPolicy.oauthLoginParams(selected, currentThread))
-            confirmLogin = null
-        },
-        onDismiss = { confirmLogin = null }
-    )
 }
 
-/** The card manages credentials and connectivity; agent tools remain in the task runtime. */
+/** The management screen deliberately renders no registration, OAuth or tool controls. */
 @Composable
-internal fun McpServiceStatusCard(
-    server: JSONObject,
-    authenticating: Boolean,
-    onAuthorize: (JSONObject) -> Unit,
-    onOpenAccount: () -> Unit,
-    onOpenConfig: () -> Unit
-) {
-    val rawName = server.optString("name")
-    val name = if (rawName == "codex_apps") "ChatGPT 扩展服务"
-        else PresentationPolicy.meaningful(rawName).ifEmpty { "未命名服务" }
-    val status = PresentationPolicy.serviceState(server.opt("runtimeStatus")?.toString())
-    val auth = McpServiceAuthPolicy.presentation(server)
+internal fun McpServiceStatusCard(server: JSONObject) {
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
             Spacer(Modifier.width(10.dp))
-            Text(name, style = MaterialTheme.typography.titleMedium,
+            Text(McpAvailableServices.displayName(server),
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f), maxLines = 2)
-            StatusPill(status, status == "已连接")
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("认证：" + auth.state, color = Ink.muted, modifier = Modifier.weight(1f))
-            val click: (() -> Unit)? = when (auth.action) {
-                McpAuthAction.None -> null
-                McpAuthAction.ChatGptAccount -> onOpenAccount
-                McpAuthAction.OAuthLogin -> ({ onAuthorize(server) })
-                McpAuthAction.EngineConfiguration -> onOpenConfig
-            }
-            if (click != null) {
-                TextButton(onClick = click, enabled = !authenticating,
-                    modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text(auth.actionLabel.orEmpty())
-                }
-            }
-        }
-        auth.explanation?.let {
-            Text(it, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-        }
-        if (server.optString("toolsError").isNotBlank()) {
-            Text("部分工具暂不可用，请检查服务连接或配置。",
-                color = Ink.red, style = MaterialTheme.typography.bodySmall)
+            StatusPill("可用", true)
         }
     }
 }
