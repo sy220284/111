@@ -51,7 +51,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
             Text("账号与工作区切换", style = MaterialTheme.typography.headlineSmall)
-            Text("实验性管理能力；账号信息由本机 Codex 核心返回，切换前会明确确认。",
+            Text("查看可用账号与工作区；切换前会请你确认。",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
             OutlinedButton(
                 onClick = {
