@@ -165,7 +165,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 
     ScreenColumn {
         SectionIntro("TASK / QUEUE", "任务队列", "任务按顺序等待执行，支持新增、修改文本、删除、排序与分页浏览。")
-        StatusPill("上游实验接口", tone = StatusTone.Neutral)
+        StatusPill("试用功能", tone = StatusTone.Neutral)
         if (active == null) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("请先打开一个任务会话", style = MaterialTheme.typography.titleMedium)
@@ -314,5 +314,22 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             },
             onDismiss = { pendingDelete = null }
         )
+    }
+}
+
+/** Task-owned queue stays on top of the active work area instead of replacing it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Ink.canvas,
+        contentColor = Ink.parchment
+    ) {
+        Box(Modifier.fillMaxWidth().fillMaxHeight(0.92f)
+            .testTag("thread-queue-sheet")) {
+            ThreadQueuePage(vm)
+        }
     }
 }
