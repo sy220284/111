@@ -273,7 +273,7 @@
       "owner": "FullTextReaderDialog",
       "component": "AtlasSearchField",
       "test": "fullTextSearchShowsFirstAndPreviousMatchesWithoutChangingOriginalText",
-      "screenshot": null
+      "screenshot": "audit-full-text-match"
     },
     {
       "id": "project-registry",
@@ -291,7 +291,7 @@
       "owner": "AttachmentPreviewDialog",
       "component": "AtlasOperationProgress",
       "test": "attachmentPreviewSupportsZoomSwitchResetAndRemove",
-      "screenshot": null
+      "screenshot": "audit-attachment-preview"
     },
     {
       "id": "message-menu",
@@ -300,7 +300,7 @@
       "owner": "TimelineStepCard",
       "component": "CodexActionSheet",
       "test": "messageHeaderLongPressPreservesReaderAction",
-      "screenshot": null
+      "screenshot": "audit-message-menu"
     },
     {
       "id": "file-editor",
@@ -309,7 +309,7 @@
       "owner": "FileEditor",
       "component": "CodexConfirmDialog",
       "test": "fileEditorProtectsUnsavedChangesAndSavesRealFile",
-      "screenshot": null
+      "screenshot": "audit-file-editor"
     },
     {
       "id": "provider-editor",
@@ -381,7 +381,7 @@
       "owner": "AtlasUpdateStatus",
       "component": "AtlasOperationProgress",
       "test": "updateFeedbackUsesRealPhaseAndPercentage",
-      "screenshot": null
+      "screenshot": "audit-update-progress"
     },
     {
       "id": "diff-file-jump",
@@ -391,6 +391,15 @@
       "component": "CodexChoiceSheet",
       "test": "diffReaderShowsFileFirstSummaryAndReviewAction",
       "screenshot": "diff-reader"
+    },
+    {
+      "id": "queue-reorder",
+      "parent": "queue",
+      "file": "TaskManagementScreens.kt",
+      "owner": "ThreadQueuePage",
+      "component": "AtlasQueueDragHandle",
+      "test": "queueDragHandleInvokesDragRatherThanClickAndKeepsAccessibleMenu",
+      "screenshot": null
     }
   ]
 }

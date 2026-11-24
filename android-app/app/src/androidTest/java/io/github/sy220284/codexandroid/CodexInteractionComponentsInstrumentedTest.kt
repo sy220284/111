@@ -340,6 +340,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("上一个匹配").performClick()
         rule.onNodeWithText("第 2 / 2 处").assertExists()
+        captureComponentEvidence("audit-full-text-match-android35.png")
         rule.onNodeWithContentDescription("下一个匹配").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("清除搜索词").performClick()
@@ -441,6 +442,7 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.onNodeWithText("图片 1 / 2").assertExists()
             rule.onNodeWithTag("attachment-zoom-in").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("150%")
+            captureComponentEvidence("audit-attachment-preview-android35.png")
             rule.onNodeWithTag("attachment-preview-reset").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
             rule.onNodeWithContentDescription("下一张").performClick()
@@ -491,6 +493,7 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
             rule.onNodeWithContentDescription("返回文件列表").performClick()
             rule.onNodeWithText("放弃未保存的修改？").assertExists()
+            captureComponentEvidence("audit-file-editor-android35.png")
             rule.onNodeWithText("取消").performClick()
             rule.onNodeWithTag("workspace-editor-save").assertIsEnabled().performClick()
             rule.waitUntil(5000L) { file.readText() == "修改内容" }
@@ -510,8 +513,9 @@ class CodexInteractionComponentsInstrumentedTest {
         }
         rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
         rule.onNodeWithText("复制内容").assertExists()
+        captureComponentEvidence("audit-message-menu-android35.png")
         rule.onNodeWithText("全文阅读").performClick()
-        rule.onNodeWithText("原始消息正文").assertExists()
+        rule.onNode(hasText("原始消息正文") and hasAnyAncestor(hasTestTag("full-text-reader"))).assertExists()
     }
 
     @Test fun updateFeedbackUsesRealPhaseAndPercentage() {
@@ -527,9 +531,71 @@ class CodexInteractionComponentsInstrumentedTest {
             }
         }
         rule.onNodeWithText("47%").assertExists()
+        captureComponentEvidence("audit-update-progress-android35.png")
         rule.onNodeWithText("模拟真实失败状态").performClick()
         rule.onNodeWithText("47%").assertDoesNotExist()
         rule.onNodeWithText("校验失败").assertExists()
+    }
+
+
+    @Test fun queueDragHandleInvokesDragRatherThanClickAndKeepsAccessibleMenu() {
+        var clicks = 0
+        var starts = 0
+        var moved = 0f
+        var ended = 0
+        rule.setContent {
+            CodexTheme {
+                Column {
+                    AtlasQueueDragHandle(1, 3, true, "first",
+                        onClick = { clicks++ }, onStart = { starts++ },
+                        onMove = { moved += it }, onEnd = { ended++ }, onCancel = {})
+                    Text("第二项")
+                    Text("第三项")
+                }
+            }
+        }
+        rule.onNodeWithTag("queue-drag-first").performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals(1, clicks) }
+        rule.onNodeWithTag("queue-drag-first").performTouchInput {
+            down(center)
+            advanceEventTime(650)
+            moveBy(androidx.compose.ui.geometry.Offset(0f, 70f))
+            up()
+        }
+        rule.runOnIdle {
+            org.junit.Assert.assertEquals(1, starts)
+            org.junit.Assert.assertTrue(moved > 0f)
+            org.junit.Assert.assertEquals(1, ended)
+            org.junit.Assert.assertEquals(1, clicks)
+        }
+    }
+
+    @Test fun fullTextSearchScrollsToDistantMatchWithinSameChunk() {
+        val sample = "needle\n" + "one two three four\n".repeat(90) + "needle"
+        rule.setContent {
+            CodexTheme { FullTextReaderDialog("长文本定位", sample, onDismiss = {}) }
+        }
+        rule.onNodeWithTag("full-text-search").performTextInput("needle")
+        rule.onNodeWithText("第 1 / 2 处").assertExists()
+        val list = rule.onNodeWithTag("full-text-reader-list")
+        fun scrollValue(): Float = list.fetchSemanticsNode().config[
+            androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange].value()
+        val start = scrollValue()
+        rule.onNodeWithContentDescription("下一个匹配").performClick()
+        rule.onNodeWithText("第 2 / 2 处").assertExists()
+        rule.waitUntil(5000L) { scrollValue() > start }
+    }
+
+    private fun captureComponentEvidence(name: String) {
+        rule.waitForIdle()
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val directory = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+        val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        try {
+            java.io.File(directory, name).outputStream().use { output ->
+                check(screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output))
+            }
+        } finally { screenshot.recycle() }
     }
 
 }

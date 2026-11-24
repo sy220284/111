@@ -102,7 +102,11 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                             }
                         }
                     }, enabled = dirty && !loading, busy = saving,
-                        modifier = Modifier.testTag("workspace-editor-save")) { Text("保存") }
+                        modifier = Modifier.testTag("workspace-editor-save")) {
+                        CodexIcon(CodexGlyph.Save, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("保存")
+                    }
                 }
                 when {
                     loading -> AtlasOperationProgress("正在读取文件")
