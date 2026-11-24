@@ -16,7 +16,8 @@ class ComponentSystemTest(unittest.TestCase):
         sources["BusinessPage"] += "\nOutlinedTextField()\nTextButton()"
         errors = audit(sources)["errors"]
         self.assertEqual(len(errors), 2)
-        self.assertIn("OutlinedTextField", errors[0])
+        self.assertTrue(any("OutlinedTextField" in error for error in errors))
+        self.assertTrue(any("TextButton" in error for error in errors))
 
     def test_declaration_and_test_only_do_not_count(self):
         sources = fixture()
