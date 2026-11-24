@@ -42,6 +42,13 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn("needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success'", native)
         self.assertIn('-f expected_sha="$PR_HEAD_SHA"', native)
 
+    def test_authoritative_protocol_ledger_is_checked_on_every_change(self):
+        ui = workflow("check-android-ui.yml")
+        ledger = "docs/接口协议动作清单与落地验收台账-20261122.md"
+        self.assertEqual(2, ui.count(f'- "{ledger}"'))
+        self.assertIn(f"/{ledger}", ui)
+        self.assertIn("sync_ui_protocol_docs.py --check", ui)
+
     def test_android_build_and_ui_share_unit_test_gate(self):
         build = workflow("build-android.yml")
         ui = workflow("check-android-ui.yml")

@@ -1,6 +1,7 @@
 import unittest
 
-from retain_check_artifacts import plan
+from unittest.mock import patch
+from retain_check_artifacts import plan, pr_head_signature, deletion_boundary_unchanged
 
 REPO = "owner/111"
 
@@ -25,6 +26,22 @@ class RetentionTests(unittest.TestCase):
         entries = [artifact(i, i) for i in runs]
         self.assertEqual([1, 3, 4], [a["id"] for a in plan(
             entries, runs, {(REPO, "open")}, set(), False)])
+
+    def test_deletion_boundary_rechecks_active_work_pr_heads_and_native_main(self):
+        pr = {"number": 1, "head": {"repo": {"full_name": REPO}, "ref": "work", "sha": "old"},
+              "base": {"ref": "main"}}
+        baseline = pr_head_signature([pr])
+        with patch("retain_check_artifacts.active_consumers", return_value=False), \
+             patch("retain_check_artifacts.pages", return_value=[pr]), \
+             patch("retain_check_artifacts.api", return_value={"commit": {"sha": "main"}}):
+            self.assertTrue(deletion_boundary_unchanged(REPO, baseline, "main", True))
+            self.assertFalse(deletion_boundary_unchanged(REPO, baseline, "old-main", True))
+        with patch("retain_check_artifacts.active_consumers", return_value=True):
+            self.assertFalse(deletion_boundary_unchanged(REPO, baseline, "main", False))
+        changed = {**pr, "head": {**pr["head"], "sha": "new"}}
+        with patch("retain_check_artifacts.active_consumers", return_value=False), \
+             patch("retain_check_artifacts.pages", return_value=[changed]):
+            self.assertFalse(deletion_boundary_unchanged(REPO, baseline, "main", False))
 
     def test_release_unknown_workflows_and_expired_never_deleted(self):
         runs = {1: run(1, "release"), 2: run(2, "release"),

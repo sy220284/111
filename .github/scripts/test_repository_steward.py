@@ -1,6 +1,8 @@
 import unittest
 from datetime import datetime, timezone
-from repository_steward import merged_candidates, cache_candidates, protected_refs
+from unittest.mock import patch
+from repository_steward import (merged_candidates, cache_candidates, protected_refs,
+                                branch_deletion_still_safe, current_cache_candidate)
 
 
 def branch(n, sha="abc", protected=False):
@@ -24,6 +26,28 @@ class StewardTests(unittest.TestCase):
         branches = [branch(n, protected=n == "a") for n in names]
         blocked = protected_refs([pr(1, "b")], [{"head_branch": "c"}])
         self.assertEqual([], merged_candidates("a/b", branches, [pr(i,n) for i,n in enumerate(names)], blocked))
+
+    def test_branch_recheck_protects_new_jobs_and_changed_main(self):
+        with patch("repository_steward.pages", return_value=[]) as pages, \
+             patch("repository_steward.active_runs", return_value=[{"id": 999, "head_branch": "old"}]), \
+             patch("repository_steward.api", return_value={"commit": {"sha": "head"}}):
+            self.assertFalse(branch_deletion_still_safe("a/b", "old", "head"))
+            self.assertTrue(branch_deletion_still_safe("a/b", "other", "head"))
+            self.assertFalse(branch_deletion_still_safe("a/b", "other", "previous"))
+            self.assertTrue(pages.called)
+
+    def test_cache_recheck_protects_recent_access_or_recreated_branch(self):
+        now = datetime(2026, 11, 24, tzinfo=timezone.utc)
+        old = {"id": 3, "ref": "refs/heads/gone", "last_accessed_at": "2026-11-20T00:00:00Z"}
+        with patch("repository_steward.snapshot", return_value=([], [], [], [])), \
+             patch("repository_steward.pages", return_value=[old]):
+            self.assertEqual(old, current_cache_candidate("a/b", old, now))
+        with patch("repository_steward.snapshot", return_value=([], [], [], [])), \
+             patch("repository_steward.pages", return_value=[dict(old, last_accessed_at="2026-11-23T23:00:00Z")]):
+            self.assertIsNone(current_cache_candidate("a/b", old, now))
+        with patch("repository_steward.snapshot", return_value=([], [], [branch("gone")], [])), \
+             patch("repository_steward.pages", return_value=[old]):
+            self.assertIsNone(current_cache_candidate("a/b", old, now))
 
     def test_only_orphan_or_closed_cache_after_grace(self):
         now = datetime(2026, 11, 24, tzinfo=timezone.utc)

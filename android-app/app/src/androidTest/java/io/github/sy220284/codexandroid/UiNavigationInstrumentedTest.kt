@@ -359,6 +359,32 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun failedVoiceStopRemainsRecoverableOnSettingsAndBlocksDataTransfer() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val owner = Any()
+        var retries = 0
+        try {
+            rule.runOnUiThread {
+                check(vm.realtimeVoiceLease.acquire(owner))
+                vm.realtimeVoiceLease.markFailed(owner, "未收到关闭回执") { retries++ }
+            }
+            rule.onNodeWithText("重试结束").assertIsDisplayed()
+            openDrawerRoute("settings")
+            rule.onNodeWithText("重试结束").performClick()
+            rule.runOnIdle { assertEquals(1, retries) }
+            rule.onNodeWithTag("settings-search").performTextInput("备份")
+            rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
+            rule.onNodeWithTag("backup-export").assertIsNotEnabled()
+            rule.onNodeWithTag("backup-import").assertIsNotEnabled()
+            rule.runOnUiThread { vm.realtimeVoiceLease.release(owner) }
+            rule.waitForIdle()
+            rule.onNodeWithText("重试结束").assertDoesNotExist()
+        } finally {
+            rule.runOnUiThread { vm.realtimeVoiceLease.release(owner) }
+            rule.waitForIdle()
+        }
+    }
+
     @Test fun globalArchiveOverlayProtectsSettingsAndRestoresThePage() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("备份")

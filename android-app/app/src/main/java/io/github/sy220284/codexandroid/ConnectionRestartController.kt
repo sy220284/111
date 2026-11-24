@@ -53,11 +53,16 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
         if (!busy.compareAndSet(false, true)) return
         vm.viewModelScope.launch {
             try {
-                check(allowed(vm.globalWorkSnapshot().copy(restarting = false))) {
+                val current = vm.globalWorkSnapshot()
+                check(if (recoverVoice) allowed(current.copy(restarting = false))
+                    else ConnectionRestartPolicy.canContinueOwnedRestart(current)) {
                     "任务或数据备份状态已变化，内核重启已取消"
                 }
                 withContext(Dispatchers.IO) { vm.bridge.close() }
                 vm.connect().join()
+                check(vm.bridge.status.value == EngineStatus.Connected) {
+                    (vm.bridge.status.value as? EngineStatus.Unavailable)?.reason ?: "重新连接尚未完成"
+                }
                 vm.errors.value = vm.errors.value - "diagnostics"
             } catch (failure: Exception) {
                 vm.errors.value = vm.errors.value + ("diagnostics" to
