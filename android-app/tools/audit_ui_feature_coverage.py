@@ -58,6 +58,7 @@ SHEET_DISPATCH = {
     "about": ("showAbout = true", "AboutInfoSheet("),
 }
 INLINE_DISPATCH = {
+    "security": ("ConversationScreen.kt", "ComposerPermissionControl("),
     "appearance": ("SettingsHub.kt", "AppearanceInlineControls("),
     "update": ("SettingsHub.kt", "AppUpdateCard("),
 }
@@ -93,7 +94,7 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
     if len({"usage", "limits"} & set(settings_ids)) != 1:
         invalid.append("用量和额度必须由同一个账号入口管理")
     task_actions = {"threads", "approvals", "search", "goals", "queue",
-                    "diff", "terminal", "review", "modes"}
+                    "diff", "terminal", "review", "modes", "security"}
     if task_actions & set(settings_ids):
         invalid.append("设置首页混入会话或工作区操作")
     move_start = navigation.find("val move:")
@@ -244,6 +245,8 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
             if name in routes:
                 raise ValueError(f"会话能力 {name} 重复注册为独立页面")
             routes[name] = "SidebarSessions"
+    if "ComposerPermissionControl(" in files.get("ConversationScreen.kt", "") and "security" not in routes:
+        routes["security"] = "ComposerPermissionControl"
 
     defined: dict[str, str] = {}
     for filename, code in files.items():

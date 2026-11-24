@@ -37,7 +37,7 @@ object UiFeatureCatalog {
         UiFeature("personalization", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("context", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("tools", FeatureSurface.Page, FeatureOwner.System, false),
-        UiFeature("security", FeatureSurface.Page, FeatureOwner.System, false),
+        UiFeature("security", FeatureSurface.Inline, FeatureOwner.Thread, false),
         UiFeature("usage", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("limits", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("appearance", FeatureSurface.Page, FeatureOwner.System, false),
@@ -53,7 +53,7 @@ object UiFeatureCatalog {
         FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage")),
         FeatureGroup("个性化与显示", listOf("personalization", "appearance")),
         FeatureGroup("工具与能力", listOf("tools", "skills", "plugins", "apps", "mcp")),
-        FeatureGroup("运行与安全", listOf("context", "environments", "security")),
+        FeatureGroup("运行环境", listOf("context", "environments")),
         FeatureGroup("开发者与帮助", listOf("config", "diagnostics", "about", "update"))
     )
     val legacyRoutes = all.filter { it.route != "settings" && it.route != "update" }.map { it.route }

@@ -129,7 +129,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     ?: NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
-                                    "security" -> "执行权限与审批"
                                     "environments" -> "本机或其他设备"
                                     "models" -> "默认模型与推理偏好"
                                     "appearance" -> if (darkMode) "深色" else "浅色"

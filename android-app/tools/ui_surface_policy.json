@@ -639,7 +639,7 @@
     },
     "permissionProfile/list": {
       "surface": "直接操作",
-      "owner": "权限与安全",
+      "owner": "任务对话",
       "flag": "常规/内部"
     },
     "experimentalFeature/enablement/set": {
@@ -914,7 +914,7 @@
     },
     "configRequirements/read": {
       "surface": "直接操作",
-      "owner": "权限与安全",
+      "owner": "任务对话",
       "flag": "常规/内部"
     },
     "account/read": {

@@ -64,7 +64,6 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "personalization" -> PersonalizationPage(vm)
         "context" -> ContextManagementPage(vm)
         "tools" -> SearchCapabilityPage(vm)
-        "security" -> SecurityPage(vm, navigate)
         "about" -> AboutPage(vm)
         "goals" -> ThreadGoalPage(vm)
         "queue" -> ThreadQueuePage(vm)
