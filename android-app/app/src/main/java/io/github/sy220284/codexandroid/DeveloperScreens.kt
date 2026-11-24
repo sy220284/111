@@ -48,8 +48,8 @@ fun WorkspacePage(vm: CodexViewModel) {
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val running by vm.running.collectAsState()
-    val terminal by vm.terminalSession.collectAsState()
-    val vmErrors by vm.errors.collectAsState()
+    val terminalRunning by vm.terminalSession.collectProjection { it.running }
+    val vmErrors by vm.errors.collectEntries("workspace")
     var folder by remember { mutableStateOf(root) }
     var pendingWorkspace by remember { mutableStateOf<File?>(null) }
     var focus by remember { mutableStateOf<File?>(null) }
@@ -115,7 +115,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
 
     var fileQuery by remember(folder) { mutableStateOf("") }
-    val visibleChildren = children.filter { it.name.contains(fileQuery.trim(), ignoreCase = true) }
+    val visibleChildren = remember(children, fileQuery) { children.filter { it.name.contains(fileQuery.trim(), ignoreCase = true) } }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -157,7 +157,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
                 if (selectedWorkspace != folder.canonicalPath) {
                     CodexTextAction(onClick = { pendingWorkspace = folder },
-                        enabled = !running && !terminal.running && !actionBusy,
+                        enabled = !running && !terminalRunning && !actionBusy,
                         modifier = Modifier.testTag("workspace-select-current")) {
                         Text("设为当前项目", maxLines = 1)
                     }

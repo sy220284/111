@@ -34,12 +34,12 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val skillErrors by vm.errors.collectAsState()
     val skillsData = data["skills"]
     val groups = remember(skillsData) { records(skillsData) }
-    val skills = groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() }
-    val readErrors = groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 }
+    val skills = remember(groups) { groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() } }
+    val readErrors = remember(groups) { groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 } }
     val mutationLoading by vm.loading.collectAsState()
     var filter by rememberSaveable { mutableStateOf("all") }
     var query by rememberSaveable { mutableStateOf("") }
-    val visibleSkills = when (filter) {
+    val visibleSkills = remember(skills, filter, query) { when (filter) {
         "enabled" -> skills.filter { it.optBoolean("enabled") }
         "available" -> skills.filter { !it.optBoolean("enabled") }
         "errors" -> emptyList()
@@ -48,7 +48,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         val name = skill.optJSONObject("interface")?.optString("displayName").orEmpty()
         query.isBlank() || name.contains(query.trim(), ignoreCase = true) ||
             skill.optString("name").contains(query.trim(), ignoreCase = true)
-    }
+    } }
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
     var selectedSkill by remember { mutableStateOf<JSONObject?>(null) }
     LaunchedEffect(Unit) {

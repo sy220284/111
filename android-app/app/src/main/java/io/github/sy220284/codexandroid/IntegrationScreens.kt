@@ -27,9 +27,9 @@ private fun IntegrationState(vm: CodexViewModel, key: String, retry: () -> Unit)
 
 @Composable
 fun CollaborationModesPage(vm: CodexViewModel) {
-    val payload by vm.data.collectAsState()
+    val payload by vm.data.collectEntries("modes")
     val selected by vm.selectedMode.collectAsState()
-    val catalog = records(payload["modes"])
+    val catalog = remember(payload) { records(payload["modes"]) }
     val running by vm.running.collectAsState()
     val loading by vm.loading.collectAsState()
     val status by vm.bridge.status.collectAsState()
@@ -94,12 +94,16 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     val context = LocalContext.current
-    val data by vm.data.collectAsState()
-    val apps = records(data["apps"])
+    val data by vm.data.collectEntries("apps", "appInstalled")
+    val apps = remember(data["apps"]) { records(data["apps"]) }
     var appQuery by remember { mutableStateOf("") }
-    val visibleApps = apps.filter { it.optString("name", it.optString("id"))
-        .contains(appQuery.trim(), ignoreCase = true) }
+    val visibleApps = remember(apps, appQuery) { apps.filter { it.optString("name", it.optString("id"))
+        .contains(appQuery.trim(), ignoreCase = true) } }
     val installed = data["appInstalled"]?.optJSONArray("apps")
+    val installedById = remember(installed) {
+        (0 until (installed?.length() ?: 0)).mapNotNull { installed?.optJSONObject(it) }
+            .distinctBy { it.optString("id") }.associateBy { it.optString("id") }
+    }
     var target by remember { mutableStateOf<JSONObject?>(null) }
     var inspecting by remember { mutableStateOf<JSONObject?>(null) }
     var desired by remember { mutableStateOf(false) }
@@ -150,8 +154,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         visibleApps.forEach { app ->
             val id = app.optString("id")
-            val active = (0 until (installed?.length() ?: 0)).mapNotNull { installed?.optJSONObject(it) }
-                .firstOrNull { it.optString("id") == id }
+            val active = installedById[id]
             val name = app.optString("name", id)
             val callable = active?.optBoolean("callable") == true
             val enabled = app.optBoolean("isEnabled", true)
@@ -191,9 +194,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         val description = PresentationPolicy.meaningful(app.optString("description"))
         val installUrl = app.optString("installUrl")
         val enabled = app.optBoolean("isEnabled", true)
-        val active = (0 until (installed?.length() ?: 0))
-            .mapNotNull { installed?.optJSONObject(it) }
-            .firstOrNull { it.optString("id") == id }
+        val active = installedById[id]
         val appStatus = when {
             !enabled -> "已停用"
             active?.optBoolean("callable") == true -> "已连接"
@@ -252,12 +253,12 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 @Composable
 fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("mcp")
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val engineStatus by vm.bridge.status.collectAsState()
     val errors by vm.errors.collectAsState()
-    val usable = McpAvailableServices.visible(records(data["mcp"]))
+    val usable = remember(data) { McpAvailableServices.visible(records(data["mcp"])) }
 
     LaunchedEffect(activeThread, engineStatus) {
         if (engineStatus == EngineStatus.Connected) vm.refreshMcpServices()

@@ -250,11 +250,9 @@ fun ProvidersPage(vm: CodexViewModel) {
 
 @Composable
 fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
-    val data by vm.data.collectAsState()
     val engineStatus by vm.bridge.status.collectAsState()
     var installedOnly by remember { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
-    val marketplaces = data[activeKey]?.optJSONArray("marketplaces")?.objects() ?: emptyList()
     val busy by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
@@ -266,11 +264,14 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val submittedMatchesDraft = ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
     val searchKey = searchPrefix + searchPage
-    val found = if (searchActive && submittedMatchesDraft) (0..searchPage)
+    val data by vm.data.collectEntries(activeKey, *(0..searchPage).map { searchPrefix + it }.toTypedArray())
+    val marketData = data[activeKey]
+    val marketplaces = remember(marketData) { marketData?.optJSONArray("marketplaces")?.objects().orEmpty() }
+    val found = remember(data, searchActive, submittedMatchesDraft, searchPrefix, searchPage) { if (searchActive && submittedMatchesDraft) (0..searchPage)
         .flatMap { PluginSearchContract.entries(data[searchPrefix + it]) }
         .distinctBy { it.marketplace.optString("name") + ":" +
             it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
-        else emptyList()
+        else emptyList() }
     val searchCursor = if (searchActive && submittedMatchesDraft && data[searchKey] != null)
         data[searchKey]?.optString("nextCursor").orEmpty()
     else ""
@@ -498,7 +499,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
 fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val status by vm.bridge.status.collectAsState()
     val errors by vm.errors.collectAsState()
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("diagnostics")
     var showLogs by remember { mutableStateOf(false) }
     var showRecoverySteps by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
