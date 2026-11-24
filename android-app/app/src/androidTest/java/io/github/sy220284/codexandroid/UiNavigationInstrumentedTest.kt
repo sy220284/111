@@ -136,6 +136,26 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
+    @Test fun sidebarQuotaOpensLimitsWithoutFooterLabels() {
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        val quota = rule.onNodeWithTag("nav-limits").assertIsDisplayed().assertHasClickAction()
+        val settings = rule.onNodeWithTag("nav-settings").assertIsDisplayed()
+        val account = rule.onNodeWithTag("nav-account").assertIsDisplayed()
+        val bounds = quota.fetchSemanticsNode().boundsInRoot
+        assertEquals(settings.fetchSemanticsNode().boundsInRoot.width, bounds.width, 1f)
+        assertEquals(settings.fetchSemanticsNode().boundsInRoot.height, bounds.height, 1f)
+        assertEquals(account.fetchSemanticsNode().boundsInRoot.width, bounds.width, 1f)
+        rule.onNodeWithText("账号与设置", substring = false).assertDoesNotExist()
+        rule.onNodeWithText("账号", substring = false).assertDoesNotExist()
+        rule.onNodeWithText("设置", substring = false).assertDoesNotExist()
+        quota.performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("使用限额")
+        rule.onNodeWithText("额度窗口", substring = false).assertIsDisplayed()
+        rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+        pressSystemBack()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+    }
+
     @Test fun workTopBarRespectsSystemStatusBarAndCutout() {
         fun assertSafeTopBar() {
             rule.onNodeWithTag("drawer-toggle").assertIsDisplayed()

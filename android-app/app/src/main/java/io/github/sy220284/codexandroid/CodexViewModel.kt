@@ -112,50 +112,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private var firstTurnImages: List<String> = emptyList()
 
-    init {
-        restoredWorkspace.warning?.let { warning ->
-            errors.value = errors.value + ("workspace" to warning)
-        }
-        viewModelScope.launch {
-            bridge.events.collect { receive(it) }
-        }
-        draftStorage.start { key, warning ->
-            errors.value = if (warning == null) errors.value - key
-                else errors.value + (key to warning)
-        }
-        viewModelScope.launch {
-            bridge.status.collect { current ->
-                if (current is EngineStatus.Unavailable &&
-                    (running.value || threadExecutions.value.isNotEmpty() || firstThreadStarting.value)) {
-                    val wasVisible = running.value
-                    threadExecutions.value.keys.forEach { id ->
-                        threadActivities.value = ThreadActivityPolicy.updated(
-                            threadActivities.value, id, ThreadActivity.Failed)
-                    }
-                    threadExecutions.value = emptyMap()
-                    firstThreadStarting.value = false
-                    firstTurnImages = emptyList()
-                    running.value = false
-                    activeTurn.value = null
-                    if (wasVisible) timeline.value = timeline.value + TimelineItem(
-                        "disconnect-" + UUID.randomUUID(), "error",
-                        "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            AppDataTransfer.state.collect { transfer ->
-                if (!transfer.busy) {
-                    accountMetrics.refreshPending()
-                    sessions.refreshPending()
-                }
-            }
-        }
-
-        connect()
-    }
-
     fun connect() = viewModelScope.launch {
         try {
             val previousThread = activeThread.value
@@ -715,5 +671,50 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         bridge.close()
         super.onCleared()
+    }
+
+    // All controller delegates and request state must exist before Main.immediate collectors run.
+    init {
+        restoredWorkspace.warning?.let { warning ->
+            errors.value = errors.value + ("workspace" to warning)
+        }
+        viewModelScope.launch {
+            bridge.events.collect { receive(it) }
+        }
+        draftStorage.start { key, warning ->
+            errors.value = if (warning == null) errors.value - key
+                else errors.value + (key to warning)
+        }
+        viewModelScope.launch {
+            bridge.status.collect { current ->
+                if (current is EngineStatus.Unavailable &&
+                    (running.value || threadExecutions.value.isNotEmpty() || firstThreadStarting.value)) {
+                    val wasVisible = running.value
+                    threadExecutions.value.keys.forEach { id ->
+                        threadActivities.value = ThreadActivityPolicy.updated(
+                            threadActivities.value, id, ThreadActivity.Failed)
+                    }
+                    threadExecutions.value = emptyMap()
+                    firstThreadStarting.value = false
+                    firstTurnImages = emptyList()
+                    running.value = false
+                    activeTurn.value = null
+                    if (wasVisible) timeline.value = timeline.value + TimelineItem(
+                        "disconnect-" + UUID.randomUUID(), "error",
+                        "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            AppDataTransfer.state.collect { transfer ->
+                if (!transfer.busy) {
+                    accountMetrics.refreshPending()
+                    sessions.refreshPending()
+                }
+            }
+        }
+
+        connect()
     }
 }

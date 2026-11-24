@@ -33,7 +33,8 @@
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction",
         "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove",
         "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts",
-        "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath"
+        "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath",
+        "UiNavigationInstrumentedTest.composerReferenceAndExpandedEditorPreserveDraft"
       ]
     },
     {
@@ -313,11 +314,13 @@
       "route": "limits",
       "title": "使用限额",
       "sources": [
-        "AccountMetricsPage"
+        "AccountMetricsPage",
+        "SidebarQuota"
       ],
-      "business": "真实限额、窗口、进度、无数据",
+      "business": "真实限额、窗口、进度、无数据；侧栏双额度动画、无障碍说明与详情入口",
       "tests": [
-        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs"
+        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs",
+        "UiNavigationInstrumentedTest.sidebarQuotaOpensLimitsWithoutFooterLabels"
       ]
     },
     {
