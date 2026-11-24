@@ -56,22 +56,28 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
-    val models by vm.data.collectEntries("models")
     val selected by vm.modelId.collectAsState()
     val active by vm.activeThread.collectAsState()
-    val drafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(active))
+    val workspace by vm.activeWorkspace.collectAsState()
+    val threadProvider by vm.activeModelProvider.collectAsState()
+    val drafts by vm.composerDrafts.collectEntries(vm.composerOwner(active, workspace))
+    val providerData by vm.data.collectEntries("providers")
+    val draftProvider = ComposerProviderScope.provider(drafts[vm.composerOwner(active, workspace)]?.options?.modelProvider)
+    val scopedProvider = if (active != null) ComposerProviderScope.provider(threadProvider) else draftProvider
+    val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
+    val models by vm.data.collectEntries(catalogKey)
     val running by vm.running.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val effort = drafts[ThreadComposerDrafts.key(active)]?.options?.effort.orEmpty()
+    val effort = drafts[vm.composerOwner(active, workspace)]?.options?.effort.orEmpty()
     var selectingEffort by remember { mutableStateOf(false) }
-    val loading by vm.loading.collectProjection { it.intersect(setOf("models")) }
-    val errors by vm.errors.collectEntries("models")
+    val loading by vm.loading.collectProjection { it.intersect(setOf(catalogKey)) }
+    val errors by vm.errors.collectEntries(catalogKey)
     val engineStatus by vm.bridge.status.collectAsState()
-    LaunchedEffect(engineStatus) {
-        if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
+    LaunchedEffect(engineStatus, active, scopedProvider, providerData["providers"]?.optString("defaultProviderId")) {
+        if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog()
     }
-    val modelData = models["models"]
+    val modelData = models[catalogKey]
     val available = remember(modelData) { records(modelData) }
     val choices = remember(available) {
         available.filter { !it.optBoolean("hidden") }.map { item ->
@@ -79,7 +85,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
             CodexChoice(id, item.optString("displayName").ifBlank { id })
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     }
-    val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
+    val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !running && !creating && !switching &&
+        (active == null || scopedProvider != null)
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
         val options = listOf("") + efforts
@@ -104,27 +111,27 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         description = when {
             engineStatus != EngineStatus.Connected ->
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
-            "models" in loading -> "正在读取内核可用模型…"
-            errors["models"] != null -> "读取模型目录失败：${errors["models"]}。可手动重新加载。"
+            catalogKey in loading -> "正在读取内核可用模型…"
+            errors[catalogKey] != null -> "读取模型目录失败：${errors[catalogKey]}。可手动重新加载。"
             else -> "更改只影响后续任务；已运行任务沿用当前模型。"
         },
         choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
         selectedId = selected,
         enabled = selectable,
         recoveryLabel = if (engineStatus != EngineStatus.Connected) "重新连接"
-            else if (errors["models"] != null || choices.isEmpty()) "重新读取" else null,
+            else if (errors[catalogKey] != null || choices.isEmpty()) "重新读取" else null,
         onRecovery = {
-            if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
+            if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog()
             else vm.connect()
         },
         recoveryMessage = when {
             engineStatus != EngineStatus.Connected -> "运行核心未连接，恢复后才可更改模型。"
-            errors["models"] != null -> "模型目录读取失败，可重试。"
+            errors[catalogKey] != null -> "模型目录读取失败，可重试。"
             choices.isEmpty() -> "当前没有可用模型，检查服务状态后刷新。"
             else -> "可重新读取模型目录，已选择的模型不会因此改变。"
         },
         searchable = true,
-        loading = "models" in loading,
+        loading = catalogKey in loading,
         extraContent = {
             AtlasSettingsActionRow("思考强度",
                 if (selected.isBlank()) "先选择具体模型" else if (efforts.isEmpty()) "该模型未提供可选强度"

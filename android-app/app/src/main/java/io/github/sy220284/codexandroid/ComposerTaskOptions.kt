@@ -7,14 +7,16 @@ import org.json.JSONObject
 data class ComposerTaskOptions(
     val model: String = "",
     val mode: String = "default",
-    val effort: String = ""
+    val effort: String = "",
+    val modelProvider: String = ""
 ) {
-    fun encode() = JSONObject().put("model", model).put("mode", mode).put("effort", effort)
+    fun encode() = JSONObject().put("model", model).put("mode", mode).put("effort", effort).put("modelProvider", modelProvider)
     companion object {
         fun decode(value: JSONObject?): ComposerTaskOptions = ComposerTaskOptions(
             value?.optString("model").orEmpty(),
             value?.optString("mode")?.takeIf { it in setOf("default", "plan") } ?: "default",
-            value?.optString("effort").orEmpty()
+            value?.optString("effort").orEmpty(),
+            value?.optString("modelProvider").orEmpty()
         )
     }
 }
@@ -48,11 +50,34 @@ internal fun CodexViewModel.changeComposerOptions(transform: (ComposerTaskOption
     restoreComposerOptions(thread)
 }
 internal fun CodexViewModel.chooseComposerModel(id: String) =
-    changeComposerOptions { it.copy(model = id, effort = if (it.model == id) it.effort else "") }
+    changeComposerOptions {
+        val provider = if (id.isBlank()) "" else currentComposerProvider().orEmpty()
+        it.copy(model = id, modelProvider = provider,
+            effort = if (it.model == id && it.modelProvider == provider) it.effort else "")
+    }
 internal fun CodexViewModel.chooseComposerMode(id: String) =
     changeComposerOptions { it.copy(mode = id) }
 internal fun CodexViewModel.chooseComposerEffort(id: String) =
     changeComposerOptions {
-        ComposerModelPolicy.requireEffort(records(data.value["models"]), it.model, id)
+        ComposerModelPolicy.requireEffort(records(data.value[composerCatalogKey()]), it.model, id)
         it.copy(effort = id)
     }
+
+internal fun CodexViewModel.currentComposerProvider(): String? =
+    if (activeThread.value != null) ComposerProviderScope.provider(activeModelProvider.value)
+    else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
+        ?: ComposerProviderScope.provider(data.value["providers"]?.optString("defaultProviderId"))
+
+internal fun CodexViewModel.composerCatalogKey(): String =
+    ComposerProviderScope.catalogKey(
+        if (activeThread.value != null) currentComposerProvider()
+        else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
+    )
+
+internal fun CodexViewModel.refreshComposerCatalog() {
+    val key = composerCatalogKey()
+    val provider = currentComposerProvider()
+    if (key == "composerModels" && provider != null) {
+        refresh("composerModels", "model/list", ComposerProviderScope.request(provider))
+    } else refresh("models", "model/list")
+}

@@ -51,6 +51,13 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn(":app:assembleDebugAndroidTest", build)
         self.assertIn("test_native_reuse.py", ui)
 
+    def test_android_builds_include_shared_domestic_model_catalog(self):
+        catalog = "upstream/codex/codex-rs/model-provider/catalogs"
+        for name in ("check-android-ui.yml", "build-android.yml", "release.yml"):
+            with self.subTest(name=name):
+                self.assertIn(catalog, workflow(name))
+        self.assertTrue((ROOT / catalog / "domestic-providers.json").is_file())
+
     def test_stale_pr_native_checks_cannot_retrigger_latest_apk(self):
         native = workflow("build-native-codex.yml")
         android = workflow("build-android.yml")

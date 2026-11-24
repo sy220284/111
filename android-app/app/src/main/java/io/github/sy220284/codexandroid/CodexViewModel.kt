@@ -29,6 +29,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val projectCatalogRevision = MutableStateFlow(0)
     val planApprovalBusy = MutableStateFlow(false)
     val activeThread = ConversationField(conversationState, { it.threadId }) { s, v -> s.copy(threadId = v) }
+    internal val activeModelProvider = ConversationField(conversationState, { it.modelProvider }) { s, v -> s.copy(modelProvider = v) }
     internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
     /** True across the entire permissions save + effective-config readback. */
@@ -335,7 +336,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 conversationState.value = ActiveConversationContext(threadDirectory.absolutePath,
                     history.getJSONObject("thread").optString("projectId").takeIf { it.isNotBlank() },
                     id, execution?.turnId, execution != null,
-                    IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns))
+                    IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns),
+                    ComposerProviderScope.provider(history.getJSONObject("thread").optString("modelProvider")))
                 answerVersions.select(id); sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
@@ -445,7 +447,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenMode = selectedMode.value
         val chosenWorkspace = activeWorkspace.value
         val draftOwner = composerOwner(submittedThread, chosenWorkspace)
-        val chosenEffort = composerDrafts.value[draftOwner]?.options?.effort.orEmpty()
+        val chosenOptions = composerDrafts.value[draftOwner]?.options ?: ComposerTaskOptions()
+        val chosenEffort = chosenOptions.effort
         val chosenProject = activeProjectId.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
@@ -463,15 +466,37 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     "未知协作方式：" + chosenMode
                 }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
-                val catalog = records(data.value["models"])
                 val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
-                val effectiveConfig = if (chosenMode == "plan") permissionConfig.getJSONObject("config") else null
-                if (chosenMode == "plan") {
-                    require(chosenModel.isNotBlank() || catalog.any {
-                        it.optString("id").isNotBlank()
-                    }) { "计划模式需要先读取可用模型目录" }
+                val config = permissionConfig.getJSONObject("config")
+                val configuredProvider = ComposerProviderScope.provider(config.optString("model_provider")) ?: "openai"
+                val existing = submittedThread?.let {
+                    bridge.request("thread/read", JSONObject().put("threadId", it)).getJSONObject("thread")
                 }
+                val existingProvider = existing?.let {
+                    requireNotNull(ComposerProviderScope.provider(it.optString("modelProvider"))) { "内核未返回会话所属服务商，请重新打开会话" }
+                }
+                val provider = ComposerProviderScope.resolve(existingProvider,
+                    ComposerProviderScope.provider(chosenOptions.modelProvider), configuredProvider)
+                val requiresCatalog = chosenModel.isNotBlank() || chosenMode == "plan" ||
+                    (submittedThread == null && provider != "openai")
+                val catalog = if (requiresCatalog)
+                    records(bridge.request("model/list", ComposerProviderScope.request(provider)))
+                    else emptyList()
+                val configuredModel = if (provider == configuredProvider)
+                    ComposerProviderScope.provider(config.optString("model")) else null
+                val requestModel = if (submittedThread == null)
+                    ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel, provider != "openai")
+                    else chosenModel
+                ComposerProviderScope.requireModel(catalog, requestModel, chosenEffort)
+                val effectiveConfig = if (chosenMode == "plan") JSONObject(config.toString()).apply {
+                    if (existing != null) {
+                        put("model", ComposerProviderScope.provider(existing.optString("model")) ?: JSONObject.NULL)
+                    } else if (provider != configuredProvider) {
+                        put("model", JSONObject.NULL)
+                    }
+                    if (existing != null || provider != configuredProvider) put("plan_mode_reasoning_effort", JSONObject.NULL)
+                } else null
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
                 captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread); LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
@@ -482,11 +507,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         val cwd = WorkspaceSelectionContract.validate(
                             workspaceRoot, File(chosenWorkspace)).absolutePath
                         ComposerPermissionPolicy.apply(ProjectRequestContract.threadStart(
-                            File(cwd), chosenProject, chosenModel).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, cwd)) put("runtimeWorkspaceRoots", JSONArray().put(cwd)) }, chosenPermission)
+                            File(cwd), chosenProject, requestModel, provider).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, cwd)) put("runtimeWorkspaceRoots", JSONArray().put(cwd)) }, chosenPermission)
                     },
                     turnParams = { id ->
                         ComposerPermissionPolicy.apply(TurnRequestContract.build(
-                            threadId = id, text = prompt, modelId = chosenModel,
+                            threadId = id, text = prompt, modelId = requestModel,
                             mode = chosenMode, catalog = catalog, localImages = images,
                             effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
                         ).put("clientUserMessageId", pendingId.removePrefix("pending-")).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, chosenWorkspace)) put("cwd", chosenWorkspace).put("runtimeWorkspaceRoots", JSONArray().put(chosenWorkspace)) }, chosenPermission)
@@ -503,7 +528,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         composerDrafts.update {
                             ThreadComposerDrafts.attachNewThread(it, createdId, draftOwner)
                         }
-                        activeThread.value = createdId
+                        conversationState.update { it.copy(threadId = createdId, modelProvider = provider) }
                         sessions.refreshChanged(createdId)
                     }
                 )

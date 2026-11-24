@@ -15,7 +15,8 @@ data class ActiveConversationContext(
     val turnId: String? = null,
     val running: Boolean = false,
     val timeline: List<TimelineItem> = emptyList(),
-    val diff: String = ""
+    val diff: String = "",
+    val modelProvider: String? = null
 ) {
     val header get() = ConversationHeader(workspace, threadId, turnId, running, diff)
 }

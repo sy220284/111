@@ -9,11 +9,12 @@ import java.util.UUID
  * Exact Codex app-server v2 project contracts; roots refer only to vetted local dirs.
  */
 object ProjectRequestContract {
-    fun threadStart(cwd: File, projectId: String?, model: String): JSONObject {
+    fun threadStart(cwd: File, projectId: String?, model: String, modelProvider: String? = null): JSONObject {
         require(cwd.isDirectory && cwd.isAbsolute) { "任务工作目录不可用" }
         return JSONObject().put("cwd", cwd.canonicalPath).apply {
             if (!projectId.isNullOrBlank()) put("projectId", projectId)
             if (model.isNotBlank()) put("model", model)
+            if (!modelProvider.isNullOrBlank()) put("modelProvider", modelProvider)
         }
     }
 

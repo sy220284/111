@@ -300,7 +300,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     toSelect?.let { item ->
         CodexConfirmDialog(
             title = "切换默认模型服务商",
-            message = "将新会话的默认服务商切换为：" +
+            message = "切换后新会话使用目标服务商默认模型；历史会话保持原服务商。目标：" +
                 PresentationPolicy.providerName(item.optString("name")),
             confirmLabel = "确认切换",
             onConfirm = {

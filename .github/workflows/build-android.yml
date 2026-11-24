@@ -83,6 +83,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             android-app
+            upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
       - name: 安装 Java 17
