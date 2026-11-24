@@ -174,7 +174,7 @@ fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         DividerLine()
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("项目来源：sy220284/111", color = Ink.muted, modifier = Modifier.weight(1f))
-            TextButton(onClick = {
+            CodexTextAction(onClick = {
                 clipboard.setText(AnnotatedString("111 Android v$version · sy220284/111 · Codex app-server"))
                 copied = true
             }, modifier = Modifier.testTag("about-copy-version")) {
