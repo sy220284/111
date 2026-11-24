@@ -32,12 +32,16 @@ class CodexApplication : Application() {
             // Resume a verified install at the process boundary; the Activity only
             // renders UI and never owns the long-running download/patch operation.
             AppUpdateManager.resumeInstall(activity)
-            if (holder.isInitialized()) holder.value.reconnectIfNeeded()
+            if (holder.isInitialized()) {
+                holder.value.reconnectIfNeeded()
+                holder.value.accountMetrics.foreground(true)
+            }
         }
         override fun onActivityPaused(activity: Activity) {}
         override fun onActivityStopped(activity: Activity) {
             activityCount = (activityCount - 1).coerceAtLeast(0)
             if (activityCount != 0) return
+            if (holder.isInitialized()) holder.value.accountMetrics.foreground(false)
             idleRelease?.cancel()
             idleRelease = maintenance.launch {
                 delay(90_000)
