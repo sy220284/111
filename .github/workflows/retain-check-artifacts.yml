@@ -1,0 +1,73 @@
+name: 检查产物仅保留最新版
+
+on:
+  workflow_run:
+    workflows:
+      - 安卓版本构建与验证
+      - 编译 Android 原生 Codex 核心
+      - 安卓界面与协议独立验收
+      - DSH Go 安卓安装与界面参考验收
+      - 安卓原生上游升级预演
+      - 手动同步官方 Codex 源码并创建审核 PR
+      - 111 Android 正式发布
+    types: [completed]
+  pull_request:
+    paths:
+      - '.github/workflows/retain-check-artifacts.yml'
+      - '.github/scripts/retain_check_artifacts.py'
+      - '.github/scripts/test_retain_check_artifacts.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retain-check-artifacts.yml'
+      - '.github/scripts/retain_check_artifacts.py'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只预览，不删除
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retain-check-artifacts-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - run: python3 -m unittest discover -s .github/scripts -p test_retain_check_artifacts.py
+  retain:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      actions: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: .github/scripts
+      - name: 检查清理规则
+        run: python3 -m unittest discover -s .github/scripts -p test_retain_check_artifacts.py
+      - name: 清理已被新版替代的检查产物
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--repo "$GITHUB_REPOSITORY")
+          if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
+          python3 .github/scripts/retain_check_artifacts.py "${args[@]}"
