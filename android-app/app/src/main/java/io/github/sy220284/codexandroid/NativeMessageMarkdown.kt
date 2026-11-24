@@ -1,77 +1,137 @@
 package io.github.sy220284.codexandroid
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-internal data class MessageBlock(val kind: String, val text: String, val level: Int = 0)
+internal data class MessageBlock(val kind: String, val text: String, val level: Int = 0,
+    val label: String = "", val rows: List<List<String>> = emptyList())
+
+/** Parse display structure once; copy and evidence still use the untouched native text. */
 internal object MessageMarkdown {
+    private val heading = Regex("^(#{1,6})\\s+(.+)$")
+    private val bullet = Regex("^([-+*]|\\d+[.)])\\s+(.+)$")
+    private val fence = Regex("^(\u0060{3,}|~{3,})(.*)$")
+    private val delimiter = Regex("^:?-{3,}:?$")
+    private val rule = Regex("^(?:-{3,}|\\*{3,}|_{3,})$")
+    private val inline = Regex("(\\u0060[^\\u0060]+\\u0060|\\*\\*[^*]+\\*\\*|__[^_]+__|\\*[^*]+\\*|\\[[^\\]\\n]+\\]\\(https?://[^\\s)]+\\))")
+    private fun cells(line: String): List<String> =
+        line.trim().removePrefix("|").removeSuffix("|").split(Regex("(?<!\\\\)\\|"))
+            .map { it.trim().replace("\\|", "|") }
+    private fun tableHeader(lines: List<String>, index: Int): Boolean =
+        index + 1 < lines.size && lines[index].contains('|') &&
+            cells(lines[index]).size > 1 && cells(lines[index + 1]).let { parts ->
+                parts.size == cells(lines[index]).size && parts.all { delimiter.matches(it) }
+            }
+
     fun blocks(source: String): List<MessageBlock> {
         val result = mutableListOf<MessageBlock>()
+        val lines = source.lines()
         val paragraph = mutableListOf<String>()
-        val code = mutableListOf<String>()
-        var fence: String? = null
         fun flush() {
             if (paragraph.isNotEmpty()) {
                 result.add(MessageBlock("paragraph", paragraph.joinToString("\n")))
                 paragraph.clear()
             }
         }
-        for (line in source.lines()) {
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
             val trimmed = line.trimStart()
-            val marker = listOf("~~~", "\u0060\u0060\u0060").firstOrNull { trimmed.startsWith(it) }
-            if (fence != null) {
-                if (marker == fence) {
-                    result.add(MessageBlock("code", code.joinToString("\n")))
-                    code.clear()
-                    fence = null
-                } else code.add(line)
-            } else if (marker != null) {
-                flush()
-                fence = marker
-            } else if (trimmed.isBlank()) flush()
-            else {
-                val heading = Regex("^(#{1,6})\\s+(.+)$").matchEntire(trimmed)
-                when {
-                    heading != null -> {
-                        flush()
-                        result.add(MessageBlock("heading", heading.groupValues[2], heading.groupValues[1].length))
+            val marker = fence.matchEntire(trimmed)
+            val title = heading.matchEntire(trimmed)
+            val listItem = bullet.matchEntire(trimmed)
+            when {
+                marker != null -> {
+                    flush()
+                    val opening = marker.groupValues[1]
+                    val language = marker.groupValues[2].trim().substringBefore(' ')
+                    val content = mutableListOf<String>()
+                    i++
+                    while (i < lines.size) {
+                        val end = lines[i].trim()
+                        if (end.length >= opening.length && end.all { it == opening.first() }) break
+                        content.add(lines[i++])
                     }
-                    trimmed.startsWith("|") -> { flush(); result.add(MessageBlock("table", trimmed)) }
-                    trimmed.startsWith("> ") -> { flush(); result.add(MessageBlock("quote", trimmed.drop(2))) }
-                    trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
-                        flush(); result.add(MessageBlock("bullet", trimmed.drop(2)))
-                    }
-                    else -> paragraph.add(line)
+                    result.add(MessageBlock("code", content.joinToString("\n"), label = language))
                 }
+                tableHeader(lines, i) -> {
+                    flush()
+                    val rows = mutableListOf(cells(line))
+                    i += 2
+                    while (i < lines.size && lines[i].contains('|') && lines[i].isNotBlank()) {
+                        rows.add(cells(lines[i++]))
+                    }
+                    result.add(MessageBlock("table", rows.joinToString("\n") { it.joinToString(" | ") }, rows = rows))
+                    continue
+                }
+                trimmed.isBlank() -> flush()
+                title != null -> {
+                    flush()
+                    result.add(MessageBlock("heading", title.groupValues[2], title.groupValues[1].length))
+                }
+                rule.matches(trimmed) -> { flush(); result.add(MessageBlock("rule", "")) }
+                trimmed.startsWith(">") -> {
+                    flush()
+                    val quoted = mutableListOf<String>()
+                    while (i < lines.size && lines[i].trimStart().startsWith(">")) {
+                        quoted.add(lines[i++].trimStart().removePrefix(">").removePrefix(" "))
+                    }
+                    result.add(MessageBlock("quote", quoted.joinToString("\n")))
+                    continue
+                }
+                listItem != null -> {
+                    flush()
+                    val prefix = listItem.groupValues[1]
+                    result.add(MessageBlock("bullet", listItem.groupValues[2],
+                        ((line.length - trimmed.length) / 2).coerceIn(0, 3),
+                        if (prefix.first().isDigit()) prefix else "•"))
+                }
+                else -> paragraph.add(line)
             }
+            i++
         }
         flush()
-        if (fence != null) result.add(MessageBlock("code", code.joinToString("\n")))
         return result
     }
-    private val inline = Regex("(\\*\\*[^*]+\\*\\*|__[^_]+__|\\u0060[^\\u0060]+\\u0060|\\*[^*]+\\*)")
+
     fun inlineText(source: String) = buildAnnotatedString {
         var offset = 0
         for (match in inline.findAll(source)) {
             append(source.substring(offset, match.range.first))
             val part = match.value
             when {
+                part.startsWith("[") -> {
+                    val separator = part.lastIndexOf("](")
+                    val url = part.substring(separator + 2, part.length - 1)
+                    withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
+                        SpanStyle(textDecoration = TextDecoration.Underline)))) {
+                        append(part.substring(1, separator))
+                    }
+                }
                 part.startsWith("**") || part.startsWith("__") ->
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part.drop(2).dropLast(2)) }
                 part.startsWith('\u0060') ->
@@ -86,25 +146,75 @@ internal object MessageMarkdown {
 
 @Composable
 internal fun NativeMessageMarkdown(source: String) {
-    val blocks = remember(source) { MessageMarkdown.blocks(source) }
+    // Long outputs are parsed away from the main thread; the current text remains readable.
+    val parsed by produceState<List<MessageBlock>?>(null, source) {
+        value = if (source.length < 4096) MessageMarkdown.blocks(source)
+            else withContext(Dispatchers.Default) { MessageMarkdown.blocks(source) }
+    }
+    val blocks = parsed ?: listOf(MessageBlock("paragraph", source))
     SelectionContainer {
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             blocks.forEach { block ->
                 when (block.kind) {
-                    "code", "table" -> Text(block.text,
-                        Modifier.fillMaxWidth().background(Ink.recessed, RoundedCornerShape(8.dp))
-                            .horizontalScroll(rememberScrollState()).padding(10.dp),
-                        fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+                    "code" -> MessageCodeBlock(block)
+                    "table" -> MessageTable(block.rows)
+                    "rule" -> HorizontalDivider(color = Ink.border)
                     "heading" -> Text(MessageMarkdown.inlineText(block.text), fontWeight = FontWeight.SemiBold,
                         style = if (block.level <= 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall)
-                    "bullet" -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("•", color = Ink.muted)
+                    "bullet" -> Row(Modifier.fillMaxWidth().padding(start = (block.level * 12).dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(block.label, color = Ink.muted)
                         Text(MessageMarkdown.inlineText(block.text), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     }
-                    "quote" -> Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp),
-                        color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                    "quote" -> Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                        Box(Modifier.fillMaxHeight().width(3.dp).background(Ink.border, RoundedCornerShape(2.dp)))
+                        Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
+                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                    }
                     else -> Text(MessageMarkdown.inlineText(block.text), style = MaterialTheme.typography.bodyLarge)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageCodeBlock(block: MessageBlock) {
+    val clipboard = LocalClipboardManager.current
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+        color = Ink.recessed, border = BorderStroke(1.dp, Ink.border)) {
+        Column {
+            Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(block.label.ifBlank { "代码" }, Modifier.weight(1f), color = Ink.muted,
+                    style = MaterialTheme.typography.labelMedium)
+                CodexIconAction(onClick = { clipboard.setText(AnnotatedString(block.text)) },
+                    modifier = Modifier.size(48.dp)) {
+                    CodexIcon(CodexGlyph.ContentCopy, "复制代码", tint = Ink.muted, modifier = Modifier.size(18.dp))
+                }
+            }
+            HorizontalDivider(color = Ink.border)
+            Text(block.text, Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
+                fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun MessageTable(rows: List<List<String>>) {
+    val count = rows.maxOfOrNull { it.size } ?: return
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+        color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
+        Column(Modifier.horizontalScroll(rememberScrollState())) {
+            rows.forEachIndexed { index, row ->
+                Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
+                    repeat(count) { column ->
+                        Text(MessageMarkdown.inlineText(row.getOrElse(column) { "" }),
+                            Modifier.width(132.dp).padding(10.dp),
+                            color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
+                    }
+                }
+                if (index != rows.lastIndex) HorizontalDivider(color = Ink.border)
             }
         }
     }

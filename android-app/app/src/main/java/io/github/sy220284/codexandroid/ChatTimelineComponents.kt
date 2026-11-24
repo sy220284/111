@@ -32,12 +32,14 @@ internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((Ti
     var expanded by rememberSaveable(group.first().id) { mutableStateOf(false) }
     val summary = group.groupingBy { PresentationPolicy.timelineKind(it.kind) }.eachCount()
         .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
-    Column(Modifier.fillMaxWidth().testTag("chat-activity-group")) {
+    Column(Modifier.fillMaxWidth().testTag("chat-activity-group")
+        .border(1.dp, Ink.border, RoundedCornerShape(12.dp))
+        .background(Ink.canvas, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp, vertical = 2.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .clickable { expanded = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CodexIcon(if (failed > 0) CodexGlyph.TaskError else if (active) CodexGlyph.TaskRunning else CodexGlyph.AutoAwesome,
-                null, tint = if (failed > 0) Ink.red else Ink.muted, modifier = Modifier.size(18.dp))
+                null, tint = if (failed > 0) Ink.red else if (active) Ink.copper else Ink.jade, modifier = Modifier.size(18.dp))
             Column(Modifier.weight(1f)) {
                 Text((if (active) "正在处理 " else "已处理 ") + group.size + " 项活动" +
                     if (failed > 0) " · $failed 项未成功" else "",
@@ -89,8 +91,13 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
                 color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
                     if (assistant) NativeMessageMarkdown(shownText)
-                    else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                        CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
+                    else {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
+                            Text(if (item.status == "sending") "正在发送" else "你的指令", color = Ink.muted,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
+                        Spacer(Modifier.height(5.dp))
                         SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
                     }
                     if (user) NativeTimelineMedia(item, raw)
