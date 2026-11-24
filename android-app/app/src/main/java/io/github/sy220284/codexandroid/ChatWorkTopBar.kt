@@ -35,7 +35,7 @@ internal fun ChatWorkTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            IconButton(
+            CodexIconAction(
                 onClick = onMenu,
                 modifier = Modifier.size(48.dp)
                     .background(Ink.recessed, CircleShape)
@@ -60,7 +60,7 @@ internal fun ChatWorkTopBar(
             }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            IconButton(
+            CodexIconAction(
                 onClick = onNewThread, enabled = newThreadBlockReason == null,
                 modifier = Modifier.size(48.dp)
                     .background(Ink.recessed, CircleShape)

@@ -67,13 +67,13 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
     Surface(color = Ink.canvas, modifier = Modifier.fillMaxSize().testTag("attachment-preview")) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.ArrowBack, "关闭图片预览")
                 }
                 Text("图片 ${index + 1} / ${paths.size}", modifier = Modifier.weight(1f)
                     .testTag("attachment-preview-position"),
                     style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.DeleteOutline, "移除当前图片", tint = Ink.red)
                 }
             }
@@ -81,12 +81,12 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
             if (paths.size > 1) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = { onSelect(paths[index - 1]) }, enabled = index > 0,
+                    CodexTextAction(onClick = { onSelect(paths[index - 1]) }, enabled = index > 0,
                         modifier = Modifier.heightIn(min = 48.dp).testTag("attachment-previous")) {
                         CodexIcon(CodexGlyph.ArrowBack, null)
                         Text("上一张")
                     }
-                    TextButton(onClick = { onSelect(paths[index + 1]) }, enabled = index < paths.lastIndex,
+                    CodexTextAction(onClick = { onSelect(paths[index + 1]) }, enabled = index < paths.lastIndex,
                         modifier = Modifier.heightIn(min = 48.dp).testTag("attachment-next")) {
                         Text("下一张")
                         CodexIcon(CodexGlyph.ArrowForward, null)
@@ -126,19 +126,19 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                 }
             }
             if (preview.second != null) {
-                TextButton(onClick = { scale = 1f; offset = Offset.Zero },
+                CodexTextAction(onClick = { scale = 1f; offset = Offset.Zero },
                     enabled = scale > 1f, modifier = Modifier.align(Alignment.CenterHorizontally)
                         .heightIn(min = 48.dp).testTag("attachment-preview-reset")) { Text("恢复原始大小") }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center) {
-                    TextButton(onClick = {
+                    CodexTextAction(onClick = {
                         scale = (scale / 1.5f).coerceAtLeast(1f)
                         offset = Offset.Zero
                     }, enabled = scale > 1f, modifier = Modifier.heightIn(min = 48.dp)
                         .testTag("attachment-zoom-out")) { Text("缩小") }
                     Text("${(scale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 12.dp).testTag("attachment-zoom-level"))
-                    TextButton(onClick = {
+                    CodexTextAction(onClick = {
                         scale = (scale * 1.5f).coerceAtMost(4f)
                         offset = Offset.Zero
                     }, enabled = scale < 4f, modifier = Modifier.heightIn(min = 48.dp)

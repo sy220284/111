@@ -111,7 +111,7 @@ internal fun ApprovalQuickSheetContent(
         if (prompts.isEmpty()) {
             CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
                 icon = CodexGlyph.Security)
-            OutlinedButton(onClick = onDismiss,
+            CodexSecondaryButton(onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text("返回当前任务")
             }
@@ -175,7 +175,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 if (commandExpanded || command.length <= 240) command else command.take(240) + "…",
                 fontFamily = FontFamily.Monospace, color = Ink.parchment
             )
-            if (command.length > 240) TextButton(
+            if (command.length > 240) CodexTextAction(
                 onClick = { commandExpanded = !commandExpanded }
             ) { Text(if (commandExpanded) "收起完整命令" else "查看完整命令") }
         }
@@ -212,7 +212,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                         }
                     }
                 }
-                OutlinedTextField(
+                CodexInputField(
                     value = answers[id] ?: "", onValueChange = { answers[id] = it },
                     label = { Text(if (options == null) "输入回答" else "或者输入其他回答") },
                     visualTransformation = if (q.optBoolean("isSecret"))
@@ -252,7 +252,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     modifier = modifier.testTag("approval-decline")) { Text("拒绝") }
             } else null,
             tertiary = if (normal && kind != "humanCommand") { modifier ->
-                TextButton(onClick = { morePermissions = true },
+                CodexTextAction(onClick = { morePermissions = true },
                     modifier = modifier.heightIn(min = 48.dp).testTag("approval-more")) {
                     CodexIcon(CodexGlyph.MoreHoriz, null)
                     Spacer(Modifier.width(6.dp))
@@ -333,7 +333,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     },
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
-                IconButton(onClick = {
+                CodexIconAction(onClick = {
                     vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
                 }, enabled = "config" !in loading) {
                     CodexIcon(CodexGlyph.Retry, "读取生效配置")
@@ -382,7 +382,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     types.chunked(2).forEach { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             row.forEach { (id, label) ->
-                                FilterChip(selected = kind == id, onClick = { kind = id },
+                                CodexFilterChip(selected = kind == id, onClick = { kind = id },
                                     label = { Text(label) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp))
                             }
                         }
@@ -395,13 +395,13 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     ) {
                         Text(if (booleanValue) "已启用" else "已关闭",
                             modifier = Modifier.weight(1f))
-                        Switch(
+                        WhiteSwitch(
                             checked = booleanValue,
                             onCheckedChange = { booleanValue = it }
                         )
                     }
                 } else {
-                    OutlinedTextField(
+                    CodexInputField(
                         value, { value = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(when (kind) {

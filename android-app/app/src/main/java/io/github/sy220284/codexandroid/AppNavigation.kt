@@ -290,7 +290,7 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         navigationIcon = {
                             val isNested = NavigationPolicy.isDetailPage(selected)
-                            IconButton(
+                            CodexIconAction(
                                 onClick = { if (isNested) goBack() else openDrawer() },
                                 modifier = Modifier.padding(start = 6.dp).size(48.dp)
                                     .border(1.dp, Ink.border, CircleShape)
@@ -301,7 +301,7 @@ fun CodexShell(vm: CodexViewModel) {
                         },
                         actions = {
                             if (selected == "threads" || selected == "search") {
-                                IconButton(
+                                CodexIconAction(
                                     onClick = { vm.newThread(); move("chat") },
                                     enabled = newThreadBlockReason == null,
                                     modifier = Modifier.size(48.dp).testTag("library-new-thread")
@@ -310,7 +310,7 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                             if (selected == "files" &&
                                 backHistory.dropLast(1).lastOrNull() == "chat") {
-                                IconButton(
+                                CodexIconAction(
                                     onClick = goBack,
                                     modifier = Modifier.testTag("files-return-to-conversation")
                                 ) {
@@ -323,10 +323,10 @@ fun CodexShell(vm: CodexViewModel) {
                                         modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {
                                         Text(pending.size.toString())
                                     } }) {
-                                    IconButton(onClick = { move("approvals") }) { CodexIcon(CodexGlyph.Security, "待审批") }
+                                    CodexIconAction(onClick = { move("approvals") }) { CodexIcon(CodexGlyph.Security, "待审批") }
                                 }
                             }
-                            IconButton(onClick = { showStatus = true },
+                            CodexIconAction(onClick = { showStatus = true },
                                 modifier = Modifier.testTag("engine-status-open")) {
                                 CodexIcon(
                                     if (status == EngineStatus.Connected) CodexGlyph.TaskComplete
@@ -443,12 +443,12 @@ private fun Sidebar(
         ) {
             Text("Codex", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
-            IconButton(onClick = { onSelect("search") },
+            CodexIconAction(onClick = { onSelect("search") },
                 modifier = Modifier.size(48.dp).testTag("sidebar-global-search")) {
                 CodexIcon(CodexGlyph.Search, "搜索全部会话", tint = Ink.parchment)
             }
         }
-        Button(
+        CodexPrimaryButton(
             onClick = onNewThread,
             enabled = newThreadBlockReason == null,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp)
@@ -505,14 +505,14 @@ private fun Sidebar(
                 color = Ink.muted, modifier = Modifier.padding(start = 13.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(onClick = { onSelect("account") },
+                    CodexIconAction(onClick = { onSelect("account") },
                         modifier = Modifier.size(48.dp).testTag("nav-account")) {
                         CodexIcon(CodexGlyph.AccountCircle, "账号", tint = Ink.parchment)
                     }
                     Text("账号", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(onClick = { onSelect("settings") },
+                    CodexIconAction(onClick = { onSelect("settings") },
                         modifier = Modifier.size(48.dp).testTag("nav-settings")) {
                         CodexIcon(CodexGlyph.Settings, "设置", tint = Ink.parchment)
                     }

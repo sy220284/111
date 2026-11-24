@@ -218,16 +218,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            IconButton(onClick = { navigate("files") },
+            CodexIconAction(onClick = { navigate("files") },
                 modifier = Modifier.testTag("chat-project-files")) {
                 CodexIcon(CodexGlyph.Project, "打开项目文件", tint = Ink.parchment)
             }
-            IconButton(onClick = { showTerminalSheet = true },
+            CodexIconAction(onClick = { showTerminalSheet = true },
                 modifier = Modifier.testTag("chat-project-terminal")) {
                 CodexIcon(CodexGlyph.Terminal, "展开项目终端", tint = Ink.parchment)
             }
             if (thread != null) {
-                IconButton(onClick = { showContextTools = true }, enabled = !switching) {
+                CodexIconAction(onClick = { showContextTools = true }, enabled = !switching) {
                     CodexIcon(CodexGlyph.MoreHoriz, "会话选项", tint = Ink.parchment)
                 }
             }
@@ -269,8 +269,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("${changedFiles.size} 个文件 · +${changedFiles.sumOf { it.additions }} / −${changedFiles.sumOf { it.deletions }}",
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
-                    TextButton(onClick = { navigate("diff") }) { Text("查看") }
-                    TextButton(onClick = { navigate("review") }, enabled = !busy) {
+                    CodexTextAction(onClick = { navigate("diff") }) { Text("查看") }
+                    CodexTextAction(onClick = { navigate("review") }, enabled = !busy) {
                         Text("审查")
                     }
                 }
@@ -356,7 +356,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (olderTimelineCount > 0 && thread != null) item(key = "timeline-older-pages") {
-                    OutlinedButton(
+                    CodexSecondaryButton(
                         onClick = { vm.loadEarlierTimeline() },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                             .testTag("timeline-load-older")
@@ -471,7 +471,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("等待执行 ${queuedInputs.size} 条后续指令",
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.weight(1f), color = Ink.muted)
-                    TextButton(onClick = { navigate("queue") },
+                    CodexTextAction(onClick = { navigate("queue") },
                         modifier = Modifier.testTag("chat-queued-followups")) { Text("查看") }
                 }
             }
@@ -589,7 +589,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(PresentationPolicy.workspaceName(selectedWorkspace),
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
-                    IconButton(onClick = { showTerminalSheet = false }) {
+                    CodexIconAction(onClick = { showTerminalSheet = false }) {
                         CodexIcon(CodexGlyph.Close, "收起终端")
                     }
                 }

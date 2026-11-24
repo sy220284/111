@@ -21,7 +21,7 @@ fun ConversationControlBar(
         verticalAlignment = Alignment.CenterVertically) {
         ModelControl(modelName, onModel, Modifier.weight(1.12f))
         ModeControl(mode, !running, onMode, Modifier.weight(.88f))
-        IconButton(onClick = onDiagnostics, modifier = Modifier.size(48.dp)) {
+        CodexIconAction(onClick = onDiagnostics, modifier = Modifier.size(48.dp)) {
             CodexIcon(when {
                 connected -> CodexGlyph.TaskComplete
                 starting -> CodexGlyph.Retry
@@ -40,7 +40,7 @@ fun ConversationControlBar(
 @Composable
 private fun ModelControl(modelName: String,
     onClick: () -> Unit, modifier: Modifier = Modifier) {
-    TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
+    CodexTextAction(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
         colors = ButtonDefaults.textButtonColors(contentColor = Ink.parchment),
         contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {
         Text(modelName.ifBlank { "默认模型" }, modifier = Modifier.weight(1f, fill = false),
@@ -52,7 +52,7 @@ private fun ModelControl(modelName: String,
 @Composable
 private fun ModeControl(mode: String, enabled: Boolean,
     onClick: () -> Unit, modifier: Modifier = Modifier) {
-    TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)
+    CodexTextAction(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)
         .testTag("conversation-mode-control"),
         enabled = enabled, colors = ButtonDefaults.textButtonColors(contentColor = Ink.parchment),
         contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {

@@ -122,7 +122,7 @@ internal fun ConversationComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                IconButton(
+                CodexIconAction(
                     onClick = onPickImage,
                     enabled = !imageImporting &&
                         attachedCount < LocalImageAttachments.MAX_FILES,
@@ -136,7 +136,7 @@ internal fun ConversationComposer(
                 }
                 if (compactControls) {
                     Box {
-                        IconButton(onClick = { compactMenuExpanded = true },
+                        CodexIconAction(onClick = { compactMenuExpanded = true },
                             modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
                             CodexIcon(CodexGlyph.Tune, "模型、模式和诊断")
                         }
@@ -155,7 +155,7 @@ internal fun ConversationComposer(
                     exit = shrinkHorizontally(tween(CodexMotion.duration(110, reduceMotion))) +
                         fadeOut(tween(CodexMotion.duration(110, reduceMotion)))
                 ) {
-                    IconButton(
+                    CodexIconAction(
                         onClick = onStop,
                         enabled = canStop && !stopping,
                         modifier = Modifier.size(48.dp).testTag("composer-stop")
@@ -164,13 +164,13 @@ internal fun ConversationComposer(
                             .semantics { contentDescription = if (stopping) "正在停止任务" else "停止任务" }
                     ) {
                         if (stopping) {
-                            CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp,
+                            CodexActivityIndicator(Modifier.size(17.dp), strokeWidth = 2.dp,
                                 color = Ink.red)
                         } else CodexIcon(CodexGlyph.Stop, null,
                             tint = Ink.red, modifier = Modifier.size(24.dp))
                     }
                 }
-                Button(
+                CodexPrimaryButton(
                     onClick = onSend,
                     enabled = canSend && !sending,
                     modifier = Modifier.size(50.dp)
@@ -195,7 +195,7 @@ internal fun ConversationComposer(
                     )
                 ) {
                     if (sending) {
-                        CircularProgressIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
+                        CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
                             color = Ink.muted)
                     } else {
                         CodexIcon(when {
