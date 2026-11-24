@@ -608,7 +608,7 @@ private fun TimelineStepCard(item: TimelineItem) {
         "commandExecution" -> CodexGlyph.Terminal
         "fileChange" -> CodexGlyph.Diff
         "mcpToolCall" -> CodexGlyph.Hub
-        "plan" -> CodexGlyph.ListAlt
+        "plan" -> CodexGlyph.ViewList
         "error" -> CodexGlyph.TaskError
         else -> CodexGlyph.AutoAwesome
     }

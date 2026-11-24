@@ -64,7 +64,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text(if (engine == EngineStatus.Connected) "刷新账号与工作区" else "连接本机内核")
             }
-            if ("accountSessions" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if ("accountSessions" in loading) AtlasOperationProgress("正在读取账号与工作区")
             errors["accountSessions"]?.let {
                 CodexNotice("当前内核未返回账号会话列表：$it", NoticeTone.Warning)
             }
@@ -84,7 +84,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             LazyColumn(Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 25.dp)) {
-                if (entries.isEmpty() && payload != null && "accountSessions" !in loading) {
+                if (entries.isEmpty() && payload != null && "accountSessions" !in loading && errors["accountSessions"] == null) {
                     item {
                         CodexEmptyState("暂无可切换的账号", "该能力需要当前内核支持多个账号会话。")
                     }

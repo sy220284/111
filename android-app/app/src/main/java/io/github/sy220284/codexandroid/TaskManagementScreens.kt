@@ -60,10 +60,10 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     CodexIcon(CodexGlyph.Retry, "刷新")
                 }
             }
-            if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (goal == null) {
+            if (key in loading) AtlasOperationProgress("正在读取任务目标")
+            if (goal == null && key !in loading && data[key] != null) {
                 Text("当前会话尚未设定目标", color = Ink.muted)
-            } else {
+            } else if (goal != null) {
                 Text(goal.optString("objective"), style = MaterialTheme.typography.titleLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
@@ -298,9 +298,9 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading }) {
             AtlasOperationProgress("正在读取后续指令")
         }
-        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("暂无后续指令", style = MaterialTheme.typography.titleMedium)
-            Text("任务运行时，也可以在输入栏选择「完成后执行」来添加。", color = Ink.muted)
+        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading &&
+            (1..pageCount).none { rootKey + ":page:" + it in loading }) {
+            CodexEmptyState("暂无后续指令", "任务运行时，也可以在输入栏选择「完成后执行」来添加。")
         }
         all.forEachIndexed { index, item ->
             val input = item.optJSONArray("input") ?: JSONArray()

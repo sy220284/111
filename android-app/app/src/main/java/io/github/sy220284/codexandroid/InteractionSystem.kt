@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
@@ -29,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -155,7 +153,7 @@ fun ProtocolFeedback(
     CodexReveal(keys.any { it in loading }) {
         AtlasOperationProgress("正在处理本页请求")
     }
-    val visible = PresentationPolicy.visibleErrors(errors, keys)
+    val visible = PresentationPolicy.visibleErrors(errors, keys.filterNot { it in loading })
     if (visible.isNotEmpty() && connection != EngineStatus.Connected) {
         CodexNotice(
             message = if (connection == EngineStatus.Starting)
@@ -180,7 +178,7 @@ fun CodexEmptyState(
     icon: CodexGlyph = CodexGlyph.Inbox,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
-    artworkRes: Int? = null
+    artworkRes: Int? = if (icon == CodexGlyph.Inbox) R.drawable.ic_empty_content else null
 ) {
     Column(
         modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 27.dp),
@@ -222,12 +220,13 @@ fun CodexRecoveryState(
     actionLabel: String,
     onAction: () -> Unit,
     onDiagnostics: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    artworkRes: Int = R.drawable.ic_empty_request_failed
 ) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         CodexEmptyState(
             title = title, description = description, icon = CodexGlyph.SyncProblem,
-            actionLabel = actionLabel, onAction = onAction
+            actionLabel = actionLabel, onAction = onAction, artworkRes = artworkRes
         )
         if (onDiagnostics != null) {
             TextButton(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {

@@ -102,7 +102,8 @@ data class CodexSheetAction(
     val onClick: () -> Unit,
     val description: String = "",
     val destructive: Boolean = false,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val testTag: String? = null
 )
 
 /** 用于会话或文件的上下文操作；选择后先关闭菜单，再交由原页面执行或确认。 */
@@ -141,6 +142,7 @@ private fun ColumnScope.CodexActionRows(
             val tone = if (action.destructive) Ink.red else Ink.parchment
             Surface(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    .let { if (action.testTag != null) it.testTag(action.testTag) else it }
                     .clickable(enabled = action.enabled, role = Role.Button) {
                         onDismiss()
                         action.onClick()

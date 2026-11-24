@@ -56,7 +56,8 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (engineStatus != EngineStatus.Connected && data["skills"] == null) {
             CodexRecoveryState("连接后可读取技能",
                 "连接运行核心后将显示当前工作区的真实技能。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
         } else if (data["skills"] == null && "skills" !in mutationLoading &&
             skillErrors["skills"] != null) {
             CodexRecoveryState("技能读取失败",
@@ -114,13 +115,15 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         } else if (filter in setOf("enabled", "available") &&
             visibleSkills.isEmpty() && data["skills"] != null) {
             CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
-                actionLabel = "查看全部", onAction = { filter = "all" })
+                actionLabel = "查看全部", onAction = { filter = "all" },
+                artworkRes = R.drawable.ic_empty_no_results)
         }
         ProtocolFeedback(vm, listOf("skillsWrite"))
         if ("skillsWrite" in mutationLoading) {
             CodexNotice("正在保存技能状态，完成后自动刷新列表。", NoticeTone.Info)
         }
-        if (skills.isEmpty() && data["skills"] != null && readErrors == 0) {
+        if (skills.isEmpty() && data["skills"] != null && readErrors == 0 &&
+            filter == "all" && "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("当前工作区没有可用技能",
                 "可以安装技能包并刷新目录，启用后即可在对话中使用。",
                 icon = CodexGlyph.School, actionLabel = "重新读取技能",

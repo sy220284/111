@@ -65,7 +65,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                     onRefresh = { vm.refresh(selectedTab, method) },
                     label = "刷新账号数据")
             }
-            if (selectedTab in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (selectedTab in loading) AtlasOperationProgress("正在读取账号数据")
         }
         errors[selectedTab]?.let { ErrorText(it) }
         if (result == null && selectedTab !in loading) {
@@ -73,7 +73,8 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 engineStatus != EngineStatus.Connected -> {
                     CodexRecoveryState("连接后可查看账号数据",
                         "本机运行核心尚未连接，连接后读取用量与额度。",
-                        "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                        "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
                 }
                 selectedTab in errors -> {
                     CodexRecoveryState("账号数据读取失败",

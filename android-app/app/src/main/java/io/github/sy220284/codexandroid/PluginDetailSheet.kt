@@ -94,7 +94,7 @@ fun PluginDetailSheet(
                     Text("刷新插件详情")
                 }
             }
-            if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (key in loading) AtlasLoadingResults("正在读取插件详情", placeholderRows = 2)
             errors[key]?.let { ErrorText(it) }
             if (detail == null && key !in loading && key !in errors) {
                 CodexEmptyState("等待详情", "由 Codex 核心读取此插件的能力清单。")

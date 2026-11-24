@@ -114,6 +114,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         if (groups.isEmpty()) {
             item { CodexEmptyState("未找到相关设置", "试试常用名称，例如字体、API Key 或日志。",
+                    artworkRes = R.drawable.ic_empty_no_results,
                 actionLabel = "清除搜索", onAction = { query = "" }) }
         }
         items(groups, key = { it.first.title }) { (group, entries) ->

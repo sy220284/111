@@ -132,7 +132,8 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (engineStatus != EngineStatus.Connected && data["apps"] == null) {
             CodexRecoveryState("连接后可查看应用",
                 "连接运行核心后会显示真实的应用授权与可用状态。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
         } else if (engineStatus == EngineStatus.Connected &&
             data["apps"] == null && "apps" !in loading && errors["apps"] != null) {
             CodexRecoveryState("读取应用失败",
@@ -142,13 +143,9 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     vm.refresh("appInstalled", "app/installed")
                 }, { navigate("diagnostics") })
         }
-        if (apps.isEmpty() && data["apps"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
-            Text("检查登录状态，或进入插件管理查看可用的扩展。",
-                color = Ink.muted)
-            OutlinedButton(onClick = { navigate("plugins") }) {
-                Text("前往插件管理")
-            }
+        if (apps.isEmpty() && data["apps"] != null && "apps" !in loading && errors["apps"] == null) {
+            CodexEmptyState("尚未发现可用应用", "检查登录状态，或进入插件管理查看可用的扩展。",
+                actionLabel = "前往插件管理", onAction = { navigate("plugins") })
         }
         apps.forEach { app ->
             val id = app.optString("id")
@@ -293,7 +290,8 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             if (engineStatus != EngineStatus.Connected) {
                 CodexRecoveryState("连接后可查看 MCP 服务",
                     "由智能体管理服务，连接成功的可用服务才会显示。",
-                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
             } else if (data["mcp"] != null) {
                 CodexEmptyState(
                     "暂无可用 MCP 服务",
@@ -304,7 +302,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             } else {
                 CodexRecoveryState("MCP 目录尚未读取",
                     "连接成功后可以重新检查服务目录。",
-                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") })
+                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_content)
             }
         }
         usable.forEach { McpServiceStatusCard(it) }

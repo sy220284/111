@@ -290,16 +290,7 @@ fun records(response: JSONObject?): List<JSONObject> {
 
 @Composable
 fun ErrorText(error: String) {
-    Surface(color = Ink.canvas, shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Ink.red.copy(alpha = .35f)),
-        modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            CodexIcon(CodexGlyph.TaskError, null, tint = Ink.red)
-            Spacer(Modifier.width(8.dp))
-            Text(PresentationPolicy.readableError(error), color = Ink.red,
-                style = MaterialTheme.typography.bodyMedium)
-        }
-    }
+    CodexNotice(PresentationPolicy.readableError(error), NoticeTone.Error)
 }
 
 @Composable
@@ -325,7 +316,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     onRefresh = { page.rpc?.let { vm.refresh(page.id, it) } },
                     label = "刷新${page.title}")
             }
-            if (page.id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (page.id in loading) AtlasOperationProgress("正在读取${page.title}")
             errors[page.id]?.let { ErrorText(it) }
         }
         if (entries.isNotEmpty()) {
@@ -365,14 +356,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
         }
     }
     selectedDetail?.let { (title, description) ->
-        AlertDialog(
-            onDismissRequest = { selectedDetail = null },
-            title = { Text(title) },
-            text = { Text(description) },
-            confirmButton = {
-                TextButton(onClick = { selectedDetail = null }) { Text("关闭") }
-            }
-        )
+        CodexInfoDialog(title = title, onDismiss = { selectedDetail = null }) {
+            Text(description)
+        }
     }
 }
 

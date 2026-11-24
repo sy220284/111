@@ -144,27 +144,7 @@ internal fun ConversationComposer(
                             modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
                             CodexIcon(CodexGlyph.Tune, "模型、模式和诊断")
                         }
-                        DropdownMenu(expanded = compactMenuExpanded,
-                            onDismissRequest = { compactMenuExpanded = false }) {
-                            DropdownMenuItem(
-                                text = { Text("选择模型 · " +
-                                    compactModelLabel.ifBlank { "默认模型" },
-                                    maxLines = 1) },
-                                leadingIcon = { CodexIcon(CodexGlyph.Memory, null) },
-                                onClick = { compactMenuExpanded = false; onModel() },
-                                modifier = Modifier.testTag("composer-compact-model"))
-                            DropdownMenuItem(
-                                text = { Text("任务模式 · " +
-                                    (if (compactModeLabel == "plan") "先计划" else "执行")) },
-                                leadingIcon = { CodexIcon(CodexGlyph.Tune, null) },
-                                onClick = { compactMenuExpanded = false; onMode() },
-                                modifier = Modifier.testTag("composer-compact-mode"))
-                            DropdownMenuItem(
-                                text = { Text("运行诊断与状态") },
-                                leadingIcon = { CodexIcon(CodexGlyph.Info, null) },
-                                onClick = { compactMenuExpanded = false; onDiagnostics() },
-                                modifier = Modifier.testTag("composer-compact-diagnostics"))
-                        }
+
                     }
                     if (compactCanReconnect) {
                         TextButton(onClick = onReconnect,
@@ -244,4 +224,16 @@ internal fun ConversationComposer(
             }
         }
     }
+    if (compactMenuExpanded) CodexActionSheet(
+        title = "任务选项",
+        onDismiss = { compactMenuExpanded = false },
+        actions = listOf(
+            CodexSheetAction("选择模型 · " + compactModelLabel.ifBlank { "默认模型" },
+                CodexGlyph.Memory, onClick = onModel, testTag = "composer-compact-model"),
+            CodexSheetAction("任务模式 · " + (if (compactModeLabel == "plan") "先计划" else "执行"),
+                CodexGlyph.Tune, onClick = onMode, testTag = "composer-compact-mode"),
+            CodexSheetAction("运行诊断与状态", CodexGlyph.Info,
+                onClick = onDiagnostics, testTag = "composer-compact-diagnostics")
+        )
+    )
 }

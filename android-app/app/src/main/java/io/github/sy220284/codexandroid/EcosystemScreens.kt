@@ -62,7 +62,9 @@ fun ModelsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val chosen by vm.modelId.collectAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
-    val items = records(data["models"])
+    val items = records(data["models"]).filter { !it.optBoolean("hidden") }
+    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
     var selectedModelDetail by remember { mutableStateOf<Pair<String, String>?>(null) }
     LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
     ScreenColumn {
@@ -74,9 +76,9 @@ fun ModelsPage(vm: CodexViewModel) {
             OutlinedButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
         }
         SourceState(vm, "models") { vm.refresh("models", "model/list") }
-        if (items.isEmpty() && data["models"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("暂无可显示的模型。先在账号设置中完成认证，再刷新目录。", color = Ink.muted)
-            TextButton(onClick = { vm.refresh("models", "model/list") }) { Text("重新加载") }
+        if (items.isEmpty() && data["models"] != null && "models" !in loading && errors["models"] == null) {
+            CodexEmptyState("暂无可显示的模型", "先在账号设置中完成认证，再刷新目录。",
+                actionLabel = "重新加载", onAction = { vm.refresh("models", "model/list") })
         }
         items.filter { !it.optBoolean("hidden") }.forEach { item ->
             val id = item.optString("id")
@@ -391,7 +393,8 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (engineStatus != EngineStatus.Connected && data[activeKey] == null) {
             CodexRecoveryState("连接后可查看插件",
                 "已安装和可发现的插件由运行核心提供。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
         } else if (engineStatus == EngineStatus.Connected &&
             data[activeKey] == null && activeKey !in busy &&
             errors[activeKey] != null) {
@@ -422,7 +425,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             if (submittedMatchesDraft && data[searchPrefix + "0"] != null &&
                 searchKey !in busy && found.isEmpty() && searchKey !in errors) {
                 CodexEmptyState("没有搜索结果",
-                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。")
+                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。", artworkRes = R.drawable.ic_empty_no_results)
             }
             found.forEach { hit ->
                 val market = hit.marketplace

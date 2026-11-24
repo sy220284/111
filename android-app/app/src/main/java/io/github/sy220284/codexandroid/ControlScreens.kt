@@ -275,14 +275,13 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                         modifier = Modifier.size(48.dp)) {
                         CodexIcon(CodexGlyph.MoreHoriz, contentDescription = "更多授权选项")
                     }
-                    DropdownMenu(expanded = morePermissions, onDismissRequest = {
-                        morePermissions = false
-                    }) {
-                        DropdownMenuItem(
-                            text = { Text("在本会话持续允许") },
-                            onClick = { morePermissions = false; grantSession = true }
-                        )
-                    }
+                    if (morePermissions) CodexActionDialog(
+                        title = "更多授权选项",
+                        onDismiss = { morePermissions = false },
+                        actions = listOf(CodexSheetAction("在本会话持续允许",
+                            CodexGlyph.TaskApproval, onClick = { grantSession = true },
+                            description = "需要再次确认授权范围"))
+                    )
                 }
             }
         }
@@ -358,7 +357,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     CodexIcon(CodexGlyph.Retry, "读取生效配置")
                 }
             }
-            if ("config" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if ("config" in loading) AtlasOperationProgress("正在读取生效配置")
             Text("配置保存在当前设备，修改成功后影响后续任务。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
@@ -367,7 +366,8 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (engineStatus != EngineStatus.Connected) {
                 CodexRecoveryState("连接后可读取引擎配置",
                     "运行核心连接后可查看生效配置并编辑高级参数。",
-                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
             } else {
                 CodexRecoveryState(
                     if (errors["config"] != null) "配置读取失败" else "配置尚未读取",
@@ -375,7 +375,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     "重新读取", {
                         vm.refresh("config", "config/read",
                             JSONObject().put("includeLayers", true))
-                    }, { navigate("diagnostics") })
+                    }, { navigate("diagnostics") },
+                    artworkRes = if (errors["config"] != null) R.drawable.ic_empty_request_failed
+                        else R.drawable.ic_empty_content)
             }
         }
         CodexDetailTrigger(

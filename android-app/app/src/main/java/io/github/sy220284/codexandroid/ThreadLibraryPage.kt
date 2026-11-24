@@ -336,6 +336,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             } else if (fullResultsReady && fullResults.isEmpty()) {
                 item {
                     CodexEmptyState("没有全文检索结果", "可以尝试仅搜索会话标题。",
+                        artworkRes = R.drawable.ic_empty_no_results,
                         actionLabel = "切换到标题搜索",
                         onAction = {
                             searchTerm = fullSubmitted
@@ -389,6 +390,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     if (searchTerm.isNotBlank()) "调整搜索词后重新查询。"
                     else if (archived) "会话归档后会出现在这里，并可恢复到活跃列表。"
                     else "开始新任务后，可以在这里继续、整理和归档。",
+                    artworkRes = if (searchTerm.isNotBlank()) R.drawable.ic_empty_no_results else R.drawable.ic_empty_content,
                     actionLabel = if (searchTerm.isNotBlank()) "清除搜索" else null,
                     onAction = {
                         searchText = ""; searchTerm = ""; cursor = null; history = emptyList()
