@@ -51,10 +51,14 @@ internal fun CodexViewModel.changeComposerOptions(transform: (ComposerTaskOption
 }
 internal fun CodexViewModel.chooseComposerModel(id: String) =
     changeComposerOptions {
-        val provider = if (id.isBlank()) "" else currentComposerProvider().orEmpty()
+        val provider = if (id.isBlank()) it.modelProvider else currentComposerProvider().orEmpty()
         it.copy(model = id, modelProvider = provider,
             effort = if (it.model == id && it.modelProvider == provider) it.effort else "")
     }
+internal fun CodexViewModel.chooseComposerProvider(id: String) {
+    if (activeThread.value != null) return
+    changeComposerOptions { it.copy(modelProvider = id, model = "", effort = "") }
+}
 internal fun CodexViewModel.chooseComposerMode(id: String) =
     changeComposerOptions { it.copy(mode = id) }
 internal fun CodexViewModel.chooseComposerEffort(id: String) =
@@ -77,7 +81,7 @@ internal fun CodexViewModel.composerCatalogKey(): String =
 internal fun CodexViewModel.refreshComposerCatalog() {
     val key = composerCatalogKey()
     val provider = currentComposerProvider()
-    if (key == "composerModels" && provider != null) {
-        refresh("composerModels", "model/list", ComposerProviderScope.request(provider))
+    if (key != "models" && provider != null) {
+        refresh(key, "model/list", ComposerProviderScope.request(provider))
     } else refresh("models", "model/list")
 }

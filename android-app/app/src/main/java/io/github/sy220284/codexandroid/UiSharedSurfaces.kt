@@ -71,11 +71,15 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val switching by vm.threadSwitching.collectAsState()
     val effort = drafts[vm.composerOwner(active, workspace)]?.options?.effort.orEmpty()
     var selectingEffort by remember { mutableStateOf(false) }
+    var selectingProvider by remember { mutableStateOf(false) }
     val loading by vm.loading.collectProjection { it.intersect(setOf(catalogKey)) }
     val errors by vm.errors.collectEntries(catalogKey)
     val engineStatus by vm.bridge.status.collectAsState()
     LaunchedEffect(engineStatus, active, scopedProvider, providerData["providers"]?.optString("defaultProviderId")) {
-        if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog()
+        if (engineStatus == EngineStatus.Connected) {
+            vm.ensureCatalog("providers", "modelProvider/list")
+            vm.refreshComposerCatalog()
+        }
     }
     val modelData = models[catalogKey]
     val available = remember(modelData) { records(modelData) }
@@ -87,6 +91,20 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     }
     val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !running && !creating && !switching &&
         (active == null || scopedProvider != null)
+    val providerChoices = records(providerData["providers"]).map {
+        CodexChoice(it.optString("id"), PresentationPolicy.providerName(it.optString("name")))
+    }.filter { it.id.isNotBlank() }
+    val displayedProvider = scopedProvider ?: providerData["providers"]?.optString("defaultProviderId")
+    val providerName = providerChoices.firstOrNull { it.id == displayedProvider }?.title ?: "当前服务商"
+    if (selectingProvider && active == null) {
+        CodexChoiceSheet(title = "选择新会话服务商", anchored = anchored,
+            description = "各服务商独立授权与模型目录；历史会话保持原服务商。",
+            choices = listOf(CodexChoice("", "遵循默认服务商")) + providerChoices,
+            selectedId = draftProvider.orEmpty(), enabled = selectable,
+            onSelect = { vm.chooseComposerProvider(it); selectingProvider = false },
+            onDismiss = { selectingProvider = false })
+        return
+    }
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
         val options = listOf("") + efforts
@@ -133,6 +151,9 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         searchable = true,
         loading = catalogKey in loading,
         extraContent = {
+            AtlasSettingsActionRow("模型服务商", providerName, CodexGlyph.Dns,
+                onClick = { selectingProvider = true }, enabled = selectable && active == null && providerChoices.isNotEmpty(),
+                outlined = false)
             AtlasSettingsActionRow("思考强度",
                 if (selected.isBlank()) "先选择具体模型" else if (efforts.isEmpty()) "该模型未提供可选强度"
                 else if (effort.isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(effort),

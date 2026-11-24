@@ -15,6 +15,7 @@ class ComposerProviderScopeTest {
             ComposerProviderScope.resolve("deepseek", "openai", "openai")
         }
         assertEquals("deepseek", ComposerProviderScope.request("deepseek").getString("modelProvider"))
+        assertNotEquals(ComposerProviderScope.catalogKey("deepseek"), ComposerProviderScope.catalogKey("openai"))
         assertEquals("deepseek", ComposerTaskOptions.decode(ComposerTaskOptions("deepseek-flash", modelProvider = "deepseek").encode()).modelProvider)
     }
 

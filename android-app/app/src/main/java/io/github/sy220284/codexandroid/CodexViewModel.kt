@@ -468,35 +468,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
                 val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
-                val config = permissionConfig.getJSONObject("config")
-                val configuredProvider = ComposerProviderScope.provider(config.optString("model_provider")) ?: "openai"
-                val existing = submittedThread?.let {
-                    bridge.request("thread/read", JSONObject().put("threadId", it)).getJSONObject("thread")
-                }
-                val existingProvider = existing?.let {
-                    requireNotNull(ComposerProviderScope.provider(it.optString("modelProvider"))) { "内核未返回会话所属服务商，请重新打开会话" }
-                }
-                val provider = ComposerProviderScope.resolve(existingProvider,
-                    ComposerProviderScope.provider(chosenOptions.modelProvider), configuredProvider)
-                val requiresCatalog = chosenModel.isNotBlank() || chosenMode == "plan" ||
-                    (submittedThread == null && provider != "openai")
-                val catalog = if (requiresCatalog)
-                    records(bridge.request("model/list", ComposerProviderScope.request(provider)))
-                    else emptyList()
-                val configuredModel = if (provider == configuredProvider)
-                    ComposerProviderScope.provider(config.optString("model")) else null
-                val requestModel = if (submittedThread == null)
-                    ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel, provider != "openai")
-                    else chosenModel
-                ComposerProviderScope.requireModel(catalog, requestModel, chosenEffort)
-                val effectiveConfig = if (chosenMode == "plan") JSONObject(config.toString()).apply {
-                    if (existing != null) {
-                        put("model", ComposerProviderScope.provider(existing.optString("model")) ?: JSONObject.NULL)
-                    } else if (provider != configuredProvider) {
-                        put("model", JSONObject.NULL)
-                    }
-                    if (existing != null || provider != configuredProvider) put("plan_mode_reasoning_effort", JSONObject.NULL)
-                } else null
+                val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
+                    permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
+                    chosenOptions) { method, params -> bridge.request(method, params) }
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
                 captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread); LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
