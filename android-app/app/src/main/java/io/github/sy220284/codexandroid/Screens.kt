@@ -247,7 +247,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-private fun SmallStat(label: String, value: String, icon: androidx.compose.ui.graphics.vector.CodexGlyph, modifier: Modifier) {
+private fun SmallStat(label: String, value: String, icon: CodexGlyph, modifier: Modifier) {
     MaterialPanel(modifier) {
         CodexIcon(icon, null, tint = Ink.copper)
         Spacer(Modifier.height(16.dp))
