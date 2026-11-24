@@ -1,17 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -77,7 +66,7 @@ val pages = listOf(
     Page("settings", "设置", "通用", "账户、功能、主机与外观", CodexGlyph.Settings)
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CodexShell(vm: CodexViewModel) {
     var selected by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
@@ -97,6 +86,18 @@ fun CodexShell(vm: CodexViewModel) {
     val terminalSession by vm.terminalSession.collectAsState()
     val dataTransfer by AppDataTransfer.state.collectAsState()
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    fun openDrawer() {
+        focusManager.clearFocus()
+        keyboard?.hide()
+        scope.launch {
+            if (reduceMotion) drawer.snapTo(DrawerValue.Open) else drawer.open()
+        }
+    }
+    fun closeDrawer() {
+        scope.launch {
+            if (reduceMotion) drawer.snapTo(DrawerValue.Closed) else drawer.close()
+        }
+    }
     val operationSnacks = remember { SnackbarHostState() }
     val app = LocalContext.current.applicationContext as CodexApplication
     val pendingDeepLink by app.pendingDeepLink.collectAsState()
@@ -131,7 +132,7 @@ fun CodexShell(vm: CodexViewModel) {
             pendingThreadAction = destination
             libraryInitialFullText = false
             showThreadLibrary = true
-            scope.launch { drawer.close() }
+            closeDrawer()
             return@move
         }
         when (destination) {
@@ -142,37 +143,37 @@ fun CodexShell(vm: CodexViewModel) {
             }
             "queue" -> {
                 showQueue = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "models" -> {
                 showModels = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "about" -> {
                 showAbout = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "approvals" -> {
                 showApprovals = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "review" -> {
                 showReview = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "goals" -> {
                 showGoal = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "modes" -> {
                 showMode = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
             "history-tools", "thread-attachments" -> {
@@ -182,7 +183,7 @@ fun CodexShell(vm: CodexViewModel) {
                     showThreadLibrary = true
                 } else if (destination == "history-tools") showHistory = true
                 else showAttachments = true
-                scope.launch { drawer.close() }
+                closeDrawer()
                 return@move
             }
         }
@@ -200,7 +201,7 @@ fun CodexShell(vm: CodexViewModel) {
         selected = destination
         focusManager.clearFocus()
         keyboard?.hide()
-        scope.launch { drawer.close() }
+        closeDrawer()
     }
     // An older saved route may still point to a screen now owned by an overlay.
     LaunchedEffect(Unit) {
@@ -250,8 +251,9 @@ fun CodexShell(vm: CodexViewModel) {
             move("settings")
         }
     }
-    BackHandler(enabled = drawer.currentValue == DrawerValue.Closed && backHistory.size > 1) {
-        goBack()
+    val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
+    BackHandler(enabled = drawerOwnsInput || backHistory.size > 1) {
+        if (drawerOwnsInput) closeDrawer() else goBack()
     }
 
     Box(Modifier.fillMaxSize().background(Ink.canvas)) {
@@ -273,31 +275,23 @@ fun CodexShell(vm: CodexViewModel) {
                                     ?: if (activeThread == null) "新任务" else "当前会话"
                             } else "工作台",
                             newThreadBlockReason = newThreadBlockReason,
-                            onMenu = { scope.launch { drawer.open() } },
+                            onMenu = { openDrawer() },
                             onNavigate = move,
                             onNewThread = { vm.newThread(); move("chat") }
                         )
                     } else TopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                AnimatedContent(
-                                    targetState = page.title,
-                                    transitionSpec = {
-                                        fadeIn(tween(CodexMotion.duration(180, reduceMotion))) togetherWith
-                                            fadeOut(tween(CodexMotion.duration(100, reduceMotion)))
-                                    }, label = "page-title"
-                                ) { label ->
-                                    Text(label, modifier = Modifier.testTag("screen-title"), maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.titleMedium)
-                                }
+                                Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.titleMedium)
                                 // 顶栏保留当前页面，正文只呈现一次功能介绍。
                             }
                         },
                         navigationIcon = {
                             val isNested = NavigationPolicy.isDetailPage(selected)
                             IconButton(
-                                onClick = { if (isNested) goBack() else scope.launch { drawer.open() } },
+                                onClick = { if (isNested) goBack() else openDrawer() },
                                 modifier = Modifier.padding(start = 6.dp).size(48.dp)
                                     .border(1.dp, Ink.border, CircleShape)
                             ) {
@@ -350,9 +344,11 @@ fun CodexShell(vm: CodexViewModel) {
                     // Only the current page participates in semantics and input.
                     // This prevents stale search fields and buttons from remaining
                     // interactive during rapid settings / feature navigation.
-                    pageStateHolder.SaveableStateProvider(selected) {
-                        CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
-                            PageContent(selected, vm, move)
+                    CodexRouteEntrance(selected, reduceMotion) {
+                        pageStateHolder.SaveableStateProvider(selected) {
+                            CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
+                                PageContent(selected, vm, move)
+                            }
                         }
                     }
                 }
@@ -360,18 +356,21 @@ fun CodexShell(vm: CodexViewModel) {
         }
         ModalNavigationDrawer(
             drawerState = drawer,
-            gesturesEnabled = true,
+            // Closed drawer never intercepts file/image/text horizontal gestures.
+            // The explicit menu opens it; an open drawer supports swipe-to-close.
+            gesturesEnabled = drawerOwnsInput,
             drawerContent = {
                 ModalDrawerSheet(
                     modifier = Modifier.widthIn(max = 318.dp)
-                        .then(if (drawer.isOpen) Modifier else Modifier.clearAndSetSemantics {}),
+                        .then(if (drawer.isOpen) Modifier.testTag("sidebar-drawer")
+                            else Modifier.clearAndSetSemantics {}),
                     drawerContainerColor = Ink.recessed,
                     drawerContentColor = Ink.parchment
                 ) { Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
                             showStatus = true
-                            scope.launch { drawer.close() }
+                            closeDrawer()
                         } else move(id)
                     }, status, pending.size, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,

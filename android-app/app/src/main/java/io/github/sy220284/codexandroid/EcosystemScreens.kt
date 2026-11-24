@@ -255,6 +255,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 after = {
                     vm.refresh("providers", "modelProvider/list")
                     vm.refresh("models", "model/list")
+                    vm.refresh("account", "account/read")
                     showCustomEditor = false
                     customName = ""; customUrl = ""; customEnvKey = ""
                 })
@@ -270,7 +271,11 @@ fun ProvidersPage(vm: CodexViewModel) {
             onConfirm = {
                 vm.rpc("providers", "modelProvider/default/set",
                     JSONObject().put("providerId", item.optString("id")),
-                    after = { vm.refresh("providers", "modelProvider/list"); vm.refresh("models", "model/list") })
+                    after = {
+                        vm.refresh("providers", "modelProvider/list")
+                        vm.refresh("models", "model/list")
+                        vm.refresh("account", "account/read")
+                    })
                 toSelect = null
             },
             onDismiss = { toSelect = null }

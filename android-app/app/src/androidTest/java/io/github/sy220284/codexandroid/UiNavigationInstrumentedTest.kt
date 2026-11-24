@@ -120,6 +120,39 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
+    @Test fun horizontalPageGesturesNeverOpenDrawerAndOpenDrawerSwipesClose() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val oldMotion = UiPreferences.reducedMotion.value
+        try {
+            rule.runOnUiThread {
+                UiPreferences.reducedMotion.value = false
+                vm.editComposerText(null, "横滑及转场保留的草稿")
+            }
+            rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
+            rule.onNodeWithTag("chat-workspace-context").performTouchInput { swipeRight() }
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            rule.onNodeWithContentDescription("打开侧边导航").performTouchInput { click() }
+            rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed().performTouchInput { swipeLeft() }
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
+
+            rule.runOnUiThread { UiPreferences.reducedMotion.value = true }
+            openDrawerRoute("settings")
+            rule.onAllNodesWithTag("screen-title").assertCountEquals(1)
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            rule.onNodeWithTag("conversation-composer").assertDoesNotExist()
+            rule.onNodeWithContentDescription("打开侧边导航").performTouchInput { click() }
+            pressSystemBack()
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            pressSystemBack()
+            rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
+            rule.onNodeWithTag("settings-search").assertDoesNotExist()
+        } finally {
+            rule.runOnUiThread { UiPreferences.reducedMotion.value = oldMotion }
+        }
+    }
+
     @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
         val vm = (rule.activity.application as CodexApplication).session
         openDrawerRoute("settings")

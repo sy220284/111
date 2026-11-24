@@ -39,6 +39,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val payload = data["account"]
     val identity = payload?.optJSONObject("account")
     val connected = identity != null
+    val accountSetup = ChatSetupPolicy.accountState(payload)
     val name = identity?.optString("email").orEmpty().ifBlank { "已连接的 Codex 账号" }
     val authMode = identity?.optString("type").orEmpty().ifBlank {
         payload?.optString("authMode").orEmpty()
@@ -63,7 +64,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         SectionIntro("账号与身份")
 
         if (!connected && !pending) {
-            Text("选择登录方式", style = MaterialTheme.typography.titleMedium)
+            Text(if (accountSetup == AccountSetupState.Optional) "可选登录方式" else "选择登录方式",
+                style = MaterialTheme.typography.titleMedium)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val wide = maxWidth >= 600.dp
                 if (wide) {
@@ -136,8 +138,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("账号状态", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                         Text(
-                            if (connected) name else if (payload == null) "尚未读取账号"
-                                else "尚未登录",
+                            when (accountSetup) {
+                                AccountSetupState.Authorized -> name
+                                AccountSetupState.Optional -> "当前服务商无需 OpenAI 登录"
+                                AccountSetupState.Required -> "尚未登录"
+                                AccountSetupState.Unknown -> "尚未确认账号状态"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
@@ -149,7 +155,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             if (connected) Ink.jade.copy(alpha = .33f) else Ink.border)
                     ) {
                         Text(
-                            if (connected) "已连接" else "未连接",
+                            when (accountSetup) {
+                                AccountSetupState.Authorized -> "已连接"
+                                AccountSetupState.Optional -> "可选登录"
+                                AccountSetupState.Required -> "待授权"
+                                AccountSetupState.Unknown -> "待确认"
+                            },
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelMedium,
                             color = if (connected) Ink.jade else Ink.muted

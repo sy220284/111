@@ -485,6 +485,30 @@ class CodexInteractionComponentsInstrumentedTest {
         }
     }
 
+    @Test fun chatSetupGuideOpensOnlyTheConfirmedMissingPrerequisite() {
+        var hint by mutableStateOf<ChatSetupHint?>(ChatSetupPolicy.hint(true,
+            org.json.JSONObject().put("account", org.json.JSONObject.NULL)
+                .put("requiresOpenaiAuth", true), null))
+        var destination: String? = null
+        rule.setContent {
+            CodexTheme { ChatSetupGuide(hint) { destination = it } }
+        }
+        rule.onNodeWithTag("chat-setup-account").assertIsDisplayed().performTouchInput { click() }
+        rule.runOnIdle { org.junit.Assert.assertEquals("account", destination) }
+        rule.runOnIdle {
+            hint = ChatSetupPolicy.hint(true,
+                org.json.JSONObject().put("account", org.json.JSONObject.NULL)
+                    .put("requiresOpenaiAuth", false),
+                org.json.JSONObject().put("data", org.json.JSONArray())
+                    .put("nextCursor", org.json.JSONObject.NULL))
+        }
+        rule.onNodeWithTag("chat-setup-account").assertDoesNotExist()
+        rule.onNodeWithTag("chat-setup-providers").assertIsDisplayed().performTouchInput { click() }
+        rule.runOnIdle { org.junit.Assert.assertEquals("providers", destination) }
+        rule.runOnIdle { hint = ChatSetupPolicy.hint(false, null, null) }
+        rule.onNodeWithTag("chat-setup-providers").assertDoesNotExist()
+    }
+
     @Test fun undoSnackbarUsesRealReceiptAndDispatchesExactInverseOnce() {
         val gate = ThreadUndoGate()
         val ticket = gate.begin("thread/archive", listOf("a", "b"))

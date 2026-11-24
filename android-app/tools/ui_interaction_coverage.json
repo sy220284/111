@@ -445,6 +445,15 @@
       "component": "AtlasSearchField",
       "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": null
+    },
+    {
+      "id": "chat-setup-guide",
+      "parent": "chat",
+      "file": "WelcomeComponents.kt",
+      "owner": "ChatSetupGuide",
+      "component": "AtlasSettingsActionRow",
+      "test": "chatSetupGuideOpensOnlyTheConfirmedMissingPrerequisite",
+      "screenshot": null
     }
   ]
 }

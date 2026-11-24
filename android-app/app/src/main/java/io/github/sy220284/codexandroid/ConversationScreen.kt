@@ -59,6 +59,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectAsState()
+    val setupHint = if (thread == null) ChatSetupPolicy.hint(
+        status == EngineStatus.Connected, models["account"], models["models"]) else null
     val errors by vm.errors.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
@@ -319,7 +321,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             style = if (shortViewport) MaterialTheme.typography.titleLarge
                                 else MaterialTheme.typography.headlineSmall,
                             color = Ink.parchment, textAlign = TextAlign.Center)
-                        if (!shortViewport) {
+                        if (setupHint != null && !busy && !firstThreadStarting) {
+                            ChatSetupGuide(setupHint, onNavigate = navigate)
+                        } else if (!shortViewport) {
                             Text("提出问题，或交给 Codex 一项任务",
                                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center)
@@ -436,7 +440,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 7.dp)) {
             if (status is EngineStatus.Unavailable && !compactWorkArea) {
                 CodexNotice(
-                    "运行核心连接中断，未发送文字已保留在本机。",
+                    "本机运行核心暂未连接，未发送文字已保留。",
                     NoticeTone.Warning, actionLabel = "重新连接",
                     onAction = { vm.connect() }
                 )

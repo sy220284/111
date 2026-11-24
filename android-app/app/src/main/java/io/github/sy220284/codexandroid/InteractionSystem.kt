@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,6 +52,23 @@ object CodexMotion {
     const val navigation = 280
     const val sheet = 300
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
+}
+
+/** One incoming route only: outgoing pages never remain interactive or visible to accessibility. */
+@Composable
+internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: @Composable () -> Unit) {
+    val progress = remember(route) { Animatable(if (reducedMotion) 1f else 0f) }
+    LaunchedEffect(route, reducedMotion) {
+        if (reducedMotion) progress.snapTo(1f)
+        else progress.animateTo(1f, tween(CodexMotion.navigation))
+    }
+    Box(Modifier.fillMaxSize().clipToBounds()) {
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            val visible = if (reducedMotion) 1f else progress.value
+            alpha = .94f + .06f * visible
+            translationY = 6.dp.toPx() * (1f - visible)
+        }) { content() }
+    }
 }
 
 /** State-driven reveal, never a perpetual decorative animation. */
