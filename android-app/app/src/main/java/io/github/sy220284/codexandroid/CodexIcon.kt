@@ -27,7 +27,6 @@ enum class CodexGlyph(@DrawableRes val resId: Int) {
     TaskRunning(R.drawable.ic_ui_task_running),
     Terminal(R.drawable.ic_ui_terminal),
     Thread(R.drawable.ic_ui_thread),
-    Home(R.drawable.ic_ui_home),
     Flag(R.drawable.ic_ui_flag),
     ViewList(R.drawable.ic_ui_view_list),
     Code(R.drawable.ic_ui_code),

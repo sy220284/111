@@ -4,8 +4,9 @@ package io.github.sy220284.codexandroid
 data class FeatureGroup(val title: String, val routes: List<String>)
 
 object NavigationPolicy {
-    /** 冷启动直接进入对话；工作总览仍由侧栏进入。 */
+    /** 冷启动、恢复和新建任务统一使用唯一任务首页。 */
     const val startRoute = "chat"
+    fun canonicalRoute(route: String): String = if (route == "home") startRoute else route
     val sidebarRoutes get() = UiFeatureCatalog.sidebarRoutes
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }
@@ -22,17 +23,19 @@ object NavigationPolicy {
         else -> null
     }
 
-    fun isCommon(id: String) = id in sidebarRoutes
+    fun isCommon(id: String) = id == startRoute || id in sidebarRoutes
     /** Old saved stacks may still contain routes that are now shown as sheets. */
-    fun pageHistory(routes: List<String>): List<String> = routes.filter {
+    fun pageHistory(routes: List<String>): List<String> = routes.map(::canonicalRoute).filter {
         UiFeatureCatalog.byRoute[it]?.surface in
             setOf(FeatureSurface.Page, FeatureSurface.Reader)
+    }.fold(emptyList()) { history, route ->
+        if (history.lastOrNull() == route) history else history + route
     }
     // 设置归属只用于设置项高亮；任务工具与工作区页面有独立归属。
     fun isSettingsChild(id: String) = id in settingsRoutes
     // 所有二级全屏页面保留返回按钮，返回实际来路而非误认为设置页。
     fun isDetailPage(id: String) = UiFeatureCatalog.byRoute[id]?.surface in
-        setOf(FeatureSurface.Page, FeatureSurface.Reader) && id !in sidebarRoutes
+        setOf(FeatureSurface.Page, FeatureSurface.Reader) && !isCommon(id)
     /** 同一设置的常用叫法归到唯一功能入口；搜索索引不包含后台接口名。 */
     data class SettingsTopic(val route: String, val label: String, val aliases: List<String>)
     val settingsTopics = listOf(

@@ -37,7 +37,6 @@ data class Page(
 )
 
 val pages = listOf(
-    Page("home", "总览", "工作台", "任务、连接与待决事项", CodexGlyph.Home),
     Page("chat", "任务对话", "工作台", "会话、流式生成与输入", CodexGlyph.Thread),
     Page("threads", "会话历史", "工作台", "继续、检索和归档任务", CodexGlyph.History, "thread/list"),
     Page("approvals", "待审批操作", "工作台", "待确认命令、修改与权限", CodexGlyph.Security),
@@ -70,7 +69,8 @@ val pages = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CodexShell(vm: CodexViewModel) {
-    var selected by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
+    var savedRoute by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
+    val selected = NavigationPolicy.canonicalRoute(savedRoute)
     var backHistory by rememberSaveable { mutableStateOf(listOf(NavigationPolicy.startRoute)) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val sidebarState = rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
@@ -128,7 +128,8 @@ fun CodexShell(vm: CodexViewModel) {
     // Carry the original action across a successful thread selection.
     var pendingThreadAction by remember { mutableStateOf<String?>(null) }
     var pendingResumeRoute by remember { mutableStateOf<String?>(null) }
-    val move: (String) -> Unit = move@{ destination ->
+    val move: (String) -> Unit = move@{ requested ->
+        val destination = NavigationPolicy.canonicalRoute(requested)
         if (UiFeatureCatalog.requiresThread(destination) && activeThread == null) {
             pendingThreadAction = destination
             libraryInitialFullText = false
@@ -199,7 +200,7 @@ fun CodexShell(vm: CodexViewModel) {
                 "diagnostics" -> vm.refresh("diagnostics", "server/diagnostics")
             }
         }
-        selected = destination
+        savedRoute = destination
         focusManager.clearFocus()
         keyboard?.hide()
         closeDrawer()
@@ -207,18 +208,19 @@ fun CodexShell(vm: CodexViewModel) {
     // An older saved route may still point to a screen now owned by an overlay.
     LaunchedEffect(Unit) {
         val restored = selected
+        savedRoute = restored
         // A previous build could save sheet destinations as full navigation entries.
         // Strip them from the back stack before either restoring or navigating.
         val history = NavigationPolicy.pageHistory(backHistory)
         when {
             UiFeatureCatalog.isSheet(restored) -> {
-                selected = history.lastOrNull() ?: NavigationPolicy.startRoute
+                savedRoute = history.lastOrNull() ?: NavigationPolicy.startRoute
                 backHistory = history.ifEmpty { listOf(NavigationPolicy.startRoute) }
                 move(restored)
             }
             UiFeatureCatalog.byRoute[restored]?.surface !in
                 setOf(FeatureSurface.Page, FeatureSurface.Reader) -> {
-                selected = "settings"
+                savedRoute = "settings"
                 backHistory = (history + "settings").takeLast(18)
             }
             else -> {
@@ -245,7 +247,7 @@ fun CodexShell(vm: CodexViewModel) {
     val goBack: () -> Unit = {
         if (backHistory.size > 1) {
             backHistory = backHistory.dropLast(1)
-            selected = backHistory.last()
+            savedRoute = backHistory.last()
             focusManager.clearFocus()
             keyboard?.hide()
         } else {
@@ -254,7 +256,7 @@ fun CodexShell(vm: CodexViewModel) {
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
     val canSwipeOpenDrawer = !drawerOwnsInput &&
-        (selected == "chat" || selected == "home") &&
+        (selected == NavigationPolicy.startRoute) &&
         WindowInsets.ime.getBottom(LocalDensity.current) == 0
     BackHandler(enabled = drawerOwnsInput || backHistory.size > 1) {
         if (drawerOwnsInput) closeDrawer() else goBack()
@@ -269,20 +271,17 @@ fun CodexShell(vm: CodexViewModel) {
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { CodexOperationSnackbarHost(operationSnacks) },
                 topBar = {
-                    if (selected == "chat" || selected == "home") {
+                    if (selected == NavigationPolicy.startRoute) {
                         ChatWorkTopBar(
-                            selected = selected,
-                            conversationTitle = if (selected == "chat") {
+                            conversationTitle = activeThread?.let { id ->
                                 records(libraryData["sidebarThreads"] ?: libraryData["threads"])
-                                    .firstOrNull { it.optString("id") == activeThread }
+                                    .firstOrNull { it.optString("id") == id }
                                     ?.let { PresentationPolicy.threadTitle(
                                         it.optString("name"), it.optString("preview")) }
-                                    ?.ifBlank { "当前会话" }
-                                    ?: if (activeThread == null) "新任务" else "当前会话"
-                            } else "工作台",
+                                    ?.takeIf { it.isNotBlank() }
+                            },
                             newThreadBlockReason = newThreadBlockReason,
                             onMenu = { openDrawer() },
-                            onNavigate = move,
                             onNewThread = { vm.newThread(); move("chat") }
                         )
                     } else TopAppBar(
@@ -470,9 +469,7 @@ private fun Sidebar(
             Text("新建任务", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium)
         }
-        listOf("chat", "home", "files").forEach { id ->
-            SidebarRoute(id, selected, approvals, onSelect)
-        }
+        SidebarRoute("files", selected, approvals, onSelect)
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
                 .testTag("sidebar-project-context")
@@ -561,8 +558,6 @@ private fun SidebarRoute(
         label = {
             Text(
                 when (id) {
-                    "home" -> "工作"
-                    "chat" -> "聊天"
                     "threads" -> "会话历史"
                     "files" -> "项目文件"
                     "approvals" -> "待审批"

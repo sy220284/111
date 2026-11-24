@@ -14,7 +14,6 @@ data class UiFeature(
 }
 object UiFeatureCatalog {
     val all = listOf(
-        UiFeature("home", FeatureSurface.Page, FeatureOwner.Global, false),
         UiFeature("chat", FeatureSurface.Page, FeatureOwner.Thread, false),
         UiFeature("threads", FeatureSurface.Page, FeatureOwner.Global, false),
         UiFeature("approvals", FeatureSurface.Sheet, FeatureOwner.Global, false),
@@ -45,7 +44,7 @@ object UiFeatureCatalog {
         UiFeature("update", FeatureSurface.Inline, FeatureOwner.System, false)
     )
     val byRoute = all.associateBy { it.route }
-    val sidebarRoutes = listOf("chat","home","files","settings")
+    val sidebarRoutes = listOf("files","settings")
     /** 以用户的操作意图分组，设置项只有一个固定归属。 */
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage")),
