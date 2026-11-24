@@ -84,6 +84,14 @@ fun CodexShell(vm: CodexViewModel) {
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
+    val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
+    val conversationTitle = remember(activeThread, libraryResponse) {
+        activeThread?.let { id ->
+            records(libraryResponse).firstOrNull { it.optString("id") == id }
+                ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
+                ?.takeIf { it.isNotBlank() }
+        }
+    }
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
     val dataTransfer by AppDataTransfer.state.collectAsState()
@@ -278,13 +286,7 @@ fun CodexShell(vm: CodexViewModel) {
                 topBar = {
                     if (selected == NavigationPolicy.startRoute) {
                         ChatWorkTopBar(
-                            conversationTitle = activeThread?.let { id ->
-                                records(libraryData["sidebarThreads"] ?: libraryData["threads"])
-                                    .firstOrNull { it.optString("id") == id }
-                                    ?.let { PresentationPolicy.threadTitle(
-                                        it.optString("name"), it.optString("preview")) }
-                                    ?.takeIf { it.isNotBlank() }
-                            },
+                            conversationTitle = conversationTitle,
                             newThreadBlockReason = newThreadBlockReason,
                             onMenu = { openDrawer() },
                             onNewThread = { vm.newThread(); move("chat") }
@@ -425,7 +427,7 @@ private fun Sidebar(
     val activeWorkspace by vm.activeWorkspace.collectAsState()
     val accountData by vm.data.collectEntries("limits")
     val accountErrors by vm.errors.collectEntries("limits")
-    val accountLoading by vm.loading.collectAsState()
+    val limitsLoading by vm.loading.collectProjection { "limits" in it }
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -500,7 +502,7 @@ private fun Sidebar(
             SidebarQuotaButton(
                 snapshot = accountData["limits"],
                 stale = status != EngineStatus.Connected || "limits" in accountErrors,
-                loading = "limits" in accountLoading,
+                loading = limitsLoading,
                 onClick = { onSelect("limits") }
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

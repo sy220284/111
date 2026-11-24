@@ -27,7 +27,7 @@ fun EngineStatusSheet(
     vm: CodexViewModel, onDismiss: () -> Unit, navigate: (String) -> Unit
 ) {
     val status by vm.bridge.status.collectAsState()
-    val terminal by vm.terminalSession.collectAsState()
+    val terminalRunning by vm.terminalSession.collectProjection { it.running }
     CodexDetailSheet(title = "运行状态", onDismiss = onDismiss, startExpanded = true) {
         val label = when (status) {
             EngineStatus.Connected -> "本机内核已连接"
@@ -45,7 +45,7 @@ fun EngineStatusSheet(
                 onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
                 enabled = status != EngineStatus.Starting, outlined = false)
         }
-        if (terminal.running) {
+        if (terminalRunning) {
             AtlasSettingsActionRow("查看正在运行的终端", "返回命令执行现场", CodexGlyph.Terminal,
                 onClick = { onDismiss(); navigate("terminal") }, outlined = false)
         }
@@ -56,10 +56,10 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val models by vm.data.collectAsState()
+    val models by vm.data.collectEntries("models")
     val selected by vm.modelId.collectAsState()
     val active by vm.activeThread.collectAsState()
-    val drafts by vm.composerDrafts.collectAsState()
+    val drafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(active))
     val running by vm.running.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
@@ -71,13 +71,16 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     LaunchedEffect(engineStatus) {
         if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
     }
-    val choices = records(models["models"]).filter { !it.optBoolean("hidden") }
-        .map { item ->
+    val modelData = models["models"]
+    val available = remember(modelData) { records(modelData) }
+    val choices = remember(available) {
+        available.filter { !it.optBoolean("hidden") }.map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
             CodexChoice(id, item.optString("displayName").ifBlank { id })
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
+    }
     val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
-    val efforts = ComposerModelPolicy.efforts(records(models["models"]), selected)
+    val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
         CodexChoiceSheet(title = "思考强度", description = "当前模型：" + selected,
             choices = listOf(CodexChoice("", "遵循默认强度")) + efforts.map { CodexChoice(it, PresentationPolicy.reasoningLabel(it)) },
@@ -128,7 +131,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
 @Composable
 fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val selected by vm.selectedMode.collectAsState()
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("modes")
     val running by vm.running.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()

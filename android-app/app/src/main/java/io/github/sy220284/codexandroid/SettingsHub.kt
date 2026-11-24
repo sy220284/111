@@ -29,7 +29,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val listScope = rememberCoroutineScope()
     var showAbout by remember { mutableStateOf(false) }
     val status by vm.bridge.status.collectAsState()
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("account")
     val isAccountLoaded = data["account"] != null
     val isSignedIn = data["account"]?.optJSONObject("account") != null
     val darkMode by UiPreferences.darkMode.collectAsState()

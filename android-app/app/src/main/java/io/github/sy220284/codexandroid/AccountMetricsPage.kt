@@ -27,10 +27,10 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     var selectedTab by rememberSaveable(id, requestedTab) {
         mutableStateOf(if (id == "limits" || requestedTab == "limits") "limits" else "usage")
     }
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("usage", "limits")
     val engineStatus by vm.bridge.status.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectEntries("usage", "limits")
+    val loading by vm.loading.collectProjection { it.intersect(setOf("usage", "limits")) }
     val result = data[selectedTab]
     val usage = selectedTab == "usage"
     // Both tabs observe process-owned snapshots; entering or switching never clears data.

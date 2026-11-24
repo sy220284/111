@@ -12,9 +12,9 @@ import androidx.compose.ui.unit.dp
 /** Only three permission choices, in the composer; saving survives closing the sheet. */
 @Composable
 internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
     val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val errors by vm.errors.collectEntries("securitySave")
     val saving by vm.securitySaveBusy.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val workspace by vm.activeWorkspace.collectAsState()
@@ -22,7 +22,8 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     var confirmFull by remember { mutableStateOf(false) }
     val currentWorkspace = data["composerPermissionWorkspace"]?.optString("cwd") == workspace
     val selected = if (currentWorkspace) ComposerPermissionPolicy.selected(data["composerPermissionConfig"]) else null
-    val profiles = records(data["permissionProfiles"])
+    val profileData = data["permissionProfiles"]
+    val profiles = remember(profileData) { records(profileData) }
     val reading = !currentWorkspace || loading.any { it in setOf("composerPermissionConfig", "securityRequirements", "permissionProfiles") }
     val blocked = vm.composerPermissionBlockReason()
     LaunchedEffect(status, workspace) {

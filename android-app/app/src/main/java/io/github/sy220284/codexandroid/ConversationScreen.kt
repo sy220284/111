@@ -53,15 +53,12 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectAsState()
-    val items by vm.timeline.collectFrameState()
-    val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectEntries("account", "models", "goal:$thread", "queue:$thread", "tokenUsage:$thread")
     val setupHint = if (thread == null) ChatSetupPolicy.hint(
         status == EngineStatus.Connected, models["account"], models["models"]) else null
     val errors by vm.errors.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val composerDrafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(thread))
     val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
     val draft = snapshot.text
@@ -109,18 +106,20 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     val planApprovalBusy by vm.planApprovalBusy.collectAsState()
-    var confirmPlan by remember { mutableStateOf(false) }
-    val lastPlanIndex = items.indexOfLast {
-        it.kind == "plan" && it.text.isNotBlank() &&
-            !it.status.contains("stream", ignoreCase = true)
-    }
-    val latestPlan = items.getOrNull(lastPlanIndex)
-    val planHasLaterUserInput = lastPlanIndex >= 0 &&
-        items.drop(lastPlanIndex + 1).any { it.kind == "user" }
-    val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
-        selectedMode == "plan" && !busy && !switching && thread != null
-    val scroll = rememberLazyListState()
-    val scope = rememberCoroutineScope()
+    var confirmPlan by remember(thread) { mutableStateOf(false) }
+    val latestPlan = if (selectedMode == "plan" && !busy && !switching && thread != null) {
+        val completedPlan by vm.timeline.collectProjection { timeline ->
+            // Search backwards once when approval is relevant, not on every streaming delta.
+            val index = timeline.indexOfLast {
+                it.kind == "plan" && it.text.isNotBlank() && !it.status.contains("stream", ignoreCase = true)
+            }
+            timeline.getOrNull(index)?.takeIf {
+                (index + 1 until timeline.size).none { next -> timeline[next].kind == "user" }
+            }
+        }
+        completedPlan
+    } else null
+    val offerPlanApproval = latestPlan != null
     val keyboard = LocalSoftwareKeyboardController.current
     // Pickers use the actual remaining quota, so no selected image silently vanishes.
     val oneImagePicker = rememberLauncherForActivityResult(
@@ -164,69 +163,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 else -> threeImagePicker.launch(request)
             }
         }
-    }
-    var followTail by remember { mutableStateOf(true) }
-    var autoScrolling by remember { mutableStateOf(false) }
-    var lastKnownStepCount by remember { mutableIntStateOf(0) }
-    var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
-    var unreadSteps by remember { mutableIntStateOf(0) }
-    var observedThread by remember { mutableStateOf<String?>(null) }
-    val olderPageVisible = olderTimelineCount > 0 && thread != null
-    val latestIndex = TimelineViewportPolicy.latestIndex(items.size, olderPageVisible)
-
-    // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
-    LaunchedEffect(scroll) {
-        scroll.interactionSource.interactions.collect { interaction ->
-            if (interaction is DragInteraction.Start) followTail = false
-        }
-    }
-    LaunchedEffect(scroll) {
-        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
-            .collect { (scrolling, canForward, automatic) ->
-                if (!scrolling && !canForward) {
-                    followTail = true
-                    unreadSteps = 0
-                } else if (scrolling && canForward && !automatic) {
-                    followTail = false
-                }
-            }
-    }
-    val hasOlderPage by rememberUpdatedState(olderPageVisible)
-    LaunchedEffect(scroll, thread, switching) {
-        if (switching) return@LaunchedEffect
-        // One collector per conversation; a stream of deltas must not cancel and restart it.
-        snapshotFlow { Triple(items.size, items.lastOrNull(), hasOlderPage) }
-            .collect { (count, tail, older) ->
-                val threadChanged = observedThread != thread
-                val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, count, tail)
-                observedThread = thread
-                lastKnownStepCount = count
-                lastKnownTail = tail
-                if (threadChanged) {
-                    followTail = true
-                    unreadSteps = 0
-                }
-                val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed)) {
-                    // Let the new list layout settle; a real drag takes precedence.
-                    withFrameNanos { }
-                    if (followTail && !autoScrolling) {
-                        // A user scroll may cancel this child without cancelling the collector.
-                        kotlinx.coroutines.coroutineScope {
-                            launch {
-                                autoScrolling = true
-                                try {
-                                    scroll.scrollToLatest(target, animate = false)
-                                } finally {
-                                    autoScrolling = false
-                                }
-                            }
-                        }
-                    }
-                } else if (!followTail) {
-                    unreadSteps += change.newSteps
-                }
-            }
     }
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
@@ -285,12 +221,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     actionLabel = "立即处理", onAction = { showApprovalQuick = true }
                 )
             } else if (busy) {
-                CodexNotice(
-                    if (stopping) "已请求停止任务，正在等待内核确认。"
-                    else "执行中 · ${items.size} 步 · " +
-                        PresentationPolicy.timelineKind(items.lastOrNull()?.kind.orEmpty()),
-                    NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
-                )
+                ConversationExecutionNotice(vm, stopping)
             }
         }
         (if (status == EngineStatus.Connected) errors["protocol"] else null)?.let { reason ->
@@ -298,79 +229,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
-            if (switching) {
-                ConversationLoadingSkeleton(Modifier.fillMaxSize())
-            } else if (items.isEmpty()) {
-                val shortViewport = compactWorkArea || maxHeight < 345.dp
-                Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.Center)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = if (shortViewport) 6.dp else 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 12.dp)
-                ) {
-                    if (!compactWorkArea) {
-                        if (!shortViewport) {
-                            CodexStateArtwork(R.drawable.ic_empty_thread,
-                                Modifier.size(width = 112.dp, height = 76.dp))
-                        }
-                        Text("今天想做什么？",
-                            style = if (shortViewport) MaterialTheme.typography.titleLarge
-                                else MaterialTheme.typography.headlineSmall,
-                            color = Ink.parchment, textAlign = TextAlign.Center)
-                        if (setupHint != null && !busy && !firstThreadStarting) {
-                            ChatSetupGuide(setupHint, onNavigate = navigate)
-                        } else if (!shortViewport) {
-                            Text("提出问题，或交给 Codex 一项任务",
-                                color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center)
-                        }
-                    }
-                }
-            } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (olderTimelineCount > 0 && thread != null) item(key = "timeline-older-pages") {
-                    CodexSecondaryButton(
-                        onClick = { vm.loadEarlierTimeline() },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .testTag("timeline-load-older")
-                    ) {
-                        Text("加载更早记录 · 剩余 $olderTimelineCount 条")
-                    }
-                }
-                items(items, key = { it.id }) { item ->
-                    TimelineStepCard(item)
-                }
-            }
-            if (!switching && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom = 10.dp).heightIn(min = 48.dp)
-                        .testTag("timeline-return-latest")
-                        .clickable {
-                            scope.launch {
-                                followTail = true
-                                autoScrolling = true
-                                try {
-                                    scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
-                                    unreadSteps = 0
-                                } finally {
-                                    autoScrolling = false
-                                }
-                            }
-                        },
-                    shape = RoundedCornerShape(99.dp),
-                    color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.copper),
-                    shadowElevation = 1.dp
-                ) {
-                    Text(if (unreadSteps > 0) "↓ ${unreadSteps} 条新步骤" else "返回最新进度",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        color = Ink.copper, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
+        ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
+            compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
         if (offerPlanApproval) {
             CodexNotice(
                 "计划已生成。核对计划内容后，可批准并开始执行。",
@@ -633,16 +493,3 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     )
 }
 
-/** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
-private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
-    if (index < 0) return
-    // Streaming changes often extend the already visible last item. Avoid jumping to its start.
-    if (layoutInfo.visibleItemsInfo.none { it.index == index }) {
-        if (animate) animateScrollToItem(index) else scrollToItem(index)
-    }
-    val info = layoutInfo
-    val last = info.visibleItemsInfo.lastOrNull { it.index == index } ?: return
-    val remaining = (last.offset + last.size - info.viewportEndOffset +
-        info.afterContentPadding).coerceAtLeast(0)
-    if (remaining > 0 && canScrollForward) scrollBy(remaining.toFloat())
-}
