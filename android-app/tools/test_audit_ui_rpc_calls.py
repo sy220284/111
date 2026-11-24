@@ -26,6 +26,10 @@ class SourceCallsiteClassificationTest(unittest.TestCase):
                              "thread/read", "thread/goal/set", "thread/list"
                          }))
 
+    def test_capability_requests_count_only_the_method_argument(self):
+        source = 'vm.capabilityRequest("memory/status", JSONObject().put("action", "memory/reset"))'
+        self.assertEqual({"memory/status"}, find_rpc_calls(source, {"memory/status", "memory/reset"}))
+
     def test_dynamic_routing_is_not_wrongly_marked_concrete(self):
         source = 'vm.rpc("execute", method, params)'
         self.assertEqual(set(), find_rpc_calls(source, {"thread/delete"}))

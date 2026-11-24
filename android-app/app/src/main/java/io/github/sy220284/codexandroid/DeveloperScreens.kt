@@ -329,18 +329,12 @@ fun WorkspacePage(vm: CodexViewModel) {
                         Text(if (entry.directory) "文件夹" else "${entry.bytes / 1024} KB",
                             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
+                    Box {
                     CodexIconAction(onClick = { selectedEntry = entry }, enabled = !actionBusy,
                         modifier = Modifier.testTag("workspace-menu-" + file.name)) {
                         CodexIcon(CodexGlyph.MoreVert, "管理 " + file.name)
                     }
-                }
-            }
-        }
-    }
-
-    selectedEntry?.let { entry ->
-        val file = entry.file
-        CodexActionSheet(
+                        if (selectedEntry?.file == file) CodexFloatingActionMenu(
             title = "管理 " + file.name,
             onDismiss = { selectedEntry = null },
             actions = listOf(
@@ -373,6 +367,10 @@ fun WorkspacePage(vm: CodexViewModel) {
                 )
             )
         )
+                    }
+                }
+            }
+        }
     }
 
     if (showProjectManager) {

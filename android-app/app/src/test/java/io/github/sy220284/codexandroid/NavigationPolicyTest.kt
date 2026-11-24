@@ -78,7 +78,7 @@ class NavigationPolicyTest {
             NavigationPolicy.sidebarRoutes)
         assertFalse(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("threads"))
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("approvals").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
         assertFalse(NavigationPolicy.isCommon("review"))
         assertTrue(NavigationPolicy.isSettingsChild("plugins"))
@@ -86,8 +86,8 @@ class NavigationPolicyTest {
         assertFalse(NavigationPolicy.isSettingsChild("review"))
         assertFalse(NavigationPolicy.isSettingsChild("threads"))
         assertFalse(NavigationPolicy.isDetailPage("threads"))
-        assertFalse(NavigationPolicy.isDetailPage("approvals"))
-        assertFalse(NavigationPolicy.isDetailPage("queue"))
+        assertTrue(NavigationPolicy.isDetailPage("approvals"))
+        assertTrue(NavigationPolicy.isDetailPage("queue"))
         assertFalse(NavigationPolicy.isDetailPage("search"))
         assertTrue(NavigationPolicy.isDetailPage("terminal"))
         assertTrue(NavigationPolicy.isDetailPage("diff"))
@@ -95,10 +95,10 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))
-        assertEquals(listOf("chat", "limits"),
+        assertEquals(listOf("chat", "queue", "limits"),
             NavigationPolicy.pageHistory(listOf("home", "threads", "chat", "queue", "limits")))
         assertEquals(listOf("chat", "files"), NavigationPolicy.pageHistory(listOf("home", "chat", "files")))
-        assertEquals(emptyList<String>(),
+        assertEquals(listOf("approvals"),
             NavigationPolicy.pageHistory(listOf("search", "approvals", "about")))
     }
 
@@ -127,7 +127,7 @@ class NavigationPolicyTest {
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertTrue(UiFeatureCatalog.requiresThread("goals"))
         assertEquals(FeatureSurface.Reader, UiFeatureCatalog.find("diff").surface)
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("queue").surface)
         assertEquals(FeatureOwner.Global, UiFeatureCatalog.find("search").owner)
     }
 

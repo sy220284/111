@@ -40,10 +40,12 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             JSONObject().put("threadId", threadId).put("limit", 50))
     }
     LaunchedEffect(active) { if (active != null) refresh() }
-    CodexSheetFrame(onDismissRequest = onDismiss,
-        containerColor = Ink.canvas, contentColor = Ink.parchment,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight()).navigationBarsPadding()
+    CodexOverlayFrame(
+        onDismissRequest = onDismiss,
+        fullScreen = true,
+        containerColor = Ink.canvas, contentColor = Ink.parchment
+    ) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight().navigationBarsPadding()
             .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
             AtlasSheetHeader("会话关联资料", onDismiss)

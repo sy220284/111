@@ -9,6 +9,7 @@ import org.json.JSONObject
  * JSON null, which is distinct from omitting sectionId on thread/list.
  */
 object ThreadSectionContract {
+    const val PINNED = "01984de2-8f74-7c91-a3b2-5c5e937cf318"
     const val UNGROUPED = "__unsectioned__"
 
     private fun requiredId(value: String): String =

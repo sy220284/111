@@ -8,9 +8,17 @@ class UiProtocolMatrixTest {
         assertEquals(195, UiProtocolMatrix.all.size)
         assertEquals(195, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
-        assertEquals(39, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
+        assertEquals(46, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
         assertEquals(51, UiProtocolMatrix.advanced.size)
-        assertEquals(68, UiProtocolMatrix.systemOnly.size)
+        assertEquals(61, UiProtocolMatrix.systemOnly.size)
+    }
+
+    @Test fun newlyExposedConversationOperationsAreContextual() {
+        listOf("thread/section/move", "threadSection/list", "threadSection/create",
+            "threadSection/update", "threadSection/delete",
+            "thread/realtime/appendText", "thread/realtime/appendSpeech").forEach { method ->
+            assertEquals(method, ApiExposure.Contextual, UiProtocolMatrix.byMethod[method]?.exposure)
+        }
     }
 
     @Test fun agentTransportProtocolsRemainInternal() {
@@ -31,10 +39,10 @@ class UiProtocolMatrixTest {
         assertEquals(5, UiFeatureCatalog.settingsGroups.size)
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertFalse(UiFeatureCatalog.requiresThread("plugins"))
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("review").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("review").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
-        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("approvals").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("queue").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("search").surface)
         assertEquals(FeatureSurface.Inline, UiFeatureCatalog.find("update").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("modes").surface)

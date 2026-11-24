@@ -6,6 +6,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
@@ -34,6 +36,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
+    val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
+    var voiceOpen by remember(thread) { mutableStateOf(false) }
     val busy = conversation.running
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
@@ -131,12 +135,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val threeImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
     ) { selected -> vm.importPickedImages(selected) }
-    // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
+    // Page-owned handoff: close the context menu before opening the next page.
     LaunchedEffect(composerMenu, pendingContextRoute) {
         if (composerMenu != "context-tools") {
             pendingContextRoute?.let { destination ->
                 pendingContextRoute = null
-                navigate(destination)
+                when (destination) {
+                    "realtime-voice" -> voiceOpen = true
+                    "thread-memory" -> composerMenu = destination
+                    else -> navigate(destination)
+                }
             }
         }
     }
@@ -207,8 +215,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(
                     "当前任务有 ${prompts.size} 项需要处理，完成后可继续。",
                     NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                    actionLabel = "立即处理", onAction = { composerMenu = "approval" }
+                    actionLabel = if (composerMenu == "approval") "收起" else "立即处理",
+                    onAction = { composerMenu = if (composerMenu == "approval") "" else "approval" }
                 )
+                if (composerMenu == "approval") Column(Modifier.fillMaxWidth()
+                    .heightIn(max = atlasSheetHeight() * .45f).verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    prompts.forEach { prompt -> key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) } }
+                }
             } else if (busy && !compactWorkArea) {
                 ConversationExecutionNotice(vm, stopping)
             }
@@ -292,11 +306,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     "切换手机工作区中的项目与目录", CodexGlyph.Folder, enabled = optionsEnabled,
                     onOpen = { keyboard?.hide(); composerMenu = "projects" }))
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
-                    enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "terminal" }))
+                    enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
-                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "models" }))
+                    enabled = optionsEnabled, onOpen = { composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
-                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "modes" }))
+                    enabled = optionsEnabled, onOpen = { composerMenu = "modes" }))
                 add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
                     enabled = optionsEnabled, onOpen = { keyboard?.hide(); navigate("review") }))
                 add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
@@ -350,6 +364,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             val guideBlockReason = sendBlockReason.ifBlank {
                 if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
+            if (voiceOpen && realtimeVoice != null && thread != null) {
+                RealtimeVoiceSheet(vm, thread, realtimeVoice) { voiceOpen = false }
+            }
             ConversationComposer(
                 draft = draft, shortcuts = tools,
                 onDraftChange = { vm.editComposerText(draftOwner, it) },
@@ -373,16 +390,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }) else null,
                 voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
                 imageImporting = attachmentBusy || documentBusy,
-                onAddContent = { keyboard?.hide(); composerMenu = "add" },
+                onAddContent = { composerMenu = "add" },
                 compactControls = compactWorkArea,
                 modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
                     ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
                 modeLabel = selectedMode,
                 effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
                 optionsEnabled = optionsEnabled,
-                onModel = { keyboard?.hide(); composerMenu = "models" },
-                onMode = { keyboard?.hide(); composerMenu = "modes" },
-                onTaskOptions = { keyboard?.hide(); composerMenu = "tools" },
+                onModel = { composerMenu = "models" },
+                onMode = { composerMenu = "modes" },
+                onTaskOptions = { composerMenu = "tools" },
                 onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
                 statusContent = {
                     if (status is EngineStatus.Unavailable) {
@@ -392,88 +409,68 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 },
-                permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !transferBusy) },
-                attachmentContent = {
-                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
-                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
-                }
-            )
-            if (composerMenu == "add") CodexActionSheet(title = "添加内容", onDismiss = { composerMenu = "" },
-                actions = buildList {
-                    add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
-                        if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
-                    }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "选择本机图片", testTag = "composer-add-photos"))
-                    add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
-                        if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
-                            try { documentPicker.launch(arrayOf("*/*")) }
-                            catch (failure: Exception) {
-                                vm.composerContent.importDocuments(emptyList())
-                                vm.composerContent.pickerFailure(failure)
-                            }
-                        }
-                    }, description = "导入当前项目并引用", testTag = "composer-add-files"))
-                    add(CodexSheetAction("引用项目文件", CodexGlyph.Link,
-                        onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"))
-                    add(CodexSheetAction("技能", CodexGlyph.School,
-                        onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
-                    if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
-                        onClick = {
-                            vm.composerContent.prepareCamera(draftOwner)?.let { uri ->
-                                try { cameraPicker.launch(uri) }
-                                catch (failure: Exception) {
-                                    vm.composerContent.finishCamera(false)
-                                    vm.composerContent.pickerFailure(failure)
+                addMenu = {
+                    if (composerMenu == "add") CodexFloatingActionMenu(title = "添加内容",
+                        showDescriptions = false, onDismiss = { closeComposerMenu("add") },
+                        actions = buildList {
+                            add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
+                                if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
+                            }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "选择本机图片", testTag = "composer-add-photos"))
+                            add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
+                                if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
+                                    try { documentPicker.launch(arrayOf("*/*")) }
+                                    catch (failure: Exception) {
+                                        vm.composerContent.importDocuments(emptyList())
+                                        vm.composerContent.pickerFailure(failure)
+                                    }
                                 }
-                            }
-                        }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "拍摄并添加图片", testTag = "composer-add-camera"))
-                    if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
-                        onClick = { vm.composerContent.pasteImage(draftOwner) },
-                        enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
+                            }, description = "导入当前项目并引用", testTag = "composer-add-files"))
+                            add(CodexSheetAction("引用项目文件", CodexGlyph.Link,
+                                onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"))
+                            add(CodexSheetAction("技能", CodexGlyph.School,
+                                onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
+                            if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
+                                onClick = {
+                                    vm.composerContent.prepareCamera(draftOwner)?.let { uri ->
+                                        try { cameraPicker.launch(uri) }
+                                        catch (failure: Exception) {
+                                            vm.composerContent.finishCamera(false)
+                                            vm.composerContent.pickerFailure(failure)
+                                        }
+                                    }
+                                }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "拍摄并添加图片", testTag = "composer-add-camera"))
+                            if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
+                                onClick = { vm.composerContent.pasteImage(draftOwner) },
+                                enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
 
-                })
-            if (composerMenu == "tools") CodexActionSheet(title = "任务配置", onDismiss = { composerMenu = "" },
-                actions = tools.filter { it.command !in setOf("model", "mode") }.map {
-                    CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
-                        enabled = it.enabled, testTag = "composer-tool-" + it.command)
-                })
-        }
-    }
-    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
+                        })
+                    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
         onSelect = { vm.composerContent.addReference(draftOwner, it, referenceQuery); composerMenu = ""; referenceQuery = null },
         onDismiss = { composerMenu = ""; referenceQuery = null })
-    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
+                    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
         onSelect = { vm.composerContent.addReference(draftOwner, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
-    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
-    if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
-    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
+
+                },
+                modelMenu = {
+                    if (composerMenu == "models") ModelChoiceSurface(vm, anchored = true) { closeComposerMenu("models") }
+                },
+                modeMenu = {
+                    if (composerMenu == "modes") ModeChoiceSurface(vm, anchored = true) { closeComposerMenu("modes") }
+                },
+                taskMenu = {
+                    if (composerMenu == "tools") CodexFloatingActionMenu(title = "任务配置", onDismiss = { closeComposerMenu("tools") },
+                        actions = tools.filter { it.command !in setOf("model", "mode") }.map {
+                            CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
+                                enabled = it.enabled, testTag = "composer-tool-" + it.command)
+                        })
+                    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
+                    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
         onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
         onDismiss = { composerMenu = "" })
-    if (composerMenu == "terminal") {
-        CodexSheetFrame(
-            onDismissRequest = { closeComposerMenu("terminal") },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Ink.canvas
-        ) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight(.88f).navigationBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("项目终端", style = MaterialTheme.typography.titleMedium)
-                        Text(PresentationPolicy.workspaceName(selectedWorkspace),
-                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    }
-                    CodexIconAction(onClick = { closeComposerMenu("terminal") }) {
-                        CodexIcon(CodexGlyph.Close, "收起终端")
-                    }
-                }
-                Box(Modifier.weight(1f)) { TerminalPage(vm, embedded = true) }
-            }
-        }
-    }
-    if (composerMenu == "context-tools") {
+                    if (composerMenu == "context-tools") {
         ThreadContextTools(
             vm = vm,
             navigate = { destination ->
@@ -484,6 +481,25 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onCompact = { closeComposerMenu("context-tools"); sessionAction = "compact" }
         )
     }
+
+                },
+                permissionContent = {
+                    ComposerPermissionControl(vm, optionsEnabled && !transferBusy,
+                        open = composerMenu == "permissions", onOpen = { composerMenu = "permissions" },
+                        onDismiss = { closeComposerMenu("permissions") })
+                },
+                attachmentContent = {
+                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
+                }
+            )
+
+        }
+    }
+    if (composerMenu == "thread-memory" && thread != null) {
+        MemoryManagementSheet(vm, thread) { closeComposerMenu("thread-memory") }
+    }
+    if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
     if (sessionAction.isNotBlank() && thread != null) {
         val id = thread
         CodexConfirmDialog(
@@ -510,10 +526,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onDismiss = { confirmPlan = false }
         )
     }
-    if (composerMenu == "approval" && thread != null)
-        ApprovalQuickSheet(vm, thread) { closeComposerMenu("approval") }
-    if (composerMenu == "models") ModelChoiceSurface(vm) { closeComposerMenu("models") }
-    if (composerMenu == "modes") ModeChoiceSurface(vm) { closeComposerMenu("modes") }
     if (composerMenu == "engine-status") EngineStatusSheet(
         vm, onDismiss = { closeComposerMenu("engine-status") }, navigate = navigate
     )

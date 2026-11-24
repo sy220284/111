@@ -15,8 +15,8 @@
     {
       "route": "approvals",
       "file": "ControlScreens.kt",
-      "owner": "ApprovalQuickSheetContent",
-      "component": "CodexDetailSheet"
+      "owner": "ApprovalsPage",
+      "component": "ApprovalRequestCard"
     },
     {
       "route": "search",
@@ -40,7 +40,7 @@
       "route": "files",
       "file": "DeveloperScreens.kt",
       "owner": "WorkspacePage",
-      "component": "CodexActionSheet"
+      "component": "CodexFloatingActionMenu"
     },
     {
       "route": "diff",
@@ -70,7 +70,7 @@
       "route": "modes",
       "file": "UiSharedSurfaces.kt",
       "owner": "ModeChoiceSurface",
-      "component": "CodexChoiceSheet"
+      "component": "AtlasCompactChoice"
     },
     {
       "route": "skills",
@@ -166,7 +166,7 @@
       "route": "update",
       "file": "AppUpdateCard.kt",
       "owner": "AppUpdateCard",
-      "component": "CodexDetailSheet"
+      "component": "AtlasUpdateStatus"
     },
     {
       "route": "personalization",
@@ -202,7 +202,7 @@
       "parent": "chat",
       "file": "ThreadContextTools.kt",
       "owner": "ThreadContextTools",
-      "component": "CodexActionSheet",
+      "component": "CodexFloatingActionMenu",
       "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": "audit-thread-context"
     },
@@ -364,7 +364,7 @@
       "parent": "goals",
       "file": "ThreadGoalSheet.kt",
       "owner": "ThreadGoalSheet",
-      "component": "CodexSheetFrame",
+      "component": "CodexOverlayFrame",
       "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": "audit-goals-sheet"
     },

@@ -67,6 +67,22 @@ class EngineSettingsTest {
         assertTrue(runCatching { web.parse("live", mapOf("cached" to "缓存搜索")) }.isFailure)
     }
 
+    @Test fun modelSliderUsesActualOptionsAndNativeNullReset() {
+        val setting = EngineSettings.byKey("model_reasoning_effort")!!
+        val options = EngineSettings.sliderOptions(setting, linkedMapOf("high" to "深入", "low" to "较快"))
+        assertEquals(listOf(null, "low", "high"), options.map { it.first })
+        assertEquals(listOf(null), EngineSettings.sliderOptions(setting, emptyMap()).map { it.first })
+        val params = EngineSettings.writeParams("model", JSONObject.NULL)
+        assertTrue(params.has("value"))
+        assertTrue(params.isNull("value"))
+        val write = JSONObject().put("status", "ok")
+        EngineSettings.verify(write, JSONObject().put("config", JSONObject()), "model", JSONObject.NULL)
+        assertTrue(runCatching {
+            EngineSettings.verify(write, JSONObject().put("config", JSONObject().put("model", "inherited")),
+                "model", JSONObject.NULL)
+        }.isFailure)
+    }
+
     @Test fun readbackMustMatchAndNotBeOverridden() {
         val write = JSONObject().put("status", "ok")
         val read = JSONObject().put("config", JSONObject().put("tool_output_token_limit", 20000))

@@ -70,7 +70,7 @@ fun ModelsPage(vm: CodexViewModel) {
         CodexDetailTrigger("查看可用模型说明", onClick = { showCatalog = true },
             modifier = Modifier.fillMaxWidth().testTag("model-catalog-info"))
     }
-    if (showCatalog) CodexDetailSheet(title = "可用模型说明", onDismiss = { showCatalog = false }) {
+    if (showCatalog) CodexDetailSheet(title = "可用模型说明", startExpanded = true, onDismiss = { showCatalog = false }) {
         if (items.isEmpty()) Text("暂无可用模型，请检查账号和服务商设置。", color = Ink.muted)
         items.forEach { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
@@ -128,7 +128,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             )
             if (showCustomEditor) {
                 CodexDetailSheet(
-                    title = "添加自定义服务商",
+                    title = "添加自定义服务商", startExpanded = true,
                     subtitle = "仅配置连接地址和密钥变量名称",
                     onDismiss = { showCustomEditor = false }
                 ) {
@@ -159,7 +159,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 }
             )
             if (showCapabilities) CodexDetailSheet(
-                title = "服务商能力",
+                title = "服务商能力", startExpanded = true,
                 onDismiss = { showCapabilities = false }
             ) {
                 val caps = data["providerCapabilities"]
@@ -256,6 +256,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     var installedOnly by rememberSaveable { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
+    var sharingPath by remember { mutableStateOf<String?>(null) }
     var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
     var installedQuery by rememberSaveable { mutableStateOf("") }
     var searchDraft by rememberSaveable { mutableStateOf("") }
@@ -331,6 +332,10 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         AtlasCompactChoice(if (installedOnly) "installed" else "catalog",
             listOf("installed" to "已安装", "catalog" to "发现插件"),
             onSelect = { installedOnly = it == "installed" }, tagPrefix = "plugins-tab-")
+        CodexSecondaryButton(onClick = { sharingPath = "" }, enabled = canOperate,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plugin-sharing-entry")) {
+            Text("插件共享")
+        }
         ExtensionCatalogHeader(
             title = if (installedOnly) "已安装插件" else "插件源",
             summary = if (data[activeKey] == null) null else
@@ -427,10 +432,17 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 onAction = { if (installedOnly) installedOnly = false else refreshCatalog(true) })
         }
     }
+    sharingPath?.let { path ->
+        PluginSharingSheet(vm, path, onChanged = {
+            vm.extensions.refreshPluginCatalog("plugins", workspace, true)
+            vm.extensions.refreshPluginCatalog("installedPlugins", workspace)
+        }) { sharingPath = null }
+    }
     selectedPlugin?.let { (market, item) ->
         val installed = installed(market, item)
         PluginDetailSheet(marketplace = market, entry = item, vm = vm,
             onDismiss = { selectedPlugin = null }, installedState = installed,
+            onShare = if (!canOperate) null else ({ path -> selectedPlugin = null; sharingPath = path }),
             onManage = if (!canManage || (!installed && item.optString("installPolicy") == "NOT_AVAILABLE")) null else ({
                 selectedPlugin = null; action = Triple(market, item, !installed)
             }), manageLabel = if (installed) "卸载插件" else "安装插件")
@@ -543,7 +555,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             Text("仅保存异常类型、时间和代码调用位置；不会上传执行内容。",
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             if (showCrashes) CodexDetailSheet(
-                title = "本机崩溃记录",
+                title = "本机崩溃记录", startExpanded = true,
                 onDismiss = { showCrashes = false }
             ) {
                 val stored = remember(showCrashes, crashRevision) {
@@ -572,13 +584,14 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }
         }
         if (status is EngineStatus.Unavailable) {
-            CodexDetailTrigger("查看排查步骤", onClick = { showRecoverySteps = true })
-            if (showRecoverySteps) CodexDetailSheet(
-                title = "连接排查",
-                onDismiss = { showRecoverySteps = false }
-            ) {
-                Text("先重新连接运行服务；再核实账号登录状态和失败的功能。若仍无法使用，可查看启动日志。",
-                    color = Ink.parchment)
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("连接排查", style = MaterialTheme.typography.titleMedium)
+                listOf("重新连接运行服务", "核实账号登录与失败功能", "根据上方日志定位启动异常").forEachIndexed { index, step ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text((index + 1).toString(), color = Ink.copper, style = MaterialTheme.typography.titleMedium)
+                        Text(step, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
         }
     }

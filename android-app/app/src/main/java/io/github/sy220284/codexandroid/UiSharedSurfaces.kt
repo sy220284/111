@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
 /**
- * V5 公共呈现：选择=Sheet、长工作=Page、危险操作=ConfirmDialog、
- * 状态=Sheet、附件=独立 Sheet；调用和结果复用已有真实 ViewModel。
+ * 短选择锚定触发按钮，复杂操作进入页面，风险操作居中确认。
+ * 状态与附件使用适合内容的窗口；调用和结果复用真实 ViewModel。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +28,7 @@ fun EngineStatusSheet(
 ) {
     val status by vm.bridge.status.collectAsState()
     val terminalRunning by vm.terminalSession.collectProjection { it.running }
-    CodexDetailSheet(title = "运行状态", onDismiss = onDismiss, startExpanded = true) {
+    CodexDetailSheet(title = "运行状态", onDismiss = onDismiss) {
         val label = when (status) {
             EngineStatus.Connected -> "本机内核已连接"
             EngineStatus.Starting -> "内核正在启动"
@@ -55,7 +55,7 @@ fun EngineStatusSheet(
 }
 
 @Composable
-fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
+fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
     val models by vm.data.collectEntries("models")
     val selected by vm.modelId.collectAsState()
     val active by vm.activeThread.collectAsState()
@@ -82,15 +82,25 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
-        CodexChoiceSheet(title = "思考强度", description = "当前模型：" + selected,
-            choices = listOf(CodexChoice("", "遵循默认强度")) + efforts.map { CodexChoice(it, PresentationPolicy.reasoningLabel(it)) },
-            selectedId = effort, enabled = selectable,
-            onSelect = { vm.chooseComposerEffort(it); selectingEffort = false },
-            onDismiss = { selectingEffort = false })
+        val options = listOf("") + efforts
+        val actual = options.indexOf(effort).coerceAtLeast(0)
+        var preview by remember(actual, options) { mutableIntStateOf(actual) }
+        val content: @Composable ColumnScope.() -> Unit = {
+            Text(if (options[preview].isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(options[preview]),
+                color = Ink.copper, style = MaterialTheme.typography.titleMedium)
+            if (options.size > 1) CodexDiscreteSlider(preview, options.size, selectable,
+                onPreview = { preview = it }, onFinished = {
+                    if (selectable) vm.chooseComposerEffort(options[preview])
+                    selectingEffort = false
+                }, modifier = Modifier.testTag("composer-effort-slider"))
+            Text("松手后应用到后续任务", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        }
+        if (anchored) CodexFloatingMenu("思考强度", { selectingEffort = false }, wide = true, content = content)
+        else CodexDetailSheet("思考强度", { selectingEffort = false }, content = content)
         return
     }
     CodexChoiceSheet(
-        title = "选择运行模型",
+        title = "选择运行模型", anchored = anchored,
         description = when {
             engineStatus != EngineStatus.Connected ->
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
@@ -129,7 +139,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
+fun ModeChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
     val selected by vm.selectedMode.collectAsState()
     val data by vm.data.collectEntries("modes")
     val running by vm.running.collectAsState()
@@ -157,24 +167,24 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         errors["modes"] != null -> "读取模式失败，请重新查询。"
         else -> "仅显示当前内核支持的选项，更改从下一轮生效。"
     }
-    CodexChoiceSheet(
-        title = "选择协作方式", description = description,
-        choices = choices, selectedId = selected,
-        enabled = connected && !busy && !refreshing,
-        recoveryLabel = if (!connected) "重新连接" else if (errors["modes"] != null || !planSupported) "重新检查" else null,
-        onRecovery = {
-            if (connected) vm.refresh("modes", "collaborationMode/list") else vm.connect()
-        },
-        recoveryMessage = if (connected) "可重新查询当前内核支持的工作方式。"
-            else "运行核心未连接，恢复连接后再选择工作方式。",
-        loading = refreshing,
-        onSelect = { id ->
-            if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
-                vm.chooseComposerMode(id)
-                onDismiss()
-            }
-        }, onDismiss = onDismiss
-    )
+    val content: @Composable ColumnScope.() -> Unit = {
+        AtlasCompactChoice(selected, choices.map { it.id to it.title },
+            enabled = connected && !busy && !refreshing,
+            onSelect = { id ->
+                if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
+                    vm.chooseComposerMode(id)
+                    onDismiss()
+                }
+            }, tagPrefix = "composer-mode-")
+        if (refreshing) AtlasOperationProgress("正在读取协作方式")
+        if (!connected || errors["modes"] != null || !planSupported) {
+            CodexTextAction(onClick = {
+                if (connected) vm.refresh("modes", "collaborationMode/list") else vm.connect()
+            }) { Text(if (connected) "重新检查" else "重新连接") }
+        }
+    }
+    if (anchored) CodexFloatingMenu("选择协作方式", onDismiss, description, wide = true, content = content)
+    else CodexDetailSheet("选择协作方式", onDismiss, subtitle = description, content = content)
 }
 
 @Composable

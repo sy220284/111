@@ -58,7 +58,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
     }
     val projects = projectPages
     CodexDetailSheet(
-        title = "项目列表与管理",
+        title = "项目列表与管理", startExpanded = true,
         subtitle = "登记、切换与整理当前工作区项目",
         onDismiss = onDismiss
     ) {

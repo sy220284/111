@@ -144,7 +144,9 @@ def audit(root):
             errors.append("系统图标直接引用："+name)
         if name != "CodexIcon" and re.search(r"(?<!\w)Icon\s*\(",text):
             errors.append("绕开统一图标入口："+name)
-        if name != "CodexSurfaceFrames" and re.search(r"\b(?:ModalBottomSheet|AlertDialog|DropdownMenu)\s*\(",text):
+        if re.search(r"\b(?:ModalBottomSheet|BottomSheetScaffold|CodexSheetFrame|rememberModalBottomSheetState)\s*\(",text):
+            errors.append("生产界面存在已废弃底部弹窗："+name)
+        if name != "CodexSurfaceFrames" and re.search(r"\b(?:AlertDialog|DropdownMenu)\s*\(",text):
             errors.append("绕开共享弹层或菜单："+name)
     registry = dict(re.findall(r"^\s+(\w+)\(R\.drawable\.(ic_ui_\w+)\),?\s*$",sources.get("CodexIcon",""),re.M))
     used = set(re.findall(r"\bCodexGlyph\.(\w+)", "\n".join(sources.values())))

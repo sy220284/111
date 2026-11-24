@@ -23,7 +23,8 @@ fun PluginDetailSheet(
     onDismiss: () -> Unit,
     onManage: (() -> Unit)? = null,
     manageLabel: String = "安装插件",
-    installedState: Boolean? = null
+    installedState: Boolean? = null,
+    onShare: ((String) -> Unit)? = null
 ) {
     val name = entry.optString("name")
     val marketName = marketplace.optString("name")
@@ -95,6 +96,11 @@ fun PluginDetailSheet(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(manageLabel) }
                 else CodexPrimaryButton(onClick = onManage,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(manageLabel) }
+            }
+            val localPath = PluginSharingContract.localSource(summary)
+            if (localPath.isNotBlank() && onShare != null) {
+                CodexTextAction(onClick = { onShare(localPath) },
+                    modifier = Modifier.heightIn(min = 48.dp)) { Text("共享此插件") }
             }
             if (key in errors) CodexTextAction(onClick = { refresh() }, enabled = key !in loading) {
                 Text("重新读取详情")

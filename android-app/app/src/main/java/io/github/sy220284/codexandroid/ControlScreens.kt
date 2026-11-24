@@ -403,7 +403,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         )
         if (advanced) {
             CodexDetailSheet(
-                title = "高级自定义配置",
+                title = "高级自定义配置", startExpanded = true,
                 subtitle = "请核对设置项和值。保存前还需确认更改范围。",
                 onDismiss = { advanced = false }
             ) {

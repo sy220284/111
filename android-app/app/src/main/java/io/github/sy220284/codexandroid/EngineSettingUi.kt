@@ -62,7 +62,7 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
     val parsed = runCatching { setting.parse(draft, available) }
     val value = parsed.getOrNull()
     val changed = edited && value != null && !EngineSettings.sameValue(current, value)
-    CodexDetailSheet(title = setting.title,
+    CodexDetailSheet(title = setting.title, startExpanded = true,
         subtitle = "保存后用于后续任务",
         onDismiss = onDismiss,
         footer = {
@@ -108,6 +108,84 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
     }
 }
 
+/** Values are edited in place; only verified engine writes update the committed state. */
+@Composable
+private fun EngineInlineControl(setting: EngineSetting, current: Any?, loaded: Boolean,
+    available: Map<String, String>, enabled: Boolean, onSave: (Any) -> Unit) {
+    val currentInput = setting.input(current)
+    var draft by rememberSaveable(setting.key, currentInput) { mutableStateOf(currentInput) }
+    val value = runCatching { setting.parse(draft, available) }.getOrNull()
+    val changed = value != null && !EngineSettings.sameValue(current, value)
+    Column(Modifier.fillMaxWidth().testTag("engine-setting-" + setting.key).padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(setting.title, style = MaterialTheme.typography.titleMedium)
+        Text(setting.description, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        Text(if (loaded) setting.label(current, available) else "尚未读取",
+            style = MaterialTheme.typography.labelMedium, color = Ink.copper)
+        when (setting.type) {
+            "boolean" -> {
+                if (current is Boolean) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (current) "已开启" else "已关闭", modifier = Modifier.weight(1f))
+                        WhiteSwitch(checked = current, onCheckedChange = { onSave(it) }, enabled = enabled)
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CodexSecondaryButton(onClick = { onSave(true) }, enabled = enabled) { Text("开启") }
+                        CodexSecondaryButton(onClick = { onSave(false) }, enabled = enabled) { Text("关闭") }
+                    }
+                }
+            }
+            "choice" -> {
+                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    available.forEach { (id, label) ->
+                        AtlasChoiceRow(label, "", currentInput == id, onClick = { onSave(setting.parse(id, available)) },
+                            enabled = enabled, modifier = Modifier.testTag("engine-option-" + id))
+                    }
+                }
+                if (available.isEmpty()) Text("暂无策略允许的选项", color = Ink.muted)
+            }
+            "number" -> {
+                if (setting.max == 100L && setting.unit == "%") {
+                    val preview = draft.toIntOrNull()?.coerceIn(0, 100) ?: 0
+                    Text(if (draft.isBlank()) "由引擎决定" else "${preview}%",
+                        color = Ink.copper, style = MaterialTheme.typography.titleMedium)
+                    CodexDiscreteSlider(preview, 101, enabled,
+                        onPreview = { draft = it.toString() }, onFinished = {},
+                        modifier = Modifier.testTag("engine-inline-slider-" + setting.key))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("0% · 关闭", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                        Text("100%", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                } else {
+                    val number = draft.toLongOrNull()
+                    val step = if (setting.unit == "秒") 1L else 100L
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CodexSecondaryButton(onClick = { draft = ((number ?: setting.min) - step).coerceAtLeast(setting.min).toString() },
+                            enabled = enabled && number != null && number > setting.min) { Text("−") }
+                        Box(Modifier.weight(1f)) {
+                            AtlasFormField(draft, { draft = it }, "数值（" + setting.unit + "）",
+                                keyboardType = KeyboardType.Number, enabled = enabled,
+                                error = if (draft.isNotBlank() && value == null) "请输入有效数值" else null)
+                        }
+                        CodexSecondaryButton(onClick = {
+                            val n = number ?: setting.min
+                            draft = (if (n > Long.MAX_VALUE - step) Long.MAX_VALUE else n + step)
+                                .coerceAtMost(minOf(setting.max, Long.MAX_VALUE / setting.scale)).toString()
+                        }, enabled = enabled && (number ?: setting.min) < minOf(setting.max, Long.MAX_VALUE / setting.scale)) { Text("+") }
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    CodexTextAction(onClick = { draft = currentInput }, enabled = enabled && draft != currentInput) { Text("取消修改") }
+                    CodexPrimaryButton(onClick = { value?.let(onSave) }, enabled = enabled && changed,
+                        modifier = Modifier.testTag("engine-inline-save-" + setting.key)) { Text("保存") }
+                }
+            }
+        }
+    }
+}
+
 /** Every owner uses the same configuration lifecycle and verified write path. */
 @Composable
 internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarget: String? = null) {
@@ -116,10 +194,12 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
     val loading by vm.loading.collectProjection { it.intersect(setOf("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)) }
     val errors by vm.errors.collectEntries("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)
     val permissionBusy by vm.securitySaveBusy.collectAsState()
+    val configTransactionBusy by vm.configTransactionBusy.collectAsState()
+    val otherConfigBusy by vm.loading.collectProjection { configSnapshotBusy(it, false) }
     val config = data["config"]?.optJSONObject("config")
     val saving = ENGINE_SETTING_SAVE in loading
     val connected = status == EngineStatus.Connected
-    val enabled = connected && config != null && "config" !in loading && !saving && !permissionBusy
+    val enabled = connected && config != null && !otherConfigBusy && !saving && !permissionBusy && !configTransactionBusy && errors["config"] == null
     val models = if ("models" in loading || errors["models"] != null) emptyList() else records(data["models"])
     val requirements = data["securityRequirements"]?.optJSONObject("requirements")
     val requirementsRead = data["securityRequirements"] != null &&
@@ -144,7 +224,7 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
     LaunchedEffect(owner, focusTarget) {
         if (focusTarget != null && EngineSettings.byKey(focusTarget)?.owner == owner) {
             clearFeedback()
-            selectedKey = focusTarget
+            if (EngineSettings.byKey(focusTarget)?.type == "text") selectedKey = focusTarget
         }
     }
     Text(when (owner) {
@@ -185,9 +265,34 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
         saveError?.let { ErrorText(it) }
         saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
     }
-    EngineSettingRows(owner, if (connected) config else null, enabled, models, requirements, requirementsRead) {
-        clearFeedback()
-        selectedKey = it.key
+    if (owner == "models") {
+        EngineModelSliders(if (connected) config else null, enabled, models, focusTarget) { setting, value ->
+            clearFeedback()
+            vm.saveEngineSetting(setting.key, value, setting.title, owner)
+        }
+        return
+    }
+    val entries = EngineSettings.forOwner(owner)
+    MaterialPanel(Modifier.fillMaxWidth()) {
+        entries.forEachIndexed { index, setting ->
+            key(setting.key) {
+                val current = EngineSettings.valueAt(config, setting.key)
+                val available = EngineSettings.choices(setting, config, models, requirements, requirementsRead)
+                if (setting.type == "text") {
+                    AtlasSettingsActionRow(setting.title, setting.label(current), CodexGlyph.Edit,
+                        onClick = { clearFeedback(); selectedKey = setting.key },
+                        enabled = enabled, outlined = false,
+                        modifier = Modifier.testTag("engine-setting-" + setting.key))
+                } else {
+                    EngineInlineControl(setting, current, config != null && connected, available, enabled,
+                        onSave = { value ->
+                            clearFeedback()
+                            vm.saveEngineSetting(setting.key, value, setting.title, owner)
+                        })
+                }
+            }
+            if (index != entries.lastIndex) HorizontalDivider(color = Ink.border)
+        }
     }
     EngineSettings.byKey(selectedKey.orEmpty())?.takeIf { it.owner == owner }?.let { setting ->
         val available = EngineSettings.choices(setting, config, models, requirements, requirementsRead)
@@ -211,8 +316,11 @@ internal fun PersonalizationPage(vm: CodexViewModel) {
 @Composable
 internal fun ContextManagementPage(vm: CodexViewModel) {
     val target = remember { SettingsDeepLink.take("context") }
+    var memory by remember { mutableStateOf(false) }
+    if (memory) MemoryManagementSheet(vm, null) { memory = false }
     ScreenColumn {
         SectionIntro("上下文管理", "管理长对话中的历史内容、自动压缩和工具输出保留范围。")
+        CodexSecondaryButton(onClick = { memory = true }, modifier = Modifier.fillMaxWidth()) { Text("全局记忆管理") }
         EngineSettingsSection(vm, "context", target)
     }
 }

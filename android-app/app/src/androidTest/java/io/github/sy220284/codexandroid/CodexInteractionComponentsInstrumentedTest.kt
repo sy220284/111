@@ -21,6 +21,32 @@ import org.junit.Test
 class CodexInteractionComponentsInstrumentedTest {
     @get:Rule val rule = createComposeRule()
 
+    @Test fun inlineModelSliderCommitsOneActualChoiceAndSupportsReset() {
+        val setting = EngineSettings.byKey("model_verbosity")!!
+        val writes = mutableListOf<Any>()
+        rule.setContent {
+            var current by remember { mutableStateOf<Any?>(null) }
+            CodexTheme {
+                EngineModelSlider(setting, current, setting.choices, loaded = true, enabled = true) { value ->
+                    writes.add(value)
+                    current = if (value === org.json.JSONObject.NULL) null else value
+                }
+            }
+        }
+        val slider = rule.onNodeWithTag("engine-slider-model_verbosity")
+        rule.onNodeWithTag("engine-slider-value-model_verbosity").assertTextEquals("由引擎决定")
+        slider.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(3f) }
+        rule.onNodeWithTag("engine-slider-value-model_verbosity").assertTextEquals("详细")
+        rule.runOnIdle { org.junit.Assert.assertEquals(listOf<Any>("high"), writes) }
+        slider.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(0f) }
+        rule.onNodeWithTag("engine-slider-value-model_verbosity").assertTextEquals("由引擎决定")
+        rule.runOnIdle {
+            org.junit.Assert.assertEquals(2, writes.size)
+            org.junit.Assert.assertSame(org.json.JSONObject.NULL, writes.last())
+        }
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+    }
+
     @Test fun detailsOpenAsOverlayAndCloseWithoutChangingTheList() {
         rule.setContent {
             var open by remember { mutableStateOf(false) }

@@ -200,7 +200,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         val active = installedById[id]
         val enabled = active?.takeIf { it.has("enabled") }?.optBoolean("enabled") ?: app.optBoolean("isEnabled", true)
         val appStatus = statuses.getValue(id)
-        CodexDetailSheet(title = name, onDismiss = { inspectingId = null }) {
+        CodexDetailSheet(title = name, onDismiss = { inspectingId = null }, startExpanded = true) {
             val closeWithAction = LocalCodexSheetAction.current
             StatusPill(appStatus, appStatus == "已连接", tone = if (appStatus == "已连接") StatusTone.Success else StatusTone.Neutral)
             Text("应用说明", style = MaterialTheme.typography.titleMedium)
@@ -332,7 +332,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
         }
     }
     if (details) CodexDetailSheet(
-        title = McpAvailableServices.displayName(server),
+        title = McpAvailableServices.displayName(server), startExpanded = true,
         subtitle = "已就绪服务 · 由智能体管理授权和调用",
         onDismiss = { details = false }
     ) {
