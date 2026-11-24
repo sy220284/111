@@ -223,18 +223,20 @@ class CodexConnection(private val appContext: Context) {
             "thread/read", "thread/resume", "app/list", "app/installed", "plugin/list", "plugin/installed" -> 120_000L
             else -> 45_000L
         },
-        sendPermit: (() -> Boolean)? = null
-    ): JSONObject = requestForSession(method, params, timeoutMillis, null, sendPermit)
+        sendPermit: (() -> Boolean)? = null,
+        expectedSession: Long? = null
+    ): JSONObject = requestForSession(method, params, timeoutMillis, null, sendPermit, expectedSession)
 
     private suspend fun requestForSession(
         method: String, params: JSONObject?, timeoutMillis: Long?, startupEpoch: Long?,
-        sendPermit: (() -> Boolean)?
+        sendPermit: (() -> Boolean)?, expectedSession: Long? = null
     ): JSONObject {
         ProtocolDirectionPolicy.requireClientSend(method)
         val id = sequence.getAndIncrement()
         val deferred = CompletableDeferred<JSONObject>()
         val epoch = synchronized(ownership) {
             val token = ownership.current() ?: error("Codex 内核尚未连接")
+            check(expectedSession == null || expectedSession == token) { "操作所属内核已切换，请刷新状态" }
             check(if (startupEpoch == null) ownership.acceptsUserRequest() else startupEpoch == token) {
                 "运行核心正在连接或重启，请完成后重试"
             }

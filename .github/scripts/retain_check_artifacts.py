@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 from collections import defaultdict
+from urllib.parse import quote
 
 from select_native_artifacts import ArtifactSelector
 
@@ -85,10 +86,11 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
     return sorted(delete, key=lambda a: a["id"])
 
 
-def active_runs(repo):
+def active_runs(repo, branch=None):
     # Unfiltered first page is insufficient when many checks have run.
+    scope = "" if branch is None else "&branch=" + quote(branch, safe="")
     for status in ("queued", "in_progress", "waiting", "requested", "pending"):
-        yield from pages(repo, f"actions/runs?status={status}", "workflow_runs")
+        yield from pages(repo, f"actions/runs?status={status}{scope}", "workflow_runs")
 
 
 def active_consumers(repo):

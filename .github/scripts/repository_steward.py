@@ -61,12 +61,34 @@ def branch_deletion_still_safe(repo, name, main_sha):
 
 
 def current_cache_candidate(repo, candidate, now):
-    # A new access, new branch or reopened PR after planning protects the cache.
-    _, closed, branches, active = snapshot(repo)
-    matching = [c for c in pages(repo, "actions/caches?ref=" + quote(candidate["ref"], safe=""),
+    # Query only this cache and its owner, not every historical PR and branch.
+    ref = candidate["ref"]
+    matching = [c for c in pages(repo, "actions/caches?ref=" + quote(ref, safe=""),
                                  "actions_caches") if c["id"] == candidate["id"]]
-    eligible = cache_candidates(matching, branches, closed, active, now)
-    return eligible[0] if eligible else None
+    if not matching:
+        return None
+    current = matching[0]
+    accessed = datetime.fromisoformat(current["last_accessed_at"].replace("Z", "+00:00"))
+    if now - accessed < timedelta(hours=24):
+        return None
+    own_run = int(os.environ.get("GITHUB_RUN_ID", "0"))
+    match = re.fullmatch(r"refs/pull/(\d+)/merge", ref)
+    if match:
+        pr = api(repo, "pulls/" + match[1])
+        if pr["state"] != "closed" or any(r["id"] != own_run for r in active_runs(repo)):
+            return None
+        return current
+    if not ref.startswith("refs/heads/") or ref[11:] in KEEP:
+        return None
+    name = ref[11:]
+    if any(r["id"] != own_run for r in active_runs(repo, branch=name)):
+        return None
+    result = subprocess.run(["git", "ls-remote", "--exit-code", "--heads", "origin", ref],
+                            capture_output=True)
+    if result.returncode == 2:  # exact remote ref absent; other errors must abort
+        return current
+    result.check_returncode()
+    return None
 
 
 def main():

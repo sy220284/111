@@ -65,6 +65,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     private var sendJob: Job? = null
     private var output: Channel<JSONObject>? = null
     private var sentStart = false
+    private var sessionEpoch: Long? = null
 
     private fun thread() = JSONObject().put("threadId", threadId)
 
@@ -84,6 +85,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             error = "上一段语音仍在结束，请稍后重试"
             return
         }
+        sessionEpoch = voiceEpoch
         error = ""
         muted = false
         userTranscript = ""
@@ -119,7 +121,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                         .put("transport", JSONObject().put("type", "websocket"))
                     if (voice.isNotBlank()) params.put("voice", voice)
                     sentStart = true
-                    vm.capabilityRequest("thread/realtime/start", params, 15_000)
+                    vm.capabilityRequest("thread/realtime/start", params, 15_000, expectedSession = voiceEpoch)
                     withTimeout(15_000) { ready.await() }
                     if (state == State.Starting) {
                         state = State.Live
@@ -157,9 +159,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 media.joinAll()
                 nativeLock.withLock {
                     if (sentStart && !closed.isCompleted) {
-                        if (vm.bridge.status.value == EngineStatus.Connected) {
+                        val epoch = requireNotNull(sessionEpoch)
+                        if (vm.bridge.connectedSession.value != epoch) closed.complete(Unit)
+                        else if (vm.bridge.status.value == EngineStatus.Connected) {
                             try {
-                                vm.bridge.request("thread/realtime/stop", thread(), 10_000)
+                                vm.bridge.request("thread/realtime/stop", thread(), 10_000, expectedSession = epoch)
                             } catch (failure: Exception) {
                                 if (!closed.isCompleted) throw failure
                             }
@@ -182,6 +186,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         eventJob?.cancel()
         connectionJob?.cancel()
         sentStart = false
+        sessionEpoch = null
         state = State.Idle
         lease.release(this)
     }
@@ -199,15 +204,16 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
 
     fun sendText(text: String, asSpeech: Boolean, onSent: () -> Unit) {
         if (state != State.Live || sendJob?.isActive == true || text.isBlank()) return
+        val epoch = requireNotNull(sessionEpoch)
         error = ""
         sending = true
         sendJob = vm.viewModelScope.launch {
             try {
                 if (asSpeech) {
-                    vm.capabilityRequest("thread/realtime/appendSpeech", thread().put("text", text), 8_000)
+                    vm.capabilityRequest("thread/realtime/appendSpeech", thread().put("text", text), 8_000, expectedSession = epoch)
                 } else {
                     vm.capabilityRequest("thread/realtime/appendText",
-                        thread().put("text", text).put("role", "user"), 8_000)
+                        thread().put("text", text).put("role", "user"), 8_000, expectedSession = epoch)
                 }
                 onSent()
             } catch (cancel: CancellationException) {
@@ -222,7 +228,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     }
 
     private fun event(message: JSONObject) {
-        if (!vm.bridge.isCurrentEvent(message)) return
+        if (!vm.bridge.isCurrentEvent(message) || message.optLong(CORE_SESSION_FIELD, -1L) != sessionEpoch) return
         val params = message.optJSONObject("params") ?: return
         if (params.value("threadId") != threadId) return
         when (message.value("method")) {
@@ -256,6 +262,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     }
 
     private fun startMedia() {
+        val epoch = requireNotNull(sessionEpoch)
         val queue = Channel<JSONObject>(64)
         output = queue
         val microphone = Channel<VoicePacket>(20)
@@ -272,7 +279,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                         try {
                             vm.capabilityRequest("thread/realtime/appendAudio",
                                 thread().put("audio", packet.audio), 4_000,
-                                sendPermit = { uploadGate.accepts(packet.revision) })
+                                sendPermit = { uploadGate.accepts(packet.revision) }, expectedSession = epoch)
                         } catch (_: RpcWriteRevoked) {
                             // Mute or stop revoked this queued packet at the actual writer.
                         }

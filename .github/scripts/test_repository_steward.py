@@ -39,14 +39,36 @@ class StewardTests(unittest.TestCase):
     def test_cache_recheck_protects_recent_access_or_recreated_branch(self):
         now = datetime(2026, 11, 24, tzinfo=timezone.utc)
         old = {"id": 3, "ref": "refs/heads/gone", "last_accessed_at": "2026-11-20T00:00:00Z"}
-        with patch("repository_steward.snapshot", return_value=([], [], [], [])), \
-             patch("repository_steward.pages", return_value=[old]):
+        from subprocess import CompletedProcess
+        with patch("repository_steward.pages", return_value=[old]), \
+             patch("repository_steward.active_runs", return_value=[]) as runs, \
+             patch("repository_steward.subprocess.run", return_value=CompletedProcess([], 2)):
             self.assertEqual(old, current_cache_candidate("a/b", old, now))
-        with patch("repository_steward.snapshot", return_value=([], [], [], [])), \
-             patch("repository_steward.pages", return_value=[dict(old, last_accessed_at="2026-11-23T23:00:00Z")]):
+            runs.assert_called_once_with("a/b", branch="gone")
+        with patch("repository_steward.pages", return_value=[dict(old, last_accessed_at="2026-11-23T23:00:00Z")]), \
+             patch("repository_steward.active_runs") as runs:
             self.assertIsNone(current_cache_candidate("a/b", old, now))
-        with patch("repository_steward.snapshot", return_value=([], [], [branch("gone")], [])), \
-             patch("repository_steward.pages", return_value=[old]):
+            runs.assert_not_called()
+        with patch("repository_steward.pages", return_value=[old]), \
+             patch("repository_steward.active_runs", return_value=[]), \
+             patch("repository_steward.subprocess.run", return_value=CompletedProcess([], 0)):
+            self.assertIsNone(current_cache_candidate("a/b", old, now))
+        with patch("repository_steward.pages", return_value=[old]), \
+             patch("repository_steward.active_runs", return_value=[{"id": 999}]), \
+             patch("repository_steward.subprocess.run") as git:
+            self.assertIsNone(current_cache_candidate("a/b", old, now))
+            git.assert_not_called()
+
+    def test_closed_pr_cache_rechecks_only_target_and_active_jobs(self):
+        now = datetime(2026, 11, 24, tzinfo=timezone.utc)
+        old = {"id": 4, "ref": "refs/pull/12/merge", "last_accessed_at": "2026-11-20T00:00:00Z"}
+        with patch("repository_steward.pages", return_value=[old]), \
+             patch("repository_steward.api", return_value={"state": "closed"}) as api, \
+             patch("repository_steward.active_runs", return_value=[]):
+            self.assertEqual(old, current_cache_candidate("a/b", old, now))
+            api.assert_called_once_with("a/b", "pulls/12")
+        with patch("repository_steward.pages", return_value=[old]), \
+             patch("repository_steward.api", return_value={"state": "open"}):
             self.assertIsNone(current_cache_candidate("a/b", old, now))
 
     def test_only_orphan_or_closed_cache_after_grace(self):
