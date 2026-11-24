@@ -155,10 +155,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
     }
 
-    internal fun invalidateExtensionCatalogs(pluginsOnly: Boolean = false) {
-        val keys = (data.value.keys + loading.value + errors.value.keys).filter {
-            ExtensionCatalogPolicy.isScopedKey(it, pluginsOnly)
-        }.toSet()
+    internal fun invalidateExtensionCatalogs(pluginsOnly: Boolean = false) =
+        invalidateExtensionKeys { ExtensionCatalogPolicy.isScopedKey(it, pluginsOnly) }
+
+    internal fun invalidatePluginSearchResults() = invalidateExtensionKeys {
+        it.startsWith("pluginSearch:") || it.startsWith("pluginDetail:") || it.startsWith("pluginSkill:")
+    }
+
+    private fun invalidateExtensionKeys(predicate: (String) -> Boolean) {
+        val keys = (data.value.keys + loading.value + errors.value.keys).filter(predicate).toSet()
         keys.forEach { latestRequests.cancel(it) }
         data.value = data.value - keys
         loading.value = loading.value - keys

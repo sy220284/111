@@ -268,11 +268,12 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
     val searchKey = searchPrefix + searchPage
-    val found = if (searchActive) (0..searchPage)
+    val searchReady = searchActive && data[searchPrefix + "0"] != null
+    val found = if (searchReady) (0..searchPage)
         .flatMap { PluginSearchContract.entries(data[searchPrefix + it]) }
         .distinctBy { it.marketplace.optString("name") + ":" + it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
         else emptyList()
-    val searchCursor = if (searchActive) ExtensionCatalogPolicy.cursor(data[searchKey]) else ""
+    val searchCursor = if (searchReady) ExtensionCatalogPolicy.cursor(data[searchKey]) else ""
     val connected = engineStatus == EngineStatus.Connected
     val mutating = "pluginMutation" in busy
     val canOperate = connected && !mutating
@@ -303,8 +304,9 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (connected && CatalogRequestContract.shouldLoadCatalog(activeKey, data.keys, busy))
             refreshCatalog()
     }
-    LaunchedEffect(epoch, engineStatus, searchActive) {
-        if (connected && searchActive && data[searchKey] == null && searchKey !in busy && searchKey !in errors)
+    LaunchedEffect(epoch, engineStatus, searchActive, searchPrefix) {
+        val firstKey = searchPrefix + "0"
+        if (connected && searchActive && data[firstKey] == null && firstKey !in busy && firstKey !in errors)
             submitSearch(searchSubmitted)
     }
     ScreenColumn {
@@ -391,7 +393,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 }
             }
         }
-        val searchSettled = !searchActive || (searchKey !in busy && searchKey !in errors && data[searchKey] != null)
+        val searchSettled = !searchActive || (searchReady && searchKey !in busy && searchKey !in errors && data[searchKey] != null)
         if (data[activeKey] != null && visibleCount == 0 && found.isEmpty() &&
             activeKey !in busy && activeKey !in errors && catalogErrors == 0 && searchSettled) {
             if (query.isNotBlank()) CodexEmptyState("没有匹配的插件", "试试其他名称或关键字。",
@@ -418,13 +420,11 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             detail = ExtensionCatalogPolicy.pluginName(item) + "\n来源：" + ExtensionCatalogPolicy.marketName(market),
             confirmLabel = if (install) "确认安装" else "确认卸载", destructive = !install,
             onConfirm = {
-                val scopeAtStart = workspace
-                val epochAtStart = epoch
                 val after: () -> Unit = {
                     val cwd = vm.activeWorkspace.value
                     vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(cwd))
                     vm.refresh("installedPlugins", "plugin/installed", CatalogRequestContract.workspace(cwd))
-                    if (scopeAtStart == cwd && epochAtStart == vm.extensionCatalogEpoch.value && searchActive) submitSearch(searchSubmitted)
+                    vm.invalidatePluginSearchResults()
                 }
                 if (install) {
                     val params = JSONObject().put("pluginName", item.optString("name"))

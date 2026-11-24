@@ -55,7 +55,7 @@ internal object CodexNotificationDispatcher {
                     refresh("models", "model/list")
                     catalogWarmup.accountChanged()
                     accountMetrics.accountChanged()
-            invalidateExtensionCatalogs()
+                    invalidateExtensionCatalogs()
                     refresh("mcp", "mcpServerStatus/list",
                         CatalogRequestContract.mcpStatus(activeThread.value))
                 }
@@ -65,7 +65,7 @@ internal object CodexNotificationDispatcher {
             refresh("models", "model/list")
             catalogWarmup.accountChanged()
             accountMetrics.accountChanged()
-                    invalidateExtensionCatalogs()
+            invalidateExtensionCatalogs()
             refreshMcpServices()
         }
         if (method == "project/changed") {
