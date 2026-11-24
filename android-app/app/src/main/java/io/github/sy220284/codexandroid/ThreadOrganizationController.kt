@@ -130,7 +130,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                     bulkCompletedThreadIds.value = completed.toSet()
                     bulkActionSummary.value = "正在处理 ${completed.size}/${targets.size} 项会话"
                 }
-                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} ${completed.size} 条会话，结果可在这里查看"
+                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} ${completed.size} 条会话"
                 actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value,
                     undo = if (offerUndo) gate.complete(ticket, completed) else null))
             } catch (failure: Exception) {
