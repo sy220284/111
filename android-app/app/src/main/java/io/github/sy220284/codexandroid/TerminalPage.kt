@@ -432,7 +432,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         subtitle = "选择后填入输入栏，执行前仍需确认",
                         onDismiss = { historyVisible = false }
                     ) {
+                        var historyQuery by remember { mutableStateOf("") }
+                        AtlasSearchField(historyQuery, { historyQuery = it }, "搜索历史命令",
+                            onClear = { historyQuery = "" })
                         recentCommands.forEachIndexed { index, previous ->
+                            if (!previous.contains(historyQuery.trim(), ignoreCase = true)) return@forEachIndexed
                             CodexSecondaryButton(
                                 onClick = {
                                     command = previous

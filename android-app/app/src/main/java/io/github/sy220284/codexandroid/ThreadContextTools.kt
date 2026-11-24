@@ -17,7 +17,7 @@ fun ThreadContextTools(
     val loading by vm.loading.collectAsState()
     val idle = thread != null && !running && !switching && !starting &&
         "threadFork:$thread" !in loading && "threadCompact:$thread" !in loading
-    CodexActionSheet(title = "会话操作", onDismiss = onDismiss, actions = listOf(
+    CodexFloatingActionMenu(title = "会话操作", onDismiss = onDismiss, actions = listOf(
         CodexSheetAction("整理上下文", CodexGlyph.Compress, onCompact, enabled = idle),
         CodexSheetAction("历史回退", CodexGlyph.History, { navigate("history-tools") }, enabled = idle),
         CodexSheetAction("关联资料", CodexGlyph.Attachment, { navigate("thread-attachments") },

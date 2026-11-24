@@ -219,7 +219,7 @@ internal fun ConversationComposer(
             }
         }
     }
-    if (expandedEditor) CodexDetailSheet(title = "编辑任务指令", onDismiss = { expandedEditor = false },
+    if (expandedEditor) CodexDetailSheet(title = "编辑任务指令", onDismiss = { expandedEditor = false }, startExpanded = true,
         footer = { CodexPrimaryButton(onClick = { expandedEditor = false }, modifier = Modifier.fillMaxWidth()) { Text("完成") } }) {
         CodexInputField(draft, onDraftChange, modifier = Modifier.fillMaxWidth().testTag("composer-expanded-input"),
             minLines = 5, maxLines = 18, label = { Text("任务指令") })

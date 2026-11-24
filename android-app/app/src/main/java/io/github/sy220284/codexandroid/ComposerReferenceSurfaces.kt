@@ -84,7 +84,7 @@ internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, i
             value = ComposerFileSearch.search(File(vm.workingDirectory), File(workspace), query)
         }
     }
-    CodexDetailSheet(title = "引用项目文件", onDismiss = onDismiss, subtitle = PresentationPolicy.workspaceName(workspace)) {
+    CodexFloatingMenu(title = "引用项目文件", onDismiss = onDismiss, description = PresentationPolicy.workspaceName(workspace), wide = true, searchable = true) {
         AtlasSearchField(query, { query = it }, "搜索文件名称或路径", onClear = { query = "" },
             modifier = Modifier.testTag("composer-reference-search"))
         val current = result
@@ -116,7 +116,7 @@ internal fun ComposerSkillSheet(vm: CodexViewModel, workspace: String, onSelect:
     }.filter { it.optBoolean("enabled") && it.optString("path").isNotBlank() && it.optString("name").isNotBlank() }
         .distinctBy { it.optString("path") }
     var query by remember(workspace) { mutableStateOf("") }
-    CodexDetailSheet(title = "选择技能", onDismiss = onDismiss, subtitle = "仅显示当前工作区已启用的技能") {
+    CodexFloatingMenu(title = "选择技能", onDismiss = onDismiss, description = "当前工作区已启用的技能", wide = true, searchable = true) {
         if (status != EngineStatus.Connected) Text("连接内核后可选择技能", color = Ink.muted)
         else if (key in loading) AtlasOperationProgress("正在读取技能")
         else if (errors[key] != null) {
@@ -141,10 +141,15 @@ internal fun ComposerContextUsageSheet(usage: org.json.JSONObject?, onCompact: (
     val window = usage?.optLong("modelContextWindow", 0) ?: 0L
     val last = usage?.optJSONObject("last")
     val used = last?.optLong("totalTokens", -1) ?: -1L
-    CodexDetailSheet(title = "上下文容量", onDismiss = onDismiss) {
+    CodexFloatingMenu(title = "上下文容量", onDismiss = onDismiss, wide = true) {
         if (window > 0 && used >= 0) {
             val percent = (used.toDouble() * 100 / window).coerceIn(0.0, 100.0).toInt()
-            Text("约已使用 ${percent}%", style = MaterialTheme.typography.headlineSmall)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.CircularProgressIndicator(progress = { percent / 100f },
+                    modifier = Modifier.size(44.dp), color = Ink.copper, trackColor = Ink.border,
+                    strokeWidth = 4.dp)
+                Text("约已使用 ${percent}%", style = MaterialTheme.typography.headlineSmall)
+            }
             Text("最近一次模型调用：$used / $window 个 token", color = Ink.muted)
             if (percent >= 85) CodexNotice("当前上下文接近容量上限，可考虑整理上下文。", NoticeTone.Warning)
         } else Text("尚未收到当前会话的有效容量数据", color = Ink.muted)
@@ -170,8 +175,8 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
             }
         }
     }
-    CodexDetailSheet(title = "选择工作区", onDismiss = onDismiss,
-        subtitle = "选择目录开始新任务，原会话和草稿会保留。") {
+    CodexFloatingMenu(title = "选择工作区", onDismiss = onDismiss, wide = true, searchable = true,
+        description = "选择目录开始新任务，原会话和草稿会保留。") {
         Text(if (directory == root) WorkspaceStorage.DISPLAY_ROOT else directory.relativeTo(root).path, style = MaterialTheme.typography.titleSmall)
         error?.let { ErrorText(it) }
         CodexPrimaryButton(onClick = {

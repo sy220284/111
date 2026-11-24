@@ -43,7 +43,8 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     CodexOverlayFrame(
         onDismissRequest = onDismiss,
         fullScreen = true,
-        containerColor = Ink.canvas, contentColor = Ink.parchment, {
+        containerColor = Ink.canvas, contentColor = Ink.parchment
+    ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight().navigationBarsPadding()
             .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {

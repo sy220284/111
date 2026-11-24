@@ -408,6 +408,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         else -> "第 " + (index + 1) + " 项"
                     }, color = if (dragging >= 0 && (dragging == index || destination == index)) Ink.jade else Ink.muted,
                         style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                    Box {
                     CodexIconAction(
                         onClick = { showQueueActions = true },
                         enabled = "queueWrite" !in loading,
@@ -415,8 +416,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     ) {
                         CodexIcon(CodexGlyph.MoreVert, contentDescription = "管理第${index + 1}项指令")
                     }
-                }
-                if (showQueueActions) CodexActionSheet(
+                        if (showQueueActions) CodexFloatingActionMenu(
                     title = "第 ${index + 1} 项指令",
                     onDismiss = { showQueueActions = false },
                     actions = listOf(
@@ -467,6 +467,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         )
                     )
                 )
+                    }
+                }
                 Text(summary, style = MaterialTheme.typography.bodyLarge, maxLines = 8,
                     overflow = TextOverflow.Ellipsis)
                 }
@@ -551,7 +553,6 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
     val key = "queue:" + (active ?: "none")
     val data by vm.data.collectEntries(key)
-    val count = records(data[key]).size
     CodexOverlayFrame(
         onDismissRequest = onDismiss,
         fullScreen = true,
@@ -559,7 +560,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         contentColor = Ink.parchment
     ) {
         Column(Modifier.fillMaxWidth()
-            .fillMaxHeight(PhoneSheetLayout.queueFraction(count))
+            .fillMaxHeight()
             .testTag("thread-queue-sheet")) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 CodexIconAction(

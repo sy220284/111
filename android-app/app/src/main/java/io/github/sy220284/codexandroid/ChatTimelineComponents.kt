@@ -176,17 +176,12 @@ internal fun TimelineStepCard(
                                 maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
+                    Box {
                     CodexIconAction(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)
                         .testTag("timeline-more-" + item.id)) {
                         CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = tone)
                     }
-                }
-                if (item.kind in setOf("plan", "planProgress")) NativeMessageMarkdown(item.text)
-                if (item.kind == "imageGeneration" || item.kind == "imageView") NativeTimelineMedia(item, raw, workspaceRoot)
-            }
-        }
-    }
-    if (menuOpen && !user && !assistant) CodexActionSheet(title = title, onDismiss = { menuOpen = false }, actions = buildList {
+                        if (menuOpen && !user && !assistant) CodexFloatingActionMenu(title = title, onDismiss = { menuOpen = false }, actions = buildList {
         if (item.text.isNotBlank()) {
             add(CodexSheetAction("复制内容", CodexGlyph.ContentCopy,
                 { clipboard.setText(AnnotatedString(item.text)) }))
@@ -198,6 +193,13 @@ internal fun TimelineStepCard(
                 description = "包含命令、路径和原始输出，请谨慎分享"))
         }
     })
+                    }
+                }
+                if (item.kind in setOf("plan", "planProgress")) NativeMessageMarkdown(item.text)
+                if (item.kind == "imageGeneration" || item.kind == "imageView") NativeTimelineMedia(item, raw, workspaceRoot)
+            }
+        }
+    }
     if (readerOpen) FullTextReaderDialog(title, actionMessage.text) { readerOpen = false }
     if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
         onDismiss = { evidenceOpen = false })

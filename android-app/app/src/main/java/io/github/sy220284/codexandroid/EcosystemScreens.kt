@@ -70,7 +70,7 @@ fun ModelsPage(vm: CodexViewModel) {
         CodexDetailTrigger("查看可用模型说明", onClick = { showCatalog = true },
             modifier = Modifier.fillMaxWidth().testTag("model-catalog-info"))
     }
-    if (showCatalog) CodexDetailSheet(title = "可用模型说明", onDismiss = { showCatalog = false }) {
+    if (showCatalog) CodexDetailSheet(title = "可用模型说明", startExpanded = true, onDismiss = { showCatalog = false }) {
         if (items.isEmpty()) Text("暂无可用模型，请检查账号和服务商设置。", color = Ink.muted)
         items.forEach { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
@@ -121,7 +121,7 @@ fun ProvidersPage(vm: CodexViewModel) {
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("服务商配置", style = MaterialTheme.typography.titleMedium)
             AtlasSettingsActionRow(
-                title = "添加自定义服务商",
+                title = "添加自定义服务商", startExpanded = true,
                 detail = "配置服务名称、连接地址与密钥变量",
                 icon = CodexGlyph.AddCircleOutline,
                 onClick = { showCustomEditor = true }
@@ -159,7 +159,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 }
             )
             if (showCapabilities) CodexDetailSheet(
-                title = "服务商能力",
+                title = "服务商能力", startExpanded = true,
                 onDismiss = { showCapabilities = false }
             ) {
                 val caps = data["providerCapabilities"]
@@ -543,7 +543,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             Text("仅保存异常类型、时间和代码调用位置；不会上传执行内容。",
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             if (showCrashes) CodexDetailSheet(
-                title = "本机崩溃记录",
+                title = "本机崩溃记录", startExpanded = true,
                 onDismiss = { showCrashes = false }
             ) {
                 val stored = remember(showCrashes, crashRevision) {

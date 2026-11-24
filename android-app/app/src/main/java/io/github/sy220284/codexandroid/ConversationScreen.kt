@@ -131,7 +131,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val threeImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
     ) { selected -> vm.importPickedImages(selected) }
-    // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
+    // Page-owned handoff: close the context menu before opening the next page.
     LaunchedEffect(composerMenu, pendingContextRoute) {
         if (composerMenu != "context-tools") {
             pendingContextRoute?.let { destination ->
@@ -292,7 +292,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     "切换手机工作区中的项目与目录", CodexGlyph.Folder, enabled = optionsEnabled,
                     onOpen = { keyboard?.hide(); composerMenu = "projects" }))
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
-                    enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "terminal" }))
+                    enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
                     enabled = optionsEnabled, onOpen = { composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
@@ -430,6 +430,12 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
 
                         })
+    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
+        onSelect = { vm.composerContent.addReference(draftOwner, it, referenceQuery); composerMenu = ""; referenceQuery = null },
+        onDismiss = { composerMenu = ""; referenceQuery = null })
+    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
+        onSelect = { vm.composerContent.addReference(draftOwner, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
+
                 },
                 modelMenu = {
                     if (composerMenu == "models") ModelChoiceSurface(vm, anchored = true) { closeComposerMenu("models") }
@@ -443,6 +449,22 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
                                 enabled = it.enabled, testTag = "composer-tool-" + it.command)
                         })
+    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
+    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
+        onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
+        onDismiss = { composerMenu = "" })
+    if (composerMenu == "context-tools") {
+        ThreadContextTools(
+            vm = vm,
+            navigate = { destination ->
+                pendingContextRoute = destination
+                closeComposerMenu("context-tools")
+            },
+            onDismiss = { closeComposerMenu("context-tools") },
+            onCompact = { closeComposerMenu("context-tools"); sessionAction = "compact" }
+        )
+    }
+
                 },
                 permissionContent = {
                     ComposerPermissionControl(vm, optionsEnabled && !transferBusy,
@@ -457,49 +479,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
         }
     }
-    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
-        onSelect = { vm.composerContent.addReference(draftOwner, it, referenceQuery); composerMenu = ""; referenceQuery = null },
-        onDismiss = { composerMenu = ""; referenceQuery = null })
-    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
-        onSelect = { vm.composerContent.addReference(draftOwner, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
-    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
     if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
-    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
-        onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
-        onDismiss = { composerMenu = "" })
-    if (composerMenu == "terminal") {
-        CodexOverlayFrame(
-        onDismissRequest = { closeComposerMenu("terminal") },
-        fullScreen = true,
-            containerColor = Ink.canvas
-        ) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight().navigationBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("项目终端", style = MaterialTheme.typography.titleMedium)
-                        Text(PresentationPolicy.workspaceName(selectedWorkspace),
-                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    }
-                    CodexIconAction(onClick = { closeComposerMenu("terminal") }) {
-                        CodexIcon(CodexGlyph.Close, "收起终端")
-                    }
-                }
-                Box(Modifier.weight(1f)) { TerminalPage(vm, embedded = true) }
-            }
-        }
-    }
-    if (composerMenu == "context-tools") {
-        ThreadContextTools(
-            vm = vm,
-            navigate = { destination ->
-                pendingContextRoute = destination
-                closeComposerMenu("context-tools")
-            },
-            onDismiss = { closeComposerMenu("context-tools") },
-            onCompact = { closeComposerMenu("context-tools"); sessionAction = "compact" }
-        )
-    }
     if (sessionAction.isNotBlank() && thread != null) {
         val id = thread
         CodexConfirmDialog(

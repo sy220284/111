@@ -11,8 +11,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val active by vm.activeThread.collectAsState()
-        CodexOverlayFrame(onDismissRequest = onDismiss,
+    CodexOverlayFrame(onDismissRequest = onDismiss,
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
         Column(Modifier.fillMaxWidth()
             .heightIn(max = atlasSheetHeight())

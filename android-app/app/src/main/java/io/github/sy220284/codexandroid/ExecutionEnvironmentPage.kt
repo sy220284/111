@@ -145,7 +145,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             modifier = Modifier.testTag("environment-advanced-toggle")
         )
         if (showAdvanced) CodexDetailSheet(
-            title = "执行环境检查",
+            title = "执行环境检查", startExpanded = true,
             subtitle = "查看实际连接状态、服务信息与请求结果",
             onDismiss = { showAdvanced = false }
         ) {
