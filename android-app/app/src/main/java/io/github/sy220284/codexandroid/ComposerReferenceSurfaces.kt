@@ -145,9 +145,7 @@ internal fun ComposerContextUsageSheet(usage: org.json.JSONObject?, onCompact: (
         if (window > 0 && used >= 0) {
             val percent = (used.toDouble() * 100 / window).coerceIn(0.0, 100.0).toInt()
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                androidx.compose.material3.CircularProgressIndicator(progress = { percent / 100f },
-                    modifier = Modifier.size(44.dp), color = Ink.copper, trackColor = Ink.border,
-                    strokeWidth = 4.dp)
+                CodexCapacityIndicator(progress = percent / 100f, modifier = Modifier.size(44.dp))
                 Text("约已使用 ${percent}%", style = MaterialTheme.typography.headlineSmall)
             }
             Text("最近一次模型调用：$used / $window 个 token", color = Ink.muted)

@@ -209,3 +209,12 @@ internal fun CodexDiscreteSlider(index: Int, count: Int, enabled: Boolean,
             inactiveTrackColor = Ink.border)
     )
 }
+
+
+/** 确定容量使用真实比例的共享圆环，与不确定加载状态分开。 */
+@Composable
+internal fun CodexCapacityIndicator(progress: Float, modifier: Modifier = Modifier,
+    color: Color = Ink.copper, strokeWidth: Dp = 4.dp) {
+    CircularProgressIndicator(progress = { progress.coerceIn(0f, 1f) },
+        modifier = modifier, color = color, trackColor = Ink.border, strokeWidth = strokeWidth)
+}
