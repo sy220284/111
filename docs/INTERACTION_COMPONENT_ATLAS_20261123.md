@@ -85,3 +85,11 @@
 终端长输出原先点击“展开”会把标准输出从 16,000 字符扩至约 128,000 字符，同时拉长页面。现改用已有 `FullTextReaderDialog` 查看完整保留输出，支持全文搜索、复制和返回；终端主页面仍显示最近 16,000 字符，保留实时输出、读取更早本机记录与导出日志的原能力。较早输出也在独立全文阅读器内展示，避免大量历史文本改变命令输入区的位置。
 
 新增 `CodexInteractionComponentsInstrumentedTest.actionDialogInsideParentSheetDoesNotDuplicateBottomSheets` 检查父面板保留、菜单禁用态、动作执行与关闭路径。所有功能仍依赖实际业务回调，组件不再自行构造假数据。
+
+## 第四轮复查：屏幕自适应、目标额度语义与无障碍
+
+- `CodexDetailSheet` 和 `CodexInfoDialog` 的内容高度根据当前窗口高度确定上限，保留内部滚动、顶部标题及显式关闭按钮；小屏及大字体时不会使用固定 520/420dp 的内容上限。
+- `CodexEditDialog` 统一承载表单内的次级编辑，提供明确的“取消/确认”、键盘避让和就地校验。调用方只在确认时改动草稿，适用于已存在底部面板的业务界面。
+- **任务目标额度**：原“高级设置 · 执行额度”行内展开已改成整行可点的编辑入口。额度有三个可辨状态：未设置/当前值、待保存修改、待保存清除。用户点“应用额度”才写入当前会话草稿，提交“保存目标”时才向引擎发送 `tokenBudget`；取消或撤销不修改服务器额度。草稿中 `goalBudgetEdited` 与额度值分离，关闭任务目标面板后仍可恢复修改意图，不会因为收起界面误清除额度。
+- **任务目标状态**：`AtlasStatusSelector` 用 `RadioButton` 和整行单选语义，替换易误解为多选筛选的 `FilterChip`；选中状态、状态颜色和读屏说明来自真实所选值，大字号下允许多行文本。
+- 验收新增 `TaskPanelDraftPolicyTest.budgetEditIntentSurvivesSheetRecreationAndIsolatedPerThread`、共享组件的额度确认/取消、长详情滚动和状态单选测试，并在真正的任务目标弹层里复查高级额度的关闭及返回。
