@@ -125,6 +125,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
+            if (!alreadyConnected) extensions.invalidate()
             catalogWarmup.connected()
             if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
             // Rebuild visible history after a connection loss, without resending a task.
@@ -143,6 +144,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
+    internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     // Query cache ownership is independent of the ViewModel's RPC orchestration.
     private val dynamicRequestHistory by lazy {
         TransientRequestCache(latestRequests, data, errors, loading)
@@ -176,7 +178,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
         dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
-        data.value = data.value - key
+        if (userAction || !ExtensionCatalogPolicy.retainsSnapshot(key, method))
+            data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key
         viewModelScope.launch {
@@ -188,6 +191,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {
                         accountMetrics.accountChanged()
+                        extensions.invalidate()
                     }
                     onSuccess?.invoke(response)
                     if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
@@ -720,6 +724,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        extensions.observeWorkspace(viewModelScope)
         connect()
     }
 }

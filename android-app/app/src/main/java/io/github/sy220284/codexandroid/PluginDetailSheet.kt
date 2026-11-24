@@ -20,7 +20,9 @@ fun PluginDetailSheet(
     marketplace: JSONObject,
     entry: JSONObject,
     vm: CodexViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onManage: (() -> Unit)? = null,
+    manageLabel: String = "安装插件"
 ) {
     val name = entry.optString("name")
     val marketName = marketplace.optString("name")
@@ -80,11 +82,14 @@ fun PluginDetailSheet(
                     Text("查看插件原始说明")
                 }
             }
-            CodexSecondaryButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                CodexIcon(CodexGlyph.Retry, null)
-                Spacer(Modifier.width(7.dp))
-                Text("刷新插件详情")
+            if (onManage != null) {
+                if (manageLabel == "卸载插件") CodexSecondaryButton(onClick = onManage,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(manageLabel) }
+                else CodexPrimaryButton(onClick = onManage,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(manageLabel) }
+            }
+            if (key in errors) CodexTextAction(onClick = { refresh() }, enabled = key !in loading) {
+                Text("重新读取详情")
             }
         }
         if (key in loading) AtlasLoadingResults("正在读取插件详情", placeholderRows = 2)

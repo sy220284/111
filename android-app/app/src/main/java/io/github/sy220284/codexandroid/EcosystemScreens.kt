@@ -251,247 +251,203 @@ fun ProvidersPage(vm: CodexViewModel) {
 @Composable
 fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val engineStatus by vm.bridge.status.collectAsState()
-    var installedOnly by remember { mutableStateOf(true) }
+    val workspace by vm.activeWorkspace.collectAsState()
+    val epoch by vm.extensions.epoch.collectAsState()
+    var installedOnly by rememberSaveable { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     val busy by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
-    var action by remember { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
-    var selectedPlugin by remember { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
+    var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
+    var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
+    var installedQuery by rememberSaveable { mutableStateOf("") }
     var searchDraft by rememberSaveable { mutableStateOf("") }
     var searchSubmitted by rememberSaveable { mutableStateOf("") }
-    var searchPage by remember { mutableIntStateOf(0) }
-    val searchActive = !installedOnly && searchSubmitted.isNotBlank()
-    val submittedMatchesDraft = ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
+    var searchPage by rememberSaveable { mutableIntStateOf(0) }
+    val query = if (installedOnly) installedQuery else searchDraft
+    val searchActive = !installedOnly && searchSubmitted.isNotBlank() &&
+        ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
     val searchKey = searchPrefix + searchPage
-    val data by vm.data.collectEntries(activeKey, *(0..searchPage).map { searchPrefix + it }.toTypedArray())
+    val data by vm.data.collectEntries("plugins", "installedPlugins",
+        *(if (searchActive) (0..searchPage).map { searchPrefix + it } else emptyList()).toTypedArray())
     val marketData = data[activeKey]
     val marketplaces = remember(marketData) { marketData?.optJSONArray("marketplaces")?.objects().orEmpty() }
-    val found = remember(data, searchActive, submittedMatchesDraft, searchPrefix, searchPage) { if (searchActive && submittedMatchesDraft) (0..searchPage)
+    val searchReady = searchActive && data[searchPrefix + "0"] != null
+    val found = remember(data, searchReady, searchPrefix, searchPage) { if (searchReady) (0..searchPage)
         .flatMap { PluginSearchContract.entries(data[searchPrefix + it]) }
-        .distinctBy { it.marketplace.optString("name") + ":" +
-            it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
+        .distinctBy { it.marketplace.optString("name") + ":" + it.plugin.optString("id").ifBlank { it.plugin.optString("name") } }
         else emptyList() }
-    val searchCursor = if (searchActive && submittedMatchesDraft && data[searchKey] != null)
-        data[searchKey]?.optString("nextCursor").orEmpty()
-    else ""
+    val searchCursor = if (searchReady) ExtensionCatalogPolicy.cursor(data[searchKey]) else ""
+    val connected = engineStatus == EngineStatus.Connected
+    val mutating = "pluginMutation" in busy
+    val canOperate = connected && !mutating
+    val canManage = canOperate && activeKey !in busy
+    val installedData = data["installedPlugins"]
+    val installedEntries = remember(installedData) {
+        installedData?.optJSONArray("marketplaces")?.objects().orEmpty()
+            .flatMap { market -> ExtensionCatalogPolicy.plugins(market, true).map { market.optString("name") to it.optString("id") } }.toSet()
+    }
+    val allGroups = remember(marketplaces, installedOnly) {
+        marketplaces.map { market -> market to ExtensionCatalogPolicy.plugins(market, installedOnly) }
+    }
+    val groups = remember(allGroups, query) {
+        allGroups.map { (market, items) -> market to items.filter { ExtensionCatalogPolicy.matches(it, query) } }
+            .filter { it.second.isNotEmpty() }
+    }
+    val allCount = remember(allGroups) { allGroups.sumOf { it.second.size } }
+    val visibleCount = groups.sumOf { it.second.size }
+    fun refreshCatalog(force: Boolean = false) {
+        if (!connected || activeKey in busy) return
+        if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
+            CatalogRequestContract.workspace(workspace))
+        else vm.refresh("plugins", "plugin/list",
+            CatalogRequestContract.workspace(workspace).put("forceRefetch", force))
+    }
+    fun submitSearch(term: String = searchDraft.trim()) {
+        if (!canOperate || term.isBlank()) return
+        searchSubmitted = term
+        searchPage = 0
+        vm.refresh("pluginSearch:" + term + ":0", "plugin/search", PluginSearchContract.params(term))
+    }
     LaunchedEffect(Unit) {
         if (SettingsDeepLink.take("plugins") == "discover") installedOnly = false
     }
-    LaunchedEffect(installedOnly) {
-        if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-            CatalogRequestContract.workspace(vm.workingDirectory))
-        else vm.refresh("plugins", "plugin/list",
-            CatalogRequestContract.workspace(vm.workingDirectory))
+    LaunchedEffect(activeKey, workspace, epoch, engineStatus) {
+        if (connected && CatalogRequestContract.shouldLoadCatalog(activeKey, data.keys, busy))
+            refreshCatalog()
+    }
+    LaunchedEffect(epoch, engineStatus, searchActive, searchPrefix) {
+        val firstKey = searchPrefix + "0"
+        if (connected && searchActive && data[firstKey] == null && firstKey !in busy && firstKey !in errors)
+            submitSearch(searchSubmitted)
     }
     ScreenColumn {
-        SectionIntro("插件",
-            "先管理已安装能力，需要新功能时再浏览可用插件。")
         AtlasCompactChoice(if (installedOnly) "installed" else "catalog",
             listOf("installed" to "已安装", "catalog" to "发现插件"),
             onSelect = { installedOnly = it == "installed" }, tagPrefix = "plugins-tab-")
-        if (!installedOnly) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("搜索插件", style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.testTag("plugins-search-heading"))
-                val performSearch = {
-                    val term = searchDraft.trim()
-                    if (term.isNotEmpty()) {
-                        searchSubmitted = term
-                        searchPage = 0
-                        vm.refresh("pluginSearch:" + term + ":0",
-                            "plugin/search", PluginSearchContract.params(term))
+        ExtensionCatalogHeader(
+            title = if (installedOnly) "已安装插件" else "插件源",
+            summary = if (data[activeKey] == null) null else
+                if (query.isBlank()) "$allCount 个插件" else "$visibleCount / $allCount 个插件",
+            explanation = "点击插件查看能力与来源。安装和卸载由 Codex 核心执行，操作成功后更新目录。",
+            refreshing = activeKey in busy, enabled = connected && !mutating,
+            onRefresh = { refreshCatalog(true) })
+        if (!installedOnly || data[activeKey] != null && allCount > 0) {
+            if (!installedOnly) Text("搜索插件", modifier = Modifier.testTag("plugins-search-heading"),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            AtlasSearchField(value = query,
+                onValueChange = { if (installedOnly) installedQuery = it else searchDraft = it },
+                placeholder = if (installedOnly) "搜索已安装插件" else "插件名称或关键字",
+                enabled = if (installedOnly) true else !mutating,
+                busy = searchActive && searchKey in busy,
+                onClear = {
+                    if (installedOnly) installedQuery = "" else {
+                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
                     }
-                }
-                AtlasSearchField(
-                    value = searchDraft,
-                    onValueChange = { searchDraft = it },
-                    placeholder = "插件名称或关键字",
-                    enabled = engineStatus == EngineStatus.Connected &&
-                        "pluginMutation" !in busy,
-                    busy = "pluginSearch:" + searchSubmitted + ":0" in busy,
-                    onClear = {
-                        searchDraft = ""
-                        searchSubmitted = ""
-                        searchPage = 0
-                    },
-                    onSubmit = performSearch,
-                    submitTestTag = "plugins-search-submit"
-                )
-            }
-        }
-        Column(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(if (installedOnly) "当前安装来源" else "插件源",
-                        style = MaterialTheme.typography.titleMedium)
-                    Text("关联 " + marketplaces.size + " 个来源", color = Ink.muted)
-                }
-                CodexIconAction(onClick = {
-                    if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-                        CatalogRequestContract.workspace(vm.workingDirectory))
-                    else vm.refresh("plugins", "plugin/list",
-                        CatalogRequestContract.workspace(vm.workingDirectory)
-                            .put("forceRefetch", true))
-                }) {
-                    CodexIcon(CodexGlyph.Retry, "刷新插件列表")
-                }
-            }
+                },
+                onSubmit = if (installedOnly || !connected) null else ({ submitSearch() }),
+                submitTestTag = "plugins-search-submit")
         }
         ProtocolFeedback(vm, listOf("pluginMutation"))
-        AtlasCatalogStatus(vm, activeKey, "插件", onRefresh = {
-            if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-                CatalogRequestContract.workspace(vm.workingDirectory))
-            else vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(vm.workingDirectory))
-        }, onDiagnostics = { navigate("diagnostics") })
+        val catalogErrors = data[activeKey]?.optJSONArray("marketplaceLoadErrors")?.length() ?: 0
+        if (catalogErrors > 0) CodexNotice("部分插件来源未能读取，已显示成功返回的内容。",
+            NoticeTone.Warning, actionLabel = if (connected && activeKey !in busy) "重试" else null,
+            onAction = { refreshCatalog(true) })
+        if (!searchActive || found.isEmpty()) AtlasCatalogStatus(vm, activeKey, "插件",
+            onRefresh = { refreshCatalog(true) }, onDiagnostics = { navigate("diagnostics") })
         if (searchActive) {
-            if (!submittedMatchesDraft) CodexNotice(
-                "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
-            if (submittedMatchesDraft && searchKey !in busy)
-                AtlasListHeading("插件搜索结果", found.size, suffix = "个匹配项")
-            if (submittedMatchesDraft && searchKey in busy) {
-                if (found.isEmpty()) {
-                    AtlasLoadingResults("正在搜索插件目录", placeholderRows = 2)
-                } else {
-                    AtlasOperationProgress("正在加载更多插件结果")
-                }
+            if (searchKey in busy) {
+                if (found.isEmpty() && visibleCount == 0) AtlasLoadingResults("正在搜索插件目录", placeholderRows = 2)
+                else AtlasOperationProgress("正在搜索插件")
             }
-            if (submittedMatchesDraft) errors[searchKey]?.let {
-                ErrorText("插件搜索失败：$it。可以改用常规插件目录。")
+            errors[searchKey]?.let {
+                CodexNotice("在线搜索未完成，仍可浏览本地匹配项。", NoticeTone.Warning,
+                    actionLabel = if (canOperate) "重试" else null, onAction = {
+                        if (searchPage == 0) submitSearch()
+                        else {
+                            val cursor = ExtensionCatalogPolicy.cursor(data[searchPrefix + (searchPage - 1)])
+                            if (cursor.isNotBlank()) vm.refresh(searchKey, "plugin/search",
+                                PluginSearchContract.params(searchSubmitted, cursor))
+                        }
+                    })
             }
-            if (submittedMatchesDraft && data[searchPrefix + "0"] != null &&
-                searchKey !in busy && found.isEmpty() && searchKey !in errors) {
-                CodexEmptyState("没有搜索结果",
-                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。", artworkRes = R.drawable.ic_empty_no_results)
-            }
-            found.forEach { hit ->
-                val market = hit.marketplace
-                val item = hit.plugin
-                val display = item.optJSONObject("interface")?.optString("displayName")
-                    .orEmpty().ifBlank { item.optString("name") }
+            if (found.isNotEmpty()) {
+                AtlasListHeading("搜索结果", found.size, suffix = "个插件")
                 MaterialPanel(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
-                        Spacer(Modifier.width(9.dp))
-                        Text(display, style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f))
-                        if (item.optBoolean("installed")) StatusPill("已安装", true)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (!item.optBoolean("installed")) {
-                            CodexSecondaryButton(onClick = { action = Triple(market, item, true) },
-                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE" &&
-                                     "pluginMutation" !in busy) {
-                                Text("安装插件")
-                            }
-                        }
-                        CodexTextAction(onClick = { selectedPlugin = market to item },
-                         enabled = "pluginMutation" !in busy) {
-                            Text("查看详情")
-                        }
+                    found.forEachIndexed { index, hit ->
+                        if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
+                        val item = hit.plugin
+                        val isInstalled = item.optBoolean("installed") || (hit.marketplace.optString("name") to item.optString("id")) in installedEntries
+                        ExtensionPluginRow(item, isInstalled, canManage && searchKey !in busy,
+                            source = ExtensionCatalogPolicy.marketName(hit.marketplace),
+                            onDetails = { selectedPlugin = hit.marketplace to item },
+                            onInstall = { action = Triple(hit.marketplace, item, true) })
                     }
                 }
             }
-            if (searchCursor.isNotBlank()) {
-                CodexSecondaryButton(onClick = {
-                    val next = searchPage + 1
-                    searchPage = next
-                    vm.refresh(searchPrefix + next, "plugin/search",
-                        PluginSearchContract.params(searchSubmitted, searchCursor))
-                }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = searchKey !in busy && "pluginMutation" !in busy) {
-                    Text("加载更多结果")
+            if (searchCursor.isNotBlank()) CodexSecondaryButton(onClick = {
+                val next = searchPage + 1
+                searchPage = next
+                vm.refresh(searchPrefix + next, "plugin/search",
+                    PluginSearchContract.params(searchSubmitted, searchCursor))
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                enabled = canOperate && searchKey !in busy) { Text("加载更多结果") }
+        }
+        if (!searchActive || found.isEmpty()) groups.forEach { (market, items) ->
+            Text(ExtensionCatalogPolicy.marketName(market).ifBlank { "插件目录" },
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                items.forEachIndexed { index, item ->
+                    if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
+                    ExtensionPluginRow(item, item.optBoolean("installed"), canManage,
+                        onDetails = { selectedPlugin = market to item },
+                        onInstall = { action = Triple(market, item, true) })
                 }
             }
         }
-        if (!searchActive) marketplaces.forEach { market ->
-            val plugins = market.optJSONArray("plugins")?.objects() ?: emptyList()
-            Text(market.optJSONObject("interface")?.optString("displayName")
-                ?.ifBlank { market.optString("name") } ?: market.optString("name"),
-                style = MaterialTheme.typography.titleLarge)
-            plugins.forEach { item ->
-                val meta = item.optJSONObject("interface") ?: JSONObject()
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
-                        Spacer(Modifier.width(11.dp))
-                        Text(meta.optString("displayName").ifBlank { item.optString("name") },
-                            style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        StatusPill(
-                            PresentationPolicy.pluginInstallStatus(
-                                item.optBoolean("installed"), item.optString("installPolicy")),
-                            item.optBoolean("installed") ||
-                                item.optString("installPolicy") != "NOT_AVAILABLE")
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (item.optBoolean("installed")) {
-                            CodexSecondaryButton(onClick = { action = Triple(market, item, false) },
-                                enabled = "pluginMutation" !in busy) { Text("卸载") }
-                        } else {
-                            CodexSecondaryButton(onClick = { action = Triple(market, item, true) },
-                                enabled = item.optString("installPolicy") != "NOT_AVAILABLE" &&
-                                     "pluginMutation" !in busy) { Text("安装插件") }
-                        }
-                    }
-                    CodexTextAction(onClick = { selectedPlugin = market to item },
-                        enabled = "pluginMutation" !in busy,
-                        modifier = Modifier.heightIn(min = 48.dp)) {
-                        CodexIcon(CodexGlyph.Info, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("查看插件详情")
-                    }
-                }
-            }
-        }
-        if (!searchActive && data[activeKey] != null && marketplaces.isEmpty() && activeKey !in busy && activeKey !in errors) {
-            CodexEmptyState(
-                if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
-                if (installedOnly) "从插件市场安装后，可在这里集中管理。"
-                else "检查 Codex 核心连接，或刷新市场目录。",
-                artworkRes = R.drawable.ic_empty_content,
-                actionLabel = if (installedOnly) "浏览插件" else "刷新目录",
-                onAction = {
-                    if (installedOnly) installedOnly = false
-                    else vm.refresh("plugins", "plugin/list", JSONObject().put("forceRefetch", true))
-                }
-            )
+        val searchSettled = !searchActive || (searchReady && searchKey !in busy && searchKey !in errors && data[searchKey] != null)
+        if (data[activeKey] != null && visibleCount == 0 && found.isEmpty() &&
+            activeKey !in busy && activeKey !in errors && catalogErrors == 0 && searchSettled) {
+            if (query.isNotBlank()) CodexEmptyState("没有匹配的插件", "试试其他名称或关键字。",
+                artworkRes = R.drawable.ic_empty_no_results, actionLabel = "清除搜索", onAction = {
+                    if (installedOnly) installedQuery = "" else { searchDraft = ""; searchSubmitted = ""; searchPage = 0 }
+                })
+            else CodexEmptyState(if (installedOnly) "暂无已安装插件" else "暂无可用插件",
+                if (installedOnly) "发现并安装所需插件后，可在这里管理。" else "当前目录未返回插件。",
+                actionLabel = if (installedOnly) "发现插件" else "刷新目录",
+                onAction = { if (installedOnly) installedOnly = false else refreshCatalog(true) })
         }
     }
     selectedPlugin?.let { (market, item) ->
+        val installed = item.optBoolean("installed") || (market.optString("name") to item.optString("id")) in installedEntries
         PluginDetailSheet(marketplace = market, entry = item, vm = vm,
-            onDismiss = { selectedPlugin = null })
+            onDismiss = { selectedPlugin = null },
+            onManage = if (!canManage || (!installed && item.optString("installPolicy") == "NOT_AVAILABLE")) null else ({
+                selectedPlugin = null; action = Triple(market, item, !installed)
+            }), manageLabel = if (installed) "卸载插件" else "安装插件")
     }
     action?.let { (market, item, install) ->
-        CodexConfirmDialog(
-            title = if (install) "安装插件" else "卸载插件",
-            message = if (install) "即将从插件市场安装此插件。" else "卸载会移除当前插件。",
-            detail = item.optString("name") + "\n来源：" + market.optString("name"),
-            confirmLabel = if (install) "确认安装" else "确认卸载",
-            destructive = !install,
+        CodexConfirmDialog(title = if (install) "安装插件" else "卸载插件",
+            message = if (install) "从此来源安装插件及其能力。" else "卸载会移除该插件及其提供的能力。",
+            detail = ExtensionCatalogPolicy.pluginName(item) + "\n来源：" + ExtensionCatalogPolicy.marketName(market),
+            confirmLabel = if (install) "确认安装" else "确认卸载", destructive = !install,
             onConfirm = {
+                val after: () -> Unit = {
+                    val cwd = vm.activeWorkspace.value
+                    vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(cwd))
+                    vm.refresh("installedPlugins", "plugin/installed", CatalogRequestContract.workspace(cwd))
+                    vm.extensions.invalidatePluginSearchResults()
+                }
                 if (install) {
                     val params = JSONObject().put("pluginName", item.optString("name"))
-                    val path = market.optString("path")
+                    val path = PresentationPolicy.meaningful(market.optString("path"))
                     if (path.isNotBlank()) params.put("marketplacePath", path)
                     else params.put("remoteMarketplaceName", market.optString("name"))
-                    vm.rpc("pluginMutation", "plugin/install", params,
-                        after = {
-                            vm.refresh("plugins", "plugin/list")
-                            vm.refresh("installedPlugins", "plugin/installed",
-                                CatalogRequestContract.workspace(vm.workingDirectory))
-                        })
-                } else {
-                    vm.rpc("pluginMutation", "plugin/uninstall", JSONObject().put("pluginId", item.optString("id")),
-                        after = {
-                            vm.refresh("plugins", "plugin/list")
-                            vm.refresh("installedPlugins", "plugin/installed",
-                                CatalogRequestContract.workspace(vm.workingDirectory))
-                        })
-                }
+                    vm.rpc("pluginMutation", "plugin/install", params, after = after)
+                } else vm.rpc("pluginMutation", "plugin/uninstall",
+                    JSONObject().put("pluginId", item.optString("id")), after = after)
                 action = null
-            },
-            onDismiss = { action = null }
-        )
+            }, onDismiss = { action = null })
     }
 }
 

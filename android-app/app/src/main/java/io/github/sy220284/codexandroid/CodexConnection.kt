@@ -210,7 +210,7 @@ class CodexConnection(private val appContext: Context) {
         method: String,
         params: JSONObject? = JSONObject(),
         timeoutMillis: Long? = when (method) {
-            "thread/read", "thread/resume" -> 120_000L
+            "thread/read", "thread/resume", "app/list", "app/installed", "plugin/list", "plugin/installed" -> 120_000L
             else -> 45_000L
         }
     ): JSONObject {
@@ -222,7 +222,7 @@ class CodexConnection(private val appContext: Context) {
         try {
             write(RpcWireRequest.envelope(method, id, params))
             // Long-running terminal sessions have a user-visible Stop action.
-            // All ordinary RPCs retain the bounded 45-second timeout.
+            // Remote directory reads may include the core's 90-second hosted lookup; retain a bounded allowance.
             val response = if (timeoutMillis == null) deferred.await()
                 else withTimeout(timeoutMillis) { deferred.await() }
             return RpcResponseContract.requireResult(method, response)

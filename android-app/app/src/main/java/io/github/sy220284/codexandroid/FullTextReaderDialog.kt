@@ -29,41 +29,42 @@ import androidx.compose.ui.window.DialogProperties
 /** 任务/资源大文本全部可读、可复制、可检索；分块渲染避免弹层截断。 */
 @Composable
 fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
-    val chunks = remember(text) { text.chunked(FullTextSearchPolicy.CHUNK_SIZE).ifEmpty { listOf("") } }
-    var search by remember(text) { mutableStateOf("") }
-    var currentMatch by remember(text, search) { mutableIntStateOf(0) }
-    val searchHits by key(text, search) {
-        if (text.length <= 32768 || search.isBlank()) {
-            remember { mutableStateOf<List<Int>?>(FullTextSearchPolicy.find(text, search)) }
-        } else {
-            produceState<List<Int>?>(null, text, search) {
-                value = withContext(Dispatchers.Default) { FullTextSearchPolicy.find(text, search) }
-            }
-        }
-    }
-    val hits = searchHits.orEmpty()
-    val state = rememberLazyListState()
-    val clipboard = LocalClipboardManager.current
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    val layouts = remember(text) { mutableStateMapOf<Int, TextLayoutResult>() }
-    val topInset = with(LocalDensity.current) { 16.dp.roundToPx() }
-    LaunchedEffect(text, search, searchHits, currentMatch, topInset) {
-        val hit = hits.getOrNull(currentMatch) ?: return@LaunchedEffect
-        val index = hit / FullTextSearchPolicy.CHUNK_SIZE
-        if (state.layoutInfo.visibleItemsInfo.none { it.index == index } || layouts[index] == null) {
-            state.scrollToItem(index)
-        }
-        val layout = snapshotFlow { layouts[index] }.filterNotNull().first()
-        val local = (hit - index * FullTextSearchPolicy.CHUNK_SIZE).coerceIn(0, chunks[index].length)
-        val offset = (layout.getLineTop(layout.getLineForOffset(local)).roundToInt() - topInset).coerceAtLeast(0)
-        if (reducedMotion || currentMatch == 0) state.scrollToItem(index, offset)
-        else state.animateScrollToItem(index, offset)
-    }
-    fun moveMatch(delta: Int) {
-        if (hits.isNotEmpty()) currentMatch = (currentMatch + delta + hits.size) % hits.size
-    }
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val chunks = remember(text) { text.chunked(FullTextSearchPolicy.CHUNK_SIZE).ifEmpty { listOf("") } }
+        var search by remember(text) { mutableStateOf("") }
+        var currentMatch by remember(text, search) { mutableIntStateOf(0) }
+        val query = search
+        val searchHits: List<Int>? = if (text.length <= 32768 || query.isBlank()) {
+            remember(text, query) { FullTextSearchPolicy.find(text, query) }
+        } else {
+            val result by produceState<Triple<String, String, List<Int>>?>(null, text, query) {
+                val matches = withContext(Dispatchers.Default) { FullTextSearchPolicy.find(text, query) }
+                value = Triple(text, query, matches)
+            }
+            result?.takeIf { it.first == text && it.second == query }?.third
+        }
+        val hits = searchHits.orEmpty()
+        val state = rememberLazyListState()
+        val clipboard = LocalClipboardManager.current
+        val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+        val layouts = remember(text) { mutableStateMapOf<Int, TextLayoutResult>() }
+        val topInset = with(LocalDensity.current) { 16.dp.roundToPx() }
+        LaunchedEffect(text, search, searchHits, currentMatch, topInset) {
+            val hit = hits.getOrNull(currentMatch) ?: return@LaunchedEffect
+            val index = hit / FullTextSearchPolicy.CHUNK_SIZE
+            if (state.layoutInfo.visibleItemsInfo.none { it.index == index } || layouts[index] == null) {
+                state.scrollToItem(index)
+            }
+            val layout = snapshotFlow { layouts[index] }.filterNotNull().first()
+            val local = (hit - index * FullTextSearchPolicy.CHUNK_SIZE).coerceIn(0, chunks[index].length)
+            val offset = (layout.getLineTop(layout.getLineForOffset(local)).roundToInt() - topInset).coerceAtLeast(0)
+            if (reducedMotion || currentMatch == 0) state.scrollToItem(index, offset)
+            else state.animateScrollToItem(index, offset)
+        }
+        fun moveMatch(delta: Int) {
+            if (hits.isNotEmpty()) currentMatch = (currentMatch + delta + hits.size) % hits.size
+        }
         Surface(color = Ink.canvas, modifier = Modifier.fillMaxSize().testTag("full-text-reader")) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(13.dp),
                 verticalArrangement = Arrangement.spacedBy(11.dp)) {

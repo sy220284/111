@@ -207,23 +207,30 @@
       "title": "插件",
       "sources": [
         "EcosystemScreens",
-        "PluginDetailSheet"
+        "PluginDetailSheet",
+        "ExtensionCatalogComponents",
+        "ExtensionCatalogPolicy"
       ],
       "business": "目录、检索、安装状态、空结果与能力详情",
       "tests": [
         "UiNavigationInstrumentedTest.pluginDiscoveryCanOpenSearchWithoutInventedResults",
-        "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata"
+        "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata",
+        "UiPopulatedSubpagesInstrumentedTest.installedPluginRowsOpenDetailsWithoutInlineUninstall",
+        "UiPopulatedSubpagesInstrumentedTest.discoveryRowSeparatesInstallFromDetail"
       ]
     },
     {
       "route": "apps",
       "title": "连接应用",
       "sources": [
-        "IntegrationScreens"
+        "IntegrationScreens",
+        "ExtensionCatalogComponents",
+        "ExtensionCatalogPolicy"
       ],
       "business": "应用授权、详情、无目录、失败及重试",
       "tests": [
-        "UiPopulatedSubpagesInstrumentedTest.connectedAppDescriptionAppearsOnlyAfterOpeningDetail"
+        "UiPopulatedSubpagesInstrumentedTest.connectedAppDescriptionAppearsOnlyAfterOpeningDetail",
+        "UiPopulatedSubpagesInstrumentedTest.installedAppSnapshotAppearsBeforeFullDirectory"
       ]
     },
     {

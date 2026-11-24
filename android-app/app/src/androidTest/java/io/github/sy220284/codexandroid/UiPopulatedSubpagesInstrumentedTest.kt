@@ -706,6 +706,60 @@ class UiPopulatedSubpagesInstrumentedTest {
         assertEquals("", vm.modelId.value)
     }
 
+    @Test fun installedAppSnapshotAppearsBeforeFullDirectory() {
+        val vm = viewModel()
+        rule.setContent { CodexTheme { ConnectedAppsPage(vm) {} } }
+        rule.waitForIdle()
+        rule.runOnIdle {
+            vm.data.value = vm.data.value - "apps" + ("appInstalled" to JSONObject().put("apps",
+                JSONArray().put(JSONObject().put("id", "test_app").put("runtimeName", "样例应用")
+                    .put("enabled", true).put("callable", true))))
+        }
+        rule.onNodeWithText("样例应用").assertIsDisplayed()
+        rule.onNodeWithText("搜索应用").assertExists()
+        capture("audit-apps-installed-snapshot-android35.png")
+        rule.onNodeWithText("样例应用").performClick()
+        rule.onNodeWithText("应用说明").assertIsDisplayed()
+    }
+
+    @Test fun installedPluginRowsOpenDetailsWithoutInlineUninstall() {
+        val vm = viewModel()
+        val plugin = JSONObject().put("id", "test-plugin").put("name", "test")
+            .put("installed", true).put("enabled", true)
+            .put("interface", JSONObject().put("displayName", "样例插件"))
+        val market = JSONObject().put("name", "样例来源").put("plugins", JSONArray().put(plugin))
+        rule.setContent { CodexTheme { PluginsPage(vm) } }
+        rule.waitForIdle()
+        rule.runOnIdle {
+            vm.data.value = vm.data.value + ("installedPlugins" to JSONObject()
+                .put("marketplaces", JSONArray().put(market)))
+        }
+        rule.onNodeWithText("样例插件").assertIsDisplayed()
+        rule.onNodeWithText("卸载", substring = false).assertDoesNotExist()
+        rule.onNodeWithText("搜索已安装插件").assertExists()
+        capture("audit-plugins-compact-installed-android35.png")
+        rule.onNodeWithText("样例插件").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+    }
+
+    @Test fun discoveryRowSeparatesInstallFromDetail() {
+        val item = JSONObject().put("id", "sample").put("name", "样例插件")
+            .put("installPolicy", "AVAILABLE")
+        var opened = false
+        var installed = false
+        rule.setContent {
+            CodexTheme {
+                ExtensionPluginRow(item, false, true,
+                    onDetails = { opened = true }, onInstall = { installed = true })
+            }
+        }
+        rule.onNodeWithText("样例插件").performClick()
+        rule.runOnIdle { assertTrue(opened); assertTrue(!installed) }
+        rule.onNodeWithTag("plugin-install-sample").performClick()
+        rule.runOnIdle { assertTrue(installed) }
+        capture("audit-plugins-compact-discovery-android35.png")
+    }
+
     @Test fun pluginOriginalEnglishDescriptionIsAvailableOnlyOnDemand() {
         val vm = viewModel()
         val market = JSONObject().put("name", "样例插件源").put("path", "/plugins")
