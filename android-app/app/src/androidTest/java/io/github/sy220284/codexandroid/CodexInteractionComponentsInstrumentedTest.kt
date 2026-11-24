@@ -120,6 +120,7 @@ class CodexInteractionComponentsInstrumentedTest {
         }
         rule.onNodeWithText("进行中").assertExists()
         rule.onNodeWithText("遇到阻碍").performClick()
+        rule.onNodeWithText("遇到阻碍").assertIsSelected()
         rule.onNodeWithText("已选择：blocked").assertExists()
         rule.onNodeWithContentDescription("第2 项，共 4 项").assertExists()
     }
@@ -203,5 +204,59 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("已进入重命名").assertExists()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithText("管理当前项目").assertDoesNotExist()
+    }
+
+    @Test fun budgetEditDialogCommitsOnlyAfterConfirmation() {
+        rule.setContent {
+            var open by remember { mutableStateOf(false) }
+            var input by remember { mutableStateOf("") }
+            var budget by remember { mutableStateOf("原有额度：9000") }
+            CodexTheme {
+                Column {
+                    Text(budget)
+                    TextButton(onClick = { input = ""; open = true }) { Text("修改额度") }
+                    if (open) CodexEditDialog(
+                        title = "执行额度",
+                        description = "留空表示清除上限",
+                        confirmLabel = "应用额度",
+                        onDismiss = { open = false },
+                        onConfirm = { budget = "待保存：" + input; open = false },
+                        canConfirm = input.isBlank() ||
+                            (input.toLongOrNull()?.let { it > 0 } == true)
+                    ) {
+                        androidx.compose.material3.OutlinedTextField(
+                            value = input,
+                            onValueChange = { input = it },
+                            label = { Text("Token 上限") },
+                            modifier = androidx.compose.ui.Modifier.testTag("test-budget-input")
+                        )
+                    }
+                }
+            }
+        }
+        rule.onNodeWithText("修改额度").performClick()
+        rule.onNodeWithTag("codex-edit-dialog").assertExists()
+        rule.onNodeWithText("取消").performClick()
+        rule.onNodeWithText("原有额度：9000").assertExists()
+        rule.onNodeWithText("修改额度").performClick()
+        rule.onNodeWithTag("test-budget-input").performTextInput("0")
+        rule.onNodeWithTag("codex-edit-confirm").assertIsNotEnabled()
+        rule.onNodeWithTag("test-budget-input").performTextClearance()
+        rule.onNodeWithTag("test-budget-input").performTextInput("5000")
+        rule.onNodeWithTag("codex-edit-confirm").assertIsEnabled().performClick()
+        rule.onNodeWithText("待保存：5000").assertExists()
+        rule.onNodeWithTag("codex-edit-dialog").assertDoesNotExist()
+    }
+
+    @Test fun longDetailContentScrollsWhileCloseButtonRemainsAvailable() {
+        rule.setContent {
+            CodexTheme {
+                CodexDetailSheet(title = "完整诊断", onDismiss = {}) {
+                    repeat(30) { i -> Text("诊断条目 " + i) }
+                }
+            }
+        }
+        rule.onNodeWithText("诊断条目 29").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("codex-detail-close").assertIsDisplayed()
     }
 }
