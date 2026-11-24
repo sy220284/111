@@ -11,6 +11,10 @@ internal object ConnectionRestartPolicy {
     fun canRestart(snapshot: GlobalWorkSnapshot): Boolean =
         snapshot.canDisruptCoreOrData
 
+    /** Only a failed voice stop may be retired by an explicitly confirmed recovery. */
+    fun canRecoverVoice(snapshot: GlobalWorkSnapshot, failed: Boolean): Boolean =
+        failed && snapshot.realtimeVoiceActive && snapshot.copy(realtimeVoiceActive = false).canDisruptCoreOrData
+
     /** The caller already owns the restart lease. Ignore only that lease while
      * rechecking unrelated work immediately before disposing the core.
      */
@@ -33,8 +37,15 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
         }
     }
 
-    fun restart() {
-        if (!ConnectionRestartPolicy.canRestart(vm.globalWorkSnapshot())) {
+    fun restart() = restart(recoverVoice = false)
+
+    fun restartAfterVoiceFailure() = restart(recoverVoice = true)
+
+    private fun restart(recoverVoice: Boolean) {
+        fun allowed(snapshot: GlobalWorkSnapshot): Boolean = if (recoverVoice) {
+            ConnectionRestartPolicy.canRecoverVoice(snapshot, vm.realtimeVoiceLease.stopFailure.value != null)
+        } else ConnectionRestartPolicy.canRestart(snapshot)
+        if (!allowed(vm.globalWorkSnapshot())) {
             vm.errors.value = vm.errors.value + ("diagnostics" to
                 "仍有任务或审批待处理，请先完成操作再重启连接")
             return
@@ -42,7 +53,7 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
         if (!busy.compareAndSet(false, true)) return
         vm.viewModelScope.launch {
             try {
-                check(ConnectionRestartPolicy.canContinueOwnedRestart(vm.globalWorkSnapshot())) {
+                check(allowed(vm.globalWorkSnapshot().copy(restarting = false))) {
                     "任务或数据备份状态已变化，内核重启已取消"
                 }
                 withContext(Dispatchers.IO) { vm.bridge.close() }

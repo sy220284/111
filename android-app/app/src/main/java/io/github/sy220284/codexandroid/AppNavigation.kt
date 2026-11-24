@@ -345,7 +345,9 @@ fun CodexShell(vm: CodexViewModel) {
                     )
                 }
             ) { inset ->
-                Box(Modifier.padding(inset).fillMaxSize()) {
+                Column(Modifier.padding(inset).fillMaxSize()) {
+                    RealtimeVoiceRecoveryNotice(vm)
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
                     // Only the current page participates in semantics and input.
                     // This prevents stale search fields and buttons from remaining
                     // interactive during rapid settings / feature navigation.
@@ -355,6 +357,7 @@ fun CodexShell(vm: CodexViewModel) {
                                 PageContent(selected, vm, move)
                             }
                         }
+                    }
                     }
                 }
             }

@@ -3,6 +3,9 @@ package io.github.sy220284.codexandroid
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +41,7 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val securitySave by vm.securitySaveBusy.collectAsState()
     val coreStatus by vm.bridge.status.collectAsState()
     val restarting by vm.connectionRestarter.busy.collectAsState()
+    val voiceActive by vm.realtimeVoiceLease.active.collectAsState()
     return GlobalWorkSnapshot(
         visibleTurnRunning = visible,
         executingThreads = executions,
@@ -52,7 +56,8 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
         terminalStarting = terminalStarting,
         securitySaveBusy = securitySave,
         coreStarting = coreStatus == EngineStatus.Starting,
-        restarting = restarting
+        restarting = restarting,
+        realtimeVoiceActive = voiceActive
     )
 }
 
@@ -109,4 +114,25 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
 internal fun ObserveDataTransferBusyOverlay() {
     val transfer by AppDataTransfer.state.collectAsState()
     DataTransferBusyOverlay(transfer)
+}
+
+/** A failed stop survives navigation and remains actionable on every page. */
+@Composable
+internal fun RealtimeVoiceRecoveryNotice(vm: CodexViewModel) {
+    val failure by vm.realtimeVoiceLease.stopFailure.collectAsState()
+    if (failure == null) return
+    val work = observeGlobalWorkSnapshot(vm)
+    var confirm by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)) {
+        CodexNotice("实时语音尚未确认结束：" + failure, NoticeTone.Error,
+            actionLabel = "重试结束", onAction = { vm.realtimeVoiceLease.retryFailedStop() })
+        CodexTextAction(onClick = { confirm = true },
+            enabled = ConnectionRestartPolicy.canRecoverVoice(work, true)) { Text("重新连接内核以恢复语音") }
+    }
+    if (confirm) CodexConfirmDialog("恢复语音连接",
+        "将关闭旧的运行核心并重新连接。仅在其他任务、审批和数据操作全部结束后执行。",
+        confirmLabel = "重新连接", onConfirm = {
+            confirm = false
+            vm.connectionRestarter.restartAfterVoiceFailure()
+        }, onDismiss = { confirm = false })
 }

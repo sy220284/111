@@ -18,7 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
 internal class RealtimeVoiceController(private val vm: CodexViewModel, private val threadId: String) {
-    enum class State { Idle, Starting, Live, Stopping }
+    enum class State { Idle, Starting, Live, Stopping, StopFailed }
 
     var state by mutableStateOf(State.Idle)
         private set
@@ -53,13 +53,10 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
 
     // A controller can be recreated when navigation or a thread switch disposes the UI.
     // The engine/microphone lease survives that disposal until stop and media cleanup finish.
-    private val lease = synchronized(leases) { leases.getOrPut(vm) { RealtimeVoiceLease() } }
+    private val lease = vm.realtimeVoiceLease
     private val nativeLock = Mutex()
-
-    private companion object {
-        val leases = java.util.WeakHashMap<CodexViewModel, RealtimeVoiceLease>()
-    }
     private var startup: CompletableDeferred<Unit>? = null
+    private var closed = CompletableDeferred<Unit>()
     private var eventJob: Job? = null
     private var connectionJob: Job? = null
     private var captureJob: Job? = null
@@ -73,6 +70,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
 
     fun start(voice: String) {
         if (state != State.Idle) return
+        if (vm.bridge.status.value != EngineStatus.Connected || !vm.globalWorkSnapshot().canStartNewTask ||
+            vm.connectionRestarter.busy.value || vm.activeThread.value != threadId || vm.threadSwitching.value) {
+            error = "当前运行状态无法启动实时语音，请完成其他操作后重试"
+            return
+        }
         if (!lease.acquire(this)) {
             error = "上一段语音仍在结束，请稍后重试"
             return
@@ -83,6 +85,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         assistantTranscript = ""
         state = State.Starting
         val ready = CompletableDeferred<Unit>()
+        closed = CompletableDeferred()
         startup = ready
         eventJob = vm.viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             vm.bridge.events.collect(::event)
@@ -96,7 +99,10 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                     active != threadId || switching -> "会话已切换，语音已结束"
                     else -> ""
                 }
-            }.collect { reason -> if (reason.isNotBlank()) stop(reason) }
+            }.collect { reason ->
+                if (vm.bridge.status.value != EngineStatus.Connected) closed.complete(Unit)
+                if (reason.isNotBlank()) stop(reason)
+            }
         }
         connectionJob?.start()
         vm.viewModelScope.launch {
@@ -127,12 +133,12 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     fun stop(reason: String = "") {
         if (reason.isNotBlank()) error = reason
         if (state == State.Idle || state == State.Stopping) return
+        lease.clearFailure(this)
         state = State.Stopping
         inputLevel = 0f
         startup?.complete(Unit)
         startup = null
-        eventJob?.cancel()
-        connectionJob?.cancel()
+        // Keep observing the native closed event and connection until cleanup is proven.
         val media = listOfNotNull(sendJob, captureJob, playbackJob, uploadJob)
         media.forEach { it.cancel() }
         sending = false
@@ -140,26 +146,49 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         output = null
         microphoneQueue?.cancel()
         microphoneQueue = null
-        val cleanup = vm.viewModelScope.launch {
+        vm.viewModelScope.launch {
             try {
-                // No new session can acquire the lease while old media or RPCs remain active.
                 media.joinAll()
                 nativeLock.withLock {
-                    if (sentStart && vm.bridge.status.value == EngineStatus.Connected) {
-                        vm.bridge.request("thread/realtime/stop", thread(), 10_000)
+                    if (sentStart && !closed.isCompleted) {
+                        if (vm.bridge.status.value == EngineStatus.Connected) {
+                            try {
+                                vm.bridge.request("thread/realtime/stop", thread(), 10_000)
+                            } catch (failure: Exception) {
+                                if (!closed.isCompleted) throw failure
+                            }
+                            // Rust acknowledges submission; the closed notification proves completion.
+                            withTimeout(10_000) { closed.await() }
+                        } else closed.complete(Unit)
                     }
                 }
+                finishStop()
             } catch (cancel: CancellationException) {
                 if (cancel !is TimeoutCancellationException) throw cancel
-                if (error.isBlank()) error = capabilityError(cancel)
+                failStop(cancel)
             } catch (failure: Exception) {
-                if (error.isBlank()) error = capabilityError(failure)
-            } finally {
-                sentStart = false
-                state = State.Idle
+                failStop(failure)
             }
         }
-        cleanup.invokeOnCompletion { lease.release(this@RealtimeVoiceController) }
+    }
+
+    private fun finishStop() {
+        eventJob?.cancel()
+        connectionJob?.cancel()
+        sentStart = false
+        state = State.Idle
+        lease.release(this)
+    }
+
+    private fun failStop(failure: Exception) {
+        // Closure may have arrived concurrently with an RPC failure.
+        if (closed.isCompleted) {
+            finishStop()
+            return
+        }
+        error = capabilityError(failure)
+        state = State.StopFailed
+        lease.markFailed(this, error) { stop() }
     }
 
     fun sendText(text: String, asSpeech: Boolean, onSent: () -> Unit) {
@@ -192,6 +221,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         when (message.value("method")) {
             "thread/realtime/started" -> startup?.complete(Unit)
             "thread/realtime/closed" -> {
+                closed.complete(Unit)
                 sentStart = false
                 stop()
             }
@@ -360,19 +390,4 @@ internal fun pcm16Level(bytes: ByteArray, size: Int): Float {
         squares += sample * sample
     }
     return (kotlin.math.sqrt(squares / count) * 3.0).coerceIn(0.0, 1.0).toFloat()
-}
-
-/** Single owner across recreated UI controllers, released only after cleanup. */
-internal class RealtimeVoiceLease {
-    private var owner: Any? = null
-
-    @Synchronized fun acquire(candidate: Any): Boolean {
-        if (owner != null) return false
-        owner = candidate
-        return true
-    }
-
-    @Synchronized fun release(candidate: Any) {
-        if (owner === candidate) owner = null
-    }
 }
