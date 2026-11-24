@@ -81,11 +81,15 @@ private fun SidebarQuotaArtwork(quota: SidebarQuota) {
         tween(CodexMotion.duration(CodexMotion.success, reduced)), label = "weekly-quota")
     val short by animateFloatAsState(quota.fiveHours ?: 0f,
         tween(CodexMotion.duration(CodexMotion.success, reduced)), label = "five-hour-quota")
-    val violet = if (dark) Color(0xFFB59AFB) else Color(0xFF7651C5)
-    val violetDeep = if (dark) Color(0xFF8050DB) else Color(0xFF5637A1)
-    val teal = if (dark) Color(0xFF54D8DB) else Color(0xFF087E88)
-    val track = Ink.controlBorder
-    val well = Ink.elevated
+    // Cool glass palette: a midnight-blue well, muted lavender liquid and ice-cyan ring.
+    // Keep the miniature dial dark in both themes; use a darker cyan on light surfaces.
+    val well = Color(0xFF141D2B)
+    val liquidSurface = Color(0xFF535B82)
+    val liquidBody = Color(0xFF858BB7)
+    val liquidHighlight = Color(0xFFC2C8F0)
+    val teal = if (dark) Color(0xFF68E9EF) else Color(0xFF087E88)
+    val track = if (dark) Color(0xFF617287) else Color(0xFF45576B)
+    val rim = Color(0xFF8896B5)
     Canvas(Modifier.size(24.dp)) {
         val stroke = 2.dp.toPx()
         val outer = size.minDimension / 2f - stroke / 2f
@@ -93,14 +97,20 @@ private fun SidebarQuotaArtwork(quota: SidebarQuota) {
         val arcTop = Offset(center.x - outer, center.y - outer)
         val arcSize = Size(outer * 2f, outer * 2f)
         drawCircle(well, inner)
-        drawCircle(track, inner, style = Stroke(.65.dp.toPx()))
+        drawCircle(rim, inner, style = Stroke(.65.dp.toPx()))
+        // Anchor the cool lavender gradient to the remaining liquid, not the entire icon.
+        val liquidTop = center.y + inner - 2f * inner * weekly
+        val liquidBrush = Brush.verticalGradient(
+            0f to liquidSurface, .68f to liquidBody, 1f to liquidHighlight,
+            startY = liquidTop, endY = center.y + inner + .01f
+        )
         if (quota.weekly == null) {
             drawLine(track, Offset(center.x - inner * .32f, center.y),
                 Offset(center.x + inner * .32f, center.y), 1.2.dp.toPx(), StrokeCap.Round)
         } else if (weekly >= 1f) {
-            drawCircle(Brush.verticalGradient(listOf(violet, violetDeep)), inner)
+            drawCircle(liquidBrush, inner)
         } else if (weekly > 0f) {
-            val y = center.y + inner - 2f * inner * weekly
+            val y = liquidTop
             val wave = inner * .11f * (4f * weekly * (1f - weekly))
             val liquid = Path().apply {
                 moveTo(center.x - inner, y)
@@ -111,7 +121,7 @@ private fun SidebarQuotaArtwork(quota: SidebarQuota) {
             }
             val clip = Path().apply { addOval(androidx.compose.ui.geometry.Rect(
                 center.x - inner, center.y - inner, center.x + inner, center.y + inner)) }
-            clipPath(clip) { drawPath(liquid, Brush.verticalGradient(listOf(violet, violetDeep))) }
+            clipPath(clip) { drawPath(liquid, liquidBrush) }
         }
         if (quota.fiveHours == null) {
             drawCircle(track, outer, style = Stroke(stroke,
