@@ -409,6 +409,35 @@ class UiNavigationInstrumentedTest {
         captureOverlay("model-sheet-android35.png")
     }
 
+    @Test fun composerReferenceAndExpandedEditorPreserveDraft() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val fixture = java.io.File(vm.activeWorkspace.value, "composer-reference-ci.txt")
+        fixture.writeText("reference fixture")
+        try {
+            rule.onNodeWithTag("composer-input").performTextInput("检查 @composer-reference-ci.txt")
+            rule.onNodeWithTag("composer-reference-suggestion").performClick()
+            rule.waitUntil(10000) {
+                rule.onAllNodesWithText("composer-reference-ci.txt", substring = false)
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onAllNodesWithText("composer-reference-ci.txt", substring = false).onFirst().performClick()
+            rule.onNodeWithTag("composer-references").assertExists()
+            rule.onNodeWithTag("composer-input").assertTextContains("检查")
+            rule.onNodeWithTag("composer-task-options").performClick()
+            rule.onNodeWithTag("codex-detail-close").performClick()
+            rule.onNodeWithTag("composer-input").assertTextContains("检查")
+            rule.onNodeWithTag("composer-input").performTextInput("\n" + "继续核对项目内容".repeat(20))
+            rule.onNodeWithTag("composer-expand").performClick()
+            rule.onNodeWithTag("composer-expanded-input").assertExists()
+            rule.onNodeWithText("完成").performClick()
+            rule.onNodeWithTag("composer-input").assertTextContains("继续核对项目内容", substring = true)
+            rule.onNodeWithContentDescription("移除引用 composer-reference-ci.txt").performClick()
+            rule.onNodeWithTag("composer-references").assertDoesNotExist()
+        } finally {
+            fixture.delete()
+        }
+    }
+
     @Test fun diffReaderShowsFileFirstSummaryAndReviewAction() {
         val vm = (rule.activity.application as CodexApplication).session
         val sampleDiff = "diff --git a/src/main.kt b/src/main.kt\n" +
