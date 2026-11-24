@@ -25,7 +25,7 @@
         "ChatTimelineComponents",
         "AttachmentPreviewDialog"
       ],
-      "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态；唯一任务首页、侧栏新建与历史恢复、工作区文件和终端；运行中有草稿才显示引导任务/排队发送",
+      "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态；唯一任务首页、侧栏新建与历史恢复、工作区文件和终端；运行中有草稿才显示引导任务/排队发送；正文下方复制、重新回答、分享及锚定分支菜单",
       "tests": [
         "UiNavigationInstrumentedTest.emptyChatHasNoSuggestionCardsAndKeepsComposerAccessible",
         "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",

@@ -537,7 +537,7 @@ class CodexInteractionComponentsInstrumentedTest {
                 TimelineStepCard(TimelineItem("test-message-reader", "agentMessage", "可核对的原始内容"))
             }
         }
-        rule.onNodeWithTag("timeline-more-test-message-reader").performClick()
+        rule.onNodeWithTag("timeline-header-test-message-reader").performClick()
         rule.onNodeWithText("全文阅读").performClick()
         rule.onNodeWithTag("full-text-search").assertExists()
         rule.onNodeWithTag("full-text-search").performTextInput("原始")
@@ -578,12 +578,23 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
     @Test fun messageHeaderLongPressPreservesReaderAction() {
+        var action: Pair<String, MessageTurnAction>? = null
         rule.setContent {
-            CodexTheme { TimelineStepCard(TimelineItem("long-press", "agentMessage", "原始消息正文")) }
+            CodexTheme {
+                TimelineStepCard(TimelineItem("long-press", "agentMessage", "原始消息正文", "completed", turnId = "test-turn"),
+                    onTurnAction = { item, selected -> action = item.turnId to selected })
+            }
         }
+        rule.onNodeWithTag("message-copy-long-press").assertExists()
+        rule.onNodeWithTag("message-share-long-press").assertExists()
+        rule.onNodeWithTag("message-retry-long-press").assertIsEnabled().performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Retry, action) }
         rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
-        rule.onNodeWithText("复制内容").assertExists()
+        rule.onNodeWithTag("message-fork-long-press").assertIsEnabled()
         captureComponentEvidence("audit-message-menu-android35.png")
+        rule.onNodeWithTag("message-fork-long-press").performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Fork, action) }
+        rule.onNodeWithTag("timeline-header-long-press").performClick()
         rule.onNodeWithText("全文阅读").performClick()
         rule.onNode(hasText("原始消息正文") and hasAnyAncestor(hasTestTag("full-text-reader"))).assertExists()
     }

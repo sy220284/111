@@ -13,6 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -88,26 +91,26 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
     Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
         if (user || assistant) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
-            Surface(Modifier.fillMaxWidth(if (user) .88f else 1f)
-                .testTag(if (user) "chat-user-message" else "chat-assistant-message"),
-                color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
-                Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
-                    if (assistant) NativeMessageMarkdown(shownText)
-                    else {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
-                            Text(if (item.status == "sending") "正在发送" else "你的指令", color = Ink.muted,
-                                style = MaterialTheme.typography.labelSmall)
+                Surface(Modifier.fillMaxWidth(if (user) .88f else 1f)
+                    .testTag(if (user) "chat-user-message" else "chat-assistant-message"),
+                    color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
+                    Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
+                        if (assistant) NativeMessageMarkdown(shownText)
+                        else {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
+                                Text(if (item.status == "sending") "正在发送" else "你的指令", color = Ink.muted,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                            Spacer(Modifier.height(5.dp))
+                            SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
                         }
-                        Spacer(Modifier.height(5.dp))
-                        SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
+                        if (user) NativeTimelineMedia(item, raw)
                     }
-                    if (user) NativeTimelineMedia(item, raw)
                 }
-            }
-            if (!active && (user || item.phase != "commentary")) {
-                MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
-            }
+                if (!active && (user || item.phase != "commentary")) {
+                    MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
+                }
             }
         } else {
             val icon = when (item.kind) {
@@ -173,11 +176,13 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
 }
 
 /** Only the selected visible message is copied/shared; actions never include tool evidence. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageActionRow(item: TimelineItem, user: Boolean,
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)?, onRead: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     var menu by remember(item.id) { mutableStateOf(false) }
     val hasText = item.text.isNotBlank()
     val hasTurn = item.turnId.isNotBlank()
@@ -212,8 +217,11 @@ private fun MessageActionRow(item: TimelineItem, user: Boolean,
             }
         }
         Box {
-            CodexIconAction(onClick = { menu = true },
-                modifier = Modifier.size(48.dp).testTag("timeline-header-" + item.id)) {
+            Box(Modifier.size(48.dp).testTag("timeline-header-" + item.id)
+                .combinedClickable(role = Role.Button, onClick = { menu = true }, onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    menu = true
+                }), contentAlignment = Alignment.Center) {
                 CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = Ink.muted, modifier = Modifier.size(19.dp))
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

@@ -14,7 +14,7 @@ import org.json.JSONObject
 internal class ConversationActionController(private val vm: CodexViewModel) {
     private fun available(id: String): Boolean = with(vm) {
         if (id == activeThread.value && !running.value && !threadSwitching.value &&
-            !firstThreadStarting.value && !securitySaveBusy.value && !connectionRestarter.busy.value &&
+            !firstThreadStarting.value && !loadingEarlier.value && !timelineCompacting && !securitySaveBusy.value && !connectionRestarter.busy.value &&
             id !in threadExecutions.value && bridge.status.value == EngineStatus.Connected &&
             globalWorkSnapshot().canStartNewTask &&
             "threadFork:$id" !in loading.value && "threadRevert:$id" !in loading.value) true
@@ -60,12 +60,15 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 } else chooseThread(target, onOpened = {
                     viewModelScope.launch {
                         threadSwitching.first { !it }
-                        if (activeThread.value == target) start(target, "retry:$target", "turn/start", images) {
-                            val config = bridge.request("config/read", JSONObject().put("cwd", activeWorkspace.value))
-                            val params = JSONObject().put("threadId", target).put("input", input)
-                                .put("clientUserMessageId", UUID.randomUUID().toString())
-                            bridge.request("turn/start", ComposerPermissionPolicy.apply(params, ComposerPermissionPolicy.selected(config)))
-                        }
+                        if (activeThread.value == target) {
+                            val cwd = activeWorkspace.value
+                            start(target, "retry:$target", "turn/start", images, prepare = {
+                                val config = bridge.request("config/read", JSONObject().put("cwd", cwd))
+                                val params = JSONObject().put("threadId", target).put("input", input)
+                                    .put("clientUserMessageId", UUID.randomUUID().toString())
+                                ComposerPermissionPolicy.apply(params, ComposerPermissionPolicy.selected(config))
+                            }) { params -> bridge.request("turn/start", params) }
+                        } else actionFeedback.emit(ActionFeedbackReceipt("已创建分支，但会话已切换；尚未重新提交指令", isError = true))
                     }
                 })
             } catch (cancel: kotlinx.coroutines.CancellationException) {
@@ -107,8 +110,8 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         for (index in 0 until input.length()) {
             val part = input.getJSONObject(index)
             when (part.getString("type")) {
-                "text", "image", "audio" -> Unit
-                "localImage", "localAudio", "skill", "mention" -> {
+                "text", "image", "audio", "mention" -> Unit
+                "localImage", "localAudio", "skill" -> {
                     val path = part.getString("path")
                     require(File(path).isAbsolute && File(path).isFile) { "原始附件或引用已失效，请重新添加后发送" }
                     if (part.getString("type") == "localImage") images += path
@@ -137,7 +140,8 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
     }
 
     private fun start(id: String, key: String, method: String, images: List<String> = emptyList(),
-        execute: suspend () -> JSONObject) = with(vm) {
+        prepare: suspend () -> JSONObject = { JSONObject() },
+        execute: suspend (JSONObject) -> JSONObject) = with(vm) {
         if (!available(id) || key in loading.value) return@with
         loading.value = loading.value + key
         data.value = data.value - key
@@ -151,8 +155,9 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             var dispatched = false
             try {
                 CodexForegroundService.startAndAwaitReady(getApplication<Application>())
+                val params = prepare()
                 dispatched = true
-                val response = execute()
+                val response = execute(params)
                 if (method == "review/start" || method == "turn/start") {
                     val turn = response.getJSONObject("turn")
                     if (method == "review/start") require(response.getString("reviewThreadId") == id) { "审查响应所属会话不一致" }
@@ -164,6 +169,8 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 }
                 data.value = data.value + (key to response)
                 actionFeedback.emit(if (method == "turn/start") ActionFeedbackReceipt("已开始重新回答") else ActionFeedbackCopy.success(method, response))
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                throw cancel
             } catch (failure: Exception) {
                 val reason = failure.message ?: "会话操作未成功"
                 val definite = !dispatched || FirstTurnRecoveryPolicy.explicitlyRejected(failure)

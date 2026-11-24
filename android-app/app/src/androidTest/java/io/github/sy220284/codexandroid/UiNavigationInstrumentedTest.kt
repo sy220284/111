@@ -844,10 +844,6 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("message-copy-ui-agent").assertExists()
             rule.onNodeWithTag("message-retry-ui-agent").assertExists()
             rule.onNodeWithTag("message-share-ui-agent").assertExists()
-            rule.onNodeWithTag("timeline-header-ui-agent").performClick()
-            rule.onNodeWithTag("message-fork-ui-agent").assertExists()
-            rule.activity.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
-            rule.waitForIdle()
             rule.onNodeWithTag("chat-activity-group").assertExists()
             rule.onNodeWithTag("chat-activity-group").performClick()
             rule.onNodeWithText("pwd").assertExists()

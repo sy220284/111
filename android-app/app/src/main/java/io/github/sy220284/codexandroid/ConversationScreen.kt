@@ -492,7 +492,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             confirmLabel = "开始整理",
             onConfirm = {
                 sessionAction = ""
-                vm.conversationActions.compact(id)
+                id?.let { vm.conversationActions.compact(it) }
             },
             onDismiss = { sessionAction = "" }
         )

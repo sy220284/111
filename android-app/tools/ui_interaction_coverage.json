@@ -309,8 +309,8 @@
       "id": "message-menu",
       "parent": "chat",
       "file": "ChatTimelineComponents.kt",
-      "owner": "TimelineStepCard",
-      "component": "CodexActionSheet",
+      "owner": "MessageActionRow",
+      "component": "DropdownMenu",
       "test": "messageHeaderLongPressPreservesReaderAction",
       "screenshot": "audit-message-menu"
     },
