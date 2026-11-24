@@ -1,6 +1,14 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Alignment
@@ -104,12 +112,43 @@ internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
     content: @Composable ColumnScope.() -> Unit) {
     val properties = androidx.compose.ui.window.PopupProperties(focusable = focusable)
     if (floating) {
-        DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest,
-            modifier = modifier, properties = properties, shape = RoundedCornerShape(24.dp),
-            containerColor = Ink.elevated, tonalElevation = 0.dp, shadowElevation = 8.dp,
-            content = content)
+        if (expanded) Popup(
+            popupPositionProvider = CodexAnchoredPosition,
+            onDismissRequest = onDismissRequest, properties = properties
+        ) {
+            // DropdownMenu internally requests intrinsic dimensions, which is
+            // incompatible with search fields and subcomposed controls.
+            Surface(modifier = modifier, shape = RoundedCornerShape(24.dp),
+                color = Ink.elevated, contentColor = Ink.parchment, shadowElevation = 8.dp) {
+                Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                    content = content)
+            }
+        }
     } else {
         DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest,
             modifier = modifier, properties = properties, content = content)
+    }
+}
+
+/** Place the menu against its actual anchor and clamp to the visible window. */
+internal object CodexAnchoredPosition : PopupPositionProvider {
+    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
+        layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+        val width = popupContentSize.width
+        val height = popupContentSize.height
+        val start = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.left else anchorBounds.right - width
+        val alternate = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.right - width else anchorBounds.left
+        val maxX = (windowSize.width - width).coerceAtLeast(0)
+        val x = listOf(start, alternate).firstOrNull { it in 0..maxX } ?: start.coerceIn(0, maxX)
+        val above = anchorBounds.top - height
+        val below = anchorBounds.bottom
+        val maxY = (windowSize.height - height).coerceAtLeast(0)
+        val y = when {
+            below in 0..maxY -> below
+            above in 0..maxY -> above
+            anchorBounds.top > windowSize.height - anchorBounds.bottom -> above.coerceIn(0, maxY)
+            else -> below.coerceIn(0, maxY)
+        }
+        return IntOffset(x, y)
     }
 }

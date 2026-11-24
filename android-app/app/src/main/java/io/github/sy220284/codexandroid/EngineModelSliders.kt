@@ -128,9 +128,9 @@ private fun EngineDefaultModelPicker(setting: EngineSetting, current: Any?,
         Box(Modifier.fillMaxWidth()) {
             CodexSecondaryButton(onClick = { open = true },
                 enabled = loaded && enabled && available.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(if (loaded) label else "尚未读取", Modifier.weight(1f)
-                    .testTag("engine-slider-value-" + setting.key))
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("engine-slider-value-" + setting.key)) {
+                Text(if (loaded) label else "尚未读取", Modifier.weight(1f))
                 CodexIcon(CodexGlyph.ExpandMore, null, modifier = Modifier.size(20.dp))
             }
             if (open) CodexChoiceSheet(title = "选择默认模型", description = "使用服务目录中的可用模型；保存后用于新任务。", anchored = true,

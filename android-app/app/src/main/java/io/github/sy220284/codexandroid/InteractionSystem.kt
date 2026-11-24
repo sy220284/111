@@ -33,8 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -411,7 +409,7 @@ fun CodexEvidenceSheet(
     payload: String,
     onDismiss: () -> Unit
 ) {
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberConversationCopy()
     val sections = remember(payload) { PresentationPolicy.evidenceSections(payload) }
     val copyText = remember(sections) {
         sections.joinToString("\n\n") { (label, value) -> "$label\n$value" }
@@ -440,8 +438,15 @@ fun CodexEvidenceSheet(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     sections.forEach { (label, value) ->
-                        Text(label, color = Ink.muted,
-                            style = MaterialTheme.typography.labelMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(label, Modifier.weight(1f), color = Ink.muted,
+                                style = MaterialTheme.typography.labelMedium)
+                            CodexIconAction(onClick = { copy(value, CopyContentFormat.Literal) },
+                                enabled = value.isNotBlank(), modifier = Modifier.size(48.dp)) {
+                                CodexIcon(CodexGlyph.ContentCopy, "复制" + label, tint = Ink.muted,
+                                    modifier = Modifier.size(18.dp))
+                            }
+                        }
                         SelectionContainer {
                             Text(value,
                                 fontFamily = if (label == "执行输出" ||
@@ -458,7 +463,7 @@ fun CodexEvidenceSheet(
                     Text("关闭")
                 }
                 CodexSecondaryButton(
-                    onClick = { clipboard.setText(AnnotatedString(copyText)) },
+                    onClick = { copy(copyText, CopyContentFormat.Literal) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
                     CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))

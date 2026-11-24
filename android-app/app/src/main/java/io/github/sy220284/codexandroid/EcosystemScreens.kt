@@ -586,7 +586,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
         if (status is EngineStatus.Unavailable) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("连接排查", style = MaterialTheme.typography.titleMedium)
-                listOf("重新连接运行服务", "核实账号登录与失败功能", "查看启动日志").forEachIndexed { index, step ->
+                listOf("重新连接运行服务", "核实账号登录与失败功能", "根据上方日志定位启动异常").forEachIndexed { index, step ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text((index + 1).toString(), color = Ink.copper, style = MaterialTheme.typography.titleMedium)
                         Text(step, style = MaterialTheme.typography.bodyMedium)

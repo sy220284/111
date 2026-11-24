@@ -547,8 +547,9 @@ class UiNavigationInstrumentedTest {
     @Test fun projectTerminalAndFilesReturnToConversation() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("terminal")
-        rule.onNodeWithText("项目终端").assertExists()
-        rule.onNodeWithContentDescription("收起终端").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("终端")
+        rule.onNodeWithTag("terminal-console").assertExists()
+        pressSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
@@ -601,8 +602,9 @@ class UiNavigationInstrumentedTest {
         pressSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("terminal")
-        rule.onNodeWithText("项目终端").assertExists()
-        rule.onNodeWithContentDescription("收起终端").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("终端")
+        rule.onNodeWithTag("terminal-console").assertExists()
+        pressSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
@@ -726,7 +728,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("全文搜索").assertExists()
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("thread-library-list").assertDoesNotExist()
-        rule.onNodeWithText("会话分组").assertDoesNotExist()
+        rule.onNodeWithText("会话分组").assertExists()
+        rule.onNodeWithText("批量管理").assertExists()
         rule.onNodeWithText("下一页").assertDoesNotExist()
         captureOverlay("thread-library-android35.png")
         rule.onNodeWithText("全文搜索").performClick()
@@ -993,7 +996,7 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchSeparatesDiagnosticsOverviewFromLogAction() {
         openSettingRoute("diagnostics")
         rule.onAllNodes(isRoot()).assertCountEquals(1)
-        rule.onNodeWithText("查看启动日志").assertExists()
+        rule.onNodeWithText("查看启动日志").assertHasClickAction()
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("settings-search").performTextClearance()
         rule.onNodeWithTag("settings-search").performTextInput("启动日志")
@@ -1053,7 +1056,8 @@ class UiNavigationInstrumentedTest {
         assertNoWorkspaceBar()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
         openComposerShortcut("terminal")
-        rule.onNodeWithText("项目终端").assertExists()
+        rule.onNodeWithTag("screen-title").assertTextEquals("终端")
+        rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
@@ -1134,7 +1138,7 @@ class UiNavigationInstrumentedTest {
             if (route == "diagnostics") {
                 // 搜索完整页面名称应停留在概览，不能误开日志对话框。
                 rule.onAllNodes(isRoot()).assertCountEquals(1)
-                rule.onNodeWithText("查看启动日志").assertExists()
+                rule.onNodeWithText("查看启动日志").assertHasClickAction()
                 captureVerifiedDisplayScreenshot("audit-diagnostics-android35.png")
             } else capture("audit-" + route + "-android35.png")
         }
@@ -1268,7 +1272,7 @@ class UiNavigationInstrumentedTest {
             )
         }
         rule.onNodeWithContentDescription("待审批").performClick()
-        rule.onNodeWithText("待处理审批").assertExists()
+        rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
         rule.onNodeWithText("允许访问网络", substring = true).assertExists()
         rule.onNodeWithText("修改：本机工作区", substring = true).assertExists()
         captureOverlay("audit-permission-request-android35.png")

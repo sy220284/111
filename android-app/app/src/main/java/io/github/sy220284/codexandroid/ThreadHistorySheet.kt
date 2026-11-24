@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -41,6 +42,9 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     var exportMarkdown by remember(thread) { mutableStateOf<String?>(null) }
     var exportBusy by remember(thread) { mutableStateOf(false) }
     var exportStatus by remember(thread) { mutableStateOf("") }
+    var includeActivity by remember(thread) { mutableStateOf(false) }
+    var confirmActivity by remember(thread) { mutableStateOf<Boolean?>(null) }
+    val currentThread by rememberUpdatedState(thread)
     val exportFilePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/markdown")
     ) { uri ->
@@ -62,6 +66,32 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             }
         } else exportMarkdown = null
     }
+    fun exportConversation(toClipboard: Boolean, activity: Boolean) {
+        val owner = thread ?: return
+        if (exportBusy || busy || exportMarkdown != null) return
+        exportBusy = true
+        exportStatus = ""
+        scope.launch {
+            try {
+                val payload = ThreadCopyHistory { method, params -> vm.bridge.request(method, params) }.read(owner)
+                val markdown = withContext(Dispatchers.Default) { ThreadMarkdownExporter.render(payload, activity) }
+                check(currentThread == owner) { "会话已切换，请重新操作" }
+                if (toClipboard) {
+                    val copied = ConversationClipboard.copy(context, markdown, CopyContentFormat.Literal)
+                    if (currentThread == owner) exportStatus = if (copied) "已复制完整会话" else "复制失败：可尝试导出文件"
+                } else {
+                    exportMarkdown = markdown
+                    exportFilePicker.launch("Codex-会话记录.md")
+                }
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (failure: Exception) {
+                if (currentThread == owner) exportStatus = "导出失败：" + (failure.message ?: "请检查会话连接")
+            } finally {
+                if (currentThread == owner) exportBusy = false
+            }
+        }
+    }
     val prefix = "turnHistory:" + (thread ?: "none") + ":"
     val pages = (0..page).mapNotNull { data[prefix + it] }
     val turns = pages.flatMap { records(it) }.distinctBy { it.optString("id") }
@@ -76,7 +106,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     }
     CodexOverlayFrame(
         onDismissRequest = onDismiss,
-        fullScreen = true, containerColor = Ink.canvas,) {
+        fullScreen = true, containerColor = Ink.canvas) {
         Column(Modifier.fillMaxWidth().fillMaxHeight()
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -89,43 +119,33 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text("查看完整时间线（实验）")
             }
-            CodexSecondaryButton(
-                onClick = {
-                    val target = thread
-                    if (!target.isNullOrBlank()) {
-                        exportBusy = true
-                        exportStatus = ""
-                        scope.launch {
-                            try {
-                                val payload = vm.bridge.request("thread/read", JSONObject()
-                                    .put("threadId", target).put("includeTurns", true))
-                                val markdown = withContext(Dispatchers.Default) {
-                                    ThreadMarkdownExporter.render(payload)
-                                }
-                                exportMarkdown = markdown
-                                exportFilePicker.launch("Codex-会话记录.md")
-                            } catch (failure: Exception) {
-                                exportStatus = "导出失败：" +
-                                    (failure.message ?: "请检查会话连接")
-                            } finally {
-                                exportBusy = false
-                            }
-                        }
-                    }
-                },
-                enabled = !exportBusy && thread != null,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .testTag("thread-export-markdown")
-            ) {
-                CodexIcon(CodexGlyph.SaveAlt, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (exportBusy) "正在整理会话记录…" else "导出会话 Markdown")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("包含执行记录", Modifier.weight(1f), color = Ink.muted,
+                    style = MaterialTheme.typography.bodyMedium)
+                WhiteSwitch(checked = includeActivity, onCheckedChange = { includeActivity = it },
+                    enabled = !exportBusy && !busy && exportMarkdown == null && thread != null)
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CodexSecondaryButton(onClick = {
+                    if (includeActivity) confirmActivity = true else exportConversation(true, false)
+                }, enabled = !exportBusy && !busy && exportMarkdown == null && thread != null, modifier = Modifier.weight(1f)
+                    .heightIn(min = 48.dp).testTag("thread-copy-markdown")) {
+                    Text("复制会话")
+                }
+                CodexSecondaryButton(onClick = {
+                    if (includeActivity) confirmActivity = false else exportConversation(false, false)
+                }, enabled = !exportBusy && !busy && exportMarkdown == null && thread != null, modifier = Modifier.weight(1f)
+                    .heightIn(min = 48.dp).testTag("thread-export-markdown")) {
+                    Text("导出会话 Markdown", maxLines = 2)
+                }
+            }
+            if (busy) Text("当前任务结束后可复制或导出完整记录", color = Ink.muted,
+                style = MaterialTheme.typography.labelSmall)
             if (exportBusy) AtlasOperationProgress("正在整理会话记录")
             if (exportStatus.isNotBlank()) Text(
                 exportStatus, style = MaterialTheme.typography.bodySmall,
                 color = if (exportStatus.startsWith("导出失败") ||
-                    exportStatus.startsWith("保存失败")) Ink.red else Ink.jade
+                    exportStatus.startsWith("保存失败") || exportStatus.startsWith("复制失败")) Ink.red else Ink.jade
             )
             if (thread == null) RequiresThreadPanel("回合历史") { onDismiss() }
             else {
@@ -180,6 +200,13 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+    confirmActivity?.let { toClipboard ->
+        CodexConfirmDialog(title = "包含执行记录",
+            message = "执行记录可能包含命令参数、文件路径、工具输入和输出中的敏感信息。请确认后再复制或保存。",
+            confirmLabel = if (toClipboard) "确认复制" else "确认导出",
+            onConfirm = { confirmActivity = null; exportConversation(toClipboard, true) },
+            onDismiss = { confirmActivity = null })
     }
     if (fullReader == null) inspected?.let { id ->
         CodexInfoDialog("回合条目详情", onDismiss = { inspected = null }) {

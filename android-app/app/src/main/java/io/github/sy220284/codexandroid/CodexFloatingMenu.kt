@@ -45,9 +45,7 @@ internal fun CodexFloatingMenu(
         modifier = Modifier.width(menuWidth)
             .heightIn(max = height).testTag("codex-floating-menu")
     ) {
-        // DropdownMenu measures its content's intrinsic width. An explicit
-        // inner width terminates that query before Slider/SubcomposeLayout.
-        Column(Modifier.width(menuWidth).padding(horizontal = 8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.titleMedium, color = Ink.parchment)
             if (description.isNotBlank()) Text(description,

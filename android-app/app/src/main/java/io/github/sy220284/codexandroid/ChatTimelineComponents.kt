@@ -11,13 +11,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,7 +86,7 @@ internal fun TimelineStepCard(
     val failure = item.failed()
     val tone = if (failure) Ink.red else Ink.muted
     val title = PresentationPolicy.timelineKind(item.kind)
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberConversationCopy()
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
@@ -184,7 +182,7 @@ internal fun TimelineStepCard(
                         if (menuOpen && !user && !assistant) CodexFloatingActionMenu(title = title, onDismiss = { menuOpen = false }, actions = buildList {
         if (item.text.isNotBlank()) {
             add(CodexSheetAction("复制内容", CodexGlyph.ContentCopy,
-                { clipboard.setText(AnnotatedString(item.text)) }))
+                { copy(item.text, CopyContentFormat.Literal) }))
             add(CodexSheetAction("全文阅读", CodexGlyph.OpenInFull, { readerOpen = true }))
         }
         if (detail) {
@@ -211,7 +209,7 @@ internal fun TimelineStepCard(
 @Composable
 private fun MessageActionRow(item: TimelineItem, user: Boolean,
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)?, onRead: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberConversationCopy()
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     var menu by remember(item.id) { mutableStateOf(false) }
@@ -221,8 +219,7 @@ private fun MessageActionRow(item: TimelineItem, user: Boolean,
     Row(Modifier.testTag("message-actions-" + item.id), verticalAlignment = Alignment.CenterVertically) {
         if (hasText) {
             CodexIconAction(onClick = {
-                clipboard.setText(AnnotatedString(item.text))
-                Toast.makeText(context, "已复制消息", Toast.LENGTH_SHORT).show()
+                copy(item.text, if (user) CopyContentFormat.Literal else CopyContentFormat.Markdown)
             }, modifier = Modifier.size(48.dp).testTag("message-copy-" + item.id)) {
                 CodexIcon(CodexGlyph.ContentCopy, "复制消息", tint = Ink.muted, modifier = Modifier.size(19.dp))
             }
@@ -259,6 +256,9 @@ private fun MessageActionRow(item: TimelineItem, user: Boolean,
                 if (hasText) DropdownMenuItem(text = { Text("全文阅读") },
                     leadingIcon = { CodexIcon(CodexGlyph.OpenInFull, null) },
                     onClick = { menu = false; onRead() })
+                if (hasText && !user) DropdownMenuItem(text = { Text("复制纯文本") },
+                    leadingIcon = { CodexIcon(CodexGlyph.ContentCopy, null) },
+                    onClick = { menu = false; copy(item.text, CopyContentFormat.VisibleText) })
                 if (hasTurn && !user) DropdownMenuItem(text = { Text("创建会话分支") },
                     leadingIcon = { CodexIcon(CodexGlyph.CallSplit, null) },
                     enabled = canMutate,
