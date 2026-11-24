@@ -10,9 +10,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Image as PhotoIcon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -128,7 +125,7 @@ fun LocalImageAttachmentStrip(
                             } else {
                                 IconButton(onClick = { previewPath = path },
                                     modifier = Modifier.size(48.dp)) {
-                                    Icon(Icons.Outlined.PhotoIcon, contentDescription = "预览图片 ${idx + 1}",
+                                    CodexIcon(CodexGlyph.Photo, contentDescription = "预览图片 ${idx + 1}",
                                         tint = Ink.copper)
                                 }
                             }
@@ -139,7 +136,7 @@ fun LocalImageAttachmentStrip(
                                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                             }
                             IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
-                                Icon(Icons.Outlined.Close, contentDescription = "移除图片 ${idx + 1}",
+                                CodexIcon(CodexGlyph.Close, contentDescription = "移除图片 ${idx + 1}",
                                     tint = Ink.red)
                             }
                         }
@@ -148,8 +145,10 @@ fun LocalImageAttachmentStrip(
             }
         }
         previewPath?.let { path ->
-            val enlarged by produceState<ImageBitmap?>(initialValue = null, path) {
-                value = withContext(Dispatchers.IO) {
+            var retry by remember(path) { mutableIntStateOf(0) }
+            val preview by produceState<Pair<Boolean, ImageBitmap?>>(initialValue = false to null, path, retry) {
+                value = false to null
+                val bitmap = withContext(Dispatchers.IO) {
                     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                     BitmapFactory.decodeFile(path, bounds)
                     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
@@ -157,15 +156,20 @@ fun LocalImageAttachmentStrip(
                     BitmapFactory.decodeFile(path,
                         BitmapFactory.Options().apply { inSampleSize = scale })?.asImageBitmap()
                 }
+                value = true to bitmap
             }
-            AlertDialog(
+            val enlarged = preview.second
+            CodexDialogFrame(
                 onDismissRequest = { previewPath = null },
                 title = { Text("图片预览") },
                 text = {
-                    if (enlarged == null) {
-                        Text("正在载入图片…", style = MaterialTheme.typography.bodyMedium)
+                    if (!preview.first) {
+                        AtlasOperationProgress("正在载入图片")
+                    } else if (enlarged == null) {
+                        CodexRecoveryState("图片读取失败", "附件可能已被移动或损坏。",
+                            "重新读取", { retry++ })
                     } else {
-                        Image(enlarged!!, contentDescription = "当前附件的大图预览",
+                        Image(enlarged, contentDescription = "当前附件的大图预览",
                             modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp),
                             contentScale = ContentScale.Fit)
                     }

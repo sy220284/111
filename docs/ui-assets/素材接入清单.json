@@ -28,7 +28,8 @@
         "ConversationControlBar",
         "ConversationLoadingSkeleton",
         "ChatWorkTopBar",
-        "ThreadContextTools"
+        "ThreadContextTools",
+        "LocalImageAttachments"
       ],
       "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态",
       "tests": [

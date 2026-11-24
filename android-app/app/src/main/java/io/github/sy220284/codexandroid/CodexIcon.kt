@@ -11,6 +11,7 @@ import androidx.compose.ui.res.painterResource
 /** 111 唯一应用图标入口：资源内保持统一 24dp / 1.8 线宽，颜色随真实状态和主题。 */
 enum class CodexGlyph(@DrawableRes val resId: Int) {
     Attachment(R.drawable.ic_ui_attachment),
+    Photo(R.drawable.ic_ui_photo),
     BrandCodex(R.drawable.ic_ui_brand_codex),
     Diff(R.drawable.ic_ui_diff),
     History(R.drawable.ic_ui_history),
