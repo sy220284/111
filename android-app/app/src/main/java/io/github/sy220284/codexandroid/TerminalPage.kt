@@ -423,13 +423,14 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     enabled = !session.running
                 )
                 if (recentCommands.isNotEmpty()) {
+                    Box {
                     AtlasTerminalHistoryControls(command, recentCommands, historyPosition,
                         enabled = !session.running && !terminalStarting,
                         onChoice = { choice -> command = choice.command; historyPosition = choice.position },
                         onOpenHistory = { historyVisible = true })
-                    if (historyVisible) CodexDetailSheet(
-                        title = "历史命令",
-                        subtitle = "选择后填入输入栏，执行前仍需确认",
+                    if (historyVisible) CodexFloatingMenu(
+                        title = "历史命令", wide = true, searchable = true,
+                        description = "选择后填入输入栏，执行前仍需确认",
                         onDismiss = { historyVisible = false }
                     ) {
                         var historyQuery by remember { mutableStateOf("") }
@@ -450,6 +451,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                     overflow = TextOverflow.Ellipsis)
                             }
                         }
+                    }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {

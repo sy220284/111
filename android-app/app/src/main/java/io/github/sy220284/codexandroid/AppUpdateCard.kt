@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
-/** 版本和进度始终留在设置卡片，具体更新操作在独立底部面板中进行。 */
+/** 检查、下载、安装与实时进度全部位于原设置卡片。 */
 @Composable
 internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
     val status by AppUpdateManager.state.collectFrameState()
@@ -22,8 +22,6 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
     val currentVersion = remember(activity) {
         activity?.packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty()
     }
-    var showSheet by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(autoExpand) { if (autoExpand) showSheet = true }
     val busy = status.phase in setOf(UpdatePhase.CHECKING,
         UpdatePhase.DOWNLOADING, UpdatePhase.PATCHING)
 
@@ -40,7 +38,6 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
         ) {
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .clickable { showSheet = true }
                     .testTag("settings-update-toggle"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -52,23 +49,7 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
                     Text("当前版本：${currentVersion.ifBlank { "未知" }}",
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                CodexIcon(CodexGlyph.ChevronRight, contentDescription = "查看更新操作",
-                    tint = Ink.muted)
             }
-            if (status.phase != UpdatePhase.IDLE) {
-                AtlasUpdateStatus(status, Modifier.testTag("update-inline-status"),
-                    progressTag = "update-inline-progress")
-            }
-        }
-    }
-    if (showSheet) {
-        CodexDetailSheet(
-            title = "应用更新",
-            subtitle = "检查、下载和安装均使用当前设备上的真实更新状态",
-            onDismiss = { showSheet = false }
-        ) {
-            Text("当前版本：${currentVersion.ifBlank { "未知" }}",
-                style = MaterialTheme.typography.titleMedium)
             if (status.targetVersion.isNotBlank()) {
                 Text("目标版本：${status.targetVersion}", style = MaterialTheme.typography.bodyMedium)
             }

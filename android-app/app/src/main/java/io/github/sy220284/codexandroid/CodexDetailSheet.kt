@@ -104,7 +104,7 @@ data class CodexSheetAction(
     val testTag: String? = null
 )
 
-/** 用于会话或文件的上下文操作；选择后先关闭菜单，再交由原页面执行或确认。 */
+/** 非锚定上下文操作统一使用居中菜单；有触发锚点时使用 CodexFloatingActionMenu。 */
 @Composable
 fun CodexActionSheet(
     title: String,

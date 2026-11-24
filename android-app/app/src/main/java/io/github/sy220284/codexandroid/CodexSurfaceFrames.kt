@@ -53,7 +53,7 @@ fun CodexOverlayFrame(
         val bounds = if (fullScreen) Modifier.fillMaxSize()
             else Modifier.widthIn(max = 360.dp).fillMaxWidth()
                 .padding(horizontal = 16.dp).heightIn(max = screen.screenHeightDp.dp * .86f)
-        Box(Modifier.fillMaxWidth().then(if (fullScreen) Modifier.fillMaxHeight() else Modifier)
+        Box((if (fullScreen) Modifier.fillMaxSize() else Modifier.wrapContentSize())
             .imePadding(), contentAlignment = Alignment.Center) {
             Surface(modifier = bounds.then(modifier),
                 shape = RoundedCornerShape(if (fullScreen) 0.dp else 24.dp),

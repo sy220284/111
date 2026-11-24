@@ -6,6 +6,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
@@ -207,8 +209,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(
                     "当前任务有 ${prompts.size} 项需要处理，完成后可继续。",
                     NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                    actionLabel = "立即处理", onAction = { composerMenu = "approval" }
+                    actionLabel = if (composerMenu == "approval") "收起" else "立即处理",
+                    onAction = { composerMenu = if (composerMenu == "approval") "" else "approval" }
                 )
+                if (composerMenu == "approval") Column(Modifier.fillMaxWidth()
+                    .heightIn(max = atlasSheetHeight() * .45f).verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    prompts.forEach { prompt -> key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) } }
+                }
             } else if (busy && !compactWorkArea) {
                 ConversationExecutionNotice(vm, stopping)
             }
@@ -506,8 +514,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onDismiss = { confirmPlan = false }
         )
     }
-    if (composerMenu == "approval" && thread != null)
-        ApprovalQuickSheet(vm, thread) { closeComposerMenu("approval") }
     if (composerMenu == "engine-status") EngineStatusSheet(
         vm, onDismiss = { closeComposerMenu("engine-status") }, navigate = navigate
     )

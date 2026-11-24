@@ -85,7 +85,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             updateExpanded(expanded + target)
             pendingJump = fileKeys[target]
             filePicker = false
-        }, onDismiss = { filePicker = false }, searchable = true)
+        }, searchable = true, onDismiss = { filePicker = false }, searchable = true)
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),

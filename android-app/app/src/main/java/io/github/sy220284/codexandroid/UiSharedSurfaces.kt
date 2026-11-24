@@ -28,7 +28,7 @@ fun EngineStatusSheet(
 ) {
     val status by vm.bridge.status.collectAsState()
     val terminalRunning by vm.terminalSession.collectProjection { it.running }
-    CodexDetailSheet(title = "运行状态", onDismiss = onDismiss, startExpanded = true) {
+    CodexDetailSheet(title = "运行状态", onDismiss = onDismiss) {
         val label = when (status) {
             EngineStatus.Connected -> "本机内核已连接"
             EngineStatus.Starting -> "内核正在启动"
@@ -82,11 +82,21 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
-        CodexChoiceSheet(title = "思考强度", description = "当前模型：" + selected, anchored = anchored,
-            choices = listOf(CodexChoice("", "遵循默认强度")) + efforts.map { CodexChoice(it, PresentationPolicy.reasoningLabel(it)) },
-            selectedId = effort, enabled = selectable,
-            onSelect = { vm.chooseComposerEffort(it); selectingEffort = false },
-            onDismiss = { selectingEffort = false })
+        val options = listOf("") + efforts
+        val actual = options.indexOf(effort).coerceAtLeast(0)
+        var preview by remember(actual, options) { mutableIntStateOf(actual) }
+        val content: @Composable ColumnScope.() -> Unit = {
+            Text(if (options[preview].isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(options[preview]),
+                color = Ink.copper, style = MaterialTheme.typography.titleMedium)
+            if (options.size > 1) CodexDiscreteSlider(preview, options.size, selectable,
+                onPreview = { preview = it }, onFinished = {
+                    if (selectable) vm.chooseComposerEffort(options[preview])
+                    selectingEffort = false
+                }, modifier = Modifier.testTag("composer-effort-slider"))
+            Text("松手后应用到后续任务", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        }
+        if (anchored) CodexFloatingMenu("思考强度", { selectingEffort = false }, wide = true, content = content)
+        else CodexDetailSheet("思考强度", { selectingEffort = false }, content = content)
         return
     }
     CodexChoiceSheet(
