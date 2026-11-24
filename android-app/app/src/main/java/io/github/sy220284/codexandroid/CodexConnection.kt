@@ -318,12 +318,12 @@ class CodexConnection(private val appContext: Context) {
         }
     }
 
-    private fun retireSession(epoch: Long, reason: String, reservedRestart: Boolean = false) {
+    private fun retireSession(epoch: Long, reason: String, reservedRestart: Boolean = false,
+        canClose: (() -> Boolean)? = null): Boolean {
         val retired = synchronized(ownership) {
-            if (reservedRestart) check(ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) {
-                "重启前出现了新请求或审批，已取消重启"
-            }
-            val token = ownership.retire(epoch) ?: return
+            if (canClose?.invoke() == false) return false
+            if (reservedRestart && !ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) return false
+            val token = ownership.retire(epoch) ?: return false
             val child = process
             val channel = wire
             process = null
@@ -340,6 +340,7 @@ class CodexConnection(private val appContext: Context) {
                 status.value = EngineStatus.Unavailable(reason)
             }
         }
+        return true
     }
 
     internal fun closeForRestart() {
@@ -349,7 +350,24 @@ class CodexConnection(private val appContext: Context) {
             }
             ownership.current()
         } ?: return
-        retireSession(epoch, "连接已关闭", reservedRestart = true)
+        check(retireSession(epoch, "连接已关闭", reservedRestart = true)) {
+            "重启前出现了新请求或审批，已取消重启"
+        }
+    }
+
+    /** Background idle release uses the same admission boundary as an explicit restart. */
+    internal fun closeIfIdle(canClose: () -> Boolean): Boolean {
+        val epoch = synchronized(ownership) {
+            if (!canClose()) return false
+            val token = ownership.current() ?: return false
+            if (!ownership.reserveRestart(activeRpcRequests.value.size, prompts.value.size)) return false
+            token
+        }
+        try {
+            return retireSession(epoch, "后台空闲内核已释放", reservedRestart = true, canClose = canClose)
+        } finally {
+            ownership.releaseRestart()
+        }
     }
 
     fun close() {

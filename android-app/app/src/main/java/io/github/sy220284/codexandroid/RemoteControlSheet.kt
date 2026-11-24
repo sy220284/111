@@ -25,6 +25,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     var refreshPending by remember(vm) { mutableStateOf(true) }
     var clients by remember { mutableStateOf<List<JSONObject>?>(null) }
     var clientsEnvironment by remember { mutableStateOf("") }
+    var clientsEpoch by remember { mutableStateOf<Long?>(null) }
     var pair by remember { mutableStateOf<RemotePairing?>(null) }
     var seconds by remember { mutableLongStateOf(0L) }
     var verified by remember { mutableIntStateOf(0) }
@@ -38,7 +39,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         connected && remoteStatus == "connected"
     }.orEmpty()
 
-    val visibleClients = clients.takeIf { clientsEnvironment == environment }
+    val visibleClients = clients.takeIf { clientsEpoch == session && clientsEnvironment == environment }
     suspend fun requestStatus(epoch: Long, fetch: suspend () -> JSONObject) {
         val token = statusOrder.begin()
         val response = fetch()
@@ -56,7 +57,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         }
     }
     LaunchedEffect(connected, session, operation.busy) {
-        if (connected && !operation.busy && refreshPending) {
+        if (connected && session != null && !operation.busy && refreshPending) {
             refreshPending = false
             refresh()
         }
@@ -75,6 +76,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 revoke = null
                 clients = null
                 clientsEnvironment = ""
+                clientsEpoch = null
             }
             previous = epoch
         }
@@ -93,6 +95,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     LaunchedEffect(environment, session, verified) {
         clients = null
         clientsEnvironment = environment
+        clientsEpoch = session
         listError = ""
         if (environment.isNotBlank() && session != null) {
             try {
@@ -191,7 +194,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     pair = RemotePairing(manual, result.getString("pairingCode"), expiry, epoch)
                 }
             }, enabled = !operation.busy && pair == null) { Text("生成配对码") }
-            pair?.let {
+            pair?.takeIf { it.epoch == session }?.let {
                 Text("在另一台设备的 Codex 配对界面输入此码", color = Ink.muted)
                 Text(it.code, style = MaterialTheme.typography.headlineMedium, fontFamily = FontFamily.Monospace)
                 Text("剩余 ${seconds} 秒", color = Ink.muted)
