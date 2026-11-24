@@ -20,6 +20,8 @@ fun ThreadContextTools(
     CodexFloatingActionMenu(title = "会话操作", onDismiss = onDismiss, actions = listOf(
         CodexSheetAction("整理上下文", CodexGlyph.Compress, onCompact, enabled = idle),
         CodexSheetAction("历史回退", CodexGlyph.History, { navigate("history-tools") }, enabled = idle),
+        CodexSheetAction("实时语音", CodexGlyph.Microphone, { navigate("realtime-voice") }, enabled = idle),
+        CodexSheetAction("会话记忆", CodexGlyph.Memory, { navigate("thread-memory") }, enabled = idle),
         CodexSheetAction("关联资料", CodexGlyph.Attachment, { navigate("thread-attachments") },
             enabled = thread != null && !switching)
     ))

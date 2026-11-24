@@ -256,6 +256,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     var installedOnly by rememberSaveable { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
+    var sharingPath by remember { mutableStateOf<String?>(null) }
     var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
     var installedQuery by rememberSaveable { mutableStateOf("") }
     var searchDraft by rememberSaveable { mutableStateOf("") }
@@ -331,6 +332,10 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         AtlasCompactChoice(if (installedOnly) "installed" else "catalog",
             listOf("installed" to "已安装", "catalog" to "发现插件"),
             onSelect = { installedOnly = it == "installed" }, tagPrefix = "plugins-tab-")
+        CodexSecondaryButton(onClick = { sharingPath = "" }, enabled = canOperate,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plugin-sharing-entry")) {
+            Text("插件共享")
+        }
         ExtensionCatalogHeader(
             title = if (installedOnly) "已安装插件" else "插件源",
             summary = if (data[activeKey] == null) null else
@@ -427,10 +432,17 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 onAction = { if (installedOnly) installedOnly = false else refreshCatalog(true) })
         }
     }
+    sharingPath?.let { path ->
+        PluginSharingSheet(vm, path, onChanged = {
+            vm.extensions.refreshPluginCatalog("plugins", workspace, true)
+            vm.extensions.refreshPluginCatalog("installedPlugins", workspace)
+        }) { sharingPath = null }
+    }
     selectedPlugin?.let { (market, item) ->
         val installed = installed(market, item)
         PluginDetailSheet(marketplace = market, entry = item, vm = vm,
             onDismiss = { selectedPlugin = null }, installedState = installed,
+            onShare = if (!canOperate) null else ({ path -> selectedPlugin = null; sharingPath = path }),
             onManage = if (!canManage || (!installed && item.optString("installPolicy") == "NOT_AVAILABLE")) null else ({
                 selectedPlugin = null; action = Triple(market, item, !installed)
             }), manageLabel = if (installed) "卸载插件" else "安装插件")

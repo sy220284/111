@@ -84,8 +84,42 @@ internal fun SidebarSessions(
         activities + questions.filter { (approvals[it] ?: 0) == 0 }
             .associateWith { ThreadActivity.WaitingAnswer }
     }
+    var section by remember { mutableStateOf<AndroidThreadSection?>(null) }
+    var sectionRows by remember { mutableStateOf<List<JSONObject>?>(null) }
+    var sectionError by remember { mutableStateOf("") }
+    var sectionRevision by remember { mutableIntStateOf(0) }
+    var managingSections by remember { mutableStateOf(false) }
+    var moving by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
-    val rawRows = remember(response) { records(response) }
+    val rawRows = remember(section, state.fullText, response, sectionRows) {
+        if (section == null || state.fullText) records(response) else sectionRows.orEmpty()
+    }
+    LaunchedEffect(section, state.archived, connected, sectionRevision) {
+        val selected = section
+        sectionRows = null
+        sectionError = ""
+        if (selected != null && connected) {
+            try {
+                sectionRows = capabilityPages { cursor ->
+                    vm.capabilityRequest("thread/list",
+                        ThreadSectionContract.threadList(state.archived, "", cursor, selected.id))
+                }
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                if (cancel !is kotlinx.coroutines.TimeoutCancellationException) throw cancel
+                sectionError = capabilityError(cancel)
+            } catch (failure: Exception) {
+                sectionError = capabilityError(failure)
+            }
+        }
+    }
+    LaunchedEffect(vm) {
+        vm.bridge.events.collect { event ->
+            if (section != null && event.optString("method") in setOf(
+                    "thread/section/changed", "thread/archived", "thread/unarchived", "thread/closed")) {
+                sectionRevision++
+            }
+        }
+    }
     val answerVersions by vm.answerVersions.state.collectAsState()
     val all = remember(rawRows, answerVersions) { answerVersions.rows(rawRows) }
     val visiblePins = remember(pins, all, answerVersions) { all.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
@@ -105,7 +139,7 @@ internal fun SidebarSessions(
     var confirm by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     LaunchedEffect(state.archived, connected) { vm.sessions.showArchive(state.archived && connected) }
     DisposableEffect(vm) { onDispose { vm.sessions.showArchive(false) } }
-    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected) {
+    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected, section?.id) {
         if (state.searching && state.fullText) {
             delay(250)
             vm.sessions.search(state.search, state.archived)
@@ -121,7 +155,26 @@ internal fun SidebarSessions(
         return connected && !busy && answerVersions.members(id).none { it in executions } &&
             !ThreadActivityPolicy.isActive(currentActivities[id] ?: ThreadActivityPolicy.fromThread(row))
     }
+    fun moveRows(ids: Collection<String>) {
+        moving = ids.associateWith { answerVersions.members(it).toSet() }
+    }
     Column(modifier.fillMaxSize()) {
+        if (!state.fullText && !selection) Row(Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween) {
+            CodexTextAction(onClick = { managingSections = true }, enabled = connected,
+                modifier = Modifier.weight(1f)) {
+                Text(section?.name ?: "会话分组", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            CodexTextAction(onClick = { selection = true }, enabled = connected && !busy && rows.isNotEmpty()) {
+                Text("批量管理")
+            }
+        }
+        if (section != null && !state.fullText && connected) {
+            if (sectionError.isNotBlank()) CodexNotice(sectionError, NoticeTone.Error,
+                actionLabel = "重试", onAction = { sectionRevision++ })
+            else if (sectionRows == null) AtlasOperationProgress("正在读取分组会话")
+            else if (rows.isEmpty()) Text("当前分组没有匹配会话", color = Ink.muted)
+        }
         continuationLabel?.let { Text("选择会话后继续：$it", style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(8.dp)) }
         if (state.searching) {
@@ -176,8 +229,6 @@ internal fun SidebarSessions(
             if (state.fullText && searchError.isNotBlank())
                 CodexNotice(PresentationPolicy.readableError(searchError), NoticeTone.Error,
                     actionLabel = "重试", onAction = { vm.sessions.search(state.search, state.archived) })
-            if (rows.isNotEmpty() && !state.fullText && !selection)
-                CodexTextAction(onClick = { selection = true }) { Text("批量管理") }
         }
         errors["sidebarThreads"]?.let { error ->
             CodexNotice(PresentationPolicy.readableError(error), NoticeTone.Warning,
@@ -205,7 +256,29 @@ internal fun SidebarSessions(
             onSelectAll = { selectedIds = rows.filter(::canManage).map(SessionListPolicy::id).toSet() },
             onClear = { selectedIds = emptySet() },
             onFinish = { selectedIds = emptySet(); selection = false },
-            onAction = { kind -> confirm = kind to selectedIds.toList() })
+            onAction = { kind ->
+                when (kind) {
+                    "move" -> moveRows(selectedIds)
+                    "pin", "unpin" -> if (vm.sessions.setPinned(
+                            selectedIds.map(answerVersions::root).toSet(), kind == "pin")) {
+                        selectedIds = emptySet()
+                        selection = false
+                    }
+                    else -> confirm = kind to selectedIds.toList()
+                }
+            })
+    }
+    if (managingSections || moving != null) {
+        ThreadSectionSheet(vm, section, moving,
+            onFilter = { section = it; sectionRevision++; managingSections = false },
+            onMoved = { completedMoves ->
+                selectedIds -= completedMoves
+                if (selectedIds.isEmpty()) selection = false
+                sectionRevision++
+                vm.syncRecentThreads()
+            },
+            onDismiss = { managingSections = false; moving = null })
+
     }
     menu?.let { row ->
         val id = SessionListPolicy.id(row)
@@ -229,6 +302,8 @@ internal fun SidebarSessions(
                     if (state.archived) CodexGlyph.Unarchive else CodexGlyph.Archive, enabled = canEdit,
                     onClick = { confirm = (if (state.archived) "unarchive" else "archive") to listOf(id) },
                     testTag = "session-archive"))
+                add(CodexSheetAction("移动会话", CodexGlyph.Folder, enabled = canEdit,
+                    onClick = { moveRows(listOf(id)) }, testTag = "session-move"))
                 add(CodexSheetAction("删除会话", CodexGlyph.DeleteOutline, enabled = canEdit,
                     destructive = true, onClick = { confirm = "delete" to listOf(id) }, testTag = "session-delete"))
             })
@@ -252,7 +327,7 @@ internal fun SidebarSessions(
             detail = "已选择 ${ids.size} 条会话",
             confirmLabel = "确认" + label, destructive = kind == "delete",
             onConfirm = {
-                vm.bulkThreadAction(kind, ids) { vm.syncRecentThreads() }
+                vm.bulkThreadAction(kind, ids) { sectionRevision++; vm.syncRecentThreads() }
                 confirm = null
             }, onDismiss = { confirm = null })
     }

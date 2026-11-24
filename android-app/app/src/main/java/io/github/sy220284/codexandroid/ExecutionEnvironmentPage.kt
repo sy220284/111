@@ -37,6 +37,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     val results by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
+    var remoteControl by remember { mutableStateOf(false) }
     var useRemote by rememberSaveable { mutableStateOf(false) }
     val target = remember { SettingsDeepLink.take("environments") }
     LaunchedEffect(target) {
@@ -65,9 +66,12 @@ fun EnvironmentsPage(vm: CodexViewModel) {
         vm.refresh("envInfo:$id", "environment/info", JSONObject().put("environmentId", id))
     }
 
+    if (remoteControl) RemoteControlSheet(vm) { remoteControl = false }
     ScreenColumn {
         SectionIntro("运行管理",
             "选择工作在这台手机上完成，或连接已部署的外部执行服务。")
+        CodexSecondaryButton(onClick = { remoteControl = true },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("remote-control-entry")) { Text("远程控制与配对") }
         Text("在哪里执行任务", style = MaterialTheme.typography.titleLarge)
         Text("先选择运行位置，需要连接时再填写配置。", color = Ink.muted)
         CodexSecondaryButton(

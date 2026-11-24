@@ -343,9 +343,23 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
+        rule.onNodeWithTag("thread-bulk-organize").assertIsNotEnabled()
         rule.onNodeWithContentDescription("全选当前结果").performClick()
         rule.onNodeWithText("已选 2 条").assertExists()
         rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
+        for ((label, action) in listOf(
+            "移动到分组" to "move", "批量置顶" to "pin", "批量取消置顶" to "unpin"
+        )) {
+            rule.onNodeWithTag("thread-bulk-organize").performClick()
+            rule.onNodeWithText(label).assertIsDisplayed().performClick()
+            rule.runOnIdle { assertEquals(action, requested) }
+            rule.onNodeWithText(label).assertDoesNotExist()
+        }
+        rule.onNodeWithTag("thread-bulk-organize").performClick()
+        rule.onNodeWithText("清空选择").performClick()
+        rule.onNodeWithTag("thread-bulk-organize").assertIsNotEnabled()
+        rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
+        rule.onNodeWithContentDescription("全选当前结果").performClick()
         rule.onNodeWithTag("thread-bulk-delete").performClick()
         rule.runOnIdle { assertEquals("delete", requested) }
         capture("audit-thread-bulk-selection-android35.png")

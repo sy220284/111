@@ -163,7 +163,7 @@
       "flag": "常规/内部"
     },
     "thread/section/move": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话/对话",
       "flag": "常规/内部"
     },
@@ -184,12 +184,12 @@
     },
     "memory/status": {
       "surface": "高级按需",
-      "owner": "记忆后台",
+      "owner": "上下文管理",
       "flag": "实验"
     },
     "memory/reset": {
       "surface": "高级按需",
-      "owner": "记忆后台",
+      "owner": "上下文管理",
       "flag": "实验"
     },
     "rollout/compress": {
@@ -278,22 +278,22 @@
       "flag": "实验"
     },
     "threadSection/list": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
     "threadSection/create": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
     "threadSection/update": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
     "threadSection/delete": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
@@ -558,12 +558,12 @@
       "flag": "实验"
     },
     "thread/realtime/appendText": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话/对话",
       "flag": "实验"
     },
     "thread/realtime/appendSpeech": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话/对话",
       "flag": "实验"
     },

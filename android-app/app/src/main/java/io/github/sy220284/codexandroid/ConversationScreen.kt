@@ -36,6 +36,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
+    val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
+    var voiceOpen by remember(thread) { mutableStateOf(false) }
     val busy = conversation.running
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
@@ -138,7 +140,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (composerMenu != "context-tools") {
             pendingContextRoute?.let { destination ->
                 pendingContextRoute = null
-                navigate(destination)
+                when (destination) {
+                    "realtime-voice" -> voiceOpen = true
+                    "thread-memory" -> composerMenu = destination
+                    else -> navigate(destination)
+                }
             }
         }
     }
@@ -358,6 +364,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             val guideBlockReason = sendBlockReason.ifBlank {
                 if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
+            if (voiceOpen && realtimeVoice != null && thread != null) {
+                RealtimeVoiceSheet(vm, thread, realtimeVoice) { voiceOpen = false }
+            }
             ConversationComposer(
                 draft = draft, shortcuts = tools,
                 onDraftChange = { vm.editComposerText(draftOwner, it) },
@@ -486,6 +495,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             )
 
         }
+    }
+    if (composerMenu == "thread-memory" && thread != null) {
+        MemoryManagementSheet(vm, thread) { closeComposerMenu("thread-memory") }
     }
     if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
     if (sessionAction.isNotBlank() && thread != null) {

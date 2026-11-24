@@ -316,8 +316,11 @@ internal fun PersonalizationPage(vm: CodexViewModel) {
 @Composable
 internal fun ContextManagementPage(vm: CodexViewModel) {
     val target = remember { SettingsDeepLink.take("context") }
+    var memory by remember { mutableStateOf(false) }
+    if (memory) MemoryManagementSheet(vm, null) { memory = false }
     ScreenColumn {
         SectionIntro("上下文管理", "管理长对话中的历史内容、自动压缩和工具输出保留范围。")
+        CodexSecondaryButton(onClick = { memory = true }, modifier = Modifier.fillMaxWidth()) { Text("全局记忆管理") }
         EngineSettingsSection(vm, "context", target)
     }
 }
