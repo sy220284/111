@@ -89,7 +89,10 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
                 color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
                     if (assistant) NativeMessageMarkdown(shownText)
-                    else SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
+                    else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                        CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
+                        SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
+                    }
                     if (user) NativeTimelineMedia(item, raw)
                     if (!active && (user || item.phase != "commentary")) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

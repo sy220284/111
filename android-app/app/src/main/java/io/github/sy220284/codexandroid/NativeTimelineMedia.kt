@@ -38,7 +38,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?) {
         }.filter { it.isNotBlank() && it != "null" }
     }
     var preview by remember(item.id) { mutableStateOf<String?>(null) }
-    val paths by produceState<List<String>>(emptyList(), candidates) {
+    val resolved by produceState<List<String>?>(null, candidates) {
         value = withContext(Dispatchers.IO) {
             val roots = listOf(context.filesDir.canonicalFile, context.cacheDir.canonicalFile)
             candidates.mapNotNull { path ->
@@ -50,6 +50,11 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?) {
                 } catch (_: java.io.IOException) { null }
             }.distinct()
         }
+    }
+    val paths = resolved
+    if (paths == null) {
+        if (candidates.isNotEmpty()) Text("正在读取图片…", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+        return
     }
     if (candidates.isNotEmpty()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -74,6 +79,6 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?) {
             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
     }
     preview?.let { path ->
-        AttachmentPreviewDialog(paths, path, onDismiss = { preview = null }, onRemove = { preview = null })
+        AttachmentPreviewDialog(paths, path, onDismiss = { preview = null }, onRemove = null)
     }
 }
