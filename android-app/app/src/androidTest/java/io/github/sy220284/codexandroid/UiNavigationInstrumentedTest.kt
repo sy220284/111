@@ -468,7 +468,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
         assertNoWorkspaceBar()
         rule.onNodeWithText("本机工作区", substring = false).assertDoesNotExist()
-        rule.onNodeWithTag("chat-suggestion-files").performClick()
+        openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         pressSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
@@ -755,7 +755,7 @@ class UiNavigationInstrumentedTest {
     @Test fun coldStartOpensChatAndKeepsDraftSafe() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("home-primary-action").assertDoesNotExist()
-        rule.onNodeWithTag("chat-suggestion-script").performClick()
+        rule.onNodeWithTag("composer-input").performTextInput("帮我写一个脚本，目标是：")
         rule.onNodeWithTag("composer-input").assertTextContains("帮我写一个脚本，目标是：")
         rule.onNodeWithTag("chat-suggestions").assertDoesNotExist()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
@@ -780,12 +780,20 @@ class UiNavigationInstrumentedTest {
         }
     }
 
-    @Test fun chatSuggestionsStayVisibleWithinThePhoneWidth() {
+    @Test fun emptyChatHasNoSuggestionCardsAndKeepsComposerAccessible() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithTag("chat-suggestions").assertExists()
+        rule.onNodeWithText("今天想做什么？").assertIsDisplayed()
+        rule.onNodeWithTag("chat-suggestions").assertDoesNotExist()
         listOf("files", "script", "project", "review").forEach { item ->
-            rule.onNodeWithTag("chat-suggestion-" + item).assertIsDisplayed()
+            rule.onNodeWithTag("chat-suggestion-" + item).assertDoesNotExist()
         }
+        listOf("浏览文件", "编写脚本", "新建项目", "代码审查").forEach { title ->
+            rule.onNodeWithText(title, substring = false).assertDoesNotExist()
+        }
+        assertNoWorkspaceBar()
+        rule.onNodeWithTag("composer-input").assertIsDisplayed()
+        rule.onNodeWithTag("composer-plus").assertIsDisplayed()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
     @Test fun settingsSearchOpensPreciseProviderAndRemoteEditors() {

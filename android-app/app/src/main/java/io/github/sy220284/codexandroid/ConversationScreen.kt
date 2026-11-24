@@ -26,7 +26,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.lazy.LazyListState
@@ -113,14 +112,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         selectedMode == "plan" && !busy && !switching && thread != null
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val composerFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    fun startFromSuggestion(prompt: String) {
-        if (draft.isNotBlank()) return
-        vm.editComposerText(thread, prompt)
-        composerFocus.requestFocus()
-        keyboard?.show()
-    }
     // Pickers use the actual remaining quota, so no selected image silently vanishes.
     val oneImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -300,29 +292,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 textAlign = TextAlign.Center)
                         }
                     }
-                    if (!busy && !firstThreadStarting && !compactWorkArea && draft.isBlank()) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().testTag("chat-suggestions"),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ChatStarter("浏览文件", CodexGlyph.Project,
-                                    Modifier.weight(1f).testTag("chat-suggestion-files")) { navigate("files") }
-                                ChatStarter("编写脚本", CodexGlyph.Code,
-                                    Modifier.weight(1f).testTag("chat-suggestion-script")) {
-                                    startFromSuggestion("帮我写一个脚本，目标是：")
-                                }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ChatStarter("新建项目", CodexGlyph.CreateNewFolder,
-                                    Modifier.weight(1f).testTag("chat-suggestion-project")) {
-                                    startFromSuggestion("请协助初始化一个新项目，需求是：")
-                                }
-                                ChatStarter("代码审查", CodexGlyph.FactCheck,
-                                    Modifier.weight(1f).testTag("chat-suggestion-review")) { navigate("review") }
-                            }
-                        }
-                    }
                 }
             } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -455,7 +424,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             ConversationComposer(
                 draft = draft,
-                focusRequester = composerFocus,
                 shortcuts = buildList {
                     add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                         enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
@@ -610,21 +578,4 @@ private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
     val remaining = (last.offset + last.size - info.viewportEndOffset +
         info.afterContentPadding).coerceAtLeast(0)
     if (remaining > 0 && canScrollForward) scrollBy(remaining.toFloat())
-}
-
-/** Every tool step retains the source payload for verification while keeping the chat readable. */
-@Composable
-private fun ChatStarter(label: String, icon: CodexGlyph, modifier: Modifier = Modifier,
-    onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(14.dp), color = Ink.canvas,
-        border = BorderStroke(1.dp, Ink.border.copy(alpha = .8f))) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            CodexIcon(icon, null, Modifier.size(20.dp), tint = Ink.muted)
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment,
-                modifier = Modifier.weight(1f))
-        }
-    }
 }
