@@ -10,6 +10,26 @@ import java.nio.file.Files
 class WorkspaceSelectionContractTest {
     @get:Rule val files = TemporaryFolder()
 
+    @Test fun migratesExistingProjectsWithoutOverwritingPhoneFiles() {
+        val legacy = files.newFolder("legacy")
+        val root = files.newFolder("shared")
+        val old = File(legacy, "novel/chapter.txt").apply { parentFile.mkdirs(); writeText("original") }
+        val other = File(root, "keep.txt").apply { writeText("keep") }
+        WorkspaceSelectionContract.migrate(legacy, root)
+        val mapped = WorkspaceSelectionContract.remap(legacy, root, old)
+        assertEquals(File(root, "novel/chapter.txt").canonicalFile, mapped)
+        assertEquals("original", mapped.readText())
+        assertEquals("keep", other.readText())
+        WorkspaceSelectionContract.migrate(legacy, root)
+        mapped.writeText("phone edit")
+        try {
+            WorkspaceSelectionContract.migrate(legacy, root)
+            fail("must refuse conflicting existing file")
+        } catch (_: IllegalArgumentException) {}
+        assertEquals("phone edit", mapped.readText())
+        assertEquals("original", old.readText())
+    }
+
     @Test fun chooseValidProjectInsideRoot() {
         val root = files.newFolder("projects")
         val project = File(root, "hello-world").apply { mkdirs() }

@@ -100,7 +100,22 @@ internal object DraftPersistence {
             return DraftRestoreResult(emptyMap(), warning =
                 "发现无法读取的旧草稿，原始记录已保存在本机备份 $backupKey；可通过本地数据导出保留")
         }
-        return resolveStoredImages(LocalImageAttachments.directory(context), decoded)
+        val relocated = linkedMapOf<String, ComposerDraft>()
+        for ((id, draft) in decoded) {
+            val prefix = ThreadComposerDrafts.NEW_THREAD + ":"
+            val owner = if (id.startsWith(prefix))
+                prefix + WorkspaceStorage.remap(context, id.removePrefix(prefix)) else id
+            val updated = draft.copy(references = draft.references.map { reference ->
+                if (reference.kind == "file") reference.copy(path = WorkspaceStorage.remap(context, reference.path))
+                else reference
+            })
+            val previous = relocated[owner]
+            relocated[owner] = if (previous == null || previous == updated) updated
+                else previous.copy(text = listOf(previous.text, updated.text).filter { it.isNotBlank() }.distinct().joinToString("\n"),
+                    images = (previous.images + updated.images).distinct(),
+                    references = (previous.references + updated.references).distinct())
+        }
+        return resolveStoredImages(LocalImageAttachments.directory(context), relocated)
     }
 
     fun save(context: Context, drafts: Map<String, ComposerDraft>) {

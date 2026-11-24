@@ -257,6 +257,7 @@ jobs:
           emulator-boot-timeout: 900
           script: |
             adb install -r apks/debug/app-debug.apk
+            adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
             # The three phone-width checks share the same Android 35 APK, and never run 320dp.
             adb shell wm size ${{ matrix.width_dp }}x800

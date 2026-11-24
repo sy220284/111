@@ -18,11 +18,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val bridge = CodexConnection(application.applicationContext)
     internal val connectionRestarter by lazy { ConnectionRestartController(this) }
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
-    private val workspaceRoot = application.filesDir.resolve("projects").apply { mkdirs() }.canonicalFile
+    private val workspaceRoot = WorkspaceStorage.root(application)
     val workingDirectory = workspaceRoot.absolutePath
     private val workspacePreferences = application.getSharedPreferences("codex-workspace", 0)
     private val restoredWorkspace = WorkspaceSelectionContract.restore(
-        workspaceRoot, workspacePreferences.getString("activeDirectory", null))
+        workspaceRoot, workspacePreferences.getString("activeDirectory", null)?.let { WorkspaceStorage.remap(application, it) })
     internal val conversationState = MutableStateFlow(ActiveConversationContext(restoredWorkspace.directory.absolutePath))
     val activeWorkspace = ConversationField(conversationState, { it.workspace }) { s, v -> s.copy(workspace = v) }
     val activeProjectId = ConversationField(conversationState, { it.projectId }) { s, v -> s.copy(projectId = v) }
@@ -315,9 +315,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val history = bridge.request("thread/read", JSONObject().put("threadId", id))
-                val threadDirectory = WorkspaceSelectionContract.validate(
-                    workspaceRoot, File(history.getJSONObject("thread").getString("cwd")))
-                bridge.request("thread/resume", JSONObject().put("threadId", id).put("excludeTurns", true))
+                val previousCwd = history.getJSONObject("thread").getString("cwd")
+                val threadDirectory = WorkspaceSelectionContract.validate(workspaceRoot,
+                    File(WorkspaceStorage.remap(getApplication(), previousCwd)))
+                val resumed = bridge.request("thread/resume", JSONObject().put("threadId", id)
+                    .put("cwd", threadDirectory.absolutePath).put("excludeTurns", true))
+                check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == threadDirectory) {
+                    "运行核心未确认新工作目录，请重新打开会话"
+                }
                 val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120))
                 val restored = readHistoryPage(page)

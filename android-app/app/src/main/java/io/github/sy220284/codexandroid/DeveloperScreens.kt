@@ -142,7 +142,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Column(Modifier.weight(1f)) {
                     Text("当前目录", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     Text(folder.relativeTo(root).path.takeIf { it != "." }
-                        ?.let { "projects/" + it } ?: "projects/",
+                        ?.let { "Download/Codex/" + it } ?: "Download/Codex/",
                         fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -360,7 +360,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 "后续新对话和本地终端将在选定目录工作。"
             else "当前会话会保留在历史中，切换后将从新会话继续工作。",
             detail = target.relativeTo(root).path.takeIf { it != "." }
-                ?.let { "projects/" + it } ?: "projects/",
+                ?.let { "Download/Codex/" + it } ?: "Download/Codex/",
             confirmLabel = "确认使用此项目",
             onConfirm = {
                 try {

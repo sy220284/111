@@ -63,10 +63,8 @@ class CodexConnection(private val appContext: Context) {
         val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
         val codeModeHost = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
         val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
-        val workspace = File(appContext.filesDir, "projects").apply { mkdirs() }
         val temp = File(appContext.cacheDir, "codex-tmp").apply { mkdirs() }
         val builder = ProcessBuilder(path.absolutePath, "--listen", "stdio://")
-        builder.directory(workspace)
         builder.environment().apply {
             put("HOME", appContext.filesDir.absolutePath)
             put("CODEX_HOME", home.absolutePath)
@@ -78,6 +76,7 @@ class CodexConnection(private val appContext: Context) {
             put("TERM", "xterm-256color")
         }
         try {
+            builder.directory(WorkspaceStorage.root(appContext))
             McpAgentSkillInstaller.install(appContext, home)
             require(path.isFile) { "APK 中未找到当前设备 ABI 的 Codex 运行核心，请检查发布包。" }
             require(codeModeHost.isFile) {

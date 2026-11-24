@@ -14,7 +14,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** The process owns a single Codex core, and releases it after background inactivity. */
 class CodexApplication : Application() {
-    private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) { CodexViewModel(this) }
+    private var workspacePrepared = false
+    @Synchronized internal fun prepareWorkspace() {
+        WorkspaceStorage.root(this)
+        if (!workspacePrepared) {
+            WorkspaceStorage.prepare(this)
+            LocalDataArchive.restoreIfPending(this)
+            workspacePrepared = true
+        }
+    }
+    private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        prepareWorkspace()
+        CodexViewModel(this)
+    }
     val session: CodexViewModel get() = holder.value
     val pendingDeepLink = MutableStateFlow<String?>(null)
 
@@ -62,7 +74,6 @@ class CodexApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        LocalDataArchive.restoreIfPending(this)
         LocalCrashReporter.install(this)
         // Run the initial small cache sweep before any screen can initiate a
         // new download. This avoids racing an asynchronous startup cleanup with

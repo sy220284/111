@@ -30,7 +30,8 @@ internal class WorkspaceTaskOperations(
         require(vm.globalWorkSnapshot().canStartNewTask && !vm.firstThreadStarting.value && !threadSwitching.value && !running.value && !terminalSession.value.running) {
             "当前有任务或命令正在执行，请先结束后再切换项目"
         }
-        val selected = WorkspaceSelectionContract.validate(workspaceRoot, folder)
+        val selected = WorkspaceSelectionContract.validate(workspaceRoot,
+            File(WorkspaceStorage.remap(vm.getApplication(), folder.absolutePath)))
         if (selected.absolutePath == activeWorkspace.value && activeThread.value == null && activeProjectId.value == projectId) return
         check(vm.resetConversation(selected.absolutePath, projectId)) { "当前无法切换项目，请完成会话操作后重试" }
         workspacePreferences.edit().putString("activeDirectory", selected.absolutePath).apply()

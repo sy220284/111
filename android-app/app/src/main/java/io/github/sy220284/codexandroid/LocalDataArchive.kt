@@ -36,7 +36,7 @@ internal object LocalDataArchive {
         if (name.contains('\\') || name.startsWith('/') || name.endsWith('/')) return false
         val parts = name.split('/')
         if (parts.size < 2 || parts.any { it.isBlank() || it == "." || it == ".." }) return false
-        if (parts[1].startsWith(".codex-restore")) return false
+        if (parts[1].startsWith(".codex-restore") || parts[1] == ".download-workspace-v1") return false
         if (parts[0] == "files" && parts[1] == "codex-home" &&
             parts.last().matches(Regex("(?i)(auth|credentials|tokens?)\\.json"))) return false
         if (parts[0] == "shared_prefs" &&
@@ -64,10 +64,11 @@ internal object LocalDataArchive {
             archive.putNextEntry(ZipEntry("manifest.txt"))
             archive.write(ARCHIVE_MARKER.toByteArray(Charsets.UTF_8))
             archive.closeEntry()
-            for ((prefix, root) in listOf("files" to privateRoot, "shared_prefs" to prefsRoot)) {
+            for ((prefix, root) in listOf("files" to privateRoot, "files/projects" to WorkspaceStorage.root(context), "shared_prefs" to prefsRoot)) {
                 if (!root.isDirectory) continue
                 root.walkTopDown().onEnter { directory ->
-                    !directory.name.startsWith(".codex-restore")
+                    !directory.name.startsWith(".codex-restore") &&
+                        !(root == privateRoot && directory == WorkspaceStorage.legacyRoot(context))
                 }.filter { it.isFile }.forEach { file ->
                     val canonical = file.canonicalFile
                     if (!canonical.path.startsWith(root.path + File.separator)) {
@@ -185,7 +186,13 @@ internal object LocalDataArchive {
             for (file in files) {
                 val name = file.relativeTo(staged).invariantSeparatorsPath
                 require(validatePath(name)) { "恢复文件路径无效：" + name }
-                val target = if (name.startsWith("files/")) {
+                val target = if (name.startsWith("files/projects/")) {
+                    val root = WorkspaceStorage.root(context)
+                    File(root, name.removePrefix("files/projects/")).canonicalFile.also {
+                        require(it.path.startsWith(root.path + File.separator)) { "恢复路径越界" }
+                    }
+                } else if (name.startsWith("files/")) {
+                    require(name != "files/projects") { "工作区必须是目录" }
                     File(context.filesDir, name.removePrefix("files/"))
                 } else File(prefsRoot, name.removePrefix("shared_prefs/"))
                 if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
