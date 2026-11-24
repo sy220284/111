@@ -125,15 +125,15 @@ internal fun ConversationComposer(
                 }
             }
             }
-            AnimatedVisibility(
-                visible = running && hasInput,
-                enter = fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))),
-                exit = fadeOut(tween(CodexMotion.duration(CodexMotion.press, reduceMotion)))
-            ) {
-                ComposerFollowUpChoices(followUpMode, onFollowUpModeChange,
-                    enabled = running && hasInput && connected && !sending && !stopping,
-                    canGuide = canStop)
-            }
+            // 360dp and wider use a single action row; exceptionally narrow windows
+            // retain every 48dp target by moving only the temporary choice above it.
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val inlineChoices = maxWidth >= 300.dp
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+                    if (running && !inlineChoices) ComposerFollowUpChoices(
+                        selected = followUpMode, onSelect = onFollowUpModeChange,
+                        visible = hasInput, enabled = connected && !sending && !stopping,
+                        canGuide = canStop, reducedMotion = reduceMotion)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -143,8 +143,13 @@ internal fun ConversationComposer(
                     modifier = Modifier.size(48.dp).testTag("composer-plus")) {
                     CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.parchment, modifier = Modifier.size(24.dp))
                 }
-                if (running) Spacer(Modifier.weight(1f))
-                else ConversationControlBar(modelLabel, modeLabel, effortLabel, optionsEnabled, onModel, onMode)
+                if (running) {
+                    Spacer(Modifier.weight(1f))
+                    if (inlineChoices) ComposerFollowUpChoices(
+                        selected = followUpMode, onSelect = onFollowUpModeChange,
+                        visible = hasInput, enabled = connected && !sending && !stopping,
+                        canGuide = canStop, reducedMotion = reduceMotion)
+                } else ConversationControlBar(modelLabel, modeLabel, effortLabel, optionsEnabled, onModel, onMode)
                 CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
                     CodexIcon(CodexGlyph.Tune, "任务配置")
                 }
@@ -199,12 +204,10 @@ internal fun ConversationComposer(
                         CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
                             color = Ink.muted)
                     } else {
-                        CodexIcon(when {
-                            !running || !hasInput -> CodexGlyph.ArrowUpward
-                            followUpMode == "queue" -> CodexGlyph.TaskRunning
-                            else -> CodexGlyph.ArrowUpward
-                        }, null, modifier = Modifier.size(24.dp))
+                        CodexIcon(CodexGlyph.ArrowUpward, null, modifier = Modifier.size(24.dp))
                     }
+                }
+            }
                 }
             }
         }

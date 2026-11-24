@@ -1,6 +1,14 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,29 +28,43 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** A transient choice for this draft, not a permanent work mode. */
+/** Temporary icon-only choice. Each native radio target remains 48dp, while
+ * the visible circle is smaller so it aligns with the existing toolbar. */
 @Composable
 internal fun ComposerFollowUpChoices(selected: String, onSelect: (String) -> Unit,
-    enabled: Boolean, canGuide: Boolean) {
-    Column(Modifier.fillMaxWidth().testTag("composer-follow-up-mode"),
-        verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            CodexFilterChip(selected = selected == "steer", onClick = { onSelect("steer") },
-                modifier = Modifier.weight(1f).testTag("composer-mode-steer"),
-                enabled = enabled && canGuide,
-                label = { Text("引导任务", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { CodexIcon(CodexGlyph.EditNote, null, Modifier.size(18.dp)) })
-            CodexFilterChip(selected = selected == "queue", onClick = { onSelect("queue") },
-                modifier = Modifier.weight(1f).testTag("composer-mode-queue"),
-                enabled = enabled,
-                label = { Text("排队发送", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { CodexIcon(CodexGlyph.TaskRunning, null, Modifier.size(18.dp)) })
+    visible: Boolean, enabled: Boolean, canGuide: Boolean, reducedMotion: Boolean) {
+    AnimatedVisibility(visible = visible,
+        enter = expandHorizontally(tween(CodexMotion.duration(CodexMotion.selection, reducedMotion))) +
+            fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reducedMotion))),
+        exit = shrinkHorizontally(tween(CodexMotion.duration(CodexMotion.release, reducedMotion))) +
+            fadeOut(tween(CodexMotion.duration(CodexMotion.release, reducedMotion)))) {
+        Row(Modifier.testTag("composer-follow-up-mode").selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically) {
+            ComposerFollowUpIcon("steer", CodexGlyph.EditNote, "引导任务，立即追加到当前回合",
+                selected == "steer", visible && enabled && canGuide, reducedMotion, onSelect)
+            ComposerFollowUpIcon("queue", CodexGlyph.ViewList, "排队发送，当前任务完成后执行",
+                selected == "queue", visible && enabled, reducedMotion, onSelect)
         }
-        Text(when {
-            selected == "steer" && !canGuide -> "等待当前执行回合就绪"
-            selected == "steer" -> "立即发送到当前任务，调整接下来的执行"
-            else -> "当前任务完成后按顺序执行"
-        }, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+    }
+}
+
+@Composable
+private fun ComposerFollowUpIcon(mode: String, glyph: CodexGlyph, description: String,
+    selected: Boolean, enabled: Boolean, reducedMotion: Boolean, onSelect: (String) -> Unit) {
+    val fill by animateColorAsState(
+        targetValue = if (selected) Ink.copper.copy(alpha = if (enabled) .16f else .07f) else Color.Transparent,
+        animationSpec = tween(CodexMotion.duration(CodexMotion.selection, reducedMotion)),
+        label = "follow-up-selection")
+    Box(Modifier.size(48.dp).testTag("composer-mode-" + mode)
+        .codexSelectable(selected, enabled) { onSelect(mode) }
+        .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).background(fill, CircleShape),
+            contentAlignment = Alignment.Center) {
+            CodexIcon(glyph, null, Modifier.size(22.dp),
+                tint = if (!enabled) Ink.muted.copy(alpha = .5f)
+                    else if (selected) Ink.copper else Ink.muted)
+        }
     }
 }
 
@@ -73,22 +95,27 @@ internal fun ComposerQueuePreview(thread: String, items: List<JSONObject>, runni
         Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 3.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CodexIcon(CodexGlyph.TaskRunning, null, Modifier.size(18.dp),
-                    tint = if (paused) Ink.warning else Ink.muted)
+                CodexIcon(CodexGlyph.ViewList, if (paused) "队列已暂停" else "待执行队列",
+                    Modifier.size(20.dp), tint = if (paused) Ink.warning else Ink.muted)
                 Spacer(Modifier.width(6.dp))
-                Text(if (paused) "队列已暂停 · " + count else "待执行 · " + count,
-                    modifier = Modifier.weight(1f), color = if (paused) Ink.warning else Ink.parchment,
+                Text(count, modifier = Modifier.weight(1f)
+                    .semantics { contentDescription = "待执行 " + count + " 条指令" },
+                    color = if (paused) Ink.warning else Ink.parchment,
                     style = MaterialTheme.typography.labelLarge)
+                if (!running) CodexIconAction(onClick = onStart, enabled = canStart,
+                    modifier = Modifier.size(48.dp).testTag("composer-queue-start")) {
+                    CodexIcon(CodexGlyph.PlayArrow, if (paused) "恢复执行队列" else "开始执行队列",
+                        tint = if (canStart) Ink.parchment else Ink.muted)
+                }
                 CodexIconAction(onClick = { expanded = !expanded },
                     enabled = !compact, modifier = Modifier.size(48.dp)) {
-                    CodexIcon(CodexGlyph.ExpandMore, if (expanded) "收起后续指令" else "展开后续指令")
+                    CodexIcon(if (expanded) CodexGlyph.ExpandLess else CodexGlyph.ExpandMore,
+                        if (expanded) "收起后续指令" else "展开后续指令")
                 }
-                CodexTextAction(onClick = onManage, modifier = Modifier.testTag("chat-queued-followups"),
-                    contentPadding = PaddingValues(horizontal = 4.dp)) { Text("管理") }
-            }
-            if (!running) CodexSecondaryButton(onClick = onStart, enabled = canStart,
-                modifier = Modifier.fillMaxWidth()) {
-                Text(if (paused) "恢复执行" else "开始执行", maxLines = 2)
+                CodexIconAction(onClick = onManage,
+                    modifier = Modifier.size(48.dp).testTag("chat-queued-followups")) {
+                    CodexIcon(CodexGlyph.MoreHoriz, "管理后续指令")
+                }
             }
             AnimatedVisibility(visible = expanded && !compact,
                 enter = fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reduced))),
@@ -108,7 +135,11 @@ internal fun ComposerQueuePreview(thread: String, items: List<JSONObject>, runni
                         }
                     }
                     if (items.size > 2 || hasMore)
-                        CodexTextAction(onClick = onManage, modifier = Modifier.fillMaxWidth()) { Text("查看全部后续指令") }
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CodexIconAction(onClick = onManage) {
+                                CodexIcon(CodexGlyph.MoreHoriz, "查看全部后续指令")
+                            }
+                        }
                 }
             }
         }
