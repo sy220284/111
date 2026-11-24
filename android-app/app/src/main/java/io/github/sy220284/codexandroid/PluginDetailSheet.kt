@@ -42,129 +42,121 @@ fun PluginDetailSheet(
     }
     LaunchedEffect(name, marketName, marketPath) { refresh() }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.recessed,
-        contentColor = Ink.parchment
+    CodexDetailSheet(
+        title = entry.optJSONObject("interface")?.optString("displayName")?.ifBlank { name } ?: name,
+        onDismiss = onDismiss, startExpanded = true,
+        subtitle = "安装或启用之前查看实际提供的能力和来源。"
     ) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 680.dp).navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            SectionIntro(entry.optJSONObject("interface")?.optString("displayName")
-                ?.ifBlank { name } ?: name, "安装或启用之前查看实际提供的能力和来源。")
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("插件信息", style = MaterialTheme.typography.titleMedium)
-                        Text(marketName.ifBlank { "本地插件源" },
-                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    }
-                    val summary = detail?.optJSONObject("summary") ?: entry
-                    StatusPill(if (summary.optBoolean("installed")) "已安装" else "未安装",
-                        summary.optBoolean("installed"))
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("插件信息", style = MaterialTheme.typography.titleMedium)
+                    Text(marketName.ifBlank { "本地插件源" },
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
                 val summary = detail?.optJSONObject("summary") ?: entry
-                val version = summary.optString("version")
-                if (version.isNotBlank()) Text("版本 " + version,
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                val originalDescription = PresentationPolicy.meaningful(
-                    detail?.optString("description")?.ifBlank {
-                        summary.optJSONObject("interface")?.optString("shortDescription").orEmpty()
-                    } ?: entry.optJSONObject("interface")?.optString("shortDescription").orEmpty()
-                )
-                val chineseSummary = if (originalDescription.any { it in '\u4e00'..'\u9fff' })
-                    originalDescription.take(140)
-                else "插件功能可在下方能力清单查看。"
-                Text(chineseSummary, color = Ink.muted,
-                    style = MaterialTheme.typography.bodyMedium)
-                if (originalDescription.isNotEmpty() && originalDescription != chineseSummary) {
-                    TextButton(onClick = {
-                        readerTitle = "插件原始说明"
-                        readerText = originalDescription
-                    }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("查看插件原始说明")
+                StatusPill(if (summary.optBoolean("installed")) "已安装" else "未安装",
+                    summary.optBoolean("installed"))
+            }
+            val summary = detail?.optJSONObject("summary") ?: entry
+            val version = summary.optString("version")
+            if (version.isNotBlank()) Text("版本 " + version,
+                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            val originalDescription = PresentationPolicy.meaningful(
+                detail?.optString("description")?.ifBlank {
+                    summary.optJSONObject("interface")?.optString("shortDescription").orEmpty()
+                } ?: entry.optJSONObject("interface")?.optString("shortDescription").orEmpty()
+            )
+            val chineseSummary = if (originalDescription.any { it in '\u4e00'..'\u9fff' })
+                originalDescription.take(140)
+            else "插件功能可在下方能力清单查看。"
+            Text(chineseSummary, color = Ink.muted,
+                style = MaterialTheme.typography.bodyMedium)
+            if (originalDescription.isNotEmpty() && originalDescription != chineseSummary) {
+                TextButton(onClick = {
+                    readerTitle = "插件原始说明"
+                    readerText = originalDescription
+                }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("查看插件原始说明")
+                }
+            }
+            OutlinedButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(7.dp))
+                Text("刷新插件详情")
+            }
+        }
+        if (key in loading) AtlasOperationProgress("正在读取插件详情")
+        errors[key]?.let { ErrorText(it) }
+        if (detail == null && key !in loading && key !in errors) {
+            CodexEmptyState("等待详情", "由 Codex 核心读取此插件的能力清单。")
+        }
+        detail?.let { info ->
+            for ((field, label, icon) in listOf(
+                Triple("skills", "提供的技能", Icons.Outlined.School),
+                Triple("mcpServers", "工具服务", Icons.Outlined.Hub),
+                Triple("apps", "连接应用", Icons.Outlined.Apps),
+                Triple("hooks", "运行钩子", Icons.Outlined.Bolt),
+                Triple("appTemplates", "应用模板", Icons.Outlined.Widgets),
+                Triple("scheduledTasks", "定时能力声明", Icons.Outlined.Schedule)
+            )) {
+                val entries = info.optJSONArray(field) ?: continue
+                if (entries.length() == 0) continue
+                MaterialPanel(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(icon, null, tint = Ink.copper)
+                        Spacer(Modifier.width(10.dp))
+                        Text(label, style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        Text(entries.length().toString(), color = Ink.muted)
                     }
-                }
-                OutlinedButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Refresh, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text("刷新插件详情")
-                }
-            }
-            if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            errors[key]?.let { ErrorText(it) }
-            if (detail == null && key !in loading && key !in errors) {
-                CodexEmptyState("等待详情", "由 Codex 核心读取此插件的能力清单。")
-            }
-            detail?.let { info ->
-                for ((field, label, icon) in listOf(
-                    Triple("skills", "提供的技能", Icons.Outlined.School),
-                    Triple("mcpServers", "工具服务", Icons.Outlined.Hub),
-                    Triple("apps", "连接应用", Icons.Outlined.Apps),
-                    Triple("hooks", "运行钩子", Icons.Outlined.Bolt),
-                    Triple("appTemplates", "应用模板", Icons.Outlined.Widgets),
-                    Triple("scheduledTasks", "定时能力声明", Icons.Outlined.Schedule)
-                )) {
-                    val entries = info.optJSONArray(field) ?: continue
-                    if (entries.length() == 0) continue
-                    MaterialPanel(Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(icon, null, tint = Ink.copper)
-                            Spacer(Modifier.width(10.dp))
-                            Text(label, style = MaterialTheme.typography.titleMedium,
+                    for (i in 0 until entries.length()) {
+                        val value = entries.opt(i)
+                        val obj = value as? JSONObject
+                        val title = obj?.optString("name").orEmpty()
+                            .ifBlank { obj?.optString("displayName").orEmpty() }
+                            .ifBlank { "第 ${i + 1} 项能力" }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.CheckCircleOutline, null, tint = Ink.jade,
+                                modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(title, style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f))
-                            Text(entries.length().toString(), color = Ink.muted)
-                        }
-                        for (i in 0 until entries.length()) {
-                            val value = entries.opt(i)
-                            val obj = value as? JSONObject
-                            val title = obj?.optString("name").orEmpty()
-                                .ifBlank { obj?.optString("displayName").orEmpty() }
-                                .ifBlank { "第 ${i + 1} 项能力" }
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Outlined.CheckCircleOutline, null, tint = Ink.jade,
-                                    modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(title, style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f))
-                                val skillId = obj?.optString("name").orEmpty()
-                                val remoteId = entry.optString("id")
-                                if (field == "skills" && skillId.isNotBlank() &&
-                                    remoteId.isNotBlank() && marketName.isNotBlank()) {
-                                    val skillKey = "pluginSkill:" + remoteId + ":" + skillId
-                                    TextButton(
-                                        onClick = {
-                                            readerTitle = title
-                                            readerText = null
-                                            readerProblem = ""
-                                            vm.refresh(skillKey, "plugin/skill/read", JSONObject()
-                                                .put("remoteMarketplaceName", marketName)
-                                                .put("remotePluginId", remoteId)
-                                                .put("skillName", skillId),
-                                                onSuccess = { response ->
-                                                    val contents = response.optString("contents")
-                                                    if (contents.isBlank())
-                                                        readerProblem = "当前内核未返回该技能的正文内容"
-                                                    else readerText = contents
-                                                })
-                                        },
-                                        enabled = skillKey !in loading
-                                    ) { Text(if (skillKey in loading) "读取中" else "阅读") }
-                                    errors[skillKey]?.let { ErrorText(it) }
-                                }
+                            val skillId = obj?.optString("name").orEmpty()
+                            val remoteId = entry.optString("id")
+                            if (field == "skills" && skillId.isNotBlank() &&
+                                remoteId.isNotBlank() && marketName.isNotBlank()) {
+                                val skillKey = "pluginSkill:" + remoteId + ":" + skillId
+                                TextButton(
+                                    onClick = {
+                                        readerTitle = title
+                                        readerText = null
+                                        readerProblem = ""
+                                        vm.refresh(skillKey, "plugin/skill/read", JSONObject()
+                                            .put("remoteMarketplaceName", marketName)
+                                            .put("remotePluginId", remoteId)
+                                            .put("skillName", skillId),
+                                            onSuccess = { response ->
+                                                val contents = response.optString("contents")
+                                                if (contents.isBlank())
+                                                    readerProblem = "当前内核未返回该技能的正文内容"
+                                                else readerText = contents
+                                            })
+                                    },
+                                    enabled = skillKey !in loading
+                                ) { Text(if (skillKey in loading) "读取中" else "阅读") }
+                                errors[skillKey]?.let { ErrorText(it) }
                             }
                         }
                     }
                 }
             }
-            if (readerProblem.isNotBlank()) ErrorText(readerProblem)
-            Spacer(Modifier.height(12.dp))
         }
+        if (readerProblem.isNotBlank()) ErrorText(readerProblem)
+        Spacer(Modifier.height(12.dp))
     }
     readerText?.let {
         FullTextReaderDialog(readerTitle, it) { readerText = null }

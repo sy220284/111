@@ -50,7 +50,7 @@ fun ThreadContextTools(
     }
     val forkId = data["threadFork"]?.optJSONObject("thread")?.optString("id")
         ?.takeIf { it.isNotBlank() }
-    CodexDetailSheet(title = "会话工具", onDismiss = onDismiss,
+    CodexDetailSheet(title = "会话工具", onDismiss = onDismiss, startExpanded = true,
         subtitle = "管理当前任务的历史、资料和审查；复制分支与上下文整理位于下方。") {
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -370,7 +370,7 @@ fun CodexEvidenceSheet(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 440.dp)
+                    Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight() * .62f)
                         .verticalScroll(rememberScrollState()).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -433,7 +433,7 @@ fun CodexConfirmDialog(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
-                Modifier.heightIn(max = 390.dp).verticalScroll(rememberScrollState()),
+                Modifier.heightIn(max = atlasSheetHeight() * .56f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)

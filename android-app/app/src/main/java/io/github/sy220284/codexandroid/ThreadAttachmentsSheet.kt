@@ -45,15 +45,18 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss,
         containerColor = Ink.canvas, contentColor = Ink.parchment,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 730.dp).navigationBarsPadding()
+        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight()).navigationBarsPadding()
             .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            Text("会话关联资料", style = MaterialTheme.typography.headlineSmall)
+            AtlasSheetHeader("会话关联资料", onDismiss)
             Text("资料保存在当前会话中；备注不会作为新指令发送。",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
             if (active == null) CodexEmptyState("请先打开会话", "会话资料属于具体任务。")
             else {
-                MaterialPanel(Modifier.fillMaxWidth()) {
+                LazyColumn(Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(9.dp),
+                    contentPadding = PaddingValues(bottom = 20.dp)) {
+                    item { MaterialPanel(Modifier.fillMaxWidth()) {
                     Text("添加文本备注", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(noteKey, { noteKey = it }, singleLine = true,
                         label = { Text("备注名称") }, modifier = Modifier.fillMaxWidth())
@@ -79,13 +82,12 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                         Spacer(Modifier.width(7.dp))
                         Text("保存关联备注")
                     }
-                }
-                if (currentKey in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                errors[currentKey]?.let { ErrorText(it) }
-                errors["threadAttachmentWrite"]?.let { ErrorText(it) }
-                LazyColumn(Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(9.dp),
-                    contentPadding = PaddingValues(bottom = 20.dp)) {
+                    } }
+                    if (currentKey in loading) item { AtlasOperationProgress("正在读取关联资料") }
+                    if ("threadAttachmentWrite" in loading) item { AtlasOperationProgress("正在保存资料变更") }
+                    errors[currentKey]?.let { error -> item { ErrorText(error) } }
+                    errors["threadAttachmentWrite"]?.let { error -> item { ErrorText(error) } }
+                    if (all.isNotEmpty()) item { AtlasListHeading("关联资料", all.size) }
                     if (all.isEmpty() && data[currentKey] != null && currentKey !in loading) {
                         item { CodexEmptyState("没有关联资料", "添加备注后将在此显示；图片附件仍在对话输入框管理。") }
                     }
@@ -129,7 +131,8 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                             vm.refresh(baseKey + nextPage, "thread/attachment/list",
                                 JSONObject().put("threadId", threadId)
                                     .put("cursor", cursor).put("limit", 50))
-                        }, modifier = Modifier.fillMaxWidth()) { Text("加载更多关联资料") }
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            enabled = currentKey !in loading) { Text("加载更多关联资料") }
                     }
                 }
             }

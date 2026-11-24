@@ -62,7 +62,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     Icon(Icons.Outlined.Refresh, "刷新")
                 }
             }
-            if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (key in loading) AtlasOperationProgress("正在读取任务目标")
             if (goal == null) {
                 Text("当前会话尚未设定目标", color = Ink.muted)
             } else {

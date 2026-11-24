@@ -47,10 +47,10 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 730.dp)
+        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
-            Text("账号与工作区切换", style = MaterialTheme.typography.headlineSmall)
+            AtlasSheetHeader("账号与工作区切换", onDismiss)
             Text("查看可用账号与工作区；切换前会请你确认。",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
             OutlinedButton(
@@ -66,7 +66,8 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text(if (engine == EngineStatus.Connected) "刷新账号与工作区" else "连接本机内核")
             }
-            if ("accountSessions" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if ("accountSessions" in loading) AtlasOperationProgress("正在读取账号与工作区")
+            if ("accountSessionSwitch" in loading) AtlasOperationProgress("正在切换账号工作区")
             errors["accountSessions"]?.let {
                 CodexNotice("当前内核未返回账号会话列表：$it", NoticeTone.Warning)
             }
@@ -91,6 +92,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                         CodexEmptyState("暂无可切换的账号", "该能力需要当前内核支持多个账号会话。")
                     }
                 }
+                if (entries.isNotEmpty()) item { AtlasListHeading("可切换账号", entries.size, suffix = "个") }
                 items(entries, key = { it.optString("sessionId") }) { session ->
                     val sid = session.optString("sessionId")
                     val active = sid == currentSession || session.optBoolean("isActive")

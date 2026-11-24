@@ -107,7 +107,7 @@ internal fun ApprovalQuickSheetContent(
 ) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
-    CodexDetailSheet(title = "待处理审批", onDismiss = onDismiss,
+    CodexDetailSheet(title = "待处理审批", onDismiss = onDismiss, startExpanded = true,
         subtitle = "请根据具体命令、文件和权限范围作出决定。") {
         if (prompts.isEmpty()) {
             CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
@@ -117,7 +117,7 @@ internal fun ApprovalQuickSheetContent(
                 Text("返回当前任务")
             }
         } else {
-            AtlasListHeading("待处理审批", prompts.size)
+            AtlasListHeading("待处理操作", prompts.size)
             prompts.forEachIndexed { index, prompt ->
                 StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
                 key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }

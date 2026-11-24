@@ -123,6 +123,7 @@ fun ReviewScopeSheet(
     vm: CodexViewModel, onDismiss: () -> Unit, navigate: (String) -> Unit
 ) {
     CodexDetailSheet(title = "发起代码审查", onDismiss = onDismiss,
+        startExpanded = true, closeDescription = "关闭代码审查",
         subtitle = "选择审查范围；任务由本机 Codex 处理。") {
         ReviewScopePanel(vm,
             onStarted = { onDismiss(); navigate("chat") },
