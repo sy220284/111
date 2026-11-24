@@ -82,7 +82,7 @@ internal object ConversationCopyContent {
             lastColumn < (rows.maxOfOrNull { it.size } ?: 0))
         val width = lastColumn - firstColumn + 1
         fun line(row: List<String>) = row.joinToString(" | ", "| ", " |") {
-            it.replace(Regex("(?<!\\\\)\\|"), "\\|").replace("\n", " ")
+            it.replace(Regex("(?<!\\\\)\\|")) { "\\|" }.replace("\n", " ")
         }
         val selected = (firstRow..lastRow).map { r ->
             (firstColumn..lastColumn).map { c -> rows[r].getOrElse(c) { "" } }
