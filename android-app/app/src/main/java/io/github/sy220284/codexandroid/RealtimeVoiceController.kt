@@ -25,14 +25,21 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     var error by mutableStateOf("")
         private set
     private var muteState by mutableStateOf(false)
-    private var muteRevision = 0L
+    private val uploadGate = VoiceUploadGate()
+    private var microphoneQueue: Channel<VoicePacket>? = null
+    private data class VoicePacket(val revision: Long, val audio: JSONObject)
     var muted: Boolean
         get() = muteState
         set(value) {
             if (muteState != value) {
                 muteState = value
-                muteRevision++
-                if (value) inputLevel = 0f
+                uploadGate.setMuted(value)
+                if (value) {
+                    inputLevel = 0f
+                    microphoneQueue?.let { queue ->
+                        while (queue.tryReceive().isSuccess) { /* discard unsent audio */ }
+                    }
+                }
             }
         }
     var inputLevel by mutableFloatStateOf(0f)
@@ -131,6 +138,8 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         sending = false
         output?.cancel()
         output = null
+        microphoneQueue?.cancel()
+        microphoneQueue = null
         val cleanup = vm.viewModelScope.launch {
             try {
                 // No new session can acquire the lease while old media or RPCs remain active.
@@ -212,13 +221,21 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     private fun startMedia() {
         val queue = Channel<JSONObject>(64)
         output = queue
-        val microphone = Channel<JSONObject>(20)
+        val microphone = Channel<VoicePacket>(20)
+        microphoneQueue = microphone
         captureJob = mediaJob {
             try { capture(microphone) } finally { microphone.close() }
         }
         uploadJob = mediaJob {
-            for (chunk in microphone) {
-                vm.capabilityRequest("thread/realtime/appendAudio", thread().put("audio", chunk), 4_000)
+            for (packet in microphone) {
+                // Serialize admission with mute and stop on the main dispatcher.
+                // A request already sent to the service cannot be recalled.
+                withContext(Dispatchers.Main.immediate) {
+                    if (state == State.Live && uploadGate.accepts(packet.revision)) {
+                        vm.capabilityRequest("thread/realtime/appendAudio",
+                            thread().put("audio", packet.audio), 4_000)
+                    }
+                }
             }
         }
         playbackJob = mediaJob { play(queue) }
@@ -236,7 +253,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun capture(microphone: Channel<JSONObject>) {
+    private suspend fun capture(microphone: Channel<VoicePacket>) {
         val rate = 24_000
         val channels = AudioFormat.CHANNEL_IN_MONO
         val format = AudioFormat.ENCODING_PCM_16BIT
@@ -255,7 +272,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             record.startRecording()
             check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "麦克风未能启动" }
             var filled = 0
-            var revision = withContext(Dispatchers.Main.immediate) { muteRevision }
+            var revision = withContext(Dispatchers.Main.immediate) { uploadGate.revision }
             while (currentCoroutineContext().isActive) {
                 val size = record.read(buffer, filled, buffer.size - filled, AudioRecord.READ_NON_BLOCKING)
                 check(size >= 0) { "麦克风录音已中断" }
@@ -265,9 +282,9 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 }
                 filled += size
                 withContext(Dispatchers.Main.immediate) {
-                    if (muted || state != State.Live || revision != muteRevision) {
+                    if (muted || state != State.Live || revision != uploadGate.revision) {
                         // Never combine samples collected across a mute/unmute transition.
-                        revision = muteRevision
+                        revision = uploadGate.revision
                         filled = 0
                         inputLevel = 0f
                     } else if (filled == buffer.size) {
@@ -277,7 +294,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                         val chunk = JSONObject()
                             .put("data", Base64.encodeToString(buffer, 0, filled, Base64.NO_WRAP))
                             .put("sampleRate", rate).put("numChannels", 1).put("samplesPerChannel", filled / 2)
-                        check(microphone.trySend(chunk).isSuccess) { "语音网络延迟过高，请重新连接" }
+                        check(microphone.trySend(VoicePacket(revision, chunk)).isSuccess) { "语音网络延迟过高，请重新连接" }
                         filled = 0
                     }
                 }

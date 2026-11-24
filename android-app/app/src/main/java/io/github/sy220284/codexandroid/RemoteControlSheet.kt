@@ -18,6 +18,8 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val operation = rememberCapabilityOperation(vm)
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
     var status by remember { mutableStateOf<JSONObject?>(null) }
+    val statusOrder = remember(vm) { StatusResponseOrder() }
+    var refreshPending by remember(vm) { mutableStateOf(true) }
     var clients by remember { mutableStateOf<List<JSONObject>?>(null) }
     var clientsEnvironment by remember { mutableStateOf("") }
     var pair by remember { mutableStateOf<RemotePairing?>(null) }
@@ -34,26 +36,43 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     }.orEmpty()
 
     val visibleClients = clients.takeIf { clientsEnvironment == environment }
-    fun refresh() = operation.launch {
-        status = vm.capabilityRequest("remoteControl/status/read", null)
+    suspend fun requestStatus(method: String) {
+        val token = statusOrder.begin()
+        val response = vm.capabilityRequest(method, null)
+        if (statusOrder.accepts(token, vm.bridge.status.value == EngineStatus.Connected)) {
+            status = response
+        }
         verified++
     }
-    LaunchedEffect(connected) {
-        if (connected) refresh()
-        else {
-            status = null
+    fun refresh() = operation.launch { requestStatus("remoteControl/status/read") }
+    LaunchedEffect(connected, operation.busy) {
+        if (connected && !operation.busy && refreshPending) {
+            refreshPending = false
+            refresh()
+        }
+    }
+    LaunchedEffect(vm) {
+        vm.bridge.status.collect { current ->
+            if (current != EngineStatus.Connected) {
+                statusOrder.invalidate()
+                refreshPending = true
+                status = null
             pair = null
             pairReceipt = ""
             confirm = null
             revoke = null
             clients = null
             clientsEnvironment = ""
+            }
         }
     }
     LaunchedEffect(vm) {
         vm.bridge.events.collect { event ->
-            if (event.optString("method") == "remoteControl/status/changed") {
-                status = event.optJSONObject("params")
+            if (event.optString("method") == "remoteControl/status/changed" &&
+                vm.bridge.status.value == EngineStatus.Connected) {
+                val current = event.optJSONObject("params") ?: return@collect
+                statusOrder.invalidate()
+                status = current
             }
         }
     }
@@ -80,6 +99,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         pairReceipt = ""
         pairError = ""
         revoke = null
+        confirm = null
     }
     LaunchedEffect(pair, environment) {
         val current = pair ?: return@LaunchedEffect
@@ -145,7 +165,9 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     pairReceipt = ""
                     pairError = ""
                     val result = vm.capabilityRequest("remoteControl/pairing/start", JSONObject().put("manualCode", true))
-                    if (status?.value("environmentId") != environment) return@launch
+                    check(vm.bridge.status.value == EngineStatus.Connected &&
+                        status?.value("status") == "connected" &&
+                        status?.value("environmentId") == environment) { "配对环境已切换，请刷新状态" }
                     require(result.getString("environmentId") == environment) { "配对环境已切换，请刷新状态" }
                     val manual = result.value("manualPairingCode")
                     require(manual.isNotBlank()) { "服务未返回手动配对码，请重新生成" }
@@ -192,9 +214,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 confirm = null
                 operation.launch {
                     pair = null
-                    status = if (enable) vm.capabilityRequest("remoteControl/enable", null)
-                        else vm.capabilityRequest("remoteControl/disable", null)
-                    verified++
+                    requestStatus(if (enable) "remoteControl/enable" else "remoteControl/disable")
                 }
             }, onDismiss = { confirm = null })
     }

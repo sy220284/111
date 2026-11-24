@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -109,11 +110,14 @@ internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     floating: Boolean = false,
     focusable: Boolean = true,
+    topClearance: Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit) {
-    val properties = androidx.compose.ui.window.PopupProperties(focusable = focusable)
+    val properties = androidx.compose.ui.window.PopupProperties(focusable = focusable, dismissOnClickOutside = true)
+    val clearancePx = with(LocalDensity.current) { topClearance.roundToPx() }
+    val position = remember(clearancePx) { CodexAnchoredPosition(clearancePx) }
     if (floating) {
         if (expanded) Popup(
-            popupPositionProvider = CodexAnchoredPosition,
+            popupPositionProvider = position,
             onDismissRequest = onDismissRequest, properties = properties
         ) {
             // DropdownMenu internally requests intrinsic dimensions, which is
@@ -131,7 +135,7 @@ internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
 }
 
 /** Place the menu against its actual anchor and clamp to the visible window. */
-internal object CodexAnchoredPosition : PopupPositionProvider {
+internal class CodexAnchoredPosition(private val topClearance: Int = 0) : PopupPositionProvider {
     override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
         layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
         val width = popupContentSize.width
@@ -143,11 +147,12 @@ internal object CodexAnchoredPosition : PopupPositionProvider {
         val above = anchorBounds.top - height
         val below = anchorBounds.bottom
         val maxY = (windowSize.height - height).coerceAtLeast(0)
+        val minY = topClearance.coerceIn(0, maxY)
         val y = when {
-            below in 0..maxY -> below
-            above in 0..maxY -> above
-            anchorBounds.top > windowSize.height - anchorBounds.bottom -> above.coerceIn(0, maxY)
-            else -> below.coerceIn(0, maxY)
+            below in minY..maxY -> below
+            above in minY..maxY -> above
+            anchorBounds.top > windowSize.height - anchorBounds.bottom -> above.coerceIn(minY, maxY)
+            else -> below.coerceIn(minY, maxY)
         }
         return IntOffset(x, y)
     }
