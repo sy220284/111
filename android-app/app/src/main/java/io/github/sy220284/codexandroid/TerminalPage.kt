@@ -89,7 +89,9 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     val renderedOutput = rememberTerminalOutput(outputState, session.processId)
     val terminalStarting by vm.terminalStarting.collectAsState()
     val errors by vm.errors.collectEntries("terminal", "terminalInput", "terminalStop", "terminalResize")
-    var historicalStdout by remember(session.processId) { mutableStateOf("") }
+    var historicalPages by remember(session.processId) { mutableStateOf<List<String>>(emptyList()) }
+    var selectedHistoryPage by remember(session.processId) { mutableIntStateOf(0) }
+    val historicalStdout = historicalPages.getOrNull(selectedHistoryPage).orEmpty()
     var historicalOffset by remember(session.processId) { mutableStateOf<Long?>(null) }
     var historicalMore by remember(session.processId) { mutableStateOf(true) }
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
@@ -241,7 +243,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
                     }
                     MaterialPanel(Modifier.fillMaxWidth()) {
-                        TerminalOutputHeader(vm, session.processId, renderedOutput) { text ->
+                        TerminalOutputHeader(vm, session.processId, renderedOutput, session.outputTruncated) { text ->
                             readerOutput = "终端标准输出" to text
                         }
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
@@ -257,7 +259,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                             if (vm.terminalSession.value.processId == targetId) {
                                                 historicalOffset = page.beforeOffset
                                                 historicalMore = page.hasMore
-                                                historicalStdout = (page.text + historicalStdout).takeLast(256_000)
+                                                if (page.text.isNotEmpty()) {
+                                                    historicalPages = historicalPages + page.text
+                                                    selectedHistoryPage = historicalPages.lastIndex
+                                                }
                                             }
                                         } catch (failure: Exception) {
                                             historicalError = failure.message ?: "无法读取更早的输出"
@@ -277,6 +282,13 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         }
                         if (historicalError.isNotBlank()) ErrorText(historicalError)
                         if (historicalStdout.isNotBlank()) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                CodexTextAction(onClick = { selectedHistoryPage-- }, enabled = selectedHistoryPage > 0) { Text("较新") }
+                                Text("历史段 " + (selectedHistoryPage + 1) + " / " + historicalPages.size,
+                                    style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                                CodexTextAction(onClick = { selectedHistoryPage++ }, enabled = selectedHistoryPage < historicalPages.lastIndex) { Text("较早") }
+                            }
                             Text("较早的标准输出（本机分页读取）",
                                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                             CodexTextAction(

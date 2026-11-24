@@ -147,11 +147,12 @@ internal object MessageMarkdown {
 @Composable
 internal fun NativeMessageMarkdown(source: String) {
     // Long outputs are parsed away from the main thread; the current text remains readable.
-    val parsed by produceState<List<MessageBlock>?>(null, source) {
-        value = if (source.length < 4096) MessageMarkdown.blocks(source)
-            else withContext(Dispatchers.Default) { MessageMarkdown.blocks(source) }
+    val blocks = if (source.length < 4096) remember(source) { MessageMarkdown.blocks(source) } else {
+        val parsed by produceState<Pair<String, List<MessageBlock>>?>(null, source) {
+            value = source to withContext(Dispatchers.Default) { MessageMarkdown.blocks(source) }
+        }
+        parsed?.takeIf { it.first == source }?.second ?: listOf(MessageBlock("paragraph", source))
     }
-    val blocks = parsed ?: listOf(MessageBlock("paragraph", source))
     SelectionContainer {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             blocks.forEach { block ->

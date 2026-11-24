@@ -63,7 +63,7 @@ internal fun rememberTerminalOutput(state: State<TerminalSessionState>, processI
 
 @Composable
 internal fun TerminalOutputHeader(vm: CodexViewModel, processId: String,
-    output: State<TerminalRenderedOutput>, onRead: (String) -> Unit) {
+    output: State<TerminalRenderedOutput>, truncated: Boolean, onRead: (String) -> Unit) {
     val stdout = output.value.takeIf { it.processId == processId }?.stdout.orEmpty()
     val clipboard = LocalClipboardManager.current
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -77,14 +77,14 @@ internal fun TerminalOutputHeader(vm: CodexViewModel, processId: String,
         }, enabled = stdout.isNotBlank(), modifier = Modifier.heightIn(min = 48.dp)) {
             CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(17.dp))
             Spacer(Modifier.width(4.dp))
-            Text("复制")
+            Text(if (truncated) "复制近期" else "复制")
         }
         CodexTextAction(onClick = {
             val current = vm.terminalSession.value
             if (current.processId == processId) onRead(current.stdoutText)
         }, enabled = stdout.length > 16_000,
             modifier = Modifier.heightIn(min = 48.dp).testTag("terminal-full-stdout")) {
-            Text(if (vm.terminalSession.value.outputTruncated) "阅读近期输出" else "查看完整输出")
+            Text(if (truncated) "阅读近期输出" else "查看完整输出")
         }
     }
 }

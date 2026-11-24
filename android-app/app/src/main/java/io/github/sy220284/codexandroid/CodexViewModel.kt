@@ -50,38 +50,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal var timelineEpoch = 0L
     internal var timelineCompacting = false
     internal val liveTimelines = ConversationLiveTimeline()
-    private fun readHistoryPage(payload: JSONObject): List<TimelineItem> {
-        val rows = payload.getJSONArray("data")
-        return (0 until rows.length()).map { TimelineEventReducer.historyEntry(rows.getJSONObject(it)) }.reversed()
-    }
-    private fun historyCursor(payload: JSONObject): String? = if (payload.isNull("nextCursor")) null else payload.optString("nextCursor").takeIf(String::isNotBlank)
-    fun loadEarlierTimeline() {
-        val id = activeThread.value ?: return
-        if (loadingEarlier.value || threadSwitching.value || timelineCompacting) return
-        val epoch = timelineEpoch
-        loadingEarlier.value = true
-        viewModelScope.launch {
-            try {
-                var older = timelineWindow.readEarlier(id, epoch)
-                if (older.isEmpty() && activeThread.value == id && timelineEpoch == epoch) {
-                    val cursor = olderServerCursor.value ?: return@launch
-                    val response = bridge.request("thread/items/list", JSONObject().put("threadId", id)
-                        .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
-                    if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
-                    older = readHistoryPage(response)
-                    olderServerCursor.value = historyCursor(response)
-                }
-                if (activeThread.value == id && timelineEpoch == epoch && !threadSwitching.value && older.isNotEmpty()) {
-                    val known = timeline.value.mapTo(hashSetOf()) { it.id }
-                    timeline.value = older.filterNot { it.id in known } + timeline.value
-                    errors.value = errors.value - "timeline"
-                }
-            } catch (failure: Exception) {
-                if (timelineEpoch == epoch) errors.value = errors.value + ("timeline" to
-                    (failure.message ?: "无法加载更早的记录"))
-            } finally { loadingEarlier.value = false }
-        }
-    }
+    fun loadEarlierTimeline() = loadEarlierHistory()
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
     internal fun composerOwner(threadId: String?, workspace: String = activeWorkspace.value): String =
         ThreadComposerDrafts.key(threadId, workspace)
