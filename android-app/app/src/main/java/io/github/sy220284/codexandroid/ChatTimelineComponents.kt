@@ -1,10 +1,6 @@
 package io.github.sy220284.codexandroid
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -19,117 +15,151 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.json.JSONObject
 
-@OptIn(ExperimentalFoundationApi::class)
+private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming")
+private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "declined", "interrupted", "cancelled")
+
+@Composable
+internal fun TimelineActivityGroup(group: List<TimelineItem>) {
+    if (group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
+            "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
+        TimelineStepCard(group.first())
+        return
+    }
+    val active = group.any { it.active() }
+    val failed = group.count { it.failed() }
+    var expanded by rememberSaveable(group.first().id) { mutableStateOf(false) }
+    val summary = group.groupingBy { PresentationPolicy.timelineKind(it.kind) }.eachCount()
+        .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
+    Column(Modifier.fillMaxWidth().testTag("chat-activity-group")) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .clickable { expanded = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CodexIcon(if (failed > 0) CodexGlyph.TaskError else if (active) CodexGlyph.TaskRunning else CodexGlyph.AutoAwesome,
+                null, tint = if (failed > 0) Ink.red else Ink.muted, modifier = Modifier.size(18.dp))
+            Column(Modifier.weight(1f)) {
+                Text((if (active) "正在处理 " else "已处理 ") + group.size + " 项活动" +
+                    if (failed > 0) " · $failed 项未成功" else "",
+                    color = if (failed > 0) Ink.red else Ink.muted, style = MaterialTheme.typography.labelLarge)
+                Text(summary, style = MaterialTheme.typography.labelSmall, color = Ink.muted,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            CodexIcon(if (expanded) CodexGlyph.ExpandMore else CodexGlyph.ChevronRight,
+                if (expanded) "收起活动" else "展开活动", tint = Ink.muted)
+        }
+        CodexReveal(visible = expanded) {
+            Column(Modifier.fillMaxWidth().padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                group.forEach { item -> key(item.id) { TimelineStepCard(item) } }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun TimelineStepCard(item: TimelineItem) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
-    val failure = item.kind == "error" ||
-        item.status.contains("failed", ignoreCase = true)
-    val active = item.status.contains("progress", ignoreCase = true) ||
-        item.status.contains("stream", ignoreCase = true)
-    val tone = when {
-        failure -> Ink.red
-        active -> Ink.copper
-        user -> Ink.copper
-        item.status.equals("completed", true) -> Ink.jade
-        else -> Ink.muted
-    }
+    val active = item.active()
+    val failure = item.failed()
+    val tone = if (failure) Ink.red else Ink.muted
     val title = PresentationPolicy.timelineKind(item.kind)
-    val icon = when (item.kind) {
-        "user" -> CodexGlyph.PersonOutline
-        "commandExecution" -> CodexGlyph.Terminal
-        "fileChange" -> CodexGlyph.Diff
-        "mcpToolCall" -> CodexGlyph.Hub
-        "plan" -> CodexGlyph.ViewList
-        "error" -> CodexGlyph.TaskError
-        else -> CodexGlyph.AutoAwesome
-    }
     val clipboard = LocalClipboardManager.current
-    val haptics = LocalHapticFeedback.current
-    val canOpenMenu = item.text.isNotBlank() || item.evidence.isNotBlank()
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
+    var rawOpen by rememberSaveable(item.id) { mutableStateOf(false) }
+    val detail = item.evidence.isNotBlank()
+    val raw = remember(item.evidence) {
+        if (item.evidence.isBlank()) null else try { JSONObject(item.evidence) } catch (_: org.json.JSONException) { null }
+    }
+    val shownText = item.text.ifBlank {
+        when {
+            active -> "正在处理…"
+            item.kind == "reasoning" -> "思考已结束"
+            else -> title
+        }
+    }
     Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
-    Surface(
-        modifier = if (user) Modifier.fillMaxWidth(.88f).testTag("chat-user-message")
-            else Modifier.fillMaxWidth().testTag(if (assistant) "chat-assistant-message" else "chat-execution-step"),
-        shape = RoundedCornerShape(17.dp),
-        color = if (user) Ink.parchment.copy(alpha = .055f) else Ink.canvas,
-        border = when {
-            failure -> BorderStroke(1.dp, Ink.red.copy(alpha = .5f))
-            user || assistant -> null
-            else -> BorderStroke(1.dp, Ink.border.copy(alpha = .65f))
-        }
-    ) {
-        Row(Modifier.padding(horizontal = if (assistant) 2.dp else 12.dp, vertical = 12.dp)) {
-            if (!user && !assistant) {
-                CodexIcon(icon, null, tint = tone, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.labelLarge,
-                        color = Ink.muted, modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                            .wrapContentHeight(Alignment.CenterVertically)
-                            .testTag("timeline-header-" + item.id)
-                            .combinedClickable(enabled = canOpenMenu,
-                                onClick = { menuOpen = true },
-                                onLongClickLabel = "打开消息操作",
-                                onLongClick = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    menuOpen = true
-                                }))
-                    val statusLabel = PresentationPolicy.timelineStatus(item.status)
-                    if (statusLabel.isNotEmpty()) {
-                        Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
+        if (user || assistant) {
+            Surface(Modifier.fillMaxWidth(if (user) .88f else 1f)
+                .testTag(if (user) "chat-user-message" else "chat-assistant-message"),
+                color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
+                    if (assistant) NativeMessageMarkdown(shownText)
+                    else SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
+                    if (!active && (user || item.phase != "commentary")) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CodexIconAction(onClick = { clipboard.setText(AnnotatedString(item.text)) },
+                                modifier = Modifier.size(48.dp)) {
+                                CodexIcon(CodexGlyph.ContentCopy, "复制消息", tint = Ink.muted, modifier = Modifier.size(18.dp))
+                            }
+                            CodexIconAction(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)
+                                .testTag("timeline-more-" + item.id)) {
+                                CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = Ink.muted)
+                            }
+                        }
                     }
-                    CodexIconAction(onClick = { menuOpen = true }, enabled = canOpenMenu, modifier = Modifier.size(48.dp)
+                }
+            }
+        } else {
+            val icon = when (item.kind) {
+                "commandExecution" -> CodexGlyph.Terminal
+                "fileChange" -> CodexGlyph.Diff
+                "mcpToolCall", "dynamicToolCall" -> CodexGlyph.Hub
+                "plan", "planProgress" -> CodexGlyph.ViewList
+                "error" -> CodexGlyph.TaskError
+                else -> CodexGlyph.AutoAwesome
+            }
+            Column(Modifier.fillMaxWidth().testTag("chat-execution-step")) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .testTag("timeline-header-" + item.id)
+                    .clickable { if (detail) evidenceOpen = true else readerOpen = true }
+                    .padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CodexIcon(icon, null, tint = tone, modifier = Modifier.size(18.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(if (item.kind in setOf("plan", "planProgress")) title else shownText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (failure) Ink.red else Ink.parchment, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        val output = raw?.optString("aggregatedOutput").orEmpty()
+                        val statusText = PresentationPolicy.timelineStatus(item.status)
+                        val caption = listOfNotNull(title.takeUnless { it == shownText },
+                            statusText.takeIf(String::isNotBlank),
+                            if (raw != null && !raw.isNull("exitCode"))
+                                "退出码 " + raw.optInt("exitCode") else null,
+                            if (raw != null && !raw.isNull("durationMs"))
+                                raw.optLong("durationMs").toString() + " 毫秒" else null).joinToString(" · ")
+                        if (caption.isNotBlank()) Text(caption, style = MaterialTheme.typography.labelSmall, color = tone)
+                        if (active && output.isNotBlank() && output != "null") {
+                            Text(output.lineSequence().filter(String::isNotBlank).lastOrNull().orEmpty().take(240),
+                                style = MaterialTheme.typography.labelSmall, color = Ink.muted, fontFamily = FontFamily.Monospace,
+                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    CodexIconAction(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)
                         .testTag("timeline-more-" + item.id)) {
-                        CodexIcon(CodexGlyph.MoreHoriz, "消息操作")
+                        CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = tone)
                     }
                 }
-                SelectionContainer {
-                    Text(item.text.takeUnless { it == item.kind || PresentationPolicy.meaningful(it).isEmpty() }
-                        ?: "正在处理…",
-                        style = if (user || assistant) MaterialTheme.typography.bodyLarge
-                            else MaterialTheme.typography.bodyMedium,
-                        fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null,
-                        maxLines = if (user || assistant) Int.MAX_VALUE else 10,
-                        overflow = TextOverflow.Ellipsis)
-                }
-                if (!user && !assistant && item.text.isNotBlank()) {
-                    CodexTextAction(onClick = { readerOpen = true }) { Text("查看完整内容") }
-                }
-                if (item.evidence.isNotBlank()) {
-                    CodexTextAction(onClick = { evidenceOpen = true },
-                        modifier = Modifier.heightIn(min = 48.dp)) {
-                        CodexIcon(CodexGlyph.OpenInNew, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("查看执行依据")
-                    }
-                }
+                if (item.kind in setOf("plan", "planProgress")) NativeMessageMarkdown(item.text)
             }
         }
     }
-    }
-    if (menuOpen) CodexActionSheet(title = title, onDismiss = { menuOpen = false },
-        actions = buildList {
-            if (item.text.isNotBlank()) {
-                add(CodexSheetAction(label = "复制内容", description = "复制原始文本", icon = CodexGlyph.ContentCopy,
-                    onClick = { menuOpen = false; clipboard.setText(AnnotatedString(item.text)) }))
-                add(CodexSheetAction(label = "全文阅读", description = "检索、定位与复制", icon = CodexGlyph.OpenInFull,
-                    onClick = { menuOpen = false; readerOpen = true }))
-            }
-            if (item.evidence.isNotBlank()) add(CodexSheetAction(label = "查看执行依据", description = "读取原始执行记录",
-                icon = CodexGlyph.Description, onClick = { menuOpen = false; evidenceOpen = true }))
-        })
+    if (menuOpen) CodexActionSheet(title = title, onDismiss = { menuOpen = false }, actions = buildList {
+        if (item.text.isNotBlank()) {
+            add(CodexSheetAction("复制内容", CodexGlyph.ContentCopy,
+                { clipboard.setText(AnnotatedString(item.text)) }))
+            add(CodexSheetAction("全文阅读", CodexGlyph.OpenInFull, { readerOpen = true }))
+        }
+        if (detail) {
+            add(CodexSheetAction("执行详情", CodexGlyph.Description, { evidenceOpen = true }))
+            add(CodexSheetAction("原始执行记录", CodexGlyph.Terminal, { rawOpen = true },
+                description = "包含命令、路径和原始输出，请谨慎分享"))
+        }
+    })
     if (readerOpen) FullTextReaderDialog(title, item.text) { readerOpen = false }
-    if (evidenceOpen) CodexEvidenceSheet(
-        title = title + " · 执行依据",
-        payload = item.evidence,
-        onDismiss = { evidenceOpen = false }
-    )
+    if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
+        onDismiss = { evidenceOpen = false })
+    if (rawOpen) FullTextReaderDialog("原始执行记录", item.evidence) { rawOpen = false }
 }

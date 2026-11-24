@@ -29,6 +29,9 @@ internal fun ConversationTimelineViewport(
 ) {
     val items by vm.timeline.collectFrameState(thread)
     val olderTimelineCount by vm.olderTimelineCount.collectAsState()
+    val olderCursor by vm.olderServerCursor.collectAsState()
+    val loadingEarlier by vm.loadingEarlier.collectAsState()
+    val groups = remember(items) { TimelineEventReducer.groups(items) }
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -38,8 +41,8 @@ internal fun ConversationTimelineViewport(
     var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
-    val olderPageVisible = olderTimelineCount > 0 && thread != null
-    val latestIndex = TimelineViewportPolicy.latestIndex(items.size, olderPageVisible)
+    val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
+    val latestIndex = TimelineViewportPolicy.latestIndex(groups.size, olderPageVisible)
 
     // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
     LaunchedEffect(scroll) {
@@ -64,7 +67,7 @@ internal fun ConversationTimelineViewport(
     LaunchedEffect(scroll, thread, switching) {
         if (switching) return@LaunchedEffect
         // One collector per conversation; a stream of deltas must not cancel and restart it.
-        snapshotFlow { TimelineRenderTarget(items.size, items.lastOrNull(), hasOlderPage,
+        snapshotFlow { TimelineRenderTarget(groups.size, items.lastOrNull(), hasOlderPage,
             scroll.layoutInfo.viewportSize.height) }
             .collect { (count, tail, older, viewportHeight) ->
                 val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage
@@ -89,7 +92,7 @@ internal fun ConversationTimelineViewport(
                             launch {
                                 autoScrolling = true
                                 try {
-                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(items.size, hasOlderPage), animate = false)
+                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(groups.size, hasOlderPage), animate = false)
                                 } finally {
                                     autoScrolling = false
                                 }
@@ -132,18 +135,18 @@ internal fun ConversationTimelineViewport(
                 }
             }
         } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (olderTimelineCount > 0 && thread != null) item(key = "timeline-older-pages") {
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (olderPageVisible) item(key = "timeline-older-pages") {
                 CodexSecondaryButton(
-                    onClick = { vm.loadEarlierTimeline() },
+                    onClick = { vm.loadEarlierTimeline() }, enabled = !loadingEarlier,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("timeline-load-older")
                 ) {
-                    Text("加载更早记录 · 剩余 $olderTimelineCount 条")
+                    Text(if (loadingEarlier) "正在加载…" else "加载更早记录")
                 }
             }
-            items(items, key = { it.id }) { item ->
-                TimelineStepCard(item)
+            items(groups, key = { it.first().id }) { group ->
+                TimelineActivityGroup(group)
             }
         }
         if (!switching && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
@@ -159,7 +162,7 @@ internal fun ConversationTimelineViewport(
                             try {
                                 scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
                                 if (followTail) {
-                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(items.size, hasOlderPage), animate = false)
+                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(groups.size, hasOlderPage), animate = false)
                                     unreadSteps = 0
                                 }
                             } finally {

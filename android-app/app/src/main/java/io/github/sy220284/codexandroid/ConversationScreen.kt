@@ -59,7 +59,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var referenceQuery by remember(thread) { mutableStateOf<String?>(null) }
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
-    var showContextTools by remember { mutableStateOf(false) }
+    var showContextTools by remember(thread) { mutableStateOf(false) }
+    var sessionAction by remember(thread) { mutableStateOf("") }
     var showTerminalSheet by remember { mutableStateOf(false) }
     var followUpMode by rememberSaveable(thread) { mutableStateOf("queue") }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
@@ -305,7 +306,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
                 if (thread != null) {
-                    add(ComposerShortcut("context", "会话选项", "管理当前会话、历史和关联资料", CodexGlyph.MoreHoriz,
+                    add(ComposerShortcut("context", "会话选项", "创建分支、整理上下文和回退", CodexGlyph.MoreHoriz,
                         enabled = !switching, onOpen = { keyboard?.hide(); showContextTools = true }))
                     add(ComposerShortcut("usage", "上下文容量", "查看当前会话容量", CodexGlyph.Insights,
                         onOpen = { keyboard?.hide(); composerMenu = "usage" }))
@@ -313,6 +314,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         enabled = !switching, onOpen = { keyboard?.hide(); navigate("goals") }))
                     add(ComposerShortcut("queue", "后续指令", "管理当前会话待执行队列", CodexGlyph.ViewList,
                         enabled = !switching, onOpen = { keyboard?.hide(); navigate("queue") }))
+                    add(ComposerShortcut("fork", "创建会话分支", "", CodexGlyph.CallSplit,
+                        enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "fork" }))
+                    add(ComposerShortcut("compact", "整理上下文", "", CodexGlyph.Compress,
+                        enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "compact" }))
                 }
                 add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
                     onOpen = { keyboard?.hide(); showEngineStatus = true }))
@@ -429,7 +434,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
     if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
     if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
-        onCompact = if (!busy && thread != null) ({ composerMenu = ""; showContextTools = true }) else null,
+        onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
         onDismiss = { composerMenu = "" })
     if (showTerminalSheet) {
         CodexSheetFrame(
@@ -460,7 +465,24 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 pendingContextRoute = destination
                 showContextTools = false
             },
-            onDismiss = { showContextTools = false }
+            onDismiss = { showContextTools = false },
+            onFork = { showContextTools = false; sessionAction = "fork" },
+            onCompact = { showContextTools = false; sessionAction = "compact" }
+        )
+    }
+    if (sessionAction.isNotBlank() && thread != null) {
+        val id = thread
+        val fork = sessionAction == "fork"
+        CodexConfirmDialog(
+            title = if (fork) "创建会话分支" else "整理上下文",
+            message = if (fork) "保留当前会话，从其历史创建独立会话。"
+                else "内核将整理较早的上下文，部分细节可能需要重新读取。",
+            confirmLabel = if (fork) "创建并打开" else "开始整理",
+            onConfirm = {
+                sessionAction = ""
+                id?.let { vm.runSessionAction(it, fork) }
+            },
+            onDismiss = { sessionAction = "" }
         )
     }
     if (confirmPlan && latestPlan != null) {
