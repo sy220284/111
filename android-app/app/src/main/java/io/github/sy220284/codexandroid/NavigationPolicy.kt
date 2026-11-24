@@ -89,11 +89,13 @@ object NavigationPolicy {
         val pageTitle = pages.firstOrNull { it.id == id }?.title
             ?: if (id == "update") "应用更新" else null
         if (pageTitle?.equals(q, ignoreCase = true) == true) return null
-        return settingsSpots.firstOrNull { spot ->
-            spot.route == id &&
-                (q.contains(spot.label, ignoreCase = true) ||
-                    spot.terms.any { q.contains(it, ignoreCase = true) })
-        }
+        val candidates = settingsSpots.filter { it.route == id }
+        // Prefer the longest exact operation wording (e.g. plan effort vs general effort).
+        candidates.filter { spot -> q.contains(spot.label, true) || spot.terms.any { q.contains(it, true) } }
+            .maxByOrNull { spot -> (listOf(spot.label) + spot.terms).filter { q.contains(it, true) }.maxOf { it.length } }
+            ?.let { return it }
+        return candidates.filter { spot -> q.length >= 2 &&
+            (listOf(spot.label) + spot.terms).any { it.contains(q, true) } }.singleOrNull()
     }
 
     fun matchedSettingTopic(id: String, query: String): String? {

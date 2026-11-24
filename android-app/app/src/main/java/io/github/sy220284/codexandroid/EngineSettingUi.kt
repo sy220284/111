@@ -117,7 +117,7 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
         "securityRequirements" !in loading && errors["securityRequirements"] == null
     var selectedKey by rememberSaveable(owner) { mutableStateOf<String?>(null) }
     fun clearFeedback() {
-        if (!saving) {
+        if (!saving && vm.data.value[ENGINE_SETTING_SAVE]?.optString("owner") == owner) {
             vm.errors.value = vm.errors.value - ENGINE_SETTING_SAVE
             vm.data.value = vm.data.value - ENGINE_SETTING_SAVE
         }
@@ -163,8 +163,9 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
             (owner == "tools" && errors["securityRequirements"] != null))) {
         CodexNotice("可用选项读取失败", NoticeTone.Warning, actionLabel = "重试", onAction = { reload() })
     }
-    val saveError = errors[ENGINE_SETTING_SAVE]
-    val saveMessage = data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }
+    val receipt = data[ENGINE_SETTING_SAVE]?.takeIf { it.optString("owner") == owner }
+    val saveError = if (receipt != null) errors[ENGINE_SETTING_SAVE] else null
+    val saveMessage = receipt?.optString("message")?.takeIf { it.isNotBlank() }
     if (selectedKey == null) {
         saveError?.let { ErrorText(it) }
         saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
@@ -178,7 +179,7 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
         EngineSettingEditor(setting, EngineSettings.valueAt(config, setting.key), available,
             enabled && (setting.type !in listOf("choice", "reasoning", "model") || available.isNotEmpty()),
             saving, onDismiss = { selectedKey = null },
-            onSave = { vm.saveEngineSetting(setting.key, it, setting.title) },
+            onSave = { vm.saveEngineSetting(setting.key, it, setting.title, owner) },
             saveError = saveError, saveMessage = saveMessage)
     }
 }

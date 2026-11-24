@@ -43,7 +43,8 @@ internal data class EngineSetting(
     fun label(value: Any?, available: Map<String, String> = choices): String {
         if (value == null || value == JSONObject.NULL) return "由引擎决定"
         return when (type) {
-            "choice", "reasoning", "model" -> available[value.toString()] ?: "自定义选项"
+            "model" -> available[value.toString()] ?: value.toString()
+            "choice", "reasoning" -> available[value.toString()] ?: "自定义选项"
             "boolean" -> if (value == true) "开启" else if (value == false) "关闭" else "自定义"
             "number" -> {
                 val number = value as? Number ?: return "自定义"

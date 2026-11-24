@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 /** Keep the full write/read transaction owned by the ViewModel, including navigation away. */
 internal const val ENGINE_SETTING_SAVE = "engineSettingSave"
-internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: String) {
+internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: String, owner: String = "config") {
     if (DataTransferMutationGate.refuse(this, ENGINE_SETTING_SAVE, "config/value/write")) return
     if (ENGINE_SETTING_SAVE in loading.value || "config" in loading.value || securitySaveBusy.value) {
         errors.value = errors.value + (ENGINE_SETTING_SAVE to "已有配置操作正在处理，请完成后再保存")
@@ -18,7 +18,7 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         return
     }
     loading.value = loading.value + ENGINE_SETTING_SAVE
-    data.value = data.value - ENGINE_SETTING_SAVE
+    data.value = data.value + (ENGINE_SETTING_SAVE to JSONObject().put("owner", owner).put("keyPath", path))
     errors.value = errors.value - ENGINE_SETTING_SAVE
     viewModelScope.launch {
         try {
@@ -26,7 +26,7 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
             val read = bridge.request("config/read", JSONObject().put("includeLayers", true))
             data.value = data.value + ("config" to read)
             EngineSettings.verify(write, read, path.trim(), value)
-            data.value = data.value + (ENGINE_SETTING_SAVE to JSONObject().put("message", "$title 已保存并核实"))
+            data.value = data.value + (ENGINE_SETTING_SAVE to JSONObject().put("owner", owner).put("keyPath", path).put("message", "$title 已保存并核实"))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {

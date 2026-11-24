@@ -319,10 +319,11 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val config = data["config"]?.optJSONObject("config")
     val ready = config != null
     val saving = ENGINE_SETTING_SAVE in loading
-    val saveError = errors[ENGINE_SETTING_SAVE]
-    val saveMessage = data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }
+    val receipt = data[ENGINE_SETTING_SAVE]?.takeIf { it.optString("owner") == "config" }
+    val saveError = if (receipt != null) errors[ENGINE_SETTING_SAVE] else null
+    val saveMessage = receipt?.optString("message")?.takeIf { it.isNotBlank() }
     fun clearSaveFeedback() {
-        if (!saving) {
+        if (!saving && vm.data.value[ENGINE_SETTING_SAVE]?.optString("owner") == "config") {
             vm.errors.value = vm.errors.value - ENGINE_SETTING_SAVE
             vm.data.value = vm.data.value - ENGINE_SETTING_SAVE
         }
@@ -382,8 +383,8 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         if (saving) AtlasOperationProgress("正在保存并核实配置")
-        errors[ENGINE_SETTING_SAVE]?.let { ErrorText(it) }
-        data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }?.let {
+        saveError?.let { ErrorText(it) }
+        saveMessage?.let {
             CodexNotice(it, NoticeTone.Success)
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
