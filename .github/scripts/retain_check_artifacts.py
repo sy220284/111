@@ -59,7 +59,7 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
             continue
         if NATIVE.fullmatch(a["name"]):
             continue
-        scope = (run["head_repository"]["full_name"], run["head_branch"])
+        scope = ((run.get("head_repository") or {}).get("full_name"), run["head_branch"])
         # Open PRs keep their own newest evidence. Closed branches compete
         # with main, with main preferred when it has corresponding evidence.
         lane = scope if scope in open_heads else None
@@ -70,7 +70,7 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
         def rank(a):
             run = runs[a["workflow_run"]["id"]]
             return (lane is None and run["head_branch"] == "main"
-                    and run["head_repository"]["full_name"] == run["repository"]["full_name"],
+                    and (run.get("head_repository") or {}).get("full_name") == run["repository"]["full_name"],
                     run["created_at"], run["id"], a["created_at"], a["id"])
         newest = max(entries, key=rank)
         delete.extend(a for a in entries if a["id"] != newest["id"])
@@ -104,11 +104,17 @@ def main():
                  if not a["expired"] and a.get("workflow_run")]
     # Resolve ownership from the workflow run, never from an artifact name
     # supplied by an arbitrary PR. Release artifacts remain outside the scope.
+    needed = {a["workflow_run"]["id"] for a in artifacts}
     runs = {}
-    for a in artifacts:
-        rid = a["workflow_run"]["id"]
-        if rid not in runs:
-            runs[rid] = api(repo, f"actions/runs/{rid}")
+    if needed:
+        for run in pages(repo, "actions/runs", "workflow_runs"):
+            if run["id"] in needed:
+                runs[run["id"]] = run
+                needed.remove(run["id"])
+                if not needed:
+                    break
+    for rid in sorted(needed):
+        runs[rid] = api(repo, f"actions/runs/{rid}")
     prs = list(pages(repo, "pulls?state=open"))
     open_heads = {(p["head"]["repo"]["full_name"], p["head"]["ref"])
                   for p in prs if p["head"].get("repo")}
@@ -121,7 +127,7 @@ def main():
         selector = ArtifactSelector()
         targets = [api(repo, "branches/main")["commit"]["sha"]]
         targets += [p["head"]["sha"] for p in prs]
-        if all(p["head"].get("repo", {}).get("full_name") == repo for p in prs):
+        if all((p["head"].get("repo") or {}).get("full_name") == repo for p in prs):
             for sha in dict.fromkeys(targets):
                 if subprocess.run(["git", "cat-file", "-e", sha + "^{commit}"],
                                   capture_output=True).returncode:
@@ -137,10 +143,14 @@ def main():
 
     candidates = plan(artifacts, runs, open_heads, native_keep, native_safe)
     native_deferred = False
+    removed = 0
+    checked_runs = {}
     for a in candidates:
         rid = a["workflow_run"]["id"]
         # A rerun can begin after the initial snapshot.
-        current = api(repo, f"actions/runs/{rid}")
+        if rid not in checked_runs:
+            checked_runs[rid] = api(repo, f"actions/runs/{rid}")
+        current = checked_runs[rid]
         if current["status"] != "completed" or current["run_attempt"] != runs[rid]["run_attempt"]:
             print(f"跳过已重新运行的检查 {rid}")
             continue
@@ -151,7 +161,8 @@ def main():
         print(f"{'删除' if args.apply else '预览'}: {a['id']} {a['name']} (run {rid})")
         if args.apply:
             gh("api", "--method", "DELETE", f"repos/{repo}/actions/artifacts/{a['id']}")
-    print(f"检查产物候选清理数：{len(candidates)}；正式 Release、标签、运行记录不在清理范围。")
+            removed += 1
+    print(f"候选 {len(candidates)} 项，实际删除 {removed} 项；正式 Release、标签、运行记录不在清理范围。")
 
 
 if __name__ == "__main__":
