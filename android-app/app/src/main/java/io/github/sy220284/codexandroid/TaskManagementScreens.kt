@@ -32,8 +32,12 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     val status = panelDraft.goalStatus
     val budget = panelDraft.goalBudget
     var confirmClear by remember(active) { mutableStateOf(false) }
-    var showAdvancedBudget by remember(active) { mutableStateOf(false) }
+    var showBudgetEditor by remember(active) { mutableStateOf(false) }
+    var budgetInput by remember(active) { mutableStateOf("") }
+    val budgetEdited = panelDraft.goalBudgetEdited
     val safeBudget = budget.isBlank() || (budget.toLongOrNull()?.let { it > 0 } == true)
+    val safeBudgetInput = budgetInput.isBlank() ||
+        (budgetInput.toLongOrNull()?.let { it > 0 } == true)
 
     LaunchedEffect(active) {
         if (active != null) vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
@@ -67,17 +71,16 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
                         goal.optString("status") == "active")
                 }
-                if (showAdvancedBudget) {
-                    Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
-                        goal.optLong("timeUsedSeconds"), color = Ink.muted)
-                }
+                Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
+                    goal.optLong("timeUsedSeconds"), color = Ink.muted)
                 OutlinedButton(onClick = {
                     vm.editTaskPanelDraft(active) {
                         it.copy(
                             goalText = goal.optString("objective"),
                             goalStatus = goal.optString("status").ifBlank { "active" },
                             goalBudget = goal.opt("tokenBudget")
-                                ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty()
+                                ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty(),
+                            goalBudgetEdited = false
                         )
                     }
                 }) { Text("编辑当前目标") }
@@ -105,31 +108,34 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 },
                 modifier = Modifier.testTag("goal-status-selector")
             )
-            TextButton(onClick = {
-                if (!showAdvancedBudget && budget.isBlank()) {
-                    // Exposing the advanced control must preserve the server's existing limit.
-                    val currentLimit = goal?.opt("tokenBudget")
-                        ?.takeIf { it != JSONObject.NULL }?.toString().orEmpty()
-                    if (currentLimit.isNotBlank()) vm.editTaskPanelDraft(active) {
-                        it.copy(goalBudget = currentLimit)
-                    }
-                }
-                showAdvancedBudget = !showAdvancedBudget
-            }, modifier = Modifier.testTag("goal-advanced-toggle")) {
-                Icon(if (showAdvancedBudget) Icons.Outlined.ExpandLess
-                    else Icons.Outlined.ExpandMore, null)
-                Spacer(Modifier.width(6.dp))
-                Text(if (showAdvancedBudget) "收起高级设置" else "高级设置 · 执行额度")
-            }
-            if (showAdvancedBudget) {
-                OutlinedTextField(budget, { text ->
-                    vm.editTaskPanelDraft(active) {
-                        it.copy(goalBudget = text.filter(Char::isDigit))
-                    }
+            val currentBudget = goal?.opt("tokenBudget")
+                ?.takeIf { it != JSONObject.NULL }?.toString().orEmpty()
+            AtlasSettingsActionRow(
+                title = "执行额度",
+                detail = when {
+                    budgetEdited && budget.isBlank() -> "待保存：清除 Token 上限"
+                    budgetEdited -> "待保存：Token 上限 $budget"
+                    currentBudget.isNotBlank() -> "当前 Token 上限：$currentBudget"
+                    else -> "当前未设置 Token 上限"
                 },
-                    label = { Text("Token 上限（可留空）" ) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                if (!safeBudget) AtlasFieldFeedback("Token 上限必须是正整数", isError = true)
+                icon = Icons.Outlined.Tune,
+                onClick = {
+                    budgetInput = if (budgetEdited) budget else currentBudget
+                    showBudgetEditor = true
+                },
+                modifier = Modifier.testTag("goal-advanced-toggle")
+            )
+            if (budgetEdited) {
+                TextButton(onClick = {
+                    vm.editTaskPanelDraft(active) {
+                        it.copy(goalBudget = "", goalBudgetEdited = false)
+                    }
+                }, modifier = Modifier.testTag("goal-budget-undo")) {
+                    Text("撤销待保存的额度修改")
+                }
+                if (!safeBudget) {
+                    AtlasFieldFeedback("Token 上限必须是正整数", isError = true)
+                }
             }
 
         }
@@ -144,21 +150,52 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     val threadId = requireNotNull(active) { "请先打开任务会话" }
                     val params = ThreadGoalRequestContract.set(
                         threadId = threadId, objective = objective, status = status,
-                        budgetText = budget, editBudget = showAdvancedBudget,
+                        budgetText = budget, editBudget = budgetEdited,
                         existingBudget = goal != null && !goal.isNull("tokenBudget")
                     )
                     vm.rpc("goalWrite", "thread/goal/set", params, after = {
+                        vm.editTaskPanelDraft(threadId) {
+                            it.copy(goalBudgetEdited = false)
+                        }
                         vm.refresh("goal:$threadId", "thread/goal/get",
                             JSONObject().put("threadId", threadId))
                     })
                 },
                 enabled = objective.isNotBlank() &&
-                    (!showAdvancedBudget || safeBudget) && "goalWrite" !in loading,
+                    (!budgetEdited || safeBudget) && "goalWrite" !in loading,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)
                     .testTag("goal-sticky-save")
             ) { Text("保存目标") }
         }
     }
+    }
+    if (showBudgetEditor && active != null) {
+        CodexEditDialog(
+            title = "修改执行额度",
+            description = "只在点击“应用额度”后将修改加入待保存目标。留空表示清除已有上限。",
+            confirmLabel = "应用额度",
+            onDismiss = { showBudgetEditor = false },
+            onConfirm = {
+                vm.editTaskPanelDraft(active) {
+                    it.copy(goalBudget = budgetInput, goalBudgetEdited = true)
+                }
+                showBudgetEditor = false
+            },
+            canConfirm = safeBudgetInput
+        ) {
+            OutlinedTextField(
+                value = budgetInput,
+                onValueChange = { budgetInput = it.filter(Char::isDigit) },
+                label = { Text("Token 上限（可留空）") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("goal-budget-input")
+            )
+            if (!safeBudgetInput) {
+                AtlasFieldFeedback("Token 上限必须是正整数", isError = true)
+            }
+            Text("保存目标时才会提交额度变更。取消编辑将保留当前额度。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        }
     }
     if (confirmClear) CodexConfirmDialog(
         title = "清除当前任务目标",
@@ -171,7 +208,8 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 after = {
                     vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
                     vm.editTaskPanelDraft(active) {
-                        it.copy(goalText = "", goalStatus = "active", goalBudget = "")
+                        it.copy(goalText = "", goalStatus = "active",
+                            goalBudget = "", goalBudgetEdited = false)
                     }
                 })
             confirmClear = false
