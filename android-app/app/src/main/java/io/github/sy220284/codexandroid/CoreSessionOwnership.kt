@@ -22,6 +22,9 @@ internal class CoreSessionOwnership {
         restartReserved = false
         return true
     }
+    @Synchronized fun canStartMaintenance(): Boolean =
+        !restartReserved && retiring == null && (session == null || ready)
+
     @Synchronized fun reserveRestart(requests: Int, approvals: Int): Boolean {
         if (restartReserved || retiring != null || (session != null && !ready) || requests != 0 || approvals != 0) return false
         restartReserved = true

@@ -42,6 +42,8 @@ class CodexConnection(private val appContext: Context) {
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
     /** Live wire requests, including direct calls from settings, session recovery and terminal. */
     internal val activeRpcRequests = MutableStateFlow<Set<Long>>(emptySet())
+    private val retirementState = MutableStateFlow(false)
+    internal val retirementBusy = retirementState.asStateFlow()
     @Volatile private var process: Process? = null
     @Volatile private var wire: RpcProcessChannel? = null
     private val shutdownHook = Thread({ close() }, "codex-native-process-cleanup")
@@ -69,6 +71,7 @@ class CodexConnection(private val appContext: Context) {
         withContext(Dispatchers.IO) {
         val epoch = synchronized(ownership) {
             if (status.value == EngineStatus.Connected) return@withContext
+            check(!AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
             val token = ownership.begin()
             status.value = EngineStatus.Starting
             prompts.value = emptyList()
@@ -212,8 +215,9 @@ class CodexConnection(private val appContext: Context) {
 
     // Caller holds the ownership monitor. No new request can register in the retired session.
     private fun failWaiting(reason: String) {
-        waiting.values.forEach { it.completeExceptionally(IllegalStateException(reason)) }
+        val pending = waiting.values.toList()
         waiting.clear()
+        pending.forEach { it.completeExceptionally(IllegalStateException(reason)) }
     }
 
     suspend fun request(
@@ -240,6 +244,7 @@ class CodexConnection(private val appContext: Context) {
             check(if (startupEpoch == null) ownership.acceptsUserRequest() else startupEpoch == token) {
                 "运行核心正在连接或重启，请完成后重试"
             }
+            check(startupEpoch != null || !AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
             waiting[id] = deferred
             activeRpcRequests.update { it + id }
             token
@@ -261,23 +266,35 @@ class CodexConnection(private val appContext: Context) {
 
     suspend fun notify(method: String, params: JSONObject = JSONObject()) {
         ProtocolDirectionPolicy.requireClientSend(method)
-        val epoch = synchronized(ownership) {
-            check(ownership.acceptsUserRequest()) { "运行核心正在连接或重启" }
-            ownership.current() ?: error("Codex 内核尚未连接")
-        }
-        write(epoch, JSONObject().put("method", method).put("params", params), requireReady = true)
+        writeOneWay(JSONObject().put("method", method).put("params", params))
     }
 
     suspend fun answer(prompt: ServerPrompt, result: JSONObject) {
+        writeOneWay(JSONObject().put("id", prompt.id).put("result", result), prompt)
+    }
+
+    /** Notifications and approvals occupy the same admission boundary as requests. */
+    private suspend fun writeOneWay(message: JSONObject, prompt: ServerPrompt? = null) {
+        val id = sequence.getAndIncrement()
         val epoch = synchronized(ownership) {
-            check(ownership.acceptsUserRequest() && prompts.value.contains(prompt)) { "审批已过期，请刷新当前状态" }
+            check(ownership.acceptsUserRequest()) { "运行核心正在连接或重启" }
+            check(!AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
             val token = ownership.current() ?: error("Codex 内核尚未连接")
-            check(prompt.connectionSession == token) { "审批所属内核已切换" }
+            if (prompt != null) {
+                check(prompt.connectionSession == token && prompts.value.contains(prompt)) {
+                    "审批已过期，请刷新当前状态"
+                }
+            }
+            activeRpcRequests.update { it + id }
             token
         }
-        write(epoch, JSONObject().put("id", prompt.id).put("result", result), requireReady = true)
-        synchronized(ownership) {
-            if (ownership.owns(epoch)) prompts.value = prompts.value.filterNot { it == prompt }
+        try {
+            write(epoch, message, permit = { prompt == null || prompts.value.contains(prompt) }, requireReady = true)
+            if (prompt != null) synchronized(ownership) {
+                if (ownership.owns(epoch)) prompts.value = prompts.value.filterNot { it == prompt }
+            }
+        } finally {
+            synchronized(ownership) { activeRpcRequests.update { it - id } }
         }
     }
 
@@ -324,6 +341,7 @@ class CodexConnection(private val appContext: Context) {
             if (canClose?.invoke() == false) return false
             if (reservedRestart && !ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) return false
             val token = ownership.retire(epoch) ?: return false
+            retirementState.value = true
             val child = process
             val channel = wire
             process = null
@@ -336,6 +354,7 @@ class CodexConnection(private val appContext: Context) {
         terminate(retired.second, retired.third)
         synchronized(ownership) {
             if (ownership.completeRetirement(retired.first)) {
+                retirementState.value = false
                 connectedSessionState.value = null
                 status.value = EngineStatus.Unavailable(reason)
             }
@@ -343,16 +362,22 @@ class CodexConnection(private val appContext: Context) {
         return true
     }
 
-    internal fun closeForRestart() {
+    internal fun closeForRestart(canClose: () -> Boolean) {
         val epoch = synchronized(ownership) {
             check(ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) {
                 "重启前出现了新请求或审批，已取消重启"
             }
             ownership.current()
         } ?: return
-        check(retireSession(epoch, "连接已关闭", reservedRestart = true)) {
+        check(retireSession(epoch, "连接已关闭", reservedRestart = true, canClose = canClose)) {
             "重启前出现了新请求或审批，已取消重启"
         }
+    }
+
+    /** Check and claim a local data operation before any new RPC can register. */
+    internal fun runIfIdle(allowed: () -> Boolean, action: () -> Unit): Boolean = synchronized(ownership) {
+        if (!ownership.canStartMaintenance() || activeRpcRequests.value.isNotEmpty() || !allowed()) false
+        else { action(); true }
     }
 
     /** Background idle release uses the same admission boundary as an explicit restart. */

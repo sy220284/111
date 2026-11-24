@@ -64,7 +64,11 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
                     else ConnectionRestartPolicy.canContinueOwnedRestart(current)) {
                     "任务或数据备份状态已变化，内核重启已取消"
                 }
-                withContext(Dispatchers.IO) { vm.bridge.closeForRestart() }
+                withContext(Dispatchers.IO) {
+                    vm.bridge.closeForRestart {
+                        allowed(vm.globalWorkSnapshot().copy(restarting = false))
+                    }
+                }
                 vm.connect().join()
                 check(vm.bridge.status.value == EngineStatus.Connected) {
                     (vm.bridge.status.value as? EngineStatus.Unavailable)?.reason ?: "重新连接尚未完成"

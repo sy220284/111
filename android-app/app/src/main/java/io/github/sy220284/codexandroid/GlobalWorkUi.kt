@@ -40,6 +40,7 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val terminalStarting by vm.terminalStarting.collectAsState()
     val securitySave by vm.securitySaveBusy.collectAsState()
     val coreStatus by vm.bridge.status.collectAsState()
+    val retiring by vm.bridge.retirementBusy.collectAsState()
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val voiceActive by vm.realtimeVoiceLease.active.collectAsState()
     return GlobalWorkSnapshot(
@@ -55,7 +56,7 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
         switchingThread = threadSwitching,
         terminalStarting = terminalStarting,
         securitySaveBusy = securitySave,
-        coreStarting = coreStatus == EngineStatus.Starting,
+        coreStarting = coreStatus == EngineStatus.Starting || retiring,
         restarting = restarting,
         realtimeVoiceActive = voiceActive
     )

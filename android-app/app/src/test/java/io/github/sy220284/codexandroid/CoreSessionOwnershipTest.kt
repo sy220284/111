@@ -4,6 +4,23 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CoreSessionOwnershipTest {
+    @Test fun maintenanceCannotOverlapHandshakeRestartOrRetirement() {
+        val owner = CoreSessionOwnership()
+        assertTrue(owner.canStartMaintenance())
+        val epoch = owner.begin()
+        assertFalse(owner.canStartMaintenance())
+        assertTrue(owner.markReady(epoch))
+        assertTrue(owner.canStartMaintenance())
+        assertTrue(owner.reserveRestart(0, 0))
+        assertFalse(owner.canStartMaintenance())
+        owner.releaseRestart()
+        assertTrue(owner.canStartMaintenance())
+        val retirement = requireNotNull(owner.retire(epoch))
+        assertFalse(owner.canStartMaintenance())
+        assertTrue(owner.completeRetirement(retirement))
+        assertTrue(owner.canStartMaintenance())
+    }
+
     @Test fun handshakeDoesNotAdmitBusinessRequestsAndRestartReservesAdmission() {
         val owner = CoreSessionOwnership()
         val epoch = owner.begin()

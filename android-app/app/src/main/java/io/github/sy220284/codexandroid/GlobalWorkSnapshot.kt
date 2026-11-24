@@ -61,7 +61,7 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     switchingThread = threadSwitching.value,
     terminalStarting = terminalStarting.value,
     securitySaveBusy = securitySaveBusy.value,
-    coreStarting = bridge.status.value == EngineStatus.Starting,
+    coreStarting = bridge.status.value == EngineStatus.Starting || bridge.retirementBusy.value,
     restarting = connectionRestarter.busy.value,
     realtimeVoiceActive = realtimeVoiceLease.active.value
 )
