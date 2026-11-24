@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -36,7 +38,8 @@ internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(path, bounds)
                 if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
-                val sample = maxOf(1, maxOf(bounds.outWidth, bounds.outHeight) / 1600)
+                var sample = 1
+                while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
                 BitmapFactory.decodeFile(path,
                     BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
             }
@@ -65,6 +68,7 @@ internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
                             "重新读取", { retry++ })
                         else -> Image(bitmap, "当前附件的大图预览",
                             modifier = Modifier.fillMaxSize().testTag("attachment-preview-image")
+                                .semantics { stateDescription = "缩放 ${(scale * 100).toInt()}%" }
                                 .pointerInput(path, bitmap) {
                                     detectTransformGestures { _, pan, zoom, _ ->
                                         val next = (scale * zoom).coerceIn(1f, 4f)
@@ -88,12 +92,30 @@ internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
                             contentScale = ContentScale.Fit)
                     }
                 }
+                if (preview.second != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center) {
+                        TextButton(onClick = {
+                            scale = (scale / 1.5f).coerceAtLeast(1f)
+                            offset = Offset.Zero
+                        }, enabled = scale > 1f, modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("attachment-zoom-out")) { Text("缩小") }
+                        Text("${(scale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 12.dp).testTag("attachment-zoom-level"))
+                        TextButton(onClick = {
+                            scale = (scale * 1.5f).coerceAtMost(4f)
+                            offset = Offset.Zero
+                        }, enabled = scale < 4f, modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("attachment-zoom-in")) { Text("放大") }
+                    }
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     IconButton(onClick = { onSelect(paths[index - 1]) }, enabled = index > 0,
                         modifier = Modifier.size(48.dp)) { CodexIcon(CodexGlyph.ArrowBack, "上一张") }
                     TextButton(onClick = { scale = 1f; offset = Offset.Zero },
-                        enabled = preview.second != null) { Text("恢复原始大小") }
+                        enabled = preview.second != null, modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("attachment-preview-reset")) { Text("恢复原始大小") }
                     IconButton(onClick = { onSelect(paths[index + 1]) }, enabled = index < paths.lastIndex,
                         modifier = Modifier.size(48.dp)) { CodexIcon(CodexGlyph.ArrowForward, "下一张") }
                 }

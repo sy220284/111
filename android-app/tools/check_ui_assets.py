@@ -87,6 +87,10 @@ def verify_artwork(svg, vector):
                 if a.attrib.get(x,default) != b.attrib.get(ANDROID+y,default):
                     raise ValueError("插画描边不一致：" + x)
 
+def invalid_glyph_namespace(source):
+    """CodexGlyph is an application enum, never an Android/Compose vector type."""
+    return bool(re.search(r"\bandroidx?\.[\w.]*\bCodexGlyph\b", source))
+
 def audit(root):
     errors, assets = [], []
     design = root/"docs/ui-assets"
@@ -134,6 +138,8 @@ def audit(root):
         return result
 
     for name,text in sources.items():
+        if invalid_glyph_namespace(text):
+            errors.append("原生图标类型引用了错误的 Android/Compose 命名空间："+name)
         if re.search(r"\bIcons\.\w+\.|import androidx\.compose\.material\.icons\.|\bImageVector\b",text):
             errors.append("系统图标直接引用："+name)
         if name != "CodexIcon" and re.search(r"(?<!\w)Icon\s*\(",text):

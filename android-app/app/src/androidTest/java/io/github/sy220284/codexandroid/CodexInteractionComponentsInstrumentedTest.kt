@@ -390,4 +390,85 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.runOnIdle { UiPreferences.setDarkMode(originalDark) }
         }
     }
+
+    @Test fun validatedFormShowsFieldErrorAndClearAction() {
+        rule.setContent {
+            var address by remember { mutableStateOf("") }
+            CodexTheme {
+                Column {
+                    AtlasFormField(address, { address = it }, "服务地址",
+                        modifier = androidx.compose.ui.Modifier.testTag("test-service-address"),
+                        error = if (address.isNotBlank() && !ProviderAddressPolicy.valid(address))
+                            "请输入有效的 HTTP 或 HTTPS 地址" else null)
+                    TextButton(onClick = {}, enabled = ProviderAddressPolicy.valid(address),
+                        modifier = androidx.compose.ui.Modifier.testTag("test-save-address")) { Text("保存") }
+                }
+            }
+        }
+        rule.onNodeWithTag("test-save-address").assertIsNotEnabled()
+        rule.onNodeWithTag("test-service-address").performTextInput("not-an-address")
+        rule.onNodeWithText("请输入有效的 HTTP 或 HTTPS 地址").assertExists()
+        rule.onNodeWithTag("test-save-address").assertIsNotEnabled()
+        rule.onNodeWithContentDescription("清除服务地址").performClick()
+        rule.onNodeWithTag("test-service-address").performTextInput("https://example.com/v1")
+        rule.onNodeWithText("请输入有效的 HTTP 或 HTTPS 地址").assertDoesNotExist()
+        rule.onNodeWithTag("test-save-address").assertIsEnabled()
+    }
+
+    @Test fun attachmentPreviewSupportsZoomSwitchResetAndRemove() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val first = java.io.File.createTempFile("preview-first", ".png", context.cacheDir)
+        val second = java.io.File.createTempFile("preview-second", ".png", context.cacheDir)
+        val bitmap = android.graphics.Bitmap.createBitmap(32, 32, android.graphics.Bitmap.Config.ARGB_8888)
+        try {
+            first.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            second.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            rule.setContent {
+                var paths by remember { mutableStateOf(listOf(first.absolutePath, second.absolutePath)) }
+                var selected by remember { mutableStateOf(first.absolutePath) }
+                CodexTheme {
+                    Column {
+                        Text("附件数量：" + paths.size)
+                        if (selected in paths) AttachmentPreviewDialog(paths, selected,
+                            onSelect = { selected = it }, onDismiss = { selected = "" },
+                            onRemove = { removed -> paths = paths - removed; selected = "" })
+                    }
+                }
+            }
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithTag("attachment-preview-image").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("图片 1 / 2").assertExists()
+            rule.onNodeWithTag("attachment-zoom-in").performClick()
+            rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("150%")
+            rule.onNodeWithTag("attachment-preview-reset").performClick()
+            rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
+            rule.onNodeWithContentDescription("下一张").performClick()
+            rule.onNodeWithText("图片 2 / 2").assertExists()
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithTag("attachment-preview-image").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
+            rule.onNodeWithContentDescription("移除当前图片").performClick()
+            rule.onNodeWithTag("attachment-preview").assertDoesNotExist()
+            rule.onNodeWithText("附件数量：1").assertExists()
+        } finally {
+            bitmap.recycle()
+            first.delete()
+            second.delete()
+        }
+    }
+
+    @Test fun messageMenuOpensActualTextReader() {
+        rule.setContent {
+            CodexTheme {
+                TimelineStepCard(TimelineItem("test-message-reader", "agentMessage", "可核对的原始内容"))
+            }
+        }
+        rule.onNodeWithTag("timeline-more-test-message-reader").performClick()
+        rule.onNodeWithText("全文阅读").performClick()
+        rule.onNodeWithTag("full-text-search").assertExists()
+        rule.onNodeWithTag("full-text-search").performTextInput("原始")
+        rule.onNodeWithText("第 1 / 1 处").assertExists()
+    }
 }
