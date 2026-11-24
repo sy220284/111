@@ -129,6 +129,8 @@ jobs:
             --repository . \
             --json-report full-feature-workflows.json \
             --report full-feature-workflows.md
+      - name: 检查全页面及子页面共享交互覆盖
+        run: python3 android-app/tools/check_interaction_coverage.py --repository . --report interaction-coverage.json
       - name: 从唯一协议策略核对 UI 组件映射文档
         run: |
           python3 android-app/tools/sync_ui_protocol_docs.py --check
@@ -194,6 +196,7 @@ jobs:
             ui-coverage.json
             full-feature-workflows.md
             full-feature-workflows.json
+            interaction-coverage.json
             protocol-contract-audit.json
             wire-fixtures-audit.json
             android-app/app/build/protocol-fixtures/requests.json
