@@ -12,6 +12,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -146,40 +149,52 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     var followTail by remember { mutableStateOf(true) }
+    var autoScrolling by remember { mutableStateOf(false) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
-    var lastKnownTailId by remember { mutableStateOf<String?>(null) }
+    var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
-    // Reset only after thread/read and thread/resume have finished swapping the timeline.
-    LaunchedEffect(thread, switching) {
-        if (!switching && observedThread != thread) {
-            observedThread = thread
-            followTail = true
-            unreadSteps = 0
-            lastKnownStepCount = items.size
-            lastKnownTailId = items.lastOrNull()?.id
-            scroll.scrollToItem(if (items.isEmpty()) 0 else items.lastIndex)
+    val olderPageVisible = olderTimelineCount > 0 && thread != null
+    val latestIndex = TimelineViewportPolicy.latestIndex(items.size, olderPageVisible)
+
+    // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
+    LaunchedEffect(scroll) {
+        scroll.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) followTail = false
         }
     }
     LaunchedEffect(scroll) {
-        snapshotFlow { !scroll.canScrollForward }.collect { atBottom ->
-            followTail = atBottom
-            if (atBottom) unreadSteps = 0
-        }
+        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
+            .collect { (scrolling, canForward, automatic) ->
+                if (!scrolling && !canForward) {
+                    followTail = true
+                    unreadSteps = 0
+                } else if (scrolling && canForward && !automatic) {
+                    followTail = false
+                }
+            }
     }
-    LaunchedEffect(items.size, switching, thread) {
-        if (switching || observedThread != thread) return@LaunchedEffect
-        // Reading older pages prepends items but does not create unread steps.
-        val tailId = items.lastOrNull()?.id
-        val tailChanged = tailId != lastKnownTailId
-        val added = if (tailChanged) (items.size - lastKnownStepCount).coerceAtLeast(0) else 0
-        lastKnownTailId = tailId
+    LaunchedEffect(thread, switching, items.size, items.lastOrNull(), olderPageVisible) {
+        if (switching) return@LaunchedEffect
+        val threadChanged = observedThread != thread
+        val change = TimelineViewportPolicy.change(
+            lastKnownStepCount, lastKnownTail, items.size, items.lastOrNull())
+        observedThread = thread
         lastKnownStepCount = items.size
-        if (items.isNotEmpty() && followTail && tailChanged) {
-            if (reducedMotion) scroll.scrollToItem(items.size - 1)
-            else scroll.animateScrollToItem(items.size - 1)
+        lastKnownTail = items.lastOrNull()
+        if (threadChanged) {
+            followTail = true
+            unreadSteps = 0
+        }
+        if (latestIndex >= 0 && followTail && (threadChanged || change.changed)) {
+            autoScrolling = true
+            try {
+                scroll.scrollToLatest(latestIndex, animate = false)
+            } finally {
+                autoScrolling = false
+            }
         } else if (!followTail) {
-            unreadSteps += added
+            unreadSteps += change.newSteps
         }
     }
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
@@ -355,17 +370,21 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     TimelineStepCard(item)
                 }
             }
-            if (unreadSteps > 0) {
+            if (!switching && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom = 10.dp)
+                        .padding(bottom = 10.dp).heightIn(min = 48.dp)
+                        .testTag("timeline-return-latest")
                         .clickable {
                             scope.launch {
-                                if (items.isNotEmpty()) {
-                                    if (reducedMotion) scroll.scrollToItem(items.lastIndex)
-                                    else scroll.animateScrollToItem(items.lastIndex)
+                                followTail = true
+                                autoScrolling = true
+                                try {
+                                    scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
+                                    unreadSteps = 0
+                                } finally {
+                                    autoScrolling = false
                                 }
-                                unreadSteps = 0
                             }
                         },
                     shape = RoundedCornerShape(99.dp),
@@ -373,7 +392,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     border = BorderStroke(1.dp, Ink.copper),
                     shadowElevation = 1.dp
                 ) {
-                    Text("↓ ${unreadSteps} 条新步骤",
+                    Text(if (unreadSteps > 0) "↓ ${unreadSteps} 条新步骤" else "返回最新进度",
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                         color = Ink.copper, style = MaterialTheme.typography.labelMedium)
                 }
@@ -585,6 +604,17 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     )
 }
 
+/** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
+private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
+    if (index < 0) return
+    if (animate) animateScrollToItem(index) else scrollToItem(index)
+    val info = layoutInfo
+    val last = info.visibleItemsInfo.lastOrNull { it.index == index } ?: return
+    val remaining = (last.offset + last.size - info.viewportEndOffset +
+        info.afterContentPadding).coerceAtLeast(0)
+    if (remaining > 0 && canScrollForward) scrollBy(remaining.toFloat())
+}
+
 /** Every tool step retains the source payload for verification while keeping the chat readable. */
 @Composable
 private fun TimelineStepCard(item: TimelineItem) {
@@ -647,7 +677,7 @@ private fun TimelineStepCard(item: TimelineItem) {
                     fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
                 if (item.evidence.isNotBlank()) {
                     TextButton(onClick = { evidenceOpen = true },
-                        modifier = Modifier.heightIn(min = 46.dp)) {
+                        modifier = Modifier.heightIn(min = 48.dp)) {
                         Icon(Icons.Outlined.OpenInNew, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("查看执行依据")
