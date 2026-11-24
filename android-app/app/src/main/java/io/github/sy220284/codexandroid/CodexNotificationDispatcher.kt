@@ -30,6 +30,12 @@ internal object CodexNotificationDispatcher {
             }
             return
         }
+        if (method == "app/list/updated") {
+            // The notification may contain a partial directory; keep the paginated snapshot.
+            if (data.value["appInstalled"] != null && "appInstalled" !in loading.value)
+                refresh("appInstalled", "app/installed", JSONObject())
+            return
+        }
         if (method == "account/rateLimits/updated") {
             accountMetrics.refresh(setOf("limits"))
             return
@@ -49,6 +55,7 @@ internal object CodexNotificationDispatcher {
                     refresh("models", "model/list")
                     catalogWarmup.accountChanged()
                     accountMetrics.accountChanged()
+            invalidateExtensionCatalogs()
                     refresh("mcp", "mcpServerStatus/list",
                         CatalogRequestContract.mcpStatus(activeThread.value))
                 }
@@ -58,6 +65,7 @@ internal object CodexNotificationDispatcher {
             refresh("models", "model/list")
             catalogWarmup.accountChanged()
             accountMetrics.accountChanged()
+                    invalidateExtensionCatalogs()
             refreshMcpServices()
         }
         if (method == "project/changed") {
