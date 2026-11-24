@@ -47,5 +47,14 @@ class ExtensionCatalogPolicyTest {
         assertFalse(ExtensionCatalogPolicy.isScopedKey("appInstalled", true))
         assertTrue(ExtensionCatalogPolicy.isScopedKey("appInstalled", false))
         assertFalse(ExtensionCatalogPolicy.isScopedKey("models", false))
+        assertTrue(ExtensionCatalogPolicy.isScopedKey("pluginMutation", true))
+        assertFalse(ExtensionCatalogPolicy.isScopedKey("appMutation", true))
+        assertTrue(ExtensionCatalogPolicy.isScopedKey("appMutation", false))
+        val market = JSONObject().put("name", "source")
+        val plugin = JSONObject().put("name", "fixture").put("installed", true)
+        val identity = ExtensionCatalogPolicy.pluginIdentity(market, plugin)
+        assertTrue(ExtensionCatalogPolicy.isInstalled(market, plugin, emptySet(), false))
+        assertFalse(ExtensionCatalogPolicy.isInstalled(market, plugin, emptySet(), true))
+        assertTrue(ExtensionCatalogPolicy.isInstalled(market, plugin.put("installed", false), setOf(identity), true))
     }
 }

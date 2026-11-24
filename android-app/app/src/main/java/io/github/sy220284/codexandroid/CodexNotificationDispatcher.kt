@@ -31,9 +31,7 @@ internal object CodexNotificationDispatcher {
             return
         }
         if (method == "app/list/updated") {
-            // The notification may contain a partial directory; keep the paginated snapshot.
-            if (data.value["appInstalled"] != null && "appInstalled" !in loading.value)
-                refresh("appInstalled", "app/installed", JSONObject())
+            extensions.appDirectoryChanged()
             return
         }
         if (method == "account/rateLimits/updated") {

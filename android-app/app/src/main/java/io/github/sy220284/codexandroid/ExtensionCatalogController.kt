@@ -26,15 +26,63 @@ internal class ExtensionCatalogController(
     }
 
     fun refreshAfterAppAuthorization() {
-        if (!appAuthorizationPending) return
+        if (!appAuthorizationPending || vm.bridge.status.value != EngineStatus.Connected) return
         appAuthorizationPending = false
-        if (vm.bridge.status.value != EngineStatus.Connected) return
-        vm.refresh("appInstalled", "app/installed", JSONObject().put("forceRefresh", true))
-        vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
+        refreshApps(force = true)
     }
 
-    fun invalidate(pluginsOnly: Boolean = false) =
+    fun appDirectoryChanged() {
+        if (vm.bridge.status.value != EngineStatus.Connected) return
+        val data = vm.data.value
+        val loading = vm.loading.value
+        // app/list can emit a notification during its own request; do not recursively refetch.
+        if ("apps" in data || "appInstalled" in data || "apps" in loading || "appInstalled" in loading)
+            refreshApps(force = false)
+    }
+
+    fun refreshApps(force: Boolean, replaceInFlight: Boolean = force) {
+        if (vm.bridge.status.value != EngineStatus.Connected) return
+        if (replaceInFlight || "appInstalled" !in vm.loading.value)
+            vm.refresh("appInstalled", "app/installed", JSONObject().put("forceRefresh", force))
+        if (replaceInFlight || "apps" !in vm.loading.value)
+            vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", force))
+    }
+
+    fun loadMoreApps(cursor: String) {
+        if (vm.bridge.status.value != EngineStatus.Connected || cursor.isBlank() ||
+            "apps" in vm.loading.value || ExtensionCatalogPolicy.cursor(vm.data.value["apps"]) != cursor) return
+        vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("cursor", cursor))
+    }
+
+    fun refreshPluginCatalog(key: String, workspace: String, force: Boolean = false) {
+        if (vm.bridge.status.value != EngineStatus.Connected || workspace != vm.activeWorkspace.value) return
+        val params = CatalogRequestContract.workspace(workspace)
+        if (key == "plugins") vm.refresh(key, "plugin/list", params.put("forceRefetch", force))
+        else if (key == "installedPlugins") vm.refresh(key, "plugin/installed", params)
+    }
+
+    fun changePlugin(method: String, params: JSONObject, workspace: String) {
+        if (workspace != vm.activeWorkspace.value || vm.bridge.status.value != EngineStatus.Connected ||
+            "pluginMutation" in vm.loading.value) return
+        vm.rpc("pluginMutation", method, params, after = {
+            if (workspace == vm.activeWorkspace.value) {
+                invalidatePluginSearchResults()
+                refreshPluginCatalog("plugins", workspace, true)
+                refreshPluginCatalog("installedPlugins", workspace)
+            }
+        })
+    }
+
+    fun changeApp(id: String, enabled: Boolean) {
+        if (vm.bridge.status.value != EngineStatus.Connected || "appMutation" in vm.loading.value) return
+        vm.rpc("appMutation", "config/value/write", JSONObject().put("keyPath", "apps." + id + ".enabled")
+            .put("value", enabled).put("mergeStrategy", "replace"), after = { refreshApps(force = true) })
+    }
+
+    fun invalidate(pluginsOnly: Boolean = false, preserveAuthorization: Boolean = false) {
+        if (!pluginsOnly && !preserveAuthorization) appAuthorizationPending = false
         invalidateKeys { ExtensionCatalogPolicy.isScopedKey(it, pluginsOnly) }
+    }
 
     fun invalidatePluginSearchResults() = invalidateKeys {
         it.startsWith("pluginSearch:") || it.startsWith("pluginDetail:") || it.startsWith("pluginSkill:")

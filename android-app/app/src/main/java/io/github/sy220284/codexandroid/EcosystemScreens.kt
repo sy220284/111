@@ -255,8 +255,6 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val epoch by vm.extensions.epoch.collectAsState()
     var installedOnly by rememberSaveable { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
-    val busy by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
     var installedQuery by rememberSaveable { mutableStateOf("") }
@@ -268,6 +266,11 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
     val searchKey = searchPrefix + searchPage
+    val requestKeys = remember(searchPrefix, searchPage) {
+        setOf("plugins", "installedPlugins", "pluginMutation") + (0..searchPage).map { searchPrefix + it }
+    }
+    val busy by vm.loading.collectProjection { it.intersect(requestKeys) }
+    val errors by vm.errors.collectEntries(*requestKeys.toTypedArray())
     val data by vm.data.collectEntries("plugins", "installedPlugins",
         *(if (searchActive) (0..searchPage).map { searchPrefix + it } else emptyList()).toTypedArray())
     val marketData = data[activeKey]
@@ -281,12 +284,13 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val connected = engineStatus == EngineStatus.Connected
     val mutating = "pluginMutation" in busy
     val canOperate = connected && !mutating
-    val canManage = canOperate && activeKey !in busy
     val installedData = data["installedPlugins"]
-    val installedEntries = remember(installedData) {
-        installedData?.optJSONArray("marketplaces")?.objects().orEmpty()
-            .flatMap { market -> ExtensionCatalogPolicy.plugins(market, true).map { market.optString("name") to it.optString("id") } }.toSet()
-    }
+    val installedEntries = remember(installedData) { ExtensionCatalogPolicy.installedIdentities(installedData) }
+    val installedVerified = installedData != null && "installedPlugins" !in errors &&
+        (installedData.optJSONArray("marketplaceLoadErrors")?.length() ?: 0) == 0
+    val canManage = canOperate && activeKey !in busy && "installedPlugins" !in busy && installedVerified
+    fun installed(market: JSONObject, item: JSONObject) =
+        ExtensionCatalogPolicy.isInstalled(market, item, installedEntries, installedVerified)
     val allGroups = remember(marketplaces, installedOnly) {
         marketplaces.map { market -> market to ExtensionCatalogPolicy.plugins(market, installedOnly) }
     }
@@ -298,10 +302,9 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val visibleCount = groups.sumOf { it.second.size }
     fun refreshCatalog(force: Boolean = false) {
         if (!connected || activeKey in busy) return
-        if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-            CatalogRequestContract.workspace(workspace))
-        else vm.refresh("plugins", "plugin/list",
-            CatalogRequestContract.workspace(workspace).put("forceRefetch", force))
+        vm.extensions.refreshPluginCatalog(activeKey, workspace, force)
+        if (!installedOnly && (force || installedData == null) && "installedPlugins" !in busy)
+            vm.extensions.refreshPluginCatalog("installedPlugins", workspace, force)
     }
     fun submitSearch(term: String = searchDraft.trim()) {
         if (!canOperate || term.isBlank()) return
@@ -313,8 +316,11 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (SettingsDeepLink.take("plugins") == "discover") installedOnly = false
     }
     LaunchedEffect(activeKey, workspace, epoch, engineStatus) {
-        if (connected && CatalogRequestContract.shouldLoadCatalog(activeKey, data.keys, busy))
-            refreshCatalog()
+        if (connected) {
+            if (CatalogRequestContract.shouldLoadCatalog(activeKey, data.keys, busy)) refreshCatalog()
+            else if (!installedOnly && CatalogRequestContract.shouldLoadCatalog("installedPlugins", data.keys, busy))
+                vm.extensions.refreshPluginCatalog("installedPlugins", workspace)
+        }
     }
     LaunchedEffect(epoch, engineStatus, searchActive, searchPrefix) {
         val firstKey = searchPrefix + "0"
@@ -349,6 +355,9 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 submitTestTag = "plugins-search-submit")
         }
         ProtocolFeedback(vm, listOf("pluginMutation"))
+        if (!installedOnly && connected && !installedVerified && "installedPlugins" !in busy)
+            CodexNotice("安装状态待核对，确认后可管理插件。", NoticeTone.Warning,
+                actionLabel = "重试", onAction = { vm.extensions.refreshPluginCatalog("installedPlugins", workspace) })
         val catalogErrors = data[activeKey]?.optJSONArray("marketplaceLoadErrors")?.length() ?: 0
         if (catalogErrors > 0) CodexNotice("部分插件来源未能读取，已显示成功返回的内容。",
             NoticeTone.Warning, actionLabel = if (connected && activeKey !in busy) "重试" else null,
@@ -377,7 +386,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     found.forEachIndexed { index, hit ->
                         if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                         val item = hit.plugin
-                        val isInstalled = item.optBoolean("installed") || (hit.marketplace.optString("name") to item.optString("id")) in installedEntries
+                        val isInstalled = installed(hit.marketplace, item)
                         ExtensionPluginRow(item, isInstalled, canManage && searchKey !in busy,
                             source = ExtensionCatalogPolicy.marketName(hit.marketplace),
                             onDetails = { selectedPlugin = hit.marketplace to item },
@@ -399,7 +408,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 items.forEachIndexed { index, item ->
                     if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
-                    ExtensionPluginRow(item, item.optBoolean("installed"), canManage,
+                    ExtensionPluginRow(item, installed(market, item), canManage,
                         onDetails = { selectedPlugin = market to item },
                         onInstall = { action = Triple(market, item, true) })
                 }
@@ -419,9 +428,9 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         }
     }
     selectedPlugin?.let { (market, item) ->
-        val installed = item.optBoolean("installed") || (market.optString("name") to item.optString("id")) in installedEntries
+        val installed = installed(market, item)
         PluginDetailSheet(marketplace = market, entry = item, vm = vm,
-            onDismiss = { selectedPlugin = null },
+            onDismiss = { selectedPlugin = null }, installedState = installed,
             onManage = if (!canManage || (!installed && item.optString("installPolicy") == "NOT_AVAILABLE")) null else ({
                 selectedPlugin = null; action = Triple(market, item, !installed)
             }), manageLabel = if (installed) "卸载插件" else "安装插件")
@@ -432,20 +441,18 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             detail = ExtensionCatalogPolicy.pluginName(item) + "\n来源：" + ExtensionCatalogPolicy.marketName(market),
             confirmLabel = if (install) "确认安装" else "确认卸载", destructive = !install,
             onConfirm = {
-                val after: () -> Unit = {
-                    val cwd = vm.activeWorkspace.value
-                    vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(cwd))
-                    vm.refresh("installedPlugins", "plugin/installed", CatalogRequestContract.workspace(cwd))
-                    vm.extensions.invalidatePluginSearchResults()
+                if (!canManage || installed(market, item) == install) {
+                    action = null
+                    return@CodexConfirmDialog
                 }
                 if (install) {
                     val params = JSONObject().put("pluginName", item.optString("name"))
                     val path = PresentationPolicy.meaningful(market.optString("path"))
                     if (path.isNotBlank()) params.put("marketplacePath", path)
                     else params.put("remoteMarketplaceName", market.optString("name"))
-                    vm.rpc("pluginMutation", "plugin/install", params, after = after)
-                } else vm.rpc("pluginMutation", "plugin/uninstall",
-                    JSONObject().put("pluginId", item.optString("id")), after = after)
+                    vm.extensions.changePlugin("plugin/install", params, workspace)
+                } else vm.extensions.changePlugin("plugin/uninstall",
+                    JSONObject().put("pluginId", item.optString("id")), workspace)
                 action = null
             }, onDismiss = { action = null })
     }

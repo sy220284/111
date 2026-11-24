@@ -9,9 +9,9 @@ internal object ExtensionCatalogPolicy {
         "plugins" to "plugin/list", "installedPlugins" to "plugin/installed")
     fun retainsSnapshot(key: String, method: String) = catalogMethods[key] == method
     fun isScopedKey(key: String, pluginsOnly: Boolean): Boolean =
-        key in setOf("plugins", "installedPlugins") || key.startsWith("pluginSearch:") ||
+        key in setOf("plugins", "installedPlugins", "pluginMutation") || key.startsWith("pluginSearch:") ||
             key.startsWith("pluginDetail:") || key.startsWith("pluginSkill:") ||
-            (!pluginsOnly && key in setOf("apps", "appInstalled"))
+            (!pluginsOnly && key in setOf("apps", "appInstalled", "appMutation"))
     fun cursor(response: JSONObject?) = PresentationPolicy.meaningful(response?.optString("nextCursor"))
     fun appendApps(previous: JSONObject?, next: JSONObject): JSONObject {
         val items = (records(previous) + records(next)).filter { it.optString("id").isNotBlank() }
@@ -31,8 +31,10 @@ internal object ExtensionCatalogPolicy {
         }
         return (known + installedOnly).distinctBy { it.optString("id") }
     }
-    fun appStatus(app: JSONObject, installed: JSONObject?, verified: Boolean): String {
-        val active = records(installed).firstOrNull { it.optString("id") == app.optString("id") }
+    fun appStatus(app: JSONObject, installed: JSONObject?, verified: Boolean): String =
+        appStatusForRecord(app, records(installed).firstOrNull { it.optString("id") == app.optString("id") }, verified)
+
+    fun appStatusForRecord(app: JSONObject, active: JSONObject?, verified: Boolean): String {
         return when {
             !app.optBoolean("isEnabled", true) || active?.opt("enabled") == false -> "已停用"
             !verified -> "状态待核对"
@@ -42,6 +44,18 @@ internal object ExtensionCatalogPolicy {
             else -> "尚未连接"
         }
     }
+    fun pluginIdentity(market: JSONObject, item: JSONObject): Pair<String, String> =
+        market.optString("name") to item.optString("id").ifBlank { item.optString("name") }
+
+    fun installedIdentities(snapshot: JSONObject?): Set<Pair<String, String>> =
+        snapshot?.optJSONArray("marketplaces")?.objects().orEmpty()
+            .flatMap { market -> plugins(market, true).map { pluginIdentity(market, it) } }.toSet()
+
+    fun isInstalled(market: JSONObject, item: JSONObject, installed: Set<Pair<String, String>>,
+                    verified: Boolean): Boolean =
+        if (verified) pluginIdentity(market, item) in installed
+        else item.optBoolean("installed") || pluginIdentity(market, item) in installed
+
     fun pluginName(item: JSONObject) = PresentationPolicy.meaningful(
         item.optJSONObject("interface")?.optString("displayName"))
         .ifBlank { PresentationPolicy.meaningful(item.optString("name")) }

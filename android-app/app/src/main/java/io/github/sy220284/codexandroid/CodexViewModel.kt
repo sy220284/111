@@ -125,7 +125,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
-            if (!alreadyConnected) extensions.invalidate()
+            if (!alreadyConnected) extensions.invalidate(preserveAuthorization = true)
+            extensions.refreshAfterAppAuthorization()
             catalogWarmup.connected()
             if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
             // Rebuild visible history after a connection loss, without resending a task.
@@ -186,7 +187,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = bridge.request(method, params)
                 if (latestRequests.isLatest(key, ticket)) {
-                    data.value = data.value + (key to response)
+                    val published = if (key == "apps" && method == "app/list" &&
+                        !params?.optString("cursor").isNullOrBlank())
+                        ExtensionCatalogPolicy.appendApps(data.value[key], response) else response
+                    data.value = data.value + (key to published)
                     errors.value = errors.value - key
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {

@@ -91,8 +91,8 @@ fun CollaborationModesPage(vm: CodexViewModel) {
 @Composable
 fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val engineStatus by vm.bridge.status.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("apps", "appInstalled", "appMutation")) }
+    val errors by vm.errors.collectEntries("apps", "appInstalled", "appMutation")
     val context = LocalContext.current
     val data by vm.data.collectEntries("apps", "appInstalled")
     val epoch by vm.extensions.epoch.collectAsState()
@@ -101,15 +101,15 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val apps = remember(directory, installed) { ExtensionCatalogPolicy.apps(directory, installed) }
     var appQuery by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val verified = installed != null && "appInstalled" !in errors && engineStatus == EngineStatus.Connected
-    val statuses = remember(apps, installed, verified) {
-        apps.associate { it.optString("id") to ExtensionCatalogPolicy.appStatus(it, installed, verified) }
+    val installedById = remember(installed) { records(installed).associateBy { it.optString("id") } }
+    val statuses = remember(apps, installedById, verified) {
+        apps.associate { it.optString("id") to ExtensionCatalogPolicy.appStatusForRecord(it, installedById[it.optString("id")], verified) }
     }
     val connectedCount = remember(statuses) { statuses.values.count { it == "已连接" } }
     val visible = remember(apps, appQuery) {
         apps.filter { it.optString("name").contains(appQuery.trim(), ignoreCase = true) }
     }
     val groups = remember(visible, statuses) { visible.groupBy { statuses[it.optString("id")] == "已连接" } }
-    val installedById = remember(installed) { records(installed).associateBy { it.optString("id") } }
     var target by remember(epoch) { mutableStateOf<JSONObject?>(null) }
     var inspectingId by remember(epoch) { mutableStateOf<String?>(null) }
     var desired by remember { mutableStateOf(false) }
@@ -117,11 +117,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val writing = "appMutation" in loading
     val cursor = ExtensionCatalogPolicy.cursor(directory)
     fun refreshApps(force: Boolean = false) {
-        if (!connected) return
-        if ("appInstalled" !in loading) vm.refresh("appInstalled", "app/installed",
-            JSONObject().put("forceRefresh", force))
-        if ("apps" !in loading) vm.refresh("apps", "app/list",
-            JSONObject().put("limit", 100).put("forceRefetch", force))
+        vm.extensions.refreshApps(force)
     }
     LaunchedEffect(epoch, engineStatus) {
         if (connected) {
@@ -187,11 +183,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         if (connected && cursor.isNotBlank()) CodexSecondaryButton(onClick = {
-            val previous = directory
-            vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("cursor", cursor),
-                onSuccess = { next ->
-                    vm.data.value = vm.data.value + ("apps" to ExtensionCatalogPolicy.appendApps(previous, next))
-                })
+            vm.extensions.loadMoreApps(cursor)
         }, enabled = "apps" !in loading, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text("加载更多应用")
         }
@@ -228,7 +220,8 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             if (id.matches(Regex("[A-Za-z0-9_-]+")) && (app.has("isEnabled") || active != null))
                 CodexSecondaryButton(onClick = { desired = !enabled; target = app; inspectingId = null },
-                    enabled = connected && !writing, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    enabled = connected && !writing && verified && "appInstalled" !in loading,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text(if (enabled) "停用应用" else "启用应用")
                 }
         }
@@ -239,11 +232,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             message = "此操作将修改 Codex 对该应用的本地启用配置。",
             detail = item.optString("name"), confirmLabel = "确认修改", destructive = !desired,
             onConfirm = {
-                vm.rpc("appMutation", "config/value/write", JSONObject().put("keyPath", "apps." + id + ".enabled")
-                    .put("value", desired).put("mergeStrategy", "replace"), after = {
-                    vm.refresh("appInstalled", "app/installed", JSONObject().put("forceRefresh", true))
-                    vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
-                })
+                if (verified && "appInstalled" !in loading) vm.extensions.changeApp(id, desired)
                 target = null
             }, onDismiss = { target = null })
     }

@@ -22,20 +22,25 @@ fun PluginDetailSheet(
     vm: CodexViewModel,
     onDismiss: () -> Unit,
     onManage: (() -> Unit)? = null,
-    manageLabel: String = "安装插件"
+    manageLabel: String = "安装插件",
+    installedState: Boolean? = null
 ) {
     val name = entry.optString("name")
     val marketName = marketplace.optString("name")
     val marketPath = marketplace.optString("path")
     val key = "pluginDetail:" + marketName + ":" + name
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val data by vm.data.collectEntries(key)
+    val detail = data[key]?.optJSONObject("plugin")
+    val skillKeys = remember(detail, entry) {
+        detail?.optJSONArray("skills")?.objects().orEmpty().mapNotNull { skill ->
+            skill.optString("name").takeIf { it.isNotBlank() }?.let { "pluginSkill:" + entry.optString("id") + ":" + it }
+        }.toSet()
+    }
+    val errors by vm.errors.collectEntries(key, *skillKeys.toTypedArray())
+    val loading by vm.loading.collectProjection { it.intersect(skillKeys + key) }
     var readerText by remember(name, marketName) { mutableStateOf<String?>(null) }
     var readerTitle by remember(name, marketName) { mutableStateOf("") }
     var readerProblem by remember(name, marketName) { mutableStateOf("") }
-    val detail = data[key]?.optJSONObject("plugin")
-
     fun refresh() {
         if (name.isBlank()) return
         vm.refresh(key, "plugin/read", InspectionContracts.plugin(name, marketName, marketPath))
@@ -57,8 +62,8 @@ fun PluginDetailSheet(
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
                 val summary = detail?.optJSONObject("summary") ?: entry
-                StatusPill(if (summary.optBoolean("installed")) "已安装" else "未安装",
-                    summary.optBoolean("installed"))
+                val installed = installedState ?: summary.optBoolean("installed")
+                StatusPill(if (installed) "已安装" else "未安装", installed)
             }
             val summary = detail?.optJSONObject("summary") ?: entry
             val version = summary.optString("version")
