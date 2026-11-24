@@ -94,6 +94,9 @@ fun CodexShell(vm: CodexViewModel) {
     }
     val status by vm.bridge.status.collectAsState()
     val pendingCount by vm.bridge.prompts.collectProjection { it.size }
+    val otherPendingCount by vm.bridge.prompts.collectProjection { all ->
+        all.size - all.forThread(activeThread).size
+    }
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     fun openDrawer() {
         focusManager.clearFocus()
@@ -293,6 +296,8 @@ fun CodexShell(vm: CodexViewModel) {
                         ChatWorkTopBar(
                             conversationTitle = conversationTitle,
                             newThreadBlockReason = newThreadBlockReason,
+                            otherPendingCount = otherPendingCount,
+                            onApprovals = { move("approvals") },
                             onMenu = { openDrawer() },
                             onNewThread = { vm.newThread(); move("chat") }
                         )

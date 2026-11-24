@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 internal fun ChatWorkTopBar(
     conversationTitle: String?,
     newThreadBlockReason: String?,
+    otherPendingCount: Int,
+    onApprovals: () -> Unit,
     onMenu: () -> Unit,
     onNewThread: () -> Unit
 ) {
@@ -47,6 +49,12 @@ internal fun ChatWorkTopBar(
                     Text(conversationTitle, style = MaterialTheme.typography.titleMedium,
                         color = Ink.parchment, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+            }
+        }
+        if (otherPendingCount > 0) {
+            CodexIconAction(onClick = onApprovals,
+                modifier = Modifier.size(48.dp).testTag("chat-other-approvals")) {
+                CodexIcon(CodexGlyph.TaskApproval, "其他会话有 $otherPendingCount 项待处理", tint = Ink.warning)
             }
         }
         CodexIconAction(

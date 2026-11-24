@@ -272,6 +272,26 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun backgroundApprovalOpensFromChatWithoutMislabelingTheCurrentTask() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val prompt = ServerPrompt(91, "item/commandExecution/requestApproval",
+            JSONObject().put("threadId", "other-thread").put("command", "git status"))
+        try {
+            rule.runOnUiThread {
+                vm.activeThread.value = "visible-thread"
+                vm.bridge.prompts.value = listOf(prompt)
+            }
+            rule.onNodeWithText("立即处理").assertDoesNotExist()
+            rule.onNodeWithTag("chat-other-approvals").assertIsDisplayed().performClick()
+            rule.onNodeWithText("命令执行确认").assertExists()
+        } finally {
+            rule.runOnUiThread {
+                vm.bridge.prompts.value = emptyList()
+                vm.activeThread.value = null
+            }
+        }
+    }
+
     @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
         val vm = (rule.activity.application as CodexApplication).session
         openDrawerRoute("settings")
