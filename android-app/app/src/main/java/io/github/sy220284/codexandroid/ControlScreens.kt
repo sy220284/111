@@ -379,23 +379,16 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ) {
                 Text("适用于已经了解目标设置项的用户。修改前核对名称和值；每次只提交一项。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(path, { path = it }, modifier = Modifier.fillMaxWidth(),
-                    label = { Text("设置项名称") }, singleLine = true,
-                    placeholder = { Text("approval_policy") })
+                AtlasFormField(path, { path = it }, "设置项名称", placeholder = "approval_policy")
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                    val types = listOf(
-                        "text" to "文本", "boolean" to "开关",
-                        "number" to "数字", "json" to "高级数据"
-                    )
-                    SingleChoiceSegmentedButtonRow(Modifier.width(464.dp)) {
-                        types.forEachIndexed { index, pair ->
-                            SegmentedButton(
-                                selected = kind == pair.first,
-                                onClick = { kind = pair.first },
-                                shape = SegmentedButtonDefaults.itemShape(index, types.size),
-                                label = { Text(pair.second) }
-                            )
+                val types = listOf("text" to "文本", "boolean" to "开关", "number" to "数字", "json" to "高级数据")
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    types.chunked(2).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { (id, label) ->
+                                FilterChip(selected = kind == id, onClick = { kind = id },
+                                    label = { Text(label) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp))
+                            }
                         }
                     }
                 }

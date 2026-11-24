@@ -168,22 +168,17 @@ fun ProvidersPage(vm: CodexViewModel) {
                     subtitle = "仅配置连接地址和密钥变量名称",
                     onDismiss = { showCustomEditor = false }
                 ) {
-                    OutlinedTextField(customName, { customName = it },
-                        modifier = Modifier.fillMaxWidth(), label = { Text("服务商名称") },
-                        singleLine = true)
-                    OutlinedTextField(customUrl, { customUrl = it },
-                        modifier = Modifier.fillMaxWidth(), label = { Text("服务地址（HTTP / HTTPS）") },
-                        singleLine = true)
-                    OutlinedTextField(customEnvKey, { customEnvKey = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("密钥环境变量名称（可选）") },
-                        singleLine = true)
-                    Text("密钥值由本机环境管理；这里仅填写变量名称。",
-                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    AtlasFormField(customName, { customName = it }, "服务商名称")
+                    AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
+                        placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                        error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
+                            "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
+                    AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
+                        helper = "密钥值由本机环境管理；这里只填写变量名称。")
                     CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
-                            (customUrl.startsWith("https://") || customUrl.startsWith("http://")),
+                            ProviderAddressPolicy.valid(customUrl),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }
