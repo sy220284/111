@@ -9,6 +9,8 @@ internal data class TaskPanelDraft(
     val goalText: String = "",
     val goalStatus: String = "active",
     val goalBudget: String = "",
+    /** Only an explicitly confirmed budget edit is included in the next goal write. */
+    val goalBudgetEdited: Boolean = false,
     val reviewScope: String = "uncommittedChanges",
     val reviewText: String = ""
 )
