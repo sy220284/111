@@ -471,4 +471,36 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("full-text-search").performTextInput("原始")
         rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
+
+    @Test fun fileEditorProtectsUnsavedChangesAndSavesRealFile() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val root = java.io.File(context.cacheDir, "editor-test-" + java.util.UUID.randomUUID())
+        check(root.mkdir())
+        val file = java.io.File(root, "notes.txt").apply { writeText("原始内容") }
+        try {
+            rule.setContent {
+                var open by remember { mutableStateOf(true) }
+                CodexTheme {
+                    if (open) FileEditor(file, root, onBack = { open = false })
+                }
+            }
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithTag("workspace-editor-content").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithTag("workspace-editor-save").assertIsNotEnabled()
+            rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
+            rule.onNodeWithContentDescription("返回文件列表").performClick()
+            rule.onNodeWithText("放弃未保存的修改？").assertExists()
+            rule.onNodeWithText("取消").performClick()
+            rule.onNodeWithTag("workspace-editor-save").assertIsEnabled().performClick()
+            rule.waitUntil(5000L) { file.readText() == "修改内容" }
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("已保存").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithContentDescription("返回文件列表").performClick()
+            rule.onNodeWithTag("workspace-file-editor").assertDoesNotExist()
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }

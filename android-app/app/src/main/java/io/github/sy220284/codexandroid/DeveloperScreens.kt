@@ -462,39 +462,6 @@ fun WorkspacePage(vm: CodexViewModel) {
 }
 
 @Composable
-private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
-    val scope = rememberCoroutineScope()
-    var content by remember(file.path) { mutableStateOf(if (file.length() <= 1_000_000L) file.readText() else "") }
-    var message by remember { mutableStateOf("") }
-    val editable = file.length() <= 1_000_000L
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { CodexIcon(CodexGlyph.ArrowBack, "返回文件列表") }
-            Column(Modifier.weight(1f)) {
-                Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                Text("本地文件编辑", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
-            OutlinedButton(onClick = {
-                scope.launch {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            require(file.canonicalPath.startsWith(root.path + File.separator)) { "编辑路径超出工作区" }
-                            WorkspaceFileActions.saveText(root, file, content)
-                        }
-                        message = "已保存到工作区"
-                    } catch (failure: Exception) { message = failure.message ?: "保存失败" }
-                }
-            }, enabled = editable) { CodexIcon(CodexGlyph.Save, null); Text("保存") }
-        }
-        if (message.isNotEmpty()) Text(message, color = Ink.jade)
-        if (!editable) Text("文件超过 1 MB，请通过专用工具处理。", color = Ink.red)
-        OutlinedTextField(content, { content = it }, modifier = Modifier.fillMaxSize(),
-            enabled = editable, textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
-    }
-}
-
-@Composable
 fun DiffPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     DiffReaderPage(vm, navigate)
 }
