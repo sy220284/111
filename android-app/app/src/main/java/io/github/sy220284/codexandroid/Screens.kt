@@ -195,7 +195,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { navigate("files") },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         .testTag("home-shortcut-files")
@@ -204,7 +204,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(6.dp))
                     Text("浏览文件")
                 }
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { navigate("terminal") },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         .testTag("home-shortcut-terminal")
@@ -217,13 +217,13 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         if (data["threads"] != null) {
             AtlasListHeading("最近会话", threads.size, suffix = "个会话", action = {
-                TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+                CodexTextAction(onClick = { navigate("threads") }) { Text("查看全部") }
             })
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("最近会话", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+                CodexTextAction(onClick = { navigate("threads") }) { Text("查看全部") }
             }
         }
         if (threads.isEmpty() && "threads" in homeLoading)
@@ -337,7 +337,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     val status = PresentationPolicy.timelineStatus(entry.optString("status"))
                     if (status.isNotEmpty()) StatusPill(status)
                     if (summary.isNotEmpty()) {
-                        TextButton(onClick = { selectedDetail = display to summary }) {
+                        CodexTextAction(onClick = { selectedDetail = display to summary }) {
                             Text("查看详情")
                         }
                     }
@@ -383,7 +383,7 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
                 Text("从会话历史或任务对话中选择当前任务。", color = Ink.muted)
             }
         } else {
-            OutlinedButton(onClick = { vm.refresh(id, method, JSONObject().put("threadId", active)) }) {
+            CodexSecondaryButton(onClick = { vm.refresh(id, method, JSONObject().put("threadId", active)) }) {
                 CodexIcon(CodexGlyph.Retry, null); Spacer(Modifier.width(8.dp)); Text("读取当前会话")
             }
             errors[id]?.let { ErrorText(it) }

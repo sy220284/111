@@ -50,12 +50,12 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
             Text("更换安装签名、重装应用前，先导出本机项目、会话和设置。账号凭据需在恢复后重新登录。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { exportPicker.launch("111-本机备份.zip") },
                     enabled = !state.busy && available,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-export")
                 ) { Text("导出数据") }
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { importPicker.launch(arrayOf("application/zip", "application/octet-stream")) },
                     enabled = !state.busy && available,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-import")

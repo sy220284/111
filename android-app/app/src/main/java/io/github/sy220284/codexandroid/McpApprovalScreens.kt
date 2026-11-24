@@ -92,7 +92,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                 }
                             }
                         } else {
-                            OutlinedTextField(
+                            CodexInputField(
                                 value = answers[name] ?: "",
                                 onValueChange = { answers[name] = it },
                                 label = { Text(label) },
@@ -103,7 +103,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             )
                         }
                     }
-                    "integer", "number" -> OutlinedTextField(
+                    "integer", "number" -> CodexInputField(
                         value = answers[name] ?: "",
                         onValueChange = { answers[name] = it },
                         label = { Text(if (type == "integer") "整数" else "数值") },
@@ -119,7 +119,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                     (0 until array.length()).any { array.optString(it) == choice }
                                 } catch (failure: Exception) { false }
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = selected, onCheckedChange = { on ->
+                                    CodexCheckBox(checked = selected, onCheckedChange = { on ->
                                         val old = try {
                                             JSONArray(answers[name] ?: "[]")
                                         } catch (failure: Exception) { JSONArray() }
@@ -132,7 +132,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                 }
                             }
                         } else if (field.optJSONObject("items")?.optString("type") == "string") {
-                            OutlinedTextField(
+                            CodexInputField(
                                 value = multilineDrafts[name] ?: "",
                                 onValueChange = { input ->
                                     multilineDrafts[name] = input
@@ -144,7 +144,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                 minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth()
                             )
                         } else {
-                            OutlinedTextField(
+                            CodexInputField(
                                 value = answers[name] ?: "[]",
                                 onValueChange = { answers[name] = it },
                                 label = { Text("高级列表数据（JSON）") },
@@ -160,7 +160,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             val link = params.optString("url")
             Text("请在浏览器完成外部服务验证，返回后再确认。", color = Ink.muted)
             if (link.startsWith("https://") || link.startsWith("http://127.0.0.1:")) {
-                OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }) {
+                CodexSecondaryButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }) {
                     CodexIcon(CodexGlyph.OpenInNew, null); Text("打开授权页面")
                 }
             } else ErrorText("服务端提供了不安全的跳转地址")
@@ -183,7 +183,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     modifier = modifier.testTag("elicitation-decline")) { Text("拒绝请求") }
             },
             tertiary = { modifier ->
-                TextButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) },
+                CodexTextAction(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) },
                     modifier = modifier.heightIn(min = 48.dp).testTag("elicitation-cancel")) {
                     Text("取消请求")
                 }

@@ -82,7 +82,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
                     if (visibleFiles.isNotEmpty()) {
-                        TextButton(onClick = {
+                        CodexTextAction(onClick = {
                             updateExpanded(if (visibleFiles.all { it in expanded }) expanded - visibleFiles.toSet()
                             else expanded + visibleFiles.toSet())
                         }) {
@@ -93,7 +93,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 if (files.isNotEmpty()) AtlasSearchField(query, { query = it }, "按文件名筛选差异",
                     onClear = { query = "" }, modifier = Modifier.testTag("diff-file-search"))
-                if (visibleFiles.isNotEmpty()) TextButton(onClick = { filePicker = true },
+                if (visibleFiles.isNotEmpty()) CodexTextAction(onClick = { filePicker = true },
                     modifier = Modifier.testTag("diff-file-jump")) { Text("定位改动文件") }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     CodexPrimaryButton(onClick = { navigate("review") },
@@ -103,7 +103,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Spacer(Modifier.width(5.dp))
                         Text("代码审查")
                     }
-                    OutlinedButton(onClick = {
+                    CodexSecondaryButton(onClick = {
                         clipboard.setText(AnnotatedString(diff))
                         copied = true
                     }, enabled = diff.isNotBlank(),
@@ -114,7 +114,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = wrapLines, onCheckedChange = { wrapLines = it },
+                    CodexCheckBox(checked = wrapLines, onCheckedChange = { wrapLines = it },
                         modifier = Modifier.testTag("diff-line-wrap"))
                     Text("长代码行自动换行", style = MaterialTheme.typography.labelMedium,
                         color = Ink.muted)
@@ -156,7 +156,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     style = MaterialTheme.typography.labelMedium,
                                     color = Ink.muted)
                             }
-                            TextButton(
+                            CodexTextAction(
                                 onClick = {
                                     updateExpanded(if (index in expanded) expanded - index
                                     else expanded + index)

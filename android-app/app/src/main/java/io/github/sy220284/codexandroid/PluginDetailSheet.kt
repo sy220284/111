@@ -73,14 +73,14 @@ fun PluginDetailSheet(
             Text(chineseSummary, color = Ink.muted,
                 style = MaterialTheme.typography.bodyMedium)
             if (originalDescription.isNotEmpty() && originalDescription != chineseSummary) {
-                TextButton(onClick = {
+                CodexTextAction(onClick = {
                     readerTitle = "插件原始说明"
                     readerText = originalDescription
                 }, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("查看插件原始说明")
                 }
             }
-            OutlinedButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
+            CodexSecondaryButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 CodexIcon(CodexGlyph.Retry, null)
                 Spacer(Modifier.width(7.dp))
@@ -128,7 +128,7 @@ fun PluginDetailSheet(
                             if (field == "skills" && skillId.isNotBlank() &&
                                 remoteId.isNotBlank() && marketName.isNotBlank()) {
                                 val skillKey = "pluginSkill:" + remoteId + ":" + skillId
-                                TextButton(
+                                CodexTextAction(
                                     onClick = {
                                         readerTitle = title
                                         readerText = null

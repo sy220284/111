@@ -68,7 +68,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                 Text("请先连接运行服务，再管理项目。",
                     style = MaterialTheme.typography.bodySmall)
             } else {
-                OutlinedButton(onClick = { reload() },
+                CodexSecondaryButton(onClick = { reload() },
                     enabled = "projectsCatalog" !in loading) {
                     Text("刷新项目列表")
                 }
@@ -79,16 +79,16 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                 Text("当前目录：" + currentFolder.relativeTo(root).path.takeIf { it != "." }
                     ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
                     style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(name, { name = it }, label = { Text("新项目名称") },
+                CodexInputField(name, { name = it }, label = { Text("新项目名称") },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (!currentThread.isNullOrBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = withThread, onCheckedChange = { withThread = it },
+                        CodexCheckBox(checked = withThread, onCheckedChange = { withThread = it },
                             enabled = !running && "projectWrite" !in loading)
                         Text("同时关联当前会话", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                OutlinedButton(onClick = { confirmCreate = true },
+                CodexSecondaryButton(onClick = { confirmCreate = true },
                     enabled = name.isNotBlank() && !running && "projectWrite" !in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text(if (withThread && currentThread != null) "登记项目并关联会话"
@@ -123,7 +123,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                             Text(location, style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        OutlinedButton(onClick = {
+                        CodexSecondaryButton(onClick = {
                             try {
                                 vm.selectProject(projectId, File(rootPath))
                                 errorText = ""
@@ -135,7 +135,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                             modifier = Modifier.heightIn(min = 48.dp)) {
                             Text(if (selectedId == projectId) "当前项目" else "使用")
                         }
-                        IconButton(
+                        CodexIconAction(
                             onClick = { actionMenuId = projectId },
                             enabled = projectId.isNotBlank(),
                             modifier = Modifier.size(48.dp)
@@ -201,7 +201,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                     }
                 }
                 if (nextPageCursor.isNotBlank()) {
-                    OutlinedButton(onClick = { loadMore() },
+                    CodexSecondaryButton(onClick = { loadMore() },
                         enabled = "projectsCatalogMore" !in loading,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Text(if ("projectsCatalogMore" in loading) "正在读取更多项目…" else "加载更多项目")
@@ -240,14 +240,14 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                     Text("项目目录及名称会写入本机 Codex 项目库。原有文件保持不变。")
                     if (currentThread != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = withThread, onCheckedChange = { withThread = it })
+                            CodexCheckBox(checked = withThread, onCheckedChange = { withThread = it })
                             Text("将当前会话一并归入新项目")
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
+                CodexTextAction(onClick = {
                     val payload = if (withThread && currentThread != null)
                         ProjectRequestContract.importCurrentThread(root, currentFolder, name,
                             currentThread!!)
@@ -262,7 +262,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                     confirmCreate = false
                 }, enabled = name.isNotBlank()) { Text("确认登记") }
             },
-            dismissButton = { TextButton(onClick = { confirmCreate = false }) { Text("取消") } }
+            dismissButton = { CodexTextAction(onClick = { confirmCreate = false }) { Text("取消") } }
         )
     }
     editing?.let { item ->
@@ -270,7 +270,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
             title = { Text("修改项目名称") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(renameText, { renameText = it },
+                    CodexInputField(renameText, { renameText = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("项目名称") }, singleLine = true)
                     errors["projectWrite"]?.let {
@@ -278,7 +278,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = {
+            confirmButton = { CodexTextAction(onClick = {
                 vm.rpc("projectWrite", "project/update",
                     ProjectRequestContract.rename(item.optString("id"), renameText),
                     after = {
@@ -286,7 +286,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                         reload()
                     })
             }, enabled = renameText.isNotBlank()) { Text("保存") } },
-            dismissButton = { TextButton(onClick = { editing = null }) { Text("取消") } }
+            dismissButton = { CodexTextAction(onClick = { editing = null }) { Text("取消") } }
         )
     }
     deleting?.let { item ->

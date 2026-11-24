@@ -123,7 +123,7 @@ fun LocalImageAttachmentStrip(
                                         .clickable { previewPath = path },
                                     contentScale = ContentScale.Crop)
                             } else {
-                                IconButton(onClick = { previewPath = path },
+                                CodexIconAction(onClick = { previewPath = path },
                                     modifier = Modifier.size(48.dp)) {
                                     CodexIcon(CodexGlyph.Photo, contentDescription = "预览图片 ${idx + 1}",
                                         tint = Ink.copper)
@@ -135,7 +135,7 @@ fun LocalImageAttachmentStrip(
                                 Text("${File(path).length() / 1024} KB",
                                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                             }
-                            IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
+                            CodexIconAction(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
                                 CodexIcon(CodexGlyph.Close, contentDescription = "移除图片 ${idx + 1}",
                                     tint = Ink.red)
                             }

@@ -64,7 +64,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
                         Text(description, color = Ink.muted)
                     }
-                    RadioButton(selected == id, onClick = { vm.selectedMode.value = id },
+                    CodexRadio(selected == id, onClick = { vm.selectedMode.value = id },
                         enabled = canSelect)
                 }
                 if (id == "plan" && !planSupported)
@@ -120,7 +120,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     else -> "尚未读取"
                 }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            TextButton(onClick = {
+            CodexTextAction(onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
             }, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -205,7 +205,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("应用说明", style = MaterialTheme.typography.titleMedium)
             Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
             if (installUrl.startsWith("https://")) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
@@ -216,7 +216,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = {
                         desired = !enabled
                         target = app

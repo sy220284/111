@@ -57,7 +57,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(13.dp),
                 verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                         CodexIcon(CodexGlyph.ArrowBack, contentDescription = "关闭全文阅读")
                     }
                     Column(Modifier.weight(1f)) {
@@ -65,7 +65,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                         Text("完整内容 · ${text.length} 字符", color = Ink.muted,
                             style = MaterialTheme.typography.labelMedium)
                     }
-                    IconButton(onClick = { clipboard.setText(AnnotatedString(text)) },
+                    CodexIconAction(onClick = { clipboard.setText(AnnotatedString(text)) },
                         modifier = Modifier.size(48.dp)) {
                         CodexIcon(CodexGlyph.ContentCopy, contentDescription = "复制全文")
                     }
@@ -79,11 +79,11 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                             "第 ${currentMatch + 1} / ${hits.size} 处" +
                                 if (hits.size == FullTextSearchPolicy.MAX_MATCHES) "（最多显示前 2000 处）" else "",
                             color = Ink.muted, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { moveMatch(-1) }, enabled = hits.isNotEmpty(),
+                        CodexIconAction(onClick = { moveMatch(-1) }, enabled = hits.isNotEmpty(),
                             modifier = Modifier.size(48.dp)) {
                             CodexIcon(CodexGlyph.ArrowUpward, contentDescription = "上一个匹配")
                         }
-                        IconButton(onClick = { moveMatch(1) }, enabled = hits.isNotEmpty(),
+                        CodexIconAction(onClick = { moveMatch(1) }, enabled = hits.isNotEmpty(),
                             modifier = Modifier.size(48.dp)) {
                             CodexIcon(CodexGlyph.ArrowDownward, contentDescription = "下一个匹配")
                         }

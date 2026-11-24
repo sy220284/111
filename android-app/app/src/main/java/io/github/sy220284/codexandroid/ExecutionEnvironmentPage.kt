@@ -69,7 +69,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             "选择工作在这台手机上完成，或连接已部署的外部执行服务。")
         Text("在哪里执行任务", style = MaterialTheme.typography.titleLarge)
         Text("先选择运行位置，需要连接时再填写配置。", color = Ink.muted)
-        OutlinedButton(
+        CodexSecondaryButton(
             onClick = { useRemote = false },
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-local-option")
@@ -83,7 +83,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             }
             if (!useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
         }
-        OutlinedButton(
+        CodexSecondaryButton(
             onClick = { useRemote = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-remote-option")
@@ -112,7 +112,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                         "连接地址格式不正确，或不符合安全连接要求。" else null,
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                     modifier = Modifier.testTag("environment-endpoint"))
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = {
                         val id = remoteName.trim()
                         val url = endpoint.trim()
@@ -153,13 +153,13 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             Row(
                 Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { checkEnvironment(targetId) },
                     enabled = targetId.isNotBlank() && !statusBusy,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         .testTag("environment-check-status")
                 ) { Text(if (statusBusy) "查询中" else "检查状态") }
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { loadEnvironmentInfo(targetId) },
                     enabled = targetId.isNotBlank() && !infoBusy,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
