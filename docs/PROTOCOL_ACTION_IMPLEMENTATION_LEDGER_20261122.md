@@ -507,3 +507,8 @@
 - 以 `main@b42628a7` 和 #71 合并候选树 `b2c21cdd7d62db50e9a4dd0f71740251e6be7379` 实际读取源码，发现 `CodexViewModel.kt` 合并后 766 行，超过 760 行源文件预算，属于两项功能在同一类中不断累积职责的结构性风险。
 - 已将 `library:`、`fullSearch:` 两类临时结果缓存的最近使用顺序、超过 32 条时的淘汰、旧请求所有权撤销、成功/错误/加载状态共同清理提取为独立 `TransientRequestCache.kt`，由 ViewModel 委托执行。保留 #70 MCP 账号与服务管理功能及 #71 全局状态控制；没有更改 Codex RPC 字段或用户数据。
 - 新增 `TransientRequestCacheTest.kt` 覆盖缓存淘汰时三类状态与旧回执共同失效、重复访问刷新最近使用顺序、常驻键不被淘汰、无效缓存容量被拒绝。新合并候选需运行完整 Kotlin/协议/Lint 与三档模拟器验收后方可合并，结果按当前 PR HEAD 登记。
+
+
+## 2026-11-24 视觉素材与交互容器复用核查
+
+本轮保持 195 项协议方向、参数、响应与 `ui_surface_policy.json` 不变；图标和插画仅改变呈现资源。涉及 `thread/list`、`thread/search`、`thread/goal/get`、`thread/queue/list`、`plugin/list`、`skills/list`、`app/list`、`model/list`、`config/read`、`accountSession/list` 等页面状态，保留原 ViewModel 与 RPC 路径，按实际加载/成功/失败分流。输入栏紧凑菜单保留模型/模式/诊断回调，审批更多菜单保留 `ApprovalAction.AllowSession` 二次确认，文件、队列和项目操作保留业务安全校验。全路由素材映射及测试声明见 `docs/ui-assets/素材接入清单.json`；此次新增 CI 素材检查是源码证据，最终设备测试及真实核心回执仍须独立记录。

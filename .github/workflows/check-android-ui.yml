@@ -11,7 +11,7 @@ on:
       - "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
       - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - "docs/UI_V5_COMPONENT_INTEGRATION.md"
-      - "docs/ui-assets/tokens.json"
+      - "docs/ui-assets/**"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -27,7 +27,7 @@ on:
       - "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
       - "docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"
       - "docs/UI_V5_COMPONENT_INTEGRATION.md"
-      - "docs/ui-assets/tokens.json"
+      - "docs/ui-assets/**"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -63,7 +63,7 @@ jobs:
             /docs/DESIGN_SYSTEM.md
             /docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md
             /docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md
-            /docs/ui-assets/tokens.json
+            /docs/ui-assets/
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs
@@ -154,6 +154,10 @@ jobs:
             --spec docs/DESIGN_SYSTEM.md \
             --tokens docs/ui-assets/tokens.json
           python3 android-app/tools/test_check_design_system_tokens.py
+      - name: 逐份核验 UI 素材、Android 原生矢量资源、调用页面与测试声明
+        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
+          python3 android-app/tools/check_ui_assets.py --repository . --report ui-assets-audit.json --markdown ui-assets-audit.md
       - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
         run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
       - name: 验证自更新证据判定与安装完成条件
@@ -181,6 +185,8 @@ jobs:
         with:
           name: codex-android-ui-check-reports
           path: |
+            ui-assets-audit.json
+            ui-assets-audit.md
             android-app/app/build/reports/tests/
             android-app/app/build/reports/lint-results-debug.html
             android-app/app/build/test-results/testDebugUnitTest/

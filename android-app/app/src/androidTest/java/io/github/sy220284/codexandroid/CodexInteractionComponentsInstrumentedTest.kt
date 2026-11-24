@@ -298,33 +298,47 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("取消").assertIsDisplayed()
     }
     @Test fun everyGlyphAndStateArtworkRendersThroughSharedComponents() {
-        rule.setContent {
-            CodexTheme {
-                androidx.compose.foundation.lazy.LazyColumn {
-                    items(CodexGlyph.entries.size) { index ->
-                        val glyph = CodexGlyph.entries[index]
-                        CodexIcon(glyph, glyph.name,
-                            modifier = androidx.compose.ui.Modifier.testTag("glyph-" + glyph.name))
-                    }
-                    item {
-                        CodexStateArtwork(R.drawable.ic_empty_thread,
-                            androidx.compose.ui.Modifier.testTag("empty-thread-artwork"))
-                        CodexStateArtwork(R.drawable.ic_empty_content,
-                            androidx.compose.ui.Modifier.testTag("empty-content-artwork"))
-                        CodexStateArtwork(R.drawable.ic_empty_no_results,
-                            androidx.compose.ui.Modifier.testTag("no-results-artwork"))
-                        CodexStateArtwork(R.drawable.ic_empty_request_failed,
-                            androidx.compose.ui.Modifier.testTag("request-failed-artwork"))
+        val artwork = listOf(R.drawable.ic_empty_thread, R.drawable.ic_empty_content,
+            R.drawable.ic_empty_no_results, R.drawable.ic_empty_request_failed,
+            R.drawable.ic_empty_diff, R.drawable.ic_empty_approval, R.drawable.ic_empty_connection)
+        val originalDark = UiPreferences.darkMode.value
+        try {
+            rule.setContent {
+                CodexTheme {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = androidx.compose.ui.Modifier.testTag("asset-test-list")
+                    ) {
+                        items((CodexGlyph.entries.size + 7) / 8) { row ->
+                            androidx.compose.foundation.layout.Row {
+                                CodexGlyph.entries.drop(row * 8).take(8).forEach { glyph ->
+                                    CodexIcon(glyph, glyph.name,
+                                        modifier = androidx.compose.ui.Modifier.testTag("glyph-" + glyph.name))
+                                }
+                            }
+                        }
+                        items(artwork.size) { index ->
+                            CodexStateArtwork(artwork[index],
+                                androidx.compose.ui.Modifier.testTag("artwork-" + index))
+                        }
                     }
                 }
             }
-        }
-        rule.onNodeWithTag("glyph-Attachment").assertExists()
-        // Scroll to every glyph to force the native resource to load, including off-screen rows.
-        CodexGlyph.entries.forEachIndexed { index, glyph ->
-            rule.onNode(hasScrollAction()).performScrollToIndex(index)
-            rule.onNodeWithTag("glyph-" + glyph.name).assertExists()
+            for (dark in listOf(false, true)) {
+                rule.runOnIdle { UiPreferences.setDarkMode(dark) }
+                CodexGlyph.entries.chunked(8).forEachIndexed { row, glyphs ->
+                    rule.onNodeWithTag("asset-test-list").performScrollToIndex(row)
+                    glyphs.forEach { glyph ->
+                        rule.onNodeWithTag("glyph-" + glyph.name).assertExists()
+                    }
+                }
+                val rows = (CodexGlyph.entries.size + 7) / 8
+                artwork.indices.forEach { index ->
+                    rule.onNodeWithTag("asset-test-list").performScrollToIndex(rows + index)
+                    rule.onNodeWithTag("artwork-" + index).assertExists()
+                }
+            }
+        } finally {
+            rule.runOnIdle { UiPreferences.setDarkMode(originalDark) }
         }
     }
-
 }

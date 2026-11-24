@@ -1,0 +1,524 @@
+{
+  "version": 1,
+  "figma": {
+    "fileKey": "K4FEMoNdmQbcnJZCHWr8c7",
+    "status": "blocked_by_starter_mcp_limit",
+    "note": "原画板未写入；仓库 SVG 为可导入的矢量源，设备视觉验收以 CI 为准"
+  },
+  "iconTest": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents",
+  "routes": [
+    {
+      "route": "home",
+      "title": "工作台总览",
+      "sources": [
+        "Screens",
+        "AppNavigation"
+      ],
+      "business": "连接、任务、待审批与快捷任务",
+      "tests": [
+        "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts"
+      ]
+    },
+    {
+      "route": "chat",
+      "title": "任务对话",
+      "sources": [
+        "ConversationScreen",
+        "ConversationComposer",
+        "ConversationControlBar",
+        "ConversationLoadingSkeleton",
+        "ChatWorkTopBar",
+        "ThreadContextTools"
+      ],
+      "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态",
+      "tests": [
+        "UiNavigationInstrumentedTest.chatSuggestionsStayVisibleWithinThePhoneWidth",
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible"
+      ]
+    },
+    {
+      "route": "threads",
+      "title": "会话资料库",
+      "sources": [
+        "ThreadLibraryPage",
+        "SidebarSessions",
+        "ThreadBulkToolbar",
+        "ThreadLibraryQuickSheet",
+        "ThreadHistorySheet"
+      ],
+      "business": "标题搜索、归档、批量管理、列表加载和空态",
+      "tests": [
+        "UiNavigationInstrumentedTest.threadLibraryExposesServerBackedManagementLayout",
+        "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection"
+      ]
+    },
+    {
+      "route": "approvals",
+      "title": "待审批",
+      "sources": [
+        "ControlScreens",
+        "McpApprovalScreens",
+        "ApprovalAuditSection"
+      ],
+      "business": "真实审批内容、无待审批、危险确认及更多菜单",
+      "tests": [
+        "UiNavigationInstrumentedTest.approvalsAndChildEditorsHaveReadableStates",
+        "UiPopulatedSubpagesInstrumentedTest.conversationApprovalSheetRendersActualCommandAndDecision"
+      ]
+    },
+    {
+      "route": "search",
+      "title": "全文检索",
+      "sources": [
+        "ThreadLibraryPage",
+        "FullTextReaderDialog"
+      ],
+      "business": "搜索提交、无结果、全文查看与命中导航",
+      "tests": [
+        "UiNavigationInstrumentedTest.queueAndFullSearchOpenAsTaskSheets"
+      ]
+    },
+    {
+      "route": "goals",
+      "title": "任务目标",
+      "sources": [
+        "TaskManagementScreens",
+        "ThreadGoalSheet"
+      ],
+      "business": "目标读取、真实执行状态、额度校验与保存",
+      "tests": [
+        "UiNavigationInstrumentedTest.taskSpecificSheetsAreReachableAndReadable",
+        "CodexInteractionComponentsInstrumentedTest.budgetEditDialogCommitsOnlyAfterConfirmation"
+      ]
+    },
+    {
+      "route": "queue",
+      "title": "后续指令",
+      "sources": [
+        "TaskManagementScreens",
+        "ConversationComposer"
+      ],
+      "business": "队列顺序、编辑、取消、加载和空列表",
+      "tests": [
+        "UiNavigationInstrumentedTest.activeThreadOpensItsQueueWithoutHistoryPicker",
+        "UiNavigationInstrumentedTest.queueDraftSurvivesClosingAndReopeningSheet"
+      ]
+    },
+    {
+      "route": "files",
+      "title": "工作区文件",
+      "sources": [
+        "DeveloperScreens",
+        "ProjectRegistryPanel"
+      ],
+      "business": "新建、文件打开、操作菜单、空目录、错误和项目加载",
+      "tests": [
+        "UiNavigationInstrumentedTest.workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation",
+        "UiNavigationInstrumentedTest.workspaceProjectManagerOpensWithoutExpandingTheFileList"
+      ]
+    },
+    {
+      "route": "diff",
+      "title": "代码差异",
+      "sources": [
+        "DiffReaderPage"
+      ],
+      "business": "逐文件差异、无差异、审查入口",
+      "tests": [
+        "UiNavigationInstrumentedTest.diffReaderShowsFileFirstSummaryAndReviewAction"
+      ]
+    },
+    {
+      "route": "terminal",
+      "title": "终端",
+      "sources": [
+        "TerminalPage",
+        "FullTextReaderDialog"
+      ],
+      "business": "实际终端执行、输出、停止、全文检索与错误",
+      "tests": [
+        "UiNavigationInstrumentedTest.terminalExecutionShowsReadableConfirmation"
+      ]
+    },
+    {
+      "route": "review",
+      "title": "代码审查",
+      "sources": [
+        "ReviewSurfaces",
+        "UiSharedSurfaces"
+      ],
+      "business": "审查范围、确认、任务前置状态",
+      "tests": [
+        "UiNavigationInstrumentedTest.taskSpecificSheetsAreReachableAndReadable"
+      ]
+    },
+    {
+      "route": "models",
+      "title": "模型目录",
+      "sources": [
+        "EcosystemScreens",
+        "UiSharedSurfaces"
+      ],
+      "business": "模型选择、加载、可用性、详情与空目录",
+      "tests": [
+        "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
+        "UiPopulatedSubpagesInstrumentedTest.modelDescriptionOpensSecondLevelWithoutChangingSelection"
+      ]
+    },
+    {
+      "route": "modes",
+      "title": "协作模式",
+      "sources": [
+        "IntegrationScreens",
+        "UiSharedSurfaces"
+      ],
+      "business": "真实协作模式、单选、不可用和恢复",
+      "tests": [
+        "UiNavigationInstrumentedTest.modeSheetRespectsRealEngineCapability"
+      ]
+    },
+    {
+      "route": "skills",
+      "title": "技能",
+      "sources": [
+        "SkillsPage",
+        "SkillDetailSheet"
+      ],
+      "business": "筛选、读取、无结果、写入和详情",
+      "tests": [
+        "UiPopulatedSubpagesInstrumentedTest.skillDescriptionAppearsOnlyAfterOpeningDetail"
+      ]
+    },
+    {
+      "route": "plugins",
+      "title": "插件",
+      "sources": [
+        "EcosystemScreens",
+        "PluginDetailSheet"
+      ],
+      "business": "目录、检索、安装状态、空结果与能力详情",
+      "tests": [
+        "UiNavigationInstrumentedTest.pluginDiscoveryCanOpenSearchWithoutInventedResults",
+        "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata"
+      ]
+    },
+    {
+      "route": "apps",
+      "title": "连接应用",
+      "sources": [
+        "IntegrationScreens"
+      ],
+      "business": "应用授权、详情、无目录、失败及重试",
+      "tests": [
+        "UiPopulatedSubpagesInstrumentedTest.connectedAppDescriptionAppearsOnlyAfterOpeningDetail"
+      ]
+    },
+    {
+      "route": "mcp",
+      "title": "MCP 服务",
+      "sources": [
+        "IntegrationScreens",
+        "McpApprovalScreens"
+      ],
+      "business": "智能体管理、可用目录、重读及详情",
+      "tests": [
+        "UiPopulatedSubpagesInstrumentedTest.mcpFullPageShowsOnlyUsableServersAndNoRegistrationInterface"
+      ]
+    },
+    {
+      "route": "environments",
+      "title": "执行环境",
+      "sources": [
+        "ExecutionEnvironmentPage"
+      ],
+      "business": "本地/远程选择、真实连接反馈、查询详情",
+      "tests": [
+        "UiNavigationInstrumentedTest.executionEnvironmentDiagnosticsUseSeparateDetailSheet"
+      ]
+    },
+    {
+      "route": "account",
+      "title": "账号与工作区",
+      "sources": [
+        "AccountLoginUi",
+        "AccountSessionsSheet"
+      ],
+      "business": "真实登录、会话切换、加载、错误、无账号",
+      "tests": [
+        "UiNavigationInstrumentedTest.accountPageExposesNarrowScreenDeviceLoginActions",
+        "UiNavigationInstrumentedTest.accountSessionsExperimentHasClearOfflineState"
+      ]
+    },
+    {
+      "route": "providers",
+      "title": "模型服务商",
+      "sources": [
+        "EcosystemScreens"
+      ],
+      "business": "目录、配置、能力与错误反馈",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsSearchOpensPreciseProviderAndRemoteEditors"
+      ]
+    },
+    {
+      "route": "config",
+      "title": "引擎配置",
+      "sources": [
+        "ControlScreens"
+      ],
+      "business": "读取、校验、写入、确认及回读",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsSearchDirectlyExpandsAdvancedConfig"
+      ]
+    },
+    {
+      "route": "security",
+      "title": "权限与安全",
+      "sources": [
+        "SecurityPage"
+      ],
+      "business": "实际权限方案、禁用原因、保存及失败",
+      "tests": [
+        "UiNavigationInstrumentedTest.permissionProfilesCanBeSelectedAndRestrictedProfilesCannot"
+      ]
+    },
+    {
+      "route": "usage",
+      "title": "账号用量",
+      "sources": [
+        "AccountMetricsPage"
+      ],
+      "business": "真实统计、读取、无数据、失败",
+      "tests": [
+        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs"
+      ]
+    },
+    {
+      "route": "limits",
+      "title": "使用限额",
+      "sources": [
+        "AccountMetricsPage"
+      ],
+      "business": "真实限额、窗口、进度、无数据",
+      "tests": [
+        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs"
+      ]
+    },
+    {
+      "route": "appearance",
+      "title": "外观与交互",
+      "sources": [
+        "SettingsHub",
+        "VisualSystem",
+        "ControlScreens"
+      ],
+      "business": "亮暗主题、字号、动效、独立面板",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsSearchOpensAppearanceSheetWithoutInlineExpansion",
+        "UiPopulatedSubpagesInstrumentedTest.darkAppearanceWithSystemDoubleFontRemainsReachable"
+      ]
+    },
+    {
+      "route": "diagnostics",
+      "title": "诊断与日志",
+      "sources": [
+        "EcosystemScreens",
+        "UiSharedSurfaces"
+      ],
+      "business": "连接状态、日志、真实故障、诊断与重连",
+      "tests": [
+        "UiNavigationInstrumentedTest.statusButtonHasStableMeaningAndSeparatesActions"
+      ]
+    },
+    {
+      "route": "about",
+      "title": "关于应用",
+      "sources": [
+        "UiSharedSurfaces",
+        "AppUpdateCard"
+      ],
+      "business": "版本、更新检查、真实下载进度",
+      "tests": [
+        "UiNavigationInstrumentedTest.directlySelectableSecurityAndAboutViewsAreCaptured"
+      ]
+    },
+    {
+      "route": "settings",
+      "title": "设置中心",
+      "sources": [
+        "SettingsHub",
+        "AppUpdateCard",
+        "LocalDataTransferCard"
+      ],
+      "business": "搜索、筛选、设置详情、更新、备份与恢复",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsSearchFindsActualOptionsByUserWording",
+        "UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage"
+      ]
+    }
+  ],
+  "artwork": [
+    {
+      "asset": "empty-thread",
+      "resource": "ic_empty_thread",
+      "business": "新会话，隐藏键盘时及足够高度展示",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    },
+    {
+      "asset": "no-content",
+      "resource": "ic_empty_content",
+      "business": "真实响应为空或尚未读取的通用状态",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    },
+    {
+      "asset": "no-results",
+      "resource": "ic_empty_no_results",
+      "business": "搜索或筛选已完成且无匹配项",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    },
+    {
+      "asset": "request-failed",
+      "resource": "ic_empty_request_failed",
+      "business": "真实请求失败与重试",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    },
+    {
+      "asset": "no-diff",
+      "resource": "ic_empty_diff",
+      "business": "无代码差异",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    },
+    {
+      "asset": "waiting-approval",
+      "resource": "ic_empty_approval",
+      "business": "无待处理审批",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    },
+    {
+      "asset": "connection-error",
+      "resource": "ic_empty_connection",
+      "business": "运行核心未连接及恢复",
+      "test": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents"
+    }
+  ],
+  "atlases": [
+    {
+      "asset": "interaction-atlas-mobile.svg",
+      "business": "对话输入、进度、选择、反馈、骨架、详情与菜单；媒体播放/轮播仅设计参考",
+      "components": [
+        [
+          "ConversationComposer",
+          "ConversationComposer"
+        ],
+        [
+          "AtlasInteractionComponents",
+          "AtlasOperationProgress"
+        ],
+        [
+          "CodexDetailSheet",
+          "CodexDetailSheet"
+        ],
+        [
+          "InteractionSystem",
+          "CodexNotice"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "CodexInteractionComponentsInstrumentedTest.detailsOpenAsOverlayAndCloseWithoutChangingTheList"
+      ]
+    },
+    {
+      "asset": "interaction-atlas-expanded.svg",
+      "business": "任务队列、搜索、单选、校验、结果摘要及详情操作",
+      "components": [
+        [
+          "AtlasInteractionComponents",
+          "AtlasSearchField"
+        ],
+        [
+          "AtlasInteractionComponents",
+          "AtlasStatusSelector"
+        ],
+        [
+          "TaskManagementScreens",
+          "AtlasSequenceBadge"
+        ],
+        [
+          "EcosystemScreens",
+          "AtlasSettingsActionRow"
+        ]
+      ],
+      "tests": [
+        "CodexInteractionComponentsInstrumentedTest.sharedSearchSubmitsAndClearsWithoutLeakingOldQuery",
+        "CodexInteractionComponentsInstrumentedTest.statusSelectorShowsActualSelectedTaskStatus",
+        "CodexInteractionComponentsInstrumentedTest.loadingAndValidationFeedbackDescribeRealState"
+      ]
+    },
+    {
+      "asset": "four-skills-interaction-v6.svg",
+      "business": "会话恢复、搜索、模型协作与扩展管理",
+      "components": [
+        [
+          "ThreadLibraryPage",
+          "AtlasSearchField"
+        ],
+        [
+          "UiSharedSurfaces",
+          "ModeChoiceSurface"
+        ],
+        [
+          "ConversationScreen",
+          "ConversationLoadingSkeleton"
+        ],
+        [
+          "SkillsPage",
+          "SkillsPage"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.modeSheetRespectsRealEngineCapability",
+        "UiPopulatedSubpagesInstrumentedTest.skillDescriptionAppearsOnlyAfterOpeningDetail"
+      ]
+    },
+    {
+      "asset": "状态与交互组件.svg",
+      "business": "共享图标、空态/失败、统一容器、搜索与持久反馈；实际操作由业务状态驱动",
+      "components": [
+        [
+          "CodexIcon",
+          "CodexIcon"
+        ],
+        [
+          "CodexStateArtwork",
+          "CodexStateArtwork"
+        ],
+        [
+          "InteractionSystem",
+          "CodexNotice"
+        ],
+        [
+          "CodexSurfaceFrames",
+          "CodexSheetFrame"
+        ],
+        [
+          "CodexSurfaceFrames",
+          "CodexDialogFrame"
+        ],
+        [
+          "SidebarSessions",
+          "AtlasSearchField"
+        ],
+        [
+          "ConversationComposer",
+          "CodexActionSheet"
+        ]
+      ],
+      "tests": [
+        "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents",
+        "CodexInteractionComponentsInstrumentedTest.contextActionsCloseTheSheetAndRunExactlyOneAction",
+        "CodexInteractionComponentsInstrumentedTest.loadingAndValidationFeedbackDescribeRealState"
+      ]
+    }
+  ]
+}
