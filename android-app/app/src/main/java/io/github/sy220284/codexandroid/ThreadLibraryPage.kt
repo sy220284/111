@@ -21,6 +21,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +52,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
     val bulkSummary by vm.bulkActionSummary.collectAsState()
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
     var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
     var searchHistoryError by remember { mutableStateOf("") }
@@ -431,12 +434,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             MaterialPanel(Modifier.fillMaxWidth()
                 .testTag("thread-library-row-" + id)
                 .combinedClickable(
-                    enabled = !busy && !switching && !firstThreadStarting && id.isNotBlank(),
-                    onClick = { if (selectionMode) toggleSelected(id) },
-                    onLongClick = {
+                    enabled = !busy && !switching && !firstThreadStarting && id.isNotBlank() &&
+                        (!selectionMode || canManage) && (!archived || canManage),
+                    onClick = {
+                        if (selectionMode) toggleSelected(id)
+                        else if (archived) menu = true
+                        else openThread(id)
+                    },
+                    onLongClick = if (canManage) ({
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         selectionMode = true
                         if (id !in selectedIds) selectedIds = selectedIds + id
-                    }
+                    }) else null
                 )) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (selectionMode) {

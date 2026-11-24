@@ -272,7 +272,7 @@
       "file": "FullTextReaderDialog.kt",
       "owner": "FullTextReaderDialog",
       "component": "AtlasSearchField",
-      "test": null,
+      "test": "fullTextSearchShowsFirstAndPreviousMatchesWithoutChangingOriginalText",
       "screenshot": null
     },
     {
@@ -283,6 +283,114 @@
       "component": "CodexActionDialog",
       "test": "actionDialogInsideParentSheetDoesNotDuplicateBottomSheets",
       "screenshot": null
+    },
+    {
+      "id": "attachment-preview",
+      "parent": "chat",
+      "file": "AttachmentPreviewDialog.kt",
+      "owner": "AttachmentPreviewDialog",
+      "component": "AtlasOperationProgress",
+      "test": "attachmentPreviewSupportsZoomSwitchResetAndRemove",
+      "screenshot": null
+    },
+    {
+      "id": "message-menu",
+      "parent": "chat",
+      "file": "ChatTimelineComponents.kt",
+      "owner": "TimelineStepCard",
+      "component": "CodexActionSheet",
+      "test": "messageHeaderLongPressPreservesReaderAction",
+      "screenshot": null
+    },
+    {
+      "id": "file-editor",
+      "parent": "files",
+      "file": "WorkspaceFileEditor.kt",
+      "owner": "FileEditor",
+      "component": "CodexConfirmDialog",
+      "test": "fileEditorProtectsUnsavedChangesAndSavesRealFile",
+      "screenshot": null
+    },
+    {
+      "id": "provider-editor",
+      "parent": "providers",
+      "file": "EcosystemScreens.kt",
+      "owner": "ProvidersPage",
+      "component": "AtlasFormField",
+      "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
+      "screenshot": "audit-provider-editor"
+    },
+    {
+      "id": "config-editor",
+      "parent": "config",
+      "file": "ControlScreens.kt",
+      "owner": "ConfigPage",
+      "component": "AtlasFormField",
+      "test": "settingsSearchDirectlyExpandsAdvancedConfig",
+      "screenshot": "audit-config-editor"
+    },
+    {
+      "id": "environment-editor",
+      "parent": "environments",
+      "file": "ExecutionEnvironmentPage.kt",
+      "owner": "EnvironmentsPage",
+      "component": "AtlasFormField",
+      "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
+      "screenshot": "audit-environment-editor"
+    },
+    {
+      "id": "permission-request",
+      "parent": "approvals",
+      "file": "ControlScreens.kt",
+      "owner": "ApprovalRequestCard",
+      "component": "CodexConfirmDialog",
+      "test": "permissionApprovalExplainsActualScope",
+      "screenshot": "audit-permission-request"
+    },
+    {
+      "id": "goal-editor",
+      "parent": "goals",
+      "file": "ThreadGoalSheet.kt",
+      "owner": "ThreadGoalSheet",
+      "component": "CodexSheetFrame",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": "audit-goals-sheet"
+    },
+    {
+      "id": "queue-editor",
+      "parent": "queue",
+      "file": "TaskManagementScreens.kt",
+      "owner": "ThreadQueuePage",
+      "component": "CodexDialogFrame",
+      "test": "queueDraftSurvivesClosingAndReopeningSheet",
+      "screenshot": "audit-queue"
+    },
+    {
+      "id": "backup-restore",
+      "parent": "settings",
+      "file": "LocalDataTransferCard.kt",
+      "owner": "LocalDataTransferCard",
+      "component": "CodexConfirmDialog",
+      "test": "offscreenRunningTaskBlocksLocalDataTransferButtons",
+      "screenshot": "audit-backup-in-progress"
+    },
+    {
+      "id": "update-status",
+      "parent": "update",
+      "file": "AppUpdateCard.kt",
+      "owner": "AtlasUpdateStatus",
+      "component": "AtlasOperationProgress",
+      "test": "updateFeedbackUsesRealPhaseAndPercentage",
+      "screenshot": null
+    },
+    {
+      "id": "diff-file-jump",
+      "parent": "diff",
+      "file": "DiffReaderPage.kt",
+      "owner": "DiffReaderPage",
+      "component": "CodexChoiceSheet",
+      "test": "diffReaderShowsFileFirstSummaryAndReviewAction",
+      "screenshot": "diff-reader"
     }
   ]
 }

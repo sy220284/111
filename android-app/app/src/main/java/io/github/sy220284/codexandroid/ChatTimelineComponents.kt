@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -16,6 +20,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun TimelineStepCard(item: TimelineItem) {
     val user = item.kind in setOf("user", "userMessage")
@@ -42,6 +47,8 @@ internal fun TimelineStepCard(item: TimelineItem) {
         else -> CodexGlyph.AutoAwesome
     }
     val clipboard = LocalClipboardManager.current
+    val haptics = LocalHapticFeedback.current
+    val canOpenMenu = item.text.isNotBlank() || item.evidence.isNotBlank()
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
@@ -65,12 +72,21 @@ internal fun TimelineStepCard(item: TimelineItem) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = MaterialTheme.typography.labelLarge,
-                        color = Ink.muted, modifier = Modifier.weight(1f))
+                        color = Ink.muted, modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                            .wrapContentHeight(Alignment.CenterVertically)
+                            .testTag("timeline-header-" + item.id)
+                            .combinedClickable(enabled = canOpenMenu,
+                                onClick = { menuOpen = true },
+                                onLongClickLabel = "打开消息操作",
+                                onLongClick = {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menuOpen = true
+                                }))
                     val statusLabel = PresentationPolicy.timelineStatus(item.status)
                     if (statusLabel.isNotEmpty()) {
                         Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
                     }
-                    IconButton(onClick = { menuOpen = true }, enabled = item.text.isNotBlank() || item.evidence.isNotBlank(), modifier = Modifier.size(48.dp)
+                    IconButton(onClick = { menuOpen = true }, enabled = canOpenMenu, modifier = Modifier.size(48.dp)
                         .testTag("timeline-more-" + item.id)) {
                         CodexIcon(CodexGlyph.MoreHoriz, "消息操作")
                     }
@@ -89,7 +105,7 @@ internal fun TimelineStepCard(item: TimelineItem) {
                 }
                 if (item.evidence.isNotBlank()) {
                     TextButton(onClick = { evidenceOpen = true },
-                        modifier = Modifier.heightIn(min = 46.dp)) {
+                        modifier = Modifier.heightIn(min = 48.dp)) {
                         CodexIcon(CodexGlyph.OpenInNew, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("查看执行依据")

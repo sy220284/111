@@ -14,7 +14,9 @@ class CatalogReadPolicyTest {
 
     @Test fun existingDataRemainsVisibleDuringRefreshAndFailure() {
         assertEquals(CatalogReadStage.Refreshing, CatalogReadPolicy.stage(true, false, true, true, false))
-        assertEquals(CatalogReadStage.Ready, CatalogReadPolicy.stage(true, false, false, false, true))
+        assertEquals(CatalogReadStage.Stale, CatalogReadPolicy.stage(true, false, false, false, true))
+        assertEquals(CatalogReadStage.Stale, CatalogReadPolicy.stage(true, true, false, true, false))
+        assertEquals(CatalogReadStage.Ready, CatalogReadPolicy.stage(true, false, true, false, true))
         assertEquals(CatalogReadStage.Ready, CatalogReadPolicy.stage(true, false, true, false, false))
     }
 }

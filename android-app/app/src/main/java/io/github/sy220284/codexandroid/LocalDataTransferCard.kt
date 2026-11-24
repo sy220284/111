@@ -57,17 +57,19 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 ) { Text("导出数据") }
                 OutlinedButton(
                     onClick = { importPicker.launch(arrayOf("application/zip", "application/octet-stream")) },
-                    enabled = available,
+                    enabled = !state.busy && available,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-import")
                 ) { Text("导入备份") }
             }
             if (!available) Text(work.blockReason,
                 color = Ink.warning, style = MaterialTheme.typography.labelMedium)
             errors["dataTransfer"]?.let { ErrorText(it) }
-            if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             val message = state.result.ifBlank { LocalDataArchive.lastResult(context) }
-            if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall,
-                color = if ("失败" in message || "未完成" in message) Ink.red else Ink.muted)
+            if (state.busy) AtlasOperationProgress(message.ifBlank { "正在处理本机备份" })
+            else if (message.isNotBlank()) CodexNotice(message,
+                if ("失败" in message || "未完成" in message) NoticeTone.Error
+                else if (message.startsWith("已导出") || message.startsWith("已验证")) NoticeTone.Success
+                else NoticeTone.Info)
             Text("备份保存在你选定的位置，可能包含私密文件；导入经完整验证后在下次启动时恢复。",
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         }

@@ -503,4 +503,33 @@ class CodexInteractionComponentsInstrumentedTest {
             root.deleteRecursively()
         }
     }
+
+    @Test fun messageHeaderLongPressPreservesReaderAction() {
+        rule.setContent {
+            CodexTheme { TimelineStepCard(TimelineItem("long-press", "agentMessage", "原始消息正文")) }
+        }
+        rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
+        rule.onNodeWithText("复制内容").assertExists()
+        rule.onNodeWithText("全文阅读").performClick()
+        rule.onNodeWithText("原始消息正文").assertExists()
+    }
+
+    @Test fun updateFeedbackUsesRealPhaseAndPercentage() {
+        rule.setContent {
+            var status by remember { mutableStateOf(AppUpdateState(UpdatePhase.DOWNLOADING, "正在下载", progress = 47)) }
+            CodexTheme {
+                Column {
+                    AtlasUpdateStatus(status)
+                    TextButton(onClick = { status = AppUpdateState(UpdatePhase.ERROR, "校验失败") }) {
+                        Text("模拟真实失败状态")
+                    }
+                }
+            }
+        }
+        rule.onNodeWithText("47%").assertExists()
+        rule.onNodeWithText("模拟真实失败状态").performClick()
+        rule.onNodeWithText("47%").assertDoesNotExist()
+        rule.onNodeWithText("校验失败").assertExists()
+    }
+
 }

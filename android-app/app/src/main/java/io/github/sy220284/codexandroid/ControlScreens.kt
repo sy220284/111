@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -200,18 +201,14 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     color = Ink.copper, style = MaterialTheme.typography.labelMedium)
                 Text(q.optString("question"), style = MaterialTheme.typography.bodyMedium)
                 if (options != null) {
-                    for (opt in 0 until options.length()) {
-                        val choice = options.optJSONObject(opt) ?: continue
-                        val label = choice.optString("label")
-                        Row(Modifier.fillMaxWidth().clickable { answers[id] = label },
-                            verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = answers[id] == label, onClick = { answers[id] = label })
-                            Column {
-                                Text(label)
-                                choice.optString("description").takeIf { it.isNotBlank() }?.let {
-                                    Text(it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
+                    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (opt in 0 until options.length()) {
+                            val choice = options.optJSONObject(opt) ?: continue
+                            val label = choice.optString("label")
+                            AtlasChoiceRow(label, choice.optString("description"),
+                                selected = answers[id] == label,
+                                onClick = { answers[id] = label },
+                                modifier = Modifier.testTag("approval-answer-" + id + "-" + opt))
                         }
                     }
                 }

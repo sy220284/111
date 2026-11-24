@@ -7,6 +7,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -22,6 +24,7 @@ import java.io.File
 @Composable
 internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
     var original by remember(file.path) { mutableStateOf<String?>(null) }
     var draft by remember(file.path) { mutableStateOf("") }
     var failure by remember(file.path) { mutableStateOf<String?>(null) }
@@ -106,7 +109,13 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                     original == null -> CodexRecoveryState("文件无法读取",
                         failure ?: "请检查文件是否仍存在。", "重新读取", { retry++ })
                     else -> {
-                        if (failure != null) AtlasFieldFeedback(failure!!, isError = true)
+                        if (failure != null) {
+                            AtlasFieldFeedback(failure!!, isError = true)
+                            if (dirty) TextButton(onClick = { clipboard.setText(AnnotatedString(draft)) },
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("workspace-editor-copy-draft")) {
+                                Text("复制未保存草稿")
+                            }
+                        }
                         if (saving) AtlasOperationProgress("正在保存文件")
                         OutlinedTextField(draft, { draft = it; saved = false; failure = null },
                             modifier = Modifier.fillMaxWidth().weight(1f).testTag("workspace-editor-content"),

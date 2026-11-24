@@ -3,11 +3,12 @@ package io.github.sy220284.codexandroid
 import androidx.compose.runtime.*
 
 /** 单一页面读取状态：首次加载、断连、读取失败、刷新、旧数据可读。 */
-internal enum class CatalogReadStage { FirstLoad, Connecting, Disconnected, Failed, Refreshing, Ready, Unread }
+internal enum class CatalogReadStage { FirstLoad, Connecting, Disconnected, Failed, Refreshing, Ready, Stale, Unread }
 
 internal object CatalogReadPolicy {
     fun stage(hasSnapshot: Boolean, connecting: Boolean, connected: Boolean,
         loading: Boolean, failed: Boolean): CatalogReadStage = when {
+        hasSnapshot && !connected -> CatalogReadStage.Stale
         hasSnapshot && loading -> CatalogReadStage.Refreshing
         hasSnapshot -> CatalogReadStage.Ready
         connecting -> CatalogReadStage.Connecting
@@ -39,6 +40,12 @@ internal fun AtlasCatalogStatus(
         CatalogReadStage.Failed -> CodexRecoveryState(subject + "读取失败",
             PresentationPolicy.readableError(errors.getValue(key)), "重新读取", onRefresh, onDiagnostics)
         CatalogReadStage.Refreshing -> AtlasOperationProgress("正在刷新" + subject)
+        CatalogReadStage.Stale -> CodexNotice(
+            if (status == EngineStatus.Starting) "正在连接，当前显示上次读取的数据。"
+            else "当前显示上次读取的数据，重新连接后可更新。",
+            NoticeTone.Warning,
+            actionLabel = if (status is EngineStatus.Unavailable) "重新连接" else null,
+            onAction = { vm.connect() })
         CatalogReadStage.Ready -> if (errors[key] != null) AtlasFieldFeedback(
             "刷新未完成，保留上次读取的数据：" + PresentationPolicy.readableError(errors.getValue(key)), isError = true)
         CatalogReadStage.Unread -> CodexRecoveryState(subject + "尚未读取",

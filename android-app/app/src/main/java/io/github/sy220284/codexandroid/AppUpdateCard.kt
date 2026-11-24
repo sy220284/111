@@ -55,18 +55,9 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
                 CodexIcon(CodexGlyph.ChevronRight, contentDescription = "查看更新操作",
                     tint = Ink.muted)
             }
-            if (busy || status.phase in setOf(UpdatePhase.READY, UpdatePhase.ERROR,
-                    UpdatePhase.NEEDS_PERMISSION, UpdatePhase.INSTALLING)) {
-                Text(status.message, color = if (status.phase == UpdatePhase.ERROR) Ink.red
-                    else Ink.muted, style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.testTag("update-inline-status"))
-            }
-            if (status.phase == UpdatePhase.DOWNLOADING) {
-                LinearProgressIndicator(progress = { status.progress / 100f },
-                    modifier = Modifier.fillMaxWidth().testTag("update-inline-progress"),
-                    color = Ink.copper, trackColor = Ink.border)
-            } else if (status.phase in setOf(UpdatePhase.CHECKING, UpdatePhase.PATCHING)) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            if (status.phase != UpdatePhase.IDLE) {
+                AtlasUpdateStatus(status, Modifier.testTag("update-inline-status"),
+                    progressTag = "update-inline-progress")
             }
         }
     }
@@ -78,18 +69,12 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
         ) {
             Text("当前版本：${currentVersion.ifBlank { "未知" }}",
                 style = MaterialTheme.typography.titleMedium)
-            Text(status.message, color = if (status.phase == UpdatePhase.ERROR) Ink.red
-                else Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.testTag("update-status"))
-            if (status.phase == UpdatePhase.DOWNLOADING) {
-                LinearProgressIndicator(progress = { status.progress / 100f },
-                    modifier = Modifier.fillMaxWidth().testTag("update-progress"),
-                    color = Ink.copper, trackColor = Ink.border)
+            if (status.targetVersion.isNotBlank()) {
+                Text("目标版本：${status.targetVersion}", style = MaterialTheme.typography.bodyMedium)
             }
-            if (status.phase in setOf(UpdatePhase.CHECKING, UpdatePhase.PATCHING)) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            OutlinedButton(
+            AtlasUpdateStatus(status, Modifier.testTag("update-status"),
+                progressTag = "update-progress")
+            CodexPrimaryButton(
                 onClick = { activity?.let(AppUpdateManager::checkAndDownload) },
                 enabled = activity != null && !busy,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
@@ -99,7 +84,7 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
                 OutlinedButton(
                     onClick = AppUpdateManager::cancel,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                ) { Text("取消当前下载") }
+                ) { Text(if (status.phase == UpdatePhase.DOWNLOADING) "取消下载" else "取消当前操作") }
             }
             if (status.phase in setOf(UpdatePhase.READY,
                     UpdatePhase.NEEDS_PERMISSION, UpdatePhase.INSTALLING)) {
@@ -116,12 +101,31 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
                     enabled = activity != null && work.canDisruptCoreOrData,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("update-install")
-                ) { Text("安装更新") }
+                ) { Text(if (status.phase == UpdatePhase.INSTALLING) "重新打开安装界面" else "安装更新") }
                 if (!work.canDisruptCoreOrData) {
                     Text(work.blockReason, color = Ink.warning,
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
+        }
+    }
+}
+
+
+/** 状态由真实更新器驱动，下载显示实际比例，校验及检查只显示不定进度。 */
+@Composable
+internal fun AtlasUpdateStatus(status: AppUpdateState, modifier: Modifier = Modifier,
+    progressTag: String = "update-progress") {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        when (status.phase) {
+            UpdatePhase.DOWNLOADING -> AtlasOperationProgress(status.message,
+                Modifier.testTag(progressTag), progress = status.progress / 100f)
+            UpdatePhase.CHECKING, UpdatePhase.PATCHING -> AtlasOperationProgress(status.message,
+                Modifier.testTag(progressTag))
+            UpdatePhase.ERROR -> CodexNotice(status.message, NoticeTone.Error)
+            UpdatePhase.READY, UpdatePhase.UP_TO_DATE -> CodexNotice(status.message, NoticeTone.Success)
+            UpdatePhase.NEEDS_PERMISSION -> CodexNotice(status.message, NoticeTone.Warning)
+            UpdatePhase.INSTALLING, UpdatePhase.IDLE -> CodexNotice(status.message)
         }
     }
 }
