@@ -635,6 +635,36 @@
         "CodexInteractionComponentsInstrumentedTest.v8BusyButtonRetainsWidthAndSecretCanBeHidden",
         "CodexInteractionComponentsInstrumentedTest.v8ControlBordersHaveAccessibleContrastInBothThemes"
       ]
+    },
+    {
+      "asset": "pr86-conversation-workbench.svg",
+      "business": "原生对话正文、执行摘要、项目权限及终端近期/历史分段阅读；可编辑设计参考",
+      "components": [
+        [
+          "ChatTimelineComponents",
+          "TimelineActivityGroup"
+        ],
+        [
+          "NativeMessageMarkdown",
+          "NativeMessageMarkdown"
+        ],
+        [
+          "SecurityPage",
+          "ComposerPermissionControl"
+        ],
+        [
+          "TerminalOutputUi",
+          "TerminalOutputHeader"
+        ],
+        [
+          "TerminalPage",
+          "historicalPages"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction"
+      ]
     }
   ]
 }
