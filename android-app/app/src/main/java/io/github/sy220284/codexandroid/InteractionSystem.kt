@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
@@ -269,8 +270,15 @@ fun CodexChoiceSheet(
     enabled: Boolean = true,
     recoveryLabel: String? = null,
     onRecovery: (() -> Unit)? = null,
-    recoveryMessage: String = "请先恢复运行核心，再选择可用选项。"
+    recoveryMessage: String = "请先恢复运行核心，再选择可用选项。",
+    searchable: Boolean = false,
+    loading: Boolean = false
 ) {
+    var query by remember { mutableStateOf("") }
+    val visible = choices.filter { choice ->
+        query.isBlank() || choice.title.contains(query.trim(), ignoreCase = true) ||
+            choice.description.contains(query.trim(), ignoreCase = true)
+    }
     CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -278,7 +286,8 @@ fun CodexChoiceSheet(
         contentColor = Ink.parchment,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
     ) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
+        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
+            .navigationBarsPadding().padding(horizontal = 20.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(1f))
@@ -295,36 +304,27 @@ fun CodexChoiceSheet(
                     actionLabel = recoveryLabel, onAction = onRecovery
                 )
             }
-            Spacer(Modifier.height(17.dp))
+            Spacer(Modifier.height(12.dp))
+            if (searchable && choices.size > 1) {
+                AtlasSearchField(query, { query = it }, "搜索可用模型",
+                    modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
+                Spacer(Modifier.height(8.dp))
+            }
+            if (loading) AtlasOperationProgress("正在读取可用选项")
             if (choices.isEmpty()) {
-                CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
+                if (!loading) CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
+            } else if (visible.isEmpty()) {
+                CodexEmptyState("没有匹配的选项", "修改搜索词或查看全部。",
+                    actionLabel = "清除搜索", onAction = { query = "" })
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 470.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false).selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(choices, key = { it.id }) { choice ->
-                        val active = choice.id == selectedId
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
-                                .clickable(enabled = enabled, role = Role.RadioButton) { onSelect(choice.id) },
-                            color = Ink.canvas,
-                            border = BorderStroke(1.dp, if (active) Ink.copper else Ink.border),
-                            shape = RoundedCornerShape(15.dp)
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(choice.title, style = MaterialTheme.typography.titleMedium,
-                                        color = if (enabled) Ink.parchment else Ink.muted)
-                                    if (choice.description.isNotBlank())
-                                        Text(choice.description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                                }
-                                RadioButton(selected = active, onClick = null, enabled = enabled)
-                            }
-                        }
+                    items(visible, key = { it.id }) { choice ->
+                        AtlasChoiceRow(choice.title, choice.description, choice.id == selectedId,
+                            onClick = { onSelect(choice.id) }, enabled = enabled,
+                            modifier = Modifier.testTag("choice-option-" + choice.id))
                     }
                 }
             }
@@ -366,7 +366,7 @@ fun CodexEvidenceSheet(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 440.dp)
+                    Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight() * .62f)
                         .verticalScroll(rememberScrollState()).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -429,7 +429,7 @@ fun CodexConfirmDialog(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
-                Modifier.heightIn(max = 390.dp).verticalScroll(rememberScrollState()),
+                Modifier.heightIn(max = atlasSheetHeight() * .56f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)

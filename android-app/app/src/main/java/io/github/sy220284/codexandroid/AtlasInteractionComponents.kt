@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -184,7 +185,8 @@ fun AtlasSequenceBadge(
 fun AtlasOperationProgress(
     label: String,
     modifier: Modifier = Modifier,
-    progress: Float? = null
+    progress: Float? = null,
+    indicatorColor: androidx.compose.ui.graphics.Color = Ink.copper
 ) {
     val fraction = progress?.coerceIn(0f, 1f)
     Column(modifier.fillMaxWidth().testTag("atlas-operation-progress"),
@@ -196,11 +198,11 @@ fun AtlasOperationProgress(
                 style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
         }
         if (fraction == null) LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth(), color = Ink.copper,
+            modifier = Modifier.fillMaxWidth(), color = indicatorColor,
             trackColor = Ink.border
         ) else LinearProgressIndicator(
             progress = { fraction },
-            modifier = Modifier.fillMaxWidth(), color = Ink.copper,
+            modifier = Modifier.fillMaxWidth(), color = indicatorColor,
             trackColor = Ink.border
         )
     }
@@ -273,7 +275,7 @@ fun AtlasLoadingResults(
 fun AtlasSettingsActionRow(
     title: String,
     detail: String,
-    icon: CodexGlyph,
+    icon: androidx.compose.ui.graphics.vector.CodexGlyph,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
@@ -300,6 +302,73 @@ fun AtlasSettingsActionRow(
             }
             CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
                 tint = Ink.muted, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** 排他业务选择：整行可点、长标题可换行，选中语义统一。 */
+@Composable
+fun AtlasChoiceRow(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+        color = if (selected) Ink.panel else Ink.canvas,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else Ink.border),
+        shape = RoundedCornerShape(15.dp)
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) Ink.parchment else Ink.muted)
+                if (description.isNotBlank()) Text(description,
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/** 紧凑排他操作保留一行，适合键盘展开时的输入栏。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AtlasCompactChoice(
+    selected: String,
+    options: List<Pair<String, String>>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    tagPrefix: String = ""
+) {
+    SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (id, label) ->
+            SegmentedButton(selected = selected == id, onClick = { onSelect(id) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                enabled = enabled,
+                modifier = Modifier.heightIn(min = 48.dp).let {
+                    if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
+                }) { Text(label, style = MaterialTheme.typography.labelMedium) }
+        }
+    }
+}
+
+/** 独立列表滚动面板统一按当前窗口高度约束。 */
+@Composable
+fun atlasSheetHeight() = LocalConfiguration.current.screenHeightDp.dp * .88f
+
+@Composable
+fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp).testTag("atlas-sheet-close")) {
+            CodexIcon(CodexGlyph.Close, contentDescription = "关闭面板")
         }
     }
 }

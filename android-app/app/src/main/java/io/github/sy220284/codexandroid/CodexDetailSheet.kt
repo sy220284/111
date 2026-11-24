@@ -28,20 +28,20 @@ fun CodexDetailSheet(
     onDismiss: () -> Unit,
     subtitle: String = "",
     footer: (@Composable () -> Unit)? = null,
+    startExpanded: Boolean = false,
+    closeDescription: String = "关闭详情",
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
-    val contentLimit = (viewportHeight * .72f).coerceAtLeast(220.dp)
     CodexSheetFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = startExpanded),
         containerColor = Ink.elevated,
         contentColor = Ink.parchment,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) },
         modifier = Modifier.testTag("codex-detail-sheet")
     ) {
         Column(
-            Modifier.fillMaxWidth().imePadding().navigationBarsPadding()
+            Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight()).imePadding().navigationBarsPadding()
                 .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -62,12 +62,12 @@ fun CodexDetailSheet(
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("codex-detail-close")
                 ) {
-                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭详情")
+                    CodexIcon(CodexGlyph.Close, contentDescription = closeDescription)
                 }
             }
             HorizontalDivider(color = Ink.border)
             Column(
-                Modifier.fillMaxWidth().heightIn(max = contentLimit)
+                Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 content = content
