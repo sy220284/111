@@ -70,6 +70,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     val attachmentImport get() = attachmentController.state
+    internal val composerContent by lazy { ComposerContentController(this) }
     val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val loading = MutableStateFlow<Set<String>>(emptySet())
     /** Successful IDs remain visible during partial failures so UI can keep only unfinished selections. */
