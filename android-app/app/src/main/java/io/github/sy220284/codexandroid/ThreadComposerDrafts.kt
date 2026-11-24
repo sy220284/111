@@ -21,7 +21,8 @@ object ThreadComposerDrafts {
         if (!draft.hasStoredState) previous - id
         else (previous - id) + (id to draft)
 
-    fun key(threadId: String?): String = threadId?.takeIf { it.isNotBlank() } ?: NEW_THREAD
+    fun key(threadId: String?, workspace: String? = null): String =
+        threadId?.takeIf { it.isNotBlank() } ?: workspace?.let { "$NEW_THREAD:$it" } ?: NEW_THREAD
 
     fun text(
         previous: Map<String, ComposerDraft>, threadId: String?, value: String
@@ -70,11 +71,11 @@ object ThreadComposerDrafts {
      * Once that empty thread has been verified and deleted, restore its draft.
      */
     fun reclaimRejectedNewThread(
-        previous: Map<String, ComposerDraft>, createdThreadId: String
+        previous: Map<String, ComposerDraft>, createdThreadId: String, newDraftKey: String = NEW_THREAD
     ): Map<String, ComposerDraft> {
         require(createdThreadId.isNotBlank()) { "会话编号不能为空" }
         val rejected = previous[createdThreadId] ?: return previous
-        val concurrent = previous[NEW_THREAD]
+        val concurrent = previous[newDraftKey]
         val recovered = if (concurrent == null || concurrent == rejected) rejected
             else ComposerDraft(
                 text = listOf(concurrent.text, rejected.text)
@@ -83,15 +84,15 @@ object ThreadComposerDrafts {
                 options = if (concurrent.options != ComposerTaskOptions()) concurrent.options else rejected.options,
                 references = (concurrent.references + rejected.references).distinct()
             )
-        return updated(previous - createdThreadId, NEW_THREAD, recovered)
+        return updated(previous - createdThreadId, newDraftKey, recovered)
     }
 
     /** 首条指令创建真正 threadId 后，草稿跟随新会话迁移。 */
     fun attachNewThread(
-        previous: Map<String, ComposerDraft>, createdThreadId: String
+        previous: Map<String, ComposerDraft>, createdThreadId: String, newDraftKey: String = NEW_THREAD
     ): Map<String, ComposerDraft> {
         require(createdThreadId.isNotBlank()) { "会话编号不能为空" }
-        val snapshot = previous[NEW_THREAD] ?: return previous
-        return updated(previous - NEW_THREAD, createdThreadId, snapshot)
+        val snapshot = previous[newDraftKey] ?: return previous
+        return updated(previous - newDraftKey, createdThreadId, snapshot)
     }
 }

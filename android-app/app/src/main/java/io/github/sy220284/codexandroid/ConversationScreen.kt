@@ -45,8 +45,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         status == EngineStatus.Connected, models["account"], models["models"]) else null
     val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
     val prompts by vm.bridge.prompts.collectAsState()
-    val composerDrafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(thread))
-    val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
+    val selectedWorkspace by vm.activeWorkspace.collectAsState()
+    val draftOwner = vm.composerOwner(thread, selectedWorkspace)
+    val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
+    val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
     val selectedModel by vm.modelId.collectAsState()
@@ -54,13 +56,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val documentOwner by vm.composerContent.documentOwner.collectAsState()
-    val documentBusy = documentOwner == ThreadComposerDrafts.key(thread)
-    var composerMenu by remember(thread) { mutableStateOf("") }
-    var referenceQuery by remember(thread) { mutableStateOf<String?>(null) }
+    val documentBusy = documentOwner == draftOwner
+    var composerMenu by remember(draftOwner) { mutableStateOf("") }
+    var referenceQuery by remember(draftOwner) { mutableStateOf<String?>(null) }
     var showModels by remember { mutableStateOf(false) }
     var showModes by remember { mutableStateOf(false) }
     var showContextTools by remember(thread) { mutableStateOf(false) }
-    var sessionAction by remember(thread) { mutableStateOf("") }
+    var sessionAction by remember(draftOwner) { mutableStateOf("") }
     var showTerminalSheet by remember { mutableStateOf(false) }
     var followUpMode by rememberSaveable(thread) { mutableStateOf("queue") }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
@@ -73,14 +75,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             errors["interrupt"] == null))
     val imported by vm.attachmentImport.collectAsState()
     val attachmentBusy = imported.inProgress &&
-        imported.threadKey == ThreadComposerDrafts.key(thread)
-    val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
+        imported.threadKey == draftOwner
+    val attachmentError = if (imported.threadKey == draftOwner)
         imported.message else ""
 
     // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
     val compactWorkArea = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val selectedMode by vm.selectedMode.collectAsState()
-    val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
     val queueData = thread?.let { models["queue:$it"] }
     val queuedInputs = remember(queueData) { records(queueData) }
@@ -339,7 +340,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             ConversationComposer(
                 draft = draft, shortcuts = tools,
-                onDraftChange = { vm.editComposerText(thread, it) },
+                onDraftChange = { vm.editComposerText(draftOwner, it) },
                 attachedCount = attachedImages.size, connected = status == EngineStatus.Connected,
                 running = busy, stopping = stopping,
                 canStop = busy && !activeTurn.isNullOrBlank(),
@@ -370,18 +371,18 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !transferBusy) },
                 attachmentContent = {
-                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(thread, it) }
-                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(thread, it) }
+                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
                 }
             )
             if (composerMenu == "add") CodexActionSheet(title = "添加内容", onDismiss = { composerMenu = "" },
                 actions = buildList {
                     add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
-                        if (vm.beginImageSelection(thread)) pendingImagePick = true
+                        if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
                     }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
                         description = "选择本机图片", testTag = "composer-add-photos"))
                     add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
-                        if (vm.composerContent.beginDocument(thread, selectedWorkspace)) {
+                        if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
                             try { documentPicker.launch(arrayOf("*/*")) }
                             catch (failure: Exception) {
                                 vm.composerContent.importDocuments(emptyList())
@@ -395,7 +396,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
                     if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
                         onClick = {
-                            vm.composerContent.prepareCamera(thread)?.let { uri ->
+                            vm.composerContent.prepareCamera(draftOwner)?.let { uri ->
                                 try { cameraPicker.launch(uri) }
                                 catch (failure: Exception) {
                                     vm.composerContent.finishCamera(false)
@@ -405,12 +406,12 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
                         description = "拍摄并添加图片", testTag = "composer-add-camera"))
                     if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
-                        onClick = { vm.composerContent.pasteImage(thread) },
+                        onClick = { vm.composerContent.pasteImage(draftOwner) },
                         enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
                         description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
                     if (vm.composerContent.canRecognizeSpeech()) add(CodexSheetAction("语音输入", CodexGlyph.EditNote,
                         onClick = {
-                            vm.composerContent.beginVoice(thread, selectedWorkspace)?.let { intent ->
+                            vm.composerContent.beginVoice(draftOwner, selectedWorkspace)?.let { intent ->
                                 try { voicePicker.launch(intent) }
                                 catch (failure: Exception) {
                                     vm.composerContent.finishVoice(null)
@@ -427,10 +428,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
-        onSelect = { vm.composerContent.addReference(thread, it, referenceQuery); composerMenu = ""; referenceQuery = null },
+        onSelect = { vm.composerContent.addReference(draftOwner, it, referenceQuery); composerMenu = ""; referenceQuery = null },
         onDismiss = { composerMenu = ""; referenceQuery = null })
     if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
-        onSelect = { vm.composerContent.addReference(thread, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
+        onSelect = { vm.composerContent.addReference(draftOwner, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
     if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
     if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
     if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },

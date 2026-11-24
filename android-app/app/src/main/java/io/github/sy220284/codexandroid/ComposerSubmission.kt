@@ -8,7 +8,7 @@ import java.io.File
 import java.util.UUID
 
 internal fun CodexViewModel.acceptComposerDraft(threadId: String?, submitted: ComposerDraft) {
-    composerDrafts.update { ThreadComposerDrafts.accepted(it, threadId, submitted.text, submitted.images, submitted.references) }
+    composerDrafts.update { ThreadComposerDrafts.accepted(it, composerOwner(threadId), submitted.text, submitted.images, submitted.references) }
 }
 
 /** Snapshot all input once; ordinary send, queue and steer use the same typed payload. */
@@ -27,6 +27,7 @@ internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: 
 internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp: String, accepted: () -> Unit) {
     val thread = activeThread.value ?: return
     val turn = activeTurn.value
+    val workspace = activeWorkspace.value
     val queue = followUp == "queue"
     val key = if (queue) "queueWrite" else "steer"
     if (!running.value || threadSwitching.value || steerBusy.value || "queueWrite" in loading.value ||
@@ -40,7 +41,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
     pendingComposerImages.value = pendingComposerImages.value + draft.images
     viewModelScope.launch {
         try {
-            ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workingDirectory))
+            ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
             if (queue) {
                 // Native queue snapshots local images before acknowledging enqueue.
                 bridge.request("thread/queue/add", JSONObject().put("threadId", thread)

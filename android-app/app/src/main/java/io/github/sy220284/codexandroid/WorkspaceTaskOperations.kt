@@ -34,6 +34,7 @@ internal class WorkspaceTaskOperations(
         if (selected.absolutePath == activeWorkspace.value && activeThread.value == null) return
         if (activeThread.value != null) newThread()
         activeWorkspace.value = selected.absolutePath
+        vm.restoreComposerOptions(null)
         activeProjectId.value = null
         workspacePreferences.edit().putString("activeDirectory", selected.absolutePath).apply()
         errors.value = errors.value - "workspace"

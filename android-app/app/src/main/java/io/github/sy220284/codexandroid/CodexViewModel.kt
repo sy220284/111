@@ -80,7 +80,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
-    val composerDrafts = draftStorage.drafts
+    internal fun composerOwner(threadId: String?, workspace: String = activeWorkspace.value): String =
+        ThreadComposerDrafts.key(threadId, workspace)
+    val composerDrafts = draftStorage.drafts.also { flow ->
+        flow.update { ThreadComposerDrafts.reclaimRejectedNewThread(it, ThreadComposerDrafts.NEW_THREAD, composerOwner(null)) }
+    }
     // Transient form drafts belong to the session, not a ModalBottomSheet's window.
     internal val taskPanelDrafts = MutableStateFlow<Map<String, TaskPanelDraft>>(emptyMap())
     internal fun editTaskPanelDraft(threadId: String?, edit: (TaskPanelDraft) -> TaskPanelDraft) {
@@ -103,8 +107,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
     internal val threadOrganization by lazy { ThreadOrganizationController(this) }
     val latestDiff = MutableStateFlow("")
-    val modelId = MutableStateFlow(composerDrafts.value[ThreadComposerDrafts.NEW_THREAD]?.options?.model.orEmpty())
-    val selectedMode = MutableStateFlow(composerDrafts.value[ThreadComposerDrafts.NEW_THREAD]?.options?.mode ?: "default")
+    val modelId = MutableStateFlow(composerDrafts.value[composerOwner(null)]?.options?.model.orEmpty())
+    val selectedMode = MutableStateFlow(composerDrafts.value[composerOwner(null)]?.options?.mode ?: "default")
     internal val pendingComposerImages = MutableStateFlow<Set<String>>(emptySet())
     val accountLoginUrl = MutableStateFlow("")
     val deviceLoginCode = MutableStateFlow("")
@@ -375,25 +379,25 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun editComposerText(threadId: String?, text: String) =
-        attachmentController.editText(threadId, text)
+        attachmentController.editText(composerOwner(threadId), text)
 
     fun editComposerImages(threadId: String?, paths: List<String>) =
-        attachmentController.editImages(threadId, paths)
+        attachmentController.editImages(composerOwner(threadId), paths)
 
     fun beginImageSelection(threadId: String?): Boolean =
-        attachmentController.beginImageSelection(threadId)
+        attachmentController.beginImageSelection(composerOwner(threadId))
 
     fun importPickedImages(selected: List<Uri>) =
         attachmentController.importPickedImages(selected)
 
     fun removeComposerImage(threadId: String?, path: String) =
-        attachmentController.removeComposerImage(threadId, path)
+        attachmentController.removeComposerImage(composerOwner(threadId), path)
 
     fun reportFullAttachmentSelection(threadId: String?) =
-        attachmentController.reportFullAttachmentSelection(threadId)
+        attachmentController.reportFullAttachmentSelection(composerOwner(threadId))
 
     fun clearComposerAfterAccepted(threadId: String?, text: String, images: List<String>) =
-        attachmentController.clearAfterAccepted(threadId, text, images)
+        attachmentController.clearAfterAccepted(composerOwner(threadId), text, images)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(),
                    references: List<ComposerReference> = emptyList(), afterAccepted: (String) -> Unit = {}) {
@@ -436,8 +440,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         running.value = true
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
-        val chosenEffort = composerDrafts.value[ThreadComposerDrafts.key(submittedThread)]?.options?.effort.orEmpty()
         val chosenWorkspace = activeWorkspace.value
+        val draftOwner = composerOwner(submittedThread, chosenWorkspace)
+        val chosenEffort = composerDrafts.value[draftOwner]?.options?.effort.orEmpty()
         val chosenProject = activeProjectId.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
@@ -454,7 +459,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
                 }
-                ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), workspaceRoot)
+                ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
                 val catalog = records(data.value["models"])
                 val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
                 val chosenPermission = ComposerPermissionPolicy.selected(permissionConfig)
@@ -491,7 +496,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         firstTurnImages = emptyList()
                         firstThreadStarting.value = false
                         composerDrafts.update {
-                            ThreadComposerDrafts.attachNewThread(it, createdId)
+                            ThreadComposerDrafts.attachNewThread(it, createdId, draftOwner)
                         }
                         activeThread.value = createdId
                         syncRecentThreads()
@@ -543,7 +548,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             bridge.request(method, params, timeoutMillis = timeout)
                         }.reclaim(created, { activeThread.value }, { activeTurn.value }) {
                             composerDrafts.update {
-                                ThreadComposerDrafts.reclaimRejectedNewThread(it, created)
+                                ThreadComposerDrafts.reclaimRejectedNewThread(it, created, draftOwner)
                             }
                             restoreComposerOptions(null)
                             activeThread.value = null

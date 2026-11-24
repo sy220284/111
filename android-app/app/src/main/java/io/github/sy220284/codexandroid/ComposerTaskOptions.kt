@@ -34,7 +34,7 @@ internal object ComposerModelPolicy {
 }
 
 internal fun CodexViewModel.restoreComposerOptions(threadId: String?) {
-    val options = composerDrafts.value[ThreadComposerDrafts.key(threadId)]?.options ?: ComposerTaskOptions()
+    val options = composerDrafts.value[composerOwner(threadId)]?.options ?: ComposerTaskOptions()
     modelId.value = options.model
     selectedMode.value = options.mode
 }
@@ -42,8 +42,8 @@ internal fun CodexViewModel.changeComposerOptions(transform: (ComposerTaskOption
     val thread = activeThread.value
     if (threadSwitching.value || firstThreadStarting.value || running.value) return
     composerDrafts.update { drafts ->
-        val original = drafts[ThreadComposerDrafts.key(thread)]?.options ?: ComposerTaskOptions()
-        ThreadComposerDrafts.options(drafts, thread, transform(original))
+        val original = drafts[composerOwner(thread)]?.options ?: ComposerTaskOptions()
+        ThreadComposerDrafts.options(drafts, composerOwner(thread), transform(original))
     }
     restoreComposerOptions(thread)
 }

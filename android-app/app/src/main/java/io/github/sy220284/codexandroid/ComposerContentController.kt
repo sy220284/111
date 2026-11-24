@@ -79,7 +79,7 @@ internal class ComposerContentController(private val vm: CodexViewModel) {
     }
     fun beginVoice(thread: String?, workspace: String): Intent? {
         if (!canRecognizeSpeech() || voiceOwner != null || !vm.globalWorkSnapshot().canStartNewTask) return null
-        voiceOwner = Target(thread, workspace)
+        voiceOwner = Target(vm.composerOwner(thread, workspace), workspace)
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_PROMPT, "说出任务指令")
@@ -97,7 +97,7 @@ internal class ComposerContentController(private val vm: CodexViewModel) {
     val documentOwner = MutableStateFlow<String?>(null)
     fun beginDocument(thread: String?, workspace: String): Boolean {
         if (pendingDocument != null || documentOwner.value != null || !vm.globalWorkSnapshot().canStartNewTask) return false
-        pendingDocument = Target(thread, workspace)
+        pendingDocument = Target(vm.composerOwner(thread, workspace), workspace)
         return true
     }
     fun importDocuments(uris: List<Uri>) {
@@ -147,17 +147,17 @@ internal class ComposerContentController(private val vm: CodexViewModel) {
     }
     fun addReference(thread: String?, reference: ComposerReference, trigger: String? = null) {
         vm.composerDrafts.update { drafts ->
-            val original = drafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
-            val updated = ThreadComposerDrafts.references(drafts, thread, original.references + reference)
+            val original = drafts[vm.composerOwner(thread)] ?: ComposerDraft()
+            val updated = ThreadComposerDrafts.references(drafts, vm.composerOwner(thread), original.references + reference)
             if (trigger != null && ComposerShortcutPolicy.referenceQuery(original.text) == trigger)
-                ThreadComposerDrafts.text(updated, thread, original.text.dropLast(trigger.length + 1).trimEnd())
+                ThreadComposerDrafts.text(updated, vm.composerOwner(thread), original.text.dropLast(trigger.length + 1).trimEnd())
             else updated
         }
     }
     fun removeReference(thread: String?, reference: ComposerReference) {
         vm.composerDrafts.update { drafts ->
-            val original = drafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
-            ThreadComposerDrafts.references(drafts, thread, original.references - reference)
+            val original = drafts[vm.composerOwner(thread)] ?: ComposerDraft()
+            ThreadComposerDrafts.references(drafts, vm.composerOwner(thread), original.references - reference)
         }
     }
 }

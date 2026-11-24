@@ -83,4 +83,17 @@ class ThreadComposerDraftsTest {
         assertEquals("", after["A"]?.text)
         assertEquals(listOf("pending.png"), after["A"]?.images)
     }
+    @org.junit.Test fun projectDraftsRemainIndependentWhenFirstTurnCreatesThread() {
+        val a = ThreadComposerDrafts.key(null, "/project/a")
+        val b = ThreadComposerDrafts.key(null, "/project/b")
+        var drafts = ThreadComposerDrafts.text(emptyMap(), a, "甲")
+        drafts = ThreadComposerDrafts.text(drafts, b, "乙")
+        drafts = ThreadComposerDrafts.attachNewThread(drafts, "thread-a", a)
+        org.junit.Assert.assertEquals("甲", drafts["thread-a"]?.text)
+        org.junit.Assert.assertEquals("乙", drafts[b]?.text)
+        org.junit.Assert.assertNull(drafts[a])
+        drafts = ThreadComposerDrafts.reclaimRejectedNewThread(drafts, "thread-a", a)
+        org.junit.Assert.assertEquals("甲", drafts[a]?.text)
+        org.junit.Assert.assertEquals("乙", drafts[b]?.text)
+    }
 }
