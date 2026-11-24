@@ -31,7 +31,7 @@ class FullFeatureWorkflowGateTests(TestCase):
             "@Test fun homeOpensScreen() {}",
             encoding="utf-8"
         )
-        (docs / "DSH_GO_29_UI_DELIVERY_CHECK_20261123.md").write_text(
+        (docs / "对标应用29项界面交付核对表-20261123.md").write_text(
             "| 01 | `home` | P1 | 首页 | `Screens.kt / HomePage` | homeOpensScreen；home-android35.png |\n",
             encoding="utf-8"
         )
@@ -64,7 +64,7 @@ class FullFeatureWorkflowGateTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             _, docs, _ = self.make_repo(root)
-            file = docs / "DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
+            file = docs / "对标应用29项界面交付核对表-20261123.md"
             file.write_text(file.read_text(encoding="utf-8").replace(
                 "Screens.kt / HomePage", "Missing.kt"
             ).replace("homeOpensScreen；home-android35.png", "unknownEvidence"))
@@ -88,7 +88,7 @@ class FullFeatureWorkflowGateTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_repo(root)
-            ledger = root / "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md"
+            ledger = root / "docs/对标应用29项界面交付核对表-20261123.md"
             ledger.write_text(
                 ledger.read_text(encoding="utf-8").replace(
                     "homeOpensScreen；home-android35.png", "home-android35.png"

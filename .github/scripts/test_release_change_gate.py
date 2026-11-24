@@ -43,7 +43,7 @@ class ReleaseChangeGateTests(unittest.TestCase):
             "upstream/codex/sdk/typescript/src/index.ts",
             "upstream/codex/README.md",
             "CODEX_UPSTREAM_COMMIT",
-            "docs/RELEASE.md",
+            "docs/正式发布流程.md",
         ]
         selector = StubSelector()
         self.assertFalse(should_release(paths, "base", "head", selector))
