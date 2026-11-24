@@ -4,8 +4,8 @@ import org.json.JSONObject
 
 /**
  * Thread goals belong to the active conversation.
- * A collapsed advanced-budget control preserves a previously configured limit.
- * Editing the visible budget explicitly changes or clears it.
+ * Goal budget is included only after the user explicitly confirms its edit.
+ * Dismissing the editor or saving other goal fields preserves the existing server limit.
  */
 internal object ThreadGoalRequestContract {
     private val statuses = setOf("active", "paused", "blocked", "complete")
