@@ -43,7 +43,6 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
     when (id) {
         "settings" -> SettingsHubPage(vm, navigate)
         "chat" -> ConversationPage(vm, navigate)
-        "threads" -> ThreadLibraryPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
         "terminal" -> TerminalPage(vm)
@@ -64,7 +63,6 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "appearance" -> AppearancePage()
         "security" -> SecurityPage(vm, navigate)
         "about" -> AboutPage(vm)
-        "search" -> ThreadLibraryPage(vm, navigate, initialFullText = true)
         "goals" -> ThreadGoalPage(vm)
         "queue" -> ThreadQueuePage(vm)
         else -> CatalogPage(pages.first { it.id == id }, vm)

@@ -61,6 +61,11 @@ internal object CodexNotificationDispatcher {
             projectCatalogRevision.value += 1
             return
         }
+        if (method == "thread/readState/changed" && threadId.isNotBlank()) {
+            params.optJSONObject("readState")?.let { sessions.receipt(threadId, it) }
+            return
+        }
+        if (method in setOf("thread/name/updated", "thread/section/changed", "thread/closed")) syncRecentThreads()
         if (method == "thread/status/changed" && threadId.isNotBlank()) {
             threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
                 threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
@@ -95,6 +100,7 @@ internal object CodexNotificationDispatcher {
         } else if (method == "thread/started") {
             syncRecentThreads()
         }
+        if (method == "thread/deleted") sessions.removePin(threadId)
         // Apply turn lifecycle to every thread before filtering display events to
         // the visible timeline. An offscreen task must still finish and free images.
         if (threadId.isNotBlank() && method == "turn/started") {
@@ -108,6 +114,7 @@ internal object CodexNotificationDispatcher {
                 running.value = true
             }
         }
+        if (threadId.isNotBlank() && method == "turn/started") syncRecentThreads()
         if (threadId.isNotBlank() && method == "turn/completed") {
             val completedId = params.optJSONObject("turn")?.optString("id")
             val execution = threadExecutions.value[threadId]

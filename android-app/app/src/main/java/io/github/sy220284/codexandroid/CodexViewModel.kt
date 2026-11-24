@@ -248,11 +248,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         threadOrganization.execute(kind, ids, after = after)
 
     /** 一次读取得到的最近会话同时更新首页和侧栏，避免同一事件触发双重网络请求。 */
-    internal fun syncRecentThreads() {
-        refresh("threads", "thread/list", JSONObject().put("limit", 100)) { response ->
-            data.value = data.value + ("sidebarThreads" to response)
-        }
-    }
+    internal val sessions by lazy { SessionListController(this, viewModelScope) }
+    internal fun syncRecentThreads() = sessions.refresh()
 
     fun chooseThread(id: String, onOpened: (() -> Unit)? = null) {
         if (!globalWorkSnapshot().canStartNewTask) {
@@ -266,6 +263,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (id.isNotBlank() && id == activeThread.value) {
+            sessions.markRead(id, false)
             onOpened?.invoke()
             return
         }
@@ -325,6 +323,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 latestDiff.value = ThreadDiffHistory.latest(turns)
                 timeline.value = newest
+                sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
@@ -531,7 +530,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } catch (recoveryFailure: Exception) {
                         recoveryNote = "；新建会话检查失败：" +
-                            (recoveryFailure.message ?: "请到会话资料库核查")
+                            (recoveryFailure.message ?: "请到侧栏会话列表核查")
                     }
                 }
                 if (activeThread.value == submittedId ||

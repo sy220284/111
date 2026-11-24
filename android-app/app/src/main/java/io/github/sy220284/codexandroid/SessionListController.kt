@@ -1,0 +1,192 @@
+package io.github.sy220284.codexandroid
+
+import android.content.Context
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+
+internal object SessionListPolicy {
+    fun id(row: JSONObject) = PresentationPolicy.meaningful(row.optString("id"))
+    fun title(row: JSONObject) = PresentationPolicy.threadTitle(row.optString("name"), row.optString("preview"))
+    fun recency(row: JSONObject) = sequenceOf("recencyAt", "updatedAt", "createdAt")
+        .map { row.optLong(it, 0) }.firstOrNull { it > 0 } ?: 0
+    fun ordered(rows: List<JSONObject>, pinned: Set<String>) = rows
+        .filter { id(it).isNotBlank() }.distinctBy(::id)
+        .sortedWith(compareByDescending<JSONObject> { id(it) in pinned }
+            .thenByDescending(::recency).thenByDescending(::id))
+    fun titleMatches(row: JSONObject, query: String) =
+        query.isBlank() || title(row).contains(query.trim(), ignoreCase = true)
+    fun unread(receipt: JSONObject?) = receipt?.optJSONObject("firstUnread") != null
+    fun cursor(response: JSONObject): String? =
+        PresentationPolicy.meaningful(response.optString("nextCursor")).takeIf { it.isNotBlank() }
+    fun activity(row: JSONObject, live: ThreadActivity?, running: Boolean, approvals: Int): ThreadActivity {
+        val observed = live ?: ThreadActivityPolicy.fromThread(row)
+        return when {
+            approvals > 0 -> ThreadActivity.WaitingApproval
+            observed == ThreadActivity.WaitingApproval || observed == ThreadActivity.WaitingAnswer -> observed
+            running -> ThreadActivity.Running
+            else -> observed
+        }
+    }
+    fun params(archived: Boolean, cursor: String? = null) =
+        JSONObject().put("limit", 100).put("archived", archived)
+            .put("sortKey", "recency_at").put("sortDirection", "desc").apply {
+                cursor?.let { put("cursor", it) }
+            }
+}
+
+/** One process-owned cache, atomic complete snapshots and no user-visible pagination. */
+internal class SessionListController(private val vm: CodexViewModel, private val scope: CoroutineScope) {
+    private val preferences = vm.getApplication<android.app.Application>()
+        .getSharedPreferences("session-list-preferences", Context.MODE_PRIVATE)
+    val pins = MutableStateFlow(preferences.getStringSet("pinned", emptySet()).orEmpty().toSet())
+    val receipts = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
+    val searching = MutableStateFlow(false)
+    val searchResult = MutableStateFlow<Pair<Pair<Boolean, String>, List<JSONObject>>?>(null)
+    val searchError = MutableStateFlow("")
+    private var listJob: Job? = null
+    private var searchJob: Job? = null
+    private var dirty = false
+    private var lastSuccess = -60_000L
+    private var activeSearch: Pair<Boolean, String>? = null
+    private var searchVersion = 0L
+    private var receiptVersion = 0L
+    private val receiptEvents = mutableMapOf<String, Long>()
+    private val marking = mutableSetOf<String>()
+    private fun connected() = vm.bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy
+    private fun feedback(message: String) {
+        scope.launch { vm.actionFeedback.emit(ActionFeedbackReceipt(message, isError = true)) }
+    }
+    fun togglePin(id: String) {
+        if (id.isBlank()) return
+        val next = if (id in pins.value) pins.value - id else pins.value + id
+        if (preferences.edit().putStringSet("pinned", next).commit()) pins.value = next
+        else feedback("置顶状态保存失败，请重试")
+    }
+    fun removePin(id: String) {
+        if (id in pins.value) togglePin(id)
+        receipts.value = receipts.value - id
+        receiptEvents.remove(id)
+    }
+    fun receipt(id: String, value: JSONObject) {
+        if (id.isBlank() || PresentationPolicy.meaningful(value.optString("revision")).isBlank()) return
+        receiptEvents[id] = ++receiptVersion
+        receipts.value = receipts.value + (id to value)
+    }
+    fun markRead(id: String, unread: Boolean, supplied: JSONObject? = null) {
+        val seen = supplied ?: receipts.value[id] ?: return
+        val rev = PresentationPolicy.meaningful(seen.optString("revision"))
+        if (rev.isBlank() || SessionListPolicy.unread(seen) == unread || !connected() || !marking.add(id)) return
+        scope.launch {
+            val started = receiptVersion
+            try {
+                val response = vm.bridge.request("thread/readState/update",
+                    JSONObject().put("threadId", id).put("expectedRevision", rev)
+                        .put("operation", JSONObject().put("type", if (unread) "unread" else "read")))
+                if ((receiptEvents[id] ?: 0) <= started) receipt(id, response.getJSONObject("readState"))
+            } catch (timeout: TimeoutCancellationException) {
+                feedback("已读状态更新超时，请重试")
+                refresh()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                feedback("已读状态更新失败：" + PresentationPolicy.readableError(failure.message ?: "请重新操作"))
+                refresh()
+            } finally { marking.remove(id) }
+        }
+    }
+    fun refreshIfStale() {
+        if (android.os.SystemClock.elapsedRealtime() - lastSuccess >= 30_000L) refresh()
+    }
+    fun refresh() {
+        if (!connected()) return
+        dirty = true
+        if (listJob?.isActive == true) return
+        listJob = scope.launch {
+            while (dirty && connected()) {
+                dirty = false
+                val started = receiptVersion
+                vm.loading.value = vm.loading.value + "sidebarThreads"
+                try {
+                    val freshReceipts = mutableMapOf<String, JSONObject>()
+                    suspend fun readAll(archived: Boolean): JSONObject {
+                        val rows = linkedMapOf<String, JSONObject>()
+                        val cursors = mutableSetOf<String>()
+                        var cursor: String? = null
+                        do {
+                            val page = vm.bridge.request("thread/list", SessionListPolicy.params(archived, cursor))
+                            for (row in records(page)) {
+                                val id = SessionListPolicy.id(row)
+                                if (id.isNotBlank()) rows[id] = row
+                            }
+                            page.optJSONObject("readStates")?.let { states ->
+                                states.keys().forEach { id -> states.optJSONObject(id)?.let { freshReceipts[id] = it } }
+                            }
+                            cursor = SessionListPolicy.cursor(page)
+                            check(cursor == null || cursors.add(cursor)) { "会话列表返回重复游标" }
+                        } while (cursor != null)
+                        return JSONObject().put("data", JSONArray(rows.values.toList()))
+                    }
+                    val active = readAll(false)
+                    val archived = readAll(true)
+                    if (connected()) {
+                        val newer = receipts.value.filterKeys { (receiptEvents[it] ?: 0) > started }
+                        receipts.value = freshReceipts + newer
+                        vm.data.value = vm.data.value + mapOf("sidebarThreads" to active,
+                            "threads" to active, "archivedThreads" to archived)
+                        vm.errors.value = vm.errors.value - "sidebarThreads"
+                        lastSuccess = android.os.SystemClock.elapsedRealtime()
+                        activeSearch?.let { (archived, query) -> search(query, archived) }
+                    }
+                } catch (timeout: TimeoutCancellationException) {
+                    vm.errors.value = vm.errors.value + ("sidebarThreads" to "会话同步超时")
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (failure: Exception) {
+                    vm.errors.value = vm.errors.value + ("sidebarThreads" to
+                        (failure.message ?: "会话同步失败"))
+                } finally { vm.loading.value = vm.loading.value - "sidebarThreads" }
+            }
+        }
+    }
+    fun search(query: String, archived: Boolean) {
+        val version = ++searchVersion
+        searchJob?.cancel()
+        searchError.value = ""
+        searching.value = false
+        val term = query.trim()
+        activeSearch = if (term.isBlank()) null else archived to term
+        if (searchResult.value?.first != activeSearch || term.isBlank()) searchResult.value = null
+        if (term.isBlank()) return
+        if (!connected()) { searchError.value = "连接内核后可搜索正文"; return }
+        searching.value = true
+        searchJob = scope.launch {
+            try {
+                val rows = linkedMapOf<String, JSONObject>()
+                val cursors = mutableSetOf<String>()
+                var cursor: String? = null
+                do {
+                    val page = vm.bridge.request("thread/search", SessionListPolicy.params(archived, cursor)
+                        .put("searchTerm", term))
+                    for (hit in records(page)) {
+                        val row = hit.getJSONObject("thread")
+                        val id = SessionListPolicy.id(row)
+                        if (id.isNotBlank()) rows[id] = JSONObject(row.toString())
+                            .put("searchSnippet", hit.optString("snippet"))
+                    }
+                    cursor = SessionListPolicy.cursor(page)
+                    check(cursor == null || cursors.add(cursor)) { "全文搜索返回重复游标" }
+                } while (cursor != null)
+                if (version == searchVersion) searchResult.value = (archived to term) to rows.values.toList()
+            } catch (timeout: TimeoutCancellationException) {
+                if (version == searchVersion) searchError.value = "搜索超时，请重试"
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                if (version == searchVersion) searchError.value = failure.message ?: "搜索失败"
+            } finally { if (version == searchVersion) searching.value = false }
+        }
+    }
+}

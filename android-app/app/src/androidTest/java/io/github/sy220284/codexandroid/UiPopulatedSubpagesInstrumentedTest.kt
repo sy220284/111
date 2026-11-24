@@ -286,23 +286,45 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = sessions, hasResponse = true, connected = true,
-                        loading = false, hasError = false, activeId = "ci-selected",
-                        running = false, switching = false, onRefresh = {}, onOpenThread = {}
+                        all = sessions, connected = true, activeId = "ci-selected",
+                        running = false, switching = false, onOpenThread = {}
                     )
                 }
             }
         }
         rule.onNodeWithText("修复工作区登录").assertExists()
         rule.onNodeWithText("检查构建流水线").assertExists()
-        rule.onNodeWithTag("sidebar-project-/projects/a").assertExists()
-        rule.onNodeWithTag("sidebar-project-/projects/b").assertExists()
-        rule.onNodeWithContentDescription("当前会话").assertExists()
-        rule.onNodeWithTag("sidebar-search-toggle").performClick()
-        rule.onNodeWithTag("sidebar-search").performTextInput("构建")
-        rule.onNodeWithText("修复工作区登录").assertDoesNotExist()
-        rule.onNodeWithText("检查构建流水线").assertExists()
+        rule.onNodeWithTag("sidebar-project-/projects/a").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-project-/projects/b").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-thread-ci-selected").assertIsSelected()
+        rule.onNodeWithTag("sidebar-search-toggle").assertDoesNotExist()
+        rule.onNodeWithText("最近会话").assertDoesNotExist()
+        rule.onNodeWithText("查看全部会话").assertDoesNotExist()
         capture("audit-sidebar-filtered-android35.png")
+    }
+
+    @Test fun flatSidebarHasPinnedUnreadAndLongPressWithoutHeadings() {
+        val records = (1..130).map { index -> JSONObject().put("id", "session-$index")
+            .put("name", "会话 $index").put("recencyAt", index) }
+        var managed = ""
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionsContent(all = records, connected = true, activeId = "session-130",
+                    running = false, switching = false, onOpenThread = {},
+                    pinned = setOf("session-1"), readStates = mapOf("session-1" to
+                        JSONObject().put("firstUnread", JSONObject().put("type", "threadStart"))),
+                    onLongPress = { managed = SessionListPolicy.id(it) })
+            }
+        }
+        rule.onNodeWithTag("sidebar-thread-session-1").assertIsDisplayed()
+        rule.onNodeWithContentDescription("已置顶").assertExists()
+        rule.onNodeWithContentDescription("未读").assertExists()
+        rule.onNodeWithTag("sidebar-thread-session-1").performTouchInput { longClick() }
+        rule.runOnIdle { assertEquals("session-1", managed) }
+        rule.onNodeWithTag("sidebar-thread-list").performScrollToNode(hasTestTag("sidebar-thread-session-2"))
+        rule.onNodeWithTag("sidebar-thread-session-2").assertExists()
+        rule.onNodeWithText("下一页").assertDoesNotExist()
+        rule.onNodeWithText("今天").assertDoesNotExist()
     }
 
     @Test fun batchToolbarSupportsAllSelectAndActionWithRealComposeClicks() {
@@ -321,7 +343,7 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
-        rule.onNodeWithContentDescription("全选本页").performClick()
+        rule.onNodeWithContentDescription("全选当前结果").performClick()
         rule.onNodeWithText("已选 2 条").assertExists()
         rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
         rule.onNodeWithTag("thread-bulk-delete").performClick()
@@ -383,9 +405,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = entries, hasResponse = true, connected = true,
-                        loading = false, hasError = false, activeId = "local",
-                        running = false, switching = false, onRefresh = {}, onOpenThread = {},
+                        all = entries, connected = true, activeId = "local",
+                        running = false, switching = false, onOpenThread = {},
                         liveActivities = mapOf(
                             "remote-approval" to ThreadActivity.WaitingApproval,
                             "remote-input" to ThreadActivity.WaitingAnswer
@@ -394,10 +415,10 @@ class UiPopulatedSubpagesInstrumentedTest {
                 }
             }
         }
-        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
         rule.onNodeWithText("等待审批").assertExists()
         rule.onNodeWithText("等待回答").assertExists()
-        rule.onNodeWithContentDescription("当前会话").assertExists()
+        rule.onNodeWithTag("sidebar-thread-local").assertIsSelected()
         capture("audit-sidebar-background-status-android35.png")
     }
 
@@ -411,9 +432,8 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.setContent {
             CodexTheme {
                 SidebarSessionsContent(
-                    all = entries, hasResponse = true, connected = true,
-                    loading = false, hasError = false, activeId = "first",
-                    running = true, switching = false, onRefresh = {},
+                    all = entries, connected = true, activeId = "first",
+                    running = true, switching = false,
                     onOpenThread = { opened = it }, onStopThread = { stopped = it },
                     liveExecutions = mapOf(
                         "first" to ThreadExecution(turnId = "turn-one"),
@@ -422,8 +442,8 @@ class UiPopulatedSubpagesInstrumentedTest {
                 )
             }
         }
-        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
-        rule.onNodeWithTag("sidebar-task-open-second").performClick()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-thread-second").performClick()
         rule.runOnIdle { assertEquals("second", opened) }
         rule.onNodeWithTag("sidebar-task-stop-first").performClick()
         rule.runOnIdle { assertEquals("first", stopped) }
@@ -459,7 +479,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsDisplayed()
         rule.onNodeWithText("检查工作区代码").assertExists()
-        rule.onNodeWithContentDescription("当前会话").assertExists()
+        rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsSelected()
         capture("audit-sidebar-thread-android35.png")
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").performClick()
         rule.runOnIdle { assertEquals("ci-thread-001", opened) }

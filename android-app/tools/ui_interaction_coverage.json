@@ -8,8 +8,8 @@
     },
     {
       "route": "threads",
-      "file": "ThreadLibraryPage.kt",
-      "owner": "ThreadLibraryPage",
+      "file": "SidebarSessions.kt",
+      "owner": "SidebarSessions",
       "component": "AtlasSearchField"
     },
     {
@@ -20,8 +20,8 @@
     },
     {
       "route": "search",
-      "file": "ThreadLibraryPage.kt",
-      "owner": "ThreadLibraryPage",
+      "file": "SidebarSessions.kt",
+      "owner": "SidebarSessions",
       "component": "AtlasSearchField"
     },
     {
@@ -174,7 +174,7 @@
       "id": "sidebar",
       "parent": "threads",
       "file": "SidebarSessions.kt",
-      "owner": "SidebarSessionsContent",
+      "owner": "SidebarSessions",
       "component": "AtlasSearchField",
       "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
       "screenshot": "audit-sidebar-filtered"

@@ -83,8 +83,8 @@ class UiNavigationInstrumentedTest {
 
     private fun openThreadLibrary() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("sidebar-view-all").performScrollTo().performClick()
-        rule.onNodeWithTag("thread-library-list").assertExists()
+        rule.onNodeWithTag("sidebar-global-search").performClick()
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
@@ -126,9 +126,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-settings").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
-        rule.onNodeWithContentDescription("搜索侧栏会话").performClick()
+        rule.onNodeWithTag("sidebar-global-search").performClick()
         rule.onNodeWithTag("sidebar-search").assertIsDisplayed()
-        rule.onNodeWithContentDescription("关闭会话搜索").performClick()
+        rule.onNodeWithTag("sidebar-global-search").performClick()
         capture("sidebar-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
@@ -592,12 +592,15 @@ class UiNavigationInstrumentedTest {
 
     @Test fun threadLibraryExposesServerBackedManagementLayout() {
         openThreadLibrary()
-        rule.onNodeWithTag("thread-library-list").assertExists()
-        rule.onNodeWithText("活跃", substring = false).assertExists()
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
+        rule.onNodeWithText("会话", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
         rule.onNodeWithText("搜索会话标题").assertExists()
         rule.onNodeWithText("全文搜索").assertExists()
-        rule.onNodeWithTag("library-new-thread").assertExists()
+        rule.onNodeWithTag("sidebar-new-chat").assertExists()
+        rule.onNodeWithTag("thread-library-list").assertDoesNotExist()
+        rule.onNodeWithText("会话分组").assertDoesNotExist()
+        rule.onNodeWithText("下一页").assertDoesNotExist()
         captureOverlay("thread-library-android35.png")
         rule.onNodeWithText("全文搜索").performClick()
         rule.onNodeWithText("搜索历史正文").assertExists()
@@ -692,7 +695,7 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         openThreadLibrary()
-        rule.onNodeWithTag("thread-library-list").assertExists()
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
         pressSystemBack()
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("诊断")
@@ -915,8 +918,9 @@ class UiNavigationInstrumentedTest {
         val vm = (rule.activity.application as CodexApplication).session
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("sidebar-global-search").performClick()
-        rule.onNodeWithTag("thread-library-list").assertExists()
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
+        rule.onNodeWithText("全文搜索").performClick()
         rule.onNodeWithText("搜索历史正文").assertExists()
         captureOverlay("thread-global-search-android35.png")
         pressSystemBack()
