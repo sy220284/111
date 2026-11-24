@@ -598,4 +598,68 @@ class CodexInteractionComponentsInstrumentedTest {
         } finally { screenshot.recycle() }
     }
 
+
+    @Test fun composerShortcutOpensRealCallbackOnlyWhenSelected() {
+        var opened = 0
+        rule.setContent {
+            var draft by remember { mutableStateOf("/mod") }
+            CodexTheme {
+                Column {
+                    AtlasComposerShortcuts(draft, listOf(
+                        ComposerShortcut("model", "选择模型", "可用模型", CodexGlyph.Memory, onOpen = { opened++ }),
+                        ComposerShortcut("mode", "执行模式", "运行中暂不可改", CodexGlyph.Tune,
+                            enabled = false, onOpen = { opened += 10 })
+                    )) { draft = ""; it.onOpen() }
+                    Text("草稿：" + draft)
+                }
+            }
+        }
+        rule.onNodeWithTag("composer-shortcut-mode").assertIsNotEnabled()
+        rule.runOnIdle { org.junit.Assert.assertEquals(0, opened) }
+        rule.onNodeWithTag("composer-shortcut-model").performClick()
+        rule.onNodeWithTag("composer-shortcuts").assertDoesNotExist()
+        rule.onNodeWithText("草稿：").assertExists()
+        rule.runOnIdle { org.junit.Assert.assertEquals(1, opened) }
+    }
+
+    @Test fun terminalTouchHistoryRestoresOriginalDraftWithoutExecuting() {
+        rule.setContent {
+            var text by remember { mutableStateOf("unfinished") }
+            var position by remember { mutableStateOf(TerminalHistoryPosition()) }
+            CodexTheme {
+                Column {
+                    Text(text)
+                    AtlasTerminalHistoryControls(text, listOf("git status", "pwd"), position, true,
+                        onChoice = { text = it.command; position = it.position }, onOpenHistory = {})
+                }
+            }
+        }
+        rule.onNodeWithTag("terminal-history-previous").performClick()
+        rule.onNodeWithText("git status").assertExists()
+        rule.onNodeWithTag("terminal-history-previous").performClick()
+        rule.onNodeWithText("pwd").assertExists()
+        rule.onNodeWithTag("terminal-history-next").performClick()
+        rule.onNodeWithText("git status").assertExists()
+        rule.onNodeWithTag("terminal-history-next").performClick()
+        rule.onNodeWithText("unfinished").assertExists()
+        rule.onNodeWithTag("terminal-history-next").assertIsNotEnabled()
+    }
+
+    @Test fun dailyUsagePeriodSelectionDoesNotTurnMissingTokensIntoZero() {
+        rule.setContent {
+            CodexTheme {
+                AtlasDailyUsageChart(listOf(
+                    org.json.JSONObject().put("startDate", "2026-11-01").put("tokens", 13),
+                    org.json.JSONObject().put("startDate", "2026-11-24").put("tokens", 0),
+                    org.json.JSONObject().put("startDate", "2026-11-23")
+                ))
+            }
+        }
+        rule.onNodeWithText("未提供").assertExists()
+        rule.onNodeWithText("11-01").assertDoesNotExist()
+        rule.onNodeWithTag("usage-period-30").performClick()
+        rule.onNodeWithText("11-01").assertExists()
+        rule.onNodeWithText("13").assertExists()
+    }
+
 }

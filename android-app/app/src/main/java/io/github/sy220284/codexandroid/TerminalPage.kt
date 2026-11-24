@@ -422,18 +422,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     enabled = !session.running
                 )
                 if (recentCommands.isNotEmpty()) {
-                    Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
-                        style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    TextButton(
-                        onClick = { historyVisible = true },
-                        enabled = !session.running,
-                        modifier = Modifier.heightIn(min = 48.dp)
-                            .testTag("terminal-history-toggle")
-                    ) {
-                        CodexIcon(CodexGlyph.History, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("使用历史命令")
-                    }
+                    AtlasTerminalHistoryControls(command, recentCommands, historyPosition,
+                        enabled = !session.running && !terminalStarting,
+                        onChoice = { choice -> command = choice.command; historyPosition = choice.position },
+                        onOpenHistory = { historyVisible = true })
                     if (historyVisible) CodexDetailSheet(
                         title = "历史命令",
                         subtitle = "选择后填入输入栏，执行前仍需确认",

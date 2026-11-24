@@ -59,6 +59,7 @@ internal fun ConversationComposer(
     onDiagnostics: () -> Unit = {},
     onReconnect: () -> Unit = {},
     focusRequester: FocusRequester? = null,
+    shortcuts: List<ComposerShortcut> = emptyList(),
     controls: (@Composable () -> Unit)? = null
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
@@ -77,6 +78,10 @@ internal fun ConversationComposer(
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             controls?.invoke()
+            AtlasComposerShortcuts(draft, shortcuts) { shortcut ->
+                onDraftChange("")
+                shortcut.onOpen()
+            }
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,

@@ -548,6 +548,8 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val work = observeGlobalWorkSnapshot(vm)
     var showCrashes by remember { mutableStateOf(false) }
+    var showCrashReader by remember { mutableStateOf(false) }
+    var confirmClearCrashes by remember { mutableStateOf(false) }
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     ScreenColumn {
@@ -570,16 +572,12 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
             val stderr by vm.bridge.recentStderr.collectAsState()
-            if (stderr.isNotEmpty()) {
-                CodexDetailTrigger("查看启动日志", onClick = { showLogs = true })
-                if (showLogs) CodexDetailSheet(
-                    title = "启动日志",
-                    subtitle = "仅在本机显示，便于排查启动与连接问题",
-                    onDismiss = { showLogs = false }
-                ) {
-                    Text(stderr.joinToString("\n"), color = Ink.muted,
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelMedium)
+            CodexDetailTrigger("查看启动日志", onClick = { showLogs = true })
+            if (showLogs) {
+                if (stderr.isNotEmpty()) FullTextReaderDialog("启动日志", stderr.joinToString("\n")) {
+                    showLogs = false
+                } else CodexInfoDialog("启动日志", onDismiss = { showLogs = false }) {
+                    CodexEmptyState("暂无启动日志", "内核输出记录后可在这里查看。")
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -631,14 +629,22 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 if (stored.isBlank()) {
                     Text("尚无本机崩溃记录", color = Ink.muted)
                 } else {
-                    SelectionContainer {
-                        Text(stored, fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    AtlasSettingsActionRow("搜索和复制完整日志", "在独立阅读器中查看", CodexGlyph.Description,
+                        onClick = { showCrashReader = true }, outlined = false)
+                    if (showCrashReader) FullTextReaderDialog("本机崩溃记录", stored) {
+                        showCrashReader = false
                     }
-                    TextButton(onClick = {
-                        LocalCrashReporter.clear(context)
-                        crashRevision++
-                    }) { Text("清除本机崩溃记录", color = Ink.red) }
+                    TextButton(onClick = { confirmClearCrashes = true }) {
+                        Text("清除本机崩溃记录", color = Ink.red)
+                    }
+                    if (confirmClearCrashes) CodexConfirmDialog(
+                        title = "清除本机崩溃记录？", message = "已保存的诊断记录将被删除。",
+                        confirmLabel = "确认清除", destructive = true,
+                        onConfirm = {
+                            LocalCrashReporter.clear(context)
+                            crashRevision++
+                            confirmClearCrashes = false
+                        }, onDismiss = { confirmClearCrashes = false })
                 }
             }
         }

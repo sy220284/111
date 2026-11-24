@@ -67,7 +67,11 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             }
             if (selectedTab in loading) AtlasOperationProgress(if (usage) "正在读取用量" else "正在读取额度")
         }
-        if (result != null && selectedTab !in loading) errors[selectedTab]?.let { ErrorText(it) }
+        if (result != null && engineStatus != EngineStatus.Connected) {
+            CodexNotice("当前显示上次读取的账号数据，连接后可更新。", NoticeTone.Warning,
+                actionLabel = if (engineStatus is EngineStatus.Unavailable) "重新连接" else null,
+                onAction = { vm.connect() })
+        } else if (result != null && selectedTab !in loading) errors[selectedTab]?.let { ErrorText(it) }
         if (result == null && selectedTab !in loading) {
             when {
                 engineStatus != EngineStatus.Connected -> {
@@ -119,29 +123,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             }
             val buckets = result.optJSONArray("dailyUsageBuckets")
             if (buckets != null && buckets.length() > 0) {
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    val recent = (0 until buckets.length())
-                        .mapNotNull { buckets.optJSONObject(it) }
-                        .takeLast(10)
-                    AtlasListHeading("最近每日用量", recent.size, suffix = "天")
-                    val maxTokens = recent.maxOfOrNull { it.optLong("tokens") }?.coerceAtLeast(1L) ?: 1L
-                    recent.forEach { bucket ->
-                        val tokens = bucket.optLong("tokens").coerceAtLeast(0L)
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(bucket.optString("startDate").takeLast(5),
-                                modifier = Modifier.width(53.dp), color = Ink.muted,
-                                style = MaterialTheme.typography.labelMedium)
-                            LinearProgressIndicator(
-                                progress = { tokens.toFloat().div(maxTokens).coerceIn(0f, 1f) },
-                                modifier = Modifier.weight(1f).height(8.dp),
-                                color = Ink.copper, trackColor = Ink.border)
-                            Spacer(Modifier.width(9.dp))
-                            Text(formatMetricNumber(tokens), style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                    Text("条形宽度按这组记录中的最大日用量归一化。",
-                        color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                }
+                AtlasDailyUsageChart((0 until buckets.length()).mapNotNull { buckets.optJSONObject(it) })
             }
         }
         if (!usage && result != null) {

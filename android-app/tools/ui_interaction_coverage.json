@@ -40,7 +40,7 @@
       "route": "queue",
       "file": "TaskManagementScreens.kt",
       "owner": "ThreadQueuePage",
-      "component": "AtlasSequenceBadge"
+      "component": "AtlasQueueDragHandle"
     },
     {
       "route": "files",
@@ -395,10 +395,55 @@
     {
       "id": "queue-reorder",
       "parent": "queue",
-      "file": "TaskManagementScreens.kt",
-      "owner": "ThreadQueuePage",
-      "component": "AtlasQueueDragHandle",
+      "file": "AtlasQueueDragHandle.kt",
+      "owner": "AtlasQueueDragHandle",
+      "component": "AtlasSequenceBadge",
       "test": "queueDragHandleInvokesDragRatherThanClickAndKeepsAccessibleMenu",
+      "screenshot": null
+    },
+    {
+      "id": "composer-shortcuts",
+      "parent": "chat",
+      "file": "AtlasComposerShortcuts.kt",
+      "owner": "AtlasComposerShortcuts",
+      "component": "AtlasSettingsActionRow",
+      "test": "composerShortcutOpensRealCallbackOnlyWhenSelected",
+      "screenshot": null
+    },
+    {
+      "id": "terminal-history-controls",
+      "parent": "terminal",
+      "file": "AtlasTerminalHistoryControls.kt",
+      "owner": "AtlasTerminalHistoryControls",
+      "component": "IconButton",
+      "test": "terminalTouchHistoryRestoresOriginalDraftWithoutExecuting",
+      "screenshot": null
+    },
+    {
+      "id": "daily-usage-chart",
+      "parent": "usage",
+      "file": "AtlasDailyUsageChart.kt",
+      "owner": "AtlasDailyUsageChart",
+      "component": "AtlasCompactChoice",
+      "test": "dailyUsagePeriodSelectionDoesNotTurnMissingTokensIntoZero",
+      "screenshot": null
+    },
+    {
+      "id": "diagnostic-logs",
+      "parent": "diagnostics",
+      "file": "EcosystemScreens.kt",
+      "owner": "EngineDiagnosticsPage",
+      "component": "FullTextReaderDialog",
+      "test": "secondarySettingsPagesHaveActualDeviceScreenshots",
+      "screenshot": null
+    },
+    {
+      "id": "timeline-filter",
+      "parent": "chat",
+      "file": "AdvancedThreadTimelineDialog.kt",
+      "owner": "AdvancedThreadTimelineDialog",
+      "component": "AtlasSearchField",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": null
     }
   ]

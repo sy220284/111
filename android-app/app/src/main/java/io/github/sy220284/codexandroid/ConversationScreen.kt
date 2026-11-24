@@ -481,6 +481,29 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ConversationComposer(
                 draft = draft,
                 focusRequester = composerFocus,
+                shortcuts = buildList {
+                    add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
+                        enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
+                    add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
+                        enabled = !switching, onOpen = { keyboard?.hide(); showTerminalSheet = true }))
+                    add(ComposerShortcut("model", "选择模型", "查看内核返回的可用模型", CodexGlyph.Memory,
+                        onOpen = { keyboard?.hide(); showModels = true }))
+                    add(ComposerShortcut("mode", "任务模式", "选择先计划或执行", CodexGlyph.Tune,
+                        enabled = !busy && !switching && !firstThreadStarting,
+                        onOpen = { keyboard?.hide(); showModes = true }))
+                    add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
+                        enabled = !busy && !switching, onOpen = { keyboard?.hide(); navigate("review") }))
+                    add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
+                        enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
+                    if (thread != null) {
+                        add(ComposerShortcut("goal", "任务目标", "查看和编辑当前会话目标", CodexGlyph.Flag,
+                            enabled = !switching, onOpen = { keyboard?.hide(); navigate("goals") }))
+                        add(ComposerShortcut("queue", "后续指令", "管理当前会话待执行队列", CodexGlyph.ViewList,
+                            enabled = !switching, onOpen = { keyboard?.hide(); navigate("queue") }))
+                    }
+                    add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
+                        onOpen = { keyboard?.hide(); showEngineStatus = true }))
+                },
                 controls = {
                     if (!compactWorkArea) ConversationControlBar(
                             modelName = vm.modelId.collectAsState().value,
