@@ -470,12 +470,25 @@
         [
           "EcosystemScreens",
           "AtlasSettingsActionRow"
+        ],
+        [
+          "DeveloperScreens",
+          "AtlasExclusiveChip"
+        ],
+        [
+          "CodexControlPrimitives",
+          "CodexInputField"
+        ],
+        [
+          "CodexControlPrimitives",
+          "CodexTextAction"
         ]
       ],
       "tests": [
         "CodexInteractionComponentsInstrumentedTest.sharedSearchSubmitsAndClearsWithoutLeakingOldQuery",
         "CodexInteractionComponentsInstrumentedTest.statusSelectorShowsActualSelectedTaskStatus",
-        "CodexInteractionComponentsInstrumentedTest.loadingAndValidationFeedbackDescribeRealState"
+        "CodexInteractionComponentsInstrumentedTest.loadingAndValidationFeedbackDescribeRealState",
+        "CodexInteractionComponentsInstrumentedTest.unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction"
       ]
     },
     {

@@ -732,4 +732,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("13").assertExists()
     }
 
+    @Test fun unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction() {
+        assertControlSystemInteraction(rule)
+    }
 }

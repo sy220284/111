@@ -160,6 +160,10 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
           python3 android-app/tools/check_ui_assets.py --repository . --report ui-assets-audit.json --markdown ui-assets-audit.md
+      - name: 核验生产共享控件及旧控件迁移
+        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
+          python3 android-app/tools/check_component_system.py --repository . --report component-system-audit.json
       - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
         run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
       - name: 验证自更新证据判定与安装完成条件
@@ -187,6 +191,7 @@ jobs:
         with:
           name: codex-android-ui-check-reports
           path: |
+            component-system-audit.json
             ui-assets-audit.json
             ui-assets-audit.md
             android-app/app/build/reports/tests/

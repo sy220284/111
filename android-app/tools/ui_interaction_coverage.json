@@ -415,7 +415,7 @@
       "parent": "terminal",
       "file": "AtlasTerminalHistoryControls.kt",
       "owner": "AtlasTerminalHistoryControls",
-      "component": "IconButton",
+      "component": "CodexIconAction",
       "test": "terminalTouchHistoryRestoresOriginalDraftWithoutExecuting",
       "screenshot": null
     },
@@ -453,6 +453,15 @@
       "owner": "ChatSetupGuide",
       "component": "AtlasSettingsActionRow",
       "test": "chatSetupGuideOpensOnlyTheConfirmedMissingPrerequisite",
+      "screenshot": null
+    },
+    {
+      "id": "workspace-create-form",
+      "parent": "files",
+      "file": "DeveloperScreens.kt",
+      "owner": "WorkspacePage",
+      "component": "AtlasExclusiveChip",
+      "test": "unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction",
       "screenshot": null
     }
   ]
