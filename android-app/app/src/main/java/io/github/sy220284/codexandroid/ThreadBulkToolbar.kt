@@ -37,14 +37,14 @@ internal fun ThreadBulkToolbar(
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                Text("已选 $selectedCount 条 · 仅针对当前筛选页",
+                Text("已选 $selectedCount 条 · 仅针对当前筛选结果",
                     color = Ink.parchment, style = MaterialTheme.typography.labelMedium)
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically) {
                     CodexIconAction(onClick = onSelectAll, enabled = enabled,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
-                        CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选本页")
+                        CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选当前结果")
                     }
                     CodexIconAction(onClick = onFinish,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-finish")) {
@@ -85,7 +85,7 @@ internal fun ThreadBulkToolbar(
                     style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
                 CodexIconAction(onClick = onSelectAll, enabled = enabled,
                     modifier = Modifier.size(48.dp)) {
-                    CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选本页")
+                    CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选当前结果")
                 }
                 CodexIconAction(onClick = onFinish, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")

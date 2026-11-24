@@ -15,9 +15,9 @@ data class UiFeature(
 object UiFeatureCatalog {
     val all = listOf(
         UiFeature("chat", FeatureSurface.Page, FeatureOwner.Thread, false),
-        UiFeature("threads", FeatureSurface.Page, FeatureOwner.Global, false),
+        UiFeature("threads", FeatureSurface.Sheet, FeatureOwner.Global, false),
         UiFeature("approvals", FeatureSurface.Sheet, FeatureOwner.Global, false),
-        UiFeature("search", FeatureSurface.Page, FeatureOwner.Global, false),
+        UiFeature("search", FeatureSurface.Sheet, FeatureOwner.Global, false),
         UiFeature("goals", FeatureSurface.Sheet, FeatureOwner.Thread, false),
         UiFeature("queue", FeatureSurface.Sheet, FeatureOwner.Thread, true),
         UiFeature("files", FeatureSurface.Page, FeatureOwner.Workspace, false),
