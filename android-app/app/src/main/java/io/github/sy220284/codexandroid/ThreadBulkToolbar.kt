@@ -29,7 +29,7 @@ internal fun ThreadBulkToolbar(
                 modifier = Modifier.size(48.dp).testTag("thread-bulk-organize")) {
                 CodexIcon(CodexGlyph.MoreHoriz, "整理所选会话")
             }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            CodexPopupMenu(expanded = open, onDismissRequest = { open = false }) {
                 listOf("move" to "移动到分组", "pin" to "批量置顶",
                     "unpin" to "批量取消置顶", "clear" to "清空选择").forEach { (action, label) ->
                     DropdownMenuItem(text = { Text(label) }, onClick = {

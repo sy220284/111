@@ -113,7 +113,7 @@ internal fun RealtimeVoiceSheet(
             Box {
                 CodexTextAction(onClick = { if (voices.isEmpty()) loadVoices() else showVoices = true },
                     enabled = !operation.busy) { Text(voice.ifBlank { "选择声音 · 服务器默认" }) }
-                DropdownMenu(showVoices, { showVoices = false }) {
+                CodexPopupMenu(showVoices, { showVoices = false }) {
                     DropdownMenuItem(text = { Text("服务器默认") }, onClick = { voice = ""; showVoices = false })
                     voices.forEach { option ->
                         DropdownMenuItem(text = { Text(option) }, onClick = { voice = option; showVoices = false })
