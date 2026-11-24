@@ -224,12 +224,12 @@ private fun MessageActionRow(item: TimelineItem, user: Boolean,
                 }), contentAlignment = Alignment.Center) {
                 CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = Ink.muted, modifier = Modifier.size(19.dp))
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            CodexPopupMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 if (hasText) DropdownMenuItem(text = { Text("全文阅读") },
                     leadingIcon = { CodexIcon(CodexGlyph.OpenInFull, null) },
                     onClick = { menu = false; onRead() })
                 if (hasTurn && !user) DropdownMenuItem(text = { Text("创建会话分支") },
-                    leadingIcon = { CodexIcon(CodexGlyph.MessageBranch, null) },
+                    leadingIcon = { CodexIcon(CodexGlyph.CallSplit, null) },
                     enabled = canMutate,
                     onClick = { menu = false; onTurnAction?.invoke(item, MessageTurnAction.Fork) },
                     modifier = Modifier.testTag("message-fork-" + item.id))

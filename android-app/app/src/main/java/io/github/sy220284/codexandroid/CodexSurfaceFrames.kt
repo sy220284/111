@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -105,4 +106,11 @@ fun CodexDialogFrame(
         modifier = modifier, dismissButton = dismissButton, icon = icon, title = title, text = text,
         shape = shape, containerColor = containerColor,
         titleContentColor = titleContentColor, textContentColor = textContentColor)
+}
+
+/** 轻量锚定菜单共享原生 Popup 容器，保留系统返回、焦点与主题。 */
+@Composable
+internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest, content = content)
 }

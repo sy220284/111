@@ -310,7 +310,7 @@
       "parent": "chat",
       "file": "ChatTimelineComponents.kt",
       "owner": "MessageActionRow",
-      "component": "DropdownMenu",
+      "component": "CodexPopupMenu",
       "test": "messageHeaderLongPressPreservesReaderAction",
       "screenshot": "audit-message-menu"
     },
