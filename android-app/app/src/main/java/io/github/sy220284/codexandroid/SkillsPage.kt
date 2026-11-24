@@ -31,12 +31,12 @@ private fun JSONArray.objects(): List<JSONObject> =
 fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectEntries("skills")
     val engineStatus by vm.bridge.status.collectAsState()
-    val skillErrors by vm.errors.collectAsState()
+    val skillErrors by vm.errors.collectEntries("skills", "skillsWrite")
     val skillsData = data["skills"]
     val groups = remember(skillsData) { records(skillsData) }
     val skills = remember(groups) { groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() } }
     val readErrors = remember(groups) { groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 } }
-    val mutationLoading by vm.loading.collectAsState()
+    val mutationLoading by vm.loading.collectProjection { it.intersect(setOf("skills", "skillsWrite")) }
     var filter by rememberSaveable { mutableStateOf("all") }
     var query by rememberSaveable { mutableStateOf("") }
     val visibleSkills = remember(skills, filter, query) { when (filter) {

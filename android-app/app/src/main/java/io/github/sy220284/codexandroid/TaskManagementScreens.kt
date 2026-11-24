@@ -29,13 +29,12 @@ import java.util.UUID
 @Composable
 fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
     val key = "goal:" + (active ?: "none")
+    val data by vm.data.collectEntries(key)
+    val errors by vm.errors.collectEntries(key, "goalWrite")
+    val loading by vm.loading.collectProjection { it.intersect(setOf(key, "goalWrite")) }
     val goal = data[key]?.optJSONObject("goal")
-    val taskDrafts by vm.taskPanelDrafts.collectAsState()
-    val panelDraft = taskDrafts[active] ?: TaskPanelDraft()
+    val panelDraft by vm.taskPanelDrafts.collectProjection { it[active] ?: TaskPanelDraft() }
     val objective = panelDraft.goalText
     val status = panelDraft.goalStatus
     val budget = panelDraft.goalBudget
@@ -234,13 +233,13 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
 @Composable
 fun ThreadQueuePage(vm: CodexViewModel) {
     val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
     val rootKey = "queue:" + (active ?: "none")
     var pageCount by remember(active) { mutableIntStateOf(0) }
-    val taskDrafts by vm.taskPanelDrafts.collectAsState()
-    val draft = taskDrafts[active]?.queueText.orEmpty()
+    val queueKeys = remember(rootKey, pageCount) { listOf(rootKey) + (1..pageCount).map { rootKey + ":page:" + it } }
+    val data by vm.data.collectEntries(*queueKeys.toTypedArray())
+    val errors by vm.errors.collectEntries(*(queueKeys + "queueWrite").toTypedArray())
+    val loading by vm.loading.collectProjection { it.intersect((queueKeys + "queueWrite").toSet()) }
+    val draft by vm.taskPanelDrafts.collectProjection { it[active]?.queueText.orEmpty() }
     var pendingDelete by remember(active) { mutableStateOf<JSONObject?>(null) }
     var pendingEdit by remember(active) { mutableStateOf<JSONObject?>(null) }
     var editText by rememberSaveable(active) { mutableStateOf("") }
@@ -522,8 +521,9 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 @Composable
 fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val count = records(data["queue:" + (active ?: "none")]).size
+    val key = "queue:" + (active ?: "none")
+    val data by vm.data.collectEntries(key)
+    val count = records(data[key]).size
     CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -535,7 +535,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             .testTag("thread-queue-sheet")) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 CodexIconAction(
-                    onClick = onDismiss,
+                    onClick = LocalCodexSheetClose.current ?: onDismiss,
                     modifier = Modifier.size(48.dp).testTag("thread-queue-close")
                 ) {
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭后续指令")

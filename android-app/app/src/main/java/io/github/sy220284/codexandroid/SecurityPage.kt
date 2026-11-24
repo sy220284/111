@@ -54,6 +54,7 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
         ProtocolFeedback(vm, listOf("composerPermissionConfig", "securityRequirements", "permissionProfiles"),
             onRetry = { vm.refreshComposerPermissions() })
         if (saving) AtlasOperationProgress("正在保存并核实权限")
+        val closeWithAction = LocalCodexSheetAction.current
         Column(Modifier.fillMaxWidth().selectableGroup()) {
             ComposerPermissionPolicy.ids.forEach { id ->
                 val allowed = ComposerPermissionPolicy.allowed(id, profiles, data["securityRequirements"])
@@ -62,9 +63,14 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
                     .testTag("security-profile-" + id.removePrefix(":"))
                     .codexSelectable(selected == id, selectable) {
                         if (selected != id) {
-                            open = false
-                            if (id == ":danger-full-access") confirmFull = true
-                            else vm.chooseComposerPermission(id)
+                            val action = {
+                                if (vm.activeWorkspace.value == workspace) {
+                                    if (id == ":danger-full-access") confirmFull = true
+                                    else vm.chooseComposerPermission(id)
+                                }
+                            }
+                            if (closeWithAction != null) closeWithAction(action)
+                            else { open = false; action() }
                         }
                     }.padding(horizontal = 4.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically) {
