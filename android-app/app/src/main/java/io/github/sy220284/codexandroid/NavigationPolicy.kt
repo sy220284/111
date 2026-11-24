@@ -6,7 +6,7 @@ data class FeatureGroup(val title: String, val routes: List<String>)
 object NavigationPolicy {
     /** 冷启动、恢复和新建任务统一使用唯一任务首页。 */
     const val startRoute = "chat"
-    fun canonicalRoute(route: String): String = if (route == "home") startRoute else route
+    fun canonicalRoute(route: String): String = if (route in setOf("home", "security")) startRoute else route
     val sidebarRoutes get() = UiFeatureCatalog.sidebarRoutes
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }
@@ -52,7 +52,6 @@ object NavigationPolicy {
         SettingsTopic("personalization", "全局执行指令", listOf("自定义指令", "工作偏好", "个性化")),
         SettingsTopic("context", "上下文管理", listOf("上下文", "历史压缩", "自动压缩", "词元", "工具输出")),
         SettingsTopic("tools", "联网搜索", listOf("联网", "网络搜索", "搜索方式")),
-        SettingsTopic("security", "执行权限与确认", listOf("免审批", "审批模式", "授权", "沙箱", "权限方案", "危险操作")),
         SettingsTopic("diagnostics", "连接诊断和日志", listOf("日志", "内核日志", "故障排查", "连接失败", "无法连接")),
         SettingsTopic("appearance", "字体主题与动效", listOf("字体", "字号", "主题", "深色", "夜间", "浅色", "动效", "减少动画", "外观与交互", "推理摘要")),
         SettingsTopic("about", "应用版本信息", listOf("应用版本", "版本号", "关于")),
@@ -71,7 +70,6 @@ object NavigationPolicy {
         SettingsSpot("providers", "custom", "配置模型服务商", listOf("API Key", "Base URL", "接口地址", "自定义服务商", "密钥变量")),
         SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查")),
         SettingsSpot("config", "advanced", "高级自定义配置", listOf("高级配置", "自定义配置", "配置键值")),
-        SettingsSpot("security", "profiles", "可用权限方案", listOf("权限方案", "授权方案", "执行权限方案")),
         SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
         SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
     ) + EngineSettings.all.map { setting ->

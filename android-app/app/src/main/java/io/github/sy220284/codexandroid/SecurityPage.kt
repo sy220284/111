@@ -20,9 +20,11 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     val workspace by vm.activeWorkspace.collectAsState()
     var open by remember { mutableStateOf(false) }
     var confirmFull by remember { mutableStateOf(false) }
-    val selected = ComposerPermissionPolicy.selected(data["composerPermissionConfig"])
+    val currentWorkspace = data["composerPermissionWorkspace"]?.optString("cwd") == workspace
+    val selected = if (currentWorkspace) ComposerPermissionPolicy.selected(data["composerPermissionConfig"]) else null
     val profiles = records(data["permissionProfiles"])
-    val reading = loading.any { it in setOf("composerPermissionConfig", "securityRequirements", "permissionProfiles") }
+    val reading = !currentWorkspace || loading.any { it in setOf("composerPermissionConfig", "securityRequirements", "permissionProfiles") }
+    val blocked = vm.composerPermissionBlockReason()
     LaunchedEffect(status, workspace) {
         if (status == EngineStatus.Connected) vm.refreshComposerPermissions()
     }
@@ -54,8 +56,7 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
         Column(Modifier.fillMaxWidth().selectableGroup()) {
             ComposerPermissionPolicy.ids.forEach { id ->
                 val allowed = ComposerPermissionPolicy.allowed(id, profiles, data["securityRequirements"])
-                val selectable = enabled && !saving && !reading && allowed &&
-                    status == EngineStatus.Connected
+                val selectable = enabled && !saving && !reading && allowed && blocked == null
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
                     .testTag("security-profile-" + id.removePrefix(":"))
                     .codexSelectable(selected == id, selectable) {
@@ -83,7 +84,8 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
                 }
             }
         }
-        if (!enabled) Text("当前任务结束后可调整权限", color = Ink.muted)
+        if (!reading && blocked != null) Text(blocked, color = Ink.muted)
+        else if (!enabled) Text("当前任务结束后可调整权限", color = Ink.muted)
     }
     if (confirmFull) CodexConfirmDialog(
         title = "确认启用完全访问",

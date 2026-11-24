@@ -1017,14 +1017,14 @@ class UiNavigationInstrumentedTest {
         // Every captured screen comes from the current Android Activity and real navigation.
         val routeScreens = listOf(
             "providers", "skills", "apps", "mcp",
-            "environments", "security", "config", "diagnostics"
+            "environments", "config", "diagnostics"
         )
         routeScreens.forEach { route ->
             openSettingRoute(route)
             rule.onNodeWithTag("screen-title")
                 .assertTextEquals(pages.first { it.id == route }.title)
             rule.waitForIdle()
-            if (route == "apps" || route == "security") {
+            if (route == "apps") {
                 // 同页不同接口可能同时断连；用户只看到一条相同原因。
                 assertTrue(rule.onAllNodesWithText("Codex 内核尚未连接")
                     .fetchSemanticsNodes().size <= 1)
@@ -1099,10 +1099,13 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun directlySelectableSecurityAndAboutViewsAreCaptured() {
-        openSettingRoute("security")
-        rule.onNodeWithTag("security-profiles-heading").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("conversation-composer").assertExists()
+        rule.onNodeWithTag("composer-permission-control").performClick()
+        rule.onNodeWithTag("security-profiles-heading").assertIsDisplayed()
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
-        capture("audit-security-profiles-android35.png")
+        captureOverlay("audit-security-profiles-android35.png")
+        pressSystemBack()
+        rule.onNodeWithTag("conversation-composer").assertExists()
 
         openSettingRoute("about")
         rule.onNodeWithText("关于应用").assertExists()
@@ -1111,15 +1114,17 @@ class UiNavigationInstrumentedTest {
 
     @Test fun permissionProfilesCanBeSelectedAndRestrictedProfilesCannot() {
         val vm = (rule.activity.application as CodexApplication).session
-        openSettingRoute("security")
+        rule.onNodeWithTag("conversation-composer").assertExists()
+        rule.onNodeWithTag("composer-permission-control").performClick()
         rule.waitUntil(15_000L) {
-            listOf("config", "securityRequirements", "permissionProfiles").none { it in vm.loading.value }
+            listOf("composerPermissionConfig", "securityRequirements", "permissionProfiles").none { it in vm.loading.value }
         }
         rule.onNodeWithTag("security-profiles-heading").performScrollTo()
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         rule.runOnUiThread {
             vm.data.value = vm.data.value + mapOf(
-                "config" to JSONObject().put("config", JSONObject()
+                "composerPermissionWorkspace" to JSONObject().put("cwd", vm.activeWorkspace.value),
+                "composerPermissionConfig" to JSONObject().put("config", JSONObject()
                     .put("default_permissions", ":read-only")
                     .put("approval_policy", "on-request")
                     .put("sandbox_mode", "read-only")),
@@ -1137,15 +1142,12 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("security-profile-workspace").fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithTag("security-profile-workspace").performScrollTo().performClick()
-        rule.onNodeWithText("保存默认权限").assertIsEnabled()
-        rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo()
-            .assertIsNotEnabled()
-        rule.onNodeWithTag("security-scope-thread").performScrollTo()
-            .assertIsNotEnabled()
-        rule.onNodeWithTag("security-profile-workspace").performScrollTo()
-            .assertIsDisplayed()
-        capture("audit-security-selection-android35.png")
+        rule.onNodeWithTag("security-profile-workspace").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithTag("security-profile-read-only").performScrollTo().assertIsDisplayed().assertIsSelected()
+        captureOverlay("audit-security-selection-android35.png")
+        pressSystemBack()
+        rule.onNodeWithTag("composer-permission-control").assertExists()
     }
 
     @Test fun permissionApprovalExplainsActualScope() {

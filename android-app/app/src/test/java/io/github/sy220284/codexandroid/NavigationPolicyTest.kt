@@ -55,7 +55,10 @@ class NavigationPolicyTest {
         assertEquals("limits", NavigationPolicy.matchedSettingSpot("usage", "额度")?.target)
         assertEquals("advanced", NavigationPolicy.matchedSettingSpot("config", "高级配置")?.target)
         assertEquals("check", NavigationPolicy.matchedSettingSpot("update", "检查更新")?.target)
-        assertEquals("profiles", NavigationPolicy.matchedSettingSpot("security", "权限方案")?.target)
+        assertNull(NavigationPolicy.matchedSettingSpot("security", "权限方案"))
+        assertEquals("chat", NavigationPolicy.canonicalRoute("security"))
+        assertEquals(FeatureSurface.Inline, UiFeatureCatalog.find("security").surface)
+        assertFalse(NavigationPolicy.isSettingsChild("security"))
         assertEquals("motion", NavigationPolicy.matchedSettingSpot("appearance", "减少动效")?.target)
         assertEquals("custom", NavigationPolicy.matchedSettingSpot(
             "providers", "配置模型服务商")?.target)
@@ -104,7 +107,7 @@ class NavigationPolicyTest {
         assertEquals(29, UiFeatureCatalog.legacyRoutes.distinct().size)
         assertEquals(5, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(18, settings.size)
+        assertEquals(17, settings.size)
         assertEquals(settings.size, settings.distinct().size)
         assertTrue(settings.containsAll(listOf("models","usage","appearance","about","update")))
         assertFalse(settings.contains("limits")) // 兼容旧路由，但设置里只有一个用量与额度入口
@@ -140,7 +143,7 @@ class NavigationPolicyTest {
 
     @Test fun settingsSearchResolvesCommonNamesToRegisteredDestinations() {
         val samples = mapOf(
-            "API Key" to "providers", "免审批" to "security", "字号" to "appearance",
+            "API Key" to "providers", "字号" to "appearance",
             "日志" to "diagnostics", "升级" to "update", "远程主机" to "environments",
             "插件市场" to "plugins", "MCP服务器" to "mcp"
         )

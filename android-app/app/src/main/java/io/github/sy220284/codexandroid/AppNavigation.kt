@@ -59,7 +59,7 @@ val pages = listOf(
     Page("personalization", "个性化设置", "设置与账户", "全局执行指令与工作偏好", CodexGlyph.AccountCircle, "config/read"),
     Page("context", "上下文管理", "设置与账户", "历史压缩与工具输出保留", CodexGlyph.Thread, "config/read"),
     Page("tools", "联网搜索", "能力与扩展", "搜索方式与可用策略", CodexGlyph.Search, "config/read"),
-    Page("security", "权限与安全", "设置与账户", "审批、沙箱和网络策略", CodexGlyph.Security, "configRequirements/read"),
+    Page("security", "执行权限", "任务对话", "对话输入框权限选择", CodexGlyph.Security, "configRequirements/read"),
     Page("usage", "用量与额度", "设置与账户", "调用统计、额度窗口与重置时间", CodexGlyph.Insights, "account/usage/read"),
     Page("limits", "使用限额", "设置与账户", "限额和重置时间", CodexGlyph.Speed, "account/rateLimits/read"),
     Page("appearance", "外观与显示", "设置与账户", "主题、字号、布局、动效与任务显示", CodexGlyph.Palette),
