@@ -251,7 +251,9 @@ object PresentationPolicy {
         "medium" -> "均衡"
         "high" -> "深入"
         "xhigh" -> "深度"
-        else -> "默认"
+        "ultra" -> "超深度"
+        "none" -> "无额外思考"
+        else -> meaningful(value).ifBlank { "默认" }
     }
 
     fun goalStatus(value: String?): String = when (meaningful(value)) {

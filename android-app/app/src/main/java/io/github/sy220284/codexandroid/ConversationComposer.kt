@@ -1,16 +1,15 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -18,17 +17,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.DpOffset
 
 /**
  * 对话底部是一块可自适应键盘的输入面板。业务层负责真正的 turn/start、
@@ -50,24 +44,28 @@ internal fun ConversationComposer(
     onStop: () -> Unit,
     onSend: () -> Unit,
     imageImporting: Boolean = false,
-    onPickImage: () -> Unit = {},
+    onAddContent: () -> Unit = {},
     compactControls: Boolean = false,
-    compactCanReconnect: Boolean = false,
-    compactModelLabel: String = "",
-    compactModeLabel: String = "",
+    modelLabel: String = "",
+    modeLabel: String = "default",
+    effortLabel: String = "",
+    optionsEnabled: Boolean = true,
     onModel: () -> Unit = {},
     onMode: () -> Unit = {},
-    onDiagnostics: () -> Unit = {},
-    onReconnect: () -> Unit = {},
-    focusRequester: FocusRequester? = null,
+    onTaskOptions: () -> Unit = {},
+    sendBlockReason: String = "",
+    onReference: ((String) -> Unit)? = null,
     shortcuts: List<ComposerShortcut> = emptyList(),
-    controls: (@Composable () -> Unit)? = null
+    statusContent: (@Composable () -> Unit)? = null,
+    attachmentContent: (@Composable () -> Unit)? = null
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
-    var compactMenuExpanded by remember { mutableStateOf(false) }
+    var followUpMenu by remember { mutableStateOf(false) }
+    var expandedEditor by remember { mutableStateOf(false) }
     var inputFocused by remember { mutableStateOf(false) }
     Surface(
-        modifier = Modifier.fillMaxWidth().testTag("conversation-composer"),
+        modifier = Modifier.fillMaxWidth().testTag("conversation-composer")
+            .animateContentSize(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))),
         shape = RoundedCornerShape(23.dp),
         color = Ink.panel,
         border = BorderStroke(if (inputFocused) 1.5.dp else 1.dp,
@@ -80,16 +78,23 @@ internal fun ConversationComposer(
                 bottom = if (compactControls) 6.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            controls?.invoke()
+            statusContent?.invoke()
+            attachmentContent?.invoke()
             AtlasComposerShortcuts(draft, shortcuts) { shortcut ->
-                onDraftChange("")
+                if (ComposerShortcutPolicy.query(draft) != null) onDraftChange("")
                 shortcut.onOpen()
             }
+            ComposerShortcutPolicy.referenceQuery(draft)?.let { query ->
+                if (onReference != null) AtlasSettingsActionRow("引用项目文件",
+                    query.ifBlank { "搜索并选择本机项目文件" }, CodexGlyph.Link,
+                    onClick = { onReference(query) }, outlined = false,
+                    modifier = Modifier.testTag("composer-reference-suggestion"))
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
-                modifier = Modifier.fillMaxWidth()
-                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                modifier = Modifier.weight(1f)
                     .onFocusChanged { inputFocused = it.isFocused }
                     .heightIn(min = if (compactControls) 32.dp else 40.dp)
                     .testTag("composer-input")
@@ -113,45 +118,36 @@ internal fun ConversationComposer(
                     }
                 }
             )
-            // Running follow-ups belong in the composer: queue or steer the active turn.
-            if (running) {
-                AtlasCompactChoice(followUpMode,
-                    listOf("queue" to "完成后执行", "steer" to "立即纠偏"),
-                    onFollowUpModeChange, enabled = !sending,
-                    modifier = Modifier.testTag("composer-follow-up-mode"),
-                    tagPrefix = "composer-mode-")
+            if (draft.length > 100 || draft.count { it == '\n' } >= 2) {
+                CodexIconAction(onClick = { expandedEditor = true }, modifier = Modifier.size(48.dp).testTag("composer-expand")) {
+                    CodexIcon(CodexGlyph.OpenInFull, "展开编辑指令")
+                }
+            }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                CodexIconAction(
-                    onClick = onPickImage,
-                    enabled = !imageImporting &&
-                        attachedCount < LocalImageAttachments.MAX_FILES,
-                    modifier = Modifier.size(48.dp).testTag("composer-plus")
-                        .explainDisabled(attachedCount >= LocalImageAttachments.MAX_FILES,
-                            "最多可添加 ${LocalImageAttachments.MAX_FILES} 张照片")
-                ) {
-                    CodexIcon(CodexGlyph.Attachment,
-                        contentDescription = "选择照片",
-                        tint = Ink.parchment, modifier = Modifier.size(25.dp))
+                CodexIconAction(onClick = onAddContent, enabled = !imageImporting,
+                    modifier = Modifier.size(48.dp).testTag("composer-plus")) {
+                    CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.parchment, modifier = Modifier.size(24.dp))
                 }
-                if (compactControls) {
-                    Box {
-                        CodexIconAction(onClick = { compactMenuExpanded = true },
-                            modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
-                            CodexIcon(CodexGlyph.Tune, "模型、模式和诊断")
-                        }
+                if (running) {
+                    CodexTextAction(onClick = { followUpMenu = true }, enabled = !sending,
+                        modifier = Modifier.weight(1f).testTag("composer-follow-up-mode"),
+                        contentPadding = PaddingValues(horizontal = 3.dp)) {
+                        Text(if (followUpMode == "queue") "完成后执行" else "立即纠偏",
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.weight(1f, fill = false))
+                        CodexIcon(CodexGlyph.ExpandMore, null, Modifier.size(14.dp))
                     }
+                } else {
+                    ConversationControlBar(modelLabel, modeLabel, effortLabel, optionsEnabled, onModel, onMode)
                 }
-                if (!compactControls && attachedCount > 0) {
-                    Text("${attachedCount} 张图片",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f, fill = false))
+                CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
+                    CodexIcon(CodexGlyph.Tune, "任务配置")
                 }
-                Spacer(Modifier.weight(1f))
                 AnimatedVisibility(
                     visible = running,
                     enter = expandHorizontally(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))) +
@@ -180,6 +176,7 @@ internal fun ConversationComposer(
                     modifier = Modifier.size(50.dp)
                         .testTag("composer-send")
                         .explainDisabled(!canSend || sending, when {
+                            sendBlockReason.isNotBlank() -> sendBlockReason
                             sending -> "正在发送指令，请勿重复提交"
                             !connected -> "运行核心尚未连接"
                             else -> "输入指令后即可发送"
@@ -212,17 +209,20 @@ internal fun ConversationComposer(
             }
         }
     }
-    if (compactMenuExpanded) CodexActionSheet(
-        title = "任务选项", onDismiss = { compactMenuExpanded = false },
-        actions = buildList {
-            add(CodexSheetAction("选择模型 · " + compactModelLabel.ifBlank { "默认模型" },
-                CodexGlyph.Memory, onClick = onModel, testTag = "composer-compact-model"))
-            add(CodexSheetAction("任务模式 · " + (if (compactModeLabel == "plan") "先计划" else "执行"),
-                CodexGlyph.Tune, onClick = onMode, enabled = !running && !sending, testTag = "composer-compact-mode"))
-            add(CodexSheetAction("运行诊断与状态", CodexGlyph.Info,
-                onClick = onDiagnostics, testTag = "composer-compact-diagnostics"))
-            if (compactCanReconnect) add(CodexSheetAction("重新连接（草稿已保留）", CodexGlyph.Retry,
-                onClick = onReconnect, testTag = "composer-reconnect"))
-        }
+    if (followUpMenu && running) CodexActionSheet(
+        title = "发送方式", onDismiss = { followUpMenu = false },
+        actions = listOf(
+            CodexSheetAction("完成后执行", CodexGlyph.TaskRunning,
+                onClick = { onFollowUpModeChange("queue") }, description = "加入等待队列",
+                testTag = "composer-mode-queue"),
+            CodexSheetAction("立即纠偏", CodexGlyph.EditNote,
+                onClick = { onFollowUpModeChange("steer") }, description = "向正在执行的回合追加要求",
+                testTag = "composer-mode-steer")
+        )
     )
+    if (expandedEditor) CodexDetailSheet(title = "编辑任务指令", onDismiss = { expandedEditor = false },
+        footer = { CodexPrimaryButton(onClick = { expandedEditor = false }, modifier = Modifier.fillMaxWidth()) { Text("完成") } }) {
+        CodexInputField(draft, onDraftChange, modifier = Modifier.fillMaxWidth().testTag("composer-expanded-input"),
+            minLines = 5, maxLines = 18, label = { Text("任务指令") })
+    }
 }

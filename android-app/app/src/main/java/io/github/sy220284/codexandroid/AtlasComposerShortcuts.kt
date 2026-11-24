@@ -20,6 +20,8 @@ internal object ComposerShortcutPolicy {
     fun query(draft: String): String? =
         draft.takeIf { it.startsWith("/") && it.length <= 40 && it.none(Char::isWhitespace) }
             ?.drop(1)?.takeUnless { '/' in it }
+    fun referenceQuery(draft: String): String? = Regex("(?:^|\\s)@([^\\s@]*)$")
+        .find(draft)?.groupValues?.get(1)
     fun matches(query: String, command: String, title: String): Boolean =
         command.startsWith(query, ignoreCase = true) || title.contains(query, ignoreCase = true)
 }

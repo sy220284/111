@@ -51,7 +51,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             JSONObject().put("cwd", vm.workingDirectory))
     }
     LaunchedEffect(vm.workingDirectory) {
-        SettingsDeepLink.take("security")
+        if (SettingsDeepLink.take("security") == "thread" && activeThread != null) scope = "thread"
         reload()
     }
     Column(Modifier.fillMaxSize()) {

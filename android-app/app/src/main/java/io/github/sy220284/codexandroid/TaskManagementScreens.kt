@@ -338,7 +338,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         all.forEachIndexed { index, item ->
             val input = item.optJSONArray("input") ?: JSONArray()
-            val summary = input.objects().mapNotNull { part ->
+            val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it) }.mapNotNull { part ->
                 when (part.optString("type")) {
                     "text" -> part.optString("text").takeIf { it.isNotBlank() }
                     "image", "localImage" -> "图片附件"

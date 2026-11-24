@@ -314,7 +314,9 @@ fun CodexChoiceSheet(
     onRecovery: (() -> Unit)? = null,
     recoveryMessage: String = "请先恢复运行核心，再选择可用选项。",
     searchable: Boolean = false,
-    loading: Boolean = false
+    loading: Boolean = false,
+    searchPlaceholder: String = "搜索可用模型",
+    extraContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     var query by remember { mutableStateOf("") }
     val visible = choices.filter { choice ->
@@ -347,8 +349,9 @@ fun CodexChoiceSheet(
                 )
             }
             Spacer(Modifier.height(12.dp))
+            extraContent?.invoke(this)
             if (searchable && choices.size > 1) {
-                AtlasSearchField(query, { query = it }, "搜索可用模型",
+                AtlasSearchField(query, { query = it }, searchPlaceholder,
                     modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
                 Spacer(Modifier.height(8.dp))
             }

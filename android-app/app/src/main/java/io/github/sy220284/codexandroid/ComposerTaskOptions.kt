@@ -25,8 +25,9 @@ internal object ComposerModelPolicy {
             (it.optString("id") == id || it.optString("model") == id) }
     fun efforts(catalog: List<JSONObject>, modelId: String): List<String> =
         if (modelId.isBlank()) emptyList() else
-            model(catalog, modelId)?.optJSONArray("supportedReasoningEfforts")?.objects()
-                .orEmpty().map { it.optString("reasoningEffort") }.filter { it.isNotBlank() }.distinct()
+            model(catalog, modelId)?.optJSONArray("supportedReasoningEfforts")?.let { array ->
+                (0 until array.length()).mapNotNull { array.optJSONObject(it)?.optString("reasoningEffort") }
+            }.orEmpty().filter { it.isNotBlank() }.distinct()
     fun requireEffort(catalog: List<JSONObject>, modelId: String, effort: String) {
         require(effort.isBlank() || effort in efforts(catalog, modelId)) { "当前模型不支持所选思考强度，请重新选择" }
     }

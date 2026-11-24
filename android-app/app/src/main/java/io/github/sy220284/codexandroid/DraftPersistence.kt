@@ -33,7 +33,9 @@ internal object DraftPersistence {
                 text = entry.optString("text"),
                 images = (0 until names.length()).map { names.getString(it) },
                 options = ComposerTaskOptions.decode(entry.optJSONObject("options")),
-                references = entry.optJSONArray("references")?.objects().orEmpty().map(ComposerReference::decode)
+                references = entry.optJSONArray("references")?.let { array ->
+                    (0 until array.length()).map { ComposerReference.decode(array.getJSONObject(it)) }
+                }.orEmpty()
             )
             if (saved.hasStoredState) result[id] = saved
         }
