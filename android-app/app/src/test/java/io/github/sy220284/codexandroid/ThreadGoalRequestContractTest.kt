@@ -9,19 +9,19 @@ class ThreadGoalRequestContractTest {
         ThreadGoalRequestContract.set("thread-1", "完成审查并修复问题", "active",
             budget, edit, existing)
 
-    @Test fun collapsedAdvancedControlPreservesExistingBudget() {
+    @Test fun unconfirmedBudgetEditPreservesExistingLimit() {
         val payload = build("", edit = false, existing = true)
         assertFalse(payload.has("tokenBudget"))
         assertEquals("thread-1", payload.getString("threadId"))
         assertEquals("user", payload.getString("origin"))
     }
 
-    @Test fun visibleAdvancedControlCanSetPositiveBudget() {
+    @Test fun confirmedBudgetEditCanSetPositiveLimit() {
         val payload = build("12000", edit = true, existing = true)
         assertEquals(12000L, payload.getLong("tokenBudget"))
     }
 
-    @Test fun visibleEmptyBudgetExplicitlyClearsExistingLimit() {
+    @Test fun confirmedEmptyBudgetExplicitlyClearsExistingLimit() {
         val payload = build("", edit = true, existing = true)
         assertTrue(payload.has("tokenBudget"))
         assertTrue(payload.isNull("tokenBudget"))
@@ -51,5 +51,10 @@ class ThreadGoalRequestContractTest {
             ThreadGoalRequestContract.set("thread-1", "任务", "unknown", "", false, false)
             fail("unknown status was accepted")
         } catch (_: IllegalArgumentException) {}
+    }
+
+    @Test fun staleDraftBudgetIsIgnoredWithoutConfirmedEditIntent() {
+        val payload = build("12000", edit = false, existing = true)
+        assertFalse(payload.has("tokenBudget"))
     }
 }
