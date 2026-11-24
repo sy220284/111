@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 
 private data class RemotePairing(val code: String, val token: String, val expiresAt: Long)
+private data class RemoteRevokeTarget(val environment: String, val client: JSONObject)
 
 @Composable
 internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
@@ -18,11 +19,12 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
     var status by remember { mutableStateOf<JSONObject?>(null) }
     var clients by remember { mutableStateOf<List<JSONObject>?>(null) }
+    var clientsEnvironment by remember { mutableStateOf("") }
     var pair by remember { mutableStateOf<RemotePairing?>(null) }
     var seconds by remember { mutableLongStateOf(0L) }
     var verified by remember { mutableIntStateOf(0) }
     var confirm by remember { mutableStateOf<String?>(null) }
-    var revoke by remember { mutableStateOf<JSONObject?>(null) }
+    var revoke by remember { mutableStateOf<RemoteRevokeTarget?>(null) }
     var listError by remember { mutableStateOf("") }
     var pairError by remember { mutableStateOf("") }
     var pairReceipt by remember { mutableStateOf("") }
@@ -31,6 +33,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         connected && remoteStatus == "connected"
     }.orEmpty()
 
+    val visibleClients = clients.takeIf { clientsEnvironment == environment }
     fun refresh() = operation.launch {
         status = vm.capabilityRequest("remoteControl/status/read", null)
         verified++
@@ -41,6 +44,10 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             status = null
             pair = null
             pairReceipt = ""
+            confirm = null
+            revoke = null
+            clients = null
+            clientsEnvironment = ""
         }
     }
     LaunchedEffect(vm) {
@@ -52,6 +59,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     }
     LaunchedEffect(environment, verified) {
         clients = null
+        clientsEnvironment = environment
         listError = ""
         if (environment.isNotBlank()) {
             try {
@@ -67,7 +75,12 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(environment) { pair = null; pairReceipt = ""; pairError = "" }
+    LaunchedEffect(environment) {
+        pair = null
+        pairReceipt = ""
+        pairError = ""
+        revoke = null
+    }
     LaunchedEffect(pair, environment) {
         val current = pair ?: return@LaunchedEffect
         if (environment.isBlank()) return@LaunchedEffect
@@ -152,9 +165,9 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             Text("已授权设备", style = MaterialTheme.typography.titleMedium)
             if (listError.isNotBlank()) CodexNotice(listError, NoticeTone.Error,
                 actionLabel = "重试", onAction = { verified++ })
-            else if (clients == null) AtlasOperationProgress("正在读取授权设备")
-            else if (clients.orEmpty().isEmpty()) Text("暂无已授权设备", color = Ink.muted)
-            clients.orEmpty().forEach { client ->
+            else if (visibleClients == null) AtlasOperationProgress("正在读取授权设备")
+            else if (visibleClients.isEmpty()) Text("暂无已授权设备", color = Ink.muted)
+            visibleClients.orEmpty().forEach { client ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(Modifier.weight(1f)) {
                         Text(client.value("displayName").ifBlank { client.value("deviceModel").ifBlank { "设备" } })
@@ -162,7 +175,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                             .filter(String::isNotBlank).joinToString(" · ").ifBlank { client.value("clientId") },
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
-                    CodexTextAction(onClick = { revoke = client }, enabled = !operation.busy) {
+                    CodexTextAction(onClick = { revoke = RemoteRevokeTarget(environment, client) }, enabled = !operation.busy) {
                         Text("撤销授权", color = Ink.red)
                     }
                 }
@@ -185,18 +198,21 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 }
             }, onDismiss = { confirm = null })
     }
-    revoke?.let { client ->
+    revoke?.takeIf { it.environment == environment && environment.isNotBlank() }?.let { target ->
+        val client = target.client
         CodexConfirmDialog("撤销设备授权", "该设备需重新配对才能再次连接。",
             detail = client.value("displayName").ifBlank { client.value("clientId") },
             confirmLabel = "撤销授权", destructive = true,
             onConfirm = {
                 revoke = null
                 operation.launch {
-                    require(environment.isNotBlank() && status?.value("environmentId") == environment) {
+                    require(vm.bridge.status.value == EngineStatus.Connected &&
+                        status?.value("status") == "connected" &&
+                        status?.value("environmentId") == target.environment) {
                         "远程控制环境已变更，请刷新状态"
                     }
                     vm.capabilityRequest("remoteControl/client/revoke", JSONObject()
-                        .put("environmentId", environment).put("clientId", client.getString("clientId")))
+                        .put("environmentId", target.environment).put("clientId", client.getString("clientId")))
                     operation.receipt = "已撤销设备授权"
                     verified++
                 }

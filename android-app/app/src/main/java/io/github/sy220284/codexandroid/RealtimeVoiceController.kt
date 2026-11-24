@@ -34,7 +34,14 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     var assistantTranscript by mutableStateOf("")
         private set
 
+    // A controller can be recreated when navigation or a thread switch disposes the UI.
+    // The engine/microphone lease survives that disposal until stop and media cleanup finish.
+    private val lease = synchronized(leases) { leases.getOrPut(vm) { RealtimeVoiceLease() } }
     private val nativeLock = Mutex()
+
+    private companion object {
+        val leases = java.util.WeakHashMap<CodexViewModel, RealtimeVoiceLease>()
+    }
     private var startup: CompletableDeferred<Unit>? = null
     private var eventJob: Job? = null
     private var connectionJob: Job? = null
@@ -49,6 +56,10 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
 
     fun start(voice: String) {
         if (state != State.Idle) return
+        if (!lease.acquire(this)) {
+            error = "上一段语音仍在结束，请稍后重试"
+            return
+        }
         error = ""
         muted = false
         userTranscript = ""
@@ -60,10 +71,12 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             vm.bridge.events.collect(::event)
         }
         connectionJob = vm.viewModelScope.launch {
-            combine(vm.bridge.status, AppDataTransfer.state) { status, transfer ->
+            combine(vm.bridge.status, AppDataTransfer.state, vm.activeThread, vm.threadSwitching) {
+                    status, transfer, active, switching ->
                 when {
                     status != EngineStatus.Connected -> "运行引擎已断开"
                     transfer.busy -> "应用数据传输已开始，语音已结束"
+                    active != threadId || switching -> "会话已切换，语音已结束"
                     else -> ""
                 }
             }.collect { reason -> if (reason.isNotBlank()) stop(reason) }
@@ -102,15 +115,15 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         startup = null
         eventJob?.cancel()
         connectionJob?.cancel()
-        sendJob?.cancel()
+        val media = listOfNotNull(sendJob, captureJob, playbackJob, uploadJob)
+        media.forEach { it.cancel() }
         sending = false
-        captureJob?.cancel()
-        playbackJob?.cancel()
-        uploadJob?.cancel()
         output?.cancel()
         output = null
-        vm.viewModelScope.launch {
+        val cleanup = vm.viewModelScope.launch {
             try {
+                // No new session can acquire the lease while old media or RPCs remain active.
+                media.joinAll()
                 nativeLock.withLock {
                     if (sentStart && vm.bridge.status.value == EngineStatus.Connected) {
                         vm.bridge.request("thread/realtime/stop", thread(), 10_000)
@@ -126,6 +139,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 state = State.Idle
             }
         }
+        cleanup.invokeOnCompletion { lease.release(this@RealtimeVoiceController) }
     }
 
     fun sendText(text: String, asSpeech: Boolean, onSent: () -> Unit) {
@@ -230,8 +244,12 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             record.startRecording()
             check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "麦克风未能启动" }
             while (currentCoroutineContext().isActive) {
-                val size = record.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                val size = record.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
                 check(size >= 0) { "麦克风录音已中断" }
+                if (size == 0) {
+                    delay(10)
+                    continue
+                }
                 if (size > 0) {
                     withContext(Dispatchers.Main.immediate) {
                         inputLevel = if (!muted && state == State.Live) pcm16Level(buffer, size) else 0f
@@ -275,6 +293,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                         .setAudioFormat(AudioFormat.Builder().setChannelMask(mask).setSampleRate(rate)
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
                         .setBufferSizeInBytes(minimum).setTransferMode(AudioTrack.MODE_STREAM).build()
+                    check(track.state == AudioTrack.STATE_INITIALIZED) { "无法初始化语音播放设备" }
                     track.play()
                     sampleRate = rate
                     channels = count
@@ -283,9 +302,9 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 var offset = 0
                 while (offset < bytes.size) {
                     currentCoroutineContext().ensureActive()
-                    val written = track.write(bytes, offset, bytes.size - offset, AudioTrack.WRITE_BLOCKING)
-                    check(written > 0) { "设备语音播放已中断" }
-                    offset += written
+                    val written = track.write(bytes, offset, bytes.size - offset, AudioTrack.WRITE_NON_BLOCKING)
+                    check(written >= 0) { "设备语音播放已中断" }
+                    if (written == 0) delay(10) else offset += written
                 }
             }
         } finally {
@@ -304,4 +323,19 @@ internal fun pcm16Level(bytes: ByteArray, size: Int): Float {
         squares += sample * sample
     }
     return (kotlin.math.sqrt(squares / count) * 3.0).coerceIn(0.0, 1.0).toFloat()
+}
+
+/** Single owner across recreated UI controllers, released only after cleanup. */
+internal class RealtimeVoiceLease {
+    private var owner: Any? = null
+
+    @Synchronized fun acquire(candidate: Any): Boolean {
+        if (owner != null) return false
+        owner = candidate
+        return true
+    }
+
+    @Synchronized fun release(candidate: Any) {
+        if (owner === candidate) owner = null
+    }
 }
