@@ -93,36 +93,23 @@ fun ThreadContextTools(
             Text("当前任务工具", style = MaterialTheme.typography.titleMedium)
             Text("查看当前目标、后续指令、历史记录及关联资料。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-            OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-goals")) {
-                CodexIcon(CodexGlyph.Flag, null)
-                Spacer(Modifier.width(8.dp))
-                Text("管理任务目标")
-            }
-            OutlinedButton(onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                CodexIcon(CodexGlyph.ViewList, null)
-                Spacer(Modifier.width(8.dp))
-                Text("后续指令")
-            }
-            OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                CodexIcon(CodexGlyph.History, null)
-                Spacer(Modifier.width(8.dp))
-                Text("回合历史与回退")
-            }
-            OutlinedButton(onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                CodexIcon(CodexGlyph.Attachment, null)
-                Spacer(Modifier.width(8.dp))
-                Text("会话关联资料")
-            }
-            OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-review")) {
-                CodexIcon(CodexGlyph.FactCheck, null)
-                Spacer(Modifier.width(8.dp))
-                Text("代码审查")
-            }
+            AtlasSettingsActionRow("管理任务目标", "查看目标与完成条件", CodexGlyph.Flag,
+                onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
+                modifier = Modifier.testTag("thread-context-goals"), outlined = false)
+            DividerLine()
+            AtlasSettingsActionRow("后续指令", "查看等待执行的指令", CodexGlyph.ViewList,
+                onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(), outlined = false)
+            DividerLine()
+            AtlasSettingsActionRow("回合历史与回退", "查看执行记录和历史操作", CodexGlyph.History,
+                onClick = { openSubpage("history-tools") },
+                enabled = !threadId.isNullOrBlank() && !running, outlined = false)
+            DividerLine()
+            AtlasSettingsActionRow("会话关联资料", "管理附件和相关资料", CodexGlyph.Attachment,
+                onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(), outlined = false)
+            DividerLine()
+            AtlasSettingsActionRow("代码审查", "选择审查范围与要求", CodexGlyph.FactCheck,
+                onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
+                modifier = Modifier.testTag("thread-context-review"), outlined = false)
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -275,18 +275,19 @@ fun AtlasLoadingResults(
 fun AtlasSettingsActionRow(
     title: String,
     detail: String,
-    icon: androidx.compose.ui.graphics.vector.CodexGlyph,
+    icon: CodexGlyph,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    outlined: Boolean = true
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth().clickable(
+        modifier = modifier.fillMaxWidth().codexPressable(
             enabled = enabled, role = Role.Button, onClick = onClick
         ),
-        color = Ink.canvas,
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Ink.border)
+        color = if (outlined) Ink.canvas else androidx.compose.ui.graphics.Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        border = if (outlined) BorderStroke(1.dp, Ink.border) else null
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp),
@@ -294,11 +295,12 @@ fun AtlasSettingsActionRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             CodexIcon(icon, contentDescription = null,
-                modifier = Modifier.size(24.dp), tint = Ink.copper)
+                modifier = Modifier.size(22.dp), tint = Ink.muted)
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(detail, style = MaterialTheme.typography.bodySmall,
-                    color = Ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(title, style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) Ink.parchment else Ink.muted)
+                if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall,
+                    color = Ink.muted)
             }
             CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
                 tint = Ink.muted, modifier = Modifier.size(20.dp))
