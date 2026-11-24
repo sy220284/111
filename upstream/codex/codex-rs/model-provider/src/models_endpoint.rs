@@ -212,6 +212,8 @@ impl OpenAiModelsEndpoint {
         )
         .await?;
         let api_auth = resolved.auth;
+        let domestic = crate::domestic_catalog::profile(self.provider_info.base_url.as_deref())
+            .filter(|_| self.provider_info.model_catalog_url.is_none());
         let request_url = match self.provider_info.model_catalog_url.as_deref() {
             Some(catalog_url) => ModelsClient::<ReqwestTransport>::catalog_request_url(
                 &api_provider,
@@ -219,6 +221,7 @@ impl OpenAiModelsEndpoint {
                 client_version,
             )
             .map_err(map_api_error)?,
+            None if domestic.is_some() => api_provider.url_for_path("models"),
             None => ModelsClient::<ReqwestTransport>::request_url(&api_provider, client_version),
         };
         let auth_telemetry = auth_header_telemetry(api_auth.as_ref())
@@ -228,8 +231,6 @@ impl OpenAiModelsEndpoint {
         } else {
             None
         };
-        let domestic = crate::domestic_catalog::profile(self.provider_info.base_url.as_deref())
-            .filter(|_| self.provider_info.model_catalog_url.is_none());
         let request_telemetry: Arc<dyn RequestTelemetry> = Arc::new(ModelsRequestTelemetry {
             include_response_debug: self.provider_info.model_catalog_url.is_none() && domestic.is_none(),
             auth_mode: auth_mode.map(|mode| TelemetryAuthMode::from(mode).to_string()),
@@ -248,7 +249,14 @@ impl OpenAiModelsEndpoint {
             let client = ModelsClient::new(transport, api_provider, api_auth)
                 .with_telemetry(Some(request_telemetry));
             let (body, etag) = client.list_models_raw(request_url, HeaderMap::new(), Some(1024 * 1024))
-                .await.map_err(|_| CodexErr::InvalidRequest("domestic model list request failed".into()))?;
+                .await.map_err(|mut error| {
+                    if let codex_api::ApiError::Transport(TransportError::Http { url, headers, body, .. }) = &mut error {
+                        *url = None;
+                        *headers = None;
+                        *body = None;
+                    }
+                    map_api_error(error)
+                })?;
             let models = crate::domestic_catalog::decode_public_catalog(profile, &body)?;
             return Ok(ModelsEndpointResponse { models, etag, identity });
         }

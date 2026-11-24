@@ -734,6 +734,22 @@ impl ModelProvider for ConfiguredModelProvider {
                 codex_models_manager::ModelOrigin::ExplicitConfig,
             ));
         }
+        if let Some(profile) = crate::domestic_catalog::profile(self.info.base_url.as_deref())
+            .filter(|profile| profile.catalog == "manual" && self.info.model_catalog_url.is_none())
+        {
+            // A locally saved credential permits explicit model selection, not a claim
+            // that the account has passed vendor authorization.
+            let models = if matches!(self.info.api_key(), Ok(Some(_))) {
+                crate::domestic_catalog::documented_candidates(profile)
+            } else {
+                Vec::new()
+            };
+            return Arc::new(StaticModelsManager::new(
+                self.auth_manager.clone(),
+                ModelsResponse { models },
+                codex_models_manager::ModelOrigin::Bundled,
+            ));
+        }
         let endpoint = Arc::new(
             OpenAiModelsEndpoint::new(
                 self.info.clone(),

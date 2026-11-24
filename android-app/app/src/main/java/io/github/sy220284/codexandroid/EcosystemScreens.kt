@@ -161,7 +161,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             if (showCustomEditor) {
                 CodexDetailSheet(
                     title = "添加自定义服务商", startExpanded = true,
-                    subtitle = "仅配置连接地址和密钥变量名称",
+                    subtitle = if (selectedPreset == null) "配置连接地址与密钥引用" else "国内官方接口与本机加密授权",
                     onDismiss = { customApiKey = ""; showCustomEditor = false }
                 ) {
                     selectedPreset?.let { preset ->
@@ -206,8 +206,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                     ) { Text("保存自定义服务商") }
                 }
             }
-            if (credentialChanged) {
-                Text("密钥变更需重启核心生效；先完成当前任务。", color = Ink.muted)
+            if (credentialChanged || domesticPresets.any { DomesticProviderCredentials.has(context, it) }) {
+                Text("新增、修改或移除密钥后需重启核心；先完成当前任务。", color = Ink.muted)
                 CodexSecondaryButton(onClick = { vm.connectionRestarter.restart() }) { Text("重启核心使授权生效") }
             }
             DividerLine()

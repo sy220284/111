@@ -194,7 +194,7 @@ fn read_android_provider_bootstrap() -> anyhow::Result<()> {
     let mut length = [0u8; 4];
     input.read_exact(&mut length)?;
     let length = u32::from_be_bytes(length) as usize;
-    anyhow::ensure!((1..=32768).contains(&length), "invalid Android provider bootstrap length");
+    anyhow::ensure!((1..=65536).contains(&length), "invalid Android provider bootstrap length");
     let mut bytes = vec![0u8; length];
     input.read_exact(&mut bytes)?;
     let parsed = serde_json::from_slice::<HashMap<String, String>>(&bytes);

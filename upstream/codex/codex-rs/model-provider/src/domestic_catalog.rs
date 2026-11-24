@@ -1,7 +1,7 @@
 //! Mainland provider registry. Public model IDs are not Codex model metadata.
 use codex_models_manager::model_info::model_info_from_slug;
 use codex_protocol::error::CodexErr;
-use codex_protocol::openai_models::{ModelInfo, ModelVisibility};
+use codex_protocol::openai_models::{InputModality, ModelInfo, ModelVisibility, ReasoningEffort, ReasoningEffortPreset};
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::OnceLock;
@@ -56,13 +56,31 @@ pub(crate) fn decode_public_catalog(
     Ok(profile.models.iter().filter(|m| seen.contains(&m.id)).map(model_info).collect())
 }
 
+/// The documented candidate list is not an account availability assertion.
+pub(crate) fn documented_candidates(profile: &DomesticProfile) -> Vec<ModelInfo> {
+    profile.models.iter().map(|entry| {
+        let mut model = model_info(entry);
+        model.description = Some("官方接口候选模型；实际授权及任务能力需验证".into());
+        model
+    }).collect()
+}
+
 fn model_info(profile: &ProfileModel) -> ModelInfo {
     let mut model = model_info_from_slug(&profile.id);
     model.visibility = ModelVisibility::List;
     model.context_window = Some(profile.context);
     model.max_context_window = Some(profile.context);
     model.supports_reasoning_summary_parameter = false;
-    model.description = Some("Domestic Responses profile; account access and tool execution require validation.".into());
+    model.input_modalities = vec![InputModality::Text];
+    // Do not advertise GPT-only hosted tools or unsupported reasoning levels.
+    if profile.id == "MiniMax-M3.1-Flash" {
+        model.default_reasoning_level = Some(ReasoningEffort::Low);
+        model.supported_reasoning_levels = vec![ReasoningEffortPreset {
+            effort: ReasoningEffort::Low,
+            description: "默认连续推理".into(),
+        }];
+    }
+    model.description = Some("国内 Responses 目录；真实任务能力待验证".into());
     model
 }
 
