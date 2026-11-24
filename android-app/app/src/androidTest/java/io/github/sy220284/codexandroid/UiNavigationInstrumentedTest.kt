@@ -724,6 +724,14 @@ class UiNavigationInstrumentedTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val folder = java.io.File(WorkspaceStorage.root(context), name)
         org.junit.Assert.assertTrue("目录须真实存在于手机 Download/Codex", folder.isDirectory)
+        val external = java.io.File(folder.parentFile, "external-" + name).apply { mkdir() }
+        try {
+            rule.waitUntil(10_000) {
+                runCatching { rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + external.name)); true }.getOrDefault(false)
+            }
+            rule.onNodeWithTag("workspace-menu-" + external.name).assertExists()
+        } finally { external.delete() }
+        rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
         capture("workspace-files-android35.png")
         // 创建目录后由业务页面自动收起键盘，并在此验收该交互。
         rule.waitForIdle()

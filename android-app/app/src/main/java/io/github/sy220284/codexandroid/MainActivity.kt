@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("手机工作区", style = MaterialTheme.typography.headlineSmall)
-                        Text("Download/Codex", style = MaterialTheme.typography.titleMedium)
+                        Text(WorkspaceStorage.DISPLAY_ROOT, style = MaterialTheme.typography.titleMedium)
                         Text(if (!authorized) "授权后，Codex、终端和手机文件管理器可以直接操作同一份项目文件。账号和运行配置仍保存在应用私有目录。"
                             else if (failure.isNotBlank()) failure else "正在准备工作区并检查原有项目…",
                             style = MaterialTheme.typography.bodyMedium)

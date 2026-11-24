@@ -25,15 +25,41 @@ internal class WorkspaceTaskOperations(
     private fun sendPrompt(prompt: String) = vm.sendPrompt(prompt)
 
     /** Resume by the official cwd override; require the server to confirm the real path. */
-    suspend fun resumeDirectory(id: String, oldCwd: String): File {
+    suspend fun resumeDirectory(id: String, oldCwd: String, projectId: String): File {
         val selected = WorkspaceSelectionContract.validate(workspaceRoot,
             File(WorkspaceStorage.remap(vm.getApplication(), oldCwd)))
+        relocateProject(projectId)
         val resumed = bridge.request("thread/resume", org.json.JSONObject().put("threadId", id)
             .put("cwd", selected.absolutePath).put("excludeTurns", true))
         check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == selected) {
             "运行核心未确认新工作目录，请重新打开会话"
         }
         return selected
+    }
+
+    /** Lazily migrate registered roots when an old project is used; preserve all unchanged roots. */
+    suspend fun relocateProject(id: String?) {
+        if (id.isNullOrBlank()) return
+        val roots = bridge.request("project/read", ProjectRequestContract.read(id))
+            .getJSONObject("project").getJSONArray("roots")
+        val mapped = org.json.JSONArray()
+        var changed = false
+        for (index in 0 until roots.length()) {
+            val path = roots.getJSONObject(index).getString("path")
+            val newPath = WorkspaceStorage.remap(vm.getApplication(), path)
+            if (newPath != path) {
+                WorkspaceSelectionContract.validate(workspaceRoot, File(newPath))
+                changed = true
+            }
+            mapped.put(org.json.JSONObject().put("path", newPath))
+        }
+        if (!changed) return
+        val result = bridge.request("project/update", ProjectRequestContract.relocate(id, mapped))
+            .getJSONObject("project").getJSONArray("roots")
+        check(result.length() == mapped.length() && (0 until result.length()).all {
+            result.getJSONObject(it).getString("path") == mapped.getJSONObject(it).getString("path")
+        }) { "项目目录迁移未获运行核心确认" }
+        vm.projectCatalogRevision.value++
     }
 
     /** Switching project starts a new task context; old conversation remains in history. */

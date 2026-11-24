@@ -315,7 +315,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val history = bridge.request("thread/read", JSONObject().put("threadId", id))
-                val threadDirectory = workspaceTasks.resumeDirectory(id, history.getJSONObject("thread").getString("cwd"))
+                val threadDirectory = history.getJSONObject("thread").let { workspaceTasks.resumeDirectory(id, it.getString("cwd"), it.optString("projectId").takeUnless { value -> value == "null" }.orEmpty()) }
                 val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120))
                 val restored = readHistoryPage(page)
@@ -470,6 +470,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         it.optString("id").isNotBlank()
                     }) { "计划模式需要先读取可用模型目录" }
                 }
+                if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
                 val outcome = TurnSubmissionCoordinator { method, params ->
                     bridge.request(method, params)
                 }.submit(

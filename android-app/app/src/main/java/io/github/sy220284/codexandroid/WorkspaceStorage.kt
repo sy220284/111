@@ -11,7 +11,8 @@ import java.nio.file.StandardCopyOption
 
 /** Shared storage is the real workspace; account state and runtime remain private. */
 internal object WorkspaceStorage {
-    const val DISPLAY_ROOT = "Download/Codex"
+    private const val DIRECTORY_NAME = "Codex"
+    val DISPLAY_ROOT = File(Environment.DIRECTORY_DOWNLOADS, DIRECTORY_NAME).invariantSeparatorsPath
     private const val MIGRATED = ".download-workspace-v1"
 
     fun authorized(context: Context): Boolean =
@@ -26,7 +27,7 @@ internal object WorkspaceStorage {
         check(authorized(context)) { "请先授权手机文件访问，以使用 Download/Codex 工作区" }
         check(Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED) { "手机共享存储不可写" }
         val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).canonicalFile
-        val root = File(downloads, "Codex").canonicalFile
+        val root = File(downloads, DIRECTORY_NAME).canonicalFile
         check(root.parentFile == downloads) { "工作区路径越界" }
         check(root.isDirectory || root.mkdirs()) { "无法创建 Download/Codex 工作区" }
         check(root.canRead() && root.canWrite()) { "Download/Codex 工作区无法读写" }
@@ -40,7 +41,7 @@ internal object WorkspaceStorage {
             WorkspaceSelectionContract.migrate(legacyRoot(context), target)
             val stage = File.createTempFile(".workspace-migration-", ".tmp", context.filesDir)
             try {
-                stage.writeText("Download/Codex")
+                stage.writeText(DISPLAY_ROOT)
                 Files.move(stage.toPath(), marker.toPath(), StandardCopyOption.ATOMIC_MOVE)
             } finally { Files.deleteIfExists(stage.toPath()) }
         }

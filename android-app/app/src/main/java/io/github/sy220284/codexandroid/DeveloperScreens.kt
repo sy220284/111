@@ -101,6 +101,28 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
 
+    // Shared storage may be changed by the native core, terminal or system file manager.
+    DisposableEffect(folder) {
+        var refreshJob: kotlinx.coroutines.Job? = null
+        val observer = object : android.os.FileObserver(folder,
+            android.os.FileObserver.CREATE or android.os.FileObserver.DELETE or
+                android.os.FileObserver.MOVED_FROM or android.os.FileObserver.MOVED_TO or
+                android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.DELETE_SELF or
+                android.os.FileObserver.MOVE_SELF) {
+            override fun onEvent(event: Int, path: String?) {
+                scope.launch {
+                    refreshJob?.cancel()
+                    refreshJob = scope.launch {
+                        kotlinx.coroutines.delay(180)
+                        refresh++
+                    }
+                }
+            }
+        }
+        observer.startWatching()
+        onDispose { observer.stopWatching(); refreshJob?.cancel() }
+    }
+
     if (focus != null) {
         FileEditor(focus!!, root, onBack = { focus = null; refresh++ })
         return
@@ -142,7 +164,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Column(Modifier.weight(1f)) {
                     Text("当前目录", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     Text(folder.relativeTo(root).path.takeIf { it != "." }
-                        ?.let { "Download/Codex/" + it } ?: "Download/Codex/",
+                        ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it } ?: (WorkspaceStorage.DISPLAY_ROOT + "/"),
                         fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -360,7 +382,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 "后续新对话和本地终端将在选定目录工作。"
             else "当前会话会保留在历史中，切换后将从新会话继续工作。",
             detail = target.relativeTo(root).path.takeIf { it != "." }
-                ?.let { "Download/Codex/" + it } ?: "Download/Codex/",
+                ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it } ?: (WorkspaceStorage.DISPLAY_ROOT + "/"),
             confirmLabel = "确认使用此项目",
             onConfirm = {
                 try {
