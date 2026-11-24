@@ -288,7 +288,7 @@
       "id": "attachment-preview",
       "parent": "chat",
       "file": "AttachmentPreviewDialog.kt",
-      "owner": "AttachmentPreviewDialog",
+      "owner": "AttachmentPreviewContent",
       "component": "AtlasOperationProgress",
       "test": "attachmentPreviewSupportsZoomSwitchResetAndRemove",
       "screenshot": "audit-attachment-preview"
