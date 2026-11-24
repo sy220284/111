@@ -24,6 +24,18 @@ internal class WorkspaceTaskOperations(
     private val bridge get() = vm.bridge
     private fun sendPrompt(prompt: String) = vm.sendPrompt(prompt)
 
+    /** Resume by the official cwd override; require the server to confirm the real path. */
+    suspend fun resumeDirectory(id: String, oldCwd: String): File {
+        val selected = WorkspaceSelectionContract.validate(workspaceRoot,
+            File(WorkspaceStorage.remap(vm.getApplication(), oldCwd)))
+        val resumed = bridge.request("thread/resume", org.json.JSONObject().put("threadId", id)
+            .put("cwd", selected.absolutePath).put("excludeTurns", true))
+        check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == selected) {
+            "运行核心未确认新工作目录，请重新打开会话"
+        }
+        return selected
+    }
+
     /** Switching project starts a new task context; old conversation remains in history. */
     fun selectWorkspace(folder: File) = selectWorkspace(folder, null)
     private fun selectWorkspace(folder: File, projectId: String?) {

@@ -19,9 +19,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 
 
 class MainActivity : ComponentActivity() {
@@ -77,7 +74,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         acceptDeepLink(intent)
-        UiPreferences.initialize(applicationContext)
         // 典雅白界面使用深色系统图标，状态栏与导航栏保持透明白底。
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
@@ -108,6 +104,7 @@ class MainActivity : ComponentActivity() {
                             withContext(Dispatchers.IO) {
                                 (application as CodexApplication).prepareWorkspace()
                             }
+                            UiPreferences.initialize(applicationContext)
                             ready = true
                         } catch (cancel: kotlinx.coroutines.CancellationException) {
                             throw cancel

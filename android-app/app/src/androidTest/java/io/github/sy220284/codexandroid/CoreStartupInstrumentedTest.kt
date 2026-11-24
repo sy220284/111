@@ -84,7 +84,7 @@ class CoreStartupInstrumentedTest {
     @Test fun bundledNativeGitCanTrackLocalProject() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bin = NativeToolInstaller.prepare(app)
-        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val workspace = WorkspaceStorage.root(app)
         val folder = File(workspace, "git-android-verification").apply { mkdirs() }
         val file = File(folder, "CODEX-VERIFIED.txt")
         file.writeText("codex git android test")
@@ -112,7 +112,7 @@ class CoreStartupInstrumentedTest {
     @Test fun bundledRipgrepSearchesAndroidProjectWorkspace() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bin = NativeToolInstaller.prepare(app)
-        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val workspace = WorkspaceStorage.root(app)
         val fixture = File(workspace, "rg-native-integration.txt")
         fixture.writeText("codex-rg-native-confirmation\n")
         val process = ProcessBuilder("/system/bin/sh", "-c",
@@ -214,7 +214,7 @@ class CoreStartupInstrumentedTest {
     @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
-        val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+        val workspace = WorkspaceStorage.root(app)
         val name = "Android 验证 " + UUID.randomUUID()
         try {
             withTimeout(90_000L) {
@@ -251,7 +251,7 @@ class CoreStartupInstrumentedTest {
         try {
             withTimeout(90_000L) {
                 bridge.connect()
-                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val root = WorkspaceStorage.root(app)
                 val id = UUID.randomUUID().toString()
                 val ready = CompletableDeferred<Unit>()
                 val resultText = CompletableDeferred<Unit>()
@@ -299,7 +299,7 @@ class CoreStartupInstrumentedTest {
         try {
             withTimeout(90_000L) {
                 bridge.connect()
-                val workspace = File(app.filesDir, "projects").apply { mkdirs() }
+                val workspace = WorkspaceStorage.root(app)
                 val created = bridge.request("thread/start",
                     JSONObject().put("cwd", workspace.absolutePath))
                 val id = created.getJSONObject("thread").getString("id")
@@ -325,11 +325,14 @@ class CoreStartupInstrumentedTest {
                 assertEquals(EngineStatus.Connected, bridge.status.value)
                 val response = bridge.request("account/read")
                 assertNotNull(response)
-                val dir = File(app.filesDir, "projects").apply { mkdirs() }
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
                 val shellCommand = JSONObject()
                     .put("command", JSONArray()
                         .put("/system/bin/sh").put("-c")
-                        .put("printf codex-android-exec-ok"))
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
                     .put("cwd", dir.absolutePath)
                     .put("sandboxPolicy", JSONObject()
                         .put("type", "externalSandbox")
@@ -341,6 +344,10 @@ class CoreStartupInstrumentedTest {
                     0, commandResult.optInt("exitCode", -1))
                 assertEquals("codex-android-exec-ok",
                     commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
             }
         } catch (failure: Exception) {
             throw AssertionError(
@@ -359,7 +366,7 @@ class CoreStartupInstrumentedTest {
         try {
             withTimeout(90_000L) {
                 bridge.connect()
-                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val root = WorkspaceStorage.root(app)
                 val processId = UUID.randomUUID().toString()
                 var output = TerminalSessionState.start(processId, "read user input")
                 val ready = CompletableDeferred<Unit>()
@@ -405,7 +412,7 @@ class CoreStartupInstrumentedTest {
         try {
             withTimeout(90_000L) {
                 bridge.connect()
-                val root = File(app.filesDir, "projects").apply { mkdirs() }
+                val root = WorkspaceStorage.root(app)
                 val id = UUID.randomUUID().toString()
                 val started = CompletableDeferred<Unit>()
                 val collector = launch(start = CoroutineStart.UNDISPATCHED) {

@@ -32,6 +32,19 @@ object WorkspaceSelectionContract {
         return mapped
     }
 
+    private fun digest(file: File): ByteArray {
+        val hash = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(65536)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                hash.update(buffer, 0, count)
+            }
+        }
+        return hash.digest()
+    }
+
     /** Copy without replacing existing phone files. Identical entries make interrupted migration replayable. */
     fun migrate(legacy: File, root: File) {
         require(root.isDirectory) { "共享工作区不存在" }
@@ -50,24 +63,12 @@ object WorkspaceSelectionContract {
                 require(source.isFile) { "旧项目包含特殊文件：${source.name}" }
                 if (target.exists()) {
                     require(target.isFile && target.length() == source.length() &&
-                        source.inputStream().buffered().use { a ->
-                            target.inputStream().buffered().use { b ->
-                                val x = ByteArray(65536)
-                                val y = ByteArray(65536)
-                                var same = true
-                                while (same) {
-                                    val n = a.readNBytes(x, 0, x.size)
-                                    val m = b.readNBytes(y, 0, y.size)
-                                    if (n != m || !x.copyOf(n).contentEquals(y.copyOf(m))) same = false
-                                    if (n == 0 || m == 0) break
-                                }
-                                same
-                            }
-                        }) { "手机工作区已有不同内容的同名文件，请先重命名：${target.name}" }
+                        digest(source).contentEquals(digest(target))) { "手机工作区已有不同内容的同名文件，请先重命名：${target.name}" }
                 } else {
                     val stage = Files.createTempFile(target.parentFile.toPath(), ".codex-import-", ".part")
                     try {
                         Files.copy(source.toPath(), stage, StandardCopyOption.REPLACE_EXISTING)
+                        check(digest(source).contentEquals(digest(stage.toFile()))) { "旧文件迁移校验失败：${source.name}" }
                         Files.move(stage, target.toPath())
                     } finally { Files.deleteIfExists(stage) }
                 }

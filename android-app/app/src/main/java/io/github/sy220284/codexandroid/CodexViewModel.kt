@@ -315,14 +315,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val history = bridge.request("thread/read", JSONObject().put("threadId", id))
-                val previousCwd = history.getJSONObject("thread").getString("cwd")
-                val threadDirectory = WorkspaceSelectionContract.validate(workspaceRoot,
-                    File(WorkspaceStorage.remap(getApplication(), previousCwd)))
-                val resumed = bridge.request("thread/resume", JSONObject().put("threadId", id)
-                    .put("cwd", threadDirectory.absolutePath).put("excludeTurns", true))
-                check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == threadDirectory) {
-                    "运行核心未确认新工作目录，请重新打开会话"
-                }
+                val threadDirectory = workspaceTasks.resumeDirectory(id, history.getJSONObject("thread").getString("cwd"))
                 val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120))
                 val restored = readHistoryPage(page)

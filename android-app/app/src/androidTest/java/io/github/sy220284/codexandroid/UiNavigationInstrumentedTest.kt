@@ -721,6 +721,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val folder = java.io.File(WorkspaceStorage.root(context), name)
+        org.junit.Assert.assertTrue("目录须真实存在于手机 Download/Codex", folder.isDirectory)
         capture("workspace-files-android35.png")
         // 创建目录后由业务页面自动收起键盘，并在此验收该交互。
         rule.waitForIdle()
@@ -742,6 +745,7 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(10_000L) {
             rule.onAllNodesWithText(name, substring = false).fetchSemanticsNodes().isEmpty()
         }
+        org.junit.Assert.assertFalse("删除须同步至真实手机目录", folder.exists())
     }
 
     @Test fun desktopStyleSidebarIsTheOnlyPrimaryNavigation() {
