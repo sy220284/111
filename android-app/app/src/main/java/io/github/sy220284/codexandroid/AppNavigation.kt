@@ -256,6 +256,7 @@ fun CodexShell(vm: CodexViewModel) {
             pendingThreadAction = null
             sidebarState.searching = false
             sidebarState.resetFilter()
+            vm.sessions.search("", false)
         }
         drawerWasOpen = drawerOwnsInput
     }

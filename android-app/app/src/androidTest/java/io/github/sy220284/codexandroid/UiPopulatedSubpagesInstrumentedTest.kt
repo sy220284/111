@@ -451,6 +451,21 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-multi-thread-tasks-android35.png")
     }
 
+    @Test fun sidebarStopsOtherTurnWhileSessionSwitchIsBusy() {
+        val row = JSONObject().put("id", "running-other").put("name", "后台任务")
+        var stopped = ""
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionsContent(all = listOf(row), connected = true, activeId = "current",
+                    running = false, switching = true, onOpenThread = {},
+                    onStopThread = { stopped = it },
+                    liveExecutions = mapOf("running-other" to ThreadExecution(turnId = "turn-other")))
+            }
+        }
+        rule.onNodeWithTag("sidebar-task-stop-running-other").assertIsEnabled().performClick()
+        rule.runOnIdle { assertEquals("running-other", stopped) }
+    }
+
     @Test fun questionApprovalRequiresAnswersAndHasNoInvalidDeclineButton() {
         val vm = viewModel()
         val request = ServerPrompt("ci-user-input", "item/tool/requestUserInput",

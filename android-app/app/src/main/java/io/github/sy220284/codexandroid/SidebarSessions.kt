@@ -161,12 +161,12 @@ internal fun SidebarSessions(
             if (state.fullText && searchError.isNotBlank())
                 CodexNotice(PresentationPolicy.readableError(searchError), NoticeTone.Error,
                     actionLabel = "重试", onAction = { vm.sessions.search(state.search, state.archived) })
-            errors["sidebarThreads"]?.let { error ->
-                CodexNotice(PresentationPolicy.readableError(error), NoticeTone.Warning,
-                    actionLabel = "重试", onAction = vm::syncRecentThreads)
-            }
             if (rows.isNotEmpty() && !state.fullText && !selection)
                 CodexTextAction(onClick = { selection = true }) { Text("批量管理") }
+        }
+        errors["sidebarThreads"]?.let { error ->
+            CodexNotice(PresentationPolicy.readableError(error), NoticeTone.Warning,
+                actionLabel = "重试", onAction = vm::syncRecentThreads)
         }
         SidebarSessionsContent(all = rows, modifier = Modifier.weight(1f).fillMaxWidth(),
             connected = connected, activeId = activeId, running = running, switching = busy,
@@ -268,7 +268,8 @@ internal fun SidebarSessionsContent(
                     row.optString("cwd") != activeWorkspace,
                 selecting = selecting, checked = id in selectedIds,
                 onLongPress = onLongPress?.let { action -> { action(row) } },
-                onStop = if (liveExecutions[id]?.turnId != null && !selecting) { { onStopThread(id) } } else null)
+                onStop = if (liveExecutions[id]?.turnId != null && !selecting) { { onStopThread(id) } } else null,
+                stopEnabled = connected)
         }
     }
 }
@@ -280,7 +281,7 @@ internal fun SidebarSessionRow(
     pendingApprovals: Int = 0, activity: ThreadActivity = ThreadActivityPolicy.fromThread(item),
     pinned: Boolean = false, unread: Boolean = false, crossProject: Boolean = false,
     selecting: Boolean = false, checked: Boolean = false, onLongPress: (() -> Unit)? = null,
-    onStop: (() -> Unit)? = null
+    onStop: (() -> Unit)? = null, stopEnabled: Boolean = enabled
 ) {
     val id = SessionListPolicy.id(item)
     val actual = SessionListPolicy.activity(item, activity, running, pendingApprovals)
@@ -322,7 +323,7 @@ internal fun SidebarSessionRow(
             }
             if (pinned) CodexIcon(CodexGlyph.ArrowUpward, "已置顶", Modifier.size(15.dp), Ink.muted)
             if (unread) CodexIcon(CodexGlyph.RadioButtonChecked, "未读", Modifier.size(12.dp), Ink.coral)
-            if (onStop != null) CodexIconAction(onClick = onStop, enabled = enabled,
+            if (onStop != null) CodexIconAction(onClick = onStop, enabled = stopEnabled,
                 modifier = Modifier.size(48.dp).testTag("sidebar-task-stop-" + id)) {
                 CodexIcon(CodexGlyph.Stop, "停止会话")
             }
