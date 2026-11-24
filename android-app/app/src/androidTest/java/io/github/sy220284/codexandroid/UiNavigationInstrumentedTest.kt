@@ -102,12 +102,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("今天想做什么？").assertIsDisplayed()
         assertEquals(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
             rule.activity.requestedOrientation)
+        rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
+        rule.onNodeWithText("新任务", substring = false).assertDoesNotExist()
         capture("chat-android35.png")
-        openDrawerRoute("home")
-        rule.onNodeWithTag("home-task-hero").assertIsDisplayed()
-        capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("nav-chat").assertExists()
+        rule.onNodeWithTag("nav-chat").assertDoesNotExist()
+        rule.onNodeWithTag("nav-home").assertDoesNotExist()
         rule.onNodeWithTag("nav-settings").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
@@ -115,8 +115,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-search").assertIsDisplayed()
         rule.onNodeWithContentDescription("关闭会话搜索").performClick()
         capture("sidebar-android35.png")
-        rule.onNodeWithTag("nav-chat").performClick()
-        rule.onNodeWithTag("conversation-top-title").assertExists()
+        pressSystemBack()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
@@ -125,7 +125,7 @@ class UiNavigationInstrumentedTest {
         fun assertSafeTopBar() {
             rule.onNodeWithTag("drawer-toggle").assertIsDisplayed()
             val button = rule.onNodeWithTag("drawer-toggle").fetchSemanticsNode()
-            val title = rule.onNodeWithTag("conversation-top-title").fetchSemanticsNode()
+            val newTask = rule.onNodeWithTag("top-new-chat").fetchSemanticsNode()
             var safeTop = 0
             rule.runOnUiThread {
                 val insets = requireNotNull(rule.activity.window.decorView.rootWindowInsets)
@@ -136,10 +136,10 @@ class UiNavigationInstrumentedTest {
                 }
             }
             assertTrue("顶栏按钮进入状态栏", button.boundsInWindow.top >= safeTop)
-            assertTrue("顶栏标题进入状态栏", title.boundsInWindow.top >= safeTop)
+            assertTrue("新建任务按钮进入状态栏", newTask.boundsInWindow.top >= safeTop)
         }
         assertSafeTopBar()
-        openDrawerRoute("home")
+        rule.onNodeWithTag("top-new-chat").performClick()
         assertSafeTopBar()
     }
 
@@ -260,13 +260,12 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun sidebarKeepsChatAndWorkbenchAsOneNavigationPath() {
-        openDrawerRoute("chat")
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        openDrawerRoute("home")
-        rule.onNodeWithText("从一项任务开始").assertExists()
+        rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("nav-chat").assertExists()
+        rule.onNodeWithTag("nav-chat").assertDoesNotExist()
+        rule.onNodeWithTag("nav-home").assertDoesNotExist()
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-project-context").assertExists()
@@ -295,7 +294,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun chatKeepsStopAndSendControlsReachable() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("composer-input").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
@@ -306,7 +305,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun chatKeyboardKeepsComposerActionsAccessible() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("composer-input").performClick()
         rule.onNodeWithTag("composer-input").performTextInput("验证键盘展开后的操作入口")
         rule.onNodeWithTag("composer-input").assertTextContains("验证键盘展开后的操作入口")
@@ -323,7 +322,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithText("默认模型").assertIsDisplayed()
         // 模式由真实内核恢复，可能是「执行」或「先计划」；校验实际可交互的按钮。
         rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
@@ -334,14 +333,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-plus").assertHasClickAction()
         rule.onNodeWithText("添加附件").assertDoesNotExist()
         captureOverlay("attachment-sheet-android35.png")
-        rule.onNodeWithTag("conversation-top-title").assertExists()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithTag("chat-project-terminal").performClick()
         rule.onNodeWithText("项目终端").assertExists()
         captureOverlay("terminal-sheet-android35.png")
     }
 
     @Test fun statusButtonHasStableMeaningAndSeparatesActions() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithContentDescription("查看内核运行诊断").performClick()
         rule.onNodeWithText("运行状态").assertExists()
         rule.onNodeWithText("查看诊断和日志").assertExists()
@@ -349,7 +348,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun modelChoiceUsesOneSharedBottomSheet() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithText("默认模型").performClick()
         rule.onNodeWithText("选择运行模型").assertExists()
         captureOverlay("model-sheet-android35.png")
@@ -363,7 +362,7 @@ class UiNavigationInstrumentedTest {
             vm.activeThread.value = "ci-diff-thread"
             vm.latestDiff.value = sampleDiff
         }
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("chat-changes-summary").assertExists()
         rule.onNodeWithText("查看", substring = false).performClick()
         rule.onNodeWithText("本次改动").assertExists()
@@ -373,7 +372,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun projectTerminalAndFilesReturnToConversation() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("chat-project-terminal").performClick()
         rule.onNodeWithText("项目终端").assertExists()
         rule.onNodeWithContentDescription("收起终端").performClick()
@@ -388,9 +387,9 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun androidBackReturnsToPreviousScreen() {
-        rule.onNodeWithTag("conversation-top-title").assertExists()
-        openDrawerRoute("home")
-        rule.onNodeWithTag("home-task-hero").assertExists()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
+        openDrawerRoute("files")
+        rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         rule.waitForIdle()
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
@@ -399,7 +398,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun modeSheetRespectsRealEngineCapability() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithText("执行", substring = false).performClick()
         rule.onNodeWithText("选择协作方式").assertExists()
         captureOverlay("mode-sheet-android35.png")
@@ -419,16 +418,18 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
-        openDrawerRoute("home")
-        rule.onNodeWithTag("home-task-hero").assertExists()
-        rule.onNodeWithTag("home-primary-action").assertExists()
-        rule.onNodeWithText("当前项目").assertExists()
-        rule.onNodeWithTag("home-project-context").assertExists()
-        rule.onNodeWithTag("home-shortcut-files").assertExists()
-        rule.onNodeWithTag("home-shortcut-terminal").assertExists()
-        rule.onNodeWithTag("home-shortcut-diff").assertDoesNotExist()
-        rule.onNodeWithTag("home-shortcut-files").performClick()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
+        rule.onNodeWithTag("chat-project-files").assertIsDisplayed()
+        rule.onNodeWithTag("chat-project-terminal").assertIsDisplayed()
+        rule.onNodeWithTag("chat-project-files").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+        pressSystemBack()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("chat-project-terminal").performClick()
+        rule.onNodeWithText("项目终端").assertExists()
+        rule.onNodeWithContentDescription("收起终端").performClick()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
     @Test fun settingsOverviewAndLocalBackupCanBeFoundByIntent() {
@@ -478,8 +479,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
-        openDrawerRoute("home")
-        rule.onNodeWithTag("home-shortcut-terminal").performClick()
+        rule.onNodeWithTag("chat-project-terminal").performClick()
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
         val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
@@ -489,7 +489,7 @@ class UiNavigationInstrumentedTest {
         assertTrue("空态需要足够的阅读面积", emptyPanel.height >= 96f)
         assertTrue("空态不能超出终端输出容器", emptyPanel.bottom <= output.bottom + 8f)
         assertTrue("空态应保留结果区域扩展空间", emptyPanel.height <= output.height)
-        capture("terminal-android35.png")
+        captureOverlay("terminal-android35.png")
         rule.onNodeWithText("输入命令").performTextInput("pwd")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -525,8 +525,8 @@ class UiNavigationInstrumentedTest {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
         assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(28, pages.size)
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(27, pages.size)
+        assertEquals(26, UiFeatureCatalog.legacyRoutes.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(4, NavigationPolicy.featureGroups.size)
@@ -633,15 +633,15 @@ class UiNavigationInstrumentedTest {
     @Test fun desktopStyleSidebarIsTheOnlyPrimaryNavigation() {
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("nav-home").assertExists()
+        rule.onNodeWithTag("nav-home").assertDoesNotExist()
         rule.onNodeWithTag("nav-files").assertExists()
         rule.onNodeWithTag("nav-threads").assertDoesNotExist()
         rule.onNodeWithTag("nav-approvals").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("sidebar-project-context").assertExists()
         rule.onNodeWithTag("nav-terminal").assertDoesNotExist()
-        rule.onNodeWithTag("nav-chat").performClick()
-        rule.onNodeWithTag("conversation-top-title").assertExists()
+        pressSystemBack()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithTag("main-bottom-navigation").assertDoesNotExist()
         openDrawerRoute("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
@@ -735,7 +735,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun chatSuggestionsStayVisibleWithinThePhoneWidth() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("chat-suggestions").assertExists()
         listOf("files", "script", "project", "review").forEach { item ->
             rule.onNodeWithTag("chat-suggestion-" + item).assertIsDisplayed()
@@ -812,7 +812,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun noSessionStillOpensProjectResourcesDirectly() {
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("chat-project-terminal").assertExists()
         rule.onNodeWithTag("chat-project-files").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
@@ -824,7 +824,7 @@ class UiNavigationInstrumentedTest {
     @Test fun activeThreadOpensItsQueueWithoutHistoryPicker() {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-current-queue" }
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.waitUntil(5_000L) {
@@ -837,7 +837,7 @@ class UiNavigationInstrumentedTest {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-draft" }
         rule.waitForIdle()
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
@@ -868,7 +868,7 @@ class UiNavigationInstrumentedTest {
         pressSystemBack()
 
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-sheet").assertExists()
@@ -1042,7 +1042,7 @@ class UiNavigationInstrumentedTest {
             vm.activeThread.value = "ci-selected-session"
             vm.running.value = false
         }
-        openDrawerRoute("chat")
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("复制会话分支").assertExists()
         captureOverlay("audit-thread-context-android35.png")
@@ -1060,20 +1060,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("返回回合历史").performClick()
         rule.onNodeWithText("查看完整时间线（实验）").assertExists()
         pressSystemBack()
-        rule.onNodeWithTag("conversation-top-title").assertExists()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
-        rule.onNodeWithTag("conversation-top-title").assertExists()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
         rule.onNodeWithContentDescription("关闭代码审查").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
         rule.onNodeWithContentDescription("关闭代码审查").performClick()
-        rule.onNodeWithTag("conversation-top-title").assertExists()
+        rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithContentDescription("会话选项").performClick()
         rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()

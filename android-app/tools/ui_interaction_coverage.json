@@ -1,12 +1,6 @@
 {
   "routes": [
     {
-      "route": "home",
-      "file": "Screens.kt",
-      "owner": "HomePage",
-      "component": "AtlasListHeading"
-    },
-    {
       "route": "chat",
       "file": "ConversationComposer.kt",
       "owner": "ConversationComposer",

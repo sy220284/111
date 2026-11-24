@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check all 29 user functions against source, regression declarations and Rust RPCs.
+"""Check all current user functions against source, regression declarations and Rust RPCs.
 
 This is a reproducible evidence index, NOT a substitute for device or real-core
 execution. Actual screenshots, RPC responses and restore scenarios are graded
@@ -23,7 +23,7 @@ TEST_CLASS = re.compile(r'\bclass\s+([A-Za-z][A-Za-z0-9_]*Test)\b')
 SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
 
 
-def audit(repository: Path, expected: int = 29) -> dict:
+def audit(repository: Path, expected: int = 28) -> dict:
     source = repository / "android-app/app/src/main/java/io/github/sy220284/codexandroid"
     document = (repository / "docs/对标应用29项界面交付核对表-20261123.md").read_text(encoding="utf-8")
     navigation = (source / "AppNavigation.kt").read_text(encoding="utf-8")
@@ -150,7 +150,7 @@ def main() -> int:
     args.report.write_text(markdown(result), encoding="utf-8")
     for issue in result["issues"]:
         print("功能链路审计异常：" + issue)
-    print(f"功能链路：{result['workflow_count']}/29；官方方法：{result['rust_method_count']}；待实机逐条验收。")
+    print(f"功能链路：{result['workflow_count']}/28；官方方法：{result['rust_method_count']}；待实机逐条验收。")
     return int(bool(result["issues"]))
 
 

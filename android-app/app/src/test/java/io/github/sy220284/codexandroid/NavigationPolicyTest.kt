@@ -4,10 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
-    @Test fun coldStartRouteIsChatWithoutRemovingWorkbench() {
+    @Test fun coldStartRouteIsSingleTaskHome() {
         assertEquals("chat", NavigationPolicy.startRoute)
         assertTrue(NavigationPolicy.isCommon(NavigationPolicy.startRoute))
-        assertTrue(NavigationPolicy.isCommon("home"))
+        assertFalse(NavigationPolicy.isCommon("home"))
+        assertEquals("chat", NavigationPolicy.canonicalRoute("home"))
+        assertFalse("home" in UiFeatureCatalog.byRoute)
     }
 
     @Test fun newThreadAvailabilityMatchesAcrossTopBarAndSidebar() {
@@ -69,7 +71,7 @@ class NavigationPolicyTest {
     }
 
     @Test fun commonNavigationRemainsCompact() {
-        assertEquals(listOf("chat", "home", "files", "settings"),
+        assertEquals(listOf("files", "settings"),
             NavigationPolicy.sidebarRoutes)
         assertFalse(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("threads"))
@@ -90,15 +92,16 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))
-        assertEquals(listOf("home", "threads", "chat", "limits"),
+        assertEquals(listOf("chat", "threads", "chat", "limits"),
             NavigationPolicy.pageHistory(listOf("home", "threads", "chat", "queue", "limits")))
+        assertEquals(listOf("chat", "files"), NavigationPolicy.pageHistory(listOf("home", "chat", "files")))
         assertEquals(listOf("search"),
             NavigationPolicy.pageHistory(listOf("search", "approvals", "about")))
     }
 
     @Test fun userRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.distinct().size)
+        assertEquals(26, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(26, UiFeatureCatalog.legacyRoutes.distinct().size)
         assertEquals(4, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
         assertEquals(15, settings.size)
@@ -109,7 +112,7 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.matches("用量", "", "", "usage"))
         assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("limits").surface)
         assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
+        assertEquals(26, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
     @Test fun projectAndThreadToolsUseTheirOwnContext() {
