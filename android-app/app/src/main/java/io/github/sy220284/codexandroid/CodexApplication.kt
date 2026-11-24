@@ -36,7 +36,7 @@ class CodexApplication : Application() {
                 holder.value.reconnectIfNeeded()
                 holder.value.sessions.refreshIfStale()
                 holder.value.accountMetrics.foreground(true)
-                holder.value.refreshAfterAppAuthorization()
+                holder.value.extensions.refreshAfterAppAuthorization()
             }
         }
         override fun onActivityPaused(activity: Activity) {}

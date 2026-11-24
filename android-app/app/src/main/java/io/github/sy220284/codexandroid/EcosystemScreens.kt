@@ -251,7 +251,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectAsState()
     val engineStatus by vm.bridge.status.collectAsState()
     val workspace by vm.activeWorkspace.collectAsState()
-    val epoch by vm.extensionCatalogEpoch.collectAsState()
+    val epoch by vm.extensions.epoch.collectAsState()
     var installedOnly by rememberSaveable { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     val marketplaces = data[activeKey]?.optJSONArray("marketplaces")?.objects().orEmpty()
@@ -424,7 +424,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     val cwd = vm.activeWorkspace.value
                     vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(cwd))
                     vm.refresh("installedPlugins", "plugin/installed", CatalogRequestContract.workspace(cwd))
-                    vm.invalidatePluginSearchResults()
+                    vm.extensions.invalidatePluginSearchResults()
                 }
                 if (install) {
                     val params = JSONObject().put("pluginName", item.optString("name"))

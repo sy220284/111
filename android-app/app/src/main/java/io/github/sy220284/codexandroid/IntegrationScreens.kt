@@ -95,7 +95,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val context = LocalContext.current
     val data by vm.data.collectAsState()
-    val epoch by vm.extensionCatalogEpoch.collectAsState()
+    val epoch by vm.extensions.epoch.collectAsState()
     val installed = data["appInstalled"]
     val directory = data["apps"]
     val apps = ExtensionCatalogPolicy.apps(directory, installed)
@@ -210,7 +210,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexPrimaryButton(onClick = {
                     try {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
-                        vm.appAuthorizationPending = true
+                        vm.extensions.appAuthorizationPending = true
                     } catch (failure: android.content.ActivityNotFoundException) {
                         vm.errors.value = vm.errors.value + ("appMutation" to "没有可打开授权页面的浏览器")
                     }

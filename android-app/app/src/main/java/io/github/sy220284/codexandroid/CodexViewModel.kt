@@ -125,7 +125,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
-            if (!alreadyConnected) invalidateExtensionCatalogs()
+            if (!alreadyConnected) extensions.invalidate()
             catalogWarmup.connected()
             if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
             // Rebuild visible history after a connection loss, without resending a task.
@@ -144,32 +144,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
-    internal val extensionCatalogEpoch = MutableStateFlow(0L)
-    internal var appAuthorizationPending = false
-
-    internal fun refreshAfterAppAuthorization() {
-        if (!appAuthorizationPending) return
-        appAuthorizationPending = false
-        if (bridge.status.value != EngineStatus.Connected) return
-        refresh("appInstalled", "app/installed", JSONObject().put("forceRefresh", true))
-        refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
-    }
-
-    internal fun invalidateExtensionCatalogs(pluginsOnly: Boolean = false) =
-        invalidateExtensionKeys { ExtensionCatalogPolicy.isScopedKey(it, pluginsOnly) }
-
-    internal fun invalidatePluginSearchResults() = invalidateExtensionKeys {
-        it.startsWith("pluginSearch:") || it.startsWith("pluginDetail:") || it.startsWith("pluginSkill:")
-    }
-
-    private fun invalidateExtensionKeys(predicate: (String) -> Boolean) {
-        val keys = (data.value.keys + loading.value + errors.value.keys).filter(predicate).toSet()
-        keys.forEach { latestRequests.cancel(it) }
-        data.value = data.value - keys
-        loading.value = loading.value - keys
-        errors.value = errors.value - keys
-        extensionCatalogEpoch.value += 1
-    }
+    internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     // Query cache ownership is independent of the ViewModel's RPC orchestration.
     private val dynamicRequestHistory by lazy {
         TransientRequestCache(latestRequests, data, errors, loading)
@@ -216,7 +191,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {
                         accountMetrics.accountChanged()
-                        invalidateExtensionCatalogs()
+                        extensions.invalidate()
                     }
                     onSuccess?.invoke(response)
                     if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
@@ -749,15 +724,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        var previousWorkspace = activeWorkspace.value
-        viewModelScope.launch {
-            activeWorkspace.collect { workspace ->
-                if (workspace != previousWorkspace) {
-                    previousWorkspace = workspace
-                    invalidateExtensionCatalogs(pluginsOnly = true)
-                }
-            }
-        }
+        extensions.observeWorkspace(viewModelScope)
         connect()
     }
 }
