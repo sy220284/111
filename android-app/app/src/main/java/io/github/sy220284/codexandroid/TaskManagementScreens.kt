@@ -176,8 +176,13 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
             confirmLabel = "应用额度",
             onDismiss = { showBudgetEditor = false },
             onConfirm = {
+                val existingLimit = goal?.opt("tokenBudget")
+                    ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty()
                 vm.editTaskPanelDraft(active) {
-                    it.copy(goalBudget = budgetInput, goalBudgetEdited = true)
+                    it.copy(
+                        goalBudget = budgetInput,
+                        goalBudgetEdited = budgetInput.isNotBlank() || existingLimit.isNotBlank()
+                    )
                 }
                 showBudgetEditor = false
             },
