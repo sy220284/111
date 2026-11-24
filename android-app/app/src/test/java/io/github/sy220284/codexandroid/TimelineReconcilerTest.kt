@@ -163,4 +163,31 @@ class TimelineReconcilerTest {
         assertEquals(closed.length, MessageMarkdown.stablePrefixLength(closed))
         assertEquals(closed.length, MessageMarkdown.stablePrefixLength(closed + "未完"))
     }
+
+    @Test fun nativePartialPhaseSurvivesDeltaCompletionAndHistoryRestore() {
+        fun raw(id: String, phase: String, text: String) = org.json.JSONObject().put("type", "agentMessage")
+            .put("id", id).put("phase", phase).put("text", text)
+        fun params(item: org.json.JSONObject) = org.json.JSONObject().put("turnId", "turn").put("item", item)
+        val partial = raw("p", "partial_answer", "")
+        var timeline = TimelineEventReducer.reduce("item/started", params(partial), emptyList())
+        val delta = org.json.JSONObject().put("turnId", "turn").put("itemId", "p").put("delta", "A\n\n")
+        timeline = TimelineEventReducer.reduce("item/agentMessage/delta", delta, timeline)
+        assertEquals("partial_answer", timeline.single().phase)
+        assertEquals("A\n\n", timeline.single().text)
+        partial.put("text", "A\n\n")
+        timeline = TimelineEventReducer.reduce("item/completed", params(partial), timeline)
+        val final = raw("f", "final_answer", "B")
+        timeline = TimelineEventReducer.reduce("item/completed", params(final), timeline)
+        val cache = ProgressiveReplyProjection.Cache()
+        val groups = TimelineEventReducer.groups(timeline)
+        val before = cache.rows(groups, false, null, false)
+        assertEquals("A\n\nB", before.single().actionItem?.text)
+        val next = cache.rows(groups + listOf(listOf(TimelineItem("next", "user", "新任务", "completed", turnId = "next"))),
+            true, "next", false)
+        org.junit.Assert.assertSame(before.single(), next.first())
+        val saved = listOf(partial, final).map {
+            TimelineEventReducer.historyEntry(params(it).put("completedAtMs", 1))
+        }
+        assertEquals(before, ProgressiveReplyProjection.rows(TimelineEventReducer.groups(saved), false, null, false))
+    }
 }

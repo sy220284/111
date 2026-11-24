@@ -35,8 +35,9 @@ internal fun ConversationTimelineViewport(
     val loadingEarlier by vm.loadingEarlier.collectAsState()
     val groups = remember(items) { TimelineEventReducer.groups(items) }
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
-    val rows = remember(groups, frame.running, frame.turnId, olderPageVisible) {
-        ProgressiveReplyProjection.rows(groups, frame.running, frame.turnId, olderPageVisible)
+    val replyProjection = remember(thread) { ProgressiveReplyProjection.Cache() }
+    val rows = remember(groups, frame.running, frame.turnId, olderPageVisible, replyProjection) {
+        replyProjection.rows(groups, frame.running, frame.turnId, olderPageVisible)
     }
     val answerVersions by vm.answerVersions.state.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
@@ -99,6 +100,7 @@ internal fun ConversationTimelineViewport(
                 previousViewportHeight = viewportHeight
                 previousOlderPage = older
                 val threadChanged = observedThread != thread
+                val collapsed = count < lastKnownStepCount
                 val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, count, tail)
                 observedThread = thread
                 lastKnownStepCount = count
@@ -108,7 +110,7 @@ internal fun ConversationTimelineViewport(
                     unreadSteps = 0
                 }
                 val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed || viewportChanged)) {
+                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed || viewportChanged || collapsed)) {
                     // Let the new list layout settle; a real drag takes precedence.
                     withFrameNanos { }
                     if (followTail && !autoScrolling) {

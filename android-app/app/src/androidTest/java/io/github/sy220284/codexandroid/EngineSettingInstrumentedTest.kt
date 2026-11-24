@@ -28,4 +28,21 @@ class EngineSettingInstrumentedTest {
         rule.onNodeWithTag("engine-setting-save").performClick()
         rule.runOnIdle { assertEquals("high", submitted) }
     }
+
+    @Test fun progressiveReplyInstructionAppendsWithoutOverwritingExistingPreference() {
+        val setting = EngineSettings.byKey("developer_instructions")!!
+        var submitted: Any? = null
+        rule.setContent {
+            CodexTheme {
+                EngineSettingEditor(setting, "原有偏好", emptyMap(), true, false,
+                    onDismiss = {}, onSave = { submitted = it })
+            }
+        }
+        rule.onNodeWithTag("append-progressive-reply-instruction").performClick()
+        rule.onNodeWithTag("append-progressive-reply-instruction").assertIsNotEnabled()
+        rule.onNodeWithTag("engine-setting-save").assertIsEnabled().performClick()
+        rule.runOnIdle {
+            assertEquals("原有偏好\n\n" + ProgressiveReplyProjection.instruction, submitted)
+        }
+    }
 }
