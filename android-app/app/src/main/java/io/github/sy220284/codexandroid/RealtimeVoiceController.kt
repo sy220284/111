@@ -24,7 +24,17 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         private set
     var error by mutableStateOf("")
         private set
-    var muted by mutableStateOf(false)
+    private var muteState by mutableStateOf(false)
+    private var muteRevision = 0L
+    var muted: Boolean
+        get() = muteState
+        set(value) {
+            if (muteState != value) {
+                muteState = value
+                muteRevision++
+                if (value) inputLevel = 0f
+            }
+        }
     var inputLevel by mutableFloatStateOf(0f)
         private set
     var sending by mutableStateOf(false)
@@ -70,7 +80,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         eventJob = vm.viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             vm.bridge.events.collect(::event)
         }
-        connectionJob = vm.viewModelScope.launch {
+        connectionJob = vm.viewModelScope.launch(start = CoroutineStart.LAZY) {
             combine(vm.bridge.status, AppDataTransfer.state, vm.activeThread, vm.threadSwitching) {
                     status, transfer, active, switching ->
                 when {
@@ -81,6 +91,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 }
             }.collect { reason -> if (reason.isNotBlank()) stop(reason) }
         }
+        connectionJob?.start()
         vm.viewModelScope.launch {
             try {
                 nativeLock.withLock {
@@ -243,22 +254,31 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             }
             record.startRecording()
             check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "麦克风未能启动" }
+            var filled = 0
+            var revision = withContext(Dispatchers.Main.immediate) { muteRevision }
             while (currentCoroutineContext().isActive) {
-                val size = record.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
+                val size = record.read(buffer, filled, buffer.size - filled, AudioRecord.READ_NON_BLOCKING)
                 check(size >= 0) { "麦克风录音已中断" }
                 if (size == 0) {
                     delay(10)
                     continue
                 }
-                if (size > 0) {
-                    withContext(Dispatchers.Main.immediate) {
-                        inputLevel = if (!muted && state == State.Live) pcm16Level(buffer, size) else 0f
-                        if (!muted && state == State.Live) {
-                            val chunk = JSONObject()
-                                .put("data", Base64.encodeToString(buffer, 0, size, Base64.NO_WRAP))
-                                .put("sampleRate", rate).put("numChannels", 1).put("samplesPerChannel", size / 2)
-                            check(microphone.trySend(chunk).isSuccess) { "语音网络延迟过高，请重新连接" }
-                        }
+                filled += size
+                withContext(Dispatchers.Main.immediate) {
+                    if (muted || state != State.Live || revision != muteRevision) {
+                        // Never combine samples collected across a mute/unmute transition.
+                        revision = muteRevision
+                        filled = 0
+                        inputLevel = 0f
+                    } else if (filled == buffer.size) {
+                        // Preserve the original 50 ms wire packet size, even when
+                        // non-blocking Android reads return only a partial buffer.
+                        inputLevel = pcm16Level(buffer, filled)
+                        val chunk = JSONObject()
+                            .put("data", Base64.encodeToString(buffer, 0, filled, Base64.NO_WRAP))
+                            .put("sampleRate", rate).put("numChannels", 1).put("samplesPerChannel", filled / 2)
+                        check(microphone.trySend(chunk).isSuccess) { "语音网络延迟过高，请重新连接" }
+                        filled = 0
                     }
                 }
             }
