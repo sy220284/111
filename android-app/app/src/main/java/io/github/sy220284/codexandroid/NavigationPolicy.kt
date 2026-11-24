@@ -45,7 +45,7 @@ object NavigationPolicy {
         SettingsTopic("apps", "连接应用与授权", listOf("应用授权", "连接应用", "连接器")),
         SettingsTopic("mcp", "MCP 工具服务", listOf("工具服务", "MCP服务器", "外部工具")),
         SettingsTopic("environments", "选择执行设备", listOf("远程主机", "执行环境", "工作主机", "远程执行服务", "本机执行", "连接其他设备")),
-        SettingsTopic("config", "运行核心高级配置", listOf("高级设置", "运行参数", "环境变量")),
+        SettingsTopic("config", "运行核心高级配置", listOf("高级设置", "运行参数", "思考深度", "回复详细程度", "上下文", "全局执行指令", "联网搜索", "自动压缩", "终端等待")),
         SettingsTopic("security", "执行权限与确认", listOf("免审批", "审批模式", "授权", "沙箱", "权限方案", "危险操作")),
         SettingsTopic("diagnostics", "连接诊断和日志", listOf("日志", "内核日志", "故障排查", "连接失败", "无法连接")),
         SettingsTopic("appearance", "字体主题与动效", listOf("字体", "字号", "主题", "深色", "夜间", "浅色", "动效", "减少动画")),
@@ -68,7 +68,9 @@ object NavigationPolicy {
         SettingsSpot("security", "profiles", "可用权限方案", listOf("权限方案", "授权方案", "执行权限方案")),
         SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
         SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
-    )
+    ) + EngineSettings.all.map { setting ->
+        SettingsSpot("config", setting.key, setting.title, listOf(setting.title))
+    }
     fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
         val q = query.trim()
         if (q.isBlank()) return null

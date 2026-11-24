@@ -305,8 +305,12 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var advanced by rememberSaveable { mutableStateOf(false) }
+    var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var rawError by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        if (SettingsDeepLink.take("config") == "advanced") advanced = true
+        val target = SettingsDeepLink.take("config")
+        if (target == "advanced") advanced = true
+        else if (target != null && EngineSettings.byKey(target) != null) selectedKey = target
     }
     var path by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
@@ -314,11 +318,25 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var booleanValue by rememberSaveable { mutableStateOf(true) }
     var showConfirm by remember { mutableStateOf(false) }
     var parsed by remember { mutableStateOf<Any?>(null) }
-    val ready = data["config"] != null
+    val config = data["config"]?.optJSONObject("config")
+    val ready = config != null
+    val saving = ENGINE_SETTING_SAVE in loading
+    val permissionBusy by vm.securitySaveBusy.collectAsState()
+    val enabled = ready && engineStatus == EngineStatus.Connected && "config" !in loading && !saving && !permissionBusy
+    val models = records(data["models"])
+    val requirements = data["securityRequirements"]?.optJSONObject("requirements")
+    val requirementsRead = data["securityRequirements"] != null && "securityRequirements" !in loading && errors["securityRequirements"] == null
+    LaunchedEffect(engineStatus) {
+        if (engineStatus == EngineStatus.Connected) {
+            vm.ensureCatalog("models", "model/list")
+            vm.refresh("securityRequirements", "configRequirements/read", null)
+            if ("config" !in vm.loading.value && !saving) vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+        }
+    }
 
     ScreenColumn {
         SectionIntro("引擎配置",
-            "常用设置可直接在设置页管理；这里只处理需要手动填写的高级参数。")
+            "调整后续任务的思考、回复、上下文与运行方式。每项均显示当前配置，点开即可修改。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(CodexGlyph.Settings, null, tint = Ink.copper)
@@ -335,7 +353,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 CodexIconAction(onClick = {
                     vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-                }, enabled = "config" !in loading) {
+                }, enabled = "config" !in loading && !saving) {
                     CodexIcon(CodexGlyph.Retry, "读取生效配置")
                 }
             }
@@ -362,6 +380,27 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         else R.drawable.ic_empty_content)
             }
         }
+        if (saving) AtlasOperationProgress("正在保存并核实配置")
+        errors[ENGINE_SETTING_SAVE]?.let { ErrorText(it) }
+        data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }?.let {
+            CodexNotice(it, NoticeTone.Info)
+        }
+        EngineSettingRows(config, enabled, models, requirements, requirementsRead) { selectedKey = it.key }
+        if (engineStatus == EngineStatus.Connected && (errors["models"] != null || errors["securityRequirements"] != null)) {
+            CodexSecondaryButton(onClick = {
+                vm.refresh("models", "model/list")
+                vm.refresh("securityRequirements", "configRequirements/read", null)
+            }) { Text("重新读取可用选项") }
+        }
+        Text("相关设置", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            CodexDetailTrigger("模型目录", { navigate("models") }, Modifier.fillMaxWidth())
+            HorizontalDivider(color = Ink.border)
+            CodexDetailTrigger("权限与安全", { navigate("security") }, Modifier.fillMaxWidth())
+            HorizontalDivider(color = Ink.border)
+            CodexDetailTrigger("模型服务商", { navigate("providers") }, Modifier.fillMaxWidth())
+        }
+        Text("专业工具", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
         CodexDetailTrigger(
             label = "高级自定义配置",
             onClick = { advanced = true },
@@ -373,9 +412,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 subtitle = "请核对设置项和值。保存前还需确认更改范围。",
                 onDismiss = { advanced = false }
             ) {
-                Text("适用于已经了解目标设置项的用户。修改前核对名称和值；每次只提交一项。",
+                Text("仅供需要直接编辑底层参数的用户。常用设置请在上方选择；复杂数据将替换整个指定配置项。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                AtlasFormField(path, { path = it }, "设置项名称", placeholder = "approval_policy")
+                AtlasFormField(path, { path = it }, "设置项名称", placeholder = "例如 tool_output_token_limit")
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
                 val types = listOf("text" to "文本", "boolean" to "开关", "number" to "数字", "json" to "高级数据")
                 Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -418,21 +457,22 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }) }
                     )
                 }
+                rawError?.let { ErrorText(it) }
+                if (!enabled) Text("连接并读取当前配置后才能保存。", color = Ink.muted)
                 CodexPrimaryButton(
                     onClick = {
                         try {
                             require(path.isNotBlank()) { "请填写设置项名称" }
                             parsed = ConfigInputParser.parse(kind, value, booleanValue)
-                            vm.errors.value = vm.errors.value - "config"
+                            rawError = null
                             showConfirm = true
                         } catch (failure: Exception) {
-                            vm.errors.value = vm.errors.value +
-                                ("config" to (failure.message ?: "设置值格式不正确"))
+                            rawError = failure.message ?: "设置值格式不正确"
                         }
                     },
                     enabled = path.isNotBlank() &&
                         (kind == "boolean" || value.isNotBlank()) &&
-                        "config" !in loading,
+                        enabled,
                     modifier = Modifier.heightIn(min = 48.dp)
                 ) {
                     Text("检查并保存")
@@ -440,19 +480,25 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
+    EngineSettings.byKey(selectedKey.orEmpty())?.let { setting ->
+        val available = EngineSettings.choices(setting, config, models, requirements, requirementsRead)
+        EngineSettingEditor(setting, EngineSettings.valueAt(config, setting.key), available,
+            enabled && (setting.type !in listOf("choice", "reasoning") || available.isNotEmpty()),
+            saving, onDismiss = { selectedKey = null }, onSave = {
+                vm.saveEngineSetting(setting.key, it, setting.title)
+                selectedKey = null
+            })
+    }
     if (showConfirm) CodexConfirmDialog(
         title = "保存本机设置",
         message = "本次操作将更新 Codex 在当前设备中的运行配置。",
         detail = "设置项：$path\n设置值：" +
             if (kind == "boolean") (if (booleanValue) "启用" else "关闭") else value,
         confirmLabel = "确认保存",
+        confirmEnabled = enabled,
         onConfirm = {
-            vm.rpc("config", "config/value/write",
-                JSONObject().put("keyPath", path)
-                    .put("value", parsed).put("mergeStrategy", "replace"),
-                after = {
-                    vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-                })
+            parsed?.let { vm.saveEngineSetting(path.trim(), it, "高级配置") }
+            advanced = false
             showConfirm = false
         },
         onDismiss = { showConfirm = false }
