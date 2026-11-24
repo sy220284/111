@@ -80,6 +80,8 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 // steer bubble would duplicate it and could survive history reconciliation.
                 val params = TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references)
                     .put("clientUserMessageId", UUID.randomUUID().toString())
+                LocalImageAttachments.preserveForHistory(getApplication(), draft.images)
+                check(threadExecutions.value[thread]?.turnId == turn) { "当前运行回合已变化，原指令已保留" }
                 dispatched = true
                 bridge.request("turn/steer", params)
                 accepted()
@@ -128,7 +130,14 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
     loading.value = loading.value + key
     errors.value = errors.value - key
     viewModelScope.launch {
+        var dispatched = false
         try {
+            CodexForegroundService.startAndAwaitReady(getApplication())
+            check(threadExecutions.value[threadId] === reservation &&
+                bridge.status.value == EngineStatus.Connected && !connectionRestarter.busy.value) {
+                "运行核心状态已变化，请重新启动队列"
+            }
+            dispatched = true
             val response = bridge.request("thread/queue/start", params)
             val turnId = response.optJSONObject("turn")?.optString("id").orEmpty()
             require(turnId.isNotBlank()) { "核心未返回有效执行回合，请先核对队列" }
@@ -149,9 +158,9 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (failure: Exception) {
-            val rejected = failure is RpcServerRejection && failure.method == "thread/queue/start"
+            val definite = !dispatched || failure is RpcServerRejection && failure.method == "thread/queue/start"
             if (threadExecutions.value[threadId] === reservation) {
-                if (rejected) {
+                if (definite) {
                     threadExecutions.value = ThreadExecutionPolicy.finish(threadExecutions.value, threadId)
                     if (activeThread.value == threadId) { conversationState.update { it.copy(running = false, turnId = null) } }
                 } else {
@@ -160,7 +169,7 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
                 }
             }
             val reason = failure.message ?: "无法启动后续指令"
-            val message = if (rejected) reason else "$reason；启动结果尚未确认，请核对队列和运行状态，避免重复执行"
+            val message = if (definite) reason else "$reason；启动结果尚未确认，请核对队列和运行状态，避免重复执行"
             errors.value = errors.value + (key to message)
             actionFeedback.tryEmit(ActionFeedbackCopy.failure("thread/queue/start", message))
         } finally {

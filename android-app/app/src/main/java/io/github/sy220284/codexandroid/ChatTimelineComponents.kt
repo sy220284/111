@@ -28,10 +28,13 @@ private fun TimelineItem.active() = status in setOf("inProgress", "in_progress",
 private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "declined", "interrupted", "cancelled")
 
 @Composable
-internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null) {
+internal fun TimelineActivityGroup(
+    group: List<TimelineItem>, workspaceRoot: String? = null,
+    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null
+) {
     if (group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
-        TimelineStepCard(group.first(), onTurnAction)
+        TimelineStepCard(group.first(), workspaceRoot, onTurnAction)
         return
     }
     val active = group.any { it.active() }
@@ -59,7 +62,7 @@ internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((Ti
         }
         CodexReveal(visible = expanded) {
             Column(Modifier.fillMaxWidth().padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                group.forEach { item -> key(item.id) { TimelineStepCard(item, onTurnAction) } }
+                group.forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction) } }
             }
         }
     }
@@ -67,7 +70,10 @@ internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((Ti
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null) {
+internal fun TimelineStepCard(
+    item: TimelineItem, workspaceRoot: String? = null,
+    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null
+) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
     val active = item.active()
@@ -105,7 +111,7 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
                             Spacer(Modifier.height(5.dp))
                             SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
                         }
-                        if (user) NativeTimelineMedia(item, raw)
+                        if (user) NativeTimelineMedia(item, raw, workspaceRoot)
                     }
                 }
                 if (!active && (user || item.phase != "commentary")) {
@@ -153,7 +159,7 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
                     }
                 }
                 if (item.kind in setOf("plan", "planProgress")) NativeMessageMarkdown(item.text)
-                if (item.kind == "imageGeneration" || item.kind == "imageView") NativeTimelineMedia(item, raw)
+                if (item.kind == "imageGeneration" || item.kind == "imageView") NativeTimelineMedia(item, raw, workspaceRoot)
             }
         }
     }

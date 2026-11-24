@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1260" viewBox="0 0 1600 1260" role="img" aria-label="PR86 原生会话工作台组件设计">
 <rect x="0" y="0" width="1600" height="1260" rx="0" fill="#F6F7F8" stroke="none"/>
 <text x="34" y="52" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="700">111 / PR86 · 原生会话工作台</text>
-<text x="35" y="82" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">四技能设计调整 · 360dp 竖屏 · 示例内容仅用于设计核对，实际状态由原生内核提供</text>
+<text x="35" y="82" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">360dp 竖屏 · 对话、工作区和执行权限 · 交互示意</text>
 <path d="M35 103H1565" fill="none" stroke="#D8DEE1"/>
 <text x="35" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">01 主对话 · 浅色</text>
 <text x="35" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">正文优先 / 活动聚合 / 分段阅读</text>
@@ -33,12 +33,30 @@
 <text x="219" y="674" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="600">状态</text>
 <text x="62" y="709" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">消息</text>
 <text x="219" y="709" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">已核对</text>
-<rect x="51" y="777" width="328" height="105" rx="18" fill="#FFFFFF" stroke="#7B8992"/>
+<g transform="translate(51 725)" role="group" aria-label="回复操作栏">
+<g transform="translate(0 0)" role="img" aria-label="复制"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M10 8h9q2 0 2 2v9q0 2 -2 2h-9q-2 0 -2 -2v-9q0 -2 2 -2Z"/>
+<path d="M16 5V3H3v13h2"/>
+</g></g>
+<g transform="translate(48 0)" role="img" aria-label="重新回答"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M20 10a8 8 0 1 0 1 5"/>
+<path d="M20 4v6h-6"/>
+</g></g>
+<g transform="translate(96 0)" role="img" aria-label="分享"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M12 15V3m-4 4 4-4 4 4M5 11H3v7q0 3 3 3h12q3 0 3-3v-7h-2"/>
+</g></g>
+<g transform="translate(144 0)" role="img" aria-label="更多"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M5 12h.01M12 12h.01M19 12h.01"/>
+</g></g>
+</g>
+<rect x="51" y="777" width="328" height="86" rx="18" fill="#FFFFFF" stroke="#7B8992"/>
 <text x="65" y="806" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="400">继续输入任务…</text>
-<g transform="translate(64 837)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
-<text x="99" y="854" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">模型  ·  执行模式</text>
-<rect x="325" y="828" width="44" height="44" rx="15" fill="#263139" stroke="none"/>
-<g transform="translate(335 838)" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<g transform="translate(64 830)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<text x="99" y="847" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">模型与思考强度</text>
+<circle cx="347" cy="837" r="24" fill="#263139"/>
+<g transform="translate(335 825)" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<text x="53" y="885" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12">可编辑工作区</text>
+<text x="280" y="885" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12">执行     ···</text>
 <text x="425" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">02 主对话 · 深色</text>
 <text x="425" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">同一组件与真实状态 / 无额外层级</text>
 <rect x="425" y="185" width="360" height="714" rx="25" fill="#111A22" stroke="#344450"/>
@@ -69,12 +87,30 @@
 <text x="609" y="674" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="600">状态</text>
 <text x="452" y="709" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">消息</text>
 <text x="609" y="709" fill="#80D0AA" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">已核对</text>
-<rect x="441" y="777" width="328" height="105" rx="18" fill="#19232C" stroke="#81929E"/>
+<g transform="translate(441 725)" role="group" aria-label="回复操作栏">
+<g transform="translate(0 0)" role="img" aria-label="复制"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M10 8h9q2 0 2 2v9q0 2 -2 2h-9q-2 0 -2 -2v-9q0 -2 2 -2Z"/>
+<path d="M16 5V3H3v13h2"/>
+</g></g>
+<g transform="translate(48 0)" role="img" aria-label="重新回答"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M20 10a8 8 0 1 0 1 5"/>
+<path d="M20 4v6h-6"/>
+</g></g>
+<g transform="translate(96 0)" role="img" aria-label="分享"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M12 15V3m-4 4 4-4 4 4M5 11H3v7q0 3 3 3h12q3 0 3-3v-7h-2"/>
+</g></g>
+<g transform="translate(144 0)" role="img" aria-label="更多"><rect width="48" height="48" fill="none"/><g transform="translate(15 15) scale(.75)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M5 12h.01M12 12h.01M19 12h.01"/>
+</g></g>
+</g>
+<rect x="441" y="777" width="328" height="86" rx="18" fill="#19232C" stroke="#81929E"/>
 <text x="455" y="806" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="400">继续输入任务…</text>
-<g transform="translate(454 837)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
-<text x="489" y="854" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">模型  ·  执行模式</text>
-<rect x="715" y="828" width="44" height="44" rx="15" fill="#F0F2F3" stroke="none"/>
-<g transform="translate(725 838)" fill="none" stroke="#111A22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<g transform="translate(454 830)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<text x="489" y="847" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">模型与思考强度</text>
+<circle cx="737" cy="837" r="24" fill="#F0F2F3"/>
+<g transform="translate(725 825)" fill="none" stroke="#111A22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<text x="443" y="885" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12">可编辑工作区</text>
+<text x="670" y="885" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12">执行     ···</text>
 <text x="815" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">03 执行权限</text>
 <text x="815" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">当前项目归属 / 有效配置回读</text>
 <rect x="815" y="185" width="360" height="714" rx="25" fill="#FFFFFF" stroke="#D8DEE1"/>

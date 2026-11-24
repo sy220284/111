@@ -20,8 +20,9 @@ import org.json.JSONObject
 import java.io.File
 
 /** Read only actual local images in the application-owned workspace and attachment storage. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?) {
+internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspaceRoot: String?) {
     if (raw == null) return
     val context = LocalContext.current
     val candidates = remember(raw) {
@@ -38,16 +39,20 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?) {
         }.filter { it.isNotBlank() && it != "null" }
     }
     var preview by remember(item.id) { mutableStateOf<String?>(null) }
-    val resolved by produceState<List<String>?>(null, candidates) {
+    val resolved by produceState<List<String>?>(null, candidates, workspaceRoot) {
         value = withContext(Dispatchers.IO) {
-            val roots = listOf(context.filesDir.canonicalFile, context.cacheDir.canonicalFile)
+            val workspace = workspaceRoot?.let { File(it).canonicalFile }
+            val legacy = WorkspaceStorage.legacyRoot(context)
+            val roots = listOfNotNull(context.filesDir.canonicalFile, context.cacheDir.canonicalFile, workspace)
             candidates.mapNotNull { path ->
                 try {
-                    val file = File(path).canonicalFile
+                    val original = File(path).canonicalFile
+                    val file = workspace?.let { WorkspaceSelectionContract.remap(legacy, it, original) } ?: original
                     file.takeIf { it.isFile && roots.any { root ->
                         it.path.startsWith(root.path + File.separator)
                     } }?.absolutePath
                 } catch (_: java.io.IOException) { null }
+                catch (_: IllegalArgumentException) { null }
             }.distinct()
         }
     }
@@ -57,7 +62,8 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?) {
         return
     }
     if (candidates.isNotEmpty()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)) {
             paths.take(3).forEach { path ->
                 val bitmap by produceState<ImageBitmap?>(null, path) {
                     value = withContext(Dispatchers.IO) {

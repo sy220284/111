@@ -99,7 +99,7 @@ internal fun ConversationComposer(
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
                 minLines = 1,
-                maxLines = 6,
+                maxLines = if (compactControls) 2 else 6,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = Ink.parchment),
                 cursorBrush = SolidColor(Ink.copper),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),

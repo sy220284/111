@@ -93,16 +93,21 @@ fun ApprovalsPage(vm: CodexViewModel) {
 /** Same validated approval flow, directly accessible from the active conversation. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApprovalQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val prompts by vm.bridge.prompts.collectAsState()
-    ApprovalQuickSheetContent(vm, prompts, onDismiss)
+fun ApprovalQuickSheet(vm: CodexViewModel, threadId: String? = null, onDismiss: () -> Unit) {
+    val prompts by vm.bridge.prompts.collectProjection { all ->
+        if (threadId == null) all else all.forThread(threadId)
+    }
+    ApprovalQuickSheetContent(vm, prompts, onDismiss, includeAudit = threadId == null)
 }
+
+internal fun List<ServerPrompt>.forThread(threadId: String?): List<ServerPrompt> =
+    if (threadId.isNullOrBlank()) emptyList() else filter { it.params.optString("threadId") == threadId }
 
 /** Complete sheet bound to an explicit prompt snapshot for deterministic rendering. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ApprovalQuickSheetContent(
-    vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit
+    vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit, includeAudit: Boolean = true
 ) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
@@ -122,7 +127,7 @@ internal fun ApprovalQuickSheetContent(
                 key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
             }
         }
-        if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
+        if (includeAudit && (auditRecords.isNotEmpty() || !auditError.isNullOrBlank())) {
             ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
         }
         Spacer(Modifier.height(12.dp))

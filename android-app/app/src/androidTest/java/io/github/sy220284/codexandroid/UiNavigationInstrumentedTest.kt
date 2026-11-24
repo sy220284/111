@@ -373,8 +373,9 @@ class UiNavigationInstrumentedTest {
     @Test fun chatKeyboardKeepsComposerActionsAccessible() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("composer-input").performClick()
-        rule.onNodeWithTag("composer-input").performTextInput("验证键盘展开后的操作入口")
-        rule.onNodeWithTag("composer-input").assertTextContains("验证键盘展开后的操作入口")
+        val multiline = (1..6).joinToString("\n") { "验证键盘展开后的操作入口 $it" }
+        rule.onNodeWithTag("composer-input").performTextInput(multiline)
+        rule.onNodeWithTag("composer-input").assertTextContains(multiline)
         rule.waitForIdle()
         // 必须由系统确认软键盘真实展开；仅能输入文字或按钮可见均不足以验收 IME。
         assertRealSoftKeyboardOpen()
@@ -382,6 +383,7 @@ class UiNavigationInstrumentedTest {
         // device display so the screenshot actually proves keyboard occlusion.
         captureVerifiedDisplayScreenshot("chat-keyboard-open-android35.png")
         assertRealSoftKeyboardOpen()
+        rule.onNodeWithTag("composer-expand").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
         rule.onNodeWithTag("composer-task-options").assertIsDisplayed()

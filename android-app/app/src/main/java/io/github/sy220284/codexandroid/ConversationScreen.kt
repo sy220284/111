@@ -45,7 +45,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val setupHint = if (thread == null) ChatSetupPolicy.hint(
         status == EngineStatus.Connected, models["account"], models["models"]) else null
     val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
-    val prompts by vm.bridge.prompts.collectAsState()
+    val prompts by vm.bridge.prompts.collectProjection { it.forThread(thread) }
     val selectedWorkspace = conversation.workspace
     val draftOwner = vm.composerOwner(thread, selectedWorkspace)
     val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
@@ -155,7 +155,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
     Column(Modifier.fillMaxSize()) {
-        if (goal != null) {
+        if (goal != null && !compactWorkArea) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
                     .testTag("chat-goal-banner").clickable { navigate("goals") },
@@ -176,7 +176,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        if (latestDiff.isNotBlank()) {
+        if (latestDiff.isNotBlank() && !compactWorkArea) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
                     .testTag("chat-changes-summary"),
@@ -199,17 +199,17 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
+        CodexReveal(visible = prompts.isNotEmpty() || (busy && !compactWorkArea) || switching) {
             if (switching) {
                 CodexNotice("正在载入会话及执行记录，请稍候…",
                     NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
             } else if (prompts.isNotEmpty()) {
                 CodexNotice(
-                    "当前任务有 ${prompts.size} 项待审批操作，确认后才能继续。",
+                    "当前任务有 ${prompts.size} 项需要处理，完成后可继续。",
                     NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                     actionLabel = "立即处理", onAction = { composerMenu = "approval" }
                 )
-            } else if (busy) {
+            } else if (busy && !compactWorkArea) {
                 ConversationExecutionNotice(vm, stopping)
             }
         }
@@ -289,7 +289,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
                 add(ComposerShortcut("project", "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace),
-                    "选择已登记项目或工作目录", CodexGlyph.Folder, enabled = optionsEnabled,
+                    "切换手机工作区中的项目与目录", CodexGlyph.Folder, enabled = optionsEnabled,
                     onOpen = { keyboard?.hide(); composerMenu = "projects" }))
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "terminal" }))
@@ -302,7 +302,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
                 if (thread != null) {
-                    add(ComposerShortcut("context", "会话选项", "创建分支、整理上下文和回退", CodexGlyph.MoreHoriz,
+                    add(ComposerShortcut("context", "会话选项", "整理上下文、回退历史和查看资料", CodexGlyph.MoreHoriz,
                         enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "context-tools" }))
                     add(ComposerShortcut("usage", "上下文容量", "查看当前会话容量", CodexGlyph.Insights,
                         onOpen = { keyboard?.hide(); composerMenu = "usage" }))
@@ -510,11 +510,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onDismiss = { confirmPlan = false }
         )
     }
-    if (composerMenu == "approval") ApprovalQuickSheet(vm) { closeComposerMenu("approval") }
+    if (composerMenu == "approval" && thread != null)
+        ApprovalQuickSheet(vm, thread) { closeComposerMenu("approval") }
     if (composerMenu == "models") ModelChoiceSurface(vm) { closeComposerMenu("models") }
     if (composerMenu == "modes") ModeChoiceSurface(vm) { closeComposerMenu("modes") }
     if (composerMenu == "engine-status") EngineStatusSheet(
         vm, onDismiss = { closeComposerMenu("engine-status") }, navigate = navigate
     )
 }
-

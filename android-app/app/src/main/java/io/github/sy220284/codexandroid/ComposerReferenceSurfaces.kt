@@ -171,8 +171,8 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
         }
     }
     CodexDetailSheet(title = "选择工作区", onDismiss = onDismiss,
-        subtitle = "切换工作区会新建任务，原会话与草稿保留。") {
-        Text(if (directory == root) "本机工作区" else directory.relativeTo(root).path, style = MaterialTheme.typography.titleSmall)
+        subtitle = "选择目录开始新任务，原会话和草稿会保留。") {
+        Text(if (directory == root) WorkspaceStorage.DISPLAY_ROOT else directory.relativeTo(root).path, style = MaterialTheme.typography.titleSmall)
         error?.let { ErrorText(it) }
         CodexPrimaryButton(onClick = {
             try { vm.selectWorkspace(directory); onDismiss() }

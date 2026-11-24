@@ -471,6 +471,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     }) { "计划模式需要先读取可用模型目录" }
                 }
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
+                LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
                     bridge.request(method, params)
                 }.submit(

@@ -8,6 +8,8 @@ import android.provider.Settings
 import android.Manifest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -115,20 +117,24 @@ class MainActivity : ComponentActivity() {
                 }
                 if (authorized && ready) CodexShell(model)
                 else Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+                    Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("手机工作区", style = MaterialTheme.typography.headlineSmall)
                         Text(WorkspaceStorage.DISPLAY_ROOT, style = MaterialTheme.typography.titleMedium)
-                        Text(if (!authorized) "授权后，Codex、终端和手机文件管理器可以直接操作同一份项目文件。账号和运行配置仍保存在应用私有目录。"
-                            else if (failure.isNotBlank()) failure else "正在准备工作区并检查原有项目…",
-                            style = MaterialTheme.typography.bodyMedium)
-                        if (permissionError.isNotBlank()) ErrorText(permissionError)
-                        if (!authorized) CodexPrimaryButton(onClick = { requestStorageAccess() }) {
-                            Text("授权文件访问")
-                        } else if (failure.isNotBlank()) CodexPrimaryButton(onClick = { retry++ }) {
-                            Text("重新检查")
-                        } else CircularProgressIndicator()
+                        when {
+                            !authorized -> {
+                                Text("授权后，Codex、终端和手机文件管理器可以直接操作同一份项目文件。账号和运行配置保存在应用私有目录。",
+                                    style = MaterialTheme.typography.bodyMedium)
+                                if (permissionError.isNotBlank()) ErrorText(permissionError)
+                                CodexPrimaryButton(onClick = ::requestStorageAccess) { Text("授权文件访问") }
+                            }
+                            failure.isNotBlank() -> {
+                                ErrorText(failure)
+                                CodexPrimaryButton(onClick = { retry++ }) { Text("重新检查") }
+                            }
+                            else -> AtlasOperationProgress("正在准备工作区并检查原有项目")
+                        }
                     }
                 }
             }

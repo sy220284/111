@@ -44,9 +44,14 @@ internal fun ConversationTimelineViewport(
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
     var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, MessageTurnAction>?>(null) }
-    val loading by vm.loading.collectAsState()
-    val canChangeTurn = !busy && !contextLoading && thread != null && !loadingEarlier &&
-        "threadFork:$thread" !in loading && "threadRevert:$thread" !in loading
+    val mutatingHistory by vm.loading.collectProjection {
+        "threadFork:$thread" in it || "threadRevert:$thread" in it
+    }
+    val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
+    val savingPermissions by vm.securitySaveBusy.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val canChangeTurn = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
+        !firstThreadStarting && !mutatingHistory && !savingPermissions && !restarting
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
     val latestIndex = TimelineViewportPolicy.latestIndex(groups.size, olderPageVisible)
 
@@ -154,7 +159,8 @@ internal fun ConversationTimelineViewport(
                 }
             }
             items(groups, key = { it.first().id }) { group ->
-                TimelineActivityGroup(group, if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null)
+                TimelineActivityGroup(group, workspaceRoot = vm.workingDirectory,
+                    onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null)
             }
         }
         if (!contextLoading && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
