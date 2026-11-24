@@ -73,10 +73,18 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         scope.launch { vm.actionFeedback.emit(ActionFeedbackReceipt(message, isError = true)) }
     }
     fun togglePin(id: String) {
-        if (id.isBlank()) return
-        val next = if (id in pins.value) pins.value - id else pins.value + id
-        if (preferences.edit().putStringSet("pinned", next).commit()) pins.value = next
-        else feedback("置顶状态保存失败，请重试")
+        setPinned(setOf(id), id !in pins.value)
+    }
+    fun setPinned(ids: Set<String>, pinned: Boolean): Boolean {
+        val targets = ids.filter(String::isNotBlank)
+        val next = if (pinned) pins.value + targets else pins.value - targets.toSet()
+        if (next == pins.value) return true
+        if (!preferences.edit().putStringSet("pinned", next).commit()) {
+            feedback("置顶状态保存失败，请重试")
+            return false
+        }
+        pins.value = next
+        return true
     }
     fun removePin(id: String) {
         if (id in pins.value) togglePin(id)

@@ -136,7 +136,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (composerMenu != "context-tools") {
             pendingContextRoute?.let { destination ->
                 pendingContextRoute = null
-                navigate(destination)
+                when (destination) {
+                    "realtime-voice", "thread-memory" -> composerMenu = destination
+                    else -> navigate(destination)
+                }
             }
         }
     }
@@ -472,6 +475,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Box(Modifier.weight(1f)) { TerminalPage(vm, embedded = true) }
             }
         }
+    }
+    val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
+    if (composerMenu == "realtime-voice" && realtimeVoice != null && thread != null) {
+        RealtimeVoiceSheet(vm, thread, realtimeVoice) { closeComposerMenu("realtime-voice") }
+    }
+    if (composerMenu == "thread-memory" && thread != null) {
+        MemoryManagementSheet(vm, thread) { closeComposerMenu("thread-memory") }
     }
     if (composerMenu == "context-tools") {
         ThreadContextTools(

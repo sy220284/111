@@ -4,7 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -22,6 +22,24 @@ internal fun ThreadBulkToolbar(
     onAction: (String) -> Unit,
     onFinish: () -> Unit = onClear
 ) {
+    val extras: @Composable () -> Unit = {
+        var open by remember { mutableStateOf(false) }
+        Box {
+            CodexIconAction(onClick = { open = true }, enabled = enabled && selectedCount > 0,
+                modifier = Modifier.size(48.dp).testTag("thread-bulk-organize")) {
+                CodexIcon(CodexGlyph.MoreHoriz, "整理所选会话")
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                listOf("move" to "移动到分组", "pin" to "批量置顶",
+                    "unpin" to "批量取消置顶", "clear" to "清空选择").forEach { (action, label) ->
+                    DropdownMenuItem(text = { Text(label) }, onClick = {
+                        open = false
+                        if (action == "clear") onClear() else onAction(action)
+                    })
+                }
+            }
+        }
+    }
     val allowAction = enabled && selectedCount > 0
     val largeText = LocalDensity.current.fontScale >= 1.5f
     val archiveLabel = if (archived) "批量恢复" else "批量归档"
@@ -46,6 +64,7 @@ internal fun ThreadBulkToolbar(
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
                         CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选当前结果")
                     }
+                    extras()
                     CodexIconAction(onClick = onFinish,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-finish")) {
                         CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
@@ -87,6 +106,7 @@ internal fun ThreadBulkToolbar(
                     modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选当前结果")
                 }
+                extras()
                 CodexIconAction(onClick = onFinish, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                 }
