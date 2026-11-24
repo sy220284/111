@@ -36,20 +36,8 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     val method = if (usage) "account/usage/read" else "account/rateLimits/read"
     LaunchedEffect(selectedTab) { vm.refresh(selectedTab, method) }
     ScreenColumn {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = selectedTab == "usage",
-                onClick = { selectedTab = "usage" },
-                shape = SegmentedButtonDefaults.itemShape(0, 2),
-                label = { Text("用量") }
-            )
-            SegmentedButton(
-                selected = selectedTab == "limits",
-                onClick = { selectedTab = "limits" },
-                shape = SegmentedButtonDefaults.itemShape(1, 2),
-                label = { Text("额度") }
-            )
-        }
+        AtlasCompactChoice(selectedTab, listOf("usage" to "用量", "limits" to "额度"),
+            onSelect = { selectedTab = it })
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(if (usage) CodexGlyph.Insights else CodexGlyph.Speed,

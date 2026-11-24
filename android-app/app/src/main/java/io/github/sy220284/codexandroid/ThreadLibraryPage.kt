@@ -185,34 +185,14 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     },
                     onSubmit = { submitSearch(searchText) }
                 )
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = !fullText,
-                        onClick = { fullText = false; fullSubmitted = ""; cursor = null; history = emptyList() },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        label = { Text("标题搜索") }
-                    )
-                    SegmentedButton(
-                        selected = fullText,
-                        onClick = { fullText = true; fullSubmitted = ""; cursor = null; history = emptyList() },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        label = { Text("全文搜索") }
-                    )
-                }
-                if (!fullText) SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = !archived,
-                        onClick = { archived = false; cursor = null; history = emptyList() },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        label = { Text("活跃") }
-                    )
-                    SegmentedButton(
-                        selected = archived,
-                        onClick = { archived = true; cursor = null; history = emptyList() },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        label = { Text("已归档") }
-                    )
-                }
+                AtlasCompactChoice(if (fullText) "full" else "title",
+                    listOf("title" to "标题搜索", "full" to "全文搜索"), onSelect = {
+                        fullText = it == "full"; fullSubmitted = ""; cursor = null; history = emptyList()
+                    })
+                if (!fullText) AtlasCompactChoice(if (archived) "archived" else "active",
+                    listOf("active" to "活跃", "archived" to "已归档"), onSelect = {
+                        archived = it == "archived"; cursor = null; history = emptyList()
+                    })
                 val recent = if (fullText) recentFull else recentTitle
                 if (recent.isNotEmpty()) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

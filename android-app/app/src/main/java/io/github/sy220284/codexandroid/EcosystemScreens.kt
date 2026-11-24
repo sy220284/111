@@ -322,20 +322,9 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     ScreenColumn {
         SectionIntro("插件",
             "先管理已安装能力，需要新功能时再浏览可用插件。")
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = installedOnly, onClick = { installedOnly = true },
-                shape = SegmentedButtonDefaults.itemShape(0, 2),
-                modifier = Modifier.testTag("plugins-tab-installed"),
-                label = { Text("已安装") }
-            )
-            SegmentedButton(
-                selected = !installedOnly, onClick = { installedOnly = false },
-                shape = SegmentedButtonDefaults.itemShape(1, 2),
-                modifier = Modifier.testTag("plugins-tab-catalog"),
-                label = { Text("发现插件") }
-            )
-        }
+        AtlasCompactChoice(if (installedOnly) "installed" else "catalog",
+            listOf("installed" to "已安装", "catalog" to "发现插件"),
+            onSelect = { installedOnly = it == "installed" }, tagPrefix = "plugins-tab-")
         if (!installedOnly) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("搜索插件", style = MaterialTheme.typography.titleSmall,

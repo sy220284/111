@@ -330,9 +330,9 @@ fun AtlasChoiceRow(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+            .codexSelectable(selected, enabled, onClick),
         color = if (selected) Ink.panel else Ink.canvas,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else Ink.border),
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
         shape = RoundedCornerShape(15.dp)
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -357,16 +357,21 @@ fun AtlasCompactChoice(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    tagPrefix: String = ""
+    tagPrefix: String = "",
+    labelStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelMedium
 ) {
     SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (id, label) ->
             SegmentedButton(selected = selected == id, onClick = { onSelect(id) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 enabled = enabled,
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = Ink.copper.copy(alpha = .12f), activeContentColor = Ink.parchment,
+                    activeBorderColor = Ink.copper, inactiveContainerColor = Ink.canvas,
+                    inactiveContentColor = Ink.muted, inactiveBorderColor = Ink.controlBorder),
                 modifier = Modifier.heightIn(min = 48.dp).let {
                     if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
-                }) { Text(label, style = MaterialTheme.typography.labelMedium) }
+                }) { Text(label, style = labelStyle) }
         }
     }
 }

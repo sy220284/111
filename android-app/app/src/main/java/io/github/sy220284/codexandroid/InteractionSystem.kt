@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.togetherWith
@@ -47,10 +46,16 @@ import androidx.compose.ui.unit.dp
 
 /** One motion language for a working console. All durations respect the in-app preference. */
 object CodexMotion {
-    const val feedback = 150
-    const val reveal = 200
+    const val press = 100
+    const val release = 140
+    const val feedback = release
+    const val reveal = 240
+    const val selection = 180
+    const val menu = 200
+    const val imageZoom = 220
+    const val success = 450
     const val navigation = 280
-    const val sheet = 300
+    const val sheet = 320
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
 }
 
@@ -94,15 +99,8 @@ fun Modifier.codexPressable(
     role: Role? = null,
     onClick: () -> Unit
 ): Modifier = composed {
-    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (enabled && pressed && !reduceMotion) .985f else 1f,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduceMotion)),
-        label = "codex-row-press"
-    )
-    this.graphicsLayer { scaleX = scale; scaleY = scale }
+    this.codexActionPress(interaction, enabled)
         .clickable(
             enabled = enabled,
             role = role,
@@ -513,16 +511,10 @@ fun CodexActionTile(
 ) {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
-    val reduce by UiPreferences.reducedMotion.collectAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && !reduce) .985f else 1f,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduce)),
-        label = "action_press"
-    )
     Surface(
-        modifier = modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+        modifier = modifier.codexActionPress(source, true)
             .clip(RoundedCornerShape(18.dp))
-            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = source, indication = LocalIndication.current, role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = Ink.panel,
         border = BorderStroke(1.dp, if (pressed) Ink.copper else Ink.border)

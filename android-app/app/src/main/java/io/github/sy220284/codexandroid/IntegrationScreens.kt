@@ -120,7 +120,8 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     else -> "尚未读取"
                 }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            CodexTextAction(onClick = {
+            if (engineStatus == EngineStatus.Connected && data["apps"] != null && errors["apps"] == null)
+                CodexTextAction(enabled = "apps" !in loading && "appInstalled" !in loading, onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
             }, modifier = Modifier.heightIn(min = 48.dp)) {

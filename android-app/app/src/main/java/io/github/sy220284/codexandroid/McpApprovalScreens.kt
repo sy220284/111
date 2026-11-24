@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -106,8 +108,12 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     "integer", "number" -> CodexInputField(
                         value = answers[name] ?: "",
                         onValueChange = { answers[name] = it },
-                        label = { Text(if (type == "integer") "整数" else "数值") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true
+                        label = { Text(label) },
+                        modifier = Modifier.fillMaxWidth().testTag("elicitation-field-" + name), singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = if (type == "integer") KeyboardType.Number else KeyboardType.Decimal),
+                        isError = answers[name]?.takeIf { it.isNotBlank() }?.let {
+                            if (type == "integer") it.toLongOrNull() == null else it.toDoubleOrNull()?.isFinite() != true
+                        } == true
                     )
                     "array" -> {
                         val choices = field.optJSONObject("items")?.optJSONArray("enum")

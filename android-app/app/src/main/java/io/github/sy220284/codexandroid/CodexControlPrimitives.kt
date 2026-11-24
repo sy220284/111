@@ -3,9 +3,14 @@ package io.github.sy220284.codexandroid
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.composed
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -31,12 +36,17 @@ import androidx.compose.ui.unit.dp
 internal fun Modifier.codexActionPress(interaction: MutableInteractionSource, enabled: Boolean): Modifier {
     val pressed by interaction.collectIsPressedAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
+    val focused by interaction.collectIsFocusedAsState()
+    val hovered by interaction.collectIsHoveredAsState()
     val scale by animateFloatAsState(
         targetValue = if (enabled && pressed && !reduced) .985f else 1f,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduced)),
+        animationSpec = tween(CodexMotion.duration(if (pressed) CodexMotion.press else CodexMotion.release, reduced)),
         label = "control-press"
     )
     return graphicsLayer { scaleX = scale; scaleY = scale }
+        .then(if (enabled && (focused || hovered)) Modifier.border(
+            if (focused) 2.dp else 1.dp, if (focused) Ink.copper else Ink.controlBorder,
+            RoundedCornerShape(13.dp)) else Modifier)
 }
 
 /** Quiet tertiary action; callers retain destructive colors and constrained layouts. */
@@ -76,15 +86,22 @@ internal fun CodexInputField(value: String, onValueChange: (String) -> Unit,
     keyboardActions: KeyboardActions = KeyboardActions.Default, singleLine: Boolean = false,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE, minLines: Int = 1,
     shape: Shape = RoundedCornerShape(13.dp), confirmedValid: Boolean = false) {
+    val protected = visualTransformation is PasswordVisualTransformation
+    var revealSecret by remember(protected, enabled, readOnly) { mutableStateOf(false) }
     OutlinedTextField(value = value, onValueChange = onValueChange, modifier = modifier,
         enabled = enabled, readOnly = readOnly, textStyle = textStyle, label = label,
-        placeholder = placeholder, leadingIcon = leadingIcon, trailingIcon = trailingIcon,
-        supportingText = supportingText, isError = isError, visualTransformation = visualTransformation,
+        placeholder = placeholder, leadingIcon = leadingIcon,
+        trailingIcon = if (protected && enabled && !readOnly && trailingIcon == null) {{
+            CodexTextAction(onClick = { revealSecret = !revealSecret }) {
+                Text(if (revealSecret) "隐藏" else "显示", style = MaterialTheme.typography.labelMedium)
+            }
+        }} else trailingIcon,
+        supportingText = supportingText, isError = isError, visualTransformation = if (protected && revealSecret) VisualTransformation.None else visualTransformation,
         keyboardOptions = keyboardOptions, keyboardActions = keyboardActions, singleLine = singleLine,
         maxLines = maxLines, minLines = minLines, shape = shape,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = if (confirmedValid && !isError) Ink.jade else Ink.copper,
-            unfocusedBorderColor = if (confirmedValid && !isError) Ink.jade else Ink.border,
+            unfocusedBorderColor = if (confirmedValid && !isError) Ink.jade else Ink.controlBorder,
             focusedLabelColor = Ink.copper, unfocusedLabelColor = Ink.muted,
             cursorColor = Ink.copper, errorBorderColor = Ink.red, errorLabelColor = Ink.red,
             errorCursorColor = Ink.red, disabledBorderColor = Ink.border,
@@ -143,7 +160,7 @@ internal fun AtlasExclusiveChip(selected: Boolean, onClick: () -> Unit, label: @
             onClick = onClick),
         color = if (selected) Ink.copper.copy(alpha = .10f) else Ink.canvas,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else Ink.border)) {
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border)) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -162,4 +179,12 @@ internal fun CodexSuggestionChip(onClick: () -> Unit, label: @Composable () -> U
     AssistChip(onClick = onClick, label = label, enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled),
         shape = RoundedCornerShape(12.dp), interactionSource = press)
+}
+
+/** Whole-row single choice shares native radio semantics and the same press/focus feedback. */
+internal fun Modifier.codexSelectable(selected: Boolean, enabled: Boolean = true, onClick: () -> Unit): Modifier = composed {
+    val source = remember { MutableInteractionSource() }
+    this.codexActionPress(source, enabled).selectable(selected = selected, enabled = enabled,
+        role = Role.RadioButton, interactionSource = source,
+        indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick)
 }

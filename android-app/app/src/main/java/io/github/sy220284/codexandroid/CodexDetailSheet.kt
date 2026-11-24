@@ -34,7 +34,7 @@ fun CodexDetailSheet(
 ) {
     CodexSheetFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = startExpanded),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = startExpanded || footer != null),
         containerColor = Ink.elevated,
         contentColor = Ink.parchment,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) },
@@ -143,7 +143,7 @@ private fun ColumnScope.CodexActionRows(
             Surface(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
                     .let { if (action.testTag != null) it.testTag(action.testTag) else it }
-                    .clickable(enabled = action.enabled, role = Role.Button) {
+                    .codexPressable(enabled = action.enabled, role = Role.Button) {
                         onDismiss()
                         action.onClick()
                     },
@@ -268,7 +268,7 @@ fun CodexEditDialog(
             }
         },
         confirmButton = {
-            CodexTextAction(
+            CodexPrimaryButton(
                 onClick = onConfirm,
                 enabled = canConfirm,
                 modifier = Modifier.heightIn(min = 48.dp).testTag("codex-edit-confirm")
