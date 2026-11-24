@@ -26,6 +26,7 @@ internal class TimelineWindowStore(private val cache: File) {
     private val positions = ArrayList<Long>()
     private var threadId: String? = null
     private var visibleStart = 0
+    private var epoch = 0L
     val olderCount = MutableStateFlow(0)
 
     private fun resetFile() {
@@ -52,9 +53,11 @@ internal class TimelineWindowStore(private val cache: File) {
         }
     }
 
-    suspend fun replace(id: String, history: List<TimelineItem>): List<TimelineItem> =
+    suspend fun replace(id: String, history: List<TimelineItem>, owner: Long = 0): List<TimelineItem> =
         withContext(Dispatchers.IO) {
             lock.withLock {
+                if (owner < epoch) return@withLock history
+                epoch = owner
                 resetFile()
                 threadId = id
                 persist(history.take((history.size - WINDOW_SIZE).coerceAtLeast(0)))
@@ -64,11 +67,13 @@ internal class TimelineWindowStore(private val cache: File) {
             }
         }
 
-    suspend fun compact(id: String?, visible: List<TimelineItem>): List<TimelineItem> {
+    suspend fun compact(id: String?, visible: List<TimelineItem>, owner: Long = 0): List<TimelineItem> {
         if (id == null || visible.size <= COMPACT_AT) return visible
         return withContext(Dispatchers.IO) {
             lock.withLock {
-                if (threadId != id) {
+                if (owner < epoch) return@withLock visible
+                if (owner > epoch || threadId != id) {
+                    epoch = owner
                     resetFile()
                     threadId = id
                 }
@@ -83,9 +88,9 @@ internal class TimelineWindowStore(private val cache: File) {
         }
     }
 
-    suspend fun readEarlier(id: String): List<TimelineItem> = withContext(Dispatchers.IO) {
+    suspend fun readEarlier(id: String, owner: Long = 0): List<TimelineItem> = withContext(Dispatchers.IO) {
         lock.withLock {
-            if (threadId != id || visibleStart == 0) return@withLock emptyList()
+            if (owner != epoch || threadId != id || visibleStart == 0) return@withLock emptyList()
             val start = (visibleStart - PAGE_SIZE).coerceAtLeast(0)
             val previous = ArrayList<TimelineItem>(visibleStart - start)
             RandomAccessFile(cache, "r").use { file ->
@@ -111,8 +116,10 @@ internal class TimelineWindowStore(private val cache: File) {
         }
     }
 
-    suspend fun clear() = withContext(Dispatchers.IO) {
+    suspend fun clear(owner: Long = 0) = withContext(Dispatchers.IO) {
         lock.withLock {
+            if (owner < epoch) return@withLock
+            epoch = owner
             resetFile()
             threadId = null
             olderCount.value = 0

@@ -47,6 +47,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val olderServerCursor = MutableStateFlow<String?>(null)
     internal val loadingEarlier = MutableStateFlow(false)
     internal var hydratingThread: String? = null
+    internal var timelineEpoch = 0L
+    internal var timelineCompacting = false
     internal val liveTimelines = ConversationLiveTimeline()
     private fun readHistoryPage(payload: JSONObject): List<TimelineItem> {
         val rows = payload.getJSONArray("data")
@@ -55,26 +57,27 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private fun historyCursor(payload: JSONObject): String? = if (payload.isNull("nextCursor")) null else payload.optString("nextCursor").takeIf(String::isNotBlank)
     fun loadEarlierTimeline() {
         val id = activeThread.value ?: return
-        if (loadingEarlier.value || threadSwitching.value) return
+        if (loadingEarlier.value || threadSwitching.value || timelineCompacting) return
+        val epoch = timelineEpoch
         loadingEarlier.value = true
         viewModelScope.launch {
             try {
-                var older = timelineWindow.readEarlier(id)
-                if (older.isEmpty() && activeThread.value == id) {
+                var older = timelineWindow.readEarlier(id, epoch)
+                if (older.isEmpty() && activeThread.value == id && timelineEpoch == epoch) {
                     val cursor = olderServerCursor.value ?: return@launch
                     val response = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                         .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
-                    if (activeThread.value != id || threadSwitching.value) return@launch
+                    if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
                     older = readHistoryPage(response)
                     olderServerCursor.value = historyCursor(response)
                 }
-                if (activeThread.value == id && !threadSwitching.value && older.isNotEmpty()) {
+                if (activeThread.value == id && timelineEpoch == epoch && !threadSwitching.value && older.isNotEmpty()) {
                     val known = timeline.value.mapTo(hashSetOf()) { it.id }
                     timeline.value = older.filterNot { it.id in known } + timeline.value
                     errors.value = errors.value - "timeline"
                 }
             } catch (failure: Exception) {
-                errors.value = errors.value + ("timeline" to
+                if (timelineEpoch == epoch) errors.value = errors.value + ("timeline" to
                     (failure.message ?: "无法加载更早的记录"))
             } finally { loadingEarlier.value = false }
         }
@@ -284,7 +287,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         // Serialize resume requests: multiple rapid taps must not race the active session.
-        if (threadSwitching.value) return
+        if (threadSwitching.value || loadingEarlier.value || timelineCompacting) return
         if (firstThreadStarting.value) {
             errors.value = errors.value + ("conversation" to "正在建立新会话，请在会话创建后切换")
             return
@@ -312,6 +315,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     .put("sortDirection", "desc").put("limit", 120))
                 val restored = readHistoryPage(page)
                 val turns = TimelineEventReducer.historyTurns(restored)
+                val newest = timelineWindow.replace(id, restored, ++timelineEpoch)
                 activeWorkspace.value = threadDirectory.absolutePath
                 activeProjectId.value = history.getJSONObject("thread")
                     .optString("projectId").takeIf { it.isNotBlank() }
@@ -319,7 +323,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     .putString("activeDirectory", threadDirectory.absolutePath).apply()
                 // The server history is authoritative; avoid retaining a second full
                 // JSON copy after materializing the bounded timeline window.
-                val newest = timelineWindow.replace(id, restored)
                 restoreComposerOptions(id)
                 activeThread.value = id
                 val execution = threadExecutions.value[id]
@@ -354,8 +357,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再新建会话")
             return
         }
-        if (threadSwitching.value) {
-            errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后再新建任务")
+        if (threadSwitching.value || loadingEarlier.value || timelineCompacting) {
+            errors.value = errors.value + ("conversation" to "正在整理会话记录，请稍后新建任务")
             return
         }
         if (firstThreadStarting.value) {
@@ -373,7 +376,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         errors.value = errors.value - "conversation"
         timeline.value = emptyList()
         olderServerCursor.value = null
-        viewModelScope.launch { timelineWindow.clear() }
+        val epoch = ++timelineEpoch
+        viewModelScope.launch { timelineWindow.clear(epoch) }
         latestDiff.value = ""
         running.value = false
     }

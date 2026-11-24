@@ -205,13 +205,22 @@ internal object CodexNotificationDispatcher {
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
             "turn/completed" -> timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
         }
-        if (!threadSwitching.value && !running.value && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+        if (!threadSwitching.value && !running.value && !loadingEarlier.value && !timelineCompacting && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+            val epoch = timelineEpoch
+            val owner = activeThread.value
+            val snapshot = timeline.value
+            timelineCompacting = true
             try {
-                timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
+                val compacted = timelineWindow.compact(owner, snapshot, epoch)
+                if (timelineEpoch == epoch && activeThread.value == owner) {
+                    // Concurrent send may append a pending user item while disk I/O runs.
+                    val retained = timeline.value.drop(snapshot.size - compacted.size)
+                    timeline.value = retained
+                }
             } catch (failure: Exception) {
                 errors.value = errors.value + ("timeline" to
                     (failure.message ?: "会话历史无法暂存，当前记录仍保留在内存"))
-            }
+            } finally { timelineCompacting = false }
         }
         }
     }
