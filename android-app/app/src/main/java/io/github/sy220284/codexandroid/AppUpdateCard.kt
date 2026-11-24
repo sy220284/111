@@ -2,12 +2,10 @@ package io.github.sy220284.codexandroid
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -15,7 +13,7 @@ import androidx.compose.ui.unit.dp
 
 /** 检查、下载、安装与实时进度全部位于原设置卡片。 */
 @Composable
-internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
+internal fun AppUpdateCard(vm: CodexViewModel) {
     val status by AppUpdateManager.state.collectFrameState()
     val activity = LocalActivity.current
     val work = observeGlobalWorkSnapshot(vm)
@@ -38,7 +36,7 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
         ) {
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .testTag("settings-update-toggle"),
+                    .testTag("settings-update-heading"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {

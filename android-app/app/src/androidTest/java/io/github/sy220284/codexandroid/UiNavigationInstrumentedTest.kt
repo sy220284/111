@@ -443,7 +443,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("terminal")
-        rule.onNodeWithText("项目终端").assertExists()
+        rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         captureOverlay("terminal-sheet-android35.png")
     }
 
@@ -608,12 +608,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("账户与模型").assertExists()
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-update"))
         rule.onNodeWithTag("settings-update").assertExists()
-        rule.onNodeWithTag("settings-update-toggle").performClick()
-        rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        rule.onNodeWithTag("update-check").assertExists()
-        captureOverlay("settings-update-sheet-android35.png")
-        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("update-check"))
+        rule.onNodeWithTag("update-check").assertIsDisplayed()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        captureOverlay("settings-update-sheet-android35.png")
         capture("settings-hub-android35.png")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
         rule.onNodeWithTag("settings-search").performTextInput("外观")
@@ -959,9 +957,9 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsSearchDirectlyOpensUpdateActions() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("检查更新")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-update"))
-        rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        rule.onNodeWithTag("update-check").assertExists()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("update-check"))
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        rule.onNodeWithTag("update-check").assertIsDisplayed()
     }
 
     @Test fun settingsSearchSeparatesDiagnosticsOverviewFromLogAction() {
@@ -1038,7 +1036,7 @@ class UiNavigationInstrumentedTest {
         assertNoWorkspaceBar()
         openComposerShortcut("queue")
         rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodesWithTag("thread-queue-draft").fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
@@ -1057,9 +1055,9 @@ class UiNavigationInstrumentedTest {
         }
         rule.waitForIdle()
         // A visible close button must work regardless of IME focus or Back delivery.
-        rule.onNodeWithTag("thread-queue-close").performClick()
+        rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
+            rule.onAllNodesWithTag("thread-queue-draft").fetchSemanticsNodes().isEmpty()
         }
         openComposerShortcut("queue")
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
@@ -1079,7 +1077,8 @@ class UiNavigationInstrumentedTest {
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-sheet").assertExists()
+        rule.onNodeWithTag("screen-title").assertTextEquals("任务队列")
+        rule.onNodeWithTag("thread-queue-draft").assertExists()
         rule.onNodeWithText("后续指令").assertExists()
         assertTrue("同一队列请求错误只显示一次",
             rule.onAllNodesWithText("Codex 内核尚未连接").fetchSemanticsNodes().size <= 1)
@@ -1121,7 +1120,7 @@ class UiNavigationInstrumentedTest {
                 "item/permissions/requestApproval", JSONObject().put("reason", "检查执行范围")))
         }
         rule.onNodeWithContentDescription("待审批").performClick()
-        rule.onNodeWithText("待处理审批").assertExists()
+        rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
         captureOverlay("audit-approvals-android35.png")
         pressSystemBack()
         rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
@@ -1282,9 +1281,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("review")
         rule.onNodeWithText("审查范围").assertExists()
-        rule.onNodeWithContentDescription("关闭代码审查").assertExists()
+        rule.onNodeWithContentDescription("返回上一页").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
-        rule.onNodeWithContentDescription("关闭代码审查").performClick()
+        rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("goal")
         rule.onNodeWithText("设置新目标").assertExists()

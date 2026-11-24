@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
 /**
- * V5 公共呈现：选择=Sheet、长工作=Page、危险操作=ConfirmDialog、
- * 状态=Sheet、附件=独立 Sheet；调用和结果复用已有真实 ViewModel。
+ * 短选择锚定触发按钮，复杂操作进入页面，风险操作居中确认。
+ * 状态与附件使用适合内容的窗口；调用和结果复用真实 ViewModel。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,24 +167,24 @@ fun ModeChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: 
         errors["modes"] != null -> "读取模式失败，请重新查询。"
         else -> "仅显示当前内核支持的选项，更改从下一轮生效。"
     }
-    CodexChoiceSheet(
-        title = "选择协作方式", description = description, anchored = anchored,
-        choices = choices, selectedId = selected,
-        enabled = connected && !busy && !refreshing,
-        recoveryLabel = if (!connected) "重新连接" else if (errors["modes"] != null || !planSupported) "重新检查" else null,
-        onRecovery = {
-            if (connected) vm.refresh("modes", "collaborationMode/list") else vm.connect()
-        },
-        recoveryMessage = if (connected) "可重新查询当前内核支持的工作方式。"
-            else "运行核心未连接，恢复连接后再选择工作方式。",
-        loading = refreshing,
-        onSelect = { id ->
-            if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
-                vm.chooseComposerMode(id)
-                onDismiss()
-            }
-        }, onDismiss = onDismiss
-    )
+    val content: @Composable ColumnScope.() -> Unit = {
+        AtlasCompactChoice(selected, choices.map { it.id to it.label },
+            enabled = connected && !busy && !refreshing,
+            onSelect = { id ->
+                if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
+                    vm.chooseComposerMode(id)
+                    onDismiss()
+                }
+            }, tagPrefix = "composer-mode-")
+        if (refreshing) AtlasOperationProgress("正在读取协作方式")
+        if (!connected || errors["modes"] != null || !planSupported) {
+            CodexTextAction(onClick = {
+                if (connected) vm.refresh("modes", "collaborationMode/list") else vm.connect()
+            }) { Text(if (connected) "重新检查" else "重新连接") }
+        }
+    }
+    if (anchored) CodexFloatingMenu("选择协作方式", onDismiss, description, wide = true, content = content)
+    else CodexDetailSheet("选择协作方式", onDismiss, subtitle = description, content = content)
 }
 
 @Composable

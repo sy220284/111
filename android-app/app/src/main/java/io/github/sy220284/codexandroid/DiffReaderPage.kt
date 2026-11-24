@@ -78,14 +78,6 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         pendingJump = null
     }
-    if (filePicker) CodexChoiceSheet(title = "定位改动文件", description = "选择文件后跳转至差异位置",
-        choices = visibleFiles.map { index -> CodexChoice(index.toString(), files[index].path) },
-        selectedId = null, onSelect = { value ->
-            val target = value.toInt()
-            updateExpanded(expanded + target)
-            pendingJump = fileKeys[target]
-            filePicker = false
-        }, searchable = true, onDismiss = { filePicker = false })
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -117,8 +109,18 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 if (updating) AtlasOperationProgress("正在整理最新差异，暂时保留当前阅读内容")
                 if (files.isNotEmpty()) AtlasSearchField(query, { query = it }, "按文件名筛选差异",
                     onClear = { query = "" }, modifier = Modifier.testTag("diff-file-search"))
-                if (visibleFiles.isNotEmpty()) CodexTextAction(onClick = { filePicker = true },
-                    modifier = Modifier.testTag("diff-file-jump")) { Text("定位改动文件") }
+                if (visibleFiles.isNotEmpty()) Box {
+                    CodexTextAction(onClick = { filePicker = true },
+                        modifier = Modifier.testTag("diff-file-jump")) { Text("定位改动文件") }
+                    if (filePicker) CodexChoiceSheet(title = "定位改动文件", description = "选择文件后跳转至差异位置",
+                            choices = visibleFiles.map { index -> CodexChoice(index.toString(), files[index].path) },
+                            selectedId = null, onSelect = { value ->
+                                val target = value.toInt()
+                                updateExpanded(expanded + target)
+                                pendingJump = fileKeys[target]
+                                filePicker = false
+                            }, searchable = true, anchored = true, onDismiss = { filePicker = false })
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     CodexPrimaryButton(onClick = { navigate("review") },
                         enabled = active != null && files.isNotEmpty(),

@@ -37,6 +37,10 @@ internal fun EngineModelSliders(config: JSONObject?, enabled: Boolean, models: L
 @Composable
 internal fun EngineModelSlider(setting: EngineSetting, current: Any?, available: Map<String, String>,
     loaded: Boolean, enabled: Boolean, reveal: Boolean = false, onSave: (Any) -> Unit) {
+    if (setting.type == "model") {
+        EngineDefaultModelPicker(setting, current, available, loaded, enabled, reveal, onSave)
+        return
+    }
     val currentId = current?.toString()
     val base = remember(setting, available) { EngineSettings.sliderOptions(setting, available) }
     var query by rememberSaveable(setting.key) { mutableStateOf("") }
@@ -100,6 +104,44 @@ internal fun EngineModelSlider(setting: EngineSetting, current: Any?, available:
         if (loaded && available.isEmpty()) Text("暂无可用选项，请检查模型目录", color = Ink.muted,
             style = MaterialTheme.typography.bodySmall)
         else if (preview != actualIndex) Text("松手后保存", color = Ink.muted,
+            style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** 模型名称没有天然顺序：通过可搜索目录选取，数值档位才使用滑块。 */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun EngineDefaultModelPicker(setting: EngineSetting, current: Any?,
+    available: Map<String, String>, loaded: Boolean, enabled: Boolean, reveal: Boolean,
+    onSave: (Any) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val requester = remember { BringIntoViewRequester() }
+    LaunchedEffect(reveal) { if (reveal) { withFrameNanos { }; requester.bringIntoView() } }
+    val id = current?.toString()
+    val options = EngineSettings.sliderOptions(setting, available)
+    val label = options.firstOrNull { it.first == id }?.second
+        ?: (setting.label(current, available) + " · 当前不可用")
+    Column(Modifier.fillMaxWidth().bringIntoViewRequester(requester)
+        .testTag("engine-setting-" + setting.key).padding(vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text(setting.title, style = MaterialTheme.typography.titleSmall)
+        Box(Modifier.fillMaxWidth()) {
+            CodexSecondaryButton(onClick = { open = true },
+                enabled = loaded && enabled && available.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text(if (loaded) label else "尚未读取", Modifier.weight(1f)
+                    .testTag("engine-slider-value-" + setting.key))
+                CodexIcon(CodexGlyph.ExpandMore, null, modifier = Modifier.size(20.dp))
+            }
+            if (open) CodexChoiceSheet(title = "选择默认模型", anchored = true,
+                choices = options.map { (key, name) -> CodexChoice(key.orEmpty(), name) },
+                selectedId = id.orEmpty(), searchable = true, enabled = enabled,
+                onSelect = { key ->
+                    if (key != id.orEmpty()) onSave(if (key.isEmpty()) JSONObject.NULL else setting.parse(key, available))
+                    open = false
+                }, onDismiss = { open = false })
+        }
+        if (loaded && available.isEmpty()) Text("暂无可用选项，请检查模型目录", color = Ink.muted,
             style = MaterialTheme.typography.bodySmall)
     }
 }
