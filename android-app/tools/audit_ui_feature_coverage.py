@@ -49,13 +49,13 @@ FEATURE = re.compile(
 SHEET_DISPATCH = {
     "threads": ("openDrawer()", "SidebarSessions("),
     "search": ("openDrawer()", "SidebarSessions("),
-    "approvals": ("showApprovals = true", "ApprovalQuickSheet("),
-    "goals": ("showGoal = true", "ThreadGoalSheet("),
-    "queue": ("showQueue = true", "ThreadQueueQuickSheet("),
-    "review": ("showReview = true", "ReviewScopeSheet("),
-    "models": ("showModels = true", "ModelChoiceSurface("),
-    "modes": ("showMode = true", "ModeChoiceSurface("),
-    "about": ("showAbout = true", "AboutInfoSheet("),
+    "approvals": ('openSheet("approvals")', "ApprovalQuickSheet("),
+    "goals": ('openSheet("goals")', "ThreadGoalSheet("),
+    "queue": ('openSheet("queue")', "ThreadQueueQuickSheet("),
+    "review": ('openSheet("review")', "ReviewScopeSheet("),
+    "models": ('openSheet("models")', "ModelChoiceSurface("),
+    "modes": ('openSheet("modes")', "ModeChoiceSurface("),
+    "about": ('openSheet("about")', "AboutInfoSheet("),
 }
 INLINE_DISPATCH = {
     "security": ("ConversationScreen.kt", "ComposerPermissionControl("),
@@ -108,7 +108,10 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
             if expected is None:
                 missing_surfaces.append(f"{name}:缺少弹层归属")
             elif (f'"{name}"' not in route_handlers
-                  or expected[0] not in route_handlers or expected[1] not in navigation):
+                  or expected[0] not in route_handlers or expected[1] not in navigation
+                  or (name not in {"threads", "search"} and
+                      not re.search(r'if \(activeSheet == "' + re.escape(name) +
+                                    r'"\)[^\n]*(?:\n[^\n]*){0,2}?' + re.escape(expected[1]), navigation))):
                 missing_surfaces.append(f"{name}:弹层入口或组件未接通")
         elif kind == "Inline":
             expected = INLINE_DISPATCH.get(name)

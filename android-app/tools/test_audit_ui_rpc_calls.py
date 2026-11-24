@@ -128,6 +128,17 @@ class SurfaceHierarchyContractTest(unittest.TestCase):
         self.assertEqual([], report["invalidHierarchy"])
         self.assertEqual([], report["missingSurfaceMappings"])
         self.assertEqual([], report["emptyActionHandlers"])
+        fixture = self.fixture()
+        fixture["UiFeatureCatalog.kt"] += '\nUiFeature("queue", FeatureSurface.Sheet, FeatureOwner.Global, true)'
+        fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
+            '"threads" -> { openDrawer() }', '"threads" -> { openDrawer() }\n"queue" -> { openSheet("queue") }')
+        fixture["AppNavigation.kt"] += '\nif (activeSheet == "queue") ThreadQueueQuickSheet(vm)'
+        valid = audit_surface_hierarchy(fixture, {"home", "threads", "usage", "limits", "queue"})
+        self.assertEqual([], valid["missingSurfaceMappings"])
+        fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
+            'activeSheet == "queue"', 'activeSheet == "review"')
+        invalid = audit_surface_hierarchy(fixture, {"home", "threads", "usage", "limits", "queue"})
+        self.assertIn("queue:弹层入口或组件未接通", invalid["missingSurfaceMappings"])
 
     def test_duplicate_settings_and_empty_buttons_are_detected(self):
         fixture = self.fixture()

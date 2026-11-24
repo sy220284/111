@@ -159,37 +159,30 @@ fun CodexShell(vm: CodexViewModel) {
             }
             "queue" -> {
                 openSheet("queue")
-                closeDrawer()
                 return@move
             }
             "models" -> if (page.id != "settings") {
                 openSheet("models")
-                closeDrawer()
                 return@move
             }
             "about" -> {
                 openSheet("about")
-                closeDrawer()
                 return@move
             }
             "approvals" -> {
                 openSheet("approvals")
-                closeDrawer()
                 return@move
             }
             "review" -> {
                 openSheet("review")
-                closeDrawer()
                 return@move
             }
             "goals" -> {
                 openSheet("goals")
-                closeDrawer()
                 return@move
             }
             "modes" -> {
                 openSheet("modes")
-                closeDrawer()
                 return@move
             }
             "history-tools", "thread-attachments" -> {
@@ -201,7 +194,6 @@ fun CodexShell(vm: CodexViewModel) {
                     return@move
                 } else if (destination == "history-tools") openSheet("history-tools")
                 else openSheet("thread-attachments")
-                closeDrawer()
                 return@move
             }
         }
@@ -390,7 +382,6 @@ fun CodexShell(vm: CodexViewModel) {
                     { id ->
                         if (id == "status") {
                             openSheet("status")
-                            closeDrawer()
                         } else move(id)
                     }, status, pendingCount, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,

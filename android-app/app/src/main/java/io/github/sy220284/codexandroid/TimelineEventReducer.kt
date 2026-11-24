@@ -168,16 +168,6 @@ internal object TimelineEventReducer {
     }
 
     /** A compact activity group is interrupted by any user, answer, plan or turn boundary. */
-    fun groups(items: List<TimelineItem>): List<List<TimelineItem>> {
-        val result = mutableListOf<MutableList<TimelineItem>>()
-        val activity = setOf("reasoning", "commandExecution", "fileChange", "mcpToolCall",
-            "dynamicToolCall", "functionCallOutput", "webSearch", "imageView", "sleep", "hookPrompt")
-        for (item in items) {
-            val last = result.lastOrNull()
-            if (last != null && item.kind in activity && last.first().kind in activity &&
-                item.turnId.isNotBlank() && item.turnId == last.first().turnId) last.add(item)
-            else result.add(mutableListOf(item))
-        }
-        return result
-    }
+    fun groups(items: List<TimelineItem>): List<List<TimelineItem>> =
+        if (items is IndexedTimeline) items.grouping.groups else TimelineGrouping.from(items).groups
 }

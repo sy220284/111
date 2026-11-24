@@ -27,7 +27,9 @@ internal fun ConversationTimelineViewport(
     firstThreadStarting: Boolean, compactWorkArea: Boolean, setupHint: ChatSetupHint?,
     navigate: (String) -> Unit, modifier: Modifier = Modifier
 ) {
-    val items by vm.timeline.collectFrameState(thread)
+    val frame by vm.conversationState.collectFrameState(thread)
+    val contextLoading = switching || frame.threadId != thread
+    val items = if (contextLoading) emptyList() else frame.timeline
     val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val olderCursor by vm.olderServerCursor.collectAsState()
     val loadingEarlier by vm.loadingEarlier.collectAsState()
@@ -65,8 +67,8 @@ internal fun ConversationTimelineViewport(
     val hasOlderPage by rememberUpdatedState(olderPageVisible)
     var previousViewportHeight by remember { mutableIntStateOf(0) }
     var previousOlderPage by remember { mutableStateOf(false) }
-    LaunchedEffect(scroll, thread, switching) {
-        if (switching) return@LaunchedEffect
+    LaunchedEffect(scroll, thread, contextLoading) {
+        if (contextLoading) return@LaunchedEffect
         // One collector per conversation; a stream of deltas must not cancel and restart it.
         snapshotFlow { TimelineRenderTarget(groups.size, items.lastOrNull(), hasOlderPage,
             scroll.layoutInfo.viewportSize.height) }
@@ -106,7 +108,7 @@ internal fun ConversationTimelineViewport(
             }
     }
     BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
-        if (switching) {
+        if (contextLoading) {
             ConversationLoadingSkeleton(Modifier.fillMaxSize())
         } else if (items.isEmpty()) {
             val shortViewport = compactWorkArea || maxHeight < 345.dp
@@ -147,10 +149,10 @@ internal fun ConversationTimelineViewport(
                 }
             }
             items(groups, key = { it.first().id }) { group ->
-                TimelineActivityGroup(group, if (!busy && thread != null && !switching) ({ item, fork -> turnAction = item to fork }) else null)
+                TimelineActivityGroup(group, if (!busy && thread != null && !contextLoading) ({ item, fork -> turnAction = item to fork }) else null)
             }
         }
-        if (!switching && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
+        if (!contextLoading && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter)
                     .padding(bottom = 10.dp).heightIn(min = 48.dp)

@@ -500,7 +500,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             ThreadComposerDrafts.attachNewThread(it, createdId, draftOwner)
                         }
                         activeThread.value = createdId
-                        syncRecentThreads()
+                        sessions.refreshChanged(createdId)
                     }
                 )
                 when (outcome) {
@@ -552,7 +552,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             restoreComposerOptions(null)
                             activeThread.value = null
-                            syncRecentThreads()
+                            sessions.refreshChanged(created)
                         }
                     } catch (recoveryFailure: Exception) {
                         recoveryNote = "；新建会话检查失败：" +

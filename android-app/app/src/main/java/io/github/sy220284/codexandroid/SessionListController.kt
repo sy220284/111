@@ -59,7 +59,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var archiveDirty = true
     private var identity: String? = null
     private var identityEpoch = 0L
-    private val index = SessionIndexStore(vm.getApplication<android.app.Application>().cacheDir.resolve("session-index.json"))
+    private val index = SessionIndexStore(vm.getApplication<android.app.Application>().cacheDir.resolve("session-index.db"))
+    private var allowCacheRead = true
     private val pendingIds = linkedSetOf<String>()
     private var lastSuccess = -60_000L
     private var activeSearch: Pair<Boolean, String>? = null
@@ -91,13 +92,14 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         val seen = supplied ?: receipts.value[id] ?: return
         val rev = PresentationPolicy.meaningful(seen.optString("revision"))
         if (rev.isBlank() || SessionListPolicy.unread(seen) == unread || !connected() || !marking.add(id)) return
+        val owner = identityEpoch
         scope.launch {
             val started = receiptVersion
             try {
                 val response = vm.bridge.request("thread/readState/update",
                     JSONObject().put("threadId", id).put("expectedRevision", rev)
                         .put("operation", JSONObject().put("type", if (unread) "unread" else "read")))
-                if ((receiptEvents[id] ?: 0) <= started) receipt(id, response.getJSONObject("readState"))
+                if (owner == identityEpoch && (receiptEvents[id] ?: 0) <= started) receipt(id, response.getJSONObject("readState"))
             } catch (timeout: TimeoutCancellationException) {
                 feedback("已读状态更新超时，请重试")
                 refresh()
@@ -105,7 +107,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
             catch (failure: Exception) {
                 feedback("已读状态更新失败：" + PresentationPolicy.readableError(failure.message ?: "请重新操作"))
                 refresh()
-            } finally { marking.remove(id) }
+            } finally { if (owner == identityEpoch) marking.remove(id) }
         }
     }
     fun accountReady(account: JSONObject) {
@@ -115,16 +117,25 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         identity = next
         val owner = identityEpoch
         scope.launch {
-            val cached = index.read(next)
-            if (owner == identityEpoch && identity == next && cached != null && vm.data.value["sidebarThreads"] == null)
+            val cached = if (allowCacheRead) index.read(next) else null
+            if (owner != identityEpoch || identity != next) return@launch
+            if (cached != null && vm.data.value["sidebarThreads"] == null)
                 vm.data.value = vm.data.value + mapOf("sidebarThreads" to cached, "threads" to cached)
-            // A cached index always needs authoritative revalidation.
-            if (owner == identityEpoch && identity == next) refreshIfStale()
+            // If native synchronization finished before the account receipt, persist its actual result.
+            val current = vm.data.value["sidebarThreads"]
+            if (lastSuccess >= 0 && current != null && listJob?.isActive != true) {
+                try { index.write(next, current, true, emptySet()) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (failure: Exception) { android.util.Log.w("SessionIndex", "会话索引保存失败", failure) }
+            }
+            if (owner == identityEpoch && identity == next && listJob?.isActive != true) refreshIfStale()
         }
     }
     fun invalidateIdentity() {
         identityEpoch += 1
         identity = null
+        allowCacheRead = false
+        scope.launch { index.clear() }
         listJob?.cancel()
         listJob = null
         search("", false)
@@ -133,6 +144,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         vm.errors.value = vm.errors.value - "sidebarThreads"
         receipts.value = emptyMap()
         receiptEvents.clear()
+        marking.clear()
         pendingIds.clear()
         archiveDirty = true
         dirty = true
@@ -234,8 +246,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                         if (full) lastSuccess = android.os.SystemClock.elapsedRealtime()
                         val account = identity
                         val current = changes["sidebarThreads"]
-                        if (account != null && current != null) {
-                            try { index.write(account, current) }
+                        if (account != null && current != null && active != null) {
+                            try { index.write(account, active, full, ids) }
                             catch (cancelled: CancellationException) { throw cancelled }
                             catch (failure: Exception) {
                                 android.util.Log.w("SessionIndex", "会话索引保存失败", failure)

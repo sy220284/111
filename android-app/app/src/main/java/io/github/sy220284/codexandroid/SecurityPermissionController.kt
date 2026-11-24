@@ -26,7 +26,11 @@ object SecurityPermissionController {
         saveDefault(profileId, cwd, isCurrent = isCurrent) { method, params -> bridge.request(method, params) }
 
     internal suspend fun saveDefault(profileId: String, cwd: String?,
-        isCurrent: () -> Boolean = { true }, request: suspend (String, JSONObject) -> JSONObject): JSONObject {
+        request: suspend (String, JSONObject) -> JSONObject): JSONObject =
+        saveDefault(profileId, cwd, { true }, request)
+
+    private suspend fun saveDefault(profileId: String, cwd: String?,
+        isCurrent: () -> Boolean, request: suspend (String, JSONObject) -> JSONObject): JSONObject {
         require(profileId in ComposerPermissionPolicy.ids) { "未知权限方案" }
         val params = JSONObject().put("edits", JSONArray().put(JSONObject()
             .put("keyPath", "default_permissions").put("value", profileId)
