@@ -25,7 +25,7 @@ SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
 
 def audit(repository: Path, expected: int = 29) -> dict:
     source = repository / "android-app/app/src/main/java/io/github/sy220284/codexandroid"
-    document = (repository / "docs/DSH_GO_29_UI_DELIVERY_CHECK_20261123.md").read_text(encoding="utf-8")
+    document = (repository / "docs/对标应用29项界面交付核对表-20261123.md").read_text(encoding="utf-8")
     navigation = (source / "AppNavigation.kt").read_text(encoding="utf-8")
     feature = (source / "UiFeatureCatalog.kt").read_text(encoding="utf-8")
     collector = (repository / "android-app/tools/collect_ui_screenshots.py").read_text(encoding="utf-8")

@@ -9,9 +9,9 @@
 | `upstream/codex/` | OpenAI Codex 官方源码快照（保持原貌） |
 | `CODEX_UPSTREAM_COMMIT` | 对应上游提交、日期与来源 |
 | `android-app/` | Compose 原生 Android APP，28 个侧栏入口及功能页面 |
-| `docs/DESIGN_SYSTEM.md` | 审美、材质、布局、动效、交互规范 |
-| `docs/PROTOCOL_CONTRACTS.md` | Codex App Server JSON-RPC 页面契约 |
-| `docs/ACCEPTANCE.md` | 依据真实构建和设备日志核验的进度 |
+| `docs/设计系统.md` | 审美、材质、布局、动效、交互规范 |
+| `docs/协议与页面契约.md` | Codex App Server JSON-RPC 页面契约 |
+| `docs/验收矩阵.md` | 依据真实构建和设备日志核验的进度 |
 
 **平台最低 Android 10（API 29）**，优先 ARM64，自动化测试额外使用 x86_64 模拟器。用户项目、配置与会话数据留在应用私有目录；外部 AI 模型、插件和用户明确选择的远端执行环境仍可能产生网络通信。
 
@@ -51,7 +51,7 @@ UI 单元测试由独立 UI CI 集中执行，APK 构建和签名阶段复用这
 2. 再查看 `安卓版本构建与验证` 的 `build`、`verify-apk` 和独立 UI 验收的模拟器矩阵是否均为成功。
 3. 两项均成功后，可从构建产物 `codex-android-arm64-apk` 下载 ARM64 手机调试 APK；正式版仅在 Releases 提供 ARM64 手机 APK。
 4. 从侧栏“诊断与日志”检查本机 Codex 进程与协议；登录账号后试运行会话、命令与文件修改。
-5. 以上 Actions 工作流产物是**调试签名 APK**。正式签名版经「111 Android 正式发布」工作流发布至 [Releases](https://github.com/sy220284/111/releases)，签名 Secret 配置详见 [发布说明](docs/RELEASE.md)。首次 Android 35 x86_64 设备验收的日志见 [成功记录](https://github.com/sy220284/111/actions/runs/44732591288)，分架构版的验证见 [对应记录](https://github.com/sy220284/111/actions/runs/44733688136)。
+5. 以上 Actions 工作流产物是**调试签名 APK**。正式签名版经「111 Android 正式发布」工作流发布至 [Releases](https://github.com/sy220284/111/releases)，签名 Secret 配置详见 [发布说明](docs/正式发布流程.md)。首次 Android 35 x86_64 设备验收的日志见 [成功记录](https://github.com/sy220284/111/actions/runs/44732591288)，分架构版的验证见 [对应记录](https://github.com/sy220284/111/actions/runs/44733688136)。
 
 ## 最新集成与下载
 
@@ -60,7 +60,7 @@ UI 单元测试由独立 UI CI 集中执行，APK 构建和签名阶段复用这
 - [Android 35 UI 验收](https://github.com/sy220284/111/actions/runs/44743790233)：**8 项设备测试通过**，包含账号首屏、侧栏导航、外观、协作模式、终端确认及执行依据弹层。
 - [原生核心与 APK 验收](https://github.com/sy220284/111/actions/runs/44743790342)：**11 项设备测试通过**，涵盖 `initialize`、`account/read`、Shell 执行和离线会话创建/读取。
 - 手机调试请下载最新成功构建的 `codex-android-arm64-apk` 并解压安装；正式版从 Releases 获取单独的 ARM64 手机 APK。模拟器 APK 仅用于内部验收。
-- 历史 Actions 构建使用调试签名；正式发布流程已加入，需按 [发布说明](docs/RELEASE.md) 配置签名并通过实际 Release 构建。ARM64 物理机、真实 ChatGPT OAuth 和云端模型长任务仍需分别实机验收。
+- 历史 Actions 构建使用调试签名；正式发布流程已加入，需按 [发布说明](docs/正式发布流程.md) 配置签名并通过实际 Release 构建。ARM64 物理机、真实 ChatGPT OAuth 和云端模型长任务仍需分别实机验收。
 
 ## 全部页面导航回归
 
@@ -81,6 +81,6 @@ Android 35 UI 验收采用 **360、393、411dp** 三档并行模拟器测试，�
 - 不建设自有云端数据存储或 AI 服务；所有默认项目文件只在应用私有目录。
 - 官方源码保留并可追溯版本，升级时逐一比对协议变化。
 
-请查看 [正式发布流程](docs/RELEASE.md)、[架构](docs/ARCHITECTURE.md)、[视觉设计](docs/DESIGN_SYSTEM.md)、[接口契约](docs/PROTOCOL_CONTRACTS.md)、[验收矩阵](docs/ACCEPTANCE.md)。
+请查看 [正式发布流程](docs/正式发布流程.md)、[架构](docs/系统架构.md)、[视觉设计](docs/设计系统.md)、[接口契约](docs/协议与页面契约.md)、[验收矩阵](docs/验收矩阵.md)。
 
 上游 Codex 授权见 `upstream/codex/LICENSE` 与相关 NOTICE。
