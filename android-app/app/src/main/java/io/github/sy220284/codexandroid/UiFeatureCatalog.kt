@@ -24,7 +24,7 @@ object UiFeatureCatalog {
         UiFeature("diff", FeatureSurface.Reader, FeatureOwner.Thread, false),
         UiFeature("terminal", FeatureSurface.Page, FeatureOwner.Workspace, false),
         UiFeature("review", FeatureSurface.Sheet, FeatureOwner.Thread, false),
-        UiFeature("models", FeatureSurface.Sheet, FeatureOwner.Account, false),
+        UiFeature("models", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("modes", FeatureSurface.Sheet, FeatureOwner.Thread, true),
         UiFeature("skills", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("plugins", FeatureSurface.Page, FeatureOwner.System, false),
@@ -34,10 +34,13 @@ object UiFeatureCatalog {
         UiFeature("account", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("providers", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("config", FeatureSurface.Page, FeatureOwner.System, false),
+        UiFeature("personalization", FeatureSurface.Page, FeatureOwner.System, false),
+        UiFeature("context", FeatureSurface.Page, FeatureOwner.System, false),
+        UiFeature("tools", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("security", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("usage", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("limits", FeatureSurface.Page, FeatureOwner.Account, false),
-        UiFeature("appearance", FeatureSurface.Inline, FeatureOwner.System, false),
+        UiFeature("appearance", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("diagnostics", FeatureSurface.Page, FeatureOwner.System, true),
         UiFeature("about", FeatureSurface.Sheet, FeatureOwner.System, false),
         UiFeature("settings", FeatureSurface.Page, FeatureOwner.Global, false),
@@ -48,9 +51,10 @@ object UiFeatureCatalog {
     /** 以用户的操作意图分组，设置项只有一个固定归属。 */
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage")),
-        FeatureGroup("技能与连接", listOf("skills", "plugins", "apps", "mcp")),
-        FeatureGroup("运行与安全", listOf("environments", "security", "config")),
-        FeatureGroup("外观与帮助", listOf("appearance", "diagnostics", "about", "update"))
+        FeatureGroup("个性化与显示", listOf("personalization", "appearance")),
+        FeatureGroup("工具与能力", listOf("tools", "skills", "plugins", "apps", "mcp")),
+        FeatureGroup("运行与安全", listOf("context", "environments", "security")),
+        FeatureGroup("开发者与帮助", listOf("config", "diagnostics", "about", "update"))
     )
     val legacyRoutes = all.filter { it.route != "settings" && it.route != "update" }.map { it.route }
     val nonSettingsWorkRoutes = listOf("search","goals","queue","diff","terminal","review","modes")

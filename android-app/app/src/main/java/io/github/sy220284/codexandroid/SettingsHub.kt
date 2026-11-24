@@ -27,10 +27,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val listScope = rememberCoroutineScope()
-    var showModels by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
-    var showAppearance by rememberSaveable { mutableStateOf(false) }
-    var appearanceTarget by remember { mutableStateOf<String?>(null) }
     val status by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val isAccountLoaded = data["account"] != null
@@ -134,18 +131,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "security" -> "执行权限与审批"
                                     "environments" -> "本机或其他设备"
-                                    "models" -> "选择任务模型"
+                                    "models" -> "默认模型与推理偏好"
                                     "appearance" -> if (darkMode) "深色" else "浅色"
                                     "plugins" -> "安装与管理"
                                     else -> ""
                                 }) {
                                     SettingsDeepLink.select(entry.id, spot?.target)
                                     when(entry.id) {
-                                        "models" -> showModels = true
-                                        "appearance" -> {
-                                            appearanceTarget = spot?.target
-                                            showAppearance = true
-                                        }
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
                                     }
@@ -162,15 +154,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    if (showModels) ModelChoiceSurface(vm) { showModels = false }
     if (showAbout) AboutInfoSheet(vm) { showAbout = false }
-    if (showAppearance) CodexDetailSheet(
-        title = "外观与交互",
-        subtitle = "主题、字号、排版与动效可即时预览",
-        onDismiss = { showAppearance = false }
-    ) {
-        AppearanceInlineControls(focusTarget = appearanceTarget)
-    }
 }
 
 @Composable
@@ -198,7 +182,7 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
 }
 
 @Composable
-fun AppearanceInlineControls(focusTarget: String? = null) {
+fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = Modifier.padding(horizontal = 17.dp)) {
     val themeRequester = remember { BringIntoViewRequester() }
     val compactRequester = remember { BringIntoViewRequester() }
     val shadowRequester = remember { BringIntoViewRequester() }
@@ -219,8 +203,7 @@ fun AppearanceInlineControls(focusTarget: String? = null) {
     val fontScale by UiPreferences.fontScale.collectAsState()
     val darkMode by UiPreferences.darkMode.collectAsState()
     val largeTypography = androidx.compose.ui.platform.LocalDensity.current.fontScale * fontScale >= 1.55f
-    Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp)
-        .padding(top = 18.dp, bottom = 10.dp),
+    Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("界面配色", style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 7.dp).bringIntoViewRequester(themeRequester))
@@ -250,6 +233,11 @@ fun AppearanceInlineControls(focusTarget: String? = null) {
                     selected = darkMode, modifier = Modifier.weight(1f)
                 ) { UiPreferences.setDarkMode(true) }
             }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CodexIcon(CodexGlyph.TouchApp, null, tint = Ink.muted, modifier = Modifier.size(20.dp))
+            Text("布局与交互", style = MaterialTheme.typography.titleMedium)
         }
         Box(Modifier.bringIntoViewRequester(compactRequester)) {
             AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)

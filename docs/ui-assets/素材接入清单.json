@@ -162,15 +162,18 @@
     },
     {
       "route": "models",
-      "title": "模型目录",
+      "title": "模型设置",
       "sources": [
         "EcosystemScreens",
-        "UiSharedSurfaces"
+        "UiSharedSurfaces",
+        "EngineSettingUi",
+        "EngineSettings"
       ],
-      "business": "模型选择、加载、可用性、详情与空目录",
+      "business": "默认模型、思考深度与回复详略、真实目录说明及任务快捷选模",
       "tests": [
         "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
-        "UiPopulatedSubpagesInstrumentedTest.modelDescriptionOpensSecondLevelWithoutChangingSelection"
+        "UiPopulatedSubpagesInstrumentedTest.modelDescriptionOpensSecondLevelWithoutChangingSelection",
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -235,13 +238,15 @@
     },
     {
       "route": "environments",
-      "title": "执行环境",
+      "title": "运行管理",
       "sources": [
-        "ExecutionEnvironmentPage"
+        "ExecutionEnvironmentPage",
+        "EngineSettingUi"
       ],
-      "business": "本地/远程选择、真实连接反馈、查询详情",
+      "business": "本地/远程选择、后台运行策略、终端等待、真实连接反馈",
       "tests": [
-        "UiNavigationInstrumentedTest.executionEnvironmentDiagnosticsUseSeparateDetailSheet"
+        "UiNavigationInstrumentedTest.executionEnvironmentDiagnosticsUseSeparateDetailSheet",
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -270,11 +275,12 @@
     },
     {
       "route": "config",
-      "title": "引擎配置",
+      "title": "开发者设置",
       "sources": [
-        "ControlScreens"
+        "ControlScreens",
+        "EngineSettingController"
       ],
-      "business": "读取、校验、写入、确认及回读",
+      "business": "专业参数校验、写入、确认及回读；日常配置由所属页面管理",
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchDirectlyExpandsAdvancedConfig"
       ]
@@ -316,16 +322,18 @@
     },
     {
       "route": "appearance",
-      "title": "外观与交互",
+      "title": "外观与显示",
       "sources": [
         "SettingsHub",
         "VisualSystem",
-        "ControlScreens"
+        "ControlScreens",
+        "EngineSettingUi"
       ],
-      "business": "亮暗主题、字号、动效、独立面板",
+      "business": "亮暗主题、字号、布局、动效、推理摘要显示",
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchOpensAppearanceSheetWithoutInlineExpansion",
-        "UiPopulatedSubpagesInstrumentedTest.darkAppearanceWithSystemDoubleFontRemainsReachable"
+        "UiPopulatedSubpagesInstrumentedTest.darkAppearanceWithSystemDoubleFontRemainsReachable",
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -365,6 +373,45 @@
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchFindsActualOptionsByUserWording",
         "UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage"
+      ]
+    },
+    {
+      "route": "personalization",
+      "title": "个性化设置",
+      "sources": [
+        "EngineSettingUi",
+        "EngineSettings",
+        "EngineSettingController"
+      ],
+      "business": "全局执行指令的编辑、清空和保存回读",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ]
+    },
+    {
+      "route": "context",
+      "title": "上下文管理",
+      "sources": [
+        "EngineSettingUi",
+        "EngineSettings",
+        "EngineSettingController"
+      ],
+      "business": "上下文容量、自动压缩与工具输出保留",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ]
+    },
+    {
+      "route": "tools",
+      "title": "联网搜索",
+      "sources": [
+        "EngineSettingUi",
+        "EngineSettings",
+        "EngineSettingController"
+      ],
+      "business": "策略允许的搜索模式、选择和保存回读",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     }
   ],

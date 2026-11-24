@@ -46,7 +46,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     fun reload() {
         vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-        vm.refresh("securityRequirements", "configRequirements/read")
+        vm.refresh("securityRequirements", "configRequirements/read", null)
         vm.refresh("permissionProfiles", "permissionProfile/list",
             JSONObject().put("cwd", vm.workingDirectory))
     }
@@ -213,7 +213,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexPrimaryButton(
                     onClick = { confirm = true },
                     enabled = (scope == "thread" || draftProfile != defaultProfile) &&
-                        !saving && !defaultSaveBusy && "securityThreadSave" !in loading,
+                        !saving && !defaultSaveBusy && "securityThreadSave" !in loading &&
+                        (scope == "thread" || ENGINE_SETTING_SAVE !in loading),
                     busy = saving || defaultSaveBusy || "securityThreadSave" in loading,
                     modifier = Modifier.fillMaxWidth().testTag("security-save")
                 ) {
@@ -244,8 +245,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 } else {
                     val snapshot = vm.globalWorkSnapshot()
-                    if (defaultSaveBusy) {
-                        saveMessage = "已有默认权限修改正在保存与回读，请完成后重试"
+                    if (configSnapshotBusy(vm.loading.value, vm.securitySaveBusy.value)) {
+                        saveMessage = "已有配置修改正在保存与回读，请完成后重试"
                         saveError = true
                     } else if (!snapshot.canStartNewTask) {
                         saveMessage = snapshot.blockReason
@@ -255,6 +256,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         vm.securitySaveBusy.value = true
                         saving = true
                         vm.viewModelScope.launch {
+                        var needsReload = false
                         saveMessage = null
                         try {
                             val verified = SecurityPermissionController.saveDefault(vm.bridge, id)
@@ -264,11 +266,12 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         } catch (failure: Exception) {
                             saveMessage = failure.message ?: "权限保存或回读失败"
                             saveError = true
-                            reload()
+                            needsReload = true
                         } finally {
                             vm.securitySaveBusy.value = false
                             saving = false
                         }
+                        if (needsReload) reload()
                         }
                     }
                 }

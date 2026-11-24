@@ -30,6 +30,10 @@ internal object CodexNotificationDispatcher {
             }
             return
         }
+        if (method == "account/rateLimits/updated") {
+            accountMetrics.refresh(setOf("limits"))
+            return
+        }
         if (method == "account/login/completed") {
             val result = AccountLoginContract.completion(params, activeLoginId.value)
             if (result != null) {
@@ -44,6 +48,7 @@ internal object CodexNotificationDispatcher {
                 if (result.success) {
                     refresh("models", "model/list")
                     catalogWarmup.accountChanged()
+                    accountMetrics.accountChanged()
                     refresh("mcp", "mcpServerStatus/list",
                         CatalogRequestContract.mcpStatus(activeThread.value))
                 }
@@ -52,6 +57,7 @@ internal object CodexNotificationDispatcher {
             refresh("account", "account/read")
             refresh("models", "model/list")
             catalogWarmup.accountChanged()
+            accountMetrics.accountChanged()
             refreshMcpServices()
         }
         if (method == "project/changed") {
@@ -138,6 +144,7 @@ internal object CodexNotificationDispatcher {
                 activeTurn.value = null
             }
             syncRecentThreads()
+            accountMetrics.refresh()
             val finishedImages = execution?.images.orEmpty()
             if (finishedImages.isNotEmpty()) viewModelScope.launch {
                 for (path in finishedImages) {

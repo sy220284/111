@@ -46,20 +46,23 @@ val pages = listOf(
     Page("diff", "代码差异", "项目与代码", "当前任务的改动追踪", CodexGlyph.Code),
     Page("terminal", "终端", "项目与代码", "在设备沙箱中执行命令", CodexGlyph.Terminal),
     Page("review", "代码审查", "项目与代码", "发起 Codex 审查", CodexGlyph.FactCheck, "review/start"),
-    Page("models", "模型目录", "能力与扩展", "可用模型与思考能力", CodexGlyph.AutoAwesome, "model/list"),
+    Page("models", "模型设置", "设置与账户", "默认模型、思考深度和回复详略", CodexGlyph.AutoAwesome, "model/list"),
     Page("modes", "协作模式", "能力与扩展", "计划、编码与协作模式", CodexGlyph.PeopleOutline, "collaborationMode/list"),
     Page("skills", "技能", "能力与扩展", "发现并管理技能", CodexGlyph.School, "skills/list"),
     Page("plugins", "插件", "能力与扩展", "安装状态与能力", CodexGlyph.Extension, "plugin/list"),
     Page("apps", "连接应用", "能力与扩展", "应用连接与权限", CodexGlyph.Apps, "app/list"),
     Page("mcp", "MCP 服务", "能力与扩展", "已连接的可用服务", CodexGlyph.Hub, "mcpServerStatus/list"),
-    Page("environments", "执行环境", "能力与扩展", "设备和远端环境", CodexGlyph.Dns, "environment/status", true),
+    Page("environments", "运行管理", "设置与账户", "执行设备、后台资源和终端等待", CodexGlyph.Dns, "environment/status", true),
     Page("account", "账号登录", "设置与账户", "ChatGPT 登录与会话", CodexGlyph.AccountCircle, "account/read"),
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", CodexGlyph.Tune, "modelProvider/list"),
-    Page("config", "引擎配置", "设置与账户", "逐项读取和写入官方配置", CodexGlyph.Settings, "config/read"),
+    Page("config", "开发者设置", "设置与账户", "高级配置和运行诊断", CodexGlyph.Settings, "config/read"),
+    Page("personalization", "个性化设置", "设置与账户", "全局执行指令与工作偏好", CodexGlyph.AccountCircle, "config/read"),
+    Page("context", "上下文管理", "设置与账户", "历史压缩与工具输出保留", CodexGlyph.Thread, "config/read"),
+    Page("tools", "联网搜索", "能力与扩展", "搜索方式与可用策略", CodexGlyph.Search, "config/read"),
     Page("security", "权限与安全", "设置与账户", "审批、沙箱和网络策略", CodexGlyph.Security, "configRequirements/read"),
     Page("usage", "用量与额度", "设置与账户", "调用统计、额度窗口与重置时间", CodexGlyph.Insights, "account/usage/read"),
     Page("limits", "使用限额", "设置与账户", "限额和重置时间", CodexGlyph.Speed, "account/rateLimits/read"),
-    Page("appearance", "外观与交互", "设置与账户", "显示密度、材质和动效", CodexGlyph.Palette),
+    Page("appearance", "外观与显示", "设置与账户", "主题、字号、布局、动效与任务显示", CodexGlyph.Palette),
     Page("diagnostics", "诊断与日志", "设置与账户", "本机连接与运行状态", CodexGlyph.BugReport, "server/diagnostics", true),
     Page("about", "关于项目", "设置与账户", "版本、源码与隐私", CodexGlyph.Info),
     Page("settings", "设置", "通用", "账户、功能、主机与外观", CodexGlyph.Settings)
@@ -147,7 +150,7 @@ fun CodexShell(vm: CodexViewModel) {
                 closeDrawer()
                 return@move
             }
-            "models" -> {
+            "models" -> if (page.id != "settings") {
                 showModels = true
                 closeDrawer()
                 return@move
@@ -193,11 +196,9 @@ fun CodexShell(vm: CodexViewModel) {
         if (page.id != destination) {
             backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
-            // Only these three pages intentionally delegate an entry refresh to the shell.
+            // Only account and diagnostics delegate an entry refresh to the shell.
             when (destination) {
                 "account" -> vm.refresh("account", "account/read")
-                "config" -> vm.refresh("config", "config/read",
-                    org.json.JSONObject().put("includeLayers", true))
                 "diagnostics" -> vm.refresh("diagnostics", "server/diagnostics")
             }
         }

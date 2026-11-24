@@ -36,7 +36,8 @@ object TurnRequestContract {
 
     fun build(threadId: String, text: String, modelId: String, mode: String,
               catalog: List<JSONObject>, localImages: List<String> = emptyList(),
-              effort: String = "", references: List<ComposerReference> = emptyList()): JSONObject {
+              effort: String = "", references: List<ComposerReference> = emptyList(),
+              effectiveConfig: JSONObject? = null): JSONObject {
         require(threadId.isNotBlank()) { "缺少会话标识" }
         require(mode == "default" || mode == "plan") { "未知工作方式：$mode" }
         ComposerModelPolicy.requireEffort(catalog, modelId, effort)
@@ -48,14 +49,23 @@ object TurnRequestContract {
             if (effort.isNotBlank()) args.put("effort", effort)
             return args
         }
+        val configuredModel = effectiveConfig?.optString("model")?.takeIf { it.isNotBlank() && it != "null" }
+        val visibleCatalog = catalog.filterNot { it.optBoolean("hidden") }
         val selected = modelId.ifBlank {
-            catalog.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
-                ?: catalog.firstOrNull()?.optString("id").orEmpty()
+            val configured = configuredModel?.let { ComposerModelPolicy.model(visibleCatalog, it) }
+            if (configuredModel != null) require(configured != null) { "默认模型不在当前可用目录中，请检查模型设置" }
+            configured?.optString("id") ?: visibleCatalog.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
+                ?: visibleCatalog.firstOrNull()?.optString("id").orEmpty()
         }
         require(selected.isNotBlank()) { "计划模式需要先读取可用模型目录" }
-        val model = catalog.firstOrNull { it.optString("id") == selected }
-        val selectedEffort = effort.takeIf { it.isNotBlank() }
-            ?: model?.optString("defaultReasoningEffort")?.takeIf { it.isNotBlank() }
+        val model = requireNotNull(ComposerModelPolicy.model(visibleCatalog, selected)) { "计划模式所选模型已不可用，请重新选择" }
+        val configuredEffort = effectiveConfig?.optString("plan_mode_reasoning_effort")?.takeIf { it.isNotBlank() && it != "null" }
+        val matchingEffort = configuredEffort?.takeIf { it in ComposerModelPolicy.efforts(visibleCatalog, selected) }
+        require(effort.isNotBlank() || configuredEffort == null || matchingEffort != null || modelId.isNotBlank()) {
+            "计划模式思考深度与默认模型不匹配，请在模型设置中调整"
+        }
+        val selectedEffort = effort.takeIf { it.isNotBlank() } ?: matchingEffort
+            ?: model.optString("defaultReasoningEffort").takeIf { it.isNotBlank() && it != "null" }
         val settings = JSONObject()
             .put("model", selected)
             .put("reasoning_effort", selectedEffort ?: JSONObject.NULL)

@@ -528,6 +528,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-search").performTextInput("外观")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-appearance"))
         rule.onNodeWithTag("settings-route-appearance").performClick()
+        rule.onNodeWithTag("screen-title").assertTextEquals("外观与显示")
         rule.onNodeWithText("柔和阴影").assertExists()
         rule.onNodeWithText("减少动效").assertExists()
         captureOverlay("appearance-android35.png")
@@ -580,12 +581,12 @@ class UiNavigationInstrumentedTest {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
         assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(27, pages.size)
-        assertEquals(26, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(30, pages.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
-        assertEquals(4, NavigationPolicy.featureGroups.size)
-        assertEquals(15, NavigationPolicy.settingsRoutes.size)
+        assertEquals(5, NavigationPolicy.featureGroups.size)
+        assertEquals(18, NavigationPolicy.settingsRoutes.size)
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
@@ -594,7 +595,7 @@ class UiNavigationInstrumentedTest {
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
         openSettingRoute("config")
-        rule.onNodeWithTag("screen-title").assertTextEquals("引擎配置")
+        rule.onNodeWithTag("screen-title").assertTextEquals("开发者设置")
         openSettingRoute("diagnostics")
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
@@ -828,10 +829,10 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("字号")
         rule.onNodeWithTag("settings-route-appearance").performClick()
-        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.onNodeWithTag("screen-title").assertTextEquals("外观与显示")
         rule.onNodeWithTag("appearance-font-heading").assertExists()
         rule.onNodeWithTag("appearance-font-controls").assertExists()
-        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         rule.onNodeWithTag("settings-search").assertExists()
     }
@@ -860,6 +861,22 @@ class UiNavigationInstrumentedTest {
         pressSystemBack()
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
         rule.onAllNodes(isRoot()).assertCountEquals(1)
+    }
+
+    @Test fun settingsPreferencesAreDistributedToTheirOwners() {
+        val routes = listOf("models", "personalization", "context", "tools", "environments", "appearance", "config")
+        for (route in routes) {
+            openSettingRoute(route)
+            rule.onNodeWithTag("screen-title").assertTextEquals(pages.first { it.id == route }.title)
+            EngineSettings.forOwner(route).forEach {
+                rule.onNodeWithTag("engine-setting-" + it.key).assertExists()
+            }
+            EngineSettings.all.filter { it.owner != route }.forEach {
+                rule.onNodeWithTag("engine-setting-" + it.key).assertDoesNotExist()
+            }
+            if (route in listOf("models", "personalization", "context", "tools"))
+                captureVerifiedDisplayScreenshot("audit-" + route + "-android35.png")
+        }
     }
 
     @Test fun settingsSearchDirectlyExpandsAdvancedConfig() {

@@ -100,11 +100,13 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         }
     }
     fun refreshIfStale() {
-        if (android.os.SystemClock.elapsedRealtime() - lastSuccess >= 30_000L) refresh()
+        if (dirty || android.os.SystemClock.elapsedRealtime() - lastSuccess >= 30_000L) refresh()
     }
+    fun refreshPending() { if (dirty) refresh() }
+
     fun refresh() {
-        if (!connected()) return
         dirty = true
+        if (!connected()) return
         if (listJob?.isActive == true) return
         listJob = scope.launch {
             while (dirty && connected()) {

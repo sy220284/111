@@ -100,11 +100,11 @@ class NavigationPolicyTest {
     }
 
     @Test fun userRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
-        assertEquals(26, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(26, UiFeatureCatalog.legacyRoutes.distinct().size)
-        assertEquals(4, NavigationPolicy.featureGroups.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.distinct().size)
+        assertEquals(5, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(15, settings.size)
+        assertEquals(18, settings.size)
         assertEquals(settings.size, settings.distinct().size)
         assertTrue(settings.containsAll(listOf("models","usage","appearance","about","update")))
         assertFalse(settings.contains("limits")) // 兼容旧路由，但设置里只有一个用量与额度入口
@@ -112,7 +112,7 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.matches("用量", "", "", "usage"))
         assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("limits").surface)
         assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
-        assertEquals(26, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
     @Test fun projectAndThreadToolsUseTheirOwnContext() {
@@ -126,6 +126,16 @@ class NavigationPolicyTest {
         assertEquals(FeatureSurface.Reader, UiFeatureCatalog.find("diff").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
         assertEquals(FeatureOwner.Global, UiFeatureCatalog.find("search").owner)
+    }
+
+    @Test fun enginePreferencesSearchOnlyTheirOwningPage() {
+        for (setting in EngineSettings.all) {
+            assertEquals(setting.key, NavigationPolicy.matchedSettingSpot(setting.owner, setting.title)?.target)
+            assertNull(NavigationPolicy.matchedSettingSpot("config", setting.title))
+        }
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("models").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("appearance").surface)
+        assertEquals("developer_instructions", NavigationPolicy.matchedSettingSpot("personalization", "自定义指令")?.target)
     }
 
     @Test fun settingsSearchResolvesCommonNamesToRegisteredDestinations() {

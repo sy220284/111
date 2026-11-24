@@ -21,6 +21,24 @@ class ComposerTaskContractTest {
         } catch (_: IllegalArgumentException) { }
     }
 
+    @Test fun planTaskOverridesConfiguredEffortWithoutDroppingReferences() {
+        val models = listOf(JSONObject().put("id", "test").put("model", "configured-test")
+            .put("defaultReasoningEffort", "low")
+            .put("supportedReasoningEfforts", JSONArray()
+                .put(JSONObject().put("reasoningEffort", "medium"))
+                .put(JSONObject().put("reasoningEffort", "high"))))
+        val config = JSONObject().put("model", "configured-test").put("plan_mode_reasoning_effort", "medium")
+        val inherited = TurnRequestContract.build("t", "计划", "", "plan", models, effectiveConfig = config)
+        assertEquals("medium", inherited.getJSONObject("collaborationMode").getJSONObject("settings").getString("reasoning_effort"))
+        val refs = listOf(ComposerReference("file", "a.txt", "/workspace/a.txt"),
+            ComposerReference("skill", "review", "/skills/review/SKILL.md"))
+        val explicit = TurnRequestContract.build("t", "计划", "test", "plan", models,
+            effort = "high", references = refs, effectiveConfig = config)
+        assertEquals("high", explicit.getJSONObject("collaborationMode").getJSONObject("settings").getString("reasoning_effort"))
+        assertTrue(explicit.getJSONArray("input").getJSONObject(0).getString("text").contains("/workspace/a.txt"))
+        assertEquals("skill", explicit.getJSONArray("input").getJSONObject(1).getString("type"))
+    }
+
     @Test fun typedInputsSharedBySendQueueAndSteer() {
         val refs = listOf(ComposerReference("file", "a.txt", "/workspace/a.txt"),
             ComposerReference("skill", "review", "/skills/review/SKILL.md"))

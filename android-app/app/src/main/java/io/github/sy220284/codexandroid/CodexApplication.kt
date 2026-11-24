@@ -35,12 +35,14 @@ class CodexApplication : Application() {
             if (holder.isInitialized()) {
                 holder.value.reconnectIfNeeded()
                 holder.value.sessions.refreshIfStale()
+                holder.value.accountMetrics.foreground(true)
             }
         }
         override fun onActivityPaused(activity: Activity) {}
         override fun onActivityStopped(activity: Activity) {
             activityCount = (activityCount - 1).coerceAtLeast(0)
             if (activityCount != 0) return
+            if (holder.isInitialized()) holder.value.accountMetrics.foreground(false)
             idleRelease?.cancel()
             idleRelease = maintenance.launch {
                 delay(90_000)

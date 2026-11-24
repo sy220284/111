@@ -98,6 +98,18 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
     internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
     private val mcpCatalog by lazy { McpCatalogController(this) }
+    internal val accountMetrics by lazy {
+        AccountMetricsSync(viewModelScope, data, loading, errors,
+            canRead = { bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy },
+            clock = android.os.SystemClock::elapsedRealtime,
+            read = { key ->
+                when (key) {
+                    "usage" -> bridge.request("account/usage/read", null)
+                    "limits" -> bridge.request("account/rateLimits/read", null)
+                    else -> error("未知账号统计类型：$key")
+                }
+            })
+    }
     private var firstTurnImages: List<String> = emptyList()
 
     init {
@@ -132,12 +144,22 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        viewModelScope.launch {
+            AppDataTransfer.state.collect { transfer ->
+                if (!transfer.busy) {
+                    accountMetrics.refreshPending()
+                    sessions.refreshPending()
+                }
+            }
+        }
+
         connect()
     }
 
     fun connect() = viewModelScope.launch {
         try {
             val previousThread = activeThread.value
+            val alreadyConnected = bridge.status.value == EngineStatus.Connected
             bridge.connect()
             threadOrganization.invalidate()
             mcpCatalog.reset()
@@ -148,6 +170,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
             catalogWarmup.connected()
+            if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
             // Rebuild visible history after a connection loss, without resending a task.
             if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread)
         } catch (failure: Exception) {
@@ -206,6 +229,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (latestRequests.isLatest(key, ticket)) {
                     data.value = data.value + (key to response)
                     errors.value = errors.value - key
+                    if (userAction && method in setOf("account/logout", "accountSession/switch",
+                            "modelProvider/default/set", "modelProvider/config/write")) {
+                        accountMetrics.accountChanged()
+                    }
                     onSuccess?.invoke(response)
                     if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
                     if (userAction) actionFeedback.emit(
@@ -233,7 +260,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         method: String,
         params: JSONObject? = JSONObject(),
         onSuccess: ((JSONObject) -> Unit)? = null
-    ) = request(key, method, params, onSuccess)
+    ) {
+        // A verified config write owns its snapshot until readback completes.
+        if (key == "config" && method == "config/read" &&
+            configSnapshotBusy(loading.value, securitySaveBusy.value)) return
+        request(key, method, params, onSuccess)
+    }
 
     /** Read only live MCP connections; reload the native catalog when the agent edits config. */
     fun refreshMcpServices() = mcpCatalog.refresh()
@@ -439,6 +471,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), workspaceRoot)
                 val catalog = records(data.value["models"])
+                val effectiveConfig = if (chosenMode == "plan") bridge.request("config/read",
+                    JSONObject().put("cwd", chosenWorkspace)).getJSONObject("config") else null
                 if (chosenMode == "plan") {
                     require(chosenModel.isNotBlank() || catalog.any {
                         it.optString("id").isNotBlank()
@@ -458,7 +492,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         TurnRequestContract.build(
                             threadId = id, text = prompt, modelId = chosenModel,
                             mode = chosenMode, catalog = catalog, localImages = images,
-                            effort = chosenEffort, references = references
+                            effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
                         )
                     },
                     onThreadCreated = { createdId ->
