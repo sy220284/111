@@ -36,7 +36,6 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var scope by rememberSaveable { mutableStateOf("default") }
     var draftProfile by remember { mutableStateOf<String?>(null) }
     var confirm by remember { mutableStateOf(false) }
-    var showProfiles by rememberSaveable { mutableStateOf(true) }
     val selected = draftProfile ?: defaultProfile
     val allowedProfiles = requirements?.optJSONObject("allowedPermissionProfiles")
     val canSelect: (JSONObject) -> Boolean = { profile ->
@@ -52,7 +51,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             JSONObject().put("cwd", vm.workingDirectory))
     }
     LaunchedEffect(vm.workingDirectory) {
-        if (SettingsDeepLink.take("security") == "profiles") showProfiles = true
+        SettingsDeepLink.take("security")
         reload()
     }
     Column(Modifier.fillMaxSize()) {
@@ -130,20 +129,11 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
 
         MaterialPanel(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("选择权限档位", style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f))
-                TextButton(onClick = { showProfiles = !showProfiles },
-                    modifier = Modifier.testTag("security-profiles-toggle")
-                        .heightIn(min = 48.dp)) {
-                    Text(if (showProfiles) "收起" else "展开")
-                    Spacer(Modifier.width(4.dp))
-                    Icon(if (showProfiles) Icons.Outlined.ExpandLess
-                        else Icons.Outlined.ExpandMore, null,
-                        modifier = Modifier.size(18.dp))
-                }
-            }
-            CodexReveal(showProfiles) {
+            Text(
+                "选择权限档位",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.testTag("security-profiles-heading")
+            )
                 Column(Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("可用权限方案",
@@ -196,7 +186,6 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         else "保存后，新创建的任务将使用该权限方案。",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
-            }
         }
         if (requirements != null) {
             Text("实际权限仍受运行环境和管理员安全策略约束。",

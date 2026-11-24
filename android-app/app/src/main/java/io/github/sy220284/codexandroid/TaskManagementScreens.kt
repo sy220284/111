@@ -32,8 +32,12 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     val status = panelDraft.goalStatus
     val budget = panelDraft.goalBudget
     var confirmClear by remember(active) { mutableStateOf(false) }
-    var showAdvancedBudget by remember(active) { mutableStateOf(false) }
+    var showBudgetEditor by remember(active) { mutableStateOf(false) }
+    var budgetInput by remember(active) { mutableStateOf("") }
+    val budgetEdited = panelDraft.goalBudgetEdited
     val safeBudget = budget.isBlank() || (budget.toLongOrNull()?.let { it > 0 } == true)
+    val safeBudgetInput = budgetInput.isBlank() ||
+        (budgetInput.toLongOrNull()?.let { it > 0 } == true)
 
     LaunchedEffect(active) {
         if (active != null) vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
@@ -67,17 +71,16 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
                         goal.optString("status") == "active")
                 }
-                if (showAdvancedBudget) {
-                    Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
-                        goal.optLong("timeUsedSeconds"), color = Ink.muted)
-                }
+                Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
+                    goal.optLong("timeUsedSeconds"), color = Ink.muted)
                 OutlinedButton(onClick = {
                     vm.editTaskPanelDraft(active) {
                         it.copy(
                             goalText = goal.optString("objective"),
                             goalStatus = goal.optString("status").ifBlank { "active" },
                             goalBudget = goal.opt("tokenBudget")
-                                ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty()
+                                ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty(),
+                            goalBudgetEdited = false
                         )
                     }
                 }) { Text("编辑当前目标") }
@@ -92,48 +95,47 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
                 minLines = 3, maxLines = 7)
             Text("执行状态", style = MaterialTheme.typography.titleMedium)
-            listOf(
-                listOf("active" to "进行中", "paused" to "已暂停"),
-                listOf("blocked" to "遇到阻碍", "complete" to "已完成")
-            ).forEach { choices ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    choices.forEach { (value, title) ->
-                        FilterChip(
-                            selected = status == value,
-                            onClick = { vm.editTaskPanelDraft(active) {
-                                it.copy(goalStatus = value)
-                            } },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            label = { Text(title, maxLines = 1) }
-                        )
-                    }
-                }
-            }
-            TextButton(onClick = {
-                if (!showAdvancedBudget && budget.isBlank()) {
-                    // Exposing the advanced control must preserve the server's existing limit.
-                    val currentLimit = goal?.opt("tokenBudget")
-                        ?.takeIf { it != JSONObject.NULL }?.toString().orEmpty()
-                    if (currentLimit.isNotBlank()) vm.editTaskPanelDraft(active) {
-                        it.copy(goalBudget = currentLimit)
-                    }
-                }
-                showAdvancedBudget = !showAdvancedBudget
-            }, modifier = Modifier.testTag("goal-advanced-toggle")) {
-                Icon(if (showAdvancedBudget) Icons.Outlined.ExpandLess
-                    else Icons.Outlined.ExpandMore, null)
-                Spacer(Modifier.width(6.dp))
-                Text(if (showAdvancedBudget) "收起高级设置" else "高级设置 · 执行额度")
-            }
-            if (showAdvancedBudget) {
-                OutlinedTextField(budget, { text ->
-                    vm.editTaskPanelDraft(active) {
-                        it.copy(goalBudget = text.filter(Char::isDigit))
-                    }
+            AtlasStatusSelector(
+                selected = status,
+                options = listOf(
+                    AtlasStatusOption("active", "进行中", StatusTone.Info),
+                    AtlasStatusOption("paused", "已暂停", StatusTone.Neutral),
+                    AtlasStatusOption("blocked", "遇到阻碍", StatusTone.Warning),
+                    AtlasStatusOption("complete", "已完成", StatusTone.Success)
+                ),
+                onSelect = { value ->
+                    vm.editTaskPanelDraft(active) { it.copy(goalStatus = value) }
                 },
-                    label = { Text("Token 上限（可留空）" ) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                if (!safeBudget) Text("Token 上限必须是正整数", color = Ink.red)
+                modifier = Modifier.testTag("goal-status-selector")
+            )
+            val currentBudget = goal?.opt("tokenBudget")
+                ?.takeIf { it != JSONObject.NULL }?.toString().orEmpty()
+            AtlasSettingsActionRow(
+                title = "执行额度",
+                detail = when {
+                    budgetEdited && budget.isBlank() -> "待保存：清除 Token 上限"
+                    budgetEdited -> "待保存：Token 上限 $budget"
+                    currentBudget.isNotBlank() -> "当前 Token 上限：$currentBudget"
+                    else -> "当前未设置 Token 上限"
+                },
+                icon = Icons.Outlined.Tune,
+                onClick = {
+                    budgetInput = if (budgetEdited) budget else currentBudget
+                    showBudgetEditor = true
+                },
+                modifier = Modifier.testTag("goal-advanced-toggle")
+            )
+            if (budgetEdited) {
+                TextButton(onClick = {
+                    vm.editTaskPanelDraft(active) {
+                        it.copy(goalBudget = "", goalBudgetEdited = false)
+                    }
+                }, modifier = Modifier.testTag("goal-budget-undo")) {
+                    Text("撤销待保存的额度修改")
+                }
+                if (!safeBudget) {
+                    AtlasFieldFeedback("Token 上限必须是正整数", isError = true)
+                }
             }
 
         }
@@ -148,21 +150,57 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     val threadId = requireNotNull(active) { "请先打开任务会话" }
                     val params = ThreadGoalRequestContract.set(
                         threadId = threadId, objective = objective, status = status,
-                        budgetText = budget, editBudget = showAdvancedBudget,
+                        budgetText = budget, editBudget = budgetEdited,
                         existingBudget = goal != null && !goal.isNull("tokenBudget")
                     )
                     vm.rpc("goalWrite", "thread/goal/set", params, after = {
+                        vm.editTaskPanelDraft(threadId) {
+                            it.copy(goalBudgetEdited = false)
+                        }
                         vm.refresh("goal:$threadId", "thread/goal/get",
                             JSONObject().put("threadId", threadId))
                     })
                 },
                 enabled = objective.isNotBlank() &&
-                    (!showAdvancedBudget || safeBudget) && "goalWrite" !in loading,
+                    (!budgetEdited || safeBudget) && "goalWrite" !in loading,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)
                     .testTag("goal-sticky-save")
             ) { Text("保存目标") }
         }
     }
+    }
+    if (showBudgetEditor && active != null) {
+        CodexEditDialog(
+            title = "修改执行额度",
+            description = "只在点击“应用额度”后将修改加入待保存目标。留空表示清除已有上限。",
+            confirmLabel = "应用额度",
+            onDismiss = { showBudgetEditor = false },
+            onConfirm = {
+                val existingLimit = goal?.opt("tokenBudget")
+                    ?.takeIf { value -> value != JSONObject.NULL }?.toString().orEmpty()
+                vm.editTaskPanelDraft(active) {
+                    it.copy(
+                        goalBudget = budgetInput,
+                        goalBudgetEdited = budgetInput.isNotBlank() || existingLimit.isNotBlank()
+                    )
+                }
+                showBudgetEditor = false
+            },
+            canConfirm = safeBudgetInput
+        ) {
+            OutlinedTextField(
+                value = budgetInput,
+                onValueChange = { budgetInput = it.filter(Char::isDigit) },
+                label = { Text("Token 上限（可留空）") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("goal-budget-input")
+            )
+            if (!safeBudgetInput) {
+                AtlasFieldFeedback("Token 上限必须是正整数", isError = true)
+            }
+            Text("保存目标时才会提交额度变更。取消编辑将保留当前额度。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+        }
     }
     if (confirmClear) CodexConfirmDialog(
         title = "清除当前任务目标",
@@ -175,7 +213,8 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 after = {
                     vm.refresh(key, "thread/goal/get", JSONObject().put("threadId", active))
                     vm.editTaskPanelDraft(active) {
-                        it.copy(goalText = "", goalStatus = "active", goalBudget = "")
+                        it.copy(goalText = "", goalStatus = "active",
+                            goalBudget = "", goalBudgetEdited = false)
                     }
                 })
             confirmClear = false
@@ -253,13 +292,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 Text("排入后续")
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("等待执行 · " + all.size, style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = { refreshQueue() }) { Icon(Icons.Outlined.Refresh, "刷新") }
+        AtlasListHeading(title = "等待执行", total = all.size, action = {
+            IconButton(onClick = { refreshQueue() }) {
+                Icon(Icons.Outlined.Refresh, contentDescription = "刷新指令")
+            }
+        })
+        if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading }) {
+            AtlasOperationProgress("正在读取后续指令")
         }
-        if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading })
-            LinearProgressIndicator(Modifier.fillMaxWidth())
         if (all.isEmpty() && data[rootKey] != null && rootKey !in loading) MaterialPanel(Modifier.fillMaxWidth()) {
             Text("暂无后续指令", style = MaterialTheme.typography.titleMedium)
             Text("任务运行时，也可以在输入栏选择「完成后执行」来添加。", color = Ink.muted)
@@ -269,46 +309,77 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it)?.optString("text") }
                 .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
             MaterialPanel(Modifier.fillMaxWidth()) {
+                var showQueueActions by remember(item.optString("id")) { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("第 " + (index + 1) + " 项", color = Ink.copper,
-                        style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
-                        val order = ids.toMutableList()
-                        val swap = order[index - 1]
-                        order[index - 1] = order[index]
-                        order[index] = swap
-                        vm.rpc("queueWrite", "thread/queue/reorder",
-                            JSONObject().put("threadId", active)
-                                .put("queuedSubmissionIds", JSONArray(order)), after = { refreshQueue() })
-                    }, enabled = canReorder && index > 0 && "queueWrite" !in loading) {
-                        Icon(Icons.Outlined.ArrowUpward, "上移")
-                    }
-                    IconButton(onClick = {
-                        val order = ids.toMutableList()
-                        val swap = order[index + 1]
-                        order[index + 1] = order[index]
-                        order[index] = swap
-                        vm.rpc("queueWrite", "thread/queue/reorder",
-                            JSONObject().put("threadId", active)
-                                .put("queuedSubmissionIds", JSONArray(order)), after = { refreshQueue() })
-                    }, enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading) {
-                        Icon(Icons.Outlined.ArrowDownward, "下移")
-                    }
+                    AtlasSequenceBadge(index + 1, all.size)
+                    Spacer(Modifier.width(9.dp))
+                    Text("第 " + (index + 1) + " 项",
+                        color = Ink.copper, style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.weight(1f))
                     IconButton(
-                        onClick = {
-                            pendingEdit = item
-                            editText = input.optJSONObject(0)?.optString("text").orEmpty()
-                        },
-                        enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
-                            "queueWrite" !in loading
+                        onClick = { showQueueActions = true },
+                        enabled = "queueWrite" !in loading,
+                        modifier = Modifier.testTag("queue-item-more-" + index)
                     ) {
-                        Icon(Icons.Outlined.Edit, "编辑文本任务")
-                    }
-                    IconButton(onClick = { pendingDelete = item },
-                        enabled = "queueWrite" !in loading) {
-                        Icon(Icons.Outlined.DeleteOutline, "删除")
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "管理第${index + 1}项指令")
                     }
                 }
+                if (showQueueActions) CodexActionSheet(
+                    title = "第 ${index + 1} 项指令",
+                    onDismiss = { showQueueActions = false },
+                    actions = listOf(
+                        CodexSheetAction(
+                            label = "上移",
+                            description = "优先执行此项",
+                            icon = Icons.Outlined.ArrowUpward,
+                            enabled = canReorder && index > 0 && "queueWrite" !in loading,
+                            onClick = {
+                                val order = ids.toMutableList()
+                                val swap = order[index - 1]
+                                order[index - 1] = order[index]
+                                order[index] = swap
+                                vm.rpc("queueWrite", "thread/queue/reorder",
+                                    JSONObject().put("threadId", active)
+                                        .put("queuedSubmissionIds", JSONArray(order)),
+                                    after = { refreshQueue() })
+                            }
+                        ),
+                        CodexSheetAction(
+                            label = "下移",
+                            description = "延后执行此项",
+                            icon = Icons.Outlined.ArrowDownward,
+                            enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading,
+                            onClick = {
+                                val order = ids.toMutableList()
+                                val swap = order[index + 1]
+                                order[index + 1] = order[index]
+                                order[index] = swap
+                                vm.rpc("queueWrite", "thread/queue/reorder",
+                                    JSONObject().put("threadId", active)
+                                        .put("queuedSubmissionIds", JSONArray(order)),
+                                    after = { refreshQueue() })
+                            }
+                        ),
+                        CodexSheetAction(
+                            label = "编辑指令",
+                            icon = Icons.Outlined.Edit,
+                            enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
+                                "queueWrite" !in loading,
+                            onClick = {
+                                pendingEdit = item
+                                editText = input.optJSONObject(0)?.optString("text").orEmpty()
+                            }
+                        ),
+                        CodexSheetAction(
+                            label = "删除指令",
+                            description = "删除前会再次确认",
+                            icon = Icons.Outlined.DeleteOutline,
+                            destructive = true,
+                            enabled = "queueWrite" !in loading,
+                            onClick = { pendingDelete = item }
+                        )
+                    )
+                )
                 Text(summary, style = MaterialTheme.typography.bodyLarge, maxLines = 8,
                     overflow = TextOverflow.Ellipsis)
             }

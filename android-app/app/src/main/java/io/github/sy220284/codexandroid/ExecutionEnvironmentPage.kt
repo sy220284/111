@@ -150,58 +150,69 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             }
         }
 
-        TextButton(
-            onClick = { showAdvanced = !showAdvanced },
+        CodexDetailTrigger(
+            label = "查看环境状态与详细诊断",
+            onClick = { showAdvanced = true },
             modifier = Modifier.testTag("environment-advanced-toggle")
+        )
+        if (showAdvanced) CodexDetailSheet(
+            title = "执行环境检查",
+            subtitle = "查看实际连接状态、服务信息与请求结果",
+            onDismiss = { showAdvanced = false }
         ) {
-            Icon(Icons.Outlined.Settings, null)
-            Spacer(Modifier.width(8.dp))
-            Text(if (showAdvanced) "收起详细诊断" else "查看环境状态与详细诊断")
-        }
-        CodexReveal(showAdvanced) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("环境检查", style = MaterialTheme.typography.titleMedium)
-                Text("当前环境：${if (useRemote) remoteName.ifBlank { "请先填写连接名称" } else "本机"}",
-                    color = Ink.muted)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = { checkEnvironment(targetId) },
-                        enabled = targetId.isNotBlank() && !statusBusy,
-                        modifier = Modifier.testTag("environment-check-status")) {
-                        Text(if (statusBusy) "查询中" else "检查状态")
-                    }
-                    OutlinedButton(onClick = { loadEnvironmentInfo(targetId) },
-                        enabled = targetId.isNotBlank() && !infoBusy,
-                        modifier = Modifier.testTag("environment-info")) {
-                        Text(if (infoBusy) "读取中" else "查看详情")
-                    }
-                }
+            Text("当前环境：" +
+                if (useRemote) remoteName.ifBlank { "请先填写连接名称" } else "本机",
+                style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
+            Row(
+                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { checkEnvironment(targetId) },
+                    enabled = targetId.isNotBlank() && !statusBusy,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        .testTag("environment-check-status")
+                ) { Text(if (statusBusy) "查询中" else "检查状态") }
+                OutlinedButton(
+                    onClick = { loadEnvironmentInfo(targetId) },
+                    enabled = targetId.isNotBlank() && !infoBusy,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        .testTag("environment-info")
+                ) { Text(if (infoBusy) "读取中" else "查看详情") }
             }
-        }
-        val visibleKeys = if (useRemote && lastSubmittedRemote == targetId)
-            listOf(statusKey, infoKey, "environmentAdd")
-        else listOf(statusKey, infoKey)
-        if (queriedEnvironment == targetId || (useRemote && lastSubmittedRemote == targetId)) {
-            PresentationPolicy.visibleErrors(errors, visibleKeys)
-                .forEach { error -> ErrorText(error) }
-        }
-        for (key in listOf(statusKey, infoKey)) {
+            if (queriedEnvironment == targetId || (useRemote && lastSubmittedRemote == targetId)) {
+                val visibleKeys = if (useRemote && lastSubmittedRemote == targetId)
+                    listOf(statusKey, infoKey, "environmentAdd")
+                else listOf(statusKey, infoKey)
+                PresentationPolicy.visibleErrors(errors, visibleKeys)
+                    .forEach { error -> ErrorText(error) }
+            }
             if (queriedEnvironment == targetId) {
-                results[key]?.let { response ->
-                    MaterialPanel(Modifier.fillMaxWidth()) {
-                        Text(if (key == statusKey) "环境运行状态" else "环境详情",
-                            style = MaterialTheme.typography.titleMedium)
-                        val state = PresentationPolicy.serviceState(response.optString("status"))
-                        if (key == statusKey) {
-                            StatusPill(state, state == "已连接")
+                if (statusBusy) AtlasOperationProgress("正在查询环境状态")
+                if (infoBusy) AtlasOperationProgress("正在读取环境信息")
+                for (key in listOf(statusKey, infoKey)) {
+                    results[key]?.let { response ->
+                        MaterialPanel(Modifier.fillMaxWidth()) {
+                            Text(if (key == statusKey) "环境运行状态" else "环境详情",
+                                style = MaterialTheme.typography.titleMedium)
+                            val state = PresentationPolicy.serviceState(response.optString("status"))
+                            if (key == statusKey) StatusPill(state, state == "已连接")
+                            PresentationPolicy.meaningful(response.optString("displayName"))
+                                .takeIf { it.isNotEmpty() }
+                                ?.let { Text(it, color = Ink.muted) }
+                            if (key == infoKey) {
+                                Text("详细状态已读取，可在执行服务端查看运行日志。",
+                                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
-                        PresentationPolicy.meaningful(response.optString("displayName"))
-                            .takeIf { it.isNotEmpty() }
-                            ?.let { Text(it, color = Ink.muted) }
-                        if (key == infoKey)
-                            Text("详细状态已读取，可在服务端查看配置与运行日志。",
-                                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
+                if (!statusBusy && !infoBusy && results[statusKey] == null &&
+                    results[infoKey] == null && errors[statusKey] == null &&
+                    errors[infoKey] == null) {
+                    AtlasFieldFeedback("请选择检查状态或查看详情")
+                }
+            } else {
+                AtlasFieldFeedback("请选择检查状态或查看详情以获取最新信息")
             }
         }
     }

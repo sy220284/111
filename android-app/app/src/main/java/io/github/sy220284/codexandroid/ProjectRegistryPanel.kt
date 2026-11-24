@@ -15,7 +15,7 @@ import java.io.File
 
 /** Codex's durable project registry is separate from local file deletion. */
 @Composable
-fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
+fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -25,7 +25,6 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
     val running by vm.running.collectAsState()
     val selectedPath by vm.activeWorkspace.collectAsState()
     val root = File(vm.workingDirectory).canonicalFile
-    var expanded by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var confirmCreate by remember { mutableStateOf(false) }
     var withThread by remember { mutableStateOf(false) }
@@ -56,23 +55,17 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
             nextPageCursor = response.optString("nextCursor")
         }
     }
-    LaunchedEffect(expanded, status, revision) {
-        if (expanded && status == EngineStatus.Connected) reload()
+    LaunchedEffect(status, revision) {
+        if (status == EngineStatus.Connected) reload()
     }
     val projects = projectPages
-    MaterialPanel(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.AccountTree, null)
-            Spacer(Modifier.width(8.dp))
-            Text("项目列表与管理", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f))
-            TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "收起" else "管理")
-            }
-        }
-        if (expanded) {
-            Text("将当前文件夹加入项目列表，之后便可快速切换项目。",
-                style = MaterialTheme.typography.bodySmall)
+    CodexDetailSheet(
+        title = "项目列表与管理",
+        subtitle = "登记、切换与整理当前工作区项目",
+        onDismiss = onDismiss
+    ) {
+        Text("将当前文件夹加入项目列表，之后便可快速切换项目。",
+            style = MaterialTheme.typography.bodySmall)
             if (status != EngineStatus.Connected) {
                 Text("请先连接运行服务，再管理项目。",
                     style = MaterialTheme.typography.bodySmall)
@@ -102,6 +95,14 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text(if (withThread && currentThread != null) "登记项目并关联会话"
                         else "登记当前目录")
+                }
+                if ("projectsCatalog" in loading && projects.isEmpty()) {
+                    AtlasLoadingResults("正在读取项目", placeholderRows = 3)
+                }
+                if ("projectsCatalog" !in loading && projects.isEmpty() &&
+                    errors["projectsCatalog"] == null) {
+                    CodexEmptyState("暂无登记项目",
+                        "输入项目名称即可登记当前工作目录，之后可从这里快速切换。")
                 }
                 projects.forEachIndexed { index, project ->
                     val projectId = project.optString("id")
@@ -136,60 +137,68 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                             modifier = Modifier.heightIn(min = 48.dp)) {
                             Text(if (selectedId == projectId) "当前项目" else "使用")
                         }
-                        Box {
-                            IconButton(onClick = { actionMenuId = projectId },
-                                enabled = projectId.isNotBlank(),
-                                modifier = Modifier.size(48.dp)) {
-                                Icon(Icons.Outlined.MoreVert, "管理" + displayName)
-                            }
-                            DropdownMenu(expanded = actionMenuId == projectId,
-                                onDismissRequest = { actionMenuId = "" }) {
-                                DropdownMenuItem(
-                                    text = { Text(if (detailsId == projectId) "收起详情" else "查看详情") },
-                                    onClick = {
-                                        actionMenuId = ""
-                                        detailsId = if (detailsId == projectId) "" else projectId
-                                        if (detailsId == projectId) vm.refresh(
-                                            "projectDetail", "project/read",
-                                            ProjectRequestContract.read(projectId))
-                                    })
-                                DropdownMenuItem(text = { Text("重命名") },
-                                    enabled = canModify,
-                                    onClick = {
-                                        actionMenuId = ""
-                                        editing = project
-                                        renameText = displayName
-                                    })
-                                DropdownMenuItem(text = { Text("向上移动") },
-                                    enabled = canModify && index > 0,
-                                    onClick = {
-                                        actionMenuId = ""
-                                        vm.rpc("projectWrite", "project/move",
-                                            ProjectRequestContract.move(projectId,
-                                                projects.getOrNull(index - 1)?.optString("id")),
-                                            after = { reload() })
-                                    })
-                                DropdownMenuItem(text = { Text("向下移动") },
-                                    enabled = canModify && index < projects.lastIndex,
-                                    onClick = {
-                                        actionMenuId = ""
-                                        vm.rpc("projectWrite", "project/move",
-                                            ProjectRequestContract.move(projectId,
-                                                projects.getOrNull(index + 2)?.optString("id")),
-                                            after = { reload() })
-                                    })
-                                DropdownMenuItem(text = { Text("移除项目登记") },
-                                    enabled = canModify,
-                                    onClick = { actionMenuId = ""; deleting = project })
-                            }
+                        IconButton(
+                            onClick = { actionMenuId = projectId },
+                            enabled = projectId.isNotBlank(),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Outlined.MoreVert, "管理" + displayName)
                         }
-                    }
-                    if (detailsId == projectId) {
-                        data["projectDetail"]?.optJSONObject("project")?.takeIf {
-                            it.optString("id") == projectId
-                        }?.let { item ->
-                            Text("目录数量：" + (item.optJSONArray("roots")?.length() ?: 0),
-                                style = MaterialTheme.typography.bodySmall)
+                        if (actionMenuId == projectId && projectId.isNotBlank()) {
+                            CodexActionDialog(
+                                title = "管理项目 · " + displayName,
+                                onDismiss = { actionMenuId = "" },
+                                actions = listOf(
+                                    CodexSheetAction(
+                                        label = "查看详情",
+                                        icon = Icons.Outlined.Info,
+                                        onClick = {
+                                            detailsId = projectId
+                                            vm.refresh("projectDetail", "project/read",
+                                                ProjectRequestContract.read(projectId))
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "重命名",
+                                        icon = Icons.Outlined.Edit,
+                                        enabled = canModify,
+                                        onClick = {
+                                            editing = project
+                                            renameText = displayName
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "向上移动",
+                                        icon = Icons.Outlined.ArrowUpward,
+                                        enabled = canModify && index > 0,
+                                        onClick = {
+                                            vm.rpc("projectWrite", "project/move",
+                                                ProjectRequestContract.move(projectId,
+                                                    projects.getOrNull(index - 1)?.optString("id")),
+                                                after = { reload() })
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "向下移动",
+                                        icon = Icons.Outlined.ArrowDownward,
+                                        enabled = canModify && index < projects.lastIndex,
+                                        onClick = {
+                                            vm.rpc("projectWrite", "project/move",
+                                                ProjectRequestContract.move(projectId,
+                                                    projects.getOrNull(index + 2)?.optString("id")),
+                                                after = { reload() })
+                                        }
+                                    ),
+                                    CodexSheetAction(
+                                        label = "移除项目登记",
+                                        icon = Icons.Outlined.DeleteOutline,
+                                        description = "只移除登记，保留本机目录；确认后执行",
+                                        enabled = canModify,
+                                        destructive = true,
+                                        onClick = { deleting = project }
+                                    )
+                                )
+                            )
                         }
                     }
                 }
@@ -200,6 +209,28 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File) {
                         Text(if ("projectsCatalogMore" in loading) "正在读取更多项目…" else "加载更多项目")
                     }
                 }
+            }
+    }
+    if (detailsId.isNotBlank()) {
+        val detail = data["projectDetail"]?.optJSONObject("project")?.takeIf {
+            it.optString("id") == detailsId
+        }
+        CodexInfoDialog(
+            title = projectPages.firstOrNull { it.optString("id") == detailsId }
+                ?.optString("name").orEmpty().ifBlank { "项目详情" },
+            onDismiss = { detailsId = "" }
+        ) {
+            when {
+                detail != null -> {
+                    Text("已登记目录：" + (detail.optJSONArray("roots")?.length() ?: 0) + " 个")
+                    Text("这里仅管理项目登记与关联，保留本机目录和文件。",
+                        color = Ink.muted)
+                }
+                "projectDetail" in loading -> AtlasOperationProgress("正在读取项目详情")
+                errors["projectDetail"] != null -> ErrorText(
+                    "详情读取失败：" +
+                        PresentationPolicy.readableError(errors["projectDetail"].orEmpty()))
+                else -> AtlasFieldFeedback("暂无详情，重新打开后可再次读取")
             }
         }
     }

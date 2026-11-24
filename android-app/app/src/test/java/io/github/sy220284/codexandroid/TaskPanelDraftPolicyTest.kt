@@ -39,4 +39,24 @@ class TaskPanelDraftPolicyTest {
         store = TaskPanelDraftPolicy.change(store, "thread-a") { TaskPanelDraft() }
         assertFalse(store.containsKey("thread-a"))
     }
+
+    @Test fun budgetEditIntentSurvivesSheetRecreationAndIsolatedPerThread() {
+        var drafts = TaskPanelDraftPolicy.change(emptyMap(), "thread-a") {
+            it.copy(goalText = "修复问题", goalBudget = "9000", goalBudgetEdited = true)
+        }
+        drafts = TaskPanelDraftPolicy.change(drafts, "thread-b") {
+            it.copy(goalText = "另一个目标")
+        }
+        val reopened = drafts["thread-a"] ?: TaskPanelDraft()
+        assertTrue(reopened.goalBudgetEdited)
+        assertEquals("9000", reopened.goalBudget)
+        assertFalse(drafts["thread-b"]!!.goalBudgetEdited)
+
+        // Explicit undo clears the pending intent without removing the unfinished goal.
+        drafts = TaskPanelDraftPolicy.change(drafts, "thread-a") {
+            it.copy(goalBudget = "", goalBudgetEdited = false)
+        }
+        assertEquals("修复问题", drafts["thread-a"]?.goalText)
+        assertFalse(drafts["thread-a"]!!.goalBudgetEdited)
+    }
 }

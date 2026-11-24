@@ -156,7 +156,7 @@ fun ProtocolFeedback(
     val loading by vm.loading.collectAsState()
     val connection by vm.bridge.status.collectAsState()
     CodexReveal(keys.any { it in loading }) {
-        LinearProgressIndicator(Modifier.fillMaxWidth(), color = Ink.copper)
+        AtlasOperationProgress("正在处理本页请求")
     }
     val visible = PresentationPolicy.visibleErrors(errors, keys)
     if (visible.isNotEmpty() && connection != EngineStatus.Connected) {

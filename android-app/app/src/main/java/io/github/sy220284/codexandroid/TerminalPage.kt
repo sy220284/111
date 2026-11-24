@@ -53,7 +53,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var recentCommands by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var historyVisible by rememberSaveable { mutableStateOf(false) }
     var historyPosition by remember { mutableStateOf(TerminalHistoryPosition()) }
-    var expandedOutput by rememberSaveable { mutableStateOf(false) }
+    var showFullOutput by rememberSaveable { mutableStateOf(false) }
+    var showOlderOutput by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -160,31 +161,47 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             )
                         }
                         if (session.running) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            AtlasOperationProgress("命令正在执行")
                             if (session.tty) {
-                                TextButton(onClick = { showTerminalSize = !showTerminalSize },
-                                    modifier = Modifier.heightIn(min = 48.dp)) {
-                                    Text(if (showTerminalSize) "收起终端尺寸" else "调整终端尺寸")
-                                }
-                                if (showTerminalSize) {
-                                Row(Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(ttyRows, { ttyRows = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("行数") }, singleLine = true,
-                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
-                                    OutlinedTextField(ttyCols, { ttyCols = it.filter(Char::isDigit).take(3) },
-                                        label = { Text("列数") }, singleLine = true,
-                                        modifier = Modifier.weight(1f), enabled = !session.terminating)
-                                }
-                                OutlinedButton(onClick = {
-                                    vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
-                                        ttyCols.toIntOrNull() ?: 0)
-                                }, enabled = !session.terminating &&
-                                    ttyRows.toIntOrNull() in 2..300 &&
-                                    ttyCols.toIntOrNull() in 10..400) {
-                                    Text("应用尺寸")
-                                }
-                                errors["terminalResize"]?.let { ErrorText(it) }
+                                CodexDetailTrigger(
+                                    label = "调整终端尺寸",
+                                    onClick = { showTerminalSize = true },
+                                    modifier = Modifier.testTag("terminal-resize-toggle")
+                                )
+                                if (showTerminalSize) CodexDetailSheet(
+                                    title = "终端窗口尺寸",
+                                    subtitle = "调整行数和列数后同步到正在运行的终端",
+                                    onDismiss = { showTerminalSize = false }
+                                ) {
+                                    Row(Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedTextField(ttyRows, {
+                                            ttyRows = it.filter(Char::isDigit).take(3)
+                                        }, label = { Text("行数") }, singleLine = true,
+                                            modifier = Modifier.weight(1f)
+                                                .testTag("terminal-resize-rows"),
+                                            enabled = !session.terminating)
+                                        OutlinedTextField(ttyCols, {
+                                            ttyCols = it.filter(Char::isDigit).take(3)
+                                        }, label = { Text("列数") }, singleLine = true,
+                                            modifier = Modifier.weight(1f)
+                                                .testTag("terminal-resize-cols"),
+                                            enabled = !session.terminating)
+                                    }
+                                    val validSize = ttyRows.toIntOrNull() in 2..300 &&
+                                        ttyCols.toIntOrNull() in 10..400
+                                    if (!validSize) AtlasFieldFeedback(
+                                        "行数 2–300，列数 10–400", isError = true)
+                                    CodexPrimaryButton(
+                                        onClick = {
+                                            vm.resizeTerminal(ttyRows.toIntOrNull() ?: 0,
+                                                ttyCols.toIntOrNull() ?: 0)
+                                        },
+                                        enabled = !session.terminating && validSize,
+                                        modifier = Modifier.fillMaxWidth()
+                                            .testTag("terminal-resize-apply")
+                                    ) { Text("应用尺寸") }
+                                    errors["terminalResize"]?.let { ErrorText(it) }
                                 }
                             }
                         }
@@ -219,10 +236,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 Text("复制")
                             }
                             TextButton(
-                                onClick = { expandedOutput = !expandedOutput },
+                                onClick = { showFullOutput = true },
                                 enabled = session.stdoutText.length > 16_000,
                                 modifier = Modifier.heightIn(min = 48.dp)
-                            ) { Text(if (expandedOutput) "收起" else "展开") }
+                                    .testTag("terminal-full-stdout")
+                            ) { Text("查看完整输出") }
                         }
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
                             OutlinedButton(
@@ -259,11 +277,14 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         if (historicalStdout.isNotBlank()) {
                             Text("较早的标准输出（本机分页读取）",
                                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                            SelectionContainer {
-                                Text(historicalStdout, color = Ink.parchment,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.testTag("terminal-older-stdout"))
+                            TextButton(
+                                onClick = { showOlderOutput = true },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .testTag("terminal-older-stdout-open")
+                            ) {
+                                Icon(Icons.Outlined.OpenInFull, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("阅读较早输出 · ${historicalStdout.length} 字符")
                             }
                         }
                         if (transcriptAvailable) {
@@ -288,7 +309,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 style = MaterialTheme.typography.labelMedium)
                         DividerLine()
                         SelectionContainer {
-                            Text(session.stdoutText.takeLast(if (expandedOutput) 128_000 else 16_000).ifBlank {
+                            Text(session.stdoutText.takeLast(16_000).ifBlank {
                                 if (session.running) "等待命令输出…" else "(无标准输出)"
                             }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
                                 style = MaterialTheme.typography.bodySmall,
@@ -405,32 +426,33 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                 if (recentCommands.isNotEmpty()) {
                     Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
                         style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    Box {
-                        TextButton(
-                            onClick = { historyVisible = true },
-                            enabled = !session.running,
-                            modifier = Modifier.heightIn(min = 48.dp)
-                        ) {
-                            Icon(Icons.Outlined.History, null)
-                            Spacer(Modifier.width(7.dp))
-                            Text("使用历史命令")
-                        }
-                        DropdownMenu(
-                            expanded = historyVisible,
-                            onDismissRequest = { historyVisible = false }
-                        ) {
-                            recentCommands.forEach { previous ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(previous, maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis)
-                                    },
-                                    onClick = {
-                                        command = previous
-                                        historyPosition = TerminalHistoryPosition()
-                                        historyVisible = false
-                                    }
-                                )
+                    TextButton(
+                        onClick = { historyVisible = true },
+                        enabled = !session.running,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                            .testTag("terminal-history-toggle")
+                    ) {
+                        Icon(Icons.Outlined.History, null)
+                        Spacer(Modifier.width(7.dp))
+                        Text("使用历史命令")
+                    }
+                    if (historyVisible) CodexDetailSheet(
+                        title = "历史命令",
+                        subtitle = "选择后填入输入栏，执行前仍需确认",
+                        onDismiss = { historyVisible = false }
+                    ) {
+                        recentCommands.forEachIndexed { index, previous ->
+                            OutlinedButton(
+                                onClick = {
+                                    command = previous
+                                    historyPosition = TerminalHistoryPosition()
+                                    historyVisible = false
+                                },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .testTag("terminal-history-item-$index")
+                            ) {
+                                Text(previous, maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -455,6 +477,16 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
         }
         errors["terminal"]?.let { ErrorText(it) }
     }
+    if (showFullOutput) FullTextReaderDialog(
+        title = "终端标准输出",
+        text = session.stdoutText,
+        onDismiss = { showFullOutput = false }
+    )
+    if (showOlderOutput) FullTextReaderDialog(
+        title = "较早的标准输出",
+        text = historicalStdout,
+        onDismiss = { showOlderOutput = false }
+    )
     if (confirm) CodexConfirmDialog(
         title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
         message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",

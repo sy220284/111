@@ -1,0 +1,307 @@
+package io.github.sy220284.codexandroid
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+
+/**
+ * 111 交互图谱：由十张参考图片提炼的可复用原生组件。
+ * 组件只处理呈现和可访问操作，搜索、提交、审批、进度均由调用方的真实状态驱动。
+ */
+
+/** 统一查询框：文本搜索使用搜索键提交；即时过滤可不提供 onSubmit。 */
+@Composable
+fun AtlasSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    onSubmit: (() -> Unit)? = null,
+    onClear: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    busy: Boolean = false,
+    label: String? = null,
+    submitTestTag: String? = null
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.fillMaxWidth(),
+        label = label?.let { labelText -> { Text(labelText) } },
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        enabled = enabled,
+        shape = RoundedCornerShape(18.dp),
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        trailingIcon = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (value.isNotBlank() && onClear != null) {
+                    IconButton(
+                        onClick = onClear,
+                        modifier = Modifier.size(48.dp),
+                        enabled = enabled
+                    ) { Icon(Icons.Outlined.Close, contentDescription = "清除搜索词") }
+                }
+                if (onSubmit != null) {
+                    IconButton(
+                        onClick = onSubmit,
+                        enabled = enabled && !busy && value.isNotBlank(),
+                        modifier = Modifier.size(48.dp).let {
+                            if (submitTestTag == null) it else it.testTag(submitTestTag)
+                        }
+                    ) {
+                        if (busy) CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Ink.copper, strokeWidth = 2.dp
+                        ) else Icon(Icons.Outlined.ArrowForward, contentDescription = "开始搜索")
+                    }
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(
+            imeAction = if (onSubmit == null) ImeAction.Done else ImeAction.Search
+        ),
+        keyboardActions = KeyboardActions(
+            onSearch = { if (onSubmit != null && enabled && !busy && value.isNotBlank()) onSubmit() }
+        )
+    )
+}
+
+/** 明确选择的是任务执行状态，而非普通内容筛选条件。 */
+data class AtlasStatusOption(
+    val key: String,
+    val title: String,
+    val tone: StatusTone
+)
+
+@Composable
+fun AtlasStatusSelector(
+    selected: String,
+    options: List<AtlasStatusOption>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val toneFor: (StatusTone) -> androidx.compose.ui.graphics.Color = { tone ->
+        when (tone) {
+            StatusTone.Success -> Ink.jade
+            StatusTone.Warning -> Ink.warning
+            StatusTone.Danger -> Ink.red
+            StatusTone.Info -> Ink.copper
+            StatusTone.Neutral -> Ink.muted
+        }
+    }
+    Column(
+        modifier.fillMaxWidth().selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.chunked(2).forEach { optionsInRow ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                optionsInRow.forEach { option ->
+                    val chosen = selected == option.key
+                    Surface(
+                        modifier = Modifier.weight(1f)
+                            .selectable(
+                                selected = chosen, enabled = enabled,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(option.key) }
+                            ),
+                        color = if (chosen) Ink.panel else Ink.canvas,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(
+                            if (chosen) 2.dp else 1.dp,
+                            if (chosen) toneFor(option.tone) else Ink.border
+                        )
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                                .padding(horizontal = 7.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            RadioButton(
+                                selected = chosen, onClick = null,
+                                enabled = enabled, modifier = Modifier.size(40.dp),
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = toneFor(option.tone)
+                                )
+                            )
+                            Text(
+                                option.title,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+                if (optionsInRow.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** 排队任务的真实顺序徽标；它只显示顺序，不伪装为完成进度。 */
+@Composable
+fun AtlasSequenceBadge(
+    position: Int,
+    total: Int,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.size(34.dp).semantics { contentDescription = "第$position 项，共 $total 项" },
+        shape = CircleShape,
+        color = if (position == 1) Ink.jade else Ink.canvas,
+        border = BorderStroke(1.dp, if (position == 1) Ink.jade else Ink.border)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(position.toString(), style = MaterialTheme.typography.labelLarge,
+                color = if (position == 1) androidx.compose.ui.graphics.Color.White else Ink.parchment)
+        }
+    }
+}
+
+/** 已知进度才显示比例；未知进度明确标记正在处理。 */
+@Composable
+fun AtlasOperationProgress(
+    label: String,
+    modifier: Modifier = Modifier,
+    progress: Float? = null
+) {
+    val fraction = progress?.coerceIn(0f, 1f)
+    Column(modifier.fillMaxWidth().testTag("atlas-operation-progress"),
+        verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.bodySmall,
+                color = Ink.muted, modifier = Modifier.weight(1f))
+            if (fraction != null) Text("${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
+        }
+        if (fraction == null) LinearProgressIndicator(
+            modifier = Modifier.fillMaxWidth(), color = Ink.copper,
+            trackColor = Ink.border
+        ) else LinearProgressIndicator(
+            progress = { fraction },
+            modifier = Modifier.fillMaxWidth(), color = Ink.copper,
+            trackColor = Ink.border
+        )
+    }
+}
+
+/** 说明和校验反馈紧邻字段，减少弹出额外通知造成的打断。 */
+@Composable
+fun AtlasFieldFeedback(
+    message: String,
+    isError: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier.fillMaxWidth().heightIn(min = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Icon(if (isError) Icons.Outlined.ErrorOutline else Icons.Outlined.Info,
+            contentDescription = null,
+            tint = if (isError) Ink.red else Ink.muted,
+            modifier = Modifier.size(17.dp))
+        Text(message, color = if (isError) Ink.red else Ink.muted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f))
+    }
+}
+
+/** 列表总数放在标题同行，右侧操作由页面按真实可用状态提供。 */
+@Composable
+fun AtlasListHeading(
+    title: String,
+    total: Int,
+    modifier: Modifier = Modifier,
+    suffix: String = "项",
+    action: (@Composable () -> Unit)? = null
+) {
+    Row(modifier.fillMaxWidth().heightIn(min = 42.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text("$total $suffix", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
+        }
+        action?.invoke()
+    }
+}
+
+/** 以真实加载状态占位，避免将上一次查询结果展示为当前结果。 */
+@Composable
+fun AtlasLoadingResults(
+    title: String,
+    modifier: Modifier = Modifier,
+    placeholderRows: Int = 3
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth().testTag("atlas-loading-results"),
+        shape = RoundedCornerShape(18.dp),
+        color = Ink.panel,
+        border = BorderStroke(1.dp, Ink.border)
+    ) {
+        Column(Modifier.padding(15.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            CodexSkeletonRows(placeholderRows)
+        }
+    }
+}
+
+/** 结构化选项行用于设置与功能入口，整个行高可触达而非只有右侧图标可点。 */
+@Composable
+fun AtlasSettingsActionRow(
+    title: String,
+    detail: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth().clickable(
+            enabled = enabled, role = Role.Button, onClick = onClick
+        ),
+        color = Ink.canvas,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, Ink.border)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(icon, contentDescription = null,
+                modifier = Modifier.size(24.dp), tint = Ink.copper)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(detail, style = MaterialTheme.typography.bodySmall,
+                    color = Ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+                tint = Ink.muted, modifier = Modifier.size(20.dp))
+        }
+    }
+}

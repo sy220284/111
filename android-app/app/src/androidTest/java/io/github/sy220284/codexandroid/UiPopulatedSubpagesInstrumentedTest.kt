@@ -64,6 +64,14 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
         capture("audit-mcp-service-boundary-android35.png")
+        rule.onNodeWithText("演示扩展服务").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.onNodeWithText("工具 1 项 · 资源 1 项").assertExists()
+        rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
+        rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
+        capture("audit-mcp-detail-sheet-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
     }
 
     @Test fun hostedMcpAppsAreListedWithoutRegistrationOrAuthorizationControls() {

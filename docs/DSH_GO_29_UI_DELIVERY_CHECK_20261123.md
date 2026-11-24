@@ -27,12 +27,12 @@
 | 19 | `account` | P1 | 登录/退出与当前账号状态；用量额度统一入口 | `AccountLoginUi.kt` | accountPageExposesNarrowScreenDeviceLoginActions；account-android35.png |
 | 20 | `providers` | P1 | 服务商列表、可读配置与确认表单；API Key 搜索直达 | `EcosystemScreens.kt / ProvidersPage` | approvalsAndChildEditorsHaveReadableStates；settingsSearchOpensPreciseProviderAndRemoteEditors |
 | 21 | `config` | P1 | 高级参数按需编辑，移除重复设置总菜单并显式保存 | `ControlScreens.kt / ConfigPage` | settingsSearchDirectlyExpandsAdvancedConfig；audit-config-editor-android35.png |
-| 22 | `security` | P1 | 审批与文件访问以自然语言呈现；确认风险及影响范围 | `ControlScreens.kt / SecurityPage` | expandedSecurityAndAboutViewsAreCaptured；audit-security-android35.png |
+| 22 | `security` | P1 | 审批与文件访问以自然语言呈现；确认风险及影响范围 | `ControlScreens.kt / SecurityPage` | directlySelectableSecurityAndAboutViewsAreCaptured；audit-security-android35.png |
 | 23 | `usage` | P2 | 用量/额度同屏切换，服务端数据和空态可理解 | `AccountMetricsPage.kt` | accountMetricsUsesSharedUsageAndLimitsTabs；account-usage-android35.png |
 | 24 | `limits` | P2 | 旧路由保留；额度搜索直接选中额度窗口标签 | `AccountMetricsPage.kt / NavigationPolicy.kt` | settingsSearchOpensUnifiedAccountMetrics；account-limits-android35.png |
 | 25 | `appearance` | P2 | 主题实时预览、字号/密度/阴影/减动效与可见焦点 | `SettingsHub.kt / AppearanceInlineControls` | settingsSearchFindsInlineAppearanceControls；darkAppearanceWithSystemDoubleFontRemainsReachable |
 | 26 | `diagnostics` | P0 | 状态+重连优先，日志和排查按需展开并合并错误提示 | `EcosystemScreens.kt / EngineDiagnosticsPage` | secondarySettingsPagesHaveActualDeviceScreenshots；audit-diagnostics-android35.png |
-| 27 | `about` | P2 | 版本、来源与隐私清楚；支持复制版本信息 | `UiSharedSurfaces.kt / AboutInfoSheet` | expandedSecurityAndAboutViewsAreCaptured；audit-about-android35.png |
+| 27 | `about` | P2 | 版本、来源与隐私清楚；支持复制版本信息 | `UiSharedSurfaces.kt / AboutInfoSheet` | directlySelectableSecurityAndAboutViewsAreCaptured；audit-about-android35.png |
 | 28 | `settings` | P1 | 设置归属唯一；搜索直达目标控件并保留返回上下文 | `SettingsHub.kt / NavigationPolicy.kt` | NavigationPolicyTest；settingsSearchDirectlyOpensUpdateActions |
 | 29 | `update` | P2 | 检查→下载→校验→安装状态连续显示；搜索展开操作 | `AppUpdateCard.kt / AppUpdateManager` | settingsGroupsAndInlineAppearanceAndUpdate；settingsSearchDirectlyOpensUpdateActions |
 
