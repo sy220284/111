@@ -8,9 +8,17 @@ class UiProtocolMatrixTest {
         assertEquals(195, UiProtocolMatrix.all.size)
         assertEquals(195, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
-        assertEquals(39, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
+        assertEquals(46, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
         assertEquals(51, UiProtocolMatrix.advanced.size)
-        assertEquals(68, UiProtocolMatrix.systemOnly.size)
+        assertEquals(61, UiProtocolMatrix.systemOnly.size)
+    }
+
+    @Test fun newlyExposedConversationOperationsAreContextual() {
+        listOf("thread/section/move", "threadSection/list", "threadSection/create",
+            "threadSection/update", "threadSection/delete",
+            "thread/realtime/appendText", "thread/realtime/appendSpeech").forEach { method ->
+            assertEquals(method, ApiExposure.Contextual, UiProtocolMatrix.byMethod[method]?.exposure)
+        }
     }
 
     @Test fun agentTransportProtocolsRemainInternal() {

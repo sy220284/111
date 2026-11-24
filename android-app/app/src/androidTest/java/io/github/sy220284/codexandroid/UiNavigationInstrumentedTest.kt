@@ -39,6 +39,34 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
     }
 
+    /** Dispatch a physical display tap so WindowManager can deliver ACTION_OUTSIDE. */
+    private fun tapOutsideFloatingMenu() {
+        rule.waitForIdle()
+        val center = rule.onNodeWithTag("conversation-top-bar").fetchSemanticsNode().boundsInWindow.center
+        val screen = IntArray(2)
+        val window = IntArray(2)
+        rule.runOnUiThread {
+            rule.activity.window.decorView.getLocationOnScreen(screen)
+            rule.activity.window.decorView.getLocationInWindow(window)
+        }
+        val x = center.x + screen[0] - window[0]
+        val y = center.y + screen[1] - window[1]
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val downTime = android.os.SystemClock.uptimeMillis()
+        for (action in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {
+            val event = android.view.MotionEvent.obtain(downTime, android.os.SystemClock.uptimeMillis(),
+                action, x, y, 0)
+            try {
+                event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                instrumentation.sendPointerSync(event)
+            } finally { event.recycle() }
+        }
+        rule.waitForIdle()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("codex-floating-menu").fetchSemanticsNodes().isEmpty()
+        }
+    }
+
     /** Send Back to the focused Android window so Dialog/ModalBottomSheet receives it. */
     private fun pressSystemBack() {
         rule.waitForIdle()
@@ -413,7 +441,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("composer-add-photos").assertIsDisplayed()
         assertRealSoftKeyboardOpen()
-        rule.onNodeWithTag("conversation-top-bar").performTouchInput { click(center) }
+        tapOutsideFloatingMenu()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
         rule.onNodeWithTag("composer-input").assertTextContains(multiline)
     }
@@ -484,7 +512,7 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("composer-task-options").performClick()
             rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
             // Click outside the anchored popup without altering the draft.
-            rule.onNodeWithTag("conversation-top-bar").performTouchInput { click(center) }
+            tapOutsideFloatingMenu()
             rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
             rule.onNodeWithTag("composer-input").assertTextContains("检查")
             rule.onNodeWithTag("composer-input").performTextInput("\n" + "继续核对项目内容".repeat(20))

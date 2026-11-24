@@ -38,13 +38,16 @@ internal fun CodexFloatingMenu(
     // The model search needs its own editable focus; otherwise keep the IME window.
     val focusable = searchable || ime == 0.dp
     BackHandler(enabled = !focusable, onBack = onDismiss)
+    val menuWidth = minOf(if (wide) 280.dp else 248.dp,
+        (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp))
     CodexPopupMenu(
         expanded = true, onDismissRequest = onDismiss, floating = true, focusable = focusable,
-        modifier = Modifier.width(minOf(if (wide) 280.dp else 248.dp,
-            (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp)))
+        modifier = Modifier.width(menuWidth)
             .heightIn(max = height).testTag("codex-floating-menu")
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        // DropdownMenu measures its content's intrinsic width. An explicit
+        // inner width terminates that query before Slider/SubcomposeLayout.
+        Column(Modifier.width(menuWidth).padding(horizontal = 8.dp)) {
             Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.titleMedium, color = Ink.parchment)
             if (description.isNotBlank()) Text(description,

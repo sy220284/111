@@ -16,7 +16,7 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
     val automation = instrumentation.uiAutomation
     val target = instrumentation.targetContext
 
-    fun focusedWindow(): String {
+    fun focusedWindow(): Pair<String, String> {
         val descriptor = requireNotNull(automation.executeShellCommand("dumpsys window")) {
             "WindowManager 无法查询前台窗口：$fileName"
         }
@@ -26,24 +26,31 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
             .map(String::trim)
             .lastOrNull { it.startsWith("mCurrentFocus=") }
             ?.substringAfter("mCurrentFocus=")?.trim().orEmpty()
-        if (current.isNotBlank() && current != "null") return current
+        if (current.isNotBlank() && current != "null") return current to dump
         // 某些模拟器在瞬时焦点交接期不会生成 mCurrentFocus；检查当前无障碍焦点。
         val accessible = automation.rootInActiveWindow?.packageName?.toString().orEmpty()
         check(accessible.isNotBlank()) {
             "系统未提供有效前台窗口信息：$fileName"
         }
-        return accessible
+        return accessible to dump
     }
 
     fun checkOwner() {
-        val focus = focusedWindow()
-        // Compose DropdownMenu uses an owned popup window whose WM title does
-        // not include the package. This exception is limited to the screenshot
-        // whose test explicitly verified the corresponding menu's semantic nodes.
-        val verifiedComposerPopup =
-            fileName in setOf("attachment-sheet-android35.png", "tools-sheet-android35.png", "audit-message-menu-android35.png") &&
-                focus.contains("Pop-Up Window")
-        check(focus.contains(target.packageName) || verifiedComposerPopup) {
+        val (focus, dump) = focusedWindow()
+        // A popup title is not an ownership proof. Resolve its exact Window
+        // token in dumpsys and verify the owning app UID and package.
+        val token = Regex("""Window\{([^\s}]+)""").find(focus)?.groupValues?.get(1)
+        val ownerBlock = token?.let { id ->
+            val headers = Regex("""(?m)^\s*Window #\d+ Window\{([^\s}]+)[^\n]*""")
+                .findAll(dump).toList()
+            val index = headers.indexOfFirst { it.groupValues[1] == id }
+            if (index < 0) null else dump.substring(headers[index].range.first,
+                headers.getOrNull(index + 1)?.range?.first ?: dump.length)
+        }
+        val ownedPopup = focus.contains("Pop-Up Window") && ownerBlock != null &&
+            Regex("""\bmOwnerUid=${target.applicationInfo.uid}\b""").containsMatchIn(ownerBlock) &&
+            Regex("""\bpackage=${Regex.escape(target.packageName)}(?:\s|$)""").containsMatchIn(ownerBlock)
+        check(focus.contains(target.packageName) || ownedPopup) {
             "截图被其他程序或系统窗口遮挡：$fileName；当前前台=$focus"
         }
     }
