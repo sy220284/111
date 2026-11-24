@@ -30,6 +30,8 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,9 +45,10 @@ import androidx.compose.ui.unit.dp
 
 /** One motion language for a working console. All durations respect the in-app preference. */
 object CodexMotion {
-    const val feedback = 110
-    const val reveal = 210
-    const val navigation = 240
+    const val feedback = 150
+    const val reveal = 200
+    const val navigation = 280
+    const val sheet = 300
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
 }
 
@@ -108,7 +111,7 @@ fun CodexNotice(
     onAction: () -> Unit = {}
 ) {
     val color = when (tone) {
-        NoticeTone.Info -> Ink.copper
+        NoticeTone.Info -> Ink.muted
         NoticeTone.Success -> Ink.jade
         NoticeTone.Warning -> Ink.warning
         NoticeTone.Error -> Ink.red
@@ -121,21 +124,29 @@ fun CodexNotice(
     }
     Surface(
         modifier = modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-        color = Ink.canvas,
-        border = BorderStroke(1.dp, color.copy(alpha = .35f)),
-        shape = RoundedCornerShape(15.dp)
+        color = if (tone == NoticeTone.Info) Ink.recessed else color.copy(alpha = .075f),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            Modifier.padding(start = 13.dp, top = 11.dp, bottom = 11.dp, end = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
-            Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            if (actionLabel != null) TextButton(
-                onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)
-            ) {
-                Text(actionLabel, color = color)
+        BoxWithConstraints(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            val fontScale = LocalDensity.current.fontScale
+            val narrow = maxWidth < 300.dp || fontScale > 1.3f
+            if (actionLabel != null && narrow) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                        Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TextButton(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
+                        Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
+                    }
+                }
+            } else Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                if (actionLabel != null) TextButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
+                }
             }
         }
     }
@@ -184,13 +195,15 @@ fun CodexEmptyState(
     onAction: () -> Unit = {},
     artworkRes: Int? = if (icon == CodexGlyph.Inbox) R.drawable.ic_empty_content else null
 ) {
+    val compact = LocalConfiguration.current.screenHeightDp < 640 || LocalDensity.current.fontScale > 1.3f
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 27.dp),
+        modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (compact) 10.dp else 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (artworkRes != null) {
-            CodexStateArtwork(artworkRes, Modifier.size(width = 152.dp, height = 116.dp))
+            CodexStateArtwork(artworkRes, Modifier.size(width = if (compact) 88.dp else 128.dp,
+                height = if (compact) 64.dp else 96.dp))
         } else {
             Surface(
                 color = Ink.border.copy(alpha = .24f),
@@ -200,7 +213,7 @@ fun CodexEmptyState(
                     modifier = Modifier.padding(17.dp).size(27.dp))
             }
         }
-        Text(title, style = MaterialTheme.typography.titleLarge,
+        Text(title, style = MaterialTheme.typography.titleMedium,
             color = Ink.parchment,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Text(description, style = MaterialTheme.typography.bodyMedium,

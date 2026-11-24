@@ -347,7 +347,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("配置保存在当前设备，修改成功后影响后续任务。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
-        errors["config"]?.let { ErrorText(it) }
+        if (ready && "config" !in loading) errors["config"]?.let { ErrorText(it) }
         if (!ready && "config" !in loading) {
             if (engineStatus != EngineStatus.Connected) {
                 CodexRecoveryState("连接后可读取引擎配置",

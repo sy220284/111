@@ -56,21 +56,9 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     }
     ScreenColumn {
         SectionIntro("技能", "从 Codex 原生目录读取技能，按技能路径单独启用或停用。")
-        SourceState(vm, "skills") { vm.refresh("skills", "skills/list",
-            CatalogRequestContract.workspace(vm.workingDirectory)) }
-        if (engineStatus != EngineStatus.Connected && data["skills"] == null) {
-            CodexRecoveryState("连接后可读取技能",
-                "连接运行核心后将显示当前工作区的真实技能。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_connection)
-        } else if (data["skills"] == null && "skills" !in mutationLoading &&
-            skillErrors["skills"] != null) {
-            CodexRecoveryState("技能读取失败",
-                "读取目录未成功，可重新请求或查看诊断。",
-                "重新读取", {
-                    vm.refresh("skills", "skills/list",
-                        CatalogRequestContract.workspace(vm.workingDirectory))
-                }, { navigate("diagnostics") })
-        }
+        AtlasCatalogStatus(vm, "skills", "技能", onRefresh = {
+            vm.refresh("skills", "skills/list", CatalogRequestContract.workspace(vm.workingDirectory))
+        }, onDiagnostics = { navigate("diagnostics") })
         if (skills.isNotEmpty()) {
             AtlasListHeading("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用", skills.size)
             AtlasSearchField(query, { query = it }, "搜索技能名称", onClear = { query = "" },

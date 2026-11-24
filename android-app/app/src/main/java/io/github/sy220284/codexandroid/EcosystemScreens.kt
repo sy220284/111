@@ -336,8 +336,8 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             )
         }
         if (!installedOnly) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("搜索插件", style = MaterialTheme.typography.titleMedium,
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("搜索插件", style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.testTag("plugins-search-heading"))
                 val performSearch = {
                     val term = searchDraft.trim()
@@ -352,7 +352,6 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     value = searchDraft,
                     onValueChange = { searchDraft = it },
                     placeholder = "插件名称或关键字",
-                    label = "插件名称或关键字",
                     enabled = engineStatus == EngineStatus.Connected &&
                         "pluginMutation" !in busy,
                     busy = "pluginSearch:" + searchSubmitted + ":0" in busy,
@@ -366,7 +365,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 )
             }
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(if (installedOnly) "当前安装来源" else "插件源",
@@ -385,31 +384,11 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             }
         }
         ProtocolFeedback(vm, listOf("pluginMutation"))
-        if ("pluginMutation" in busy) CodexNotice(
-            "正在修改插件安装状态，完成后自动更新已安装列表。", NoticeTone.Info)
-        SourceState(vm, activeKey) {
+        AtlasCatalogStatus(vm, activeKey, "插件", onRefresh = {
             if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
                 CatalogRequestContract.workspace(vm.workingDirectory))
-            else vm.refresh("plugins", "plugin/list",
-                CatalogRequestContract.workspace(vm.workingDirectory))
-        }
-        if (engineStatus != EngineStatus.Connected && data[activeKey] == null) {
-            CodexRecoveryState("连接后可查看插件",
-                "已安装和可发现的插件由运行核心提供。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") },
-                    artworkRes = R.drawable.ic_empty_connection)
-        } else if (engineStatus == EngineStatus.Connected &&
-            data[activeKey] == null && activeKey !in busy &&
-            errors[activeKey] != null) {
-            CodexRecoveryState("插件目录读取失败",
-                "检查连接或重试读取插件目录。",
-                "重新读取", {
-                    if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-                        CatalogRequestContract.workspace(vm.workingDirectory))
-                    else vm.refresh("plugins", "plugin/list",
-                        CatalogRequestContract.workspace(vm.workingDirectory))
-                }, { navigate("diagnostics") })
-        }
+            else vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(vm.workingDirectory))
+        }, onDiagnostics = { navigate("diagnostics") })
         if (searchActive) {
             if (!submittedMatchesDraft) CodexNotice(
                 "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
@@ -514,6 +493,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
                 if (installedOnly) "从插件市场安装后，可在这里集中管理。"
                 else "检查 Codex 核心连接，或刷新市场目录。",
+                artworkRes = R.drawable.ic_empty_content,
                 actionLabel = if (installedOnly) "浏览插件" else "刷新目录",
                 onAction = {
                     if (installedOnly) installedOnly = false

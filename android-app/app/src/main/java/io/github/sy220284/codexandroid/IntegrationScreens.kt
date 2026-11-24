@@ -129,30 +129,16 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text("刷新")
             }
         }
-        ProtocolFeedback(vm, listOf("apps", "appInstalled"), onRetry = {
-            vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
+        AtlasCatalogStatus(vm, "apps", "应用", onRefresh = {
+            vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
+            vm.refresh("appInstalled", "app/installed")
+        }, onDiagnostics = { navigate("diagnostics") })
+        if (data["apps"] != null) ProtocolFeedback(vm, listOf("appInstalled"), onRetry = {
             vm.refresh("appInstalled", "app/installed")
         })
-        if (engineStatus != EngineStatus.Connected && data["apps"] == null) {
-            CodexRecoveryState("连接后可查看应用",
-                "连接运行核心后会显示真实的应用授权与可用状态。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_connection)
-        } else if (engineStatus == EngineStatus.Connected &&
-            data["apps"] == null && "apps" !in loading && errors["apps"] != null) {
-            CodexRecoveryState("读取应用失败",
-                "当前应用目录未返回有效结果，可重新读取或查看诊断。",
-                "重新读取", {
-                    vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
-                    vm.refresh("appInstalled", "app/installed")
-                }, { navigate("diagnostics") })
-        }
-        if (apps.isEmpty() && data["apps"] != null && "apps" !in loading && errors["apps"] == null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
-            Text("检查登录状态，或进入插件管理查看可用的扩展。",
-                color = Ink.muted)
-            OutlinedButton(onClick = { navigate("plugins") }) {
-                Text("前往插件管理")
-            }
+        if (apps.isEmpty() && data["apps"] != null && "apps" !in loading && errors["apps"] == null) {
+            CodexEmptyState("尚未发现可用应用", "检查登录状态，或进入插件管理查看可用的扩展。",
+                actionLabel = "前往插件管理", onAction = { navigate("plugins") })
         }
         if (apps.isNotEmpty()) {
             AtlasSearchField(appQuery, { appQuery = it }, "搜索应用", onClear = { appQuery = "" },

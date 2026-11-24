@@ -67,7 +67,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             }
             if (selectedTab in loading) AtlasOperationProgress(if (usage) "正在读取用量" else "正在读取额度")
         }
-        errors[selectedTab]?.let { ErrorText(it) }
+        if (result != null && selectedTab !in loading) errors[selectedTab]?.let { ErrorText(it) }
         if (result == null && selectedTab !in loading) {
             when {
                 engineStatus != EngineStatus.Connected -> {
