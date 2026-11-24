@@ -1,10 +1,7 @@
 package io.github.sy220284.codexandroid
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,7 +18,6 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -239,25 +235,20 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
 fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
     enabled: Boolean = true, busy: Boolean = false,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(13.dp),
+    colors: ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = Ink.parchment, contentColor = Ink.canvas,
+        disabledContainerColor = Ink.border, disabledContentColor = Ink.muted),
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit) {
     val press = remember { MutableInteractionSource() }
-    val pressed by press.collectIsPressedAsState()
-    val reduced by UiPreferences.reducedMotion.collectAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (enabled && !busy && pressed && !reduced) .985f else 1f,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduced)),
-        label = "primary-action-press"
-    )
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+        modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled && !busy),
         enabled = enabled && !busy, shape = shape, interactionSource = press,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Ink.parchment, contentColor = Ink.canvas,
-            disabledContainerColor = Ink.border, disabledContentColor = Ink.muted)
+        colors = colors, contentPadding = contentPadding
     ) {
         if (busy) {
-            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Ink.muted)
+            CodexActivityIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Ink.muted)
             Spacer(Modifier.width(9.dp))
             Text("正在处理…")
         } else content()
@@ -268,16 +259,18 @@ fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
 @Composable
 fun CodexSecondaryButton(
     onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.outlinedButtonColors(
+        containerColor = Ink.canvas, contentColor = Ink.parchment, disabledContentColor = Ink.muted),
     content: @Composable RowScope.() -> Unit
 ) {
+    val press = remember { MutableInteractionSource() }
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Ink.canvas, contentColor = Ink.parchment,
-            disabledContentColor = Ink.muted
-        ),
+        modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled),
+        shape = RoundedCornerShape(13.dp),
+        interactionSource = press,
+        colors = colors,
         border = BorderStroke(1.dp, Ink.border),
         content = content
     )
