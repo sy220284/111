@@ -53,16 +53,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectAsState()
-    val items by vm.timeline.collectAsState()
+    val items by vm.timeline.collectFrameState()
     val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val latestDiff by vm.latestDiff.collectAsState()
-    val models by vm.data.collectAsState()
+    val models by vm.data.collectEntries("account", "models", "goal:$thread", "queue:$thread", "tokenUsage:$thread")
     val setupHint = if (thread == null) ChatSetupPolicy.hint(
         status == EngineStatus.Connected, models["account"], models["models"]) else null
     val errors by vm.errors.collectAsState()
     val prompts by vm.bridge.prompts.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    val composerDrafts by vm.composerDrafts.collectAsState()
+    val composerDrafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(thread))
     val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
@@ -96,7 +96,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val selectedMode by vm.selectedMode.collectAsState()
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
-    val queuedInputs = thread?.let { records(models["queue:$it"]) }.orEmpty()
+    val queueData = thread?.let { models["queue:$it"] }
+    val queuedInputs = remember(queueData) { records(queueData) }
+    val modelData = models["models"]
+    val availableModels = remember(modelData) { records(modelData) }
     val changedFiles = remember(latestDiff) { UnifiedDiff.parse(latestDiff) }
     LaunchedEffect(thread) {
         if (thread != null) {
@@ -188,28 +191,42 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
     }
-    LaunchedEffect(thread, switching, items.size, items.lastOrNull(), olderPageVisible) {
+    val hasOlderPage by rememberUpdatedState(olderPageVisible)
+    LaunchedEffect(scroll, thread, switching) {
         if (switching) return@LaunchedEffect
-        val threadChanged = observedThread != thread
-        val change = TimelineViewportPolicy.change(
-            lastKnownStepCount, lastKnownTail, items.size, items.lastOrNull())
-        observedThread = thread
-        lastKnownStepCount = items.size
-        lastKnownTail = items.lastOrNull()
-        if (threadChanged) {
-            followTail = true
-            unreadSteps = 0
-        }
-        if (latestIndex >= 0 && followTail && (threadChanged || change.changed)) {
-            autoScrolling = true
-            try {
-                scroll.scrollToLatest(latestIndex, animate = false)
-            } finally {
-                autoScrolling = false
+        // One collector per conversation; a stream of deltas must not cancel and restart it.
+        snapshotFlow { Triple(items.size, items.lastOrNull(), hasOlderPage) }
+            .collect { (count, tail, older) ->
+                val threadChanged = observedThread != thread
+                val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, count, tail)
+                observedThread = thread
+                lastKnownStepCount = count
+                lastKnownTail = tail
+                if (threadChanged) {
+                    followTail = true
+                    unreadSteps = 0
+                }
+                val target = TimelineViewportPolicy.latestIndex(count, older)
+                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed)) {
+                    // Let the new list layout settle; a real drag takes precedence.
+                    withFrameNanos { }
+                    if (followTail && !autoScrolling) {
+                        // A user scroll may cancel this child without cancelling the collector.
+                        kotlinx.coroutines.coroutineScope {
+                            launch {
+                                autoScrolling = true
+                                try {
+                                    scroll.scrollToLatest(target, animate = false)
+                                } finally {
+                                    autoScrolling = false
+                                }
+                            }
+                        }
+                    }
+                } else if (!followTail) {
+                    unreadSteps += change.newSteps
+                }
             }
-        } else if (!followTail) {
-            unreadSteps += change.newSteps
-        }
     }
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
@@ -478,7 +495,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { keyboard?.hide(); composerMenu = "add" },
                 compactControls = compactWorkArea,
-                modelLabel = ComposerModelPolicy.model(records(models["models"]), selectedModel)
+                modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
                     ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
                 modeLabel = selectedMode,
                 effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
@@ -619,7 +636,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 /** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
 private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
     if (index < 0) return
-    if (animate) animateScrollToItem(index) else scrollToItem(index)
+    // Streaming changes often extend the already visible last item. Avoid jumping to its start.
+    if (layoutInfo.visibleItemsInfo.none { it.index == index }) {
+        if (animate) animateScrollToItem(index) else scrollToItem(index)
+    }
     val info = layoutInfo
     val last = info.visibleItemsInfo.lastOrNull { it.index == index } ?: return
     val remaining = (last.offset + last.size - info.viewportEndOffset +

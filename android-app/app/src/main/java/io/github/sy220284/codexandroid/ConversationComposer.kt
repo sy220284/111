@@ -1,7 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -65,8 +64,8 @@ internal fun ConversationComposer(
     var expandedEditor by remember { mutableStateOf(false) }
     var inputFocused by remember { mutableStateOf(false) }
     Surface(
-        modifier = Modifier.fillMaxWidth().testTag("conversation-composer")
-            .animateContentSize(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))),
+        // The IME and multiline field own their layout; animate explicit controls, not the whole composer.
+        modifier = Modifier.fillMaxWidth().testTag("conversation-composer"),
         shape = RoundedCornerShape(23.dp),
         color = Ink.panel,
         border = BorderStroke(if (inputFocused) 1.5.dp else 1.dp,
@@ -153,13 +152,13 @@ internal fun ConversationComposer(
                 AnimatedVisibility(
                     visible = running,
                     enter = expandHorizontally(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))) +
-                        fadeIn(tween(CodexMotion.duration(160, reduceMotion))),
+                        fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))),
                     exit = shrinkHorizontally(tween(CodexMotion.duration(CodexMotion.press, reduceMotion))) +
-                        fadeOut(tween(CodexMotion.duration(110, reduceMotion)))
+                        fadeOut(tween(CodexMotion.duration(CodexMotion.press, reduceMotion)))
                 ) {
                     CodexIconAction(
                         onClick = onStop,
-                        enabled = canStop && !stopping,
+                        enabled = running && canStop && !stopping,
                         modifier = Modifier.size(48.dp).testTag("composer-stop")
                             .explainDisabled(stopping || !canStop,
                                 if (stopping) "已发出停止请求，等待运行核心响应" else "当前任务尚无可停止的执行回合")

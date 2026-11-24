@@ -52,7 +52,7 @@ internal fun SidebarSessions(
     var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
     var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
     var historyError by remember { mutableStateOf("") }
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("sidebarThreads", "archivedThreads")
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     val status by vm.bridge.status.collectAsState()
@@ -72,18 +72,28 @@ internal fun SidebarSessions(
     val completed by vm.bulkCompletedThreadIds.collectAsState()
     val connected = status == EngineStatus.Connected
     val busy = switching || starting || "threadLibraryAction" in loading || "threadLibraryBulk" in loading
-    val answerMethods = setOf("item/tool/requestUserInput", "mcpServer/elicitation/request")
-    val approvals = prompts.filter { it.method !in answerMethods }
-        .groupingBy { it.params.optString("threadId") }.eachCount()
-    val questions = prompts.filter { it.method in answerMethods }
-        .map { it.params.optString("threadId") }.toSet()
-    val currentActivities = activities + questions.filter { (approvals[it] ?: 0) == 0 }
-        .associateWith { ThreadActivity.WaitingAnswer }
-    val all = records(data[if (state.archived) "archivedThreads" else "sidebarThreads"])
-    val source = if (state.fullText && state.search.isNotBlank())
-        searchResult?.takeIf { it.first == (state.archived to state.search.trim()) }?.second.orEmpty()
-        else if (state.fullText) emptyList() else all.filter { SessionListPolicy.titleMatches(it, state.search) }
-    val rows = SessionListPolicy.ordered(source, pins)
+    val answerMethods = remember { setOf("item/tool/requestUserInput", "mcpServer/elicitation/request") }
+    val approvals = remember(prompts) {
+        prompts.filter { it.method !in answerMethods }
+            .groupingBy { it.params.optString("threadId") }.eachCount()
+    }
+    val questions = remember(prompts) {
+        prompts.filter { it.method in answerMethods }.map { it.params.optString("threadId") }.toSet()
+    }
+    val currentActivities = remember(activities, questions, approvals) {
+        activities + questions.filter { (approvals[it] ?: 0) == 0 }
+            .associateWith { ThreadActivity.WaitingAnswer }
+    }
+    val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
+    val all = remember(response) { records(response) }
+    val query = state.search
+    val archived = state.archived
+    val fullText = state.fullText
+    val rows = remember(all, fullText, archived, query, searchResult) {
+        if (fullText && query.isNotBlank())
+            searchResult?.takeIf { it.first == (archived to query.trim()) }?.second.orEmpty()
+        else if (fullText) emptyList() else all.filter { SessionListPolicy.titleMatches(it, query) }
+    }
     var selection by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     var menu by remember { mutableStateOf<JSONObject?>(null) }
@@ -253,9 +263,10 @@ internal fun SidebarSessionsContent(
     onLongPress: ((JSONObject) -> Unit)? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    val ordered = remember(all, pinned) { SessionListPolicy.ordered(all, pinned) }
     LazyColumn(state = state.scroll, modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(3.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
-        items(SessionListPolicy.ordered(all, pinned), key = SessionListPolicy::id) { row ->
+        items(ordered, key = SessionListPolicy::id) { row ->
             val id = SessionListPolicy.id(row)
             val count = approvalsByThread[id] ?: if (id == activeId) pendingApprovals else 0
             val activity = SessionListPolicy.activity(row, liveActivities[id],
@@ -287,7 +298,7 @@ internal fun SidebarSessionRow(
     val actual = SessionListPolicy.activity(item, activity, running, pendingApprovals)
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val color by animateColorAsState(if (active || checked) Ink.elevated else Ink.canvas,
-        tween(CodexMotion.duration(170, reduced)), label = "session-selection")
+        tween(CodexMotion.duration(CodexMotion.selection, reduced)), label = "session-selection")
     Surface(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
         .testTag("sidebar-thread-" + id).semantics { selected = active || checked }
         .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongPress,

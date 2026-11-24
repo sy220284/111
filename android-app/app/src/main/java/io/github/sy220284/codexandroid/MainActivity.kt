@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             val dark by UiPreferences.darkMode.collectAsState()
-            SideEffect {
+            LaunchedEffect(dark) {
                 enableEdgeToEdge(
                     statusBarStyle = if (dark)
                         SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)

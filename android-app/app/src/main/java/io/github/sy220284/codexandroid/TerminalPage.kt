@@ -86,7 +86,9 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     }
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
-    val session by vm.terminalSession.collectAsState()
+    val session by vm.terminalSession.collectFrameState()
+    val stdout = remember(session.stdoutBytes) { session.stdoutText }
+    val stderr = remember(session.stderrBytes) { session.stderrText }
     val terminalStarting by vm.terminalStarting.collectAsState()
     val errors by vm.errors.collectAsState()
     var historicalStdout by remember(session.processId) { mutableStateOf("") }
@@ -97,15 +99,38 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
     val consoleScroll = rememberScrollState()
     var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
-    LaunchedEffect(consoleScroll) {
-        snapshotFlow { consoleScroll.isScrollInProgress to
-            (consoleScroll.value >= consoleScroll.maxValue - 24) }.collect { (scrolling, atEnd) ->
-            if (scrolling) followConsoleTail = atEnd
+    var automaticConsoleScroll by remember(session.processId) { mutableStateOf(false) }
+    LaunchedEffect(consoleScroll, session.processId) {
+        consoleScroll.interactionSource.interactions.collect { interaction ->
+            if (interaction is androidx.compose.foundation.interaction.DragInteraction.Start)
+                followConsoleTail = false
         }
     }
     LaunchedEffect(consoleScroll, session.processId) {
-        snapshotFlow { consoleScroll.maxValue }.collect { bottom ->
-            if (followConsoleTail) consoleScroll.scrollTo(bottom)
+        snapshotFlow { Triple(consoleScroll.isScrollInProgress,
+            consoleScroll.value >= consoleScroll.maxValue - 24, automaticConsoleScroll) }
+            .collect { (scrolling, atEnd, automatic) ->
+                if (!scrolling && atEnd) followConsoleTail = true
+                else if (scrolling && !automatic) followConsoleTail = false
+            }
+    }
+    LaunchedEffect(consoleScroll, session.processId) {
+        snapshotFlow { consoleScroll.maxValue }.collect {
+            if (followConsoleTail) {
+                withFrameNanos { }
+                if (followConsoleTail && consoleScroll.value < consoleScroll.maxValue) {
+                    kotlinx.coroutines.coroutineScope {
+                        launch {
+                            automaticConsoleScroll = true
+                            try {
+                                consoleScroll.scrollTo(consoleScroll.maxValue)
+                            } finally {
+                                automaticConsoleScroll = false
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -226,10 +251,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 style = MaterialTheme.typography.titleMedium)
                             CodexTextAction(
                                 onClick = {
-                                    clipboard.setText(AnnotatedString(session.stdoutText))
+                                    clipboard.setText(AnnotatedString(vm.terminalSession.value.stdoutText))
                                     vm.actionFeedback.tryEmit(ActionFeedbackReceipt("终端输出已复制"))
                                 },
-                                enabled = session.stdoutText.isNotBlank(),
+                                enabled = stdout.isNotBlank(),
                                 modifier = Modifier.heightIn(min = 48.dp)
                             ) {
                                 CodexIcon(CodexGlyph.ContentCopy, null,
@@ -239,7 +264,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             }
                             CodexTextAction(
                                 onClick = { showFullOutput = true },
-                                enabled = session.stdoutText.length > 16_000,
+                                enabled = stdout.length > 16_000,
                                 modifier = Modifier.heightIn(min = 48.dp)
                                     .testTag("terminal-full-stdout")
                             ) { Text("查看完整输出") }
@@ -311,7 +336,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 style = MaterialTheme.typography.labelMedium)
                         DividerLine()
                         SelectionContainer {
-                            Text(session.stdoutText.takeLast(16_000).ifBlank {
+                            Text(stdout.takeLast(16_000).ifBlank {
                                 if (session.running) "等待命令输出…" else "(无标准输出)"
                             }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
                                 style = MaterialTheme.typography.bodySmall,
@@ -321,7 +346,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             Spacer(Modifier.height(10.dp))
                             Text("错误输出", style = MaterialTheme.typography.titleMedium)
                             SelectionContainer {
-                                Text(session.stderrText.takeLast(16_000),
+                                Text(stderr.takeLast(16_000),
                                     fontFamily = FontFamily.Monospace, color = Ink.red,
                                     style = MaterialTheme.typography.bodySmall)
                             }
@@ -473,7 +498,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     }
     if (showFullOutput) FullTextReaderDialog(
         title = "终端标准输出",
-        text = session.stdoutText,
+        text = stdout,
         onDismiss = { showFullOutput = false }
     )
     if (showOlderOutput) FullTextReaderDialog(

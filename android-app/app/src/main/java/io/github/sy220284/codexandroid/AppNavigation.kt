@@ -83,10 +83,9 @@ fun CodexShell(vm: CodexViewModel) {
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
-    val libraryData by vm.data.collectAsState()
+    val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
     val status by vm.bridge.status.collectAsState()
     val pending by vm.bridge.prompts.collectAsState()
-    val terminalSession by vm.terminalSession.collectAsState()
     val dataTransfer by AppDataTransfer.state.collectAsState()
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     fun openDrawer() {
@@ -424,8 +423,8 @@ private fun Sidebar(
     continuationLabel: String?
 ) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
-    val accountData by vm.data.collectAsState()
-    val accountErrors by vm.errors.collectAsState()
+    val accountData by vm.data.collectEntries("limits")
+    val accountErrors by vm.errors.collectEntries("limits")
     val accountLoading by vm.loading.collectAsState()
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
