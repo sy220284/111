@@ -198,7 +198,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         val description = PresentationPolicy.meaningful(app.optString("description"))
         val installUrl = PresentationPolicy.meaningful(app.optString("installUrl"))
         val active = installedById[id]
-        val enabled = app.optBoolean("isEnabled", active?.optBoolean("enabled") ?: true)
+        val enabled = active?.takeIf { it.has("enabled") }?.optBoolean("enabled") ?: app.optBoolean("isEnabled", true)
         val appStatus = statuses.getValue(id)
         CodexDetailSheet(title = name, onDismiss = { inspectingId = null }) {
             StatusPill(appStatus, appStatus == "已连接", tone = if (appStatus == "已连接") StatusTone.Success else StatusTone.Neutral)

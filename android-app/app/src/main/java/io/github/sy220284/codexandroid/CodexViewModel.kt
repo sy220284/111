@@ -188,6 +188,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         userAction: Boolean = false
     ) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return
+        if (userAction && method in setOf("config/value/write", "config/batchWrite", "skills/config/write", "modelProvider/config/write", "modelProvider/default/set") &&
+            configSnapshotBusy(loading.value, securitySaveBusy.value)) {
+            val reason = "已有配置操作正在处理，请完成后再修改"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
+            return
+        }
         if (method in setOf("thread/delete", "thread/archive") &&
             params?.optString("threadId")?.let { it in threadExecutions.value } == true) {
             val reason = "所选会话仍有执行中的任务，请先停止或等待完成后再整理"

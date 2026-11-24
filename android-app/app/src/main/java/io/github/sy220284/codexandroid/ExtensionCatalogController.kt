@@ -89,8 +89,8 @@ internal class ExtensionCatalogController(
 
     fun changeApp(id: String, enabled: Boolean) {
         if (vm.bridge.status.value != EngineStatus.Connected || "appMutation" in vm.loading.value) return
-        vm.rpc("appMutation", "config/value/write", JSONObject().put("keyPath", "apps." + id + ".enabled")
-            .put("value", enabled).put("mergeStrategy", "replace"), after = { refreshApps(force = true) })
+        vm.saveEngineSetting("apps." + id + ".enabled", enabled, "应用启用状态", owner = "apps",
+            saveKey = "appMutation", requireSnapshot = false, after = { refreshApps(force = true) })
     }
 
     fun invalidate(pluginsOnly: Boolean = false, preserveAuthorization: Boolean = false) {

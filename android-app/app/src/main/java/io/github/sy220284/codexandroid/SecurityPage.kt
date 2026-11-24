@@ -13,13 +13,13 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     val data by vm.data.collectEntries("composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
-    val loading by vm.loading.collectProjection { it.intersect(setOf("config", ENGINE_SETTING_SAVE, "composerPermissionConfig", "securityRequirements", "permissionProfiles")) }
+    val loading by vm.loading.collectProjection { it.intersect(setOf("config", ENGINE_SETTING_SAVE, "appMutation", "skillsWrite", "configWrite", "modelProviderWrite", "composerPermissionConfig", "securityRequirements", "permissionProfiles")) }
     val errors by vm.errors.collectEntries("securitySave")
     val saving by vm.securitySaveBusy.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val workspace by vm.activeWorkspace.collectAsState()
-    var open by remember { mutableStateOf(false) }
-    var confirmFull by remember { mutableStateOf(false) }
+    var open by remember(workspace) { mutableStateOf(false) }
+    var confirmFull by remember(workspace) { mutableStateOf(false) }
     val currentWorkspace = data["composerPermissionWorkspace"]?.optString("cwd") == workspace
     val selected = if (currentWorkspace) ComposerPermissionPolicy.selected(data["composerPermissionConfig"]) else null
     val profileData = data["permissionProfiles"]

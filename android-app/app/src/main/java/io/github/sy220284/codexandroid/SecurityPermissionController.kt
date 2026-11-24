@@ -58,7 +58,10 @@ internal fun CodexViewModel.composerPermissionBlockReason(): String? = when {
     data.value["composerPermissionWorkspace"]?.optString("cwd") != activeWorkspace.value ||
         loading.value.any { it in setOf("composerPermissionConfig", "permissionProfiles", "securityRequirements") } ->
         "正在读取当前项目权限，请稍候"
-    data.value["composerPermissionConfig"]?.optJSONObject("config") == null -> "权限配置尚未读取，请刷新重试"
+    data.value["composerPermissionConfig"]?.optJSONObject("config") == null ||
+        data.value["permissionProfiles"] == null || data.value["securityRequirements"] == null ||
+        errors.value.keys.any { it in setOf("composerPermissionConfig", "permissionProfiles", "securityRequirements") } ->
+        "权限配置或策略尚未完整读取，请刷新重试"
     else -> null
 }
 
@@ -83,7 +86,9 @@ internal fun CodexViewModel.chooseComposerPermission(id: String) {
             data.value = data.value - "composerPermissionConfig"
         } finally {
             securitySaveBusy.value = false
-            if (activeWorkspace.value != cwd || errors.value["securitySave"] != null) refreshComposerPermissions()
+            // The write targets the user config; invalidate both global and cwd-scoped snapshots.
+            refresh("config", "config/read", JSONObject().put("includeLayers", true))
+            refreshComposerPermissions()
         }
     }
 }
