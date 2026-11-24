@@ -374,3 +374,28 @@ fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {
         }
     }
 }
+
+/** 审批操作按真实可用宽度和字号排列；主操作独占一行，拒绝及辅助操作不挤压。 */
+@Composable
+internal fun AtlasApprovalActions(
+    primary: (@Composable (Modifier) -> Unit)?,
+    secondary: (@Composable (Modifier) -> Unit)? = null,
+    tertiary: (@Composable (Modifier) -> Unit)? = null
+) {
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    BoxWithConstraints(Modifier.fillMaxWidth().testTag("approval-decision-actions")) {
+        val sideBySide = secondary != null && tertiary != null && maxWidth >= (264 * fontScale).dp
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (sideBySide) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    secondary?.invoke(Modifier.weight(1f))
+                    tertiary?.invoke(Modifier.weight(1f))
+                }
+            } else {
+                secondary?.invoke(Modifier.fillMaxWidth())
+                tertiary?.invoke(Modifier.fillMaxWidth())
+            }
+            primary?.invoke(Modifier.fillMaxWidth())
+        }
+    }
+}

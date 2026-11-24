@@ -544,6 +544,30 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-mcp-elicitation-android35.png")
     }
 
+    @Test fun approvalActionsStayReachableAtLargeFontAndLongContent() {
+        val vm = viewModel()
+        val request = ServerPrompt("ci-large-approval", "item/commandExecution/requestApproval",
+            JSONObject().put("command", "git status").put("reason", "检查当前工作区"))
+        rule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                CodexTheme {
+                    Column(Modifier.width(320.dp).verticalScroll(rememberScrollState())) {
+                        ApprovalRequestCard(vm, request)
+                    }
+                }
+            }
+        }
+        rule.onNodeWithTag("approval-decline").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("approval-allow-once").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("approval-more").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithText("在本会话持续允许").assertExists().performClick()
+        rule.onNodeWithText("确认本会话授权").assertExists()
+        rule.onNodeWithTag("confirm-dialog-cancel").performClick()
+        rule.onNodeWithText("确认本会话授权").assertDoesNotExist()
+        rule.onNodeWithTag("approval-allow-once").performScrollTo().assertIsEnabled()
+    }
+
     @Test fun requiredBooleanMcpChoiceMustBeExplicitAndCanBeDeclined() {
         val vm = viewModel()
         val props = JSONObject().put("permission", JSONObject()
@@ -558,7 +582,11 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("elicitation-submit").assertIsNotEnabled()
         rule.onNodeWithTag("elicitation-deny-permission").performClick()
+        rule.onNodeWithTag("elicitation-deny-permission").assertIsSelected()
+        rule.onNodeWithTag("elicitation-allow-permission").assertIsNotSelected()
         rule.onNodeWithTag("elicitation-submit").assertIsEnabled()
+        rule.onNodeWithText("取消请求").assertExists()
+        rule.onNodeWithText("稍后处理").assertDoesNotExist()
     }
 
     @Test fun extensionStringListUsesReadableMultiLineForm() {

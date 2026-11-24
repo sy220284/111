@@ -222,55 +222,54 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 )
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (!question) CodexSecondaryButton(
-                onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) },
-                modifier = Modifier.weight(1f)
-            ) { Text("拒绝") }
-            if (normal) {
-                CodexPrimaryButton(
-                    onClick = { vm.answerApproval(prompt, ApprovalAction.AllowOnce) },
-                    modifier = Modifier.weight(1.35f)
-                ) { Text("仅本次允许") }
-            } else if (permission) {
-                CodexPrimaryButton(onClick = { grantPermissions = true },
-                    modifier = Modifier.weight(1.35f)) { Text("授权本轮") }
-            } else if (question) {
-                val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
-                val allAnswered = (0 until questions.length()).all {
-                    val id = questions.optJSONObject(it)?.optString("id") ?: ""
-                    answers[id]?.isNotBlank() == true
-                }
-                val canSubmit = allAnswered && questions.length() > 0
-                CodexPrimaryButton(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
-                    enabled = canSubmit,
-                    modifier = Modifier.weight(1f).explainDisabled(!canSubmit,
-                        "需要先回答全部问题才能提交")
-                ) { Text("提交全部回答") }
-            }
-            if (normal && kind != "humanCommand") {
-                Box {
-                    IconButton(onClick = { morePermissions = true },
-                        modifier = Modifier.size(48.dp)) {
-                        CodexIcon(CodexGlyph.MoreHoriz, contentDescription = "更多授权选项")
-                    }
-                    if (morePermissions) CodexActionDialog(
-                        title = "更多授权选项",
-                        onDismiss = { morePermissions = false },
-                        actions = listOf(CodexSheetAction("在本会话持续允许",
-                            CodexGlyph.TaskApproval, onClick = { grantSession = true },
-                            description = "需要再次确认授权范围"))
-                    )
-                }
-            }
+        val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
+        val canSubmit = questions.length() > 0 && (0 until questions.length()).all {
+            val id = questions.optJSONObject(it)?.optString("id") ?: ""
+            answers[id]?.isNotBlank() == true
         }
+        AtlasApprovalActions(
+            primary = when {
+                normal -> { modifier ->
+                    CodexPrimaryButton(
+                        onClick = { vm.answerApproval(prompt, ApprovalAction.AllowOnce) },
+                        modifier = modifier.testTag("approval-allow-once")
+                    ) { Text("仅本次允许") }
+                }
+                permission -> { modifier ->
+                    CodexPrimaryButton(onClick = { grantPermissions = true },
+                        modifier = modifier.testTag("approval-grant-turn")) { Text("授权本轮") }
+                }
+                question -> { modifier ->
+                    CodexPrimaryButton(onClick = { vm.answerUserInput(prompt, answers.toMap()) },
+                        enabled = canSubmit, modifier = modifier.testTag("approval-submit-answers")
+                            .explainDisabled(!canSubmit, "需要先回答全部问题才能提交")
+                    ) { Text("提交全部回答") }
+                }
+                else -> null
+            },
+            secondary = if (!question) { modifier ->
+                CodexSecondaryButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) },
+                    modifier = modifier.testTag("approval-decline")) { Text("拒绝") }
+            } else null,
+            tertiary = if (normal && kind != "humanCommand") { modifier ->
+                TextButton(onClick = { morePermissions = true },
+                    modifier = modifier.heightIn(min = 48.dp).testTag("approval-more")) {
+                    CodexIcon(CodexGlyph.MoreHoriz, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("更多授权")
+                }
+            } else null
+        )
         if (question) Text("等待回答时可返回对话查看任务；停止任务可取消本次提问。",
             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
     }
+    if (morePermissions) CodexActionDialog(
+        title = "更多授权选项",
+        onDismiss = { morePermissions = false },
+        actions = listOf(CodexSheetAction("在本会话持续允许",
+            CodexGlyph.TaskApproval, onClick = { grantSession = true },
+            description = "需要再次确认授权范围"))
+    )
     if (grantSession) CodexConfirmDialog(
         title = "确认本会话授权",
         message = "授权会覆盖当前会话中后续符合条件的同类操作，请核对执行内容和路径。",
