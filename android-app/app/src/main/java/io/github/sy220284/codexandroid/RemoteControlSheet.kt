@@ -36,15 +36,17 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     }.orEmpty()
 
     val visibleClients = clients.takeIf { clientsEnvironment == environment }
-    suspend fun requestStatus(method: String) {
+    suspend fun requestStatus(fetch: suspend () -> JSONObject) {
         val token = statusOrder.begin()
-        val response = vm.capabilityRequest(method, null)
+        val response = fetch()
         if (statusOrder.accepts(token, vm.bridge.status.value == EngineStatus.Connected)) {
             status = response
         }
         verified++
     }
-    fun refresh() = operation.launch { requestStatus("remoteControl/status/read") }
+    fun refresh() = operation.launch {
+        requestStatus { vm.capabilityRequest("remoteControl/status/read", null) }
+    }
     LaunchedEffect(connected, operation.busy) {
         if (connected && !operation.busy && refreshPending) {
             refreshPending = false
@@ -57,12 +59,12 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 statusOrder.invalidate()
                 refreshPending = true
                 status = null
-            pair = null
-            pairReceipt = ""
-            confirm = null
-            revoke = null
-            clients = null
-            clientsEnvironment = ""
+                pair = null
+                pairReceipt = ""
+                confirm = null
+                revoke = null
+                clients = null
+                clientsEnvironment = ""
             }
         }
     }
@@ -214,7 +216,10 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 confirm = null
                 operation.launch {
                     pair = null
-                    requestStatus(if (enable) "remoteControl/enable" else "remoteControl/disable")
+                    requestStatus {
+                        if (enable) vm.capabilityRequest("remoteControl/enable", null)
+                        else vm.capabilityRequest("remoteControl/disable", null)
+                    }
                 }
             }, onDismiss = { confirm = null })
     }
