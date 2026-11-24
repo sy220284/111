@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,12 +64,14 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
                     else ConnectionRestartPolicy.canContinueOwnedRestart(current)) {
                     "任务或数据备份状态已变化，内核重启已取消"
                 }
-                withContext(Dispatchers.IO) { vm.bridge.close() }
+                withContext(Dispatchers.IO) { vm.bridge.closeForRestart() }
                 vm.connect().join()
                 check(vm.bridge.status.value == EngineStatus.Connected) {
                     (vm.bridge.status.value as? EngineStatus.Unavailable)?.reason ?: "重新连接尚未完成"
                 }
                 vm.errors.value = vm.errors.value - "diagnostics"
+            } catch (cancel: CancellationException) {
+                throw cancel
             } catch (failure: Exception) {
                 vm.errors.value = vm.errors.value + ("diagnostics" to
                     (failure.message ?: "重启内核连接失败"))

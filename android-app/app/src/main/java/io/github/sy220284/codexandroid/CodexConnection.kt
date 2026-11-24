@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -50,6 +51,8 @@ class CodexConnection(private val appContext: Context) {
     }
 
     val status = MutableStateFlow<EngineStatus>(EngineStatus.Starting)
+    private val connectedSessionState = MutableStateFlow<Long?>(null)
+    internal val connectedSession = connectedSessionState.asStateFlow()
     private val eventBuffer = RpcEventBuffer.create()
     val events = eventBuffer.filter(::isCurrentEvent)
     internal fun isCurrentEvent(message: JSONObject): Boolean =
@@ -72,22 +75,22 @@ class CodexConnection(private val appContext: Context) {
             recentStderr.value = emptyList()
             token
         }
-        val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
-        val codeModeHost = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
-        val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
-        val temp = File(appContext.cacheDir, "codex-tmp").apply { mkdirs() }
-        val builder = ProcessBuilder(path.absolutePath, "--listen", "stdio://")
-        builder.environment().apply {
-            put("HOME", appContext.filesDir.absolutePath)
-            put("CODEX_HOME", home.absolutePath)
-            put("TMPDIR", temp.absolutePath)
-            put("PATH", "/system/bin:/system/xbin")
-            // Native CLI helpers may link against the NDK C++ runtime packaged
-            // next to the executable in the APK's extracted native library dir.
-            put("LD_LIBRARY_PATH", appContext.applicationInfo.nativeLibraryDir)
-            put("TERM", "xterm-256color")
-        }
         try {
+            val path = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+            val codeModeHost = File(appContext.applicationInfo.nativeLibraryDir, "libcodex_code_mode_host.so")
+            val home = File(appContext.filesDir, "codex-home").apply { mkdirs() }
+            val temp = File(appContext.cacheDir, "codex-tmp").apply { mkdirs() }
+            val builder = ProcessBuilder(path.absolutePath, "--listen", "stdio://")
+            builder.environment().apply {
+                put("HOME", appContext.filesDir.absolutePath)
+                put("CODEX_HOME", home.absolutePath)
+                put("TMPDIR", temp.absolutePath)
+                put("PATH", "/system/bin:/system/xbin")
+                // Native CLI helpers may link against the NDK C++ runtime packaged
+                // next to the executable in the APK's extracted native library dir.
+                put("LD_LIBRARY_PATH", appContext.applicationInfo.nativeLibraryDir)
+                put("TERM", "xterm-256color")
+            }
             builder.directory(WorkspaceStorage.root(appContext))
             McpAgentSkillInstaller.install(appContext, home)
             require(path.isFile) { "APK 中未找到当前设备 ABI 的 Codex 运行核心，请检查发布包。" }
@@ -145,6 +148,7 @@ class CodexConnection(private val appContext: Context) {
             write(epoch, JSONObject().put("method", "initialized").put("params", JSONObject()))
             synchronized(ownership) {
                 check(child.isAlive && ownership.markReady(epoch)) { "Codex 核心在初始化后已退出" }
+                connectedSessionState.value = epoch
                 status.value = EngineStatus.Connected
             }
         } catch (failure: Exception) {
@@ -287,8 +291,12 @@ class CodexConnection(private val appContext: Context) {
                 }
                 // Last admission point after dispatcher and writer queue. The captured
                 // channel cannot be redirected to a newly connected core.
-                if (permit?.invoke() == false) throw RpcWriteRevoked()
-                channel.send(message)
+                channel.send(message) {
+                    check(ownership.owns(epoch) && (!requireReady || ownership.acceptsUserRequest())) {
+                        "运行核心已切换或正在重启"
+                    }
+                    permit?.invoke() != false
+                }
             }
         }
     }
@@ -308,8 +316,11 @@ class CodexConnection(private val appContext: Context) {
         }
     }
 
-    private fun retireSession(epoch: Long, reason: String) {
+    private fun retireSession(epoch: Long, reason: String, reservedRestart: Boolean = false) {
         val retired = synchronized(ownership) {
+            if (reservedRestart) check(ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) {
+                "重启前出现了新请求或审批，已取消重启"
+            }
             val token = ownership.retire(epoch) ?: return
             val child = process
             val channel = wire
@@ -322,8 +333,21 @@ class CodexConnection(private val appContext: Context) {
         }
         terminate(retired.second, retired.third)
         synchronized(ownership) {
-            if (ownership.isRetired(retired.first)) status.value = EngineStatus.Unavailable(reason)
+            if (ownership.completeRetirement(retired.first)) {
+                connectedSessionState.value = null
+                status.value = EngineStatus.Unavailable(reason)
+            }
         }
+    }
+
+    internal fun closeForRestart() {
+        val epoch = synchronized(ownership) {
+            check(ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) {
+                "重启前出现了新请求或审批，已取消重启"
+            }
+            ownership.current()
+        } ?: return
+        retireSession(epoch, "连接已关闭", reservedRestart = true)
     }
 
     fun close() {

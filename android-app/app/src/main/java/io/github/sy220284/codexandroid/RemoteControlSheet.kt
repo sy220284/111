@@ -8,6 +8,7 @@ import androidx.compose.ui.text.font.FontFamily
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import org.json.JSONObject
 
 private data class RemotePairing(val code: String, val token: String, val expiresAt: Long)
@@ -17,6 +18,7 @@ private data class RemoteRevokeTarget(val environment: String, val client: JSONO
 internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val operation = rememberCapabilityOperation(vm)
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
+    val session by vm.bridge.connectedSession.collectAsState()
     var status by remember { mutableStateOf<JSONObject?>(null) }
     val statusOrder = remember(vm) { StatusResponseOrder() }
     var refreshPending by remember(vm) { mutableStateOf(true) }
@@ -37,9 +39,11 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
 
     val visibleClients = clients.takeIf { clientsEnvironment == environment }
     suspend fun requestStatus(fetch: suspend () -> JSONObject) {
+        val epoch = vm.bridge.connectedSession.value
         val token = statusOrder.begin()
         val response = fetch()
-        if (statusOrder.accepts(token, vm.bridge.status.value == EngineStatus.Connected)) {
+        if (epoch != null && epoch == vm.bridge.connectedSession.value &&
+            statusOrder.accepts(token, vm.bridge.status.value == EngineStatus.Connected)) {
             status = response
         }
         verified++
@@ -47,15 +51,16 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     fun refresh() = operation.launch {
         requestStatus { vm.capabilityRequest("remoteControl/status/read", null) }
     }
-    LaunchedEffect(connected, operation.busy) {
+    LaunchedEffect(connected, session, operation.busy) {
         if (connected && !operation.busy && refreshPending) {
             refreshPending = false
             refresh()
         }
     }
     LaunchedEffect(vm) {
-        vm.bridge.status.collect { current ->
-            if (current != EngineStatus.Connected) {
+        var previous: Long? = null
+        combine(vm.bridge.status, vm.bridge.connectedSession) { current, epoch -> current to epoch }.collect { (current, epoch) ->
+            if (current != EngineStatus.Connected || epoch != previous) {
                 statusOrder.invalidate()
                 refreshPending = true
                 status = null
@@ -66,11 +71,12 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 clients = null
                 clientsEnvironment = ""
             }
+            previous = epoch
         }
     }
     LaunchedEffect(vm) {
         vm.bridge.events.collect { event ->
-            if (event.optString("method") == "remoteControl/status/changed" &&
+            if (vm.bridge.isCurrentEvent(event) && event.optString("method") == "remoteControl/status/changed" &&
                 vm.bridge.status.value == EngineStatus.Connected) {
                 val current = event.optJSONObject("params") ?: return@collect
                 statusOrder.invalidate()
@@ -78,7 +84,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(environment, verified) {
+    LaunchedEffect(environment, session, verified) {
         clients = null
         clientsEnvironment = environment
         listError = ""
@@ -96,14 +102,14 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(environment) {
+    LaunchedEffect(environment, session) {
         pair = null
         pairReceipt = ""
         pairError = ""
         revoke = null
         confirm = null
     }
-    LaunchedEffect(pair, environment) {
+    LaunchedEffect(pair, environment, session) {
         val current = pair ?: return@LaunchedEffect
         if (environment.isBlank()) return@LaunchedEffect
         try {
@@ -166,8 +172,9 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     pair = null
                     pairReceipt = ""
                     pairError = ""
+                    val epoch = vm.bridge.connectedSession.value
                     val result = vm.capabilityRequest("remoteControl/pairing/start", JSONObject().put("manualCode", true))
-                    check(vm.bridge.status.value == EngineStatus.Connected &&
+                    check(epoch != null && epoch == vm.bridge.connectedSession.value && vm.bridge.status.value == EngineStatus.Connected &&
                         status?.value("status") == "connected" &&
                         status?.value("environmentId") == environment) { "配对环境已切换，请刷新状态" }
                     require(result.getString("environmentId") == environment) { "配对环境已切换，请刷新状态" }

@@ -75,6 +75,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             error = "当前运行状态无法启动实时语音，请完成其他操作后重试"
             return
         }
+        val voiceEpoch = vm.bridge.connectedSession.value
+        if (voiceEpoch == null) {
+            error = "运行核心尚未连接，请重新连接后重试"
+            return
+        }
         if (!lease.acquire(this)) {
             error = "上一段语音仍在结束，请稍后重试"
             return
@@ -91,16 +96,16 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             vm.bridge.events.collect(::event)
         }
         connectionJob = vm.viewModelScope.launch(start = CoroutineStart.LAZY) {
-            combine(vm.bridge.status, AppDataTransfer.state, vm.activeThread, vm.threadSwitching) {
-                    status, transfer, active, switching ->
+            combine(vm.bridge.connectedSession, vm.bridge.status, AppDataTransfer.state, vm.activeThread, vm.threadSwitching) {
+                    session, status, transfer, active, switching ->
                 when {
-                    status != EngineStatus.Connected -> "运行引擎已断开"
+                    session != voiceEpoch || status != EngineStatus.Connected -> "运行引擎已断开"
                     transfer.busy -> "应用数据传输已开始，语音已结束"
                     active != threadId || switching -> "会话已切换，语音已结束"
                     else -> ""
                 }
             }.collect { reason ->
-                if (vm.bridge.status.value != EngineStatus.Connected) closed.complete(Unit)
+                if (vm.bridge.connectedSession.value != voiceEpoch) closed.complete(Unit)
                 if (reason.isNotBlank()) stop(reason)
             }
         }
@@ -160,7 +165,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                             }
                             // Rust acknowledges submission; the closed notification proves completion.
                             withTimeout(10_000) { closed.await() }
-                        } else closed.complete(Unit)
+                        } else withTimeout(10_000) { closed.await() }
                     }
                 }
                 finishStop()
@@ -217,6 +222,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     }
 
     private fun event(message: JSONObject) {
+        if (!vm.bridge.isCurrentEvent(message)) return
         val params = message.optJSONObject("params") ?: return
         if (params.value("threadId") != threadId) return
         when (message.value("method")) {
