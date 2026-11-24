@@ -182,7 +182,7 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
 }
 
 @Composable
-fun AppearanceInlineControls(focusTarget: String? = null) {
+fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = Modifier.padding(horizontal = 17.dp)) {
     val themeRequester = remember { BringIntoViewRequester() }
     val compactRequester = remember { BringIntoViewRequester() }
     val shadowRequester = remember { BringIntoViewRequester() }
@@ -203,8 +203,7 @@ fun AppearanceInlineControls(focusTarget: String? = null) {
     val fontScale by UiPreferences.fontScale.collectAsState()
     val darkMode by UiPreferences.darkMode.collectAsState()
     val largeTypography = androidx.compose.ui.platform.LocalDensity.current.fontScale * fontScale >= 1.55f
-    Column(Modifier.fillMaxWidth().padding(horizontal = 17.dp)
-        .padding(top = 18.dp, bottom = 10.dp),
+    Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("界面配色", style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 7.dp).bringIntoViewRequester(themeRequester))
@@ -234,6 +233,11 @@ fun AppearanceInlineControls(focusTarget: String? = null) {
                     selected = darkMode, modifier = Modifier.weight(1f)
                 ) { UiPreferences.setDarkMode(true) }
             }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CodexIcon(CodexGlyph.TouchApp, null, tint = Ink.muted, modifier = Modifier.size(20.dp))
+            Text("布局与交互", style = MaterialTheme.typography.titleMedium)
         }
         Box(Modifier.bringIntoViewRequester(compactRequester)) {
             AppearanceSettingToggle("紧凑布局", "减少间距，优先显示任务内容", compact, UiPreferences::setCompact)

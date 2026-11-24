@@ -493,7 +493,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 fun AppearancePage(vm: CodexViewModel) {
     val target = remember { SettingsDeepLink.take("appearance") }
     ScreenColumn {
-        AppearanceInlineControls(focusTarget = target)
+        AppearanceInlineControls(focusTarget = target, modifier = Modifier)
         EngineSettingsSection(vm, "appearance", target)
     }
 }
