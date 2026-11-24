@@ -32,8 +32,10 @@ fun PluginDetailSheet(
     val data by vm.data.collectEntries(key)
     val detail = data[key]?.optJSONObject("plugin")
     val skillKeys = remember(detail, entry) {
-        detail?.optJSONArray("skills")?.objects().orEmpty().mapNotNull { skill ->
-            skill.optString("name").takeIf { it.isNotBlank() }?.let { "pluginSkill:" + entry.optString("id") + ":" + it }
+        val skills = detail?.optJSONArray("skills")
+        (0 until (skills?.length() ?: 0)).mapNotNull { index ->
+            skills?.optJSONObject(index)?.optString("name")?.takeIf { it.isNotBlank() }
+                ?.let { "pluginSkill:" + entry.optString("id") + ":" + it }
         }.toSet()
     }
     val errors by vm.errors.collectEntries(key, *skillKeys.toTypedArray())

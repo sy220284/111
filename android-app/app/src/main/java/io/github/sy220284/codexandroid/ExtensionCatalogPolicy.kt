@@ -48,8 +48,10 @@ internal object ExtensionCatalogPolicy {
         market.optString("name") to item.optString("id").ifBlank { item.optString("name") }
 
     fun installedIdentities(snapshot: JSONObject?): Set<Pair<String, String>> =
-        snapshot?.optJSONArray("marketplaces")?.objects().orEmpty()
-            .flatMap { market -> plugins(market, true).map { pluginIdentity(market, it) } }.toSet()
+        snapshot?.optJSONArray("marketplaces")?.let { markets ->
+            (0 until markets.length()).mapNotNull { markets.optJSONObject(it) }
+                .flatMap { market -> plugins(market, true).map { pluginIdentity(market, it) } }.toSet()
+        }.orEmpty()
 
     fun isInstalled(market: JSONObject, item: JSONObject, installed: Set<Pair<String, String>>,
                     verified: Boolean): Boolean =

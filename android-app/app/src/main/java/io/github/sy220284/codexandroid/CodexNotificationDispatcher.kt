@@ -31,7 +31,7 @@ internal object CodexNotificationDispatcher {
             return
         }
         if (method == "app/list/updated") {
-            extensions.appDirectoryChanged()
+            extensions.appDirectoryChanged(params)
             return
         }
         if (method == "account/rateLimits/updated") {

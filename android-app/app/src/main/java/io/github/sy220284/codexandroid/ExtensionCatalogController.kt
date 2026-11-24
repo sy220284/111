@@ -12,6 +12,7 @@ internal class ExtensionCatalogController(
 ) {
     val epoch = MutableStateFlow(0L)
     var appAuthorizationPending = false
+    private var lastAppDirectoryEvent: String? = null
 
     fun observeWorkspace(scope: CoroutineScope) {
         var previous = vm.activeWorkspace.value
@@ -31,13 +32,21 @@ internal class ExtensionCatalogController(
         refreshApps(force = true)
     }
 
-    fun appDirectoryChanged() {
+    fun appDirectoryChanged(params: JSONObject) {
         if (vm.bridge.status.value != EngineStatus.Connected) return
+        val event = params.optJSONArray("data")?.toString() ?: return
+        if (event == lastAppDirectoryEvent) return
+        lastAppDirectoryEvent = event
         val data = vm.data.value
         val loading = vm.loading.value
-        // app/list can emit a notification during its own request; do not recursively refetch.
-        if ("apps" in data || "appInstalled" in data || "apps" in loading || "appInstalled" in loading)
+        // An event during a list request belongs to that snapshot; an external event
+        // refreshes both catalogs without recursively reading identical notifications.
+        if ("apps" in loading) {
+            if (("appInstalled" in data || "appInstalled" in loading) && "appInstalled" !in loading)
+                vm.refresh("appInstalled", "app/installed", JSONObject().put("forceRefresh", true))
+        } else if ("apps" in data || "appInstalled" in data || "appInstalled" in loading) {
             refreshApps(force = false)
+        }
     }
 
     fun refreshApps(force: Boolean, replaceInFlight: Boolean = force) {
@@ -80,7 +89,10 @@ internal class ExtensionCatalogController(
     }
 
     fun invalidate(pluginsOnly: Boolean = false, preserveAuthorization: Boolean = false) {
-        if (!pluginsOnly && !preserveAuthorization) appAuthorizationPending = false
+        if (!pluginsOnly) {
+            lastAppDirectoryEvent = null
+            if (!preserveAuthorization) appAuthorizationPending = false
+        }
         invalidateKeys { ExtensionCatalogPolicy.isScopedKey(it, pluginsOnly) }
     }
 

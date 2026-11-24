@@ -41,6 +41,14 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         return
     }
     val files = ready.files
+    val fileKeys = remember(files) {
+        val occurrences = mutableMapOf<String, Int>()
+        files.map { file ->
+            val occurrence = occurrences.getOrDefault(file.path, 0)
+            occurrences[file.path] = occurrence + 1
+            "${file.path.length}:${file.path}:$occurrence"
+        }
+    }
     val displayedDiff = ready.raw
     val updating = displayedDiff != diff
     val initialPaths = remember(active, displayedDiff) {
@@ -61,7 +69,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val lineNumbers = ready.lineNumbers
     LaunchedEffect(pendingJump, expanded, visibleFiles) {
         val path = pendingJump ?: return@LaunchedEffect
-        val target = files.indexOfFirst { it.path == path }
+        val target = fileKeys.indexOf(path)
         if (target in visibleFiles) {
             val position = 1 + visibleFiles.takeWhile { it != target }.sumOf { index ->
                 1 + if (index in expanded) files[index].lines.size else 0
@@ -75,7 +83,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         selectedId = null, onSelect = { value ->
             val target = value.toInt()
             updateExpanded(expanded + target)
-            pendingJump = files[target].path
+            pendingJump = fileKeys[target]
             filePicker = false
         }, onDismiss = { filePicker = false }, searchable = true)
     LazyColumn(
@@ -156,7 +164,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             visibleFiles.forEach { index ->
                 val file = files[index]
-                item(key = "diff-heading-${file.path}") {
+                item(key = "diff-heading-${fileKeys[index]}") {
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIcon(if (file.binary) CodexGlyph.Attachment
@@ -188,7 +196,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if (index in expanded) {
-                    items(file.lines.size, key = { line -> "diff-line-${file.path}-$line" }) { lineIndex ->
+                    items(file.lines.size, key = { line -> "diff-line-${fileKeys[index]}-$line" }) { lineIndex ->
                         val line = file.lines[lineIndex]
                         val tone = when {
                             line.startsWith("+") && !line.startsWith("+++") -> Ink.jade
