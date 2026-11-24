@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" role="img" aria-label="PR86 原生会话工作台组件设计">
+<rect x="0" y="0" width="1600" height="960" rx="0" fill="#F6F7F8" stroke="none"/>
+<text x="34" y="52" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="700">111 / PR86 · 原生会话工作台</text>
+<text x="35" y="82" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">四技能设计调整 · 360dp 竖屏 · 示例内容仅用于设计核对，实际状态由原生内核提供</text>
+<path d="M35 103H1565" fill="none" stroke="#D8DEE1"/>
+<text x="35" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">01 主对话 · 浅色</text>
+<text x="35" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">正文优先 / 活动聚合 / 分段阅读</text>
+<rect x="35" y="185" width="360" height="714" rx="25" fill="#FFFFFF" stroke="#D8DEE1"/>
+<path d="M47 244H383" fill="none" stroke="#D8DEE1"/>
+<g transform="translate(52 203)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4H22M2 12H16M2 20H22"/></g>
+<text x="89" y="227" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700">当前会话</text>
+<g transform="translate(350 204)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<rect x="81" y="262" width="298" height="91" rx="16" fill="#F6F7F8" stroke="none"/>
+<g transform="translate(94 274)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0 -8M4 20c0-7 16-7 16 0"/></g>
+<text x="122" y="289" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">你的指令</text>
+<text x="94" y="319" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="400">检查工作区并完善当前功能。</text>
+<rect x="51" y="372" width="328" height="72" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<g transform="translate(62 385)" fill="none" stroke="#246F54" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5 11-11"/></g>
+<text x="91" y="400" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="600">已处理 3 项活动</text>
+<text x="91" y="425" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">读取文件 · 运行命令 · 修改文件</text>
+<g transform="translate(346 389)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g>
+<text x="53" y="477" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="600">调整结果</text>
+<text x="53" y="503" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">保留原生回执，避免重复显示。</text>
+<rect x="51" y="523" width="328" height="112" rx="12" fill="#F6F7F8" stroke="#D8DEE1"/>
+<text x="64" y="549" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">Kotlin</text>
+<g transform="translate(338 533)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7H21V21H7ZM3 17V3H17"/></g>
+<path d="M51 563H379" fill="none" stroke="#D8DEE1"/>
+<text x="64" y="587" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">val state = currentSnapshot</text>
+<text x="64" y="609" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">render(state)</text>
+<rect x="51" y="650" width="328" height="74" rx="12" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="52" y="651" width="326" height="35" rx="10" fill="#F6F7F8" stroke="none"/>
+<text x="62" y="674" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="600">模块</text>
+<text x="219" y="674" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="600">状态</text>
+<text x="62" y="709" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">消息</text>
+<text x="219" y="709" fill="#246F54" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">已核对</text>
+<rect x="51" y="777" width="328" height="105" rx="18" fill="#FFFFFF" stroke="#7B8992"/>
+<text x="65" y="806" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="400">继续输入任务…</text>
+<g transform="translate(64 837)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<text x="99" y="854" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">模型  ·  执行模式</text>
+<rect x="325" y="828" width="44" height="44" rx="15" fill="#263139" stroke="none"/>
+<g transform="translate(335 838)" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<text x="425" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">02 主对话 · 深色</text>
+<text x="425" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">同一组件与真实状态 / 无额外层级</text>
+<rect x="425" y="185" width="360" height="714" rx="25" fill="#111A22" stroke="#344450"/>
+<path d="M437 244H773" fill="none" stroke="#344450"/>
+<g transform="translate(442 203)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4H22M2 12H16M2 20H22"/></g>
+<text x="479" y="227" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700">当前会话</text>
+<g transform="translate(740 204)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<rect x="471" y="262" width="298" height="91" rx="16" fill="#0D141B" stroke="none"/>
+<g transform="translate(484 274)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0 -8M4 20c0-7 16-7 16 0"/></g>
+<text x="512" y="289" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">你的指令</text>
+<text x="484" y="319" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="400">检查工作区并完善当前功能。</text>
+<rect x="441" y="372" width="328" height="72" rx="12" fill="#111A22" stroke="#344450"/>
+<g transform="translate(452 385)" fill="none" stroke="#80D0AA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5 11-11"/></g>
+<text x="481" y="400" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="600">已处理 3 项活动</text>
+<text x="481" y="425" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">读取文件 · 运行命令 · 修改文件</text>
+<g transform="translate(736 389)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g>
+<text x="443" y="477" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="600">调整结果</text>
+<text x="443" y="503" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">保留原生回执，避免重复显示。</text>
+<rect x="441" y="523" width="328" height="112" rx="12" fill="#0D141B" stroke="#344450"/>
+<text x="454" y="549" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">Kotlin</text>
+<g transform="translate(728 533)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7H21V21H7ZM3 17V3H17"/></g>
+<path d="M441 563H769" fill="none" stroke="#344450"/>
+<text x="454" y="587" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">val state = currentSnapshot</text>
+<text x="454" y="609" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">render(state)</text>
+<rect x="441" y="650" width="328" height="74" rx="12" fill="#111A22" stroke="#344450"/>
+<rect x="442" y="651" width="326" height="35" rx="10" fill="#0D141B" stroke="none"/>
+<text x="452" y="674" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="600">模块</text>
+<text x="609" y="674" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="600">状态</text>
+<text x="452" y="709" fill="#F0F2F3" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">消息</text>
+<text x="609" y="709" fill="#80D0AA" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">已核对</text>
+<rect x="441" y="777" width="328" height="105" rx="18" fill="#19232C" stroke="#81929E"/>
+<text x="455" y="806" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="400">继续输入任务…</text>
+<g transform="translate(454 837)" fill="none" stroke="#B3C0C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<text x="489" y="854" fill="#B3C0C8" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">模型  ·  执行模式</text>
+<rect x="715" y="828" width="44" height="44" rx="15" fill="#F0F2F3" stroke="none"/>
+<g transform="translate(725 838)" fill="none" stroke="#111A22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<text x="815" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">03 执行权限</text>
+<text x="815" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">当前项目归属 / 有效配置回读</text>
+<rect x="815" y="185" width="360" height="714" rx="25" fill="#FFFFFF" stroke="#D8DEE1"/>
+<path d="M827 244H1163" fill="none" stroke="#D8DEE1"/>
+<g transform="translate(832 203)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4H22M2 12H16M2 20H22"/></g>
+<text x="869" y="227" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700">当前会话</text>
+<g transform="translate(1130 204)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<rect x="831" y="264" width="328" height="101" rx="16" fill="#F6F7F8" stroke="none"/>
+<text x="848" y="291" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">你的指令</text>
+<text x="848" y="320" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="400">准备整理当前项目文件。</text>
+<rect x="831" y="779" width="328" height="103" rx="18" fill="#FFFFFF" stroke="#7B8992"/>
+<text x="846" y="809" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="400">输入任务…</text>
+<rect x="815" y="420" width="360" height="478" rx="23" fill="#FFFFFF" stroke="#D8DEE1"/>
+<rect x="974" y="431" width="42" height="4" rx="2" fill="#D8DEE1" stroke="none"/>
+<text x="836" y="474" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="700">执行权限</text>
+<g transform="translate(1130 450)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></g>
+<text x="836" y="502" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">选择后自动保存，用于后续任务。</text>
+<rect x="833" y="525" width="324" height="76" rx="13" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="853" cy="562" r="9" fill="none" stroke="#7B8992" stroke-width="1.8"/>
+<text x="872" y="555" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">只读工作区</text>
+<text x="872" y="576" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="11" font-weight="400">查看文件，修改需要批准</text>
+<rect x="833" y="612" width="324" height="76" rx="13" fill="#F6F7F8" stroke="#C8483E"/>
+<circle cx="853" cy="649" r="9" fill="none" stroke="#C8483E" stroke-width="1.8"/>
+<circle cx="853" cy="649" r="5" fill="#C8483E"/>
+<text x="872" y="642" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">可编辑工作区</text>
+<text x="872" y="663" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="11" font-weight="400">编辑工作区文件，越界需要批准</text>
+<rect x="833" y="699" width="324" height="76" rx="13" fill="#FFFFFF" stroke="#D8DEE1"/>
+<circle cx="853" cy="736" r="9" fill="none" stroke="#7B8992" stroke-width="1.8"/>
+<text x="872" y="729" fill="#AC363A" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">完全访问</text>
+<text x="872" y="750" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="11" font-weight="400">访问工作区以外的文件和网络</text>
+<text x="836" y="824" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">受限或未读取的方案不可选择。</text>
+<text x="836" y="851" fill="#AC363A" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">完全访问需再次确认。</text>
+<text x="1205" y="143" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">04 终端阅读</text>
+<text x="1205" y="166" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">近期快照 / 独立历史段 / 完整导出</text>
+<rect x="1205" y="185" width="360" height="714" rx="25" fill="#FFFFFF" stroke="#D8DEE1"/>
+<path d="M1217 244H1553" fill="none" stroke="#D8DEE1"/>
+<g transform="translate(1222 203)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4H22M2 12H16M2 20H22"/></g>
+<text x="1259" y="227" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700">终端</text>
+<g transform="translate(1520 204)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M3 12H21"/></g>
+<text x="1223" y="275" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700">标准输出</text>
+<text x="1386" y="275" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">复制近期</text>
+<text x="1461" y="275" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">阅读近期输出</text>
+<rect x="1221" y="295" width="328" height="186" rx="12" fill="#F6F7F8" stroke="#D8DEE1"/>
+<text x="1235" y="323" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">$ git status</text>
+<text x="1235" y="347" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">On branch feature</text>
+<text x="1235" y="371" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">Changes not staged for commit:</text>
+<text x="1235" y="395" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">  modified: app/src/…</text>
+<text x="1235" y="419" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">$ ./gradlew test</text>
+<text x="1235" y="443" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="12" font-weight="400">BUILD SUCCESSFUL</text>
+<rect x="1221" y="503" width="328" height="48" rx="13" fill="#FFFFFF" stroke="#7B8992"/>
+<text x="1277" y="533" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="600">加载更早输出（约 32KiB）</text>
+<text x="1230" y="589" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">较新</text>
+<text x="1331" y="589" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">历史段 2 / 3</text>
+<text x="1510" y="589" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">较早</text>
+<rect x="1221" y="608" width="328" height="48" rx="13" fill="#FFFFFF" stroke="#7B8992"/>
+<text x="1270" y="638" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="600">阅读较早输出 · 当前段</text>
+<text x="1224" y="694" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">完整记录由原生日志保存。</text>
+<rect x="1221" y="775" width="328" height="48" rx="13" fill="#FFFFFF" stroke="#7B8992"/>
+<text x="1331" y="805" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="600">导出日志</text>
+<rect x="1221" y="836" width="328" height="46" rx="13" fill="#F6F7F8" stroke="#D8DEE1"/>
+<text x="1235" y="864" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">输入命令</text>
+<g transform="translate(1515 846)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
+<text x="35" y="931" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">动效沿用 CodexMotion：按压 100ms / 释放 140ms / 展开 240ms / 原生弹层；减少动效时直接交接。</text>
+</svg>
