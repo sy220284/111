@@ -15,7 +15,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.json.JSONObject
 
 private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming")
 private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "declined", "interrupted", "cancelled")
@@ -73,10 +72,8 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var rawOpen by rememberSaveable(item.id) { mutableStateOf(false) }
-    val detail = item.evidence.isNotBlank()
-    val raw = remember(item.evidence) {
-        if (item.evidence.isBlank()) null else try { JSONObject(item.evidence) } catch (_: org.json.JSONException) { null }
-    }
+    val detail = item.hasEvidence
+    val raw = remember(item) { if (assistant) null else item.metadata() }
     val shownText = item.text.ifBlank {
         when {
             active -> "正在处理…"
@@ -138,7 +135,7 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
                         Text(if (item.kind in setOf("plan", "planProgress")) title else shownText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (failure) Ink.red else Ink.parchment, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                        val output = raw?.optString("aggregatedOutput").orEmpty()
+                        val output = if (active) item.commandOutputTail(4096) else ""
                         val statusText = PresentationPolicy.timelineStatus(item.status)
                         val caption = listOfNotNull(title.takeUnless { it == shownText },
                             statusText.takeIf(String::isNotBlank),

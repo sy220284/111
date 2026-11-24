@@ -109,7 +109,7 @@ internal object TimelineEventReducer {
                 turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }, status, turnId = id))
             return IndexedTimeline.from(items.map {
                 if (it.turnId == id && it.status in setOf("streaming", "inProgress", "running"))
-                    it.copy(status = if (status == "completed") "completed" else status)
+                    it.withStatus(if (status == "completed") "completed" else status)
                 else it
             })
         }
@@ -144,22 +144,27 @@ internal object TimelineEventReducer {
         val kind = method.substringAfter("item/").substringBefore("/")
         val old = items.byId(id)
         if (old != null && old.status in setOf("completed", "failed", "declined", "interrupted")) return current
-        val raw = if (old?.evidence.isNullOrBlank()) JSONObject().put("id", id).put("type", kind)
-            else JSONObject(old!!.evidence)
         val delta = params.string("delta")
+        val field = when (method) {
+            "item/agentMessage/delta", "item/plan/delta" -> "text"
+            "item/reasoning/summaryTextDelta", "item/reasoning/summaryPartAdded" -> "summary"
+            "item/commandExecution/outputDelta" -> "aggregatedOutput"
+            "item/fileChange/outputDelta" -> "output"
+            "item/mcpToolCall/progress" -> "progress"
+            else -> null
+        }
+        if (field != null) {
+            val initial = old?.takeIf { it.hasEvidence }
+                ?: project(JSONObject().put("id", id).put("type", kind), turnId, "streaming")
+            val index = if (field == "summary") params.getInt("summaryIndex") else 0
+            val addition = if (field == "progress") "\n" + params.string("message") else delta
+            put(initial.appendNative(field, addition, index, "streaming"))
+            return items
+        }
+        val raw = if (old?.hasEvidence != true) JSONObject().put("id", id).put("type", kind)
+            else JSONObject(old.evidence)
         when (method) {
-            "item/agentMessage/delta", "item/plan/delta" -> raw.put("text", raw.string("text") + delta)
-            "item/reasoning/summaryTextDelta", "item/reasoning/summaryPartAdded" -> {
-                val index = params.getInt("summaryIndex")
-                val summary = raw.optJSONArray("summary") ?: JSONArray()
-                while (summary.length() <= index) summary.put("")
-                summary.put(index, summary.optString(index) + delta)
-                raw.put("summary", summary)
-            }
-            "item/commandExecution/outputDelta" -> raw.put("aggregatedOutput", raw.string("aggregatedOutput") + delta)
-            "item/fileChange/outputDelta" -> raw.put("output", raw.string("output") + delta)
             "item/fileChange/patchUpdated" -> raw.put("changes", params.getJSONArray("changes"))
-            "item/mcpToolCall/progress" -> raw.put("progress", raw.string("progress") + "\n" + params.string("message"))
             "item/commandExecution/terminalInteraction" -> raw.put("terminalInteraction", params)
             else -> return current
         }

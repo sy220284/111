@@ -47,6 +47,20 @@ class TimelineReconcilerTest {
         val streamed = TimelineEventReducer.reduce("item/commandExecution/outputDelta", delta, started)
         org.junit.Assert.assertEquals("运行命令", streamed.single().text)
         org.junit.Assert.assertEquals("/work\n", org.json.JSONObject(streamed.single().evidence).getString("aggregatedOutput"))
+        var many = streamed
+        repeat(128) {
+            many = TimelineEventReducer.reduce("item/commandExecution/outputDelta",
+                org.json.JSONObject(delta.toString()).put("delta", "0123456789"), many)
+        }
+        assertEquals("6789", many.single().commandOutputTail(4))
+        assertEquals("/work\n" + "0123456789".repeat(128),
+            org.json.JSONObject(many.single().evidence).getString("aggregatedOutput"))
+        assertEquals("/work\n", streamed.single().commandOutputTail(20))
+        val first = TimelineTextChunks.from("start")
+        val next = first.append("middle").append("end")
+        assertEquals("start", first.text)
+        assertEquals("startmiddleend", next.text)
+        assertEquals("leend", next.tail(5))
         item.put("status", "failed").put("exitCode", 1).put("aggregatedOutput", "/work\n")
         val ended = TimelineEventReducer.reduce("item/completed", params, streamed)
         org.junit.Assert.assertEquals("failed", ended.single().status)

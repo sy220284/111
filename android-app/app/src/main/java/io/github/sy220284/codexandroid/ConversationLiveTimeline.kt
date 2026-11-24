@@ -32,12 +32,24 @@ internal class ConversationLiveTimeline {
             val existing = saved.mapTo(hashSetOf()) { it.id }
             return saved.map { prior ->
                 val next = byId[prior.id] ?: return@map prior
-                when {
-                    prior.status in terminal -> prior
-                    next.status in terminal -> next
-                    next.text.startsWith(prior.text) -> next
-                    prior.text.startsWith(next.text) -> prior
-                    else -> next
+                if (prior.status in terminal) prior
+                else if (next.status in terminal) next
+                else {
+                    val field = when (next.kind) {
+                        "commandExecution" -> "aggregatedOutput"
+                        "fileChange" -> "output"
+                        "mcpToolCall" -> "progress"
+                        else -> null
+                    }
+                    fun content(item: TimelineItem) = if (field == null) item.text
+                        else if (!item.hasEvidence) "" else JSONObject(item.evidence).optString(field)
+                    val previous = content(prior)
+                    val incoming = content(next)
+                    when {
+                        incoming.startsWith(previous) -> next
+                        previous.startsWith(incoming) -> prior
+                        else -> next
+                    }
                 }
             } + live.filterNot { it.id in existing }
         }

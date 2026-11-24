@@ -63,7 +63,7 @@ internal fun CodexViewModel.composerPermissionBlockReason(): String? = when {
     !globalWorkSnapshot().canStartNewTask -> "本机数据正在备份或恢复"
     bridge.status.value != EngineStatus.Connected || connectionRestarter.busy.value -> "运行核心尚未连接"
     threadSwitching.value || firstThreadStarting.value || running.value -> "当前任务结束后可调整权限"
-    configSnapshotBusy(loading.value, securitySaveBusy.value) -> "已有配置操作正在处理，请稍候"
+    configBusy() -> "已有配置操作正在处理，请稍候"
     data.value["composerPermissionWorkspace"]?.optString("cwd") != activeWorkspace.value ||
         loading.value.any { it in setOf("composerPermissionConfig", "permissionProfiles", "securityRequirements") } ->
         "正在读取当前项目权限，请稍候"
@@ -93,9 +93,10 @@ internal fun CodexViewModel.chooseComposerPermission(id: String) {
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
-            errors.value = errors.value + ("securitySave" to (failure.message ?: "权限保存或回读失败"))
-            if (activeWorkspace.value == cwd && configGeneration == generation)
-                data.value = data.value - "composerPermissionConfig"
+            if (configGeneration == generation) {
+                errors.value = errors.value + ("securitySave" to (failure.message ?: "权限保存或回读失败"))
+                if (activeWorkspace.value == cwd) data.value = data.value - "composerPermissionConfig"
+            }
         } finally {
             securitySaveBusy.value = false
             // The write targets the user config; invalidate both global and cwd-scoped snapshots.

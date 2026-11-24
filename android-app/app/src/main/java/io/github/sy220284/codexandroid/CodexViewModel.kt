@@ -145,6 +145,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
+    internal val configTransactionBusy = MutableStateFlow(false)
     internal var configGeneration = 0L
         private set
     internal fun invalidateConfigScope() {
@@ -180,7 +181,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         if (userAction && method in setOf("config/value/write", "config/batchWrite", "skills/config/write", "modelProvider/config/write", "modelProvider/default/set") &&
-            configSnapshotBusy(loading.value, securitySaveBusy.value)) {
+            configBusy()) {
             val reason = "已有配置操作正在处理，请完成后再修改"
             errors.value = errors.value + (key to reason)
             viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
@@ -230,6 +231,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             "modelProvider/default/set", "modelProvider/config/write")) {
                         accountMetrics.accountChanged()
                         extensions.invalidate()
+                        refresh("account", "account/read", JSONObject())
                     }
                     onSuccess?.invoke(response)
                     if (SessionRefreshPolicy.affectsThreads(method)) sessions.refreshChanged(params?.optString("threadId").orEmpty())
@@ -261,7 +263,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         // A verified config write owns its snapshot until readback completes.
         if (key == "config" && method == "config/read" &&
-            configSnapshotBusy(loading.value, securitySaveBusy.value)) return
+            configBusy()) return
         request(key, method, params, onSuccess)
     }
 

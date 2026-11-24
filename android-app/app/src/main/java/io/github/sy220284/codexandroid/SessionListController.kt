@@ -101,12 +101,13 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                         .put("operation", JSONObject().put("type", if (unread) "unread" else "read")))
                 if (owner == identityEpoch && (receiptEvents[id] ?: 0) <= started) receipt(id, response.getJSONObject("readState"))
             } catch (timeout: TimeoutCancellationException) {
-                feedback("已读状态更新超时，请重试")
-                refresh()
+                if (owner == identityEpoch) { feedback("已读状态更新超时，请重试"); refresh() }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
-                feedback("已读状态更新失败：" + PresentationPolicy.readableError(failure.message ?: "请重新操作"))
-                refresh()
+                if (owner == identityEpoch) {
+                    feedback("已读状态更新失败：" + PresentationPolicy.readableError(failure.message ?: "请重新操作"))
+                    refresh()
+                }
             } finally { if (owner == identityEpoch) marking.remove(id) }
         }
     }
@@ -135,7 +136,11 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         identityEpoch += 1
         identity = null
         allowCacheRead = false
-        scope.launch { index.clear() }
+        scope.launch {
+            try { index.clear() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { android.util.Log.w("SessionIndex", "旧账号索引清理失败", failure) }
+        }
         listJob?.cancel()
         listJob = null
         search("", false)
