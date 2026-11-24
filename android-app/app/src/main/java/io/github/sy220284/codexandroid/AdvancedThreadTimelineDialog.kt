@@ -47,7 +47,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                 }
                 CodexNotice("此能力由当前内核按需提供。它包括回合边界、任务条目及实时事件。",
                     NoticeTone.Info)
-                if (currentKey in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (currentKey in loading) AtlasOperationProgress("正在读取会话时间线")
                 errors[currentKey]?.let { ErrorText(it) }
                 LazyColumn(Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
@@ -60,6 +60,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 "若内核未启用实验接口，请返回普通回合历史查看已保存内容。")
                         }
                     }
+                    if (entries.isNotEmpty()) item { AtlasListHeading("已加载事件", entries.size) }
                     itemsIndexed(entries, key = { _, item -> item.optLong("position") }) { index, entry ->
                         MaterialPanel(Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {

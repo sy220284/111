@@ -204,15 +204,13 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text("查看用量与额度", modifier = Modifier.weight(1f))
                 CodexIcon(CodexGlyph.ChevronRight, null, modifier = Modifier.size(18.dp))
             }
-            TextButton(onClick = { navigate("providers") }) {
-                Text("管理模型服务商")
-                CodexIcon(CodexGlyph.ChevronRight, null)
-            }
+            AtlasSettingsActionRow("管理模型服务商", "配置可用模型与连接方式",
+                CodexGlyph.Settings, onClick = { navigate("providers") })
         }
         errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
 
         CodexReveal(visible = loginBusy) {
-            CodexNotice(
+            AtlasOperationProgress(
                 if (pending) "正在处理授权操作…" else "正在向 Codex 核心请求授权信息…"
             )
         }

@@ -65,7 +65,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                     onRefresh = { vm.refresh(selectedTab, method) },
                     label = "刷新账号数据")
             }
-            if (selectedTab in loading) AtlasOperationProgress("正在读取账号数据")
+            if (selectedTab in loading) AtlasOperationProgress(if (usage) "正在读取用量" else "正在读取额度")
         }
         errors[selectedTab]?.let { ErrorText(it) }
         if (result == null && selectedTab !in loading) {
@@ -73,8 +73,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 engineStatus != EngineStatus.Connected -> {
                     CodexRecoveryState("连接后可查看账号数据",
                         "本机运行核心尚未连接，连接后读取用量与额度。",
-                        "重新连接", { vm.connect() }, { navigate("diagnostics") },
-                    artworkRes = R.drawable.ic_empty_connection)
+                        "重新连接", { vm.connect() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_connection)
                 }
                 selectedTab in errors -> {
                     CodexRecoveryState("账号数据读取失败",
@@ -121,10 +120,10 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             val buckets = result.optJSONArray("dailyUsageBuckets")
             if (buckets != null && buckets.length() > 0) {
                 MaterialPanel(Modifier.fillMaxWidth()) {
-                    Text("最近每日用量", style = MaterialTheme.typography.titleMedium)
                     val recent = (0 until buckets.length())
                         .mapNotNull { buckets.optJSONObject(it) }
                         .takeLast(10)
+                    AtlasListHeading("最近每日用量", recent.size, suffix = "天")
                     val maxTokens = recent.maxOfOrNull { it.optLong("tokens") }?.coerceAtLeast(1L) ?: 1L
                     recent.forEach { bucket ->
                         val tokens = bucket.optLong("tokens").coerceAtLeast(0L)
@@ -199,17 +198,10 @@ private fun LimitBucketCard(title: String, snapshot: JSONObject) {
         windows.forEach { (field, label) ->
             val window = snapshot.optJSONObject(field) ?: return@forEach
             shown++
-            val used = window.optInt("usedPercent").coerceIn(0, 100)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f))
-                Text("$used%", style = MaterialTheme.typography.titleMedium,
-                    color = if (used >= 100) Ink.red else Ink.copper)
-            }
-            LinearProgressIndicator(progress = { used / 100f },
-                modifier = Modifier.fillMaxWidth().height(9.dp),
-                color = if (used >= 100) Ink.red else Ink.copper,
-                trackColor = Ink.border)
+            val used = (window.opt("usedPercent") as? Number)?.toFloat()?.coerceIn(0f, 100f)
+            if (used == null) AtlasFieldFeedback("$label：服务端未提供使用比例")
+            else AtlasOperationProgress("$label · 已使用 · 剩余 ${(100f - used).toInt()}%",
+                progress = used / 100f, indicatorColor = if (used >= 100f) Ink.red else Ink.copper)
             val duration = window.optLong("windowDurationMins", -1L)
             val until = window.optLong("resetsAt", -1L)
             if (duration > 0) Text("窗口 " + duration + " 分钟",
