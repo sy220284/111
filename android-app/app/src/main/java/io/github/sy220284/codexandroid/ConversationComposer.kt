@@ -1,10 +1,6 @@
 package io.github.sy220284.codexandroid
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.animateColorAsState
@@ -144,57 +140,52 @@ internal fun ConversationComposer(
                         CodexIcon(CodexGlyph.Microphone, "语音输入", modifier = Modifier.size(22.dp), tint = Ink.muted)
                     }
                 }
-                AnimatedVisibility(
-                    visible = running,
-                    enter = expandHorizontally(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))) +
-                        fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))),
-                    exit = shrinkHorizontally(tween(CodexMotion.duration(CodexMotion.press, reduceMotion))) +
-                        fadeOut(tween(CodexMotion.duration(CodexMotion.press, reduceMotion)))
-                ) {
-                    CodexIconAction(
-                        onClick = onStop,
-                        enabled = running && canStop && !stopping,
-                        modifier = Modifier.size(48.dp).testTag("composer-stop")
-                            .explainDisabled(stopping || !canStop,
-                                if (stopping) "已发出停止请求，等待运行核心响应" else "当前任务尚无可停止的执行回合")
-                            .semantics { contentDescription = if (stopping) "正在停止任务" else "停止任务" }
-                    ) {
-                        if (stopping) {
-                            CodexActivityIndicator(Modifier.size(17.dp), strokeWidth = 2.dp,
-                                color = Ink.red)
-                        } else CodexIcon(CodexGlyph.Stop, null,
-                            tint = Ink.red, modifier = Modifier.size(24.dp))
-                    }
+                // One fixed primary action: the active task owns Stop until there
+                // is a new draft. Sending and stopping both retain this same slot.
+                val showStop = stopping || (running && !hasInput)
+                val waiting = stopping || sending
+                val primaryEnabled = !waiting && if (showStop) running && canStop else canSend
+                val description = when {
+                    stopping -> "正在停止任务"
+                    sending -> "正在发送指令"
+                    showStop -> "停止任务"
+                    running && hasInput -> "引导当前任务"
+                    else -> "发送给 Codex"
                 }
-                CodexPrimaryButton(
-                    onClick = onSend,
-                    enabled = canSend && !sending && !stopping,
-                    modifier = Modifier.size(48.dp)
-                        .testTag("composer-send")
-                        .explainDisabled(!canSend || sending, when {
-                            sendBlockReason.isNotBlank() -> sendBlockReason
-                            sending -> "正在发送指令，请勿重复提交"
-                            !connected -> "运行核心尚未连接"
-                            else -> "输入指令后即可发送"
-                        })
-                        .semantics { contentDescription = when {
-                            running && hasInput -> "引导当前任务"
-                            else -> "发送给 Codex"
-                        } },
-                    shape = androidx.compose.foundation.shape.CircleShape,
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Ink.parchment,
-                        contentColor = Ink.canvas,
-                        disabledContainerColor = Ink.border,
-                        disabledContentColor = Ink.muted
-                    )
-                ) {
-                    if (sending) {
-                        CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
-                            color = Ink.muted)
-                    } else {
-                        CodexIcon(CodexGlyph.ArrowUpward, null, modifier = Modifier.size(22.dp))
+                Box(Modifier.size(48.dp).testTag("composer-primary-action")) {
+                    CodexPrimaryButton(
+                        onClick = if (showStop) onStop else onSend,
+                        enabled = primaryEnabled,
+                        modifier = Modifier.fillMaxSize()
+                            .testTag(if (showStop) "composer-stop" else "composer-send")
+                            .explainDisabled(!primaryEnabled, when {
+                                stopping -> "已发出停止请求，等待运行核心响应"
+                                sending -> "正在发送指令，请勿重复提交"
+                                showStop && !canStop -> "当前任务尚无可停止的执行回合"
+                                sendBlockReason.isNotBlank() -> sendBlockReason
+                                !connected -> "运行核心尚未连接"
+                                else -> "输入指令后即可发送"
+                            })
+                            .semantics { contentDescription = description },
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Ink.parchment,
+                            contentColor = Ink.canvas,
+                            disabledContainerColor = Ink.border,
+                            disabledContentColor = Ink.muted
+                        )
+                    ) {
+                        if (waiting) {
+                            CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp, color = Ink.muted)
+                        } else {
+                            Crossfade(targetState = showStop,
+                                animationSpec = tween(CodexMotion.duration(CodexMotion.selection, reduceMotion)),
+                                label = "composer-primary-glyph") { stop ->
+                                CodexIcon(if (stop) CodexGlyph.Stop else CodexGlyph.ArrowUpward,
+                                    null, modifier = Modifier.size(22.dp))
+                            }
+                        }
                     }
                 }
             }

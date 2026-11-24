@@ -333,12 +333,22 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 !snapshot.hasInput -> "输入指令或添加附件后即可发送"
                 else -> ""
             }
+            val stopCurrentTurn: () -> Unit = {
+                if (thread != null && vm.activeThread.value == thread &&
+                    vm.activeTurn.value == activeTurn && !activeTurn.isNullOrBlank() &&
+                    vm.running.value && "interrupt" !in vm.loading.value && !stopping) {
+                    stopRequestedForTurn = activeTurn
+                    vm.interruptThread(thread)
+                }
+            }
             // Submit and queue are distinct actions, matching native Enter/Tab.
             // Keep the transient queue shortcut outside ConversationComposer.
             ComposerQueueAction(
-                visible = busy && thread != null && snapshot.hasInput,
+                visible = busy && thread != null && snapshot.hasInput && !stopping,
                 enabled = sendBlockReason.isBlank(),
-                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) })
+                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) },
+                stopEnabled = !activeTurn.isNullOrBlank() && !switching && status == EngineStatus.Connected && !restarting && !stopping,
+                onStop = stopCurrentTurn)
             val guideBlockReason = sendBlockReason.ifBlank {
                 if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
@@ -350,12 +360,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 canStop = busy && !activeTurn.isNullOrBlank(),
                 canSend = guideBlockReason.isBlank(), sending = sending,
                 sendBlockReason = guideBlockReason,
-                onStop = {
-                    if (thread != null && vm.activeThread.value == thread && vm.activeTurn.value == activeTurn) {
-                        stopRequestedForTurn = activeTurn
-                        vm.interruptThread(thread)
-                    }
-                },
+                onStop = stopCurrentTurn,
                 onSend = { vm.submitComposerDraft(snapshot, "steer", thread, activeTurn, busy, draftOwner) },
                 hasInput = snapshot.hasInput,
                 onVoice = if (vm.composerContent.canRecognizeSpeech()) ({

@@ -28,7 +28,8 @@ import org.json.JSONObject
  * On touch screens this independent queue action lives outside the input surface.
  * It submits directly; no sticky send mode or additional action is required. */
 @Composable
-internal fun ComposerQueueAction(visible: Boolean, enabled: Boolean, onQueue: () -> Unit) {
+internal fun ComposerQueueAction(visible: Boolean, enabled: Boolean, onQueue: () -> Unit,
+    stopEnabled: Boolean, onStop: () -> Unit) {
     val reduced by UiPreferences.reducedMotion.collectAsState()
     AnimatedVisibility(visible = visible,
         enter = expandVertically(tween(CodexMotion.duration(CodexMotion.selection, reduced))) +
@@ -36,7 +37,18 @@ internal fun ComposerQueueAction(visible: Boolean, enabled: Boolean, onQueue: ()
         exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.release, reduced))) +
             fadeOut(tween(CodexMotion.duration(CodexMotion.release, reduced)))) {
         Row(Modifier.fillMaxWidth().testTag("composer-queue-action"),
-            horizontalArrangement = Arrangement.End) {
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically) {
+            // The primary circle now sends the draft. Keep Stop reachable here,
+            // outside the input surface, without introducing a second primary button.
+            Surface(shape = CircleShape, color = Ink.panel,
+                border = BorderStroke(1.dp, Ink.controlBorder)) {
+                CodexIconAction(onClick = onStop, enabled = visible && stopEnabled,
+                    modifier = Modifier.size(48.dp).testTag("composer-stop-with-draft")) {
+                    CodexIcon(CodexGlyph.Stop, "停止任务并保留草稿",
+                        Modifier.size(20.dp), tint = if (stopEnabled) Ink.parchment else Ink.muted)
+                }
+            }
             Surface(shape = CircleShape, color = Ink.panel,
                 border = BorderStroke(1.dp, Ink.controlBorder)) {
                 CodexIconAction(onClick = onQueue, enabled = visible && enabled,
