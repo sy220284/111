@@ -18,7 +18,8 @@ class MutationKeyTests(unittest.TestCase):
         self.assertRegex(source, r'vm\.extensions\.changePlugin\("plugin/install"')
         self.assertRegex(source, r'vm\.extensions\.changePlugin\("plugin/uninstall"')
         self.assertRegex(controller, r'fun changePlugin\(method: String, params: JSONObject, workspace: String\)')
-        self.assertRegex(controller, r'vm\.rpc\("pluginMutation",\s*method,\s*params')
+        self.assertRegex(controller, r'vm\.rpc\("pluginMutation",\s*"plugin/install",\s*params')
+        self.assertRegex(controller, r'vm\.rpc\("pluginMutation",\s*"plugin/uninstall",\s*params')
         self.assertNotRegex(source + controller, r'vm\.rpc\("(?:skills|plugins)",\s*"(?:skills/config/write|plugin/(?:install|uninstall))"')
         self.assertNotRegex(controller, r'vm\.rpc\("(?:skills|plugins)",\s*method')
 

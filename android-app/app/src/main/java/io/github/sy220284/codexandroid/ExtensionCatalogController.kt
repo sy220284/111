@@ -73,13 +73,18 @@ internal class ExtensionCatalogController(
     fun changePlugin(method: String, params: JSONObject, workspace: String) {
         if (workspace != vm.activeWorkspace.value || vm.bridge.status.value != EngineStatus.Connected ||
             "pluginMutation" in vm.loading.value) return
-        vm.rpc("pluginMutation", method, params, after = {
+        val after: () -> Unit = {
             if (workspace == vm.activeWorkspace.value) {
                 invalidatePluginSearchResults()
                 refreshPluginCatalog("plugins", workspace, true)
                 refreshPluginCatalog("installedPlugins", workspace)
             }
-        })
+        }
+        when (method) {
+            "plugin/install" -> vm.rpc("pluginMutation", "plugin/install", params, after = after)
+            "plugin/uninstall" -> vm.rpc("pluginMutation", "plugin/uninstall", params, after = after)
+            else -> error("不支持的插件变更操作：$method")
+        }
     }
 
     fun changeApp(id: String, enabled: Boolean) {
