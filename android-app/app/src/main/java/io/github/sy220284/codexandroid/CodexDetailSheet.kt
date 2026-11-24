@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
@@ -33,6 +34,8 @@ fun CodexDetailSheet(
     footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
+    val contentLimit = (viewportHeight * .72f).coerceAtLeast(220.dp)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
@@ -68,7 +71,7 @@ fun CodexDetailSheet(
             }
             HorizontalDivider(color = Ink.border)
             Column(
-                Modifier.fillMaxWidth().heightIn(max = 520.dp)
+                Modifier.fillMaxWidth().heightIn(max = contentLimit)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 content = content
@@ -197,6 +200,8 @@ fun CodexInfoDialog(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .65f)
+        .coerceAtLeast(200.dp)
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Ink.elevated,
@@ -206,7 +211,7 @@ fun CodexInfoDialog(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(max = contentLimit)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 content = content
@@ -218,6 +223,58 @@ fun CodexInfoDialog(
                 modifier = Modifier.heightIn(min = 48.dp)
                     .testTag("codex-info-close")
             ) { Text("关闭") }
+        }
+    )
+}
+
+/**
+ * 事务式表单对话框：取消不改动草稿，确认后由调用方写回真实状态。
+ * 在任务目标等已有底部面板的页面中使用，可避免嵌套底部弹窗。
+ */
+@Composable
+fun CodexEditDialog(
+    title: String,
+    description: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    canConfirm: Boolean,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .62f)
+        .coerceAtLeast(200.dp)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding().testTag("codex-edit-dialog"),
+        containerColor = Ink.elevated,
+        titleContentColor = Ink.parchment,
+        textContentColor = Ink.parchment,
+        shape = RoundedCornerShape(22.dp),
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = contentLimit)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (description.isNotBlank()) {
+                    Text(description, color = Ink.muted,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                content()
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text("取消")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = canConfirm,
+                modifier = Modifier.heightIn(min = 48.dp).testTag("codex-edit-confirm")
+            ) { Text(confirmLabel) }
         }
     )
 }
