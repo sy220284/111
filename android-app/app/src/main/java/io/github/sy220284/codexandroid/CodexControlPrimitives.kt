@@ -190,3 +190,22 @@ internal fun Modifier.codexSelectable(selected: Boolean, enabled: Boolean = true
         role = Role.RadioButton, interactionSource = source,
         indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick)
 }
+
+
+/** Discrete native slider; callers commit only when a gesture or accessibility adjustment ends. */
+@Composable
+internal fun CodexDiscreteSlider(index: Int, count: Int, enabled: Boolean,
+    onPreview: (Int) -> Unit, onFinished: () -> Unit, modifier: Modifier = Modifier) {
+    require(count >= 2)
+    Slider(
+        value = index.coerceIn(0, count - 1).toFloat(),
+        onValueChange = { onPreview(kotlin.math.round(it).toInt().coerceIn(0, count - 1)) },
+        onValueChangeFinished = onFinished,
+        valueRange = 0f..(count - 1).toFloat(),
+        steps = count - 2,
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
+        colors = SliderDefaults.colors(thumbColor = Ink.copper, activeTrackColor = Ink.copper,
+            inactiveTrackColor = Ink.border)
+    )
+}

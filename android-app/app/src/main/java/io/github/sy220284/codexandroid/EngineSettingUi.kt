@@ -116,10 +116,12 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
     val loading by vm.loading.collectProjection { it.intersect(setOf("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)) }
     val errors by vm.errors.collectEntries("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)
     val permissionBusy by vm.securitySaveBusy.collectAsState()
+    val configTransactionBusy by vm.configTransactionBusy.collectAsState()
+    val otherConfigBusy by vm.loading.collectProjection { configSnapshotBusy(it, false) }
     val config = data["config"]?.optJSONObject("config")
     val saving = ENGINE_SETTING_SAVE in loading
     val connected = status == EngineStatus.Connected
-    val enabled = connected && config != null && "config" !in loading && !saving && !permissionBusy
+    val enabled = connected && config != null && !otherConfigBusy && !saving && !permissionBusy && !configTransactionBusy && errors["config"] == null
     val models = if ("models" in loading || errors["models"] != null) emptyList() else records(data["models"])
     val requirements = data["securityRequirements"]?.optJSONObject("requirements")
     val requirementsRead = data["securityRequirements"] != null &&
@@ -144,7 +146,7 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
     LaunchedEffect(owner, focusTarget) {
         if (focusTarget != null && EngineSettings.byKey(focusTarget)?.owner == owner) {
             clearFeedback()
-            selectedKey = focusTarget
+            if (owner != "models") selectedKey = focusTarget
         }
     }
     Text(when (owner) {
@@ -184,6 +186,13 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
     if (selectedKey == null) {
         saveError?.let { ErrorText(it) }
         saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
+    }
+    if (owner == "models") {
+        EngineModelSliders(if (connected) config else null, enabled, models, focusTarget) { setting, value ->
+            clearFeedback()
+            vm.saveEngineSetting(setting.key, value, setting.title, owner)
+        }
+        return
     }
     EngineSettingRows(owner, if (connected) config else null, enabled, models, requirements, requirementsRead) {
         clearFeedback()

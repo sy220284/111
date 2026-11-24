@@ -993,6 +993,15 @@ class UiNavigationInstrumentedTest {
             EngineSettings.all.filter { it.owner != route }.forEach {
                 rule.onNodeWithTag("engine-setting-" + it.key).assertDoesNotExist()
             }
+            if (route == "models") {
+                rule.onNodeWithTag("engine-setting-model").performScrollTo().assertIsDisplayed()
+                rule.onNodeWithTag("engine-slider-value-model").assertExists()
+                rule.onNodeWithTag("engine-setting-model_reasoning_effort").performScrollTo().assertIsDisplayed()
+                rule.onNodeWithTag("engine-setting-plan_mode_reasoning_effort").performScrollTo().assertIsDisplayed()
+                rule.onNodeWithTag("engine-slider-model_verbosity").performScrollTo().assertIsDisplayed()
+                rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+                rule.onNodeWithTag("engine-setting-model").performScrollTo()
+            }
             if (route in listOf("models", "personalization", "context", "tools"))
                 captureVerifiedDisplayScreenshot("audit-" + route + "-android35.png")
         }

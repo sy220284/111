@@ -122,6 +122,15 @@ internal object EngineSettings {
         else -> setting.choices
     }
 
+    /** Ordered discrete positions, with the actual unset configuration at index zero. */
+    fun sliderOptions(setting: EngineSetting, available: Map<String, String>): List<Pair<String?, String>> {
+        require(setting.owner == "models")
+        val entries = if (setting.type == "reasoning") available.entries.sortedBy { entry ->
+            reasoningLabels.keys.indexOf(entry.key).let { if (it < 0) Int.MAX_VALUE else it }
+        } else available.entries.toList()
+        return listOf(null to "由引擎决定") + entries.map { it.key to it.value }
+    }
+
     fun valueAt(config: JSONObject?, path: String): Any? {
         if (config == null) return null
         if (config.has(path)) return config.opt(path)?.takeUnless { it == JSONObject.NULL }
@@ -149,7 +158,8 @@ internal object EngineSettings {
 
     fun verify(write: JSONObject, read: JSONObject, path: String, expected: Any) {
         check(write.optString("status") == "ok") { "配置受到更高优先级策略覆盖，请核对生效值" }
-        check(sameValue(valueAt(read.getJSONObject("config"), path), expected)) {
+        val actual = valueAt(read.getJSONObject("config"), path)
+        check(if (expected === JSONObject.NULL) actual == null else sameValue(actual, expected)) {
             "配置已写入，但回读值与修改内容不一致，请核对实际设置"
         }
     }
