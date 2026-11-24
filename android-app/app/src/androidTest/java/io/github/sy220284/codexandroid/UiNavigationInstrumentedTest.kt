@@ -692,6 +692,24 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("update-check").assertExists()
     }
 
+    @Test fun settingsSearchSeparatesDiagnosticsOverviewFromLogAction() {
+        openSettingRoute("diagnostics")
+        rule.onAllNodes(isRoot()).assertCountEquals(1)
+        rule.onNodeWithText("查看启动日志").assertExists()
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.onNodeWithTag("settings-search").performTextClearance()
+        rule.onNodeWithTag("settings-search").performTextInput("启动日志")
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
+        rule.onNodeWithTag("settings-route-diagnostics").performClick()
+        rule.waitUntil(5000L) {
+            rule.onAllNodesWithText("启动日志").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText("启动日志").assertExists()
+        pressSystemBack()
+        rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
+        rule.onAllNodes(isRoot()).assertCountEquals(1)
+    }
+
     @Test fun settingsSearchDirectlyExpandsAdvancedConfig() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("高级配置")
@@ -792,7 +810,12 @@ class UiNavigationInstrumentedTest {
                 assertTrue(rule.onAllNodesWithText("Codex 内核尚未连接")
                     .fetchSemanticsNodes().size <= 1)
             }
-            capture("audit-" + route + "-android35.png")
+            if (route == "diagnostics") {
+                // 搜索完整页面名称应停留在概览，不能误开日志对话框。
+                rule.onAllNodes(isRoot()).assertCountEquals(1)
+                rule.onNodeWithText("查看启动日志").assertExists()
+                captureVerifiedDisplayScreenshot("audit-diagnostics-android35.png")
+            } else capture("audit-" + route + "-android35.png")
         }
     }
 

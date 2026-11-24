@@ -44,6 +44,12 @@ class NavigationPolicyTest {
         assertNull(NavigationPolicy.matchedSettingSpot("providers", "模型服务商"))
         assertNull(NavigationPolicy.matchedSettingSpot("plugins", "插件"))
         assertNull(NavigationPolicy.matchedSettingSpot("appearance", "外观与交互"))
+        assertEquals("logs", NavigationPolicy.matchedSettingSpot("diagnostics", "日志")?.target)
+        pages.filter { it.id in NavigationPolicy.settingsRoutes }.forEach { page ->
+            assertNull("完整页面名称不应触发具体操作：${page.title}",
+                NavigationPolicy.matchedSettingSpot(page.id, page.title))
+        }
+        assertNull(NavigationPolicy.matchedSettingSpot("update", "应用更新"))
         assertEquals("limits", NavigationPolicy.matchedSettingSpot("usage", "额度")?.target)
         assertEquals("advanced", NavigationPolicy.matchedSettingSpot("config", "高级配置")?.target)
         assertEquals("check", NavigationPolicy.matchedSettingSpot("update", "检查更新")?.target)

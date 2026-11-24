@@ -72,6 +72,11 @@ object NavigationPolicy {
     fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
         val q = query.trim()
         if (q.isBlank()) return null
+        // 完整页面名称优先于操作词（如“诊断与日志”中的“日志”）。
+        // 具体操作搜索仍可直达表单；更新入口不在 pages 列表中。
+        val pageTitle = pages.firstOrNull { it.id == id }?.title
+            ?: if (id == "update") "应用更新" else null
+        if (pageTitle?.equals(q, ignoreCase = true) == true) return null
         return settingsSpots.firstOrNull { spot ->
             spot.route == id &&
                 (q.contains(spot.label, ignoreCase = true) ||

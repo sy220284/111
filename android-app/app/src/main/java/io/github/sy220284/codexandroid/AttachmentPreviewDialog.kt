@@ -29,8 +29,26 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
     onSelect: (String) -> Unit, onDismiss: () -> Unit, onRemove: (String) -> Unit) {
+    if (path !in paths) return
+    // 窗口与当前图片的内容生命周期分离。切换图片不重建全屏窗口，
+    // 新路径由受控选择状态传入，缩放、解码及手势状态随路径更新。
+    val currentPaths by rememberUpdatedState(paths)
+    val currentPath by rememberUpdatedState(path)
+    val selectImage by rememberUpdatedState(onSelect)
+    val removeImage by rememberUpdatedState(onRemove)
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val selected = currentPath
+        val available = currentPaths
+        if (selected in available) AttachmentPreviewContent(
+            available, selected, selectImage, onDismiss, removeImage
+        )
+    }
+}
+
+@Composable
+private fun AttachmentPreviewContent(paths: List<String>, path: String,
+    onSelect: (String) -> Unit, onDismiss: () -> Unit, onRemove: (String) -> Unit) {
     val index = paths.indexOf(path)
-    if (index < 0) return
     var retry by remember(path) { mutableIntStateOf(0) }
     val preview by key(path, retry) {
         produceState<Pair<Boolean, ImageBitmap?>>(false to null) {
@@ -47,77 +65,84 @@ internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
     }
     var scale by remember(path) { mutableFloatStateOf(1f) }
     var offset by remember(path) { mutableStateOf(Offset.Zero) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(color = Ink.canvas, modifier = Modifier.fillMaxSize().testTag("attachment-preview")) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                        CodexIcon(CodexGlyph.ArrowBack, "关闭图片预览")
-                    }
-                    Text("图片 ${index + 1} / ${paths.size}", modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium)
-                    IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
-                        CodexIcon(CodexGlyph.DeleteOutline, "移除当前图片", tint = Ink.red)
-                    }
+    Surface(color = Ink.canvas, modifier = Modifier.fillMaxSize().testTag("attachment-preview")) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    CodexIcon(CodexGlyph.ArrowBack, "关闭图片预览")
                 }
-                Box(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
-                    val bitmap = preview.second
-                    when {
-                        !preview.first -> AtlasOperationProgress("正在载入图片")
-                        bitmap == null -> CodexRecoveryState("图片读取失败", "附件可能已被移动或损坏。",
-                            "重新读取", { retry++ })
-                        else -> Image(bitmap, "当前附件的大图预览",
-                            modifier = Modifier.fillMaxSize().testTag("attachment-preview-image")
-                                .semantics { stateDescription = "缩放 ${(scale * 100).toInt()}%" }
-                                .pointerInput(path, bitmap) {
-                                    detectTransformGestures { _, pan, zoom, _ ->
-                                        val next = (scale * zoom).coerceIn(1f, 4f)
-                                        val fit = minOf(size.width.toFloat() / bitmap.width,
-                                            size.height.toFloat() / bitmap.height)
-                                        val x = ((bitmap.width * fit * next - size.width) / 2).coerceAtLeast(0f)
-                                        val y = ((bitmap.height * fit * next - size.height) / 2).coerceAtLeast(0f)
-                                        offset = Offset((offset.x + pan.x).coerceIn(-x, x),
-                                            (offset.y + pan.y).coerceIn(-y, y))
-                                        scale = next
-                                    }
-                                }.pointerInput(path) {
-                                    detectTapGestures(onDoubleTap = {
-                                        scale = if (scale > 1f) 1f else 2f
-                                        offset = Offset.Zero
-                                    })
-                                }.graphicsLayer {
-                                    scaleX = scale; scaleY = scale
-                                    translationX = offset.x; translationY = offset.y
-                                },
-                            contentScale = ContentScale.Fit)
-                    }
+                Text("图片 ${index + 1} / ${paths.size}", modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
+                    CodexIcon(CodexGlyph.DeleteOutline, "移除当前图片", tint = Ink.red)
                 }
-                if (preview.second != null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center) {
-                        TextButton(onClick = {
-                            scale = (scale / 1.5f).coerceAtLeast(1f)
-                            offset = Offset.Zero
-                        }, enabled = scale > 1f, modifier = Modifier.heightIn(min = 48.dp)
-                            .testTag("attachment-zoom-out")) { Text("缩小") }
-                        Text("${(scale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 12.dp).testTag("attachment-zoom-level"))
-                        TextButton(onClick = {
-                            scale = (scale * 1.5f).coerceAtMost(4f)
-                            offset = Offset.Zero
-                        }, enabled = scale < 4f, modifier = Modifier.heightIn(min = 48.dp)
-                            .testTag("attachment-zoom-in")) { Text("放大") }
-                    }
-                }
+            }
+            // 翻页控件固定在标题下方，不随图片缩放或系统底部手势区移动。
+            if (paths.size > 1) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = { onSelect(paths[index - 1]) }, enabled = index > 0,
-                        modifier = Modifier.size(48.dp)) { CodexIcon(CodexGlyph.ArrowBack, "上一张") }
-                    TextButton(onClick = { scale = 1f; offset = Offset.Zero },
-                        enabled = preview.second != null, modifier = Modifier.heightIn(min = 48.dp)
-                            .testTag("attachment-preview-reset")) { Text("恢复原始大小") }
-                    IconButton(onClick = { onSelect(paths[index + 1]) }, enabled = index < paths.lastIndex,
-                        modifier = Modifier.size(48.dp)) { CodexIcon(CodexGlyph.ArrowForward, "下一张") }
+                    TextButton(onClick = { onSelect(paths[index - 1]) }, enabled = index > 0,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("attachment-previous")) {
+                        CodexIcon(CodexGlyph.ArrowBack, null)
+                        Text("上一张")
+                    }
+                    TextButton(onClick = { onSelect(paths[index + 1]) }, enabled = index < paths.lastIndex,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("attachment-next")) {
+                        Text("下一张")
+                        CodexIcon(CodexGlyph.ArrowForward, null)
+                    }
+                }
+            }
+            Box(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
+                val bitmap = preview.second
+                when {
+                    !preview.first -> AtlasOperationProgress("正在载入图片")
+                    bitmap == null -> CodexRecoveryState("图片读取失败", "附件可能已被移动或损坏。",
+                        "重新读取", { retry++ })
+                    else -> Image(bitmap, "当前附件的大图预览",
+                        modifier = Modifier.fillMaxSize().testTag("attachment-preview-image")
+                            .semantics { stateDescription = "缩放 ${(scale * 100).toInt()}%" }
+                            .pointerInput(path, bitmap) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    val next = (scale * zoom).coerceIn(1f, 4f)
+                                    val fit = minOf(size.width.toFloat() / bitmap.width,
+                                        size.height.toFloat() / bitmap.height)
+                                    val x = ((bitmap.width * fit * next - size.width) / 2).coerceAtLeast(0f)
+                                    val y = ((bitmap.height * fit * next - size.height) / 2).coerceAtLeast(0f)
+                                    offset = Offset((offset.x + pan.x).coerceIn(-x, x),
+                                        (offset.y + pan.y).coerceIn(-y, y))
+                                    scale = next
+                                }
+                            }.pointerInput(path) {
+                                detectTapGestures(onDoubleTap = {
+                                    scale = if (scale > 1f) 1f else 2f
+                                    offset = Offset.Zero
+                                })
+                            }.graphicsLayer {
+                                scaleX = scale; scaleY = scale
+                                translationX = offset.x; translationY = offset.y
+                            },
+                        contentScale = ContentScale.Fit)
+                }
+            }
+            if (preview.second != null) {
+                TextButton(onClick = { scale = 1f; offset = Offset.Zero },
+                    enabled = scale > 1f, modifier = Modifier.align(Alignment.CenterHorizontally)
+                        .heightIn(min = 48.dp).testTag("attachment-preview-reset")) { Text("恢复原始大小") }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center) {
+                    TextButton(onClick = {
+                        scale = (scale / 1.5f).coerceAtLeast(1f)
+                        offset = Offset.Zero
+                    }, enabled = scale > 1f, modifier = Modifier.heightIn(min = 48.dp)
+                        .testTag("attachment-zoom-out")) { Text("缩小") }
+                    Text("${(scale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 12.dp).testTag("attachment-zoom-level"))
+                    TextButton(onClick = {
+                        scale = (scale * 1.5f).coerceAtMost(4f)
+                        offset = Offset.Zero
+                    }, enabled = scale < 4f, modifier = Modifier.heightIn(min = 48.dp)
+                        .testTag("attachment-zoom-in")) { Text("放大") }
                 }
             }
         }

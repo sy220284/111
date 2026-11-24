@@ -421,6 +421,7 @@ class CodexInteractionComponentsInstrumentedTest {
         val first = java.io.File.createTempFile("preview-first", ".png", context.cacheDir)
         val second = java.io.File.createTempFile("preview-second", ".png", context.cacheDir)
         val bitmap = android.graphics.Bitmap.createBitmap(32, 32, android.graphics.Bitmap.Config.ARGB_8888)
+        var selectedByClick: String? = null
         try {
             first.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             second.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
@@ -431,7 +432,7 @@ class CodexInteractionComponentsInstrumentedTest {
                     Column {
                         Text("附件数量：" + paths.size)
                         if (selected in paths) AttachmentPreviewDialog(paths, selected,
-                            onSelect = { selected = it }, onDismiss = { selected = "" },
+                            onSelect = { selectedByClick = it; selected = it }, onDismiss = { selected = "" },
                             onRemove = { removed -> paths = paths - removed; selected = "" })
                     }
                 }
@@ -445,12 +446,23 @@ class CodexInteractionComponentsInstrumentedTest {
             captureComponentEvidence("audit-attachment-preview-android35.png")
             rule.onNodeWithTag("attachment-preview-reset").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
-            rule.onNodeWithContentDescription("下一张").performClick()
-            rule.onNodeWithText("图片 2 / 2").assertExists()
+            rule.onNodeWithTag("attachment-previous").assertIsNotEnabled()
+            rule.onNodeWithTag("attachment-next").assertIsEnabled().performTouchInput { click() }
+            rule.runOnIdle { org.junit.Assert.assertEquals(second.absolutePath, selectedByClick) }
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("图片 2 / 2").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("图片 2 / 2").assertIsDisplayed()
+            rule.onNodeWithTag("attachment-next").assertIsNotEnabled()
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithTag("attachment-preview-image").fetchSemanticsNodes().isNotEmpty()
             }
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
+            rule.onNodeWithTag("attachment-previous").assertIsEnabled().performTouchInput { click() }
+            rule.runOnIdle { org.junit.Assert.assertEquals(first.absolutePath, selectedByClick) }
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("图片 1 / 2").fetchSemanticsNodes().isNotEmpty()
+            }
             rule.onNodeWithContentDescription("移除当前图片").performClick()
             rule.onNodeWithTag("attachment-preview").assertDoesNotExist()
             rule.onNodeWithText("附件数量：1").assertExists()
