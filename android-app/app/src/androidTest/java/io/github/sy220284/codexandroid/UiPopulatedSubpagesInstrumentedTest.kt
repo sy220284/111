@@ -503,14 +503,15 @@ class UiPopulatedSubpagesInstrumentedTest {
     @Test fun composerKeepsStopAndSteerReachableDuringActiveTurn() {
         var sent = false
         var stopped = false
+        var runningDraft by mutableStateOf("")
         rule.setContent {
             var mode by remember { mutableStateOf("queue") }
             CodexTheme {
                 ConversationComposer(
-                    draft = "检查这一轮修改", onDraftChange = {},
+                    draft = runningDraft, onDraftChange = { runningDraft = it },
                     attachedCount = 0, connected = true,
                     running = true, stopping = false,
-                    canStop = true, canSend = true, sending = false,
+                    canStop = true, canSend = runningDraft.isNotBlank(), sending = false,
                     followUpMode = mode, onFollowUpModeChange = { mode = it },
                     onStop = { stopped = true }, onSend = { sent = true }
                 )
@@ -518,8 +519,9 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        rule.onNodeWithTag("composer-follow-up-mode").assertDoesNotExist()
+        rule.onNodeWithTag("composer-input").performTextInput("检查这一轮修改")
         rule.onNodeWithContentDescription("加入后续执行队列").assertExists()
-        rule.onNodeWithTag("composer-follow-up-mode").performClick()
         rule.onNodeWithTag("composer-mode-queue").assertIsDisplayed()
         rule.onNodeWithTag("composer-mode-steer").assertIsDisplayed()
         rule.onNodeWithTag("composer-mode-steer").performClick()
@@ -530,7 +532,9 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.runOnIdle {
             assertEquals(true, stopped)
             assertEquals(true, sent)
+            runningDraft = ""
         }
+        rule.onNodeWithTag("composer-follow-up-mode").assertDoesNotExist()
     }
 
     @Test fun conversationApprovalSheetRendersActualCommandAndDecision() {

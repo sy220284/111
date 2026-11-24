@@ -244,6 +244,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     var pendingEdit by remember(active) { mutableStateOf<JSONObject?>(null) }
     var editText by rememberSaveable(active) { mutableStateOf("") }
     val result = data[rootKey]
+    LaunchedEffect(result) { pageCount = 0 }
     val all = records(result) + (1..pageCount).flatMap {
         records(data[rootKey + ":page:" + it])
     }
@@ -253,6 +254,17 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     val hasAllPages = readKeys.all { it in data && it !in loading && it !in errors } && nextCursor.isBlank()
     val ids = all.map { it.optString("id") }
     val connection by vm.bridge.status.collectAsState()
+    val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    val starting by vm.firstThreadStarting.collectAsState()
+    val steering by vm.steerBusy.collectAsState()
+    val permissionSaving by vm.securitySaveBusy.collectAsState()
+    val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val paused by vm.queuePausedThreads.collectProjection { active != null && active in it }
+    val canStart = active != null && !running && !switching && !starting && !steering &&
+        !permissionSaving && !transferBusy && !restarting &&
+        connection == EngineStatus.Connected && "queueWrite" !in loading && rootKey !in loading && rootKey !in errors
     val canReorder = connection == EngineStatus.Connected && hasAllPages &&
         "queueWrite" !in loading && QueueReorderPolicy.valid(ids)
     val rowCenters = remember(active, ids) { mutableStateMapOf<String, Float>() }
@@ -318,6 +330,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 Text("排入后续")
             }
         }
+        if (all.isNotEmpty() && !running) {
+            CodexNotice(if (paused) "当前任务已停止，后续指令已保留。"
+                else "当前会话空闲，可启动队首或指定后续指令。", NoticeTone.Info)
+            CodexSecondaryButton(onClick = { active?.let { vm.startQueuedComposer(it) } },
+                enabled = canStart, modifier = Modifier.fillMaxWidth()) {
+                Text(if (paused) "恢复执行队列" else "开始执行队列")
+            }
+        }
         AtlasListHeading(title = "等待执行", total = all.size, action = {
             CodexIconAction(onClick = { refreshQueue() }) {
                 CodexIcon(CodexGlyph.Retry, contentDescription = "刷新指令")
@@ -328,7 +348,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         if (all.isEmpty() && data[rootKey] != null && rootKey !in loading && rootKey !in errors &&
             (1..pageCount).none { rootKey + ":page:" + it in loading || rootKey + ":page:" + it in errors }) {
-            CodexEmptyState("暂无后续指令", "任务运行时，也可以在输入栏选择「完成后执行」来添加。")
+            CodexEmptyState("暂无后续指令", "任务运行且输入新消息时，可以选择「排队发送」来添加。")
         }
         if (all.size > 1) {
             Text(if (canReorder) "长按顺序编号拖动排序，也可从更多操作中上移或下移。"
@@ -337,14 +357,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         all.forEachIndexed { index, item ->
             val input = item.optJSONArray("input") ?: JSONArray()
-            val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it) }.mapNotNull { part ->
-                when (part.optString("type")) {
-                    "text" -> part.optString("text").takeIf { it.isNotBlank() }
-                    "image", "localImage" -> "图片附件"
-                    "skill" -> "技能：" + part.optString("name")
-                    else -> "其他任务输入"
-                }
-            }.joinToString("\n").ifBlank { "非文本任务输入" }
+            val summary = remember(item) { queuedInputSummary(item) }
             val itemId = item.optString("id")
             val lifted = dragging == index
             val insertion = dragging >= 0 && destination == index && !lifted
@@ -405,6 +418,20 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     title = "第 ${index + 1} 项指令",
                     onDismiss = { showQueueActions = false },
                     actions = listOf(
+                        CodexSheetAction(
+                            label = "立即执行",
+                            description = if (running) "当前任务结束后才能启动此项" else "启动这一项，其他指令保留在队列",
+                            icon = CodexGlyph.PlayArrow,
+                            enabled = canStart && itemId.isNotBlank(),
+                            onClick = { active?.let { vm.startQueuedComposer(it, itemId) } }
+                        ),
+                        CodexSheetAction(
+                            label = "移至队首",
+                            description = "将此项作为下一条执行指令",
+                            icon = CodexGlyph.ArrowUpward,
+                            enabled = canReorder && index > 1,
+                            onClick = { reorder(index, 0) }
+                        ),
                         CodexSheetAction(
                             label = "上移",
                             description = "优先执行此项",

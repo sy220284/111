@@ -88,6 +88,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val activeLoginId = MutableStateFlow("")
     val loginBusy = MutableStateFlow(false)
     val steerBusy = MutableStateFlow(false)
+    internal val queuePausedThreads = MutableStateFlow<Set<String>>(emptySet())
     val terminalSession = MutableStateFlow(TerminalSessionState())
     internal val terminalTranscript = TerminalTranscriptStore(File(application.filesDir, "terminal-transcript"))
     private val workspaceTasks by lazy {
@@ -184,7 +185,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
         dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
-        if (userAction || !ExtensionCatalogPolicy.retainsSnapshot(key, method))
+        val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
+        if (userAction || (!retainQueue && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
             data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key

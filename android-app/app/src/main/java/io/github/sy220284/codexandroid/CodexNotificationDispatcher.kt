@@ -112,10 +112,15 @@ internal object CodexNotificationDispatcher {
         } else if (method == "thread/started") {
             sessions.refreshChanged(threadId)
         }
-        if (method == "thread/deleted") { sessions.removePin(threadId); liveTimelines.remove(threadId) }
+        if (method == "thread/deleted") {
+            sessions.removePin(threadId)
+            liveTimelines.remove(threadId)
+            queuePausedThreads.value = queuePausedThreads.value - threadId
+        }
         // Apply turn lifecycle to every thread before filtering display events to
         // the visible timeline. An offscreen task must still finish and free images.
         if (threadId.isNotBlank() && method == "turn/started") {
+            queuePausedThreads.value = queuePausedThreads.value - threadId
             val turnId = params.optJSONObject("turn")?.optString("id")
             threadExecutions.value = ThreadExecutionPolicy.started(
                 threadExecutions.value, threadId, turnId)
@@ -135,7 +140,9 @@ internal object CodexNotificationDispatcher {
             if (!validCompletion) return
             threadExecutions.value = ThreadExecutionPolicy.finish(
                 threadExecutions.value, threadId)
-            val completed = params.optJSONObject("turn")?.optString("status") == "completed"
+            val turnStatus = params.optJSONObject("turn")?.optString("status")
+            if (turnStatus == "interrupted") queuePausedThreads.value = queuePausedThreads.value + threadId
+            val completed = turnStatus == "completed"
             if (!completed) {
                 val reason = params.optJSONObject("turn")?.optJSONObject("error")
                     ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }

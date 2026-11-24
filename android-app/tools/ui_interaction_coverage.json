@@ -4,7 +4,7 @@
       "route": "chat",
       "file": "ConversationComposer.kt",
       "owner": "ConversationComposer",
-      "component": "CodexActionSheet"
+      "component": "ComposerFollowUpChoices"
     },
     {
       "route": "threads",

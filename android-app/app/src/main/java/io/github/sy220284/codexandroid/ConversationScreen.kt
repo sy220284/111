@@ -64,7 +64,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showContextTools by remember(thread) { mutableStateOf(false) }
     var sessionAction by remember(draftOwner) { mutableStateOf("") }
     var showTerminalSheet by remember { mutableStateOf(false) }
-    var followUpMode by rememberSaveable(thread) { mutableStateOf("queue") }
+    var followUpMode by remember(draftOwner, busy, snapshot.hasInput) { mutableStateOf("queue") }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
@@ -85,6 +85,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
     val queueData = thread?.let { models["queue:$it"] }
     val queuedInputs = remember(queueData) { records(queueData) }
+    val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
+    val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val modelData = models["models"]
     val availableModels = remember(modelData) { records(modelData) }
     val diffSummary by rememberDiffSummary(latestDiff)
@@ -250,7 +252,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onAction = {
                     if (status is EngineStatus.Unavailable) vm.connect()
                     else if (!busy && !switching) {
-                        vm.submitComposerDraft(snapshot, followUpMode)
+                        vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = false)
                     }
                 }
             )
@@ -277,17 +279,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             errors["attachments"]?.let { ErrorText(it) }
             errors["queueWrite"]?.let { ErrorText(it) }
-            if (queuedInputs.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(CodexGlyph.TaskRunning, null, tint = Ink.muted,
-                        modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text("等待执行 ${queuedInputs.size} 条后续指令",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f), color = Ink.muted)
-                    CodexTextAction(onClick = { navigate("queue") },
-                        modifier = Modifier.testTag("chat-queued-followups")) { Text("查看") }
-                }
+            if (thread != null && queuedInputs.isNotEmpty()) {
+                ComposerQueuePreview(thread!!, queuedInputs, busy, queuePaused && !busy,
+                    hasMore = PresentationPolicy.meaningful(queueData?.optString("nextCursor")).isNotBlank(),
+                    compact = compactWorkArea, canStart = !busy && !switching && !firstThreadStarting &&
+                        !queueReadBusy && !steering && "queueWrite" !in loading && !transferBusy &&
+                        !permissionSaving && !restarting && status == EngineStatus.Connected,
+                    onManage = { keyboard?.hide(); navigate("queue") },
+                    onStart = { vm.startQueuedComposer(thread!!) })
             }
             val optionsEnabled = !busy && !firstThreadStarting && !switching
             val tools = buildList {
@@ -333,6 +332,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 firstThreadStarting -> "正在建立新会话"
                 attachmentBusy || documentBusy -> "正在导入附件"
                 sending -> "正在提交指令，请勿重复发送"
+                stopping -> "正在停止当前任务，请稍候"
                 busy && thread == null -> "正在建立会话"
                 busy && followUpMode == "steer" && activeTurn.isNullOrBlank() -> "正在等待执行回合"
                 !snapshot.hasInput -> "输入指令或添加附件后即可发送"
@@ -348,7 +348,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 sendBlockReason = sendBlockReason,
                 followUpMode = followUpMode, onFollowUpModeChange = { followUpMode = it },
                 onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
-                onSend = { vm.submitComposerDraft(snapshot, followUpMode) },
+                onSend = { vm.submitComposerDraft(snapshot, followUpMode, thread, activeTurn, busy) },
+                hasInput = snapshot.hasInput,
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { keyboard?.hide(); composerMenu = "add" },
                 compactControls = compactWorkArea,

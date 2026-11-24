@@ -57,10 +57,10 @@ internal fun ConversationComposer(
     shortcuts: List<ComposerShortcut> = emptyList(),
     statusContent: (@Composable () -> Unit)? = null,
     attachmentContent: (@Composable () -> Unit)? = null,
-    permissionContent: (@Composable () -> Unit)? = null
+    permissionContent: (@Composable () -> Unit)? = null,
+    hasInput: Boolean = draft.isNotBlank() || attachedCount > 0
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
-    var followUpMenu by remember { mutableStateOf(false) }
     var expandedEditor by remember { mutableStateOf(false) }
     var inputFocused by remember { mutableStateOf(false) }
     Surface(
@@ -125,6 +125,15 @@ internal fun ConversationComposer(
                 }
             }
             }
+            AnimatedVisibility(
+                visible = running && hasInput,
+                enter = fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))),
+                exit = fadeOut(tween(CodexMotion.duration(CodexMotion.press, reduceMotion)))
+            ) {
+                ComposerFollowUpChoices(followUpMode, onFollowUpModeChange,
+                    enabled = running && hasInput && connected && !sending && !stopping,
+                    canGuide = canStop)
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -134,18 +143,8 @@ internal fun ConversationComposer(
                     modifier = Modifier.size(48.dp).testTag("composer-plus")) {
                     CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.parchment, modifier = Modifier.size(24.dp))
                 }
-                if (running) {
-                    CodexTextAction(onClick = { followUpMenu = true }, enabled = !sending,
-                        modifier = Modifier.weight(1f).testTag("composer-follow-up-mode"),
-                        contentPadding = PaddingValues(horizontal = 3.dp)) {
-                        Text(if (followUpMode == "queue") "完成后执行" else "立即纠偏",
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.weight(1f, fill = false))
-                        CodexIcon(CodexGlyph.ExpandMore, null, Modifier.size(14.dp))
-                    }
-                } else {
-                    ConversationControlBar(modelLabel, modeLabel, effortLabel, optionsEnabled, onModel, onMode)
-                }
+                if (running) Spacer(Modifier.weight(1f))
+                else ConversationControlBar(modelLabel, modeLabel, effortLabel, optionsEnabled, onModel, onMode)
                 CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
                     CodexIcon(CodexGlyph.Tune, "任务配置")
                 }
@@ -173,7 +172,7 @@ internal fun ConversationComposer(
                 }
                 CodexPrimaryButton(
                     onClick = onSend,
-                    enabled = canSend && !sending,
+                    enabled = canSend && !sending && !stopping,
                     modifier = Modifier.size(50.dp)
                         .testTag("composer-send")
                         .explainDisabled(!canSend || sending, when {
@@ -201,26 +200,15 @@ internal fun ConversationComposer(
                             color = Ink.muted)
                     } else {
                         CodexIcon(when {
-                            !running -> CodexGlyph.ArrowUpward
+                            !running || !hasInput -> CodexGlyph.ArrowUpward
                             followUpMode == "queue" -> CodexGlyph.TaskRunning
-                            else -> CodexGlyph.EditNote
+                            else -> CodexGlyph.ArrowUpward
                         }, null, modifier = Modifier.size(24.dp))
                     }
                 }
             }
         }
     }
-    if (followUpMenu && running) CodexActionSheet(
-        title = "发送方式", onDismiss = { followUpMenu = false },
-        actions = listOf(
-            CodexSheetAction("完成后执行", CodexGlyph.TaskRunning,
-                onClick = { onFollowUpModeChange("queue") }, description = "加入等待队列",
-                testTag = "composer-mode-queue"),
-            CodexSheetAction("立即纠偏", CodexGlyph.EditNote,
-                onClick = { onFollowUpModeChange("steer") }, description = "向正在执行的回合追加要求",
-                testTag = "composer-mode-steer")
-        )
-    )
     if (expandedEditor) CodexDetailSheet(title = "编辑任务指令", onDismiss = { expandedEditor = false },
         footer = { CodexPrimaryButton(onClick = { expandedEditor = false }, modifier = Modifier.fillMaxWidth()) { Text("完成") } }) {
         CodexInputField(draft, onDraftChange, modifier = Modifier.fillMaxWidth().testTag("composer-expanded-input"),
