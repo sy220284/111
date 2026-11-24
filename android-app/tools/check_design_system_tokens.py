@@ -75,6 +75,14 @@ def verify(source: str, spec: str) -> list[str]:
                 value = (max(fg, bg) + .05) / (min(fg, bg) + .05)
                 if value < 4.5:
                     errors.append(mode + ' Ink.' + key + ' 对比度低于 4.5:1')
+            if 'controlBorder' in palette:
+                fg = luminosity(palette['controlBorder'])
+                for surface in ('canvas', 'panel', 'recessed', 'elevated'):
+                    if surface not in palette:
+                        continue
+                    surface_bg = luminosity(palette[surface])
+                    if (max(fg, surface_bg) + .05) / (min(fg, surface_bg) + .05) < 3:
+                        errors.append(mode + ' Ink.controlBorder 与 ' + surface + ' 对比度低于 3:1')
     if not re.search(r'\bprimary\s*=\s*Ink\.coral\b', source):
         errors.append('MaterialTheme.primary 应映射 Ink.coral')
     if not re.search(r'\bonPrimary\s*=\s*Ink\.canvas\b', source):
