@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Settings
@@ -9,6 +11,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Rule
 import org.junit.Test
@@ -258,5 +263,41 @@ class CodexInteractionComponentsInstrumentedTest {
         }
         rule.onNodeWithText("诊断条目 29").performScrollTo().assertIsDisplayed()
         rule.onNodeWithTag("codex-detail-close").assertIsDisplayed()
+    }
+
+    @Test fun doubleFontSizeKeepsStatusChoicesAndEditorActionsReachable() {
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale = 2f)) {
+                CodexTheme {
+                    Box(androidx.compose.ui.Modifier.width(360.dp)) {
+                        Column {
+                            AtlasStatusSelector(
+                                selected = "blocked",
+                                options = listOf(
+                                    AtlasStatusOption("active", "进行中", StatusTone.Info),
+                                    AtlasStatusOption("paused", "已暂停", StatusTone.Neutral),
+                                    AtlasStatusOption("blocked", "遇到阻碍", StatusTone.Warning),
+                                    AtlasStatusOption("complete", "已完成", StatusTone.Success)
+                                ),
+                                onSelect = {}
+                            )
+                            CodexEditDialog(
+                                title = "修改执行额度",
+                                description = "只在确认后改动草稿",
+                                confirmLabel = "应用额度",
+                                onDismiss = {},
+                                onConfirm = {},
+                                canConfirm = true
+                            ) {
+                                Text("Token 上限，输入数字后应用")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        rule.onNodeWithText("遇到阻碍").assertIsSelected()
+        rule.onNodeWithTag("codex-edit-confirm").assertIsDisplayed()
+        rule.onNodeWithText("取消").assertIsDisplayed()
     }
 }
