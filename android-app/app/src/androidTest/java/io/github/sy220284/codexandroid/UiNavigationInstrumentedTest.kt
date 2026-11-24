@@ -429,8 +429,11 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-add-files").assertExists()
         rule.onNodeWithTag("composer-add-reference").assertExists()
         rule.onNodeWithTag("composer-add-skill").assertExists()
+        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         captureOverlay("attachment-sheet-android35.png")
-        rule.onNodeWithTag("codex-detail-close").performClick()
+        pressSystemBack()
+        rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("terminal")
         rule.onNodeWithText("项目终端").assertExists()
@@ -451,7 +454,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-model-control").performClick()
         rule.onNodeWithText("选择运行模型").assertExists()
         rule.onNodeWithTag("composer-effort").assertExists()
+        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         captureOverlay("model-sheet-android35.png")
+        pressSystemBack()
+        rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
     }
 
     @Test fun composerReferenceAndExpandedEditorPreserveDraft() {
@@ -530,6 +536,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithText("执行", substring = false).performClick()
         rule.onNodeWithText("选择协作方式").assertExists()
+        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         captureOverlay("mode-sheet-android35.png")
         val available = rule.onAllNodesWithText("先制定计划").fetchSemanticsNodes().isNotEmpty()
         if (available) {
@@ -1152,6 +1159,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-permission-control").performClick()
         rule.onNodeWithTag("security-profiles-heading").assertIsDisplayed()
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
+        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         captureOverlay("audit-security-profiles-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()

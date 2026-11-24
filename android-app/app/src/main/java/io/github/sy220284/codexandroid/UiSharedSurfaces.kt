@@ -55,7 +55,7 @@ fun EngineStatusSheet(
 }
 
 @Composable
-fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
+fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
     val models by vm.data.collectEntries("models")
     val selected by vm.modelId.collectAsState()
     val active by vm.activeThread.collectAsState()
@@ -82,7 +82,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
-        CodexChoiceSheet(title = "思考强度", description = "当前模型：" + selected,
+        CodexChoiceSheet(title = "思考强度", description = "当前模型：" + selected, anchored = anchored,
             choices = listOf(CodexChoice("", "遵循默认强度")) + efforts.map { CodexChoice(it, PresentationPolicy.reasoningLabel(it)) },
             selectedId = effort, enabled = selectable,
             onSelect = { vm.chooseComposerEffort(it); selectingEffort = false },
@@ -90,7 +90,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         return
     }
     CodexChoiceSheet(
-        title = "选择运行模型",
+        title = "选择运行模型", anchored = anchored,
         description = when {
             engineStatus != EngineStatus.Connected ->
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
@@ -129,7 +129,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
+fun ModeChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
     val selected by vm.selectedMode.collectAsState()
     val data by vm.data.collectEntries("modes")
     val running by vm.running.collectAsState()
@@ -158,7 +158,7 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         else -> "仅显示当前内核支持的选项，更改从下一轮生效。"
     }
     CodexChoiceSheet(
-        title = "选择协作方式", description = description,
+        title = "选择协作方式", description = description, anchored = anchored,
         choices = choices, selectedId = selected,
         enabled = connected && !busy && !refreshing,
         recoveryLabel = if (!connected) "重新连接" else if (errors["modes"] != null || !planSupported) "重新检查" else null,

@@ -55,7 +55,11 @@ internal fun ConversationComposer(
     permissionContent: (@Composable () -> Unit)? = null,
     hasInput: Boolean = draft.isNotBlank() || attachedCount > 0,
     onVoice: (() -> Unit)? = null,
-    voiceEnabled: Boolean = true
+    voiceEnabled: Boolean = true,
+    addMenu: (@Composable () -> Unit)? = null,
+    modelMenu: (@Composable () -> Unit)? = null,
+    modeMenu: (@Composable () -> Unit)? = null,
+    taskMenu: (@Composable () -> Unit)? = null
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var expandedEditor by remember { mutableStateOf(false) }
@@ -128,12 +132,20 @@ internal fun ConversationComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                CodexIconAction(onClick = onAddContent, enabled = !imageImporting,
-                    modifier = Modifier.size(48.dp).testTag("composer-plus")) {
-                    CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.muted, modifier = Modifier.size(22.dp))
+                Box {
+                    CodexIconAction(onClick = onAddContent, enabled = !imageImporting,
+                        modifier = Modifier.size(48.dp).testTag("composer-plus")) {
+                        CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.muted, modifier = Modifier.size(22.dp))
+                    }
+                    addMenu?.invoke()
                 }
                 if (running) Spacer(Modifier.weight(1f))
-                else ConversationControlBar(modelLabel, effortLabel, optionsEnabled, onModel)
+                else Box(Modifier.weight(1f)) {
+                    Row(Modifier.fillMaxWidth()) {
+                        ConversationControlBar(modelLabel, effortLabel, optionsEnabled, onModel)
+                    }
+                    modelMenu?.invoke()
+                }
                 if (onVoice != null) {
                     CodexIconAction(onClick = onVoice, enabled = voiceEnabled && !sending && !stopping,
                         modifier = Modifier.size(48.dp).testTag("composer-voice")) {
@@ -195,9 +207,15 @@ internal fun ConversationComposer(
         Row(Modifier.fillMaxWidth().testTag("composer-context-footer"),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { permissionContent?.invoke() }
-            ConversationModeControl(modeLabel, optionsEnabled, onMode)
-            CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
-                CodexIcon(CodexGlyph.MoreHoriz, "任务配置", tint = Ink.muted)
+            Box {
+                ConversationModeControl(modeLabel, optionsEnabled, onMode)
+                modeMenu?.invoke()
+            }
+            Box {
+                CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
+                    CodexIcon(CodexGlyph.MoreHoriz, "任务配置", tint = Ink.muted)
+                }
+                taskMenu?.invoke()
             }
         }
     }

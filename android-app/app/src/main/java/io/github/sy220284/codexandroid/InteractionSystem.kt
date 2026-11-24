@@ -316,12 +316,39 @@ fun CodexChoiceSheet(
     searchable: Boolean = false,
     loading: Boolean = false,
     searchPlaceholder: String = "搜索可用模型",
+    anchored: Boolean = false,
     extraContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     var query by remember { mutableStateOf("") }
     val visible = choices.filter { choice ->
         query.isBlank() || choice.title.contains(query.trim(), ignoreCase = true) ||
             choice.description.contains(query.trim(), ignoreCase = true)
+    }
+    if (anchored) {
+        CodexFloatingMenu(title, onDismiss, description) {
+            if (recoveryLabel != null && onRecovery != null) {
+                CodexNotice(recoveryMessage, NoticeTone.Warning,
+                    actionLabel = recoveryLabel, onAction = onRecovery)
+            }
+            extraContent?.invoke(this)
+            if (searchable && choices.size > 1) {
+                AtlasSearchField(query, { query = it }, searchPlaceholder,
+                    modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
+            }
+            if (loading) AtlasOperationProgress("正在读取可用选项")
+            if (visible.isEmpty() && !loading) {
+                Text(if (choices.isEmpty()) "暂无可用选项" else "没有匹配的选项",
+                    color = Ink.muted, modifier = Modifier.padding(12.dp))
+            }
+            Column(Modifier.fillMaxWidth().selectableGroup()) {
+                visible.forEach { choice ->
+                    CodexFloatingMenuRow(choice.title, onClick = { onSelect(choice.id) },
+                        description = choice.description, selected = choice.id == selectedId,
+                        enabled = enabled, modifier = Modifier.testTag("choice-option-" + choice.id))
+                }
+            }
+        }
+        return
     }
     CodexSheetFrame(
         onDismissRequest = onDismiss,

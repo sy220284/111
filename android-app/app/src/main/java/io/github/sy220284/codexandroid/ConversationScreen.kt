@@ -294,9 +294,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "terminal" }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
-                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "models" }))
+                    enabled = optionsEnabled, onOpen = { composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
-                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "modes" }))
+                    enabled = optionsEnabled, onOpen = { composerMenu = "modes" }))
                 add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
                     enabled = optionsEnabled, onOpen = { keyboard?.hide(); navigate("review") }))
                 add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
@@ -373,16 +373,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }) else null,
                 voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
                 imageImporting = attachmentBusy || documentBusy,
-                onAddContent = { keyboard?.hide(); composerMenu = "add" },
+                onAddContent = { composerMenu = "add" },
                 compactControls = compactWorkArea,
                 modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
                     ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
                 modeLabel = selectedMode,
                 effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
                 optionsEnabled = optionsEnabled,
-                onModel = { keyboard?.hide(); composerMenu = "models" },
-                onMode = { keyboard?.hide(); composerMenu = "modes" },
-                onTaskOptions = { keyboard?.hide(); composerMenu = "tools" },
+                onModel = { composerMenu = "models" },
+                onMode = { composerMenu = "modes" },
+                onTaskOptions = { composerMenu = "tools" },
                 onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
                 statusContent = {
                     if (status is EngineStatus.Unavailable) {
@@ -392,13 +392,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 },
-                permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !transferBusy) },
-                attachmentContent = {
-                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
-                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
-                }
-            )
-            if (composerMenu == "add") CodexActionSheet(title = "添加内容", onDismiss = { composerMenu = "" },
+                addMenu = {
+                    if (composerMenu == "add") CodexFloatingActionMenu(title = "添加内容", onDismiss = { closeComposerMenu("add") },
                 actions = buildList {
                     add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
                         if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
@@ -434,11 +429,31 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
 
                 })
-            if (composerMenu == "tools") CodexActionSheet(title = "任务配置", onDismiss = { composerMenu = "" },
+                },
+                modelMenu = {
+                    if (composerMenu == "models") ModelChoiceSurface(vm, anchored = true) { closeComposerMenu("models") }
+                },
+                modeMenu = {
+                    if (composerMenu == "modes") ModeChoiceSurface(vm, anchored = true) { closeComposerMenu("modes") }
+                },
+                taskMenu = {
+                    if (composerMenu == "tools") CodexFloatingActionMenu(title = "任务配置", onDismiss = { closeComposerMenu("tools") },
                 actions = tools.filter { it.command !in setOf("model", "mode") }.map {
                     CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
                         enabled = it.enabled, testTag = "composer-tool-" + it.command)
                 })
+                },
+                permissionContent = {
+                    ComposerPermissionControl(vm, optionsEnabled && !transferBusy,
+                        open = composerMenu == "permissions", onOpen = { composerMenu = "permissions" },
+                        onDismiss = { closeComposerMenu("permissions") })
+                },
+                attachmentContent = {
+                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
+                }
+            )
+
         }
     }
     if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
@@ -512,8 +527,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     if (composerMenu == "approval" && thread != null)
         ApprovalQuickSheet(vm, thread) { closeComposerMenu("approval") }
-    if (composerMenu == "models") ModelChoiceSurface(vm) { closeComposerMenu("models") }
-    if (composerMenu == "modes") ModeChoiceSurface(vm) { closeComposerMenu("modes") }
     if (composerMenu == "engine-status") EngineStatusSheet(
         vm, onDismiss = { closeComposerMenu("engine-status") }, navigate = navigate
     )
