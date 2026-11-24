@@ -242,12 +242,15 @@ fun WorkspacePage(vm: CodexViewModel) {
                 color = Ink.panel,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
-                modifier = Modifier.fillMaxWidth().clickable {
-                    val safe = file.canonicalFile
-                    if (safe.path.startsWith(root.path + File.separator)) {
-                        if (safe.isDirectory) folder = safe else focus = safe
-                    } else notice = "已阻止打开工作区以外的文件链接"
-                }
+                modifier = Modifier.fillMaxWidth().combinedClickable(
+                    onLongClick = { if (!actionBusy) optionsOpen = true },
+                    onClick = {
+                        val safe = file.canonicalFile
+                        if (safe.path.startsWith(root.path + File.separator)) {
+                            if (safe.isDirectory) folder = safe else focus = safe
+                        } else notice = "已阻止打开工作区以外的文件链接"
+                    }
+                )
             ) {
                 Row(Modifier.padding(start = 14.dp, end = 5.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {

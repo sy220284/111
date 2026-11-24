@@ -61,7 +61,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 }
             }
             if (key in loading) AtlasOperationProgress("正在读取任务目标")
-            if (goal == null && key !in loading && data[key] != null) {
+            if (goal == null && key !in loading && key !in errors && data[key] != null) {
                 Text("当前会话尚未设定目标", color = Ink.muted)
             } else if (goal != null) {
                 Text(goal.optString("objective"), style = MaterialTheme.typography.titleLarge)
@@ -298,8 +298,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading }) {
             AtlasOperationProgress("正在读取后续指令")
         }
-        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading &&
-            (1..pageCount).none { rootKey + ":page:" + it in loading }) {
+        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading && rootKey !in errors &&
+            (1..pageCount).none { rootKey + ":page:" + it in loading || rootKey + ":page:" + it in errors }) {
             CodexEmptyState("暂无后续指令", "任务运行时，也可以在输入栏选择「完成后执行」来添加。")
         }
         all.forEachIndexed { index, item ->

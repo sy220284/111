@@ -110,10 +110,12 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (readErrors > 0) {
             CodexNotice("有 $readErrors 项技能暂未读取成功，可在诊断与日志中查看原因。",
                 NoticeTone.Warning)
-        } else if (filter == "errors" && data["skills"] != null) {
+        } else if (filter == "errors" && data["skills"] != null &&
+            "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("当前没有技能读取异常", "所有已返回的技能均已成功读取。")
         } else if (filter in setOf("enabled", "available") &&
-            visibleSkills.isEmpty() && data["skills"] != null) {
+            visibleSkills.isEmpty() && data["skills"] != null &&
+            "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
                 actionLabel = "查看全部", onAction = { filter = "all" },
                 artworkRes = R.drawable.ic_empty_no_results)

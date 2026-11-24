@@ -203,14 +203,24 @@ fun ProvidersPage(vm: CodexViewModel) {
                 onDismiss = { showCapabilities = false }
             ) {
                 val caps = data["providerCapabilities"]
-                if (caps != null) {
+                val loading by vm.loading.collectAsState()
+                val errors by vm.errors.collectAsState()
+                if ("providerCapabilities" in loading) {
+                    AtlasOperationProgress("正在读取服务商能力")
+                } else if (errors["providerCapabilities"] != null) {
+                    CodexRecoveryState("服务商能力读取失败",
+                        errors.getValue("providerCapabilities"), "重新读取",
+                        { vm.refresh("providerCapabilities", "modelProvider/capabilities/read") })
+                } else if (caps != null) {
                     Text("联网搜索：" + if (caps.optBoolean("webSearch")) "支持" else "未声明",
                         color = Ink.muted)
                     Text("图片生成：" + if (caps.optBoolean("imageGeneration")) "支持" else "未声明",
                         color = Ink.muted)
-                } else CodexSkeletonRows(2)
-                val errors by vm.errors.collectAsState()
-                errors["providerCapabilities"]?.let { ErrorText(it) }
+                } else {
+                    CodexRecoveryState("尚未取得服务商能力", "请重新读取实际服务能力。",
+                        "重新读取", { vm.refresh("providerCapabilities", "modelProvider/capabilities/read") },
+                        artworkRes = R.drawable.ic_empty_content)
+                }
             }
             val errors by vm.errors.collectAsState()
             errors["providerWrite"]?.let { ErrorText(it) }

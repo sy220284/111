@@ -349,7 +349,7 @@ internal fun SidebarSessionRow(
         Row(Modifier.padding(horizontal = 11.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            CodexIcon(if (active) CodexGlyph.Thread else CodexGlyph.Thread,
+            CodexIcon(CodexGlyph.Thread,
                 contentDescription = null, tint = if (active) Ink.coral else Ink.muted,
                 modifier = Modifier.size(19.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

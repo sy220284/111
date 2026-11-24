@@ -267,6 +267,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val engineStatus by vm.bridge.status.collectAsState()
+    val errors by vm.errors.collectAsState()
     val usable = McpAvailableServices.visible(records(data["mcp"]))
 
     LaunchedEffect(activeThread, engineStatus) {
@@ -292,6 +293,10 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     "由智能体管理服务，连接成功的可用服务才会显示。",
                     "重新连接", { vm.connect() }, { navigate("diagnostics") },
                     artworkRes = R.drawable.ic_empty_connection)
+            } else if (errors["mcp"] != null || errors["mcpReload"] != null) {
+                CodexRecoveryState("MCP 目录读取失败",
+                    "暂未取得有效的服务目录，可以重新读取或查看诊断。",
+                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") })
             } else if (data["mcp"] != null) {
                 CodexEmptyState(
                     "暂无可用 MCP 服务",

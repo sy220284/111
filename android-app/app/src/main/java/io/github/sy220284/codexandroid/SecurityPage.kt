@@ -22,6 +22,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var saveError by remember { mutableStateOf(false) }
     val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
     val current = data["config"]?.optJSONObject("config")
     val requirements = data["securityRequirements"]?.optJSONObject("requirements")
     val profiles = records(data["permissionProfiles"])
@@ -137,9 +138,14 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("可用权限方案",
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                     if (profiles.isEmpty()) {
-                        Text(if ("permissionProfiles" in loading) "正在读取可用方案…"
-                            else "尚无可选权限方案，请检查内核连接。",
-                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                        when {
+                            "permissionProfiles" in loading -> CodexSkeletonRows(2)
+                            errors["permissionProfiles"] != null -> Unit // 上方统一反馈提供重试。
+                            data["permissionProfiles"] != null -> CodexEmptyState(
+                                "暂无可选权限方案", "内核当前未返回权限方案。")
+                            else -> Text("尚未读取权限方案，请刷新。",
+                                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                     profiles.forEach { profile ->
                         val id = profile.optString("id")
