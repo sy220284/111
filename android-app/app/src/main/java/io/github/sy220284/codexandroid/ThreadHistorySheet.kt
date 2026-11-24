@@ -74,10 +74,10 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     .put("sortDirection", "desc"))
         }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
+    CodexSheetFrame(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 740.dp)
+        Column(Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit())
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("回合历史与回退", style = MaterialTheme.typography.headlineSmall)

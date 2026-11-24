@@ -19,7 +19,7 @@ fun ThreadLibraryQuickSheet(
     continuationLabel: String? = null,
     onThreadSelected: (() -> Unit)? = null
 ) {
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas,

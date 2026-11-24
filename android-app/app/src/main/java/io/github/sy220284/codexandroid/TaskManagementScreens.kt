@@ -398,7 +398,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             .forEach { ErrorText(it) }
     }
     pendingEdit?.let { item ->
-        AlertDialog(
+        CodexDialogFrame(
             onDismissRequest = { pendingEdit = null },
             title = { Text("编辑排队任务") },
             text = {
@@ -460,7 +460,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
     val data by vm.data.collectAsState()
     val count = records(data["queue:" + (active ?: "none")]).size
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas,

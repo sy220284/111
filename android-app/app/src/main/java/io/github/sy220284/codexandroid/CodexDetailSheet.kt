@@ -32,7 +32,7 @@ fun CodexDetailSheet(
 ) {
     val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
     val contentLimit = (viewportHeight * .72f).coerceAtLeast(220.dp)
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
         containerColor = Ink.elevated,
@@ -200,7 +200,7 @@ fun CodexInfoDialog(
 ) {
     val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .65f)
         .coerceAtLeast(200.dp)
-    AlertDialog(
+    CodexDialogFrame(
         onDismissRequest = onDismiss,
         containerColor = Ink.elevated,
         titleContentColor = Ink.parchment,
@@ -241,7 +241,7 @@ fun CodexEditDialog(
 ) {
     val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .62f)
         .coerceAtLeast(200.dp)
-    AlertDialog(
+    CodexDialogFrame(
         onDismissRequest = onDismiss,
         modifier = Modifier.imePadding().testTag("codex-edit-dialog"),
         containerColor = Ink.elevated,

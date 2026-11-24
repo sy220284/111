@@ -268,7 +268,7 @@ fun CodexChoiceSheet(
     onRecovery: (() -> Unit)? = null,
     recoveryMessage: String = "请先恢复运行核心，再选择可用选项。"
 ) {
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed,
@@ -343,7 +343,7 @@ fun CodexEvidenceSheet(
     val copyText = remember(sections) {
         sections.joinToString("\n\n") { (label, value) -> "$label\n$value" }
     }
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed,
@@ -411,7 +411,7 @@ fun CodexConfirmDialog(
     destructive: Boolean = false,
     confirmEnabled: Boolean = true
 ) {
-    AlertDialog(
+    CodexDialogFrame(
         onDismissRequest = onDismiss,
         containerColor = Ink.elevated,
         titleContentColor = Ink.parchment,

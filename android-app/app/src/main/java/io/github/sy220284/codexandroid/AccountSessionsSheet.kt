@@ -42,10 +42,10 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss,
+    CodexSheetFrame(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 730.dp)
+        Column(Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit())
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
             Text("账号与工作区切换", style = MaterialTheme.typography.headlineSmall)

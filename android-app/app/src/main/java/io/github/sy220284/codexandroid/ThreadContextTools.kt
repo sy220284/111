@@ -48,14 +48,14 @@ fun ThreadContextTools(
     }
     val forkId = data["threadFork"]?.optJSONObject("thread")?.optString("id")
         ?.takeIf { it.isNotBlank() }
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         containerColor = Ink.recessed,
         contentColor = Ink.parchment,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
         Column(
-            Modifier.fillMaxWidth().heightIn(max = 690.dp)
+            Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit())
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)

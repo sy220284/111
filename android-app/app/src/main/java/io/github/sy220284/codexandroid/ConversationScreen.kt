@@ -536,7 +536,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     if (showTerminalSheet) {
-        ModalBottomSheet(
+        CodexSheetFrame(
             onDismissRequest = { showTerminalSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Ink.canvas

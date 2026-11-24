@@ -200,7 +200,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             active?.optBoolean("enabled") == true -> "等待工具就绪"
             else -> "尚未连接"
         }
-        ModalBottomSheet(
+        CodexSheetFrame(
             onDismissRequest = { inspecting = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Ink.recessed, contentColor = Ink.parchment

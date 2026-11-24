@@ -28,7 +28,7 @@ fun EngineStatusSheet(
 ) {
     val status by vm.bridge.status.collectAsState()
     val terminal by vm.terminalSession.collectAsState()
-    ModalBottomSheet(onDismissRequest = onDismiss,
+    CodexSheetFrame(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
@@ -184,7 +184,7 @@ fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val version = remember(context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
+    CodexSheetFrame(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp)
             .navigationBarsPadding().verticalScroll(rememberScrollState()),

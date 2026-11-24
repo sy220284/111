@@ -40,13 +40,13 @@ fun PluginDetailSheet(
     }
     LaunchedEffect(name, marketName, marketPath) { refresh() }
 
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed,
         contentColor = Ink.parchment
     ) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 680.dp).navigationBarsPadding()
+        Column(Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit()).navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)) {

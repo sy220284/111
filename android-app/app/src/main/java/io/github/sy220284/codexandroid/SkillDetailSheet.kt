@@ -19,13 +19,13 @@ internal fun SkillDetailSheet(skill: JSONObject, onDismiss: () -> Unit) {
         .ifEmpty { PresentationPolicy.skillName(skill.optString("name")) }
     val description = PresentationPolicy.meaningful(skill.optString("description"))
         .ifEmpty { PresentationPolicy.meaningful(meta.optString("shortDescription")) }
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed, contentColor = Ink.parchment
     ) {
         Column(
-            Modifier.fillMaxWidth().heightIn(max = 680.dp).navigationBarsPadding()
+            Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit()).navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)

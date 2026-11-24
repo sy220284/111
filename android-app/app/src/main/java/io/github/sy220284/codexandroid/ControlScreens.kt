@@ -105,13 +105,13 @@ internal fun ApprovalQuickSheetContent(
 ) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas, contentColor = Ink.parchment
     ) {
         Column(
-            Modifier.fillMaxWidth().heightIn(max = 580.dp)
+            Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit())
                 .verticalScroll(rememberScrollState()).navigationBarsPadding()
                 .padding(horizontal = 18.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
