@@ -84,7 +84,7 @@ internal fun TerminalOutputHeader(vm: CodexViewModel, processId: String,
             if (current.processId == processId) onRead(current.stdoutText)
         }, enabled = stdout.length > 16_000,
             modifier = Modifier.heightIn(min = 48.dp).testTag("terminal-full-stdout")) {
-            Text("查看完整输出")
+            Text(if (vm.terminalSession.value.outputTruncated) "阅读近期输出" else "查看完整输出")
         }
     }
 }

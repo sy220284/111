@@ -472,7 +472,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             threadId = id, text = prompt, modelId = chosenModel,
                             mode = chosenMode, catalog = catalog, localImages = images,
                             effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
-                        ), chosenPermission)
+                        ).put("clientUserMessageId", pendingId.removePrefix("pending-")), chosenPermission)
                     },
                     onThreadCreated = { createdId ->
                         newlyCreatedThreadId = createdId

@@ -103,9 +103,9 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
 @Composable
 internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarget: String? = null) {
     val status by vm.bridge.status.collectAsState()
-    val data by vm.data.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val data by vm.data.collectEntries("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)
+    val loading by vm.loading.collectProjection { it.intersect(setOf("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)) }
+    val errors by vm.errors.collectEntries("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)
     val permissionBusy by vm.securitySaveBusy.collectAsState()
     val config = data["config"]?.optJSONObject("config")
     val saving = ENGINE_SETTING_SAVE in loading

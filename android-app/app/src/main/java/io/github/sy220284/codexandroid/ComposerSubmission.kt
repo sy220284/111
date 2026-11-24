@@ -56,12 +56,11 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                     check(current.turnId == turn) { "当前运行轮次已经变化" }
                     executions + (thread to current.copy(images = (current.images + draft.images).distinct()))
                 }
-                bridge.request("turn/steer", TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references))
+                // The native userMessage event owns the visible message. A separate local
+                // steer bubble would duplicate it and could survive history reconciliation.
+                bridge.request("turn/steer", TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references)
+                    .put("clientUserMessageId", UUID.randomUUID().toString()))
                 accepted()
-                if (activeThread.value == thread && activeTurn.value == turn) {
-                    val summary = draft.text.trim().ifBlank { "附件与引用" }
-                    timeline.value = timeline.value + TimelineItem("steer-" + System.nanoTime(), "user", "补充指令：" + summary)
-                }
             }
             errors.value = errors.value - key
         } catch (failure: Exception) {

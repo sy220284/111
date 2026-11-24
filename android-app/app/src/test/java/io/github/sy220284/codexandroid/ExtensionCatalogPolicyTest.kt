@@ -16,6 +16,10 @@ class ExtensionCatalogPolicyTest {
         val detailed = JSONObject().put("data", JSONArray().put(JSONObject()
             .put("id", "x").put("name", "正式名称").put("isEnabled", true)))
         assertEquals("正式名称", ExtensionCatalogPolicy.apps(detailed, installed).single().optString("name"))
+        val outdated = JSONObject().put("id", "x").put("isEnabled", false)
+        assertEquals("已连接", ExtensionCatalogPolicy.appStatus(outdated, installed, true))
+        assertEquals("remote", ExtensionCatalogPolicy.remotePluginId(JSONObject().put("id", "local").put("remotePluginId", "remote")))
+        assertEquals("", ExtensionCatalogPolicy.remotePluginId(JSONObject().put("id", "local")))
     }
 
     @Test fun paginationDeduplicatesAndNullCursorStops() {

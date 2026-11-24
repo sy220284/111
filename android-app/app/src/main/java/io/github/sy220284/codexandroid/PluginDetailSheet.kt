@@ -31,11 +31,12 @@ fun PluginDetailSheet(
     val key = "pluginDetail:" + marketName + ":" + name
     val data by vm.data.collectEntries(key)
     val detail = data[key]?.optJSONObject("plugin")
-    val skillKeys = remember(detail, entry) {
+    val remoteId = ExtensionCatalogPolicy.remotePluginId(entry)
+    val skillKeys = remember(detail, remoteId, marketName) {
         val skills = detail?.optJSONArray("skills")
         (0 until (skills?.length() ?: 0)).mapNotNull { index ->
             skills?.optJSONObject(index)?.optString("name")?.takeIf { it.isNotBlank() }
-                ?.let { "pluginSkill:" + entry.optString("id") + ":" + it }
+                ?.let { "pluginSkill:$marketName:$remoteId:$it" }
         }.toSet()
     }
     val errors by vm.errors.collectEntries(key, *skillKeys.toTypedArray())
@@ -136,10 +137,9 @@ fun PluginDetailSheet(
                             Text(title, style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f))
                             val skillId = obj?.optString("name").orEmpty()
-                            val remoteId = entry.optString("id")
-                            if (field == "skills" && skillId.isNotBlank() &&
+                             if (field == "skills" && skillId.isNotBlank() &&
                                 remoteId.isNotBlank() && marketName.isNotBlank()) {
-                                val skillKey = "pluginSkill:" + remoteId + ":" + skillId
+                                val skillKey = "pluginSkill:$marketName:$remoteId:$skillId"
                                 CodexTextAction(
                                     onClick = {
                                         readerTitle = title

@@ -36,14 +36,18 @@ internal object ExtensionCatalogPolicy {
 
     fun appStatusForRecord(app: JSONObject, active: JSONObject?, verified: Boolean): String {
         return when {
-            !app.optBoolean("isEnabled", true) || active?.opt("enabled") == false -> "已停用"
             !verified -> "状态待核对"
+            active?.opt("enabled") == false -> "已停用"
             active?.optBoolean("callable") == true -> "已连接"
+            active == null && !app.optBoolean("isEnabled", true) -> "已停用"
             app.has("isAccessible") && !app.optBoolean("isAccessible") -> "待授权"
             active?.optBoolean("enabled") == true -> "等待工具就绪"
             else -> "尚未连接"
         }
     }
+    fun remotePluginId(item: JSONObject): String =
+        PresentationPolicy.meaningful(item.optString("remotePluginId"))
+
     fun pluginIdentity(market: JSONObject, item: JSONObject): Pair<String, String> =
         market.optString("name") to item.optString("id").ifBlank { item.optString("name") }
 

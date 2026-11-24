@@ -10,8 +10,10 @@ class TimelineReconcilerTest {
             TimelineItem("pending-uuid-2", "user", "重复的指令", "sending"),
             TimelineItem("assistant", "agent", "处理中")
         )
-        assertEquals(1, TimelineReconciler.position(items, "server-second", "userMessage"))
+        assertEquals(1, TimelineReconciler.position(items, "server-second", "userMessage", "uuid-2"))
         assertEquals(0, TimelineReconciler.position(items, "server-first", "userMessage"))
+        assertEquals(-1, TimelineReconciler.position(items, "queued", "userMessage"))
+        assertEquals(-1, TimelineReconciler.position(items, "queued", "userMessage", "other"))
         assertEquals(-1, TimelineReconciler.position(items, "unseen-agent", "agentMessage"))
     }
 
@@ -20,7 +22,7 @@ class TimelineReconcilerTest {
             TimelineItem("pending-old", "user", "任务", ""),
             TimelineItem("pending-new", "user", "任务", "sending")
         )
-        assertEquals(1, TimelineReconciler.position(items, "actual-new", "userMessage"))
+        assertEquals(1, TimelineReconciler.position(items, "actual-new", "userMessage", "new"))
     }
 
     @org.junit.Test fun canonicalSummaryAndLifecycleAreRestoredFromNativeArrays() {

@@ -93,7 +93,9 @@ internal object TimelineEventReducer {
         val turnId = params.string("turnId")
         val items = current.toMutableList()
         fun put(item: TimelineItem) {
-            val i = TimelineReconciler.position(items, item.id, if (item.kind == "user") "userMessage" else item.kind)
+            val clientId = if (item.kind == "user" && item.evidence.isNotBlank())
+                JSONObject(item.evidence).string("clientId") else ""
+            val i = TimelineReconciler.position(items, item.id, if (item.kind == "user") "userMessage" else item.kind, clientId)
             if (i < 0) items.add(item) else items[i] = item
         }
         if (method == "turn/completed") {
@@ -104,7 +106,7 @@ internal object TimelineEventReducer {
             return items.map {
                 if (it.turnId == id && it.status in setOf("streaming", "inProgress", "running"))
                     it.copy(status = if (status == "completed") "completed" else status)
-                else if (it.kind == "user" && it.status == "sending") it.copy(status = "") else it
+                else it
             }
         }
         if (method == "turn/plan/updated") {

@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     val data by vm.data.collectEntries("composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
-    val loading by vm.loading.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("config", ENGINE_SETTING_SAVE, "composerPermissionConfig", "securityRequirements", "permissionProfiles")) }
     val errors by vm.errors.collectEntries("securitySave")
     val saving by vm.securitySaveBusy.collectAsState()
     val status by vm.bridge.status.collectAsState()
