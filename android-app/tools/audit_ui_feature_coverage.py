@@ -222,6 +222,15 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
                 raise ValueError(f"页面 {name} 有重复路由")
             routes[name] = match.group("handler")
 
+    # Threads and search are logical capabilities of the same drawer, not pages.
+    # Verify actual navigation and the single owner instead of requiring dummy page handlers.
+    shell = files["AppNavigation.kt"]
+    if '"threads", "search" -> {' in shell and "SidebarSessions(" in shell:
+        for name in ("threads", "search"):
+            if name in routes:
+                raise ValueError(f"会话能力 {name} 重复注册为独立页面")
+            routes[name] = "SidebarSessions"
+
     defined: dict[str, str] = {}
     for filename, code in files.items():
         for match in FUNCTION.finditer(code):

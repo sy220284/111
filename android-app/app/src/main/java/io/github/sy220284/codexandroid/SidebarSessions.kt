@@ -4,6 +4,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -16,6 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +48,10 @@ internal fun SidebarSessions(
     continuationLabel: String? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    val context = LocalContext.current
+    var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
+    var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
+    var historyError by remember { mutableStateOf("") }
     val data by vm.data.collectAsState()
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
@@ -65,9 +72,10 @@ internal fun SidebarSessions(
     val completed by vm.bulkCompletedThreadIds.collectAsState()
     val connected = status == EngineStatus.Connected
     val busy = switching || starting || "threadLibraryAction" in loading || "threadLibraryBulk" in loading
-    val approvals = prompts.filter { it.method != "item/tool/requestUserInput" }
+    val answerMethods = setOf("item/tool/requestUserInput", "mcpServer/elicitation/request")
+    val approvals = prompts.filter { it.method !in answerMethods }
         .groupingBy { it.params.optString("threadId") }.eachCount()
-    val questions = prompts.filter { it.method == "item/tool/requestUserInput" }
+    val questions = prompts.filter { it.method in answerMethods }
         .map { it.params.optString("threadId") }.toSet()
     val currentActivities = activities + questions.filter { (approvals[it] ?: 0) == 0 }
         .associateWith { ThreadActivity.WaitingAnswer }
@@ -106,14 +114,50 @@ internal fun SidebarSessions(
                 modifier = Modifier.fillMaxWidth().testTag("sidebar-search"),
                 placeholder = if (state.fullText) "搜索历史正文" else "搜索会话标题",
                 onClear = { state.search = "" },
-                onSubmit = { if (state.fullText) vm.sessions.search(state.search, state.archived) })
+                onSubmit = {
+                    val term = state.search.trim()
+                    if (term.isNotBlank()) {
+                        try {
+                            if (state.fullText) recentFull = RecentThreadSearches.record(context, true, term)
+                            else recentTitle = RecentThreadSearches.record(context, false, term)
+                            historyError = ""
+                        } catch (failure: Exception) {
+                            historyError = failure.message ?: "搜索记录保存失败"
+                        }
+                        if (state.fullText) vm.sessions.search(term, state.archived)
+                    }
+                })
             AtlasCompactChoice(if (state.fullText) "full" else "title",
                 listOf("title" to "标题搜索", "full" to "全文搜索"),
                 onSelect = { state.fullText = it == "full" })
             AtlasCompactChoice(if (state.archived) "archived" else "active",
                 listOf("active" to "会话", "archived" to "已归档"),
                 onSelect = { state.archived = it == "archived" })
-            if (searchBusy && state.fullText) AtlasOperationProgress("正在搜索正文")
+            val recent = if (state.fullText) recentFull else recentTitle
+            if (state.search.isBlank() && recent.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("最近搜索", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                    CodexTextAction(onClick = {
+                        try {
+                            val cleared = RecentThreadSearches.clear(context, state.fullText)
+                            if (state.fullText) recentFull = cleared else recentTitle = cleared
+                            historyError = ""
+                        } catch (failure: Exception) { historyError = failure.message ?: "清除记录失败" }
+                    }) { Text("清除记录") }
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    recent.forEach { term ->
+                        CodexFilterChip(selected = false, onClick = { state.search = term },
+                            label = { Text(term, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                    }
+                }
+            }
+            if (historyError.isNotBlank()) ErrorText(historyError)
+            if (searchBusy && state.fullText && rows.isEmpty()) AtlasOperationProgress("正在搜索正文")
+            else if (state.search.isNotBlank() && rows.isEmpty() &&
+                (!state.fullText || searchResult?.first == (state.archived to state.search.trim())))
+                Text("未找到匹配会话", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
             if (state.fullText && searchError.isNotBlank())
                 CodexNotice(PresentationPolicy.readableError(searchError), NoticeTone.Error,
                     actionLabel = "重试", onAction = { vm.sessions.search(state.search, state.archived) })
@@ -258,7 +302,11 @@ internal fun SidebarSessionRow(
                     ThreadActivity.WaitingAnswer -> "等待回答"
                     ThreadActivity.Running -> "正在执行"
                     ThreadActivity.Failed -> "任务运行异常"
-                    ThreadActivity.Idle -> if (crossProject) PresentationPolicy.workspaceName(item.optString("cwd")) else ""
+                    ThreadActivity.Idle -> if (crossProject) {
+                        val path = item.optString("cwd")
+                        val leaf = PresentationPolicy.meaningful(path.trimEnd('/').substringAfterLast('/'))
+                        if (leaf == "projects" || leaf.isBlank()) PresentationPolicy.workspaceName(path) else leaf
+                    } else ""
                 }
                 if (stateLabel.isNotBlank()) Text(stateLabel, style = MaterialTheme.typography.labelSmall,
                     color = when (actual) {

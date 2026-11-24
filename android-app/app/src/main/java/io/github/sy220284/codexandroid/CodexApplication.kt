@@ -34,7 +34,7 @@ class CodexApplication : Application() {
             AppUpdateManager.resumeInstall(activity)
             if (holder.isInitialized()) {
                 holder.value.reconnectIfNeeded()
-                holder.value.syncRecentThreads()
+                holder.value.sessions.refreshIfStale()
             }
         }
         override fun onActivityPaused(activity: Activity) {}

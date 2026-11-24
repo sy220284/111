@@ -92,7 +92,7 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))
-        assertEquals(listOf("chat", "chat", "limits"),
+        assertEquals(listOf("chat", "limits"),
             NavigationPolicy.pageHistory(listOf("home", "threads", "chat", "queue", "limits")))
         assertEquals(listOf("chat", "files"), NavigationPolicy.pageHistory(listOf("home", "chat", "files")))
         assertEquals(emptyList<String>(),

@@ -14,6 +14,9 @@ class SessionListPolicyTest {
             SessionListPolicy.ordered(rows, setOf("pin")).map(SessionListPolicy::id))
         assertEquals("recency_at", SessionListPolicy.params(false).getString("sortKey"))
         assertNull(SessionListPolicy.cursor(JSONObject().put("nextCursor", JSONObject.NULL)))
+        assertEquals("opaque-token", SessionListPolicy.cursor(JSONObject().put("nextCursor", "opaque-token")))
+        assertEquals("opaque-token", SessionListPolicy.params(true, "opaque-token").getString("cursor"))
+        assertTrue(SessionListPolicy.params(true).getBoolean("archived"))
     }
     @Test fun actualWaitingStateOverridesRunningAndReceiptsAreReal() {
         assertEquals(ThreadActivity.WaitingAnswer, SessionListPolicy.activity(row("a", 1, 1),

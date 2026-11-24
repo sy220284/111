@@ -174,7 +174,7 @@ fun ThreadContextTools(
                         vm.rpc("threadFork", "thread/fork",
                             JSONObject().put("threadId", threadId).put("excludeTurns", true),
                             after = {
-                                vm.refresh("threads", "thread/list", JSONObject().put("limit", 30))
+                                vm.syncRecentThreads()
                             })
                     } else {
                         vm.data.value = vm.data.value - "threadCompact"

@@ -126,7 +126,7 @@ fun CodexShell(vm: CodexViewModel) {
     var pendingThreadAction by remember { mutableStateOf<String?>(null) }
     val move: (String) -> Unit = move@{ requested ->
         val destination = NavigationPolicy.canonicalRoute(requested)
-        if (UiFeatureCatalog.requiresThread(destination) && activeThread == null) {
+        if (UiFeatureCatalog.requiresThread(destination) && vm.activeThread.value == null) {
             pendingThreadAction = destination
             sidebarState.resetFilter()
             sidebarState.searching = false
@@ -178,7 +178,7 @@ fun CodexShell(vm: CodexViewModel) {
                 return@move
             }
             "history-tools", "thread-attachments" -> {
-                if (activeThread == null) {
+                if (vm.activeThread.value == null) {
                     pendingThreadAction = destination
                     sidebarState.resetFilter()
                     sidebarState.searching = false
@@ -249,9 +249,15 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
+    var drawerWasOpen by remember { mutableStateOf(false) }
     LaunchedEffect(drawerOwnsInput, status) {
-        if (drawerOwnsInput && status == EngineStatus.Connected) vm.syncRecentThreads()
-        if (!drawerOwnsInput) pendingThreadAction = null
+        if (drawerOwnsInput && status == EngineStatus.Connected) vm.sessions.refreshIfStale()
+        if (!drawerOwnsInput && drawerWasOpen) {
+            pendingThreadAction = null
+            sidebarState.searching = false
+            sidebarState.resetFilter()
+        }
+        drawerWasOpen = drawerOwnsInput
     }
     // The homepage may open the drawer from any unclaimed horizontal swipe.
     // openDrawer clears focus and hides the IME; child controls retain priority.

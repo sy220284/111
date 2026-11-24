@@ -24,13 +24,15 @@ internal object SessionListPolicy {
     fun unread(receipt: JSONObject?) = receipt?.optJSONObject("firstUnread") != null
     fun cursor(response: JSONObject): String? =
         PresentationPolicy.meaningful(response.optString("nextCursor")).takeIf { it.isNotBlank() }
-    fun activity(row: JSONObject, live: ThreadActivity?, running: Boolean, approvals: Int): ThreadActivity =
-        when {
+    fun activity(row: JSONObject, live: ThreadActivity?, running: Boolean, approvals: Int): ThreadActivity {
+        val observed = live ?: ThreadActivityPolicy.fromThread(row)
+        return when {
             approvals > 0 -> ThreadActivity.WaitingApproval
-            live == ThreadActivity.WaitingApproval || live == ThreadActivity.WaitingAnswer -> live
+            observed == ThreadActivity.WaitingApproval || observed == ThreadActivity.WaitingAnswer -> observed
             running -> ThreadActivity.Running
-            else -> live ?: ThreadActivityPolicy.fromThread(row)
+            else -> observed
         }
+    }
     fun params(archived: Boolean, cursor: String? = null) =
         JSONObject().put("limit", 100).put("archived", archived)
             .put("sortKey", "recency_at").put("sortDirection", "desc").apply {
@@ -50,6 +52,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var listJob: Job? = null
     private var searchJob: Job? = null
     private var dirty = false
+    private var lastSuccess = -60_000L
+    private var activeSearch: Pair<Boolean, String>? = null
     private var searchVersion = 0L
     private var receiptVersion = 0L
     private val receiptEvents = mutableMapOf<String, Long>()
@@ -95,6 +99,9 @@ internal class SessionListController(private val vm: CodexViewModel, private val
             } finally { marking.remove(id) }
         }
     }
+    fun refreshIfStale() {
+        if (android.os.SystemClock.elapsedRealtime() - lastSuccess >= 30_000L) refresh()
+    }
     fun refresh() {
         if (!connected()) return
         dirty = true
@@ -132,6 +139,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                         vm.data.value = vm.data.value + mapOf("sidebarThreads" to active,
                             "threads" to active, "archivedThreads" to archived)
                         vm.errors.value = vm.errors.value - "sidebarThreads"
+                        lastSuccess = android.os.SystemClock.elapsedRealtime()
+                        activeSearch?.let { (archived, query) -> search(query, archived) }
                     }
                 } catch (timeout: TimeoutCancellationException) {
                     vm.errors.value = vm.errors.value + ("sidebarThreads" to "会话同步超时")
@@ -146,10 +155,11 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     fun search(query: String, archived: Boolean) {
         val version = ++searchVersion
         searchJob?.cancel()
-        searchResult.value = null
         searchError.value = ""
         searching.value = false
         val term = query.trim()
+        activeSearch = if (term.isBlank()) null else archived to term
+        if (searchResult.value?.first != activeSearch || term.isBlank()) searchResult.value = null
         if (term.isBlank()) return
         if (!connected()) { searchError.value = "连接内核后可搜索正文"; return }
         searching.value = true
