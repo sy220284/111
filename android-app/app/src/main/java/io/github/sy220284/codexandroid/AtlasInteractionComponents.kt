@@ -2,6 +2,8 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -99,34 +101,61 @@ fun AtlasStatusSelector(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    Column(modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        options.chunked(2).forEach { rowOptions ->
+    val toneFor: (StatusTone) -> androidx.compose.ui.graphics.Color = { tone ->
+        when (tone) {
+            StatusTone.Success -> Ink.jade
+            StatusTone.Warning -> Ink.warning
+            StatusTone.Danger -> Ink.red
+            StatusTone.Info -> Ink.copper
+            StatusTone.Neutral -> Ink.muted
+        }
+    }
+    Column(
+        modifier.fillMaxWidth().selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.chunked(2).forEach { optionsInRow ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowOptions.forEach { option ->
-                    FilterChip(
-                        selected = selected == option.key,
-                        onClick = { onSelect(option.key) },
-                        enabled = enabled,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        label = {
-                            Text(option.title, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis)
-                        },
-                        leadingIcon = if (selected == option.key) {
-                            { Icon(Icons.Outlined.Check, contentDescription = null,
-                                tint = when (option.tone) {
-                                    StatusTone.Success -> Ink.jade
-                                    StatusTone.Warning -> Ink.warning
-                                    StatusTone.Danger -> Ink.red
-                                    StatusTone.Info -> Ink.copper
-                                    StatusTone.Neutral -> Ink.muted
-                                },
-                                modifier = Modifier.size(18.dp)) }
-                        } else null
-                    )
+                optionsInRow.forEach { option ->
+                    val chosen = selected == option.key
+                    Surface(
+                        modifier = Modifier.weight(1f)
+                            .selectable(
+                                selected = chosen, enabled = enabled,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(option.key) }
+                            ),
+                        color = if (chosen) Ink.panel else Ink.canvas,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(
+                            if (chosen) 2.dp else 1.dp,
+                            if (chosen) toneFor(option.tone) else Ink.border
+                        )
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                                .padding(horizontal = 7.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            RadioButton(
+                                selected = chosen, onClick = null,
+                                enabled = enabled, modifier = Modifier.size(40.dp),
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = toneFor(option.tone)
+                                )
+                            )
+                            Text(
+                                option.title,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
-                if (rowOptions.size == 1) Spacer(Modifier.weight(1f))
+                if (optionsInRow.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
