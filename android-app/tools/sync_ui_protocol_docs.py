@@ -11,7 +11,7 @@ import sys
 PREFIX = ["# UI V5 接口到组件全量映射","","> 自动生成文件：修改接口归属时编辑 `android-app/tools/ui_surface_policy.json`，然后运行 `python3 android-app/tools/sync_ui_protocol_docs.py --write`。CI 会检查差异。以锁定的 Rust App Server 协议及 Kotlin `UiProtocolMatrix.kt` 为执行契约。","","## 当前协议职责分类","","分类控制功能展示责任。表中接口出现仅证明已登记；实际调用、参数与设备端执行另行验收。",""]
 CATEGORY_DESCRIPTIONS = [["直接操作","页面、快捷入口与用户明确操作"],["上下文操作","选中当前会话、文件或其他对象后使用的动作"],["高级按需","能力探测、业务需要和授权满足后展示"],["后台内部","智能体、内核、事件、流传输及 Host 请求，按需展示审批"],["平台不适用","Android 无适用运行环境"]]
 AFTER_COUNTS = ["","## 官方方法逐项归属","","| 官方方法 | 类别 | 功能归属 | 实验 |","| --- | --- | --- | --- |"]
-FOOTER = ["","## UI 与后台能力边界","","- 直接及上下文操作按「入口 → 业务对象 → 条件校验 → 真实 RPC/本地等效 → 响应/错误/审批 → 页面刷新」逐项验收。","- 高级能力由内核实际可用性和业务上下文控制。尚未支持的能力显示具体限制和处理路径。","- 后台内部接口不生成独立工具按钮；需要用户决策时在对应任务提供审批表单，按请求 ID 返回合法结果。","- 用户界面呈现中文业务名称，内部 RPC、UUID、配置字段和诊断内容按需展开。","","## 设计与交互验收","","- 移动与大屏保持侧边栏的统一功能归属；对话/任务优先，设置只承载长期配置。","- 统一反馈：输入校验、加载中、审批等待、成功回执、错误原因、恢复操作和当前对象状态。","- 控件最小触控区 48dp，适配 360/393/411dp、系统大字体、TalkBack 及减弱动画。","- Figma 的颜色、组件和页面结构与 `docs/DESIGN_SYSTEM.md` 及 Compose 代码保持一致。","","## 验证级别","","目录一致性、静态调用路径、真实参数契约、模拟器交互与真实 ARM64 内核运行分别留证。静态引用及模拟数据截图不能替代完整运行验收。"]
+FOOTER = ["","## UI 与后台能力边界","","- 直接及上下文操作按「入口 → 业务对象 → 条件校验 → 真实 RPC/本地等效 → 响应/错误/审批 → 页面刷新」逐项验收。","- 高级能力由内核实际可用性和业务上下文控制。尚未支持的能力显示具体限制和处理路径。","- 后台内部接口不生成独立工具按钮；需要用户决策时在对应任务提供审批表单，按请求 ID 返回合法结果。","- 用户界面呈现中文业务名称，内部 RPC、UUID、配置字段和诊断内容按需展开。","","## 设计与交互验收","","- 移动与大屏保持侧边栏的统一功能归属；对话/任务优先，设置只承载长期配置。","- 统一反馈：输入校验、加载中、审批等待、成功回执、错误原因、恢复操作和当前对象状态。","- 控件最小触控区 48dp，适配 360/393/411dp、系统大字体、TalkBack 及减弱动画。","- Figma 的颜色、组件和页面结构与 `docs/设计系统.md` 及 Compose 代码保持一致。","","## 验证级别","","目录一致性、静态调用路径、真实参数契约、模拟器交互与真实 ARM64 内核运行分别留证。静态引用及模拟数据截图不能替代完整运行验收。"]
 CATEGORIES = [name for name, _ in CATEGORY_DESCRIPTIONS]
 
 
@@ -76,7 +76,7 @@ def render_kotlin(policy: dict) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", type=Path, default=Path("android-app/tools/ui_surface_policy.json"))
-    parser.add_argument("--output", type=Path, default=Path("docs/UI_PROTOCOL_COMPONENT_MATRIX_V5.md"))
+    parser.add_argument("--output", type=Path, default=Path("docs/第五版接口与界面组件映射矩阵.md"))
     parser.add_argument("--matrix", type=Path, default=Path(
         "android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt"))
     mode = parser.add_mutually_exclusive_group(required=True)
