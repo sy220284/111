@@ -145,7 +145,7 @@ fun LocalImageAttachmentStrip(
             }
         }
         previewPath?.takeIf { it in paths }?.let { path ->
-            AttachmentPreviewDialog(paths, path, onSelect = { previewPath = it },
+            AttachmentPreviewDialog(paths, path,
                 onDismiss = { previewPath = null }, onRemove = {
                     onRemove(it)
                     previewPath = null

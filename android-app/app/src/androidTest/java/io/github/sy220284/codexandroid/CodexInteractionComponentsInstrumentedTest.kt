@@ -7,6 +7,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -420,27 +422,42 @@ class CodexInteractionComponentsInstrumentedTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val first = java.io.File.createTempFile("preview-first", ".png", context.cacheDir)
         val second = java.io.File.createTempFile("preview-second", ".png", context.cacheDir)
-        val bitmap = android.graphics.Bitmap.createBitmap(32, 32, android.graphics.Bitmap.Config.ARGB_8888)
-        var selectedByClick: String? = null
+        val bitmap = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        var removedPath: String? = null
+        fun assertDisplayedImage(position: Int, color: Int) {
+            rule.onNodeWithTag("attachment-preview-position")
+                .assertTextEquals("图片 $position / 2").assertIsDisplayed()
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithContentDescription("第 $position 张附件的大图预览")
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            val actual = rule.onNodeWithTag("attachment-preview-image").assertIsDisplayed()
+                .captureToImage().toPixelMap()
+            org.junit.Assert.assertEquals("实际图片像素必须对应当前附件",
+                color, actual[actual.width / 2, actual.height / 2].toArgb())
+        }
         try {
+            bitmap.eraseColor(android.graphics.Color.RED)
             first.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.eraseColor(android.graphics.Color.BLUE)
             second.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             rule.setContent {
                 var paths by remember { mutableStateOf(listOf(first.absolutePath, second.absolutePath)) }
-                var selected by remember { mutableStateOf(first.absolutePath) }
                 CodexTheme {
                     Column {
                         Text("附件数量：" + paths.size)
-                        if (selected in paths) AttachmentPreviewDialog(paths, selected,
-                            onSelect = { selectedByClick = it; selected = it }, onDismiss = { selected = "" },
-                            onRemove = { removed -> paths = paths - removed; selected = "" })
+                        LocalImageAttachmentStrip(paths, onRemove = {
+                            removedPath = it
+                            paths = paths - it
+                        })
                     }
                 }
             }
             rule.waitUntil(5000L) {
-                rule.onAllNodesWithTag("attachment-preview-image").fetchSemanticsNodes().isNotEmpty()
+                rule.onAllNodesWithContentDescription("预览附件图片 1").fetchSemanticsNodes().isNotEmpty()
             }
-            rule.onNodeWithText("图片 1 / 2").assertExists()
+            rule.onNodeWithContentDescription("预览附件图片 1").performTouchInput { click() }
+            assertDisplayedImage(1, android.graphics.Color.RED)
             rule.onNodeWithTag("attachment-zoom-in").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("150%")
             captureComponentEvidence("audit-attachment-preview-android35.png")
@@ -448,24 +465,19 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
             rule.onNodeWithTag("attachment-previous").assertIsNotEnabled()
             rule.onNodeWithTag("attachment-next").assertIsEnabled().performTouchInput { click() }
-            rule.runOnIdle { org.junit.Assert.assertEquals(second.absolutePath, selectedByClick) }
-            rule.waitUntil(5000L) {
-                rule.onAllNodesWithText("图片 2 / 2").fetchSemanticsNodes().isNotEmpty()
-            }
-            rule.onNodeWithText("图片 2 / 2").assertIsDisplayed()
+            assertDisplayedImage(2, android.graphics.Color.BLUE)
             rule.onNodeWithTag("attachment-next").assertIsNotEnabled()
-            rule.waitUntil(5000L) {
-                rule.onAllNodesWithTag("attachment-preview-image").fetchSemanticsNodes().isNotEmpty()
-            }
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
+            rule.onNodeWithTag("attachment-zoom-in").performClick()
             rule.onNodeWithTag("attachment-previous").assertIsEnabled().performTouchInput { click() }
-            rule.runOnIdle { org.junit.Assert.assertEquals(first.absolutePath, selectedByClick) }
-            rule.waitUntil(5000L) {
-                rule.onAllNodesWithText("图片 1 / 2").fetchSemanticsNodes().isNotEmpty()
-            }
+            assertDisplayedImage(1, android.graphics.Color.RED)
+            rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
+            rule.onNodeWithTag("attachment-next").performTouchInput { click() }
+            assertDisplayedImage(2, android.graphics.Color.BLUE)
             rule.onNodeWithContentDescription("移除当前图片").performClick()
             rule.onNodeWithTag("attachment-preview").assertDoesNotExist()
             rule.onNodeWithText("附件数量：1").assertExists()
+            rule.runOnIdle { org.junit.Assert.assertEquals(second.absolutePath, removedPath) }
         } finally {
             bitmap.recycle()
             first.delete()

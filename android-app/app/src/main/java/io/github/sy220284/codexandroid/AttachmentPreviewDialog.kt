@@ -27,21 +27,20 @@ import kotlinx.coroutines.withContext
 
 /** 本地附件全屏查看：保留真实图片、支持缩放、平移、切换和移除。 */
 @Composable
-internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
-    onSelect: (String) -> Unit, onDismiss: () -> Unit, onRemove: (String) -> Unit) {
-    if (path !in paths) return
-    // 窗口与当前图片的内容生命周期分离。切换图片不重建全屏窗口，
-    // 新路径由受控选择状态传入，缩放、解码及手势状态随路径更新。
-    val currentPaths by rememberUpdatedState(paths)
-    val currentPath by rememberUpdatedState(path)
-    val selectImage by rememberUpdatedState(onSelect)
-    val removeImage by rememberUpdatedState(onRemove)
+internal fun AttachmentPreviewDialog(paths: List<String>, initialPath: String,
+    onDismiss: () -> Unit, onRemove: (String) -> Unit) {
+    if (initialPath !in paths) return
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val selected = currentPath
-        val available = currentPaths
-        if (selected in available) AttachmentPreviewContent(
-            available, selected, selectImage, onDismiss, removeImage
-        )
+        // 当前图片的唯一状态由实际 Dialog 内容持有。外层只管理打开/关闭，
+        // 翻页不再通过外层选中路径回传至另一 Composition。
+        var selected by remember(initialPath) { mutableStateOf(initialPath) }
+        if (selected !in paths) {
+            LaunchedEffect(selected, paths) { onDismiss() }
+        } else {
+            key(selected) {
+                AttachmentPreviewContent(paths, selected, { selected = it }, onDismiss, onRemove)
+            }
+        }
     }
 }
 
@@ -71,7 +70,8 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.ArrowBack, "关闭图片预览")
                 }
-                Text("图片 ${index + 1} / ${paths.size}", modifier = Modifier.weight(1f),
+                Text("图片 ${index + 1} / ${paths.size}", modifier = Modifier.weight(1f)
+                    .testTag("attachment-preview-position"),
                     style = MaterialTheme.typography.titleMedium)
                 IconButton(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.DeleteOutline, "移除当前图片", tint = Ink.red)
@@ -99,7 +99,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                     !preview.first -> AtlasOperationProgress("正在载入图片")
                     bitmap == null -> CodexRecoveryState("图片读取失败", "附件可能已被移动或损坏。",
                         "重新读取", { retry++ })
-                    else -> Image(bitmap, "当前附件的大图预览",
+                    else -> Image(bitmap, "第 ${index + 1} 张附件的大图预览",
                         modifier = Modifier.fillMaxSize().testTag("attachment-preview-image")
                             .semantics { stateDescription = "缩放 ${(scale * 100).toInt()}%" }
                             .pointerInput(path, bitmap) {
