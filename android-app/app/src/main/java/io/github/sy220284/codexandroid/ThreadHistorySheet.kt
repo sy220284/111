@@ -68,7 +68,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     }
     fun exportConversation(toClipboard: Boolean, activity: Boolean) {
         val owner = thread ?: return
-        if (exportBusy) return
+        if (exportBusy || busy || exportMarkdown != null) return
         exportBusy = true
         exportStatus = ""
         scope.launch {
@@ -128,22 +128,22 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexSecondaryButton(onClick = {
                     if (includeActivity) confirmActivity = true else exportConversation(true, false)
-                }, enabled = !exportBusy && thread != null, modifier = Modifier.weight(1f)
+                }, enabled = !exportBusy && !busy && exportMarkdown == null && thread != null, modifier = Modifier.weight(1f)
                     .heightIn(min = 48.dp).testTag("thread-copy-markdown")) {
                     Text("复制会话")
                 }
                 CodexSecondaryButton(onClick = {
                     if (includeActivity) confirmActivity = false else exportConversation(false, false)
-                }, enabled = !exportBusy && thread != null, modifier = Modifier.weight(1f)
+                }, enabled = !exportBusy && !busy && exportMarkdown == null && thread != null, modifier = Modifier.weight(1f)
                     .heightIn(min = 48.dp).testTag("thread-export-markdown")) {
-                    Text("导出会话 Markdown")
+                    Text("导出会话 Markdown", maxLines = 2)
                 }
             }
             if (exportBusy) AtlasOperationProgress("正在整理会话记录")
             if (exportStatus.isNotBlank()) Text(
                 exportStatus, style = MaterialTheme.typography.bodySmall,
                 color = if (exportStatus.startsWith("导出失败") ||
-                    exportStatus.startsWith("保存失败")) Ink.red else Ink.jade
+                    exportStatus.startsWith("保存失败") || exportStatus.startsWith("复制失败")) Ink.red else Ink.jade
             )
             if (thread == null) RequiresThreadPanel("回合历史") { onDismiss() }
             else {

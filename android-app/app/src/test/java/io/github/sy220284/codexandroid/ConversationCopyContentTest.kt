@@ -31,4 +31,14 @@ class ConversationCopyContentTest {
         assertFalse(result.contains("排除"))
         assertFalse(result.contains("头二"))
     }
+
+    @Test fun visibleSelectionRestoresOnlySelectedInlineMarkup() {
+        val blocks = MessageMarkdown.blocks("普通 **粗体内容** 与 [链接](https://example.com)\n\n下一段")
+        val partial = MessageSelectionCopy.resolve(blocks, "体内")
+        assertEquals("**体内**" to CopyContentFormat.Markdown, partial)
+        assertEquals("[链接](https://example.com)" to CopyContentFormat.Markdown,
+            MessageSelectionCopy.resolve(blocks, "链接"))
+        assertEquals(null, MessageSelectionCopy.resolve(MessageMarkdown.blocks("**重复** 重复"), "重复"))
+        assertEquals("普通" to CopyContentFormat.Literal, MessageSelectionCopy.resolve(blocks, "普通"))
+    }
 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension
 import org.commonmark.ext.gfm.tables.TablesExtension
+import org.commonmark.ext.task.list.items.TaskListItemsExtension
 import org.commonmark.node.*
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
@@ -23,7 +24,7 @@ internal data class CopyPayload(val text: String, val html: String? = null)
 
 /** Mirrors the native Markdown/HTML clipboard pair; never embeds remote images or raw HTML. */
 internal object ConversationCopyContent {
-    private val extensions = listOf(TablesExtension.create(), StrikethroughExtension.create())
+    private val extensions = listOf(TablesExtension.create(), StrikethroughExtension.create(), TaskListItemsExtension.create())
     private val parser = Parser.builder().extensions(extensions).build()
     private val html = HtmlRenderer.builder().extensions(extensions).escapeHtml(true).sanitizeUrls(true).build()
     private val plain = TextContentRenderer.builder().extensions(extensions).build()
@@ -40,19 +41,20 @@ internal object ConversationCopyContent {
     private fun sanitize(parent: Node) {
         var child = parent.firstChild
         while (child != null) {
-            val next = child.next
-            sanitize(child)
-            when (child) {
+            val current = child
+            val next = current.next
+            sanitize(current)
+            when (current) {
                 is Image -> {
-                    val alt = buildString { appendVisible(child, this) }
-                    child.insertBefore(Text(alt))
-                    child.unlink()
+                    val alt = buildString { appendVisible(current, this) }
+                    current.insertBefore(Text(alt))
+                    current.unlink()
                 }
-                is Link -> if (!child.destination.startsWith("https://", true) &&
-                    !child.destination.startsWith("http://", true)) {
-                    while (child.firstChild != null) child.insertBefore(child.firstChild)
-                    child.insertBefore(Text(" (" + child.destination + ")"))
-                    child.unlink()
+                is Link -> if (!current.destination.startsWith("https://", true) &&
+                    !current.destination.startsWith("http://", true)) {
+                    while (current.firstChild != null) current.insertBefore(current.firstChild)
+                    current.insertBefore(Text(" (" + current.destination + ")"))
+                    current.unlink()
                 }
             }
             child = next

@@ -3,7 +3,7 @@ package io.github.sy220284.codexandroid
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Export user inputs and durable answers; tool and commentary records remain in native history. */
+/** Default export is the conversation; execution evidence is an explicit separate scope. */
 internal object ThreadMarkdownExporter {
     private fun body(item: JSONObject): String {
         val direct = item.optString("text")

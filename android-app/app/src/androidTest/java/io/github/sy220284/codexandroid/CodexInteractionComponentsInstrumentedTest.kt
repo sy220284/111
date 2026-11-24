@@ -810,4 +810,44 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("full-text-search").performTextInput("第二部分")
         rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
+
+    @Test fun messageCopyWritesBothFormatsWithoutOpeningMenu() {
+        val source = "**复制验证**"
+        lateinit var context: android.content.Context
+        rule.setContent {
+            context = androidx.compose.ui.platform.LocalContext.current
+            CodexTheme {
+                TimelineStepCard(TimelineItem("copy-ui", "agentMessage", source, "completed", turnId = "turn"))
+            }
+        }
+        rule.onNodeWithTag("message-copy-copy-ui").performClick()
+        rule.waitUntil(5000) {
+            rule.runOnIdle {
+                val clip = context.getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
+                clip?.getItemAt(0)?.text?.toString() == source &&
+                    clip.getItemAt(0).htmlText?.contains("<strong>复制验证</strong>") == true
+            }
+        }
+        rule.onNodeWithText("复制纯文本").assertDoesNotExist()
+        rule.onNodeWithTag("message-actions-copy-ui").assertExists()
+    }
+
+    @Test fun tableCopyRangeKeepsOnlySelectedCells() {
+        lateinit var context: android.content.Context
+        rule.setContent {
+            context = androidx.compose.ui.platform.LocalContext.current
+            CodexTheme { NativeMessageMarkdown("| A | B |\n| --- | --- |\n| 排除 | 保留 |") }
+        }
+        rule.onNodeWithTag("message-table-select").performClick()
+        rule.onNodeWithTag("message-table-cell-1-1").performClick()
+        rule.onNodeWithTag("message-table-cell-1-1").performClick()
+        rule.onNodeWithTag("message-table-copy").performClick()
+        rule.waitUntil(5000) {
+            rule.runOnIdle {
+                val clip = context.getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
+                val value = clip?.getItemAt(0)?.text?.toString().orEmpty()
+                value.contains("保留") && !value.contains("排除") && !value.contains(" A ")
+            }
+        }
+    }
 }

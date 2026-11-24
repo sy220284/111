@@ -7,12 +7,17 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -110,7 +115,7 @@ internal object MessageMarkdown {
                         rows.add(cells(lines[i++]))
                     }
                     result.add(MessageBlock("table", rows.joinToString("\n") { it.joinToString(" | ") }, rows = rows,
-                        source = lines.subList(start, i).joinToString("\n")) )
+                        source = lines.subList(start, i).joinToString("\n")))
                     continue
                 }
                 trimmed.isBlank() -> flush()
@@ -141,6 +146,27 @@ internal object MessageMarkdown {
         }
         flush()
         return result
+    }
+
+    /** Uses exactly the same inline token boundaries as the visible Compose text. */
+    internal data class CopyPart(val visible: String, val prefix: String = "", val suffix: String = "")
+    fun copyParts(source: String): List<CopyPart> = buildList {
+        var offset = 0
+        for (match in inline.findAll(source)) {
+            if (match.range.first > offset) add(CopyPart(source.substring(offset, match.range.first)))
+            val part = match.value
+            add(when {
+                part.startsWith("[") -> {
+                    val separator = part.lastIndexOf("](")
+                    CopyPart(part.substring(1, separator), "[", part.substring(separator))
+                }
+                part.startsWith("**") || part.startsWith("__") ->
+                    CopyPart(part.drop(2).dropLast(2), part.take(2), part.takeLast(2))
+                else -> CopyPart(part.drop(1).dropLast(1), part.take(1), part.takeLast(1))
+            })
+            offset = match.range.last + 1
+        }
+        if (offset < source.length) add(CopyPart(source.substring(offset)))
     }
 
     fun inlineText(source: String) = buildAnnotatedString {
@@ -211,7 +237,7 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
         remember(tail) { MessageMarkdown.blocks(tail) }
     } else listOf(MessageBlock("stream-tail", tail))
     val blocks = ready?.second.orEmpty() + unfinished
-    SelectionContainer {
+    MessageSelectionContainer(blocks) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             blocks.forEach { block ->
                 when (block.kind) {
@@ -240,12 +266,14 @@ private fun MessageCodeBlock(block: MessageBlock) {
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         color = Ink.recessed, border = BorderStroke(1.dp, Ink.border)) {
         Column {
-            Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(block.label.ifBlank { "代码" }, Modifier.weight(1f), color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
-                CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
-                    modifier = Modifier.size(48.dp)) {
-                    CodexIcon(CodexGlyph.ContentCopy, "复制代码", tint = Ink.muted, modifier = Modifier.size(18.dp))
+            DisableSelection {
+                Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(block.label.ifBlank { "代码" }, Modifier.weight(1f), color = Ink.muted,
+                        style = MaterialTheme.typography.labelMedium)
+                    CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
+                        modifier = Modifier.size(48.dp)) {
+                        CodexIcon(CodexGlyph.ContentCopy, "复制代码", tint = Ink.muted, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
             HorizontalDivider(color = Ink.border)
@@ -262,9 +290,11 @@ private fun MessageQuote(block: MessageBlock) {
         Box(Modifier.fillMaxHeight().width(3.dp).background(Ink.border, RoundedCornerShape(2.dp)))
         Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
             color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-        CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
-            modifier = Modifier.size(48.dp).testTag("message-quote-copy")) {
-            CodexIcon(CodexGlyph.ContentCopy, "复制引用", tint = Ink.muted, modifier = Modifier.size(18.dp))
+        DisableSelection {
+            CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
+                modifier = Modifier.size(48.dp).testTag("message-quote-copy")) {
+                CodexIcon(CodexGlyph.ContentCopy, "复制引用", tint = Ink.muted, modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -288,6 +318,7 @@ private fun MessageTable(block: MessageBlock) {
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
         Column {
+            DisableSelection {
             Row(Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(if (!selecting) "表格" else if (start == null) "选择起始单元格" else if (end == null)
                     "选择结束单元格" else "已选单元格", Modifier.weight(1f),
@@ -302,12 +333,12 @@ private fun MessageTable(block: MessageBlock) {
                         copy(ConversationCopyContent.tableRange(rows, minOf(start.first, end.first),
                             maxOf(start.first, end.first), minOf(start.second, end.second),
                             maxOf(start.second, end.second)), CopyContentFormat.Markdown)
-                        selecting = false; first = null; last = null
                     }
                 }, enabled = !selecting || end != null, modifier = Modifier.size(48.dp).testTag("message-table-copy")) {
                     CodexIcon(CodexGlyph.ContentCopy, if (selecting) "复制所选单元格" else "复制表格",
                         tint = Ink.muted, modifier = Modifier.size(18.dp))
                 }
+            }
             }
             HorizontalDivider(color = Ink.border)
             Column(Modifier.horizontalScroll(rememberScrollState())) {
@@ -322,7 +353,11 @@ private fun MessageTable(block: MessageBlock) {
                                         else last = index to column
                                     }.testTag("message-table-cell-$index-$column")
                                 else Modifier).padding(10.dp)
-                            Text(MessageMarkdown.inlineText(row.getOrElse(column) { "" }), cell,
+                            val value = row.getOrElse(column) { "" }
+                            if (selecting) DisableSelection {
+                                Text(value, cell, color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
+                            } else Text(MessageMarkdown.inlineText(value), cell,
                                 color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
                                 fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
                         }
@@ -331,5 +366,31 @@ private fun MessageTable(block: MessageBlock) {
                 }
             }
         }
+    }
+}
+
+/** Compose 1.8 SelectionContainer writes its selected visible text through LocalClipboard.
+ * Match that text against the same rendered token stream, never against an unrelated answer. */
+@Composable
+private fun MessageSelectionContainer(blocks: List<MessageBlock>, content: @Composable () -> Unit) {
+    val platform = LocalClipboard.current
+    val context = LocalContext.current
+    val latest = rememberUpdatedState(blocks)
+    val clipboard = remember(platform, context) {
+        object : Clipboard by platform {
+            override suspend fun setClipEntry(clipEntry: ClipEntry?) {
+                val visible = clipEntry?.clipData?.takeIf { it.itemCount == 1 }?.getItemAt(0)?.text?.toString()
+                if (visible.isNullOrEmpty()) { platform.setClipEntry(clipEntry); return }
+                val snapshot = latest.value
+                val selection = withContext(Dispatchers.Default) { MessageSelectionCopy.resolve(snapshot, visible) }
+                // When repeated visible text has incompatible original formatting, retain the actual
+                // platform selection rather than guess which source location the user selected.
+                if (selection == null) platform.setClipEntry(clipEntry)
+                else ConversationClipboard.copy(context, selection.first, selection.second)
+            }
+        }
+    }
+    CompositionLocalProvider(LocalClipboard provides clipboard) {
+        SelectionContainer(content = content)
     }
 }
