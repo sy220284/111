@@ -47,20 +47,48 @@ internal object MessageSelectionCopy {
         fun at(start: Int): Pair<String, CopyContentFormat> {
             var position = 0
             var styled = false
-            val values = mutableListOf<String>()
+            val values = mutableListOf<Pair<Segment, String>>()
             for (segment in segments) {
                 val end = position + segment.visible.length
                 val a = maxOf(start, position)
                 val b = minOf(start + selected.length, end)
                 if (a < b) {
                     val (value, rich) = segment.slice(a - position, b - position)
-                    values += value
-                    styled = styled || rich
+                    val restored = if (segment.kind == "bullet" && a == position &&
+                        value.startsWith("•") && value.length > 1) "- " + value.drop(1)
+                    else if (segment.kind == "bullet" && a == position && segment.parts.firstOrNull()?.visible?.let {
+                            it.firstOrNull()?.isDigit() == true && value.startsWith(it) && value.length > it.length
+                        } == true) {
+                        val label = segment.parts.first().visible
+                        label + " " + value.drop(label.length)
+                    } else value
+                    values += segment to restored
+                    styled = styled || rich || restored != value
                 }
                 position = end
                 if (position >= start + selected.length) break
             }
-            return values.joinToString("\n\n") to if (styled) CopyContentFormat.Markdown else CopyContentFormat.Literal
+            val mixed = values.size > 1
+            if (mixed && values.any { it.first.kind == "code" || it.first.kind == "quote" }) styled = true
+            fun decorate(segment: Segment, value: String): String {
+                if (!mixed) return value
+                if (segment.kind == "quote") return value.lines().joinToString("\n") { "> $it" }
+                if (segment.kind == "code") {
+                    val tick = 96.toChar()
+                    val fence = tick.toString().repeat(maxOf(3, Regex(tick.toString() + "+").findAll(value)
+                        .maxOfOrNull { it.value.length + 1 } ?: 3))
+                    return "$fence\n$value\n$fence"
+                }
+                return value
+            }
+            val rendered = buildString {
+                for ((index, entry) in values.withIndex()) {
+                    if (index > 0) append(if (entry.first.kind == "bullet" && values[index - 1].first.kind == "bullet")
+                        "\n" else "\n\n")
+                    append(decorate(entry.first, entry.second))
+                }
+            }
+            return rendered to if (styled) CopyContentFormat.Markdown else CopyContentFormat.Literal
         }
         val start = source.indexOf(selected)
         if (start < 0) return null

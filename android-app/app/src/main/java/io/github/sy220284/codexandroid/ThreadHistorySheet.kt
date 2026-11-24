@@ -122,8 +122,8 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("包含执行记录", Modifier.weight(1f), color = Ink.muted,
                     style = MaterialTheme.typography.bodyMedium)
-                Switch(checked = includeActivity, onCheckedChange = { includeActivity = it },
-                    enabled = !exportBusy)
+                WhiteSwitch(checked = includeActivity, onCheckedChange = { includeActivity = it },
+                    enabled = !exportBusy && !busy && exportMarkdown == null && thread != null)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexSecondaryButton(onClick = {
@@ -139,6 +139,8 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     Text("导出会话 Markdown", maxLines = 2)
                 }
             }
+            if (busy) Text("当前任务结束后可复制或导出完整记录", color = Ink.muted,
+                style = MaterialTheme.typography.labelSmall)
             if (exportBusy) AtlasOperationProgress("正在整理会话记录")
             if (exportStatus.isNotBlank()) Text(
                 exportStatus, style = MaterialTheme.typography.bodySmall,

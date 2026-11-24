@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -49,7 +50,7 @@ internal object MessageMarkdown {
             .map { it.trim().replace("\\|", "|") }
     private fun tableHeader(lines: List<String>, index: Int): Boolean =
         index + 1 < lines.size && lines[index].contains('|') &&
-            cells(lines[index]).size > 1 && cells(lines[index + 1]).let { parts ->
+            cells(lines[index]).isNotEmpty() && cells(lines[index + 1]).let { parts ->
                 parts.size == cells(lines[index]).size && parts.all { delimiter.matches(it) }
             }
 
@@ -323,7 +324,7 @@ private fun MessageTable(block: MessageBlock) {
                 Text(if (!selecting) "表格" else if (start == null) "选择起始单元格" else if (end == null)
                     "选择结束单元格" else "已选单元格", Modifier.weight(1f),
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                TextButton(onClick = { selecting = !selecting; first = null; last = null },
+                CodexTextAction(onClick = { selecting = !selecting; first = null; last = null },
                     modifier = Modifier.heightIn(min = 48.dp).testTag("message-table-select")) {
                     Text(if (selecting) "取消" else "选取")
                 }
@@ -355,7 +356,9 @@ private fun MessageTable(block: MessageBlock) {
                                 else Modifier).padding(10.dp)
                             val value = row.getOrElse(column) { "" }
                             if (selecting) DisableSelection {
-                                Text(value, cell, color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
+                                val styled = MessageMarkdown.inlineText(value)
+                                Text(AnnotatedString(styled.text, spanStyles = styled.spanStyles), cell,
+                                    color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
                                     fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
                             } else Text(MessageMarkdown.inlineText(value), cell,
                                 color = Ink.parchment, style = MaterialTheme.typography.bodySmall,

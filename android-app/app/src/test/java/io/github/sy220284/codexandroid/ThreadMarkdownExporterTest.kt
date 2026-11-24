@@ -58,4 +58,25 @@ class ThreadMarkdownExporterTest {
         assertTrue(complete.contains("公开摘要"))
         assertFalse(complete.contains("私有推理"))
     }
+
+    @Test fun executionExportKeepsToolTextWithoutEmbeddedMediaAndHiddenReviewPrompts() {
+        val result = JSONObject().put("content", JSONArray()
+            .put(JSONObject().put("type", "text").put("text", "工具正文"))
+            .put(JSONObject().put("type", "image").put("data", "PRIVATE_BASE64")))
+        val items = JSONArray()
+            .put(JSONObject().put("type", "userMessage").put("content", JSONArray()
+                .put(JSONObject().put("type", "image").put("url", "data:image/png;base64,PRIVATE_USER_IMAGE"))))
+            .put(JSONObject().put("type", "enteredReviewMode").put("review", "审查"))
+            .put(JSONObject().put("type", "userMessage").put("text", "隐藏审查指令"))
+            .put(JSONObject().put("type", "mcpToolCall").put("result", result))
+            .put(JSONObject().put("type", "exitedReviewMode").put("review", "完成"))
+        val history = JSONObject().put("thread", JSONObject().put("turns", JSONArray().put(JSONObject().put("items", items))))
+        val output = ThreadMarkdownExporter.render(history, includeActivity = true)
+        assertTrue(output.contains("[图片附件]"))
+        assertTrue(output.contains("工具正文"))
+        assertTrue(output.contains("[返回图片]"))
+        assertFalse(output.contains("PRIVATE_BASE64"))
+        assertFalse(output.contains("PRIVATE_USER_IMAGE"))
+        assertFalse(output.contains("隐藏审查指令"))
+    }
 }

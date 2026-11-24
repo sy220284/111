@@ -824,7 +824,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.waitUntil(5000) {
             rule.runOnIdle {
                 val clip = context.getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
-                clip?.getItemAt(0)?.text?.toString() == source &&
+                clip != null && clip.itemCount > 0 && clip.getItemAt(0).text?.toString() == source &&
                     clip.getItemAt(0).htmlText?.contains("<strong>复制验证</strong>") == true
             }
         }
