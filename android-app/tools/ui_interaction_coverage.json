@@ -70,7 +70,7 @@
       "route": "modes",
       "file": "UiSharedSurfaces.kt",
       "owner": "ModeChoiceSurface",
-      "component": "CodexChoiceSheet"
+      "component": "AtlasCompactChoice"
     },
     {
       "route": "skills",
