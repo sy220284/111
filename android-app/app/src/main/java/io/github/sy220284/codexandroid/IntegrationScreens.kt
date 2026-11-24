@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,6 +96,9 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val apps = records(data["apps"])
+    var appQuery by remember { mutableStateOf("") }
+    val visibleApps = apps.filter { it.optString("name", it.optString("id"))
+        .contains(appQuery.trim(), ignoreCase = true) }
     val installed = data["appInstalled"]?.optJSONArray("apps")
     var target by remember { mutableStateOf<JSONObject?>(null) }
     var inspecting by remember { mutableStateOf<JSONObject?>(null) }
@@ -132,8 +136,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (engineStatus != EngineStatus.Connected && data["apps"] == null) {
             CodexRecoveryState("连接后可查看应用",
                 "连接运行核心后会显示真实的应用授权与可用状态。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") },
-                    artworkRes = R.drawable.ic_empty_connection)
+                "重新连接", { vm.connect() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_connection)
         } else if (engineStatus == EngineStatus.Connected &&
             data["apps"] == null && "apps" !in loading && errors["apps"] != null) {
             CodexRecoveryState("读取应用失败",
@@ -143,11 +146,22 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     vm.refresh("appInstalled", "app/installed")
                 }, { navigate("diagnostics") })
         }
-        if (apps.isEmpty() && data["apps"] != null && "apps" !in loading && errors["apps"] == null) {
-            CodexEmptyState("尚未发现可用应用", "检查登录状态，或进入插件管理查看可用的扩展。",
-                actionLabel = "前往插件管理", onAction = { navigate("plugins") })
+        if (apps.isEmpty() && data["apps"] != null && "apps" !in loading && errors["apps"] == null) MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
+            Text("检查登录状态，或进入插件管理查看可用的扩展。",
+                color = Ink.muted)
+            OutlinedButton(onClick = { navigate("plugins") }) {
+                Text("前往插件管理")
+            }
         }
-        apps.forEach { app ->
+        if (apps.isNotEmpty()) {
+            AtlasSearchField(appQuery, { appQuery = it }, "搜索应用", onClear = { appQuery = "" },
+                modifier = Modifier.testTag("apps-search"))
+            AtlasListHeading("应用列表", visibleApps.size, suffix = "个匹配项")
+            if (visibleApps.isEmpty()) CodexEmptyState("没有匹配的应用", "修改搜索词查看其他应用。",
+                actionLabel = "清除搜索", onAction = { appQuery = "" })
+        }
+        visibleApps.forEach { app ->
             val id = app.optString("id")
             val active = (0 until (installed?.length() ?: 0)).mapNotNull { installed?.optJSONObject(it) }
                 .firstOrNull { it.optString("id") == id }
@@ -200,41 +214,29 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             active?.optBoolean("enabled") == true -> "等待工具就绪"
             else -> "尚未连接"
         }
-        CodexSheetFrame(
-            onDismissRequest = { inspecting = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Ink.recessed, contentColor = Ink.parchment
-        ) {
-            Column(
-                Modifier.fillMaxWidth().navigationBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(name, style = MaterialTheme.typography.headlineSmall)
-                StatusPill(appStatus, appStatus == "已连接")
-                Text("应用说明", style = MaterialTheme.typography.titleMedium)
-                Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
-                if (installUrl.startsWith("https://")) {
-                    OutlinedButton(
-                        onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
-                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    ) {
-                        CodexIcon(CodexGlyph.OpenInNew, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("管理应用授权")
-                    }
+        CodexDetailSheet(title = name, onDismiss = { inspecting = null }) {
+            StatusPill(appStatus, appStatus == "已连接")
+            Text("应用说明", style = MaterialTheme.typography.titleMedium)
+            Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
+            if (installUrl.startsWith("https://")) {
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) {
+                    CodexIcon(CodexGlyph.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("管理应用授权")
                 }
-                if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
-                    OutlinedButton(
-                        onClick = {
-                            desired = !enabled
-                            target = app
-                            inspecting = null
-                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    ) { Text(if (enabled) "停用应用" else "启用应用") }
-                }
+            }
+            if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
+                OutlinedButton(
+                    onClick = {
+                        desired = !enabled
+                        target = app
+                        inspecting = null
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) { Text(if (enabled) "停用应用" else "启用应用") }
             }
         }
     }

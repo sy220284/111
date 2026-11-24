@@ -77,10 +77,10 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     CodexSheetFrame(onDismissRequest = onDismiss, containerColor = Ink.canvas,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
-        Column(Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit())
+        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("回合历史与回退", style = MaterialTheme.typography.headlineSmall)
+            AtlasSheetHeader("回合历史与回退", onDismiss)
             Text("历史来自实际会话。回退仅修改保存的会话记录，已写入的本地文件不会自动恢复。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             OutlinedButton(onClick = { showAdvanced = true }, enabled = thread != null,
@@ -121,7 +121,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text(if (exportBusy) "正在整理会话记录…" else "导出会话 Markdown")
             }
-            if (exportBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (exportBusy) AtlasOperationProgress("正在整理会话记录")
             if (exportStatus.isNotBlank()) Text(
                 exportStatus, style = MaterialTheme.typography.bodySmall,
                 color = if (exportStatus.startsWith("导出失败") ||
@@ -130,7 +130,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             if (thread == null) RequiresThreadPanel("回合历史") { onDismiss() }
             else {
                 if (key in loading || prefix + "0" in loading)
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    AtlasOperationProgress("正在读取历史回合")
                 errors[key]?.let { ErrorText(it) }
                 errors["threadRevert"]?.let { ErrorText(it) }
                 if (turns.isEmpty() && pages.isNotEmpty() && key !in loading && prefix + "0" !in loading) {
@@ -160,43 +160,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)
                                 ) { Text("从此回合回退") }
                             }
-                            if (inspected == id) {
-                                val entryKey = "turnItems:" + id
-                                if (entryKey in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                                errors[entryKey]?.let { ErrorText(it) }
-                                data[entryKey]?.let { payload ->
-                                    Text("已读取 ${records(payload).size} 条历史记录",
-                                        color = Ink.muted)
-                                    OutlinedButton(onClick = { fullReader = readableTurnItems(payload) }) {
-                                        Text("阅读任务执行记录")
-                                    }
-                                    records(payload).filter { it.optBoolean("outputDeferred") }
-                                        .forEach { entry ->
-                                            val itemId = entry.optJSONObject("item")
-                                                ?.optString("id").orEmpty()
-                                            if (itemId.isNotBlank()) {
-                                                val detailKey = "turnItemRead:" + id + ":" + itemId
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        vm.refresh(detailKey, "thread/items/read",
-                                                            JSONObject().put("threadId", thread)
-                                                                .put("turnId", id)
-                                                                .put("itemIds", JSONArray().put(itemId)))
-                                                    }, modifier = Modifier.fillMaxWidth(),
-                                                    enabled = detailKey !in loading
-                                                ) { Text("读取完整执行内容") }
-                                                if (detailKey in loading)
-                                                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                                                errors[detailKey]?.let { ErrorText(it) }
-                                                data[detailKey]?.let { detail ->
-                                                    OutlinedButton(
-                                                        onClick = { fullReader = readableTurnItems(detail) }
-                                                    ) { Text("打开完整输出") }
-                                                }
-                                            }
-                                        }
-                                }
-                            }
+
                         }
                     }
                     if (next.isNotBlank()) {
@@ -215,6 +179,47 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+    if (fullReader == null) inspected?.let { id ->
+        CodexInfoDialog("回合条目详情", onDismiss = { inspected = null }) {
+        val entryKey = "turnItems:" + id
+        if (entryKey in loading) AtlasLoadingResults("正在读取回合条目", placeholderRows = 2)
+        errors[entryKey]?.let { ErrorText(it) }
+        data[entryKey]?.let { payload ->
+            Text("已读取 ${records(payload).size} 条历史记录",
+                color = Ink.muted)
+            OutlinedButton(onClick = { fullReader = readableTurnItems(payload) }) {
+                Text("阅读任务执行记录")
+            }
+            records(payload).filter { it.optBoolean("outputDeferred") }
+                .forEach { entry ->
+                    val itemId = entry.optJSONObject("item")
+                        ?.optString("id").orEmpty()
+                    if (itemId.isNotBlank()) {
+                        val detailKey = "turnItemRead:" + id + ":" + itemId
+                        OutlinedButton(
+                            onClick = {
+                                vm.refresh(detailKey, "thread/items/read",
+                                    JSONObject().put("threadId", thread)
+                                        .put("turnId", id)
+                                        .put("itemIds", JSONArray().put(itemId)))
+                            }, modifier = Modifier.fillMaxWidth(),
+                            enabled = detailKey !in loading
+                        ) { Text("读取完整执行内容") }
+                        if (detailKey in loading)
+                            AtlasOperationProgress("正在读取完整执行内容")
+                        errors[detailKey]?.let { ErrorText(it) }
+                        data[detailKey]?.let { detail ->
+                            OutlinedButton(
+                                onClick = { fullReader = readableTurnItems(detail) }
+                            ) { Text("打开完整输出") }
+                        }
+                    }
+                }
+        }
+            if (entryKey !in loading && data[entryKey] == null && errors[entryKey] == null)
+                AtlasFieldFeedback("暂无回合条目")
         }
     }
     target?.let { turnId ->

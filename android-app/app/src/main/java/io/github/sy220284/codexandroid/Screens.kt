@@ -99,6 +99,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
+    val homeLoading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     val connected = status == EngineStatus.Connected
     val connecting = status == EngineStatus.Starting
@@ -214,15 +215,20 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("最近会话", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f))
-            TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+        if (data["threads"] != null) {
+            AtlasListHeading("最近会话", threads.size, suffix = "个会话", action = {
+                TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+            })
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("最近会话", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+            }
         }
-        if (threads.isEmpty()) {
+        if (threads.isEmpty() && "threads" in homeLoading)
+            AtlasLoadingResults("正在读取最近会话", placeholderRows = 2)
+        else         if (threads.isEmpty()) {
             Text(
                 if (connected && data["threads"] != null)
                     "完成首个任务后，这里会出现最近的会话。"
@@ -241,7 +247,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-private fun SmallStat(label: String, value: String, icon: CodexGlyph, modifier: Modifier) {
+private fun SmallStat(label: String, value: String, icon: androidx.compose.ui.graphics.vector.CodexGlyph, modifier: Modifier) {
     MaterialPanel(modifier) {
         CodexIcon(icon, null, tint = Ink.copper)
         Spacer(Modifier.height(16.dp))
