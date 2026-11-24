@@ -485,6 +485,28 @@ class CodexInteractionComponentsInstrumentedTest {
         }
     }
 
+    @Test fun undoSnackbarUsesRealReceiptAndDispatchesExactInverseOnce() {
+        val gate = ThreadUndoGate()
+        val ticket = gate.begin("thread/archive", listOf("a", "b"))
+        val offer = gate.complete(ticket, listOf("a"))!!
+        var executed: ThreadUndoOffer? = null
+        rule.setContent {
+            CodexTheme {
+                val host = remember { androidx.compose.material3.SnackbarHostState() }
+                androidx.compose.material3.SnackbarHost(hostState = host)
+                LaunchedEffect(Unit) {
+                    presentActionFeedback(host, ActionFeedbackReceipt("会话已归档", undo = offer),
+                        gate::isCurrent) {
+                        if (gate.consume(it)) executed = it
+                    }
+                }
+            }
+        }
+        rule.onNodeWithText("撤销").assertIsDisplayed().performTouchInput { click() }
+        rule.runOnIdle { org.junit.Assert.assertEquals(offer, executed) }
+        rule.onNodeWithText("撤销").assertDoesNotExist()
+    }
+
     @Test fun messageMenuOpensActualTextReader() {
         rule.setContent {
             CodexTheme {

@@ -51,6 +51,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
     val bulkSummary by vm.bulkActionSummary.collectAsState()
+    val organizationRevision by vm.threadOrganization.revision.collectAsState()
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
@@ -115,6 +116,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     LaunchedEffect(archived, searchTerm, cursor, selectedSection, fullText) {
         selectedIds = emptyList()
         selectionMode = false
+    }
+    LaunchedEffect(archived, searchTerm, cursor, selectedSection, fullText, organizationRevision) {
         if (!fullText) load(cursor)
     }
 

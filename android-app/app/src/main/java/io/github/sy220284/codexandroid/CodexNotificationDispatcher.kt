@@ -87,7 +87,10 @@ internal object CodexNotificationDispatcher {
             }
             return
         }
-        if (method == "thread/started" || method == "thread/archived") {
+        if (method in setOf("thread/archived", "thread/unarchived", "thread/deleted")) {
+            threadOrganization.observe(method, threadId)
+            syncRecentThreads()
+        } else if (method == "thread/started") {
             syncRecentThreads()
         }
         // Apply turn lifecycle to every thread before filtering display events to

@@ -102,11 +102,9 @@ fun CodexShell(vm: CodexViewModel) {
     val pendingDeepLink by app.pendingDeepLink.collectAsState()
     LaunchedEffect(vm) {
         vm.actionFeedback.collect { receipt ->
-            operationSnacks.showSnackbar(
-                message = receipt.message,
-                withDismissAction = receipt.isError,
-                duration = if (receipt.isError) SnackbarDuration.Long else SnackbarDuration.Short
-            )
+            presentActionFeedback(operationSnacks, receipt,
+                isCurrent = vm.threadOrganization::isCurrent,
+                onUndo = vm.threadOrganization::undo)
         }
     }
     val page = pages.firstOrNull { it.id == selected } ?: pages.first { it.id == NavigationPolicy.startRoute }

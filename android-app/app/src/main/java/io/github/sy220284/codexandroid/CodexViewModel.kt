@@ -78,6 +78,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val errors = MutableStateFlow<Map<String, String>>(emptyMap())
     /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
+    internal val threadOrganization by lazy { ThreadOrganizationController(this) }
     val latestDiff = MutableStateFlow("")
     val modelId = MutableStateFlow("")
     val selectedMode = MutableStateFlow("default")
@@ -136,6 +137,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val previousThread = activeThread.value
             bridge.connect()
+            threadOrganization.invalidate()
             mcpCatalog.reset()
             // A new native process invalidates ephemeral status from the old session.
             threadActivities.value = emptyMap()
@@ -182,6 +184,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
+        if (userAction && ThreadOrganizationPolicy.isOrganization(method) &&
+            ("threadLibraryBulk" in loading.value || "threadLibraryAction" in loading.value)) {
+            val reason = "已有会话整理操作，请完成后重试"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
+            return
+        }
+        val organizationTicket = if (userAction) threadOrganization.begin(method,
+            listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
         dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
         data.value = data.value - key
@@ -196,7 +207,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     onSuccess?.invoke(response)
                     if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
                     if (userAction) actionFeedback.emit(
-                        ActionFeedbackCopy.success(method, response))
+                        ActionFeedbackCopy.success(method, response).copy(
+                            undo = threadOrganization.complete(organizationTicket,
+                                listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank)))))
                 }
             } catch (failure: Exception) {
                 if (latestRequests.isLatest(key, ticket)) {
@@ -230,66 +243,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
     }
 
-    /**
-     * Batch management is serialized: every RPC must finish before the next begins.
-     * A partially failed batch reports exact progress; the user can retry remaining items.
-     */
-    fun bulkThreadAction(kind: String, ids: List<String>, after: () -> Unit) {
-        val method = try {
-            ThreadBulkActionPolicy.method(kind)
-        } catch (failure: IllegalArgumentException) {
-            errors.value = errors.value + ("threadLibraryBulk" to
-                (failure.message ?: "未知批量操作"))
-            return
-        }
-        val targets = ThreadBulkActionPolicy.uniqueIds(ids)
-        if (targets.isEmpty()) return
-        if (!globalWorkSnapshot().canStartNewTask) {
-            errors.value = errors.value + ("threadLibraryBulk" to "本机备份或恢复正在进行，完成后再整理会话")
-            return
-        }
-        if (firstThreadStarting.value || threadSwitching.value ||
-            targets.any { it in threadExecutions.value } ||
-            "threadLibraryBulk" in loading.value) {
-            errors.value = errors.value + ("threadLibraryBulk" to
-                "当前任务仍在执行或已有整理操作，请完成后重试")
-            return
-        }
-        bulkCompletedThreadIds.value = emptySet()
-        bulkActionSummary.value = "正在处理 0/${targets.size} 项会话"
-        errors.value = errors.value - "threadLibraryBulk"
-        loading.value = loading.value + "threadLibraryBulk"
-        viewModelScope.launch {
-            var completed = 0
-            try {
-                for (id in targets) {
-                    check(!firstThreadStarting.value && !threadSwitching.value &&
-                        id !in threadExecutions.value) {
-                        "批量处理期间启动了新任务，已停止后续操作"
-                    }
-                    bridge.request(method, JSONObject().put("threadId", id))
-                    completed++
-                    bulkCompletedThreadIds.value = bulkCompletedThreadIds.value + id
-                    bulkActionSummary.value = "正在处理 $completed/${targets.size} 项会话"
-                }
-                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} $completed 条会话，结果可在这里查看"
-                actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value))
-            } catch (failure: Exception) {
-                val reason = "已完成 $completed/${targets.size} 条；" +
-                    (failure.message ?: "操作中断，请核对未完成项")
-                bulkActionSummary.value = reason
-                errors.value = errors.value + ("threadLibraryBulk" to reason)
-                actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true))
-            } finally {
-                if (activeThread.value in bulkCompletedThreadIds.value && !running.value) {
-                    newThread()
-                }
-                loading.value = loading.value - "threadLibraryBulk"
-                after()
-                syncRecentThreads()
-            }
-        }
-    }
+    fun bulkThreadAction(kind: String, ids: List<String>, after: () -> Unit) =
+        threadOrganization.execute(kind, ids, after = after)
 
     /** 一次读取得到的最近会话同时更新首页和侧栏，避免同一事件触发双重网络请求。 */
     internal fun syncRecentThreads() {
