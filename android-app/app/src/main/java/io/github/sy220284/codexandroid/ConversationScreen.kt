@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -112,8 +111,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         items.drop(lastPlanIndex + 1).any { it.kind == "user" }
     val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
         selectedMode == "plan" && !busy && !switching && thread != null
-    val workspaceLabel = if (selectedWorkspace == vm.workingDirectory) "本机工作区"
-        else File(selectedWorkspace).name.ifBlank { "本机工作区" }
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val composerFocus = remember { FocusRequester() }
@@ -207,32 +204,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp,
-            vertical = if (compactWorkArea) 0.dp else 2.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f).heightIn(min = 48.dp)
-                .testTag("chat-workspace-context"),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(workspaceLabel, modifier = Modifier.weight(1f, fill = false),
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            CodexIconAction(onClick = { navigate("files") },
-                modifier = Modifier.testTag("chat-project-files")) {
-                CodexIcon(CodexGlyph.Project, "打开项目文件", tint = Ink.parchment)
-            }
-            CodexIconAction(onClick = { showTerminalSheet = true },
-                modifier = Modifier.testTag("chat-project-terminal")) {
-                CodexIcon(CodexGlyph.Terminal, "展开项目终端", tint = Ink.parchment)
-            }
-            if (thread != null) {
-                CodexIconAction(onClick = { showContextTools = true }, enabled = !switching) {
-                    CodexIcon(CodexGlyph.MoreHoriz, "会话选项", tint = Ink.parchment)
-                }
-            }
-        }
-        HorizontalDivider(color = Ink.border.copy(alpha = .5f))
         if (goal != null) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
@@ -500,6 +471,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
                         enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
                     if (thread != null) {
+                        add(ComposerShortcut("context", "会话选项", "管理当前会话、历史和关联资料", CodexGlyph.MoreHoriz,
+                            enabled = !switching, onOpen = { keyboard?.hide(); showContextTools = true }))
                         add(ComposerShortcut("goal", "任务目标", "查看和编辑当前会话目标", CodexGlyph.Flag,
                             enabled = !switching, onOpen = { keyboard?.hide(); navigate("goals") }))
                         add(ComposerShortcut("queue", "后续指令", "管理当前会话待执行队列", CodexGlyph.ViewList,

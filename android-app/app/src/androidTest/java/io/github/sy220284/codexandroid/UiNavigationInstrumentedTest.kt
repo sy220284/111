@@ -67,6 +67,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-" + id).performClick()
     }
 
+    private fun openComposerShortcut(command: String) {
+        val input = rule.onNodeWithTag("composer-input")
+        input.performTextReplacement("/$command")
+        rule.onNodeWithTag("composer-shortcut-$command").assertHasClickAction().performClick()
+        rule.onNodeWithTag("composer-shortcuts").assertDoesNotExist()
+    }
+
+    private fun assertNoWorkspaceBar() {
+        rule.onNodeWithTag("chat-workspace-context").assertDoesNotExist()
+        rule.onNodeWithTag("chat-project-files").assertDoesNotExist()
+        rule.onNodeWithTag("chat-project-terminal").assertDoesNotExist()
+        rule.onNodeWithContentDescription("会话选项").assertDoesNotExist()
+    }
+
     private fun openThreadLibrary() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("sidebar-view-all").performScrollTo().performClick()
@@ -104,6 +118,7 @@ class UiNavigationInstrumentedTest {
             rule.activity.requestedOrientation)
         rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
         rule.onNodeWithText("新任务", substring = false).assertDoesNotExist()
+        assertNoWorkspaceBar()
         capture("chat-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-chat").assertDoesNotExist()
@@ -365,7 +380,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("添加附件").assertDoesNotExist()
         captureOverlay("attachment-sheet-android35.png")
         rule.onNodeWithTag("conversation-top-bar").assertExists()
-        rule.onNodeWithTag("chat-project-terminal").performClick()
+        openComposerShortcut("terminal")
         rule.onNodeWithText("项目终端").assertExists()
         captureOverlay("terminal-sheet-android35.png")
     }
@@ -404,11 +419,11 @@ class UiNavigationInstrumentedTest {
 
     @Test fun projectTerminalAndFilesReturnToConversation() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithTag("chat-project-terminal").performClick()
+        openComposerShortcut("terminal")
         rule.onNodeWithText("项目终端").assertExists()
         rule.onNodeWithContentDescription("收起终端").performClick()
         rule.onNodeWithTag("conversation-composer").assertExists()
-        rule.onNodeWithTag("chat-project-files").performClick()
+        openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         // Project files offer both a global session drawer and a contextual return.
         rule.onNodeWithContentDescription("打开侧边导航").assertExists()
@@ -451,13 +466,13 @@ class UiNavigationInstrumentedTest {
     @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
-        rule.onNodeWithTag("chat-project-files").assertIsDisplayed()
-        rule.onNodeWithTag("chat-project-terminal").assertIsDisplayed()
-        rule.onNodeWithTag("chat-project-files").performClick()
+        assertNoWorkspaceBar()
+        rule.onNodeWithText("本机工作区", substring = false).assertDoesNotExist()
+        rule.onNodeWithTag("chat-suggestion-files").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         pressSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithTag("chat-project-terminal").performClick()
+        openComposerShortcut("terminal")
         rule.onNodeWithText("项目终端").assertExists()
         rule.onNodeWithContentDescription("收起终端").performClick()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
@@ -510,7 +525,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
-        rule.onNodeWithTag("chat-project-terminal").performClick()
+        openComposerShortcut("terminal")
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
         val output = rule.onNodeWithTag("terminal-console").fetchSemanticsNode().boundsInRoot
@@ -844,10 +859,9 @@ class UiNavigationInstrumentedTest {
 
     @Test fun noSessionStillOpensProjectResourcesDirectly() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithTag("chat-project-terminal").assertExists()
-        rule.onNodeWithTag("chat-project-files").assertExists()
+        assertNoWorkspaceBar()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
-        rule.onNodeWithTag("chat-project-terminal").performClick()
+        openComposerShortcut("terminal")
         rule.onNodeWithText("项目终端").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
@@ -856,7 +870,8 @@ class UiNavigationInstrumentedTest {
         val vm = (rule.activity.application as CodexApplication).session
         rule.runOnUiThread { vm.activeThread.value = "ci-current-queue" }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        assertNoWorkspaceBar()
+        openComposerShortcut("context")
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
@@ -869,7 +884,7 @@ class UiNavigationInstrumentedTest {
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-draft" }
         rule.waitForIdle()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
         rule.runOnUiThread {
@@ -883,7 +898,7 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
         }
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
     }
@@ -900,7 +915,7 @@ class UiNavigationInstrumentedTest {
 
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithText("后续指令").performScrollTo().performClick()
         rule.onNodeWithTag("thread-queue-sheet").assertExists()
         rule.onNodeWithText("后续指令").assertExists()
@@ -1074,7 +1089,7 @@ class UiNavigationInstrumentedTest {
             vm.running.value = false
         }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithText("复制会话分支").assertExists()
         captureOverlay("audit-thread-context-android35.png")
         rule.onNodeWithText("回合历史与回退").performScrollTo().performClick()
@@ -1092,20 +1107,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("查看完整时间线（实验）").assertExists()
         pressSystemBack()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithText("会话关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
         captureOverlay("audit-thread-attachments-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithTag("thread-context-review").performScrollTo().performClick()
         rule.onNodeWithText("审查范围").assertExists()
         rule.onNodeWithContentDescription("关闭代码审查").assertExists()
         captureOverlay("audit-review-sheet-android35.png")
         rule.onNodeWithContentDescription("关闭代码审查").performClick()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
-        rule.onNodeWithContentDescription("会话选项").performClick()
+        openComposerShortcut("context")
         rule.onNodeWithTag("thread-context-goals").performScrollTo().performClick()
         rule.onNodeWithText("设置新目标").assertExists()
         rule.onNodeWithTag("goal-sticky-save").assertExists()
