@@ -742,7 +742,15 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithText("删除", substring = false).fetchSemanticsNodes().isNotEmpty()
         }
-        rule.onNodeWithText("删除", substring = false).performClick()
+        val duringMenu = java.io.File(folder.parentFile, "00-during-menu-" + name)
+        org.junit.Assert.assertTrue(duringMenu.mkdir())
+        try {
+            // Wait for the external directory to publish while the menu is open.
+            rule.waitUntil(10_000) {
+                rule.onAllNodesWithTag("workspace-menu-" + duringMenu.name).fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("删除", substring = false).assertExists().performClick()
+        } finally { duringMenu.delete() }
         rule.onNodeWithText("确认删除文件夹").assertExists()
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()

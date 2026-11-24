@@ -61,6 +61,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createKind by remember { mutableStateOf("file") }
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var showProjectManager by rememberSaveable { mutableStateOf(false) }
+    var selectedEntry by remember(folder) { mutableStateOf<WorkspaceDirectoryEntry?>(null) }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
     var copyName by remember { mutableStateOf("") }
@@ -132,19 +133,21 @@ fun WorkspacePage(vm: CodexViewModel) {
             it.path == root.path || it.path.startsWith(root.path + File.separator)
         } ?: root
     }
-    val directoryResult by key(folder, refresh) {
+    // Keep the last directory snapshot visible until its replacement is ready.
+    val directoryResult by key(folder) {
         produceState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
-            value = withContext(Dispatchers.IO) {
-                try {
+            try {
+                val entries = withContext(Dispatchers.IO) {
                     val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }
-                    Result.success(entries.asSequence()
+                    entries.asSequence()
                         .filterNot { WorkspaceImport.isStagingName(it.name) }
                         .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
                         .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
-                            .thenBy { it.file.name.lowercase() }).toList())
-                } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
-                catch (failure: Exception) { Result.failure(failure) }
-            }
+                            .thenBy { it.file.name.lowercase() }).toList()
+                }
+                value = Result.success(entries)
+            } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
+            catch (failure: Exception) { value = Result.failure(failure) }
         }
     }
     val children = directoryResult?.getOrNull().orEmpty()
@@ -299,13 +302,12 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
         items(visibleChildren, key = { it.file.absolutePath }) { entry ->
             val file = entry.file
-            var optionsOpen by remember(file.path) { mutableStateOf(false) }
             Surface(
                 color = Ink.panel,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
                 modifier = Modifier.fillMaxWidth().combinedClickable(
-                    onLongClick = { if (!actionBusy) optionsOpen = true },
+                    onLongClick = { if (!actionBusy) selectedEntry = entry },
                     onClick = {
                         val safe = file.canonicalFile
                         if (safe.path.startsWith(root.path + File.separator)) {
@@ -327,49 +329,50 @@ fun WorkspacePage(vm: CodexViewModel) {
                         Text(if (entry.directory) "文件夹" else "${entry.bytes / 1024} KB",
                             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
-                    Box {
-                        CodexIconAction(onClick = { optionsOpen = true },
-                            enabled = !actionBusy,
-                            modifier = Modifier.testTag("workspace-menu-" + file.name)) {
-                            CodexIcon(CodexGlyph.MoreVert, "管理 " + file.name)
-                        }
-                        if (optionsOpen) CodexActionSheet(
-                            title = "管理 " + file.name,
-                            onDismiss = { optionsOpen = false },
-                            actions = listOf(
-                                CodexSheetAction(
-                                    label = "重命名",
-                                    description = "更改当前文件或文件夹的名称",
-                                    icon = CodexGlyph.Edit,
-                                    onClick = {
-                                        renameName = file.name
-                                        fileAction = "rename" to file
-                                    }
-                                ),
-                                CodexSheetAction(
-                                    label = "复制",
-                                    description = "在当前目录建立一份副本",
-                                    icon = CodexGlyph.ContentCopy,
-                                    onClick = {
-                                        copyName = if (entry.directory) file.name + "-副本"
-                                            else file.nameWithoutExtension + "-副本" +
-                                                (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
-                                        fileAction = "copy" to file
-                                    }
-                                ),
-                                CodexSheetAction(
-                                    label = "删除",
-                                    description = "删除前将再次确认目标",
-                                    icon = CodexGlyph.DeleteOutline,
-                                    onClick = { fileAction = "delete" to file },
-                                    destructive = true
-                                )
-                            )
-                        )
+                    CodexIconAction(onClick = { selectedEntry = entry }, enabled = !actionBusy,
+                        modifier = Modifier.testTag("workspace-menu-" + file.name)) {
+                        CodexIcon(CodexGlyph.MoreVert, "管理 " + file.name)
                     }
                 }
             }
         }
+    }
+
+    selectedEntry?.let { entry ->
+        val file = entry.file
+        CodexActionSheet(
+            title = "管理 " + file.name,
+            onDismiss = { selectedEntry = null },
+            actions = listOf(
+                CodexSheetAction(
+                    label = "重命名",
+                    description = "更改当前文件或文件夹的名称",
+                    icon = CodexGlyph.Edit,
+                    onClick = {
+                        renameName = file.name
+                        fileAction = "rename" to file
+                    }
+                ),
+                CodexSheetAction(
+                    label = "复制",
+                    description = "在当前目录建立一份副本",
+                    icon = CodexGlyph.ContentCopy,
+                    onClick = {
+                        copyName = if (entry.directory) file.name + "-副本"
+                            else file.nameWithoutExtension + "-副本" +
+                                (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                        fileAction = "copy" to file
+                    }
+                ),
+                CodexSheetAction(
+                    label = "删除",
+                    description = "删除前将再次确认目标",
+                    icon = CodexGlyph.DeleteOutline,
+                    onClick = { fileAction = "delete" to file },
+                    destructive = true
+                )
+            )
+        )
     }
 
     if (showProjectManager) {
