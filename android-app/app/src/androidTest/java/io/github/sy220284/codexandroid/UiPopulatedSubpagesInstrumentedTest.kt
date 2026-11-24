@@ -518,9 +518,10 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        rule.onNodeWithContentDescription("加入后续执行队列").assertExists()
+        rule.onNodeWithTag("composer-follow-up-mode").performClick()
         rule.onNodeWithTag("composer-mode-queue").assertIsDisplayed()
         rule.onNodeWithTag("composer-mode-steer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("加入后续执行队列").assertExists()
         rule.onNodeWithTag("composer-mode-steer").performClick()
         rule.onNodeWithContentDescription("立即调整当前任务").assertExists()
         capture("audit-composer-running-android35.png")

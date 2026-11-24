@@ -365,20 +365,27 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
         rule.onNodeWithTag("composer-plus").assertIsDisplayed()
         rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
+        rule.onNodeWithTag("conversation-model-control").assertIsDisplayed()
+        rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
     }
 
     @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithText("默认模型").assertIsDisplayed()
+        rule.onNodeWithTag("conversation-model-control").assertIsDisplayed()
         // 模式由真实内核恢复，可能是「执行」或「先计划」；校验实际可交互的按钮。
         rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
-        rule.onNodeWithContentDescription("查看内核运行诊断").assertIsDisplayed()
-        rule.onNodeWithContentDescription("选择照片").assertIsDisplayed()
+        rule.onNodeWithContentDescription("查看内核运行诊断").assertDoesNotExist()
+        rule.onNodeWithContentDescription("添加内容").assertIsDisplayed()
+        rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
         capture("chat-toolbar-android35.png")
-        // 单一照片来源直接调用系统选择器，省去一层菜单。
-        rule.onNodeWithTag("composer-plus").assertHasClickAction()
-        rule.onNodeWithText("添加附件").assertDoesNotExist()
+        rule.onNodeWithTag("composer-plus").performClick()
+        rule.onNodeWithText("添加内容").assertExists()
+        rule.onNodeWithTag("composer-add-photos").assertExists()
+        rule.onNodeWithTag("composer-add-files").assertExists()
+        rule.onNodeWithTag("composer-add-reference").assertExists()
+        rule.onNodeWithTag("composer-add-skill").assertExists()
         captureOverlay("attachment-sheet-android35.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("terminal")
         rule.onNodeWithText("项目终端").assertExists()
@@ -387,7 +394,8 @@ class UiNavigationInstrumentedTest {
 
     @Test fun statusButtonHasStableMeaningAndSeparatesActions() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("查看内核运行诊断").performClick()
+        rule.onNodeWithTag("composer-task-options").performClick()
+        rule.onNodeWithTag("composer-tool-status").performScrollTo().performClick()
         rule.onNodeWithText("运行状态").assertExists()
         rule.onNodeWithText("查看诊断和日志").assertExists()
         captureOverlay("engine-status-android35.png")
@@ -395,8 +403,9 @@ class UiNavigationInstrumentedTest {
 
     @Test fun modelChoiceUsesOneSharedBottomSheet() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        rule.onNodeWithText("默认模型").performClick()
+        rule.onNodeWithTag("conversation-model-control").performClick()
         rule.onNodeWithText("选择运行模型").assertExists()
+        rule.onNodeWithTag("composer-effort").assertExists()
         captureOverlay("model-sheet-android35.png")
     }
 

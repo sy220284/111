@@ -14,6 +14,7 @@
         "ConversationScreen",
         "ConversationComposer",
         "ConversationControlBar",
+        "ComposerReferenceSurfaces",
         "ConversationLoadingSkeleton",
         "ChatWorkTopBar",
         "ThreadContextTools",
@@ -26,6 +27,8 @@
       "tests": [
         "UiNavigationInstrumentedTest.emptyChatHasNoSuggestionCardsAndKeepsComposerAccessible",
         "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "UiNavigationInstrumentedTest.narrowConversationToolbarKeepsPrimaryActionsVisible",
+        "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
         "CodexInteractionComponentsInstrumentedTest.composerShortcutOpensRealCallbackOnlyWhenSelected",
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction",
         "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove",

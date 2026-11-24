@@ -144,7 +144,7 @@ internal object CodexNotificationDispatcher {
                     try {
                         if (AttachmentRetentionPolicy.canRelease(
                                 path, composerDrafts.value.values,
-                                threadExecutions.value.values.flatMap { it.images }
+                                threadExecutions.value.values.flatMap { it.images } + pendingComposerImages.value
                             )) LocalImageAttachments.release(getApplication(), path)
                     } catch (failure: Exception) {
                         errors.value = errors.value + ("attachments" to

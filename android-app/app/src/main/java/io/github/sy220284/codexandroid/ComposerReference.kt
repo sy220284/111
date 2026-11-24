@@ -26,7 +26,7 @@ internal object ComposerInputPolicy {
         }
         references.forEach {
             val file = File(it.path).canonicalFile
-            require(file.isFile && file.isAbsolute) { "引用已失效：${it.name}" }
+            require(file.isFile && File(it.path).isAbsolute) { "引用已失效：${it.name}" }
             if (it.kind == "file") require(file.path.startsWith(root.path + File.separator)) { "引用文件不在本机工作区" }
         }
     }

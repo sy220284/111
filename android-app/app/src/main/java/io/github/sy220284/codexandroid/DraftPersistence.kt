@@ -2,11 +2,10 @@ package io.github.sy220284.codexandroid
 
 import android.content.Context
 import org.json.JSONArray
-import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 
-/** Persist user text and portable image filenames, never absolute device paths. */
+/** Persist user text, portable image filenames, explicit choices and local references. */
 internal data class DraftRestoreResult(
     val drafts: Map<String, ComposerDraft>,
     val missingImages: Int = 0,
@@ -92,7 +91,7 @@ internal object DraftPersistence {
         val raw = prefs.getString(KEY, null) ?: return DraftRestoreResult(emptyMap())
         val decoded = try {
             decode(raw)
-        } catch (failure: JSONException) {
+        } catch (failure: Exception) {
             // Keep an untouched local copy before any new save can overwrite it.
             val backupKey = "drafts-recovery-" + System.currentTimeMillis()
             check(prefs.edit().putString(backupKey, raw).commit()) {
