@@ -53,8 +53,8 @@ internal fun SidebarSessions(
     var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
     var historyError by remember { mutableStateOf("") }
     val data by vm.data.collectEntries("sidebarThreads", "archivedThreads")
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("sidebarThreads", "archivedThreads", "threadLibraryAction", "threadLibraryBulk")) }
+    val errors by vm.errors.collectEntries("sidebarThreads", "archivedThreads", "threadLibraryAction", "threadLibraryBulk")
     val status by vm.bridge.status.collectAsState()
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()

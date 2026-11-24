@@ -114,7 +114,8 @@ fun CodexActionSheet(
     onDismiss: () -> Unit
 ) {
     CodexDetailSheet(title = title, onDismiss = onDismiss, startExpanded = actions.size >= 5) {
-        CodexActionRows(actions, onDismiss)
+        val closeWithAction = LocalCodexSheetAction.current
+        CodexActionRows(actions, onDismiss, closeWithAction)
     }
 }
 
@@ -136,7 +137,8 @@ fun CodexActionDialog(
 @Composable
 private fun ColumnScope.CodexActionRows(
     actions: List<CodexSheetAction>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    closeWithAction: ((() -> Unit) -> Unit)? = null
 ) {
     actions.forEach { action ->
             val tone = if (action.destructive) Ink.red else Ink.parchment
@@ -144,8 +146,8 @@ private fun ColumnScope.CodexActionRows(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
                     .let { if (action.testTag != null) it.testTag(action.testTag) else it }
                     .codexPressable(enabled = action.enabled, role = Role.Button) {
-                        onDismiss()
-                        action.onClick()
+                        if (closeWithAction != null) closeWithAction(action.onClick)
+                        else { onDismiss(); action.onClick() }
                     },
                 color = Ink.panel,
                 shape = RoundedCornerShape(14.dp),

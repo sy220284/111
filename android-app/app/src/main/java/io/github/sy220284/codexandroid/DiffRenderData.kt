@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal data class DiffSummary(val files: Int, val additions: Int, val deletions: Int)
-internal data class PreparedDiff(val files: List<DiffSection>, val lineNumbers: List<List<DiffLineNumbers>>)
+internal data class PreparedDiff(val raw: String, val files: List<DiffSection>, val lineNumbers: List<List<DiffLineNumbers>>)
 
 private const val INLINE_DIFF_LIMIT = 32_768
 
@@ -31,7 +31,16 @@ internal fun rememberDiffSummary(raw: String): State<DiffSummary?> = rememberDif
 }
 
 @Composable
-internal fun rememberPreparedDiff(raw: String): State<PreparedDiff?> = rememberDiffValue(raw) {
-    val files = UnifiedDiff.parse(it)
-    PreparedDiff(files, files.map { file -> UnifiedDiff.annotateLines(file.lines) })
+internal fun rememberPreparedDiff(raw: String, owner: String?): State<PreparedDiff?> = key(owner) {
+    // Keep a coherent previous snapshot during parsing, but never across conversations.
+    val initial = remember { if (raw.length <= INLINE_DIFF_LIMIT) prepareDiff(raw) else null }
+    produceState(initial, raw) {
+        if (value?.raw != raw) value = if (raw.length <= INLINE_DIFF_LIMIT) prepareDiff(raw)
+            else withContext(Dispatchers.Default) { prepareDiff(raw) }
+    }
+}
+
+private fun prepareDiff(raw: String): PreparedDiff {
+    val files = UnifiedDiff.parse(raw)
+    return PreparedDiff(raw, files, files.map { file -> UnifiedDiff.annotateLines(file.lines) })
 }

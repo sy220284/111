@@ -27,32 +27,41 @@ import androidx.compose.ui.unit.dp
 fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val diff by vm.latestDiff.collectAsState()
     val active by vm.activeThread.collectAsState()
-    val prepared by rememberPreparedDiff(diff)
+    val prepared by rememberPreparedDiff(diff, active)
+    val context = LocalContext.current
+    var expandedPaths by remember(active) { mutableStateOf<Set<String>?>(null) }
+    var wrapLines by remember(active) { mutableStateOf(true) }
+    var query by remember(active) { mutableStateOf("") }
+    val listState = key(active) { rememberLazyListState() }
+    var filePicker by remember(active) { mutableStateOf(false) }
+    var pendingJump by remember(active) { mutableStateOf<String?>(null) }
     val ready = prepared
     if (ready == null) {
         ScreenColumn { AtlasOperationProgress("正在整理文件与代码行…") }
         return
     }
     val files = ready.files
-    val context = LocalContext.current
-    var expanded by remember(active, diff) {
-        mutableStateOf(DiffExpansionPreferences.load(context, active, diff, files.size))
+    val displayedDiff = ready.raw
+    val updating = displayedDiff != diff
+    val initialPaths = remember(active, displayedDiff) {
+        DiffExpansionPreferences.load(context, active, displayedDiff, files.size).map { files[it].path }.toSet()
     }
+    val paths = expandedPaths ?: initialPaths
+    LaunchedEffect(active, displayedDiff) {
+        if (expandedPaths == null && files.isNotEmpty()) expandedPaths = initialPaths
+    }
+    val expanded = remember(files, paths) { files.indices.filter { files[it].path in paths }.toSet() }
     fun updateExpanded(next: Set<Int>) {
-        DiffExpansionPreferences.save(context, active, diff, next)
-        expanded = next
+        expandedPaths = (paths - files.map { it.path }.toSet()) + next.map { files[it].path }
+        DiffExpansionPreferences.save(context, active, displayedDiff, next)
     }
     val clipboard = LocalClipboardManager.current
-    var copied by remember(diff) { mutableStateOf(false) }
-    var wrapLines by remember { mutableStateOf(true) }
-    var query by remember(diff) { mutableStateOf("") }
+    var copied by remember(displayedDiff) { mutableStateOf(false) }
     val visibleFiles = remember(files, query) { files.indices.filter { files[it].path.contains(query.trim(), ignoreCase = true) } }
     val lineNumbers = ready.lineNumbers
-    val listState = rememberLazyListState()
-    var filePicker by remember { mutableStateOf(false) }
-    var pendingJump by remember(diff) { mutableStateOf<Int?>(null) }
     LaunchedEffect(pendingJump, expanded, visibleFiles) {
-        val target = pendingJump ?: return@LaunchedEffect
+        val path = pendingJump ?: return@LaunchedEffect
+        val target = files.indexOfFirst { it.path == path }
         if (target in visibleFiles) {
             val position = 1 + visibleFiles.takeWhile { it != target }.sumOf { index ->
                 1 + if (index in expanded) files[index].lines.size else 0
@@ -66,7 +75,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         selectedId = null, onSelect = { value ->
             val target = value.toInt()
             updateExpanded(expanded + target)
-            pendingJump = target
+            pendingJump = files[target].path
             filePicker = false
         }, onDismiss = { filePicker = false }, searchable = true)
     LazyColumn(
@@ -97,6 +106,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     }
                 }
+                if (updating) AtlasOperationProgress("正在整理最新差异，暂时保留当前阅读内容")
                 if (files.isNotEmpty()) AtlasSearchField(query, { query = it }, "按文件名筛选差异",
                     onClear = { query = "" }, modifier = Modifier.testTag("diff-file-search"))
                 if (visibleFiles.isNotEmpty()) CodexTextAction(onClick = { filePicker = true },
@@ -110,9 +120,9 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("代码审查")
                     }
                     CodexSecondaryButton(onClick = {
-                        clipboard.setText(AnnotatedString(diff))
+                        clipboard.setText(AnnotatedString(displayedDiff))
                         copied = true
-                    }, enabled = diff.isNotBlank(),
+                    }, enabled = displayedDiff.isNotBlank(),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(5.dp))
@@ -127,7 +137,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        if (active == null || diff.isBlank()) {
+        if (active == null || displayedDiff.isBlank()) {
             item {
                 CodexEmptyState(
                     "暂无可展示的代码差异",
@@ -146,7 +156,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             visibleFiles.forEach { index ->
                 val file = files[index]
-                item(key = "diff-heading-$index") {
+                item(key = "diff-heading-${file.path}") {
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIcon(if (file.binary) CodexGlyph.Attachment
@@ -178,7 +188,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if (index in expanded) {
-                    items(file.lines.size, key = { line -> "diff-line-$index-$line" }) { lineIndex ->
+                    items(file.lines.size, key = { line -> "diff-line-${file.path}-$line" }) { lineIndex ->
                         val line = file.lines[lineIndex]
                         val tone = when {
                             line.startsWith("+") && !line.startsWith("+++") -> Ink.jade

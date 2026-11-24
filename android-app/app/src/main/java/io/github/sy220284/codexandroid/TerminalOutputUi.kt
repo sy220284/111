@@ -6,6 +6,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -29,6 +35,29 @@ internal data class TerminalRenderedOutput(val processId: String, val stdout: St
     companion object {
         fun from(state: TerminalSessionState) =
             TerminalRenderedOutput(state.processId, state.stdoutText, state.stderrText)
+    }
+}
+
+/** Decode large raw snapshots outside the UI thread; sequential collection coalesces intermediate frames. */
+@Composable
+internal fun rememberTerminalOutput(state: State<TerminalSessionState>, processId: String): State<TerminalRenderedOutput> {
+    val initial = remember(state, processId) {
+        val snapshot = state.value
+        if (snapshot.processId == processId && snapshot.stdoutBytes.size + snapshot.stderrBytes.size <= 16384)
+            TerminalRenderedOutput.from(snapshot)
+        else TerminalRenderedOutput(processId, "", "")
+    }
+    return androidx.compose.runtime.key(processId) {
+        produceState(initial, state, processId) {
+            snapshotFlow { state.value }.collect { snapshot ->
+                if (snapshot.processId == processId) {
+                    val decoded = if (snapshot.stdoutBytes.size + snapshot.stderrBytes.size <= 16384)
+                        TerminalRenderedOutput.from(snapshot)
+                    else withContext(Dispatchers.Default) { TerminalRenderedOutput.from(snapshot) }
+                    value = decoded
+                }
+            }
+        }
     }
 }
 

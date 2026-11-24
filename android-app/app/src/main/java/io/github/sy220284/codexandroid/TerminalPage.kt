@@ -86,18 +86,16 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var input by rememberSaveable { mutableStateOf("") }
     val session by vm.terminalSession.collectProjection { TerminalControlState.from(it) }
     val outputState = vm.terminalSession.collectFrameState(session.processId)
-    val renderedOutput = remember(outputState) {
-        derivedStateOf { TerminalRenderedOutput.from(outputState.value) }
-    }
+    val renderedOutput = rememberTerminalOutput(outputState, session.processId)
     val terminalStarting by vm.terminalStarting.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val errors by vm.errors.collectEntries("terminal", "terminalInput", "terminalStop", "terminalResize")
     var historicalStdout by remember(session.processId) { mutableStateOf("") }
     var historicalOffset by remember(session.processId) { mutableStateOf<Long?>(null) }
     var historicalMore by remember(session.processId) { mutableStateOf(true) }
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
     var historicalError by remember(session.processId) { mutableStateOf("") }
     val activeWorkspace by vm.activeWorkspace.collectAsState()
-    val consoleScroll = rememberScrollState()
+    val consoleScroll = key(session.processId) { rememberScrollState() }
     var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
     var automaticConsoleScroll by remember(session.processId) { mutableStateOf(false) }
     LaunchedEffect(consoleScroll, session.processId) {
@@ -115,7 +113,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
             }
     }
     LaunchedEffect(consoleScroll, session.processId) {
-        snapshotFlow { consoleScroll.maxValue }.collect {
+        snapshotFlow { consoleScroll.maxValue to renderedOutput.value }.collect {
             if (followConsoleTail) {
                 withFrameNanos { }
                 if (followConsoleTail && consoleScroll.value < consoleScroll.maxValue) {

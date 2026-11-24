@@ -65,8 +65,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val switching by vm.threadSwitching.collectAsState()
     val effort = drafts[ThreadComposerDrafts.key(active)]?.options?.effort.orEmpty()
     var selectingEffort by remember { mutableStateOf(false) }
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("models")) }
+    val errors by vm.errors.collectEntries("models")
     val engineStatus by vm.bridge.status.collectAsState()
     LaunchedEffect(engineStatus) {
         if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
@@ -136,8 +136,8 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val busy = running || creating || switching
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("modes")) }
+    val errors by vm.errors.collectEntries("modes")
     val status by vm.bridge.status.collectAsState()
     LaunchedEffect(status) {
         if (status == EngineStatus.Connected)

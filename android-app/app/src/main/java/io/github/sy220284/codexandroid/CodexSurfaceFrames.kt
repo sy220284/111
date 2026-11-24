@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 internal val LocalCodexSheetClose = staticCompositionLocalOf<(() -> Unit)?> { null }
+internal val LocalCodexSheetAction = staticCompositionLocalOf<((() -> Unit) -> Unit)?> { null }
 
 /** 所有详情、快捷选择和专业任务面板共享一个原生容器。保留各业务页面的滚动、状态与返回策略。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,11 +46,19 @@ fun CodexSheetFrame(
     val dismiss by rememberUpdatedState(onDismissRequest)
     var closing by remember(sheetState) { mutableStateOf(false) }
     var dismissed by remember(sheetState) { mutableStateOf(false) }
+    var pendingAction by remember(sheetState) { mutableStateOf<(() -> Unit)?>(null) }
     val finish: () -> Unit = {
-        if (!dismissed) { dismissed = true; dismiss() }
+        if (!dismissed) {
+            dismissed = true
+            val action = pendingAction
+            pendingAction = null
+            dismiss()
+            action?.invoke()
+        }
     }
-    val close: () -> Unit = {
+    val closeWithAction: (() -> Unit) -> Unit = { action ->
         if (!closing && !dismissed) {
+            pendingAction = action
             closing = true
             if (reduceMotion) finish()
             else scope.launch {
@@ -58,15 +67,18 @@ fun CodexSheetFrame(
                     if (!sheetState.isVisible) finish()
                 } finally {
                     closing = false
+                    if (!dismissed) pendingAction = null
                 }
             }
         }
     }
+    val close: () -> Unit = { closeWithAction {} }
     ModalBottomSheet(onDismissRequest = finish, modifier = modifier, sheetState = sheetState,
         containerColor = containerColor, contentColor = contentColor, dragHandle = dragHandle,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
         val column = this
-        CompositionLocalProvider(LocalCodexSheetClose provides close) { column.content() }
+        CompositionLocalProvider(LocalCodexSheetClose provides close,
+            LocalCodexSheetAction provides closeWithAction) { column.content() }
     }
 }
 
