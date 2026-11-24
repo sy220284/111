@@ -49,6 +49,24 @@ class TurnRequestContractTest {
         } catch (_: IllegalArgumentException) {}
     }
 
+    @Test fun planModeUsesConfiguredModelAndSupportedEffort() {
+        val catalog = listOf(
+            JSONObject().put("id", "a").put("model", "model-a").put("isDefault", true)
+                .put("defaultReasoningEffort", "medium"),
+            JSONObject().put("id", "b").put("model", "model-b")
+                .put("defaultReasoningEffort", "low")
+                .put("supportedReasoningEfforts", org.json.JSONArray().put(JSONObject().put("reasoningEffort", "high")))
+        )
+        val config = JSONObject().put("model", "model-b").put("plan_mode_reasoning_effort", "high")
+        val settings = TurnRequestContract.build("t", "计划", "", "plan", catalog, effectiveConfig = config)
+            .getJSONObject("collaborationMode").getJSONObject("settings")
+        assertEquals("b", settings.getString("model"))
+        assertEquals("high", settings.getString("reasoning_effort"))
+        val override = TurnRequestContract.build("t", "计划", "a", "plan", catalog, effectiveConfig = config)
+            .getJSONObject("collaborationMode").getJSONObject("settings")
+        assertEquals("medium", override.getString("reasoning_effort"))
+    }
+
     @Test fun unsupportedModeFailsBeforeSubmitting() {
         try {
             TurnRequestContract.build("t5", "执行", "", "fullyAutonomous", models)

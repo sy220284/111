@@ -122,7 +122,7 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
-      - name: 全量核查 29 项入口、路由、回归证据与 195 项官方方法
+      - name: 全量核查 32 项入口、路由、回归证据与 195 项官方方法
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_check_full_feature_workflows.py'
           python3 android-app/tools/check_full_feature_workflows.py \

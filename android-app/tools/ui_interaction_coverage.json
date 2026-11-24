@@ -68,9 +68,9 @@
     },
     {
       "route": "models",
-      "file": "UiSharedSurfaces.kt",
-      "owner": "ModelChoiceSurface",
-      "component": "CodexChoiceSheet"
+      "file": "EcosystemScreens.kt",
+      "owner": "ModelsPage",
+      "component": "EngineSettingsSection"
     },
     {
       "route": "modes",
@@ -146,9 +146,9 @@
     },
     {
       "route": "appearance",
-      "file": "SettingsHub.kt",
-      "owner": "SettingsHubPage",
-      "component": "CodexDetailSheet"
+      "file": "ControlScreens.kt",
+      "owner": "AppearancePage",
+      "component": "EngineSettingsSection"
     },
     {
       "route": "diagnostics",
@@ -173,6 +173,24 @@
       "file": "AppUpdateCard.kt",
       "owner": "AppUpdateCard",
       "component": "CodexDetailSheet"
+    },
+    {
+      "route": "personalization",
+      "file": "EngineSettingUi.kt",
+      "owner": "PersonalizationPage",
+      "component": "EngineSettingsSection"
+    },
+    {
+      "route": "context",
+      "file": "EngineSettingUi.kt",
+      "owner": "ContextManagementPage",
+      "component": "EngineSettingsSection"
+    },
+    {
+      "route": "tools",
+      "file": "EngineSettingUi.kt",
+      "owner": "SearchCapabilityPage",
+      "component": "EngineSettingsSection"
     }
   ],
   "subpages": [
@@ -463,6 +481,42 @@
       "component": "AtlasExclusiveChip",
       "test": "unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction",
       "screenshot": null
+    },
+    {
+      "id": "model-preferences",
+      "parent": "models",
+      "file": "EcosystemScreens.kt",
+      "owner": "ModelsPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-models"
+    },
+    {
+      "id": "personalization-preferences",
+      "parent": "personalization",
+      "file": "EngineSettingUi.kt",
+      "owner": "PersonalizationPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-personalization"
+    },
+    {
+      "id": "context-preferences",
+      "parent": "context",
+      "file": "EngineSettingUi.kt",
+      "owner": "ContextManagementPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-context"
+    },
+    {
+      "id": "search-preferences",
+      "parent": "tools",
+      "file": "EngineSettingUi.kt",
+      "owner": "SearchCapabilityPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-tools"
     }
   ]
 }

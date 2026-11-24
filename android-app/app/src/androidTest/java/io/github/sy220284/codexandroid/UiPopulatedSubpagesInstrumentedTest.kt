@@ -663,9 +663,9 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.waitForIdle()
         vm.data.value = vm.data.value + ("models" to JSONObject()
             .put("data", JSONArray().put(entry)))
-        rule.onNodeWithText("测试模型").assertExists()
         rule.onNodeWithText("模型说明从列表进入详情后展示。").assertDoesNotExist()
-        rule.onNodeWithTag("model-detail-audit-model").performClick()
+        rule.onNodeWithTag("model-catalog-info").performScrollTo().performClick()
+        rule.onNodeWithText("测试模型").assertExists()
         rule.onNodeWithText("模型说明从列表进入详情后展示。").assertIsDisplayed()
         assertEquals("", vm.modelId.value)
     }

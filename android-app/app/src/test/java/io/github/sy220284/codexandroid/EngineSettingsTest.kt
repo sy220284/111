@@ -6,6 +6,19 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class EngineSettingsTest {
+    @Test fun everyPreferenceHasExactlyOneOwner() {
+        val expected = mapOf("models" to 4, "personalization" to 1, "context" to 4,
+            "tools" to 1, "environments" to 2, "appearance" to 1)
+        assertEquals(expected, EngineSettings.all.groupingBy { it.owner }.eachCount())
+        assertEquals(EngineSettings.all.size, EngineSettings.all.map { it.key }.distinct().size)
+        assertTrue(EngineSettings.forOwner("config").isEmpty())
+        assertEquals("", EngineSettings.byKey("developer_instructions")!!.parse(""))
+        assertEquals(300000L, EngineSettings.byKey("background_terminal_max_timeout")!!.parse("300"))
+        assertEquals("300 秒", EngineSettings.byKey("background_terminal_max_timeout")!!.label(300000))
+        val model = JSONObject().put("id", "id").put("model", "m").put("displayName", "模型")
+        assertEquals(mapOf("m" to "模型"), EngineSettings.modelChoices(listOf(model)))
+    }
+
     @Test fun numericLimitsAndNativeTypes() {
         val percentage = EngineSettings.byKey("model_post_turn_compact_threshold_percent")!!
         assertEquals(100L, percentage.parse("100"))
