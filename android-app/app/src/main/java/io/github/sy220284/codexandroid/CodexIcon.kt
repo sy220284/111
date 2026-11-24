@@ -1,0 +1,109 @@
+package io.github.sy220284.codexandroid
+
+import androidx.annotation.DrawableRes
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+
+/** 111 唯一应用图标入口：资源内保持统一 24dp / 1.8 线宽，颜色随真实状态和主题。 */
+enum class CodexGlyph(@DrawableRes val resId: Int) {
+    Attachment(R.drawable.ic_ui_attachment),
+    BrandCodex(R.drawable.ic_ui_brand_codex),
+    Diff(R.drawable.ic_ui_diff),
+    History(R.drawable.ic_ui_history),
+    Project(R.drawable.ic_ui_project),
+    Retry(R.drawable.ic_ui_retry),
+    Search(R.drawable.ic_ui_search),
+    Settings(R.drawable.ic_ui_settings),
+    Sidebar(R.drawable.ic_ui_sidebar),
+    Stop(R.drawable.ic_ui_stop),
+    TaskApproval(R.drawable.ic_ui_task_approval),
+    TaskComplete(R.drawable.ic_ui_task_complete),
+    TaskError(R.drawable.ic_ui_task_error),
+    TaskRunning(R.drawable.ic_ui_task_running),
+    Terminal(R.drawable.ic_ui_terminal),
+    Thread(R.drawable.ic_ui_thread),
+    Home(R.drawable.ic_ui_home),
+    Flag(R.drawable.ic_ui_flag),
+    ViewList(R.drawable.ic_ui_view_list),
+    Code(R.drawable.ic_ui_code),
+    FactCheck(R.drawable.ic_ui_fact_check),
+    AutoAwesome(R.drawable.ic_ui_auto_awesome),
+    PeopleOutline(R.drawable.ic_ui_people_outline),
+    School(R.drawable.ic_ui_school),
+    Extension(R.drawable.ic_ui_extension),
+    Apps(R.drawable.ic_ui_apps),
+    Hub(R.drawable.ic_ui_hub),
+    Dns(R.drawable.ic_ui_dns),
+    AccountCircle(R.drawable.ic_ui_account_circle),
+    Tune(R.drawable.ic_ui_tune),
+    Security(R.drawable.ic_ui_security),
+    Insights(R.drawable.ic_ui_insights),
+    Speed(R.drawable.ic_ui_speed),
+    Palette(R.drawable.ic_ui_palette),
+    BugReport(R.drawable.ic_ui_bug_report),
+    Info(R.drawable.ic_ui_info),
+    ArrowBack(R.drawable.ic_ui_arrow_back),
+    ArrowForward(R.drawable.ic_ui_arrow_forward),
+    ArrowUpward(R.drawable.ic_ui_arrow_upward),
+    ArrowDownward(R.drawable.ic_ui_arrow_downward),
+    Add(R.drawable.ic_ui_add),
+    AddCircleOutline(R.drawable.ic_ui_add_circle_outline),
+    ChevronRight(R.drawable.ic_ui_chevron_right),
+    ExpandMore(R.drawable.ic_ui_expand_more),
+    ExpandLess(R.drawable.ic_ui_expand_less),
+    Close(R.drawable.ic_ui_close),
+    RadioButtonChecked(R.drawable.ic_ui_radio_button_checked),
+    SyncProblem(R.drawable.ic_ui_sync_problem),
+    PhoneAndroid(R.drawable.ic_ui_phone_android),
+    OpenInNew(R.drawable.ic_ui_open_in_new),
+    Check(R.drawable.ic_ui_check),
+    ContentCopy(R.drawable.ic_ui_content_copy),
+    SystemUpdate(R.drawable.ic_ui_system_update),
+    MoreHoriz(R.drawable.ic_ui_more_horiz),
+    MoreVert(R.drawable.ic_ui_more_vert),
+    TouchApp(R.drawable.ic_ui_touch_app),
+    Memory(R.drawable.ic_ui_memory),
+    EditNote(R.drawable.ic_ui_edit_note),
+    CreateNewFolder(R.drawable.ic_ui_create_new_folder),
+    PersonOutline(R.drawable.ic_ui_person_outline),
+    FileUpload(R.drawable.ic_ui_file_upload),
+    AccountTree(R.drawable.ic_ui_account_tree),
+    Description(R.drawable.ic_ui_description),
+    Folder(R.drawable.ic_ui_folder),
+    Edit(R.drawable.ic_ui_edit),
+    DeleteOutline(R.drawable.ic_ui_delete_outline),
+    Save(R.drawable.ic_ui_save),
+    Computer(R.drawable.ic_ui_computer),
+    Link(R.drawable.ic_ui_link),
+    SaveAlt(R.drawable.ic_ui_save_alt),
+    WarningAmber(R.drawable.ic_ui_warning_amber),
+    Inbox(R.drawable.ic_ui_inbox),
+    Assignment(R.drawable.ic_ui_assignment),
+    Build(R.drawable.ic_ui_build),
+    Bolt(R.drawable.ic_ui_bolt),
+    Widgets(R.drawable.ic_ui_widgets),
+    PlayArrow(R.drawable.ic_ui_play_arrow),
+    OpenInFull(R.drawable.ic_ui_open_in_full),
+    SelectAll(R.drawable.ic_ui_select_all),
+    Unarchive(R.drawable.ic_ui_unarchive),
+    Archive(R.drawable.ic_ui_archive),
+    CallSplit(R.drawable.ic_ui_call_split),
+    Compress(R.drawable.ic_ui_compress),
+    Timeline(R.drawable.ic_ui_timeline),
+    Troubleshoot(R.drawable.ic_ui_troubleshoot)
+}
+
+@Composable
+fun CodexIcon(
+    imageVector: CodexGlyph,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tint: Color = LocalContentColor.current
+) {
+    Icon(painter = painterResource(imageVector.resId), contentDescription = contentDescription,
+        modifier = modifier, tint = tint)
+}
