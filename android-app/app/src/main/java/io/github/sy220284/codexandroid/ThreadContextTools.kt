@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +64,7 @@ fun ThreadContextTools(
                 "管理当前任务的历史、资料和审查；复制分支与上下文整理位于下方。")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Forum, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Thread, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text("当前会话", style = MaterialTheme.typography.titleMedium)
@@ -105,38 +103,38 @@ fun ThreadContextTools(
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = { openSubpage("goals") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-goals")) {
-                    Icon(Icons.Outlined.Flag, null)
+                    CodexIcon(CodexGlyph.Flag, null)
                     Spacer(Modifier.width(8.dp))
                     Text("管理任务目标")
                 }
                 OutlinedButton(onClick = { openSubpage("queue") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.ViewList, null)
+                    CodexIcon(CodexGlyph.ViewList, null)
                     Spacer(Modifier.width(8.dp))
                     Text("后续指令")
                 }
                 OutlinedButton(onClick = { openSubpage("history-tools") }, enabled = !threadId.isNullOrBlank() && !running,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.History, null)
+                    CodexIcon(CodexGlyph.History, null)
                     Spacer(Modifier.width(8.dp))
                     Text("回合历史与回退")
                 }
                 OutlinedButton(onClick = { openSubpage("thread-attachments") }, enabled = !threadId.isNullOrBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)) {
-                    Icon(Icons.Outlined.Attachment, null)
+                    CodexIcon(CodexGlyph.Attachment, null)
                     Spacer(Modifier.width(8.dp))
                     Text("会话关联资料")
                 }
                 OutlinedButton(onClick = { openSubpage("review") }, enabled = !threadId.isNullOrBlank() && !running,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("thread-context-review")) {
-                    Icon(Icons.Outlined.FactCheck, null)
+                    CodexIcon(CodexGlyph.FactCheck, null)
                     Spacer(Modifier.width(8.dp))
                     Text("代码审查")
                 }
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.CallSplit, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.CallSplit, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Text("复制会话分支", style = MaterialTheme.typography.titleMedium)
                 }
@@ -158,7 +156,7 @@ fun ThreadContextTools(
             }
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Compress, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Compress, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Text("压缩长会话上下文", style = MaterialTheme.typography.titleMedium)
                 }

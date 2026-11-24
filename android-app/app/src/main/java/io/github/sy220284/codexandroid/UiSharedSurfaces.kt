@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,7 +50,7 @@ fun EngineStatusSheet(
             if (status != EngineStatus.Connected) {
                 OutlinedButton(onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Refresh, null)
+                    CodexIcon(CodexGlyph.Retry, null)
                     Spacer(Modifier.width(8.dp))
                     Text("重新连接本机内核")
                 }
@@ -60,14 +58,14 @@ fun EngineStatusSheet(
             if (terminal.running) {
                 OutlinedButton(onClick = { onDismiss(); navigate("terminal") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Terminal, null)
+                    CodexIcon(CodexGlyph.Terminal, null)
                     Spacer(Modifier.width(8.dp))
                     Text("查看正在运行的终端")
                 }
             }
             OutlinedButton(onClick = { onDismiss(); navigate("diagnostics") },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Troubleshoot, null)
+                CodexIcon(CodexGlyph.Troubleshoot, null)
                 Spacer(Modifier.width(8.dp))
                 Text("查看诊断和日志")
             }

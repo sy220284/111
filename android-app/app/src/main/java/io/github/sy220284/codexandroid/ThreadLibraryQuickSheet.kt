@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,7 +32,7 @@ fun ThreadLibraryQuickSheet(
                 Text("选择会话", style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭会话选择")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭会话选择")
                 }
             }
             if (continuationLabel != null) {

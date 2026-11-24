@@ -3,8 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -46,11 +44,11 @@ internal fun ThreadBulkToolbar(
                     verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onSelectAll, enabled = enabled,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
-                        Icon(Icons.Outlined.SelectAll, contentDescription = "全选本页")
+                        CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选本页")
                     }
                     IconButton(onClick = onFinish,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-finish")) {
-                        Icon(Icons.Outlined.Check, contentDescription = "完成选择")
+                        CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                     }
                 }
                 CodexSecondaryButton(
@@ -60,7 +58,7 @@ internal fun ThreadBulkToolbar(
                         .explainDisabled(!allowAction,
                             if (!enabled) "批量操作暂不可用" else "请先选择会话")
                 ) {
-                    Icon(if (archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, null)
+                    CodexIcon(if (archived) CodexGlyph.Unarchive else CodexGlyph.Archive, null)
                     Spacer(Modifier.width(8.dp))
                     Text(archiveLabel)
                 }
@@ -71,7 +69,7 @@ internal fun ThreadBulkToolbar(
                         .explainDisabled(!allowAction, if (!enabled)
                             "批量操作暂不可用" else "请先选择需要删除的会话")
                 ) {
-                    Icon(Icons.Outlined.DeleteOutline, null, tint = Ink.red)
+                    CodexIcon(CodexGlyph.DeleteOutline, null, tint = Ink.red)
                     Spacer(Modifier.width(8.dp))
                     Text("永久删除", color = Ink.red)
                 }
@@ -87,10 +85,10 @@ internal fun ThreadBulkToolbar(
                     style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
                 IconButton(onClick = onSelectAll, enabled = enabled,
                     modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.SelectAll, contentDescription = "全选本页")
+                    CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选本页")
                 }
                 IconButton(onClick = onFinish, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Check, contentDescription = "完成选择")
+                    CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                 }
                 IconButton(
                     onClick = { onAction(if (archived) "unarchive" else "archive") },
@@ -99,7 +97,7 @@ internal fun ThreadBulkToolbar(
                         .explainDisabled(!allowAction,
                             if (!enabled) "批量操作暂不可用" else "请先选择会话")
                 ) {
-                    Icon(if (archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
+                    CodexIcon(if (archived) CodexGlyph.Unarchive else CodexGlyph.Archive,
                         contentDescription = archiveLabel)
                 }
                 IconButton(
@@ -108,7 +106,7 @@ internal fun ThreadBulkToolbar(
                         .explainDisabled(!allowAction, if (!enabled)
                             "批量操作暂不可用" else "请先选择需要删除的会话")
                 ) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "批量永久删除",
+                    CodexIcon(CodexGlyph.DeleteOutline, contentDescription = "批量永久删除",
                         tint = if (allowAction) Ink.red else Ink.muted)
                 }
             }

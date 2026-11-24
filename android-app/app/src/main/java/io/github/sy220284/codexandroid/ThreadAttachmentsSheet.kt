@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,7 +73,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = noteKey.isNotBlank() && noteText.isNotBlank() &&
                             "threadAttachmentWrite" !in loading) {
-                        Icon(Icons.Outlined.Add, null)
+                        CodexIcon(CodexGlyph.Add, null)
                         Spacer(Modifier.width(7.dp))
                         Text("保存关联备注")
                     }
@@ -96,7 +94,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }) { item ->
                         MaterialPanel(Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Outlined.Attachment, null, tint = Ink.copper)
+                                CodexIcon(CodexGlyph.Attachment, null, tint = Ink.copper)
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(PresentationPolicy.meaningful(item.optString("identityKey"))

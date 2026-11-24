@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -256,7 +254,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             showSectionEditor = true
                         }, enabled = "sectionEdit" !in loading
                     ) {
-                        Icon(Icons.Outlined.Add, null, modifier = Modifier.size(17.dp))
+                        CodexIcon(CodexGlyph.Add, null, modifier = Modifier.size(17.dp))
                         Text("新建分组")
                     }
                 }
@@ -450,7 +448,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         color = Ink.canvas,
                         shape = RoundedCornerShape(13.dp)
                     ) {
-                        Icon(if (archived) Icons.Outlined.Inventory2 else Icons.Outlined.Forum,
+                        CodexIcon(if (archived) CodexGlyph.Archive else CodexGlyph.Thread,
                             null, tint = Ink.copper, modifier = Modifier.padding(10.dp))
                     }
                     Spacer(Modifier.width(12.dp))
@@ -463,7 +461,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     }
                     Box {
                         IconButton(onClick = { menu = true }, enabled = canManage && !selectionMode) {
-                            Icon(Icons.Outlined.MoreVert, "管理会话")
+                            CodexIcon(CodexGlyph.MoreVert, "管理会话")
                         }
                         if (menu) CodexActionSheet(
                             title = "管理会话",
@@ -471,7 +469,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             actions = buildList {
                                 add(CodexSheetAction(
                                     label = "修改名称",
-                                    icon = Icons.Outlined.Edit,
+                                    icon = CodexGlyph.Edit,
                                     description = "为当前会话设置便于查找的名称",
                                     onClick = {
                                         rename = thread
@@ -480,20 +478,20 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                                 ))
                                 add(CodexSheetAction(
                                     label = if (archived) "从归档恢复" else "移入归档",
-                                    icon = if (archived) Icons.Outlined.Unarchive
-                                        else Icons.Outlined.Archive,
+                                    icon = if (archived) CodexGlyph.Unarchive
+                                        else CodexGlyph.Archive,
                                     onClick = {
                                         action = (if (archived) "unarchive" else "archive") to thread
                                     }
                                 ))
                                 if (!archived) add(CodexSheetAction(
                                     label = "移至分组",
-                                    icon = Icons.Outlined.Folder,
+                                    icon = CodexGlyph.Folder,
                                     onClick = { threadToMove = thread }
                                 ))
                                 add(CodexSheetAction(
                                     label = "永久删除",
-                                    icon = Icons.Outlined.DeleteOutline,
+                                    icon = CodexGlyph.DeleteOutline,
                                     description = "永久删除前会要求确认",
                                     destructive = true,
                                     onClick = { action = "delete" to thread }
@@ -514,7 +512,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     OutlinedButton(onClick = { action = "unarchive" to thread },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = canManage) {
-                        Icon(Icons.Outlined.Unarchive, null)
+                        CodexIcon(CodexGlyph.Unarchive, null)
                         Spacer(Modifier.width(7.dp))
                         Text("恢复会话")
                     }
@@ -522,7 +520,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     OutlinedButton(onClick = { openThread(id) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = !firstThreadStarting && !switching && id.isNotBlank()) {
-                        Icon(Icons.Outlined.PlayArrow, null)
+                        CodexIcon(CodexGlyph.PlayArrow, null)
                         Spacer(Modifier.width(7.dp))
                         Text("继续会话")
                     }
@@ -545,7 +543,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     }, enabled = nextCursor != null && key !in loading,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Text("下一页")
-                        Icon(Icons.Outlined.ChevronRight, null)
+                        CodexIcon(CodexGlyph.ChevronRight, null)
                     }
                 }
             }

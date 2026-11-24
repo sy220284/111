@@ -10,8 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -88,7 +86,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.School, null, tint = Ink.copper)
+                        CodexIcon(CodexGlyph.School, null, tint = Ink.copper)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(PresentationPolicy.meaningful(meta.optString("displayName")).ifEmpty {
@@ -125,7 +123,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (skills.isEmpty() && data["skills"] != null && readErrors == 0) {
             CodexEmptyState("当前工作区没有可用技能",
                 "可以安装技能包并刷新目录，启用后即可在对话中使用。",
-                icon = Icons.Outlined.School, actionLabel = "重新读取技能",
+                icon = CodexGlyph.School, actionLabel = "重新读取技能",
                 onAction = { vm.refresh("skills", "skills/list",
                     CatalogRequestContract.workspace(vm.workingDirectory)) })
         }

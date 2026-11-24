@@ -4,8 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,12 +52,12 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Flag, null, tint = Ink.copper)
+                CodexIcon(CodexGlyph.Flag, null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
                 Text("当前目标", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 IconButton(onClick = { vm.refresh(key, "thread/goal/get",
                     JSONObject().put("threadId", active)) }) {
-                    Icon(Icons.Outlined.Refresh, "刷新")
+                    CodexIcon(CodexGlyph.Retry, "刷新")
                 }
             }
             if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -118,7 +116,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     currentBudget.isNotBlank() -> "当前 Token 上限：$currentBudget"
                     else -> "当前未设置 Token 上限"
                 },
-                icon = Icons.Outlined.Tune,
+                icon = CodexGlyph.Tune,
                 onClick = {
                     budgetInput = if (budgetEdited) budget else currentBudget
                     showBudgetEditor = true
@@ -287,14 +285,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 })
             }, enabled = draft.isNotBlank() && "queueWrite" !in loading,
                 modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.Add, null)
+                CodexIcon(CodexGlyph.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("排入后续")
             }
         }
         AtlasListHeading(title = "等待执行", total = all.size, action = {
             IconButton(onClick = { refreshQueue() }) {
-                Icon(Icons.Outlined.Refresh, contentDescription = "刷新指令")
+                CodexIcon(CodexGlyph.Retry, contentDescription = "刷新指令")
             }
         })
         if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading }) {
@@ -321,7 +319,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         enabled = "queueWrite" !in loading,
                         modifier = Modifier.testTag("queue-item-more-" + index)
                     ) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = "管理第${index + 1}项指令")
+                        CodexIcon(CodexGlyph.MoreVert, contentDescription = "管理第${index + 1}项指令")
                     }
                 }
                 if (showQueueActions) CodexActionSheet(
@@ -331,7 +329,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "上移",
                             description = "优先执行此项",
-                            icon = Icons.Outlined.ArrowUpward,
+                            icon = CodexGlyph.ArrowUpward,
                             enabled = canReorder && index > 0 && "queueWrite" !in loading,
                             onClick = {
                                 val order = ids.toMutableList()
@@ -347,7 +345,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "下移",
                             description = "延后执行此项",
-                            icon = Icons.Outlined.ArrowDownward,
+                            icon = CodexGlyph.ArrowDownward,
                             enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading,
                             onClick = {
                                 val order = ids.toMutableList()
@@ -362,7 +360,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         ),
                         CodexSheetAction(
                             label = "编辑指令",
-                            icon = Icons.Outlined.Edit,
+                            icon = CodexGlyph.Edit,
                             enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
                                 "queueWrite" !in loading,
                             onClick = {
@@ -373,7 +371,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "删除指令",
                             description = "删除前会再次确认",
-                            icon = Icons.Outlined.DeleteOutline,
+                            icon = CodexGlyph.DeleteOutline,
                             destructive = true,
                             enabled = "queueWrite" !in loading,
                             onClick = { pendingDelete = item }
@@ -476,7 +474,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("thread-queue-close")
                 ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭后续指令")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭后续指令")
                 }
             }
             Box(Modifier.fillMaxWidth().weight(1f)) {

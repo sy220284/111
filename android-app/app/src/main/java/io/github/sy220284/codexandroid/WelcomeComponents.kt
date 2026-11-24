@@ -7,14 +7,11 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,7 +21,7 @@ import androidx.compose.ui.unit.dp
 fun WelcomeActionCard(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: CodexGlyph,
     tone: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -49,7 +46,7 @@ fun WelcomeActionCard(
                 color = Ink.canvas,
                 border = BorderStroke(1.dp, tone.copy(alpha = .33f))) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = tone,
+                    CodexIcon(icon, contentDescription = null, tint = tone,
                         modifier = Modifier.size(21.dp))
                 }
             }

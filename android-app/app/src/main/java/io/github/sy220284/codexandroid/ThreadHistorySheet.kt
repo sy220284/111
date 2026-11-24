@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -87,7 +85,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             OutlinedButton(onClick = { showAdvanced = true }, enabled = thread != null,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Timeline, null)
+                CodexIcon(CodexGlyph.Timeline, null)
                 Spacer(Modifier.width(8.dp))
                 Text("查看完整时间线（实验）")
             }
@@ -119,7 +117,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("thread-export-markdown")
             ) {
-                Icon(Icons.Outlined.SaveAlt, contentDescription = null)
+                CodexIcon(CodexGlyph.SaveAlt, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(if (exportBusy) "正在整理会话记录…" else "导出会话 Markdown")
             }
