@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 
 /**
@@ -127,8 +128,7 @@ internal object CodexNotificationDispatcher {
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId, ThreadActivity.Running)
             if (threadId == activeThread.value) {
-                activeTurn.value = threadExecutions.value[threadId]?.turnId
-                running.value = true
+                conversationState.update { it.copy(turnId = threadExecutions.value[threadId]?.turnId, running = true) }
             }
         }
         if (threadId.isNotBlank() && method == "turn/started") sessions.refreshChanged(threadId)
@@ -153,8 +153,7 @@ internal object CodexNotificationDispatcher {
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
             if (threadId == activeThread.value) {
-                running.value = false
-                activeTurn.value = null
+                conversationState.update { it.copy(running = false, turnId = null) }
             }
             sessions.refreshChanged(threadId)
             accountMetrics.refresh()

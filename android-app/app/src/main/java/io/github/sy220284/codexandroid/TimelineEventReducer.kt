@@ -91,12 +91,11 @@ internal object TimelineEventReducer {
 
     fun reduce(method: String, params: JSONObject, current: List<TimelineItem>): List<TimelineItem> {
         val turnId = params.string("turnId")
-        val items = current.toMutableList()
+        var items = IndexedTimeline.from(current)
         fun put(item: TimelineItem) {
             val clientId = if (item.kind == "user" && item.evidence.isNotBlank())
                 JSONObject(item.evidence).string("clientId") else ""
-            val i = TimelineReconciler.position(items, item.id, if (item.kind == "user") "userMessage" else item.kind, clientId)
-            if (i < 0) items.add(item) else items[i] = item
+            items = items.put(item, clientId)
         }
         if (method == "turn/completed") {
             val turn = params.getJSONObject("turn")
@@ -104,15 +103,15 @@ internal object TimelineEventReducer {
             val status = turn.string("status")
             turn.optJSONArray("items").objects().forEach { raw ->
                 val item = project(raw, id, "completed")
-                if (items.none { it.id == item.id && it.status in setOf("completed", "failed", "declined", "interrupted") }) put(item)
+                if (items.byId(item.id)?.status !in setOf("completed", "failed", "declined", "interrupted")) put(item)
             }
             if (status != "completed") put(TimelineItem("turn-error:$id", "error",
                 turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }, status, turnId = id))
-            return items.map {
+            return IndexedTimeline.from(items.map {
                 if (it.turnId == id && it.status in setOf("streaming", "inProgress", "running"))
                     it.copy(status = if (status == "completed") "completed" else status)
                 else it
-            }
+            })
         }
         if (method == "turn/plan/updated") {
             val plan = params.optJSONArray("plan").objects().joinToString("\n") {
@@ -125,7 +124,7 @@ internal object TimelineEventReducer {
         if (method == "item/started" || method == "item/completed") {
             val raw = params.getJSONObject("item")
             val id = raw.getString("id")
-            val old = items.find { it.id == id }
+            val old = items.byId(id)
             if (method == "item/started" && old != null && old.status != "sending") return current
             val complete = method == "item/completed"
             val next = project(raw, turnId, if (complete) "completed" else "inProgress")
@@ -143,7 +142,7 @@ internal object TimelineEventReducer {
         val id = params.string("itemId")
         if (id.isBlank()) return current
         val kind = method.substringAfter("item/").substringBefore("/")
-        val old = items.find { it.id == id }
+        val old = items.byId(id)
         if (old != null && old.status in setOf("completed", "failed", "declined", "interrupted")) return current
         val raw = if (old?.evidence.isNullOrBlank()) JSONObject().put("id", id).put("type", kind)
             else JSONObject(old!!.evidence)

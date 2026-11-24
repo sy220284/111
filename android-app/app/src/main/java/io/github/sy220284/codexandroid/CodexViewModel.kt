@@ -23,25 +23,26 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private val workspacePreferences = application.getSharedPreferences("codex-workspace", 0)
     private val restoredWorkspace = WorkspaceSelectionContract.restore(
         workspaceRoot, workspacePreferences.getString("activeDirectory", null))
-    val activeWorkspace = MutableStateFlow(restoredWorkspace.directory.absolutePath)
-    val activeProjectId = MutableStateFlow<String?>(null)
+    internal val conversationState = MutableStateFlow(ActiveConversationContext(restoredWorkspace.directory.absolutePath))
+    val activeWorkspace = ConversationField(conversationState, { it.workspace }) { s, v -> s.copy(workspace = v) }
+    val activeProjectId = ConversationField(conversationState, { it.projectId }) { s, v -> s.copy(projectId = v) }
     val projectCatalogRevision = MutableStateFlow(0)
     val planApprovalBusy = MutableStateFlow(false)
-    val activeThread = MutableStateFlow<String?>(null)
+    val activeThread = ConversationField(conversationState, { it.threadId }) { s, v -> s.copy(threadId = v) }
     internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
     /** True across the entire permissions save + effective-config readback. */
     val securitySaveBusy = MutableStateFlow(false)
     /** Reserved before asynchronous foreground-service startup for terminal commands. */
     val terminalStarting = MutableStateFlow(false)
-    val activeTurn = MutableStateFlow<String?>(null)
-    val running = MutableStateFlow(false)
+    val activeTurn = ConversationField(conversationState, { it.turnId }) { s, v -> s.copy(turnId = v) }
+    val running = ConversationField(conversationState, { it.running }) { s, v -> s.copy(running = v) }
     /** All running threads, including tasks no longer visible on the current page. */
     internal val threadExecutions = MutableStateFlow<Map<String, ThreadExecution>>(emptyMap())
     val threadFailures = MutableStateFlow<Map<String, String>>(emptyMap())
     /** The first RPC must create a real thread ID before we can switch away. */
     val firstThreadStarting = MutableStateFlow(false)
-    val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
+    val timeline = ConversationField(conversationState, { it.timeline }) { s, v -> s.copy(timeline = IndexedTimeline.from(v)) }
     internal val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
     val olderTimelineCount get() = timelineWindow.olderCount
     internal val olderServerCursor = MutableStateFlow<String?>(null)
@@ -78,7 +79,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     /** One explicit receipt for each user-triggered RPC; page reads stay silent. */
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
     internal val threadOrganization by lazy { ThreadOrganizationController(this) }
-    val latestDiff = MutableStateFlow("")
+    val latestDiff = ConversationField(conversationState, { it.diff }) { s, v -> s.copy(diff = v) }
     val modelId = MutableStateFlow(composerDrafts.value[composerOwner(null)]?.options?.model.orEmpty())
     val selectedMode = MutableStateFlow(composerDrafts.value[composerOwner(null)]?.options?.mode ?: "default")
     internal val pendingComposerImages = MutableStateFlow<Set<String>>(emptySet())
@@ -304,25 +305,19 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val restored = readHistoryPage(page)
                 val turns = TimelineEventReducer.historyTurns(restored)
                 val newest = timelineWindow.replace(id, restored, ++timelineEpoch)
-                activeWorkspace.value = threadDirectory.absolutePath
-                activeProjectId.value = history.getJSONObject("thread")
-                    .optString("projectId").takeIf { it.isNotBlank() }
                 workspacePreferences.edit()
                     .putString("activeDirectory", threadDirectory.absolutePath).apply()
-                // The server history is authoritative; avoid retaining a second full
-                // JSON copy after materializing the bounded timeline window.
                 restoreComposerOptions(id)
-                activeThread.value = id
                 val execution = threadExecutions.value[id]
-                running.value = execution != null
-                activeTurn.value = execution?.turnId
                 errors.value = errors.value - "conversation"
                 threadFailures.value[id]?.let { reason ->
                     errors.value = errors.value + ("conversation" to reason)
                 }
-                latestDiff.value = ThreadDiffHistory.latest(turns)
                 olderServerCursor.value = historyCursor(page)
-                timeline.value = liveTimelines.restore(id, newest)
+                conversationState.value = ActiveConversationContext(threadDirectory.absolutePath,
+                    history.getJSONObject("thread").optString("projectId").takeIf { it.isNotBlank() },
+                    id, execution?.turnId, execution != null,
+                    IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns))
                 sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
@@ -340,34 +335,32 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         workspaceTasks.selectProject(projectId, folder)
     fun approvePlan(markdown: String) = workspaceTasks.approvePlan(markdown)
 
-    fun newThread() {
+    fun newThread() { resetConversation(activeWorkspace.value, activeProjectId.value) }
+    internal fun resetConversation(workspace: String, projectId: String?): Boolean {
         if (!globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再新建会话")
-            return
+            return false
         }
         if (threadSwitching.value || loadingEarlier.value || timelineCompacting) {
             errors.value = errors.value + ("conversation" to "正在整理会话记录，请稍后新建任务")
-            return
+            return false
         }
         if (firstThreadStarting.value) {
             errors.value = errors.value + ("conversation" to "正在建立新会话，完成后即可新建")
-            return
+            return false
         }
         // Preserve unsent text in case New Chat is tapped accidentally.
         // Users can intentionally clear it in the input field.
         activeThread.value?.let { current ->
             if (running.value) liveTimelines.capture(current, activeTurn.value, timeline.value)
         }
-        restoreComposerOptions(null)
-        activeThread.value = null
-        activeTurn.value = null
         errors.value = errors.value - "conversation"
-        timeline.value = emptyList()
         olderServerCursor.value = null
         val epoch = ++timelineEpoch
+        conversationState.value = ActiveConversationContext(workspace, projectId)
+        restoreComposerOptions(null)
         viewModelScope.launch { timelineWindow.clear(epoch) }
-        latestDiff.value = ""
-        running.value = false
+        return true
     }
 
     fun editComposerText(threadId: String?, text: String) =
@@ -502,8 +495,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             threadExecutions.value = ThreadExecutionPolicy.started(
                                 threadExecutions.value, id, outcome.turnId)
                             if (activeThread.value == id) {
-                                activeTurn.value = threadExecutions.value[id]?.turnId
-                                running.value = true
+                                conversationState.update { it.copy(turnId = threadExecutions.value[id]?.turnId, running = true) }
                                 errors.value = errors.value - "conversation"
                             }
                         }
@@ -706,7 +698,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("workspace" to warning)
         }
         viewModelScope.launch {
-            bridge.events.collect { receive(it) }
+            collectTimelineNotifications(bridge.events, ::receive)
         }
         draftStorage.start { key, warning ->
             errors.value = if (warning == null) errors.value - key
@@ -724,8 +716,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     threadExecutions.value = emptyMap()
                     firstThreadStarting.value = false
                     firstTurnImages = emptyList()
-                    running.value = false
-                    activeTurn.value = null
+                    conversationState.update { it.copy(running = false, turnId = null) }
                     if (wasVisible) timeline.value = timeline.value + TimelineItem(
                         "disconnect-" + UUID.randomUUID(), "error",
                         "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")

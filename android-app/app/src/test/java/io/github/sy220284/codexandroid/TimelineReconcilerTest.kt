@@ -72,5 +72,26 @@ class TimelineReconcilerTest {
         org.junit.Assert.assertEquals(listOf(live), ConversationLiveTimeline.merge(listOf(saved), listOf(live)))
         val completed = live.copy(status = "completed")
         org.junit.Assert.assertEquals(listOf(completed), ConversationLiveTimeline.merge(listOf(completed), listOf(live)))
+        val indexed = IndexedTimeline.from((0..70).map { TimelineItem("item-$it", "agentMessage", "$it") })
+        val edited = indexed.put(indexed[35].copy(text = "changed"))
+        assertEquals("35", indexed[35].text)
+        assertEquals("changed", edited.byId("item-35")?.text)
+        assertEquals(indexed[70], edited[70])
+        val pending = indexed.put(TimelineItem("pending-c", "user", "draft"))
+        val accepted = pending.put(TimelineItem("native", "user", "draft"), "c")
+        assertEquals(pending.size, accepted.size)
+        assertEquals("native", accepted.last().id)
+        fun delta(id: String, value: String) = org.json.JSONObject().put("method", "item/agentMessage/delta")
+            .put("params", org.json.JSONObject().put("threadId", "thread").put("turnId", "turn")
+                .put("itemId", id).put("delta", value))
+        val first = delta("answer", "a")
+        val second = delta("answer", "b")
+        val batch = TimelineDeltaBatch(first)
+        org.junit.Assert.assertTrue(batch.append(second))
+        org.junit.Assert.assertFalse(batch.append(delta("other", "c")))
+        val sequential = TimelineEventReducer.reduce("item/agentMessage/delta", second.getJSONObject("params"),
+            TimelineEventReducer.reduce("item/agentMessage/delta", first.getJSONObject("params"), emptyList()))
+        assertEquals(sequential, TimelineEventReducer.reduce("item/agentMessage/delta",
+            batch.notification().getJSONObject("params"), emptyList()))
     }
 }

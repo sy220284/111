@@ -32,20 +32,21 @@ import org.json.JSONObject
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
-    val thread = vm.activeThread.collectAsState().value
-    val busy = vm.running.collectAsState().value
+    val conversation by vm.conversationState.collectProjection { it.header }
+    val thread = conversation.threadId
+    val busy = conversation.running
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val activeTurn = vm.activeTurn.collectAsState().value
+    val activeTurn = conversation.turnId
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectProjection { it.intersect(setOf("interrupt", "queueWrite")) }
-    val latestDiff by vm.latestDiff.collectAsState()
+    val latestDiff = conversation.diff
     val models by vm.data.collectEntries("account", "models", "goal:$thread", "queue:$thread", "tokenUsage:$thread")
     val setupHint = if (thread == null) ChatSetupPolicy.hint(
         status == EngineStatus.Connected, models["account"], models["models"]) else null
     val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
     val prompts by vm.bridge.prompts.collectAsState()
-    val selectedWorkspace by vm.activeWorkspace.collectAsState()
+    val selectedWorkspace = conversation.workspace
     val draftOwner = vm.composerOwner(thread, selectedWorkspace)
     val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()

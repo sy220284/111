@@ -22,20 +22,17 @@ internal class WorkspaceTaskOperations(
     private val running get() = vm.running
     private val errors get() = vm.errors
     private val bridge get() = vm.bridge
-    private fun newThread() = vm.newThread()
     private fun sendPrompt(prompt: String) = vm.sendPrompt(prompt)
 
     /** Switching project starts a new task context; old conversation remains in history. */
-    fun selectWorkspace(folder: File) {
+    fun selectWorkspace(folder: File) = selectWorkspace(folder, null)
+    private fun selectWorkspace(folder: File, projectId: String?) {
         require(vm.globalWorkSnapshot().canStartNewTask && !vm.firstThreadStarting.value && !threadSwitching.value && !running.value && !terminalSession.value.running) {
             "当前有任务或命令正在执行，请先结束后再切换项目"
         }
         val selected = WorkspaceSelectionContract.validate(workspaceRoot, folder)
-        if (selected.absolutePath == activeWorkspace.value && activeThread.value == null) return
-        if (activeThread.value != null) newThread()
-        activeWorkspace.value = selected.absolutePath
-        vm.restoreComposerOptions(null)
-        activeProjectId.value = null
+        if (selected.absolutePath == activeWorkspace.value && activeThread.value == null && activeProjectId.value == projectId) return
+        check(vm.resetConversation(selected.absolutePath, projectId)) { "当前无法切换项目，请完成会话操作后重试" }
         workspacePreferences.edit().putString("activeDirectory", selected.absolutePath).apply()
         errors.value = errors.value - "workspace"
     }
@@ -43,8 +40,7 @@ internal class WorkspaceTaskOperations(
     /** Attach an existing Codex project identity to subsequent work and its cwd. */
     fun selectProject(projectId: String, folder: File) {
         require(projectId.isNotBlank()) { "项目编号不可为空" }
-        selectWorkspace(folder)
-        activeProjectId.value = projectId
+        selectWorkspace(folder, projectId)
     }
 
     /** User-approved plan is prepared by the server before starting execution. */

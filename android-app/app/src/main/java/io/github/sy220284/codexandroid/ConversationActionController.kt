@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 
 /** Conversation commands execute on their captured thread with foreground protection. */
@@ -79,7 +80,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 if (definite) {
                     threadExecutions.value = ThreadExecutionPolicy.finish(threadExecutions.value, id)
                     threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value, id, ThreadActivity.Failed)
-                    if (activeThread.value == id) { running.value = false; activeTurn.value = null }
+                    if (activeThread.value == id) { conversationState.update { it.copy(running = false, turnId = null) } }
                 }
                 errors.value = errors.value + (key to reason)
                 if (activeThread.value == id) errors.value = errors.value + ("conversation" to reason)

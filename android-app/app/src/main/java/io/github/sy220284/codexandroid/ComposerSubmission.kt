@@ -138,8 +138,7 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
                 threadExecutions.value = ThreadExecutionPolicy.started(threadExecutions.value, threadId, turnId)
                 threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value, threadId, ThreadActivity.Running)
                 if (activeThread.value == threadId) {
-                    activeTurn.value = turnId
-                    running.value = true
+                    conversationState.update { it.copy(turnId = turnId, running = true) }
                 }
             }
             if (threadExecutions.value[threadId]?.turnId == turnId) {
@@ -154,7 +153,7 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
             if (threadExecutions.value[threadId] === reservation) {
                 if (rejected) {
                     threadExecutions.value = ThreadExecutionPolicy.finish(threadExecutions.value, threadId)
-                    if (activeThread.value == threadId) { running.value = false; activeTurn.value = null }
+                    if (activeThread.value == threadId) { conversationState.update { it.copy(running = false, turnId = null) } }
                 } else {
                     // An ambiguous response cannot safely authorize another start.
                     if (activeThread.value == threadId) running.value = true
