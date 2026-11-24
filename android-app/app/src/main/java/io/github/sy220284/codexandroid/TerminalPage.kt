@@ -51,9 +51,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var recentCommands by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var historyVisible by rememberSaveable { mutableStateOf(false) }
     var historyPosition by remember { mutableStateOf(TerminalHistoryPosition()) }
-    var showFullOutput by rememberSaveable { mutableStateOf(false) }
-    var showOlderOutput by rememberSaveable { mutableStateOf(false) }
-    val clipboard = LocalClipboardManager.current
+    var readerOutput by remember { mutableStateOf<Pair<String, String>?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val transcriptAvailable by vm.terminalTranscript.available.collectAsState()
@@ -86,9 +84,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     }
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
-    val session by vm.terminalSession.collectFrameState()
-    val stdout = remember(session.stdoutBytes) { session.stdoutText }
-    val stderr = remember(session.stderrBytes) { session.stderrText }
+    val session by vm.terminalSession.collectProjection { TerminalControlState.from(it) }
+    val outputState = vm.terminalSession.collectFrameState(session.processId)
+    val renderedOutput = remember(outputState) {
+        derivedStateOf { TerminalRenderedOutput.from(outputState.value) }
+    }
     val terminalStarting by vm.terminalStarting.collectAsState()
     val errors by vm.errors.collectAsState()
     var historicalStdout by remember(session.processId) { mutableStateOf("") }
@@ -243,31 +243,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
                     }
                     MaterialPanel(Modifier.fillMaxWidth()) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("标准输出", modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleMedium)
-                            CodexTextAction(
-                                onClick = {
-                                    clipboard.setText(AnnotatedString(vm.terminalSession.value.stdoutText))
-                                    vm.actionFeedback.tryEmit(ActionFeedbackReceipt("终端输出已复制"))
-                                },
-                                enabled = stdout.isNotBlank(),
-                                modifier = Modifier.heightIn(min = 48.dp)
-                            ) {
-                                CodexIcon(CodexGlyph.ContentCopy, null,
-                                    modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("复制")
-                            }
-                            CodexTextAction(
-                                onClick = { showFullOutput = true },
-                                enabled = stdout.length > 16_000,
-                                modifier = Modifier.heightIn(min = 48.dp)
-                                    .testTag("terminal-full-stdout")
-                            ) { Text("查看完整输出") }
+                        TerminalOutputHeader(vm, session.processId, renderedOutput) { text ->
+                            readerOutput = "终端标准输出" to text
                         }
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
                             CodexSecondaryButton(
@@ -305,7 +282,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             Text("较早的标准输出（本机分页读取）",
                                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                             CodexTextAction(
-                                onClick = { showOlderOutput = true },
+                                onClick = { readerOutput = "较早的标准输出" to historicalStdout },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("terminal-older-stdout-open")
                             ) {
@@ -335,22 +312,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 color = if (exportStatus.contains("失败")) Ink.red else Ink.jade,
                                 style = MaterialTheme.typography.labelMedium)
                         DividerLine()
-                        SelectionContainer {
-                            Text(stdout.takeLast(16_000).ifBlank {
-                                if (session.running) "等待命令输出…" else "(无标准输出)"
-                            }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.testTag("terminal-stdout"))
-                        }
-                        if (session.stderrBytes.isNotEmpty()) {
-                            Spacer(Modifier.height(10.dp))
-                            Text("错误输出", style = MaterialTheme.typography.titleMedium)
-                            SelectionContainer {
-                                Text(stderr.takeLast(16_000),
-                                    fontFamily = FontFamily.Monospace, color = Ink.red,
-                                    style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                        TerminalOutputPreview(session.processId, session.running, renderedOutput)
                     }
                 } else {
                     MaterialPanel(Modifier.fillMaxWidth().heightIn(min = minOf(consoleHeight.value, 172f).dp)
@@ -496,16 +458,9 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
         }
         errors["terminal"]?.let { ErrorText(it) }
     }
-    if (showFullOutput) FullTextReaderDialog(
-        title = "终端标准输出",
-        text = stdout,
-        onDismiss = { showFullOutput = false }
-    )
-    if (showOlderOutput) FullTextReaderDialog(
-        title = "较早的标准输出",
-        text = historicalStdout,
-        onDismiss = { showOlderOutput = false }
-    )
+    readerOutput?.let { (title, text) ->
+        FullTextReaderDialog(title = title, text = text, onDismiss = { readerOutput = null })
+    }
     if (confirm) CodexConfirmDialog(
         title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
         message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",

@@ -27,6 +27,8 @@ internal class DraftStorageController(
                 try {
                     withContext(Dispatchers.IO) { DraftPersistence.save(context, snapshot) }
                     report("drafts", null)
+                } catch (cancel: kotlinx.coroutines.CancellationException) {
+                    throw cancel
                 } catch (failure: Exception) {
                     report("drafts", failure.message ?: "本机草稿无法保存，请检查存储空间")
                 }

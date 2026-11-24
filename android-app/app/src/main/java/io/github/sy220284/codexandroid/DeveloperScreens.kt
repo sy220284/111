@@ -38,6 +38,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+private data class WorkspaceDirectoryEntry(val file: File, val directory: Boolean, val bytes: Long)
+
 @Composable
 fun WorkspacePage(vm: CodexViewModel) {
     val ctx = LocalContext.current
@@ -108,14 +110,26 @@ fun WorkspacePage(vm: CodexViewModel) {
             it.path == root.path || it.path.startsWith(root.path + File.separator)
         } ?: root
     }
-    val children = remember(folder, refresh) {
-        folder.listFiles()?.filterNot { WorkspaceImport.isStagingName(it.name) }
-            ?.sortedWith(compareBy<File> { !it.isDirectory }
-                .thenBy { it.name.lowercase() }) ?: emptyList()
+    val directoryResult by key(folder, refresh) {
+        produceState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
+            value = withContext(Dispatchers.IO) {
+                try {
+                    val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }
+                    Result.success(entries.asSequence()
+                        .filterNot { WorkspaceImport.isStagingName(it.name) }
+                        .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
+                        .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
+                            .thenBy { it.file.name.lowercase() }).toList())
+                } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
+                catch (failure: Exception) { Result.failure(failure) }
+            }
+        }
     }
-
+    val children = directoryResult?.getOrNull().orEmpty()
     var fileQuery by remember(folder) { mutableStateOf("") }
-    val visibleChildren = remember(children, fileQuery) { children.filter { it.name.contains(fileQuery.trim(), ignoreCase = true) } }
+    val visibleChildren = remember(children, fileQuery) {
+        children.filter { it.file.name.contains(fileQuery.trim(), ignoreCase = true) }
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -231,8 +245,12 @@ fun WorkspacePage(vm: CodexViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("目录内容", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                Text(if (fileQuery.isBlank()) "${children.size} 项" else "${visibleChildren.size} / ${children.size} 项", style = MaterialTheme.typography.labelMedium,
-                    color = Ink.muted)
+                Text(when {
+                    directoryResult == null -> "读取中"
+                    directoryResult?.isFailure == true -> "读取失败"
+                    fileQuery.isBlank() -> "${children.size} 项"
+                    else -> "${visibleChildren.size} / ${children.size} 项"
+                }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
         }
         if (children.isNotEmpty()) item(key = "workspace-search") {
@@ -243,11 +261,22 @@ fun WorkspacePage(vm: CodexViewModel) {
             CodexEmptyState("没有匹配的文件", "试试其他文件名。",
                 actionLabel = "清除搜索", onAction = { fileQuery = "" })
         }
-        if (children.isEmpty()) item {
-            CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
-                icon = CodexGlyph.Project)
+        when {
+            directoryResult == null -> item(key = "workspace-directory-loading") {
+                AtlasOperationProgress("正在读取目录", Modifier.testTag("workspace-directory-loading"))
+            }
+            directoryResult?.isFailure == true -> item(key = "workspace-directory-error") {
+                CodexRecoveryState("目录读取失败",
+                    directoryResult?.exceptionOrNull()?.message ?: "无法读取当前目录",
+                    "重新读取", { refresh++ })
+            }
+            children.isEmpty() -> item {
+                CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
+                    icon = CodexGlyph.Project)
+            }
         }
-        items(visibleChildren, key = { it.absolutePath }) { file ->
+        items(visibleChildren, key = { it.file.absolutePath }) { entry ->
+            val file = entry.file
             var optionsOpen by remember(file.path) { mutableStateOf(false) }
             Surface(
                 color = Ink.panel,
@@ -265,7 +294,7 @@ fun WorkspacePage(vm: CodexViewModel) {
             ) {
                 Row(Modifier.padding(start = 14.dp, end = 5.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(if (file.isDirectory) CodexGlyph.Folder
+                    CodexIcon(if (entry.directory) CodexGlyph.Folder
                         else CodexGlyph.Description,
                         contentDescription = null, tint = Ink.copper,
                         modifier = Modifier.size(24.dp))
@@ -273,7 +302,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Column(Modifier.weight(1f)) {
                         Text(file.name, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodyMedium)
-                        Text(if (file.isDirectory) "文件夹" else "${file.length() / 1024} KB",
+                        Text(if (entry.directory) "文件夹" else "${entry.bytes / 1024} KB",
                             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
                     Box {
@@ -300,7 +329,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                                     description = "在当前目录建立一份副本",
                                     icon = CodexGlyph.ContentCopy,
                                     onClick = {
-                                        copyName = if (file.isDirectory) file.name + "-副本"
+                                        copyName = if (entry.directory) file.name + "-副本"
                                             else file.nameWithoutExtension + "-副本" +
                                                 (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
                                         fileAction = "copy" to file

@@ -60,14 +60,16 @@ internal fun ConversationTimelineViewport(
     }
     val hasOlderPage by rememberUpdatedState(olderPageVisible)
     var previousViewportHeight by remember { mutableIntStateOf(0) }
+    var previousOlderPage by remember { mutableStateOf(false) }
     LaunchedEffect(scroll, thread, switching) {
         if (switching) return@LaunchedEffect
         // One collector per conversation; a stream of deltas must not cancel and restart it.
         snapshotFlow { TimelineRenderTarget(items.size, items.lastOrNull(), hasOlderPage,
             scroll.layoutInfo.viewportSize.height) }
             .collect { (count, tail, older, viewportHeight) ->
-                val viewportChanged = viewportHeight != previousViewportHeight
+                val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage
                 previousViewportHeight = viewportHeight
+                previousOlderPage = older
                 val threadChanged = observedThread != thread
                 val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, count, tail)
                 observedThread = thread

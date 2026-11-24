@@ -436,11 +436,11 @@ class UiNavigationInstrumentedTest {
         try {
             rule.onNodeWithTag("composer-input").performTextInput("检查 @composer-reference-ci.txt")
             rule.onNodeWithTag("composer-reference-suggestion").performClick()
+            val resultTag = "composer-reference-result-" + fixture.canonicalPath
             rule.waitUntil(10000) {
-                rule.onAllNodesWithText("composer-reference-ci.txt", substring = false)
-                    .fetchSemanticsNodes().isNotEmpty()
+                rule.onAllNodesWithTag(resultTag).fetchSemanticsNodes().isNotEmpty()
             }
-            rule.onAllNodesWithText("composer-reference-ci.txt", substring = false).onFirst().performClick()
+            rule.onNodeWithTag(resultTag).performClick()
             rule.onNodeWithTag("composer-references").assertExists()
             rule.onNodeWithTag("composer-input").assertTextContains("检查")
             rule.onNodeWithTag("composer-task-options").performClick()
@@ -635,7 +635,7 @@ class UiNavigationInstrumentedTest {
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(5, NavigationPolicy.featureGroups.size)
-        assertEquals(18, NavigationPolicy.settingsRoutes.size)
+        assertEquals(17, NavigationPolicy.settingsRoutes.size)
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
@@ -712,6 +712,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-new-name").performTextInput(name)
         rule.onNodeWithTag("workspace-create").performClick()
         rule.onNodeWithTag("workspace-new-name").assertDoesNotExist()
+        rule.waitUntil(10000) {
+            rule.onAllNodesWithTag("workspace-directory-loading").fetchSemanticsNodes().isEmpty()
+        }
         rule.onNodeWithTag("workspace-list").performScrollToNode(
             hasTestTag("workspace-menu-" + name))
         rule.onNodeWithTag("workspace-menu-" + name).assertExists()

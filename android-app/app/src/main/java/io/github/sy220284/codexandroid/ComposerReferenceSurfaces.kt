@@ -44,20 +44,30 @@ internal object ComposerFileSearch {
         try {
             val base = WorkspaceSelectionContract.validate(root, workspace)
             val result = mutableListOf<ComposerReference>()
-            Files.walk(base.toPath()).use { stream ->
-                val iterator = stream.iterator()
-                while (iterator.hasNext() && result.size < 101) {
-                    coroutineContext.ensureActive()
-                    val path = iterator.next()
-                    if (!Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) continue
-                    val file = path.toFile().canonicalFile
-                    if (!file.path.startsWith(base.path + File.separator)) continue
-                    val relative = file.relativeTo(base).path
-                    if (relative.split(File.separatorChar).any { it == ".git" }) continue
-                    if (relative.contains(query.trim(), ignoreCase = true))
-                        result += ComposerReference("file", file.name, file.absolutePath)
+            val owner = coroutineContext
+            val term = query.trim()
+            val basePath = base.toPath()
+            Files.walkFileTree(basePath, object : java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
+                override fun preVisitDirectory(dir: java.nio.file.Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                    owner.ensureActive()
+                    return if (dir != basePath && (dir.fileName.toString() == ".git" ||
+                            WorkspaceImport.isStagingName(dir.fileName.toString())))
+                        java.nio.file.FileVisitResult.SKIP_SUBTREE else java.nio.file.FileVisitResult.CONTINUE
                 }
-            }
+                override fun visitFile(path: java.nio.file.Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
+                    owner.ensureActive()
+                    if (attrs.isRegularFile && !WorkspaceImport.isStagingName(path.fileName.toString()) && path.fileName.toString() != ".git") {
+                        val relative = basePath.relativize(path).toString()
+                        if (relative.contains(term, ignoreCase = true)) {
+                            val file = path.toFile().canonicalFile
+                            if (file.path.startsWith(base.path + File.separator))
+                                result += ComposerReference("file", file.name, file.absolutePath)
+                        }
+                    }
+                    return if (result.size >= 101) java.nio.file.FileVisitResult.TERMINATE
+                        else java.nio.file.FileVisitResult.CONTINUE
+                }
+            })
             ComposerFileSearchResult(result.take(100), result.size > 100)
         } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
         catch (failure: Exception) { ComposerFileSearchResult(emptyList(), error = failure.message ?: "无法读取项目文件") }
@@ -67,11 +77,12 @@ internal object ComposerFileSearch {
 @Composable
 internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, initialQuery: String,
                                         onSelect: (ComposerReference) -> Unit, onDismiss: () -> Unit) {
-    var query by remember { mutableStateOf(initialQuery) }
-    val result by produceState<ComposerFileSearchResult?>(null, workspace, query) {
-        value = null
-        delay(150)
-        value = ComposerFileSearch.search(File(vm.workingDirectory), File(workspace), query)
+    var query by remember(workspace, initialQuery) { mutableStateOf(initialQuery) }
+    val result by key(workspace, query) {
+        produceState<ComposerFileSearchResult?>(null, workspace, query) {
+            delay(150)
+            value = ComposerFileSearch.search(File(vm.workingDirectory), File(workspace), query)
+        }
     }
     CodexDetailSheet(title = "引用项目文件", onDismiss = onDismiss, subtitle = PresentationPolicy.workspaceName(workspace)) {
         AtlasSearchField(query, { query = it }, "搜索文件名称或路径", onClear = { query = "" },
@@ -83,8 +94,9 @@ internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, i
             if (current.files.isEmpty()) Text("没有匹配的项目文件", color = Ink.muted)
             if (current.more) Text("显示前 100 项，请缩小搜索范围", color = Ink.muted)
             current.files.forEach { file ->
-                AtlasSettingsActionRow(file.name, File(file.path).relativeTo(File(workspace).canonicalFile).path,
-                    CodexGlyph.Description, onClick = { onSelect(file) }, outlined = false)
+                AtlasSettingsActionRow(file.name, File(file.path).relativeTo(File(workspace)).path,
+                    CodexGlyph.Description, onClick = { onSelect(file) }, outlined = false,
+                    modifier = Modifier.testTag("composer-reference-result-" + file.path))
             }
         }
     }

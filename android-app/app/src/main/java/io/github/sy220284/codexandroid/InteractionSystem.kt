@@ -191,10 +191,10 @@ fun ProtocolFeedback(
     keys: List<String>,
     onRetry: (() -> Unit)? = null
 ) {
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectEntries(*keys.toTypedArray())
+    val loading by vm.loading.collectProjection { pending -> pending.intersect(keys.toSet()) }
     val connection by vm.bridge.status.collectAsState()
-    CodexReveal(keys.any { it in loading }) {
+    CodexReveal(loading.isNotEmpty()) {
         AtlasOperationProgress("正在处理本页请求")
     }
     val visible = PresentationPolicy.visibleErrors(errors, keys.filterNot { it in loading })
