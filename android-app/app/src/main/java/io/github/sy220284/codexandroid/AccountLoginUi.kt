@@ -177,7 +177,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
+                    CodexSecondaryButton(
                         onClick = { vm.refresh("account", "account/read") },
                         enabled = !loading.contains("account"),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
@@ -187,7 +187,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("刷新账号状态", maxLines = 1)
                     }
                     if (connected) {
-                        TextButton(
+                        CodexTextAction(
                             onClick = { logoutConfirm = true },
                             modifier = Modifier.heightIn(min = 48.dp)
                         ) { Text("退出账号") }
@@ -201,13 +201,13 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("账号与额度", style = MaterialTheme.typography.titleMedium)
             Text("登录状态、使用记录和额度窗口来自同一账号，可从此处集中查看。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-            OutlinedButton(onClick = { showSessions = true },
+            CodexSecondaryButton(onClick = { showSessions = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 CodexIcon(CodexGlyph.PeopleOutline, null, modifier = Modifier.size(19.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("账号与工作区切换（实验）")
             }
-            OutlinedButton(onClick = { navigate("usage") },
+            CodexSecondaryButton(onClick = { navigate("usage") },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("account-usage-limits")) {
                 CodexIcon(CodexGlyph.Insights, null, modifier = Modifier.size(18.dp))
@@ -268,7 +268,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     )
                                 }
                                 Spacer(Modifier.weight(1f))
-                                TextButton(
+                                CodexTextAction(
                                     onClick = {
                                         clipboard.setText(AnnotatedString(deviceCode))
                                         copied = true
@@ -288,7 +288,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("1. 复制验证码   2. 打开授权页面   3. 输入验证码并确认",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Ink.muted)
-                        OutlinedButton(
+                        CodexSecondaryButton(
                             onClick = { openAuthorization(deviceUrl) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             enabled = !loginBusy
@@ -302,7 +302,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         DividerLine()
                         Text("在浏览器完成授权，返回应用后可刷新账号状态。",
                             color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                        OutlinedButton(
+                        CodexSecondaryButton(
                             onClick = { openAuthorization(browserUrl) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             enabled = !loginBusy
@@ -319,12 +319,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedButton(
+                        CodexSecondaryButton(
                             onClick = { vm.refresh("account", "account/read") },
                             enabled = !loading.contains("account"),
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         ) { Text("刷新授权结果") }
-                        TextButton(
+                        CodexTextAction(
                             onClick = vm::cancelLogin,
                             enabled = !loginBusy,
                             modifier = Modifier.heightIn(min = 48.dp)
@@ -334,7 +334,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
 
-        OutlinedButton(onClick = { navigate("security") },
+        CodexSecondaryButton(onClick = { navigate("security") },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             CodexIcon(CodexGlyph.Security, null)
             Spacer(Modifier.width(8.dp))

@@ -51,7 +51,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             AtlasSheetHeader("账号与工作区切换", onDismiss)
             Text("查看可用账号与工作区；切换前会请你确认。",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-            OutlinedButton(
+            CodexSecondaryButton(
                 onClick = {
                     if (engine == EngineStatus.Connected)
                         vm.refresh("accountSessions", "accountSession/list",
@@ -131,7 +131,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                         style = MaterialTheme.typography.labelMedium)
                                 }
                                 if (chosen) Text("当前使用", color = Ink.jade)
-                                else OutlinedButton(
+                                else CodexSecondaryButton(
                                     onClick = {
                                         target = Triple(sid, aid,
                                             PresentationPolicy.meaningful(workspace.optString("name"))

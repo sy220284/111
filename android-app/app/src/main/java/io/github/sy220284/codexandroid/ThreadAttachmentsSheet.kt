@@ -56,11 +56,11 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     contentPadding = PaddingValues(bottom = 20.dp)) {
                     item { MaterialPanel(Modifier.fillMaxWidth()) {
                     Text("添加文本备注", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(noteKey, { noteKey = it }, singleLine = true,
+                    CodexInputField(noteKey, { noteKey = it }, singleLine = true,
                         label = { Text("备注名称") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(noteText, { noteText = it }, minLines = 2, maxLines = 5,
+                    CodexInputField(noteText, { noteText = it }, minLines = 2, maxLines = 5,
                         label = { Text("备注内容") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedButton(onClick = {
+                    CodexSecondaryButton(onClick = {
                         val originalKey = noteKey.trim()
                         val originalText = noteText.trim()
                         vm.rpc("threadAttachmentWrite", "thread/attachment/add",
@@ -107,13 +107,13 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = {
+                                CodexSecondaryButton(onClick = {
                                     reader = PresentationPolicy.meaningful(
                                         item.optJSONObject("payload")?.optString("text"))
                                         .ifEmpty { "此资料没有可展示的文本内容。" }
                                 },
                                     modifier = Modifier.weight(1f)) { Text("查看详情") }
-                                OutlinedButton(onClick = { removeTarget = item },
+                                CodexSecondaryButton(onClick = { removeTarget = item },
                                     modifier = Modifier.weight(1f),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
                                     Text("删除资料")
@@ -122,8 +122,8 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                         }
                     }
                     if (cursor.isNotBlank()) item {
-                        OutlinedButton(onClick = {
-                            val threadId = active ?: return@OutlinedButton
+                        CodexSecondaryButton(onClick = {
+                            val threadId = active ?: return@CodexSecondaryButton
                             val nextPage = page + 1
                             page = nextPage
                             vm.refresh(baseKey + nextPage, "thread/attachment/list",

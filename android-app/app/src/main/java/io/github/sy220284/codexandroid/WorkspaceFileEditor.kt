@@ -64,7 +64,7 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { requestClose() }, enabled = !saving,
+                    CodexIconAction(onClick = { requestClose() }, enabled = !saving,
                         modifier = Modifier.size(48.dp)) {
                         CodexIcon(CodexGlyph.ArrowBack, "返回文件列表")
                     }
@@ -115,13 +115,13 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                     else -> {
                         if (failure != null) {
                             AtlasFieldFeedback(failure!!, isError = true)
-                            if (dirty) TextButton(onClick = { clipboard.setText(AnnotatedString(draft)) },
+                            if (dirty) CodexTextAction(onClick = { clipboard.setText(AnnotatedString(draft)) },
                                 modifier = Modifier.heightIn(min = 48.dp).testTag("workspace-editor-copy-draft")) {
                                 Text("复制未保存草稿")
                             }
                         }
                         if (saving) AtlasOperationProgress("正在保存文件")
-                        OutlinedTextField(draft, { draft = it; saved = false; failure = null },
+                        CodexInputField(draft, { draft = it; saved = false; failure = null },
                             modifier = Modifier.fillMaxWidth().weight(1f).testTag("workspace-editor-content"),
                             enabled = !saving,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))

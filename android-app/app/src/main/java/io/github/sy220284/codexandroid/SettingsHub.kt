@@ -267,7 +267,7 @@ fun AppearanceInlineControls(focusTarget: String? = null) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
                 .forEach { (scale, label) ->
-                    FilterChip(
+                    CodexFilterChip(
                         selected = kotlin.math.abs(fontScale - scale) < .01f,
                         onClick = { UiPreferences.setFontScale(scale) },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall) },

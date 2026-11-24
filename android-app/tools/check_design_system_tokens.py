@@ -75,6 +75,14 @@ def verify(source: str, spec: str) -> list[str]:
                 value = (max(fg, bg) + .05) / (min(fg, bg) + .05)
                 if value < 4.5:
                     errors.append(mode + ' Ink.' + key + ' 对比度低于 4.5:1')
+            if 'controlBorder' in palette:
+                fg = luminosity(palette['controlBorder'])
+                for surface in ('canvas', 'panel', 'recessed', 'elevated'):
+                    if surface not in palette:
+                        continue
+                    surface_bg = luminosity(palette[surface])
+                    if (max(fg, surface_bg) + .05) / (min(fg, surface_bg) + .05) < 3:
+                        errors.append(mode + ' Ink.controlBorder 与 ' + surface + ' 对比度低于 3:1')
     if not re.search(r'\bprimary\s*=\s*Ink\.coral\b', source):
         errors.append('MaterialTheme.primary 应映射 Ink.coral')
     if not re.search(r'\bonPrimary\s*=\s*Ink\.canvas\b', source):
@@ -121,16 +129,49 @@ def verify_asset_tokens(source: str, asset_json: str) -> list[str]:
     return errors
 
 
+MOTION_KEYS = {
+    "press": "press", "release": "release", "selection": "selection",
+    "menu": "menu", "reveal": "reveal", "page": "navigation",
+    "imageZoom": "imageZoom", "success": "success", "sheet": "sheet",
+}
+
+def verify_motion_tokens(source: str, asset_json: str) -> list[str]:
+    try:
+        tokens = json.loads(asset_json).get("motionMs")
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        return ["动效设计变量无法解析"]
+    if not isinstance(tokens, dict) or set(tokens) != set(MOTION_KEYS) | {"reduced"}:
+        return ["动效设计变量键集合缺失或多余"]
+    match = re.search(r'\bobject\s+CodexMotion\s*\{(.*?)\n\}', source, re.S)
+    if not match:
+        return ["缺少 CodexMotion 定义"]
+    actual = dict(re.findall(r'\bconst\s+val\s+(\w+)\s*=\s*(\d+)\b', match.group(1)))
+    errors = []
+    for name, constant in MOTION_KEYS.items():
+        value = tokens[name]
+        if type(value) is not int or value <= 0 or str(value) != actual.get(constant):
+            errors.append(f"动效 {name} 与 CodexMotion.{constant} 不一致")
+    if type(tokens["reduced"]) is not int or tokens["reduced"] != 0:
+        errors.append("减少动效的设计时长必须为 0")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', required=True, type=Path)
     parser.add_argument('--spec', required=True, type=Path)
     parser.add_argument('--tokens', type=Path)
+    parser.add_argument('--motion', type=Path)
     args = parser.parse_args()
     source = args.source.read_text(encoding='utf-8')
     errors = verify(source, args.spec.read_text(encoding='utf-8'))
     if args.tokens is not None:
-        errors += verify_asset_tokens(source, args.tokens.read_text(encoding='utf-8'))
+        asset_json = args.tokens.read_text(encoding='utf-8')
+        errors += verify_asset_tokens(source, asset_json)
+        if args.motion is None:
+            errors.append('必须提供 CodexMotion 源码以核验动效设计变量')
+        else:
+            errors += verify_motion_tokens(args.motion.read_text(encoding='utf-8'), asset_json)
     if errors:
         for error in errors:
             print('设计色彩核验失败：' + error, file=sys.stderr)

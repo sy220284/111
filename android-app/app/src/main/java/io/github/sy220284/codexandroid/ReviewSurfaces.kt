@@ -50,7 +50,7 @@ fun ReviewScopePanel(
                 }
             }
             if (selection != "uncommittedChanges") {
-                OutlinedTextField(
+                CodexInputField(
                     value = value, onValueChange = { text ->
                         vm.editTaskPanelDraft(active) { it.copy(reviewText = text) }
                     },

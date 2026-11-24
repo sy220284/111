@@ -69,7 +69,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("all" to "全部", "enabled" to "已启用",
                     "available" to "可用未启用", "errors" to "异常").forEach { (id, label) ->
-                    FilterChip(selected = filter == id, onClick = { filter = id },
+                    CodexFilterChip(selected = filter == id, onClick = { filter = id },
                         modifier = Modifier.heightIn(min = 48.dp)
                             .testTag("skills-filter-" + id),
                         label = { Text(label) })
@@ -97,7 +97,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                             confirmation = skill to enabled
                         }, enabled = "skillsWrite" !in mutationLoading && "skills" !in mutationLoading)
                     }
-                    TextButton(onClick = { selectedSkill = skill },
+                    CodexTextAction(onClick = { selectedSkill = skill },
                         modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
                             .testTag("skill-open-detail")) {
                         Text("查看详情")

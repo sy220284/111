@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -104,7 +105,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("调整范围", style = MaterialTheme.typography.titleMedium)
             Text("新任务默认设置与当前会话分别保存，互不覆盖。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-            Row(Modifier.fillMaxWidth(),
+            Row(Modifier.fillMaxWidth().selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SecurityScopeOption(
                     label = "新任务默认",
@@ -133,7 +134,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.testTag("security-profiles-heading")
             )
-                Column(Modifier.fillMaxWidth(),
+                Column(Modifier.fillMaxWidth().selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("可用权限方案",
                         style = MaterialTheme.typography.labelMedium, color = Ink.muted)
@@ -176,7 +177,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             Text(PresentationPolicy.permissionProfile(draftProfile.orEmpty()),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Ink.parchment)
-                            TextButton(onClick = { draftProfile = null }) {
+                            CodexTextAction(onClick = { draftProfile = null }) {
                                 Text("撤销修改")
                             }
                         }
@@ -291,16 +292,16 @@ private fun SecurityScopeOption(
     Column(
         modifier = modifier
             .border(BorderStroke(if (selected) 1.3.dp else 1.dp,
-                if (selected) Ink.coral else Ink.border), shape)
+                if (selected) Ink.coral else if (enabled) Ink.controlBorder else Ink.border), shape)
             .background(
                 if (selected) Ink.coral.copy(alpha = .055f) else Ink.panel, shape)
-            .clickable(enabled = enabled, onClick = onChoose)
+            .codexSelectable(selected, enabled, onChoose)
             .heightIn(min = 64.dp)
             .padding(horizontal = 10.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = null, enabled = enabled,
+            CodexRadio(selected = selected, onClick = null, enabled = enabled,
                 modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(4.dp))
             Text(label,
@@ -323,15 +324,15 @@ private fun SecurityProfileOption(
     Row(
         modifier = modifier.fillMaxWidth()
             .border(BorderStroke(if (selected) 1.4.dp else .8.dp,
-                if (selected) Ink.coral else Ink.border.copy(alpha = .7f)), shape)
+                if (selected) Ink.coral else if (allowed) Ink.controlBorder else Ink.border), shape)
             .background(if (selected) Ink.coral.copy(alpha = .055f)
                 else Ink.panel, shape)
-            .clickable(enabled = allowed, onClick = onChoose)
+            .codexSelectable(selected, allowed, onChoose)
             .heightIn(min = 72.dp)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected, onClick = null, enabled = allowed,
+        CodexRadio(selected = selected, onClick = null, enabled = allowed,
             modifier = Modifier.size(32.dp))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f),

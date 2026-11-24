@@ -59,7 +59,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss) {
+                    CodexIconAction(onClick = onDismiss) {
                         CodexIcon(CodexGlyph.ArrowBack, contentDescription = "返回回合历史")
                     }
                     Column(Modifier.weight(1f)) {
@@ -80,10 +80,10 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                         modifier = Modifier.testTag("timeline-event-search"), onClear = { query = "" })
                     if (categories.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(selected = category.isBlank(), onClick = { category = "" },
+                        CodexFilterChip(selected = category.isBlank(), onClick = { category = "" },
                             label = { Text("全部") }, modifier = Modifier.heightIn(min = 48.dp))
                         categories.forEach { kind ->
-                            FilterChip(selected = category == kind, onClick = { category = kind },
+                            CodexFilterChip(selected = category == kind, onClick = { category = kind },
                                 label = { Text(kind) }, modifier = Modifier.heightIn(min = 48.dp))
                         }
                     }
@@ -138,7 +138,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }
                     if (cursor.isNotBlank()) {
                         item {
-                            OutlinedButton(onClick = {
+                            CodexSecondaryButton(onClick = {
                                 val nextPage = page + 1
                                 page = nextPage
                                 readPage(nextPage)

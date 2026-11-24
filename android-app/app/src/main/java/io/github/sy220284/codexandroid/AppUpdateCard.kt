@@ -81,14 +81,14 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
                     .testTag("update-check")
             ) { Text(if (busy) "正在处理" else "检查并下载更新") }
             if (busy) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = AppUpdateManager::cancel,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 ) { Text(if (status.phase == UpdatePhase.DOWNLOADING) "取消下载" else "取消当前操作") }
             }
             if (status.phase in setOf(UpdatePhase.READY,
                     UpdatePhase.NEEDS_PERMISSION, UpdatePhase.INSTALLING)) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = {
                         val current = vm.globalWorkSnapshot()
                         if (current.canDisruptCoreOrData) {

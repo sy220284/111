@@ -86,7 +86,7 @@ internal fun TimelineStepCard(item: TimelineItem) {
                     if (statusLabel.isNotEmpty()) {
                         Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
                     }
-                    IconButton(onClick = { menuOpen = true }, enabled = canOpenMenu, modifier = Modifier.size(48.dp)
+                    CodexIconAction(onClick = { menuOpen = true }, enabled = canOpenMenu, modifier = Modifier.size(48.dp)
                         .testTag("timeline-more-" + item.id)) {
                         CodexIcon(CodexGlyph.MoreHoriz, "消息操作")
                     }
@@ -101,10 +101,10 @@ internal fun TimelineStepCard(item: TimelineItem) {
                         overflow = TextOverflow.Ellipsis)
                 }
                 if (!user && !assistant && item.text.isNotBlank()) {
-                    TextButton(onClick = { readerOpen = true }) { Text("查看完整内容") }
+                    CodexTextAction(onClick = { readerOpen = true }) { Text("查看完整内容") }
                 }
                 if (item.evidence.isNotBlank()) {
-                    TextButton(onClick = { evidenceOpen = true },
+                    CodexTextAction(onClick = { evidenceOpen = true },
                         modifier = Modifier.heightIn(min = 48.dp)) {
                         CodexIcon(CodexGlyph.OpenInNew, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))

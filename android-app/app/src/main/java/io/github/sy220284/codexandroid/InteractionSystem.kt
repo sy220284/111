@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.togetherWith
@@ -47,10 +46,16 @@ import androidx.compose.ui.unit.dp
 
 /** One motion language for a working console. All durations respect the in-app preference. */
 object CodexMotion {
-    const val feedback = 150
-    const val reveal = 200
+    const val press = 100
+    const val release = 140
+    const val feedback = release
+    const val reveal = 240
+    const val selection = 180
+    const val menu = 200
+    const val imageZoom = 220
+    const val success = 450
     const val navigation = 280
-    const val sheet = 300
+    const val sheet = 320
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
 }
 
@@ -94,15 +99,8 @@ fun Modifier.codexPressable(
     role: Role? = null,
     onClick: () -> Unit
 ): Modifier = composed {
-    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (enabled && pressed && !reduceMotion) .985f else 1f,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduceMotion)),
-        label = "codex-row-press"
-    )
-    this.graphicsLayer { scaleX = scale; scaleY = scale }
+    this.codexActionPress(interaction, enabled)
         .clickable(
             enabled = enabled,
             role = role,
@@ -135,6 +133,12 @@ fun CodexNotice(
         NoticeTone.Warning -> Ink.warning
         NoticeTone.Error -> Ink.red
     }
+    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val confirmation = remember(message, tone) { Animatable(if (tone == NoticeTone.Success && !reduced) .85f else 1f) }
+    LaunchedEffect(message, tone, reduced) {
+        if (reduced || tone != NoticeTone.Success) confirmation.snapTo(1f)
+        else confirmation.animateTo(1f, tween(CodexMotion.success))
+    }
     val icon = when (tone) {
         NoticeTone.Info -> CodexGlyph.Info
         NoticeTone.Success -> CodexGlyph.TaskComplete
@@ -152,18 +156,24 @@ fun CodexNotice(
             if (actionLabel != null && narrow) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                        CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp).graphicsLayer {
+                            val scale = if (reduced) 1f else confirmation.value
+                            scaleX = scale; scaleY = scale
+                        })
                         Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
-                    TextButton(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
+                    CodexTextAction(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
                         Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
                     }
                 }
             } else Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp).graphicsLayer {
+                            val scale = if (reduced) 1f else confirmation.value
+                            scaleX = scale; scaleY = scale
+                        })
                 Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                if (actionLabel != null) TextButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
+                if (actionLabel != null) CodexTextAction(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
                 }
             }
@@ -265,7 +275,7 @@ fun CodexRecoveryState(
             actionLabel = actionLabel, onAction = onAction, artworkRes = artworkRes
         )
         if (onDiagnostics != null) {
-            TextButton(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
+            CodexTextAction(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text("查看诊断", color = Ink.parchment)
             }
         }
@@ -279,11 +289,11 @@ fun CodexRefreshIcon(
     onRefresh: () -> Unit,
     label: String = "刷新"
 ) {
-    IconButton(
+    CodexIconAction(
         onClick = onRefresh, enabled = !busy,
         modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
     ) {
-        if (busy) CircularProgressIndicator(
+        if (busy) CodexActivityIndicator(
             Modifier.size(19.dp), strokeWidth = 2.dp, color = Ink.copper
         ) else CodexIcon(CodexGlyph.Retry, contentDescription = label)
     }
@@ -323,7 +333,7 @@ fun CodexChoiceSheet(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
@@ -417,10 +427,10 @@ fun CodexEvidenceSheet(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                CodexSecondaryButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                     Text("关闭")
                 }
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { clipboard.setText(AnnotatedString(copyText)) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
@@ -482,7 +492,7 @@ fun CodexConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            CodexPrimaryButton(
                 onClick = onConfirm,
                 enabled = confirmEnabled,
                 colors = ButtonDefaults.buttonColors(
@@ -494,7 +504,7 @@ fun CodexConfirmDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss,
+            CodexTextAction(onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-cancel")) {
                 Text("取消")
             }
@@ -513,16 +523,10 @@ fun CodexActionTile(
 ) {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
-    val reduce by UiPreferences.reducedMotion.collectAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && !reduce) .985f else 1f,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.feedback, reduce)),
-        label = "action_press"
-    )
     Surface(
-        modifier = modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+        modifier = modifier.codexActionPress(source, true)
             .clip(RoundedCornerShape(18.dp))
-            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = source, indication = LocalIndication.current, role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = Ink.panel,
         border = BorderStroke(1.dp, if (pressed) Ink.copper else Ink.border)

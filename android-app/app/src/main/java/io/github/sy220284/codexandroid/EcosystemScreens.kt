@@ -73,7 +73,7 @@ fun ModelsPage(vm: CodexViewModel) {
             Text("新会话使用的模型", style = MaterialTheme.typography.titleMedium)
             Text(chosen.ifBlank { "遵循 Codex 默认模型" }, color = Ink.copper)
             Text("更改这里的选择不会中断已经启动的会话。", color = Ink.muted)
-            OutlinedButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
+            CodexSecondaryButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
         }
         SourceState(vm, "models") { vm.refresh("models", "model/list") }
         if (items.isEmpty() && data["models"] != null && "models" !in loading && errors["models"] == null) {
@@ -98,14 +98,14 @@ fun ModelsPage(vm: CodexViewModel) {
                         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         val description = PresentationPolicy.meaningful(item.optString("description"))
                         if (description.isNotEmpty()) {
-                            IconButton(
+                            CodexIconAction(
                                 onClick = { selectedModelDetail = title to description },
                                 modifier = Modifier.testTag("model-detail-" + id)
                             ) {
                                 CodexIcon(CodexGlyph.Info, contentDescription = "查看" + title + "说明")
                             }
                         }
-                        RadioButton(chosenNow, onClick = { vm.modelId.value = id })
+                        CodexRadio(chosenNow, onClick = { vm.modelId.value = id })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         if (item.optBoolean("isDefault")) StatusPill("官方默认")
@@ -171,6 +171,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     AtlasFormField(customName, { customName = it }, "服务商名称")
                     AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
                         placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                        confirmedValid = customUrl.isNotBlank() && ProviderAddressPolicy.valid(customUrl),
                         error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
                             "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
                     AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
@@ -230,7 +231,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     if (defaultId == item.optString("id")) StatusPill("当前默认")
                 }
                 if (defaultId != item.optString("id")) {
-                    OutlinedButton(onClick = { toSelect = item }, enabled = data["providers"]?.optBoolean("canChangeDefault") == true) {
+                    CodexSecondaryButton(onClick = { toSelect = item }, enabled = data["providers"]?.optBoolean("canChangeDefault") == true) {
                         Text("设为默认服务商")
                     }
                 }
@@ -321,20 +322,9 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     ScreenColumn {
         SectionIntro("插件",
             "先管理已安装能力，需要新功能时再浏览可用插件。")
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = installedOnly, onClick = { installedOnly = true },
-                shape = SegmentedButtonDefaults.itemShape(0, 2),
-                modifier = Modifier.testTag("plugins-tab-installed"),
-                label = { Text("已安装") }
-            )
-            SegmentedButton(
-                selected = !installedOnly, onClick = { installedOnly = false },
-                shape = SegmentedButtonDefaults.itemShape(1, 2),
-                modifier = Modifier.testTag("plugins-tab-catalog"),
-                label = { Text("发现插件") }
-            )
-        }
+        AtlasCompactChoice(if (installedOnly) "installed" else "catalog",
+            listOf("installed" to "已安装", "catalog" to "发现插件"),
+            onSelect = { installedOnly = it == "installed" }, tagPrefix = "plugins-tab-")
         if (!installedOnly) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("搜索插件", style = MaterialTheme.typography.titleSmall,
@@ -372,7 +362,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                         style = MaterialTheme.typography.titleMedium)
                     Text("关联 " + marketplaces.size + " 个来源", color = Ink.muted)
                 }
-                IconButton(onClick = {
+                CodexIconAction(onClick = {
                     if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
                         CatalogRequestContract.workspace(vm.workingDirectory))
                     else vm.refresh("plugins", "plugin/list",
@@ -424,13 +414,13 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (!item.optBoolean("installed")) {
-                            OutlinedButton(onClick = { action = Triple(market, item, true) },
+                            CodexSecondaryButton(onClick = { action = Triple(market, item, true) },
                                 enabled = item.optString("installPolicy") != "NOT_AVAILABLE" &&
                                      "pluginMutation" !in busy) {
                                 Text("安装插件")
                             }
                         }
-                        TextButton(onClick = { selectedPlugin = market to item },
+                        CodexTextAction(onClick = { selectedPlugin = market to item },
                          enabled = "pluginMutation" !in busy) {
                             Text("查看详情")
                         }
@@ -438,7 +428,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 }
             }
             if (searchCursor.isNotBlank()) {
-                OutlinedButton(onClick = {
+                CodexSecondaryButton(onClick = {
                     val next = searchPage + 1
                     searchPage = next
                     vm.refresh(searchPrefix + next, "plugin/search",
@@ -470,15 +460,15 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (item.optBoolean("installed")) {
-                            OutlinedButton(onClick = { action = Triple(market, item, false) },
+                            CodexSecondaryButton(onClick = { action = Triple(market, item, false) },
                                 enabled = "pluginMutation" !in busy) { Text("卸载") }
                         } else {
-                            OutlinedButton(onClick = { action = Triple(market, item, true) },
+                            CodexSecondaryButton(onClick = { action = Triple(market, item, true) },
                                 enabled = item.optString("installPolicy") != "NOT_AVAILABLE" &&
                                      "pluginMutation" !in busy) { Text("安装插件") }
                         }
                     }
-                    TextButton(onClick = { selectedPlugin = market to item },
+                    CodexTextAction(onClick = { selectedPlugin = market to item },
                         enabled = "pluginMutation" !in busy,
                         modifier = Modifier.heightIn(min = 48.dp)) {
                         CodexIcon(CodexGlyph.Info, null)
@@ -586,7 +576,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { vm.connectionRestarter.restart() },
                     enabled = !restarting && status != EngineStatus.Starting &&
                         ConnectionRestartPolicy.canRestart(work),
@@ -598,7 +588,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                     CodexIcon(CodexGlyph.Retry, null)
                     Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
-                OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
+                CodexSecondaryButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
                     enabled = status == EngineStatus.Connected) { Text("检查运行状况") }
             }
             if (!work.canDisruptCoreOrData) {
@@ -639,7 +629,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                     if (showCrashReader) FullTextReaderDialog("本机崩溃记录", stored) {
                         showCrashReader = false
                     }
-                    TextButton(onClick = { confirmClearCrashes = true }) {
+                    CodexTextAction(onClick = { confirmClearCrashes = true }) {
                         Text("清除本机崩溃记录", color = Ink.red)
                     }
                     if (confirmClearCrashes) CodexConfirmDialog(

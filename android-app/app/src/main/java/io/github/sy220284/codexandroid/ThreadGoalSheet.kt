@@ -24,7 +24,7 @@ fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically) {
                 Text("任务目标", style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭任务目标")
                 }
             }

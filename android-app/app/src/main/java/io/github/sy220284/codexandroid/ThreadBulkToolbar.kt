@@ -42,11 +42,11 @@ internal fun ThreadBulkToolbar(
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onSelectAll, enabled = enabled,
+                    CodexIconAction(onClick = onSelectAll, enabled = enabled,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
                         CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选本页")
                     }
-                    IconButton(onClick = onFinish,
+                    CodexIconAction(onClick = onFinish,
                         modifier = Modifier.size(48.dp).testTag("thread-bulk-finish")) {
                         CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                     }
@@ -62,7 +62,7 @@ internal fun ThreadBulkToolbar(
                     Spacer(Modifier.width(8.dp))
                     Text(archiveLabel)
                 }
-                TextButton(
+                CodexTextAction(
                     onClick = { onAction("delete") }, enabled = allowAction,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("thread-bulk-delete")
@@ -83,14 +83,14 @@ internal fun ThreadBulkToolbar(
             ) {
                 Text("已选 $selectedCount 条", modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
-                IconButton(onClick = onSelectAll, enabled = enabled,
+                CodexIconAction(onClick = onSelectAll, enabled = enabled,
                     modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选本页")
                 }
-                IconButton(onClick = onFinish, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onFinish, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                 }
-                IconButton(
+                CodexIconAction(
                     onClick = { onAction(if (archived) "unarchive" else "archive") },
                     enabled = allowAction,
                     modifier = Modifier.size(48.dp).testTag("thread-bulk-archive")
@@ -100,7 +100,7 @@ internal fun ThreadBulkToolbar(
                     CodexIcon(if (archived) CodexGlyph.Unarchive else CodexGlyph.Archive,
                         contentDescription = archiveLabel)
                 }
-                IconButton(
+                CodexIconAction(
                     onClick = { onAction("delete") }, enabled = allowAction,
                     modifier = Modifier.size(48.dp).testTag("thread-bulk-delete")
                         .explainDisabled(!allowAction, if (!enabled)

@@ -1,6 +1,11 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -14,6 +19,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -41,7 +48,7 @@ fun AtlasSearchField(
     label: String? = null,
     submitTestTag: String? = null
 ) {
-    OutlinedTextField(
+    CodexInputField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
@@ -54,21 +61,21 @@ fun AtlasSearchField(
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (value.isNotBlank() && onClear != null) {
-                    IconButton(
+                    CodexIconAction(
                         onClick = onClear,
                         modifier = Modifier.size(48.dp),
                         enabled = enabled
                     ) { CodexIcon(CodexGlyph.Close, contentDescription = "清除搜索词") }
                 }
                 if (onSubmit != null) {
-                    IconButton(
+                    CodexIconAction(
                         onClick = onSubmit,
                         enabled = enabled && !busy && value.isNotBlank(),
                         modifier = Modifier.size(48.dp).let {
                             if (submitTestTag == null) it else it.testTag(submitTestTag)
                         }
                     ) {
-                        if (busy) CircularProgressIndicator(
+                        if (busy) CodexActivityIndicator(
                             modifier = Modifier.size(18.dp),
                             color = Ink.copper, strokeWidth = 2.dp
                         ) else CodexIcon(CodexGlyph.ArrowForward, contentDescription = "开始搜索")
@@ -137,7 +144,7 @@ fun AtlasStatusSelector(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
-                            RadioButton(
+                            CodexRadio(
                                 selected = chosen, onClick = null,
                                 enabled = enabled, modifier = Modifier.size(40.dp),
                                 colors = RadioButtonDefaults.colors(
@@ -197,7 +204,12 @@ fun AtlasOperationProgress(
             if (fraction != null) Text("${(fraction * 100).toInt()}%",
                 style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
         }
-        if (fraction == null) LinearProgressIndicator(
+        val reduced by UiPreferences.reducedMotion.collectAsState()
+        if (fraction == null && reduced) {
+            Box(Modifier.fillMaxWidth().height(4.dp)
+                .semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate }
+                .background(Ink.border, RoundedCornerShape(4.dp)))
+        } else if (fraction == null) LinearProgressIndicator(
             modifier = Modifier.fillMaxWidth(), color = indicatorColor,
             trackColor = Ink.border
         ) else LinearProgressIndicator(
@@ -320,14 +332,14 @@ fun AtlasChoiceRow(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+            .codexSelectable(selected, enabled, onClick),
         color = if (selected) Ink.panel else Ink.canvas,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else Ink.border),
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
         shape = RoundedCornerShape(15.dp)
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            CodexRadio(selected = selected, onClick = null, enabled = enabled)
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium,
                     color = if (enabled) Ink.parchment else Ink.muted)
@@ -347,16 +359,23 @@ fun AtlasCompactChoice(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    tagPrefix: String = ""
+    tagPrefix: String = "",
+    labelStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelMedium
 ) {
     SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (id, label) ->
+            val interaction = remember(id) { MutableInteractionSource() }
             SegmentedButton(selected = selected == id, onClick = { onSelect(id) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 enabled = enabled,
-                modifier = Modifier.heightIn(min = 48.dp).let {
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = Ink.copper.copy(alpha = .12f), activeContentColor = Ink.parchment,
+                    activeBorderColor = Ink.copper, inactiveContainerColor = Ink.canvas,
+                    inactiveContentColor = Ink.muted, inactiveBorderColor = Ink.controlBorder),
+                interactionSource = interaction,
+                modifier = Modifier.heightIn(min = 48.dp).codexActionPress(interaction, enabled, SegmentedButtonDefaults.itemShape(index, options.size)).let {
                     if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
-                }) { Text(label, style = MaterialTheme.typography.labelMedium) }
+                }) { Text(label, style = labelStyle) }
         }
     }
 }
@@ -369,7 +388,7 @@ fun atlasSheetHeight() = LocalConfiguration.current.screenHeightDp.dp * .88f
 fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp).testTag("atlas-sheet-close")) {
+        CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp).testTag("atlas-sheet-close")) {
             CodexIcon(CodexGlyph.Close, contentDescription = "关闭面板")
         }
     }

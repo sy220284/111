@@ -30,12 +30,15 @@ internal fun ChatWorkTopBar(
     onNewThread: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).background(Ink.canvas)
+        Modifier.fillMaxWidth().background(Ink.canvas)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .heightIn(min = 56.dp)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            IconButton(
+            CodexIconAction(
                 onClick = onMenu,
                 modifier = Modifier.size(48.dp)
                     .background(Ink.recessed, CircleShape)
@@ -60,7 +63,7 @@ internal fun ChatWorkTopBar(
             }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            IconButton(
+            CodexIconAction(
                 onClick = onNewThread, enabled = newThreadBlockReason == null,
                 modifier = Modifier.size(48.dp)
                     .background(Ink.recessed, CircleShape)

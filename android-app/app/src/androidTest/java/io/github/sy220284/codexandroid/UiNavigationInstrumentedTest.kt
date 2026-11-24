@@ -6,6 +6,7 @@ import org.json.JSONArray
 import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import android.view.KeyEvent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -120,7 +121,29 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
-    @Test fun horizontalPageGesturesNeverOpenDrawerAndOpenDrawerSwipesClose() {
+    @Test fun workTopBarRespectsSystemStatusBarAndCutout() {
+        fun assertSafeTopBar() {
+            rule.onNodeWithTag("drawer-toggle").assertIsDisplayed()
+            val button = rule.onNodeWithTag("drawer-toggle").fetchSemanticsNode()
+            val title = rule.onNodeWithTag("conversation-top-title").fetchSemanticsNode()
+            var safeTop = 0
+            rule.runOnUiThread {
+                val insets = requireNotNull(rule.activity.window.decorView.rootWindowInsets)
+                if (android.os.Build.VERSION.SDK_INT >= 30) {
+                    safeTop = insets.getInsetsIgnoringVisibility(
+                        android.view.WindowInsets.Type.statusBars() or
+                            android.view.WindowInsets.Type.displayCutout()).top
+                }
+            }
+            assertTrue("顶栏按钮进入状态栏", button.boundsInWindow.top >= safeTop)
+            assertTrue("顶栏标题进入状态栏", title.boundsInWindow.top >= safeTop)
+        }
+        assertSafeTopBar()
+        openDrawerRoute("home")
+        assertSafeTopBar()
+    }
+
+    @Test fun homepageRightSwipeOpensDrawerWithoutStealingPageGestures() {
         val vm = (rule.activity.application as CodexApplication).session
         val oldMotion = UiPreferences.reducedMotion.value
         try {
@@ -129,15 +152,45 @@ class UiNavigationInstrumentedTest {
                 vm.editComposerText(null, "横滑及转场保留的草稿")
             }
             rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
-            rule.onNodeWithTag("chat-workspace-context").performTouchInput { swipeRight() }
+            val work = rule.onNodeWithTag("work-shell")
+            // 中央横滑和左侧竖滑均保留原行为。
+            work.performTouchInput {
+                swipe(Offset(width * .48f, height * .35f), Offset(width * .86f, height * .35f))
+            }
             rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
-            rule.onNodeWithContentDescription("打开侧边导航").performTouchInput { click() }
+            work.performTouchInput {
+                swipe(Offset(width * .10f, height * .25f), Offset(width * .10f, height * .55f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            work.performTouchInput {
+                swipe(Offset(width * .10f, height * .35f), Offset(width * .65f, height * .35f))
+            }
             rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed().performTouchInput { swipeLeft() }
             rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
             rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
 
             rule.runOnUiThread { UiPreferences.reducedMotion.value = true }
-            openDrawerRoute("settings")
+            work.performTouchInput {
+                swipe(Offset(width * .10f, height * .35f), Offset(width * .65f, height * .35f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed()
+            rule.onNodeWithTag("nav-settings").performClick()
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            // The regression occurred on an ordinary clickable settings row, not
+            // the drawer itself. Both swipe directions must cancel the row tap.
+            val engineRow = rule.onNodeWithTag("settings-engine-overview").assertIsDisplayed()
+            engineRow.performTouchInput { swipeRight() }
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            engineRow.performTouchInput { swipeLeft() }
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            engineRow.performTouchInput { click() }
+            rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
+            pressSystemBack()
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            work.performTouchInput {
+                swipe(Offset(width * .10f, height * .35f), Offset(width * .65f, height * .35f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
             rule.onAllNodesWithTag("screen-title").assertCountEquals(1)
             rule.onNodeWithTag("screen-title").assertTextEquals("设置")
             rule.onNodeWithTag("conversation-composer").assertDoesNotExist()

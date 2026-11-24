@@ -732,4 +732,18 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("13").assertExists()
     }
 
+    @Test fun unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction() {
+        assertControlSystemInteraction(rule)
+    }
+    @Test fun v8BusyButtonRetainsWidthAndSecretCanBeHidden() {
+        assertV8ComponentStates(rule)
+    }
+
+    @Test fun v8ControlBordersHaveAccessibleContrastInBothThemes() {
+        assertV8ThemeContrast(rule)
+    }
+
+    @Test fun v8RouteMotionConvergesAndReducedMotionSnaps() {
+        assertV8RouteMotion(rule)
+    }
 }

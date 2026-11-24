@@ -2,7 +2,7 @@
 """Regression test for palette drift detection."""
 import unittest
 import json
-from check_design_system_tokens import verify, verify_asset_tokens
+from check_design_system_tokens import verify, verify_asset_tokens, verify_motion_tokens, MOTION_KEYS
 
 SOURCE = '''object Ink {
     val canvas = Color(0xFFFFFFFF)
@@ -93,6 +93,20 @@ private object InkDark {
                   "sizes": {"touchTargetDp": 32}}
         self.assertTrue(any("48dp" in error
                             for error in verify_asset_tokens(source, json.dumps(tokens))))
+
+    def test_motion_tokens_require_matching_values_and_reduced_motion(self):
+        values = {key: 100 + i * 20 for i, key in enumerate(MOTION_KEYS)}
+        source = "object CodexMotion {\n" + "\n".join(
+            f"    const val {constant} = {values[key]}"
+            for key, constant in MOTION_KEYS.items()) + "\n}"
+        tokens = {"motionMs": {**values, "reduced": 0}}
+        self.assertEqual([], verify_motion_tokens(source, json.dumps(tokens)))
+        tokens["motionMs"]["page"] += 10
+        self.assertTrue(any("navigation" in err for err in verify_motion_tokens(source, json.dumps(tokens))))
+        tokens["motionMs"]["reduced"] = 100
+        self.assertTrue(any("减少动效" in err for err in verify_motion_tokens(source, json.dumps(tokens))))
+        del tokens["motionMs"]["press"]
+        self.assertTrue(verify_motion_tokens(source, json.dumps(tokens)))
 
 if __name__ == '__main__':
     unittest.main()

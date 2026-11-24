@@ -25,7 +25,7 @@ internal fun ApprovalAuditSection(
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("本机审批记录", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
-            TextButton(
+            CodexTextAction(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.heightIn(min = 48.dp).testTag("approval-audit-toggle")
             ) {
@@ -50,7 +50,7 @@ internal fun ApprovalAuditSection(
                 }
                 if (records.size > 20) Text("仅显示最近 20 条，其他记录仍在本机保留。",
                     color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { confirmClear = true },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("approval-audit-clear")

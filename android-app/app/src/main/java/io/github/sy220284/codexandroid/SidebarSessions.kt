@@ -170,7 +170,7 @@ internal fun SidebarSessionsContent(
                             PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
                         } ?: "会话 " + id.take(8)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(
+                            CodexTextAction(
                                 onClick = { onOpenThread(id) },
                                 enabled = connected && !switching,
                                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
@@ -181,7 +181,7 @@ internal fun SidebarSessionsContent(
                                 CodexIcon(CodexGlyph.ChevronRight, contentDescription = null)
                             }
                             if (liveExecutions[id]?.turnId != null) {
-                                IconButton(
+                                CodexIconAction(
                                     onClick = { onStopThread(id) },
                                     enabled = connected,
                                     modifier = Modifier.size(48.dp)
@@ -212,7 +212,7 @@ internal fun SidebarSessionsContent(
             ) {
                 Text("最近会话", modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                IconButton(
+                CodexIconAction(
                     onClick = {
                         state.searching = !searching
                         if (!state.searching) state.search = ""
@@ -224,7 +224,7 @@ internal fun SidebarSessionsContent(
                             else "搜索侧栏会话",
                         modifier = Modifier.size(19.dp), tint = Ink.muted)
                 }
-                IconButton(
+                CodexIconAction(
                     onClick = onRefresh,
                     enabled = connected && !loading,
                     modifier = Modifier.size(48.dp).testTag("sidebar-refresh")
@@ -303,7 +303,7 @@ internal fun SidebarSessionsContent(
                 }
             }
         item(key = "session-view-all") {
-            TextButton(
+            CodexTextAction(
                 onClick = onViewAll,
                 modifier = Modifier.fillMaxWidth().testTag("sidebar-view-all")
             ) {
