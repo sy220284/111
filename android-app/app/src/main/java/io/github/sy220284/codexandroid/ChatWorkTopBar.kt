@@ -48,6 +48,8 @@ internal fun ChatWorkTopBar(
             Modifier.weight(2f).testTag("conversation-top-title"),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            CodexIcon(CodexGlyph.BrandCodex, null, modifier = Modifier.size(18.dp), tint = Ink.parchment)
             Text(
                 conversationTitle,
                 style = MaterialTheme.typography.titleMedium,
@@ -55,6 +57,7 @@ internal fun ChatWorkTopBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             IconButton(

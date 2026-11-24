@@ -113,6 +113,8 @@ fun WorkspacePage(vm: CodexViewModel) {
                 .thenBy { it.name.lowercase() }) ?: emptyList()
     }
 
+    var fileQuery by remember(folder) { mutableStateOf("") }
+    val visibleChildren = children.filter { it.name.contains(fileQuery.trim(), ignoreCase = true) }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -228,15 +230,23 @@ fun WorkspacePage(vm: CodexViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("目录内容", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                Text("${children.size} 项", style = MaterialTheme.typography.labelMedium,
+                Text(if (fileQuery.isBlank()) "${children.size} 项" else "${visibleChildren.size} / ${children.size} 项", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
+        }
+        if (children.isNotEmpty()) item(key = "workspace-search") {
+            AtlasSearchField(fileQuery, { fileQuery = it }, "搜索当前目录",
+                onClear = { fileQuery = "" }, modifier = Modifier.testTag("workspace-file-search"))
+        }
+        if (children.isNotEmpty() && visibleChildren.isEmpty()) item {
+            CodexEmptyState("没有匹配的文件", "试试其他文件名。",
+                actionLabel = "清除搜索", onAction = { fileQuery = "" })
         }
         if (children.isEmpty()) item {
             CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
                 icon = CodexGlyph.Project)
         }
-        items(children, key = { it.absolutePath }) { file ->
+        items(visibleChildren, key = { it.absolutePath }) { file ->
             var optionsOpen by remember(file.path) { mutableStateOf(false) }
             Surface(
                 color = Ink.panel,

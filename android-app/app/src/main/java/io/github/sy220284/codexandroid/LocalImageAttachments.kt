@@ -144,46 +144,12 @@ fun LocalImageAttachmentStrip(
                 }
             }
         }
-        previewPath?.let { path ->
-            var retry by remember(path) { mutableIntStateOf(0) }
-            val preview by produceState<Pair<Boolean, ImageBitmap?>>(initialValue = false to null, path, retry) {
-                value = false to null
-                val bitmap = withContext(Dispatchers.IO) {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(path, bounds)
-                    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
-                    val scale = maxOf(1, maxOf(bounds.outWidth, bounds.outHeight) / 1400)
-                    BitmapFactory.decodeFile(path,
-                        BitmapFactory.Options().apply { inSampleSize = scale })?.asImageBitmap()
-                }
-                value = true to bitmap
-            }
-            val enlarged = preview.second
-            CodexDialogFrame(
-                onDismissRequest = { previewPath = null },
-                title = { Text("图片预览") },
-                text = {
-                    if (!preview.first) {
-                        AtlasOperationProgress("正在载入图片")
-                    } else if (enlarged == null) {
-                        CodexRecoveryState("图片读取失败", "附件可能已被移动或损坏。",
-                            "重新读取", { retry++ })
-                    } else {
-                        Image(enlarged, contentDescription = "当前附件的大图预览",
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp),
-                            contentScale = ContentScale.Fit)
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { previewPath = null }) { Text("关闭") }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        onRemove(path)
-                        previewPath = null
-                    }) { Text("移除这张", color = Ink.red) }
-                }
-            )
+        previewPath?.takeIf { it in paths }?.let { path ->
+            AttachmentPreviewDialog(paths, path, onSelect = { previewPath = it },
+                onDismiss = { previewPath = null }, onRemove = {
+                    onRemove(it)
+                    previewPath = null
+                })
         }
     }
 }

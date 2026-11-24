@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -41,7 +42,29 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by remember(diff) { mutableStateOf("") }
     val visibleFiles = files.indices.filter { files[it].path.contains(query.trim(), ignoreCase = true) }
     val lineNumbers = remember(files) { files.map { UnifiedDiff.annotateLines(it.lines) } }
+    val listState = rememberLazyListState()
+    var filePicker by remember { mutableStateOf(false) }
+    var pendingJump by remember(diff) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(pendingJump, expanded, visibleFiles) {
+        val target = pendingJump ?: return@LaunchedEffect
+        if (target in visibleFiles) {
+            val position = 1 + visibleFiles.takeWhile { it != target }.sumOf { index ->
+                1 + if (index in expanded) files[index].lines.size else 0
+            }
+            listState.scrollToItem(position)
+        }
+        pendingJump = null
+    }
+    if (filePicker) CodexChoiceSheet("定位改动文件",
+        visibleFiles.map { index -> CodexChoice(index.toString(), files[index].path) },
+        selected = "", onSelect = { value ->
+            val target = value.toInt()
+            updateExpanded(expanded + target)
+            pendingJump = target
+            filePicker = false
+        }, onDismiss = { filePicker = false }, searchable = true)
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
@@ -70,6 +93,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 if (files.isNotEmpty()) AtlasSearchField(query, { query = it }, "按文件名筛选差异",
                     onClear = { query = "" }, modifier = Modifier.testTag("diff-file-search"))
+                if (visibleFiles.isNotEmpty()) TextButton(onClick = { filePicker = true },
+                    modifier = Modifier.testTag("diff-file-jump")) { Text("定位改动文件") }
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     CodexPrimaryButton(onClick = { navigate("review") },
                         enabled = active != null && files.isNotEmpty(),
