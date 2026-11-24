@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,8 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
 
 internal data class MessageBlock(val kind: String, val text: String, val level: Int = 0,
-    val label: String = "", val rows: List<List<String>> = emptyList())
+    val label: String = "", val rows: List<List<String>> = emptyList(), val source: String = "")
 
 /** Parse display structure once; copy and evidence still use the untouched native text. */
 internal object MessageMarkdown {
@@ -103,12 +103,14 @@ internal object MessageMarkdown {
                 }
                 tableHeader(lines, i) -> {
                     flush()
+                    val start = i
                     val rows = mutableListOf(cells(line))
                     i += 2
                     while (i < lines.size && lines[i].contains('|') && lines[i].isNotBlank()) {
                         rows.add(cells(lines[i++]))
                     }
-                    result.add(MessageBlock("table", rows.joinToString("\n") { it.joinToString(" | ") }, rows = rows))
+                    result.add(MessageBlock("table", rows.joinToString("\n") { it.joinToString(" | ") }, rows = rows,
+                        source = lines.subList(start, i).joinToString("\n")) )
                     continue
                 }
                 trimmed.isBlank() -> flush()
@@ -214,7 +216,7 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
             blocks.forEach { block ->
                 when (block.kind) {
                     "code" -> MessageCodeBlock(block)
-                    "table" -> MessageTable(block.rows)
+                    "table" -> MessageTable(block)
                     "rule" -> HorizontalDivider(color = Ink.border)
                     "heading" -> Text(MessageMarkdown.inlineText(block.text), fontWeight = FontWeight.SemiBold,
                         style = if (block.level <= 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall)
@@ -223,11 +225,7 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
                         Text(block.label, color = Ink.muted)
                         Text(MessageMarkdown.inlineText(block.text), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     }
-                    "quote" -> Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                        Box(Modifier.fillMaxHeight().width(3.dp).background(Ink.border, RoundedCornerShape(2.dp)))
-                        Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
-                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                    }
+                    "quote" -> MessageQuote(block)
                     "stream-tail" -> Text(block.text, style = MaterialTheme.typography.bodyLarge)
                     else -> Text(MessageMarkdown.inlineText(block.text), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -238,14 +236,14 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
 
 @Composable
 private fun MessageCodeBlock(block: MessageBlock) {
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberConversationCopy()
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         color = Ink.recessed, border = BorderStroke(1.dp, Ink.border)) {
         Column {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(block.label.ifBlank { "代码" }, Modifier.weight(1f), color = Ink.muted,
                     style = MaterialTheme.typography.labelMedium)
-                CodexIconAction(onClick = { clipboard.setText(AnnotatedString(block.text)) },
+                CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
                     modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.ContentCopy, "复制代码", tint = Ink.muted, modifier = Modifier.size(18.dp))
                 }
@@ -258,21 +256,79 @@ private fun MessageCodeBlock(block: MessageBlock) {
 }
 
 @Composable
-private fun MessageTable(rows: List<List<String>>) {
+private fun MessageQuote(block: MessageBlock) {
+    val copy = rememberConversationCopy()
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.Top) {
+        Box(Modifier.fillMaxHeight().width(3.dp).background(Ink.border, RoundedCornerShape(2.dp)))
+        Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
+            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
+            modifier = Modifier.size(48.dp).testTag("message-quote-copy")) {
+            CodexIcon(CodexGlyph.ContentCopy, "复制引用", tint = Ink.muted, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun MessageTable(block: MessageBlock) {
+    val rows = block.rows
     val count = rows.maxOfOrNull { it.size } ?: return
+    val copy = rememberConversationCopy()
+    var selecting by remember(block) { mutableStateOf(false) }
+    var first by remember(block) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var last by remember(block) { mutableStateOf<Pair<Int, Int>?>(null) }
+    val start = first
+    val end = last
+    fun selected(row: Int, column: Int): Boolean {
+        val a = start ?: return false
+        val b = end ?: a
+        return row in minOf(a.first, b.first)..maxOf(a.first, b.first) &&
+            column in minOf(a.second, b.second)..maxOf(a.second, b.second)
+    }
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
-        Column(Modifier.horizontalScroll(rememberScrollState())) {
-            rows.forEachIndexed { index, row ->
-                Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
-                    repeat(count) { column ->
-                        Text(MessageMarkdown.inlineText(row.getOrElse(column) { "" }),
-                            Modifier.width(132.dp).padding(10.dp),
-                            color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
-                            fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
-                    }
+        Column {
+            Row(Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (!selecting) "表格" else if (start == null) "选择起始单元格" else if (end == null)
+                    "选择结束单元格" else "已选单元格", Modifier.weight(1f),
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                TextButton(onClick = { selecting = !selecting; first = null; last = null },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("message-table-select")) {
+                    Text(if (selecting) "取消" else "选取")
                 }
-                if (index != rows.lastIndex) HorizontalDivider(color = Ink.border)
+                CodexIconAction(onClick = {
+                    if (!selecting) copy(block.source, CopyContentFormat.Markdown)
+                    else if (start != null && end != null) {
+                        copy(ConversationCopyContent.tableRange(rows, minOf(start.first, end.first),
+                            maxOf(start.first, end.first), minOf(start.second, end.second),
+                            maxOf(start.second, end.second)), CopyContentFormat.Markdown)
+                        selecting = false; first = null; last = null
+                    }
+                }, enabled = !selecting || end != null, modifier = Modifier.size(48.dp).testTag("message-table-copy")) {
+                    CodexIcon(CodexGlyph.ContentCopy, if (selecting) "复制所选单元格" else "复制表格",
+                        tint = Ink.muted, modifier = Modifier.size(18.dp))
+                }
+            }
+            HorizontalDivider(color = Ink.border)
+            Column(Modifier.horizontalScroll(rememberScrollState())) {
+                rows.forEachIndexed { index, row ->
+                    Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
+                        repeat(count) { column ->
+                            val cell = Modifier.width(132.dp).then(if (selecting)
+                                Modifier.background(if (selected(index, column)) Ink.border else
+                                    if (index == 0) Ink.recessed else Ink.canvas)
+                                    .clickable {
+                                        if (first == null || last != null) { first = index to column; last = null }
+                                        else last = index to column
+                                    }.testTag("message-table-cell-$index-$column")
+                                else Modifier).padding(10.dp)
+                            Text(MessageMarkdown.inlineText(row.getOrElse(column) { "" }), cell,
+                                color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
+                                fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
+                        }
+                    }
+                    if (index != rows.lastIndex) HorizontalDivider(color = Ink.border)
+                }
             }
         }
     }

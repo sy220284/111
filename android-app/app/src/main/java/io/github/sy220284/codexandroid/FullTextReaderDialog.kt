@@ -9,8 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.platform.LocalDensity
@@ -46,7 +44,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
         }
         val hits = searchHits.orEmpty()
         val state = rememberLazyListState()
-        val clipboard = LocalClipboardManager.current
+        val copy = rememberConversationCopy()
         val reducedMotion by UiPreferences.reducedMotion.collectAsState()
         val layouts = remember(text) { mutableStateMapOf<Int, TextLayoutResult>() }
         val topInset = with(LocalDensity.current) { 16.dp.roundToPx() }
@@ -77,7 +75,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                         Text("完整内容 · ${text.length} 字符", color = Ink.muted,
                             style = MaterialTheme.typography.labelMedium)
                     }
-                    CodexIconAction(onClick = { clipboard.setText(AnnotatedString(text)) },
+                    CodexIconAction(onClick = { copy(text, CopyContentFormat.Literal) },
                         modifier = Modifier.size(48.dp)) {
                         CodexIcon(CodexGlyph.ContentCopy, contentDescription = "复制全文")
                     }

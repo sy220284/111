@@ -45,4 +45,17 @@ class ThreadMarkdownExporterTest {
         assertFalse(markdown.contains("正在检查"))
         assertFalse(markdown.contains("工具内容"))
     }
+
+    @Test fun executionExportIncludesOptedInEvidenceButNotPrivateReasoning() {
+        val items = JSONArray().put(JSONObject().put("type", "agentMessage").put("text", "回答"))
+            .put(JSONObject().put("type", "reasoning").put("summary", JSONArray().put("公开摘要")).put("content", JSONArray().put("私有推理")))
+            .put(JSONObject().put("type", "commandExecution").put("command", "pwd").put("aggregatedOutput", "/workspace").put("exitCode", 0))
+        val history = JSONObject().put("thread", JSONObject().put("turns", JSONArray().put(JSONObject().put("items", items))))
+        val normal = ThreadMarkdownExporter.render(history)
+        val complete = ThreadMarkdownExporter.render(history, includeActivity = true)
+        assertFalse(normal.contains("/workspace"))
+        assertTrue(complete.contains("/workspace"))
+        assertTrue(complete.contains("公开摘要"))
+        assertFalse(complete.contains("私有推理"))
+    }
 }
