@@ -47,8 +47,8 @@ FEATURE = re.compile(
 # The shell dispatches sheets to exactly one contextual overlay; they should not
 # silently turn back into top-level pages when the catalog grows.
 SHEET_DISPATCH = {
-    "threads": ("showThreadLibrary = true", "ThreadLibraryQuickSheet("),
-    "search": ("showThreadLibrary = true", "ThreadLibraryQuickSheet("),
+    "threads": ("openDrawer()", "SidebarSessions("),
+    "search": ("openDrawer()", "SidebarSessions("),
     "approvals": ("showApprovals = true", "ApprovalQuickSheet("),
     "goals": ("showGoal = true", "ThreadGoalSheet("),
     "queue": ("showQueue = true", "ThreadQueueQuickSheet("),
