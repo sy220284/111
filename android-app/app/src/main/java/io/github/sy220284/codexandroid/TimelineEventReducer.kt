@@ -71,6 +71,16 @@ internal object TimelineEventReducer {
             text, status, evidence.toString(), turnId, item.string("phase"))
     }
 
+    fun historyTurns(items: List<TimelineItem>): JSONArray = JSONArray().apply {
+        items.filter { it.turnId.isNotBlank() }.groupBy { it.turnId }.forEach { (id, group) ->
+            val records = JSONArray()
+            group.filter { it.kind == "fileChange" && it.evidence.isNotBlank() }.forEach {
+                records.put(JSONObject(it.evidence))
+            }
+            put(JSONObject().put("id", id).put("items", records))
+        }
+    }
+
     fun historyEntry(entry: JSONObject): TimelineItem {
         val item = entry.getJSONObject("item")
         val completed = !entry.isNull("completedAtMs")

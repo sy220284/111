@@ -263,23 +263,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
     }
 
-    fun runSessionAction(id: String, fork: Boolean) {
-        if (id != activeThread.value || running.value || threadSwitching.value ||
-            firstThreadStarting.value || bridge.status.value != EngineStatus.Connected) {
-            errors.value = errors.value + ("conversation" to "当前会话暂不能执行此操作，请等待任务或连接恢复")
-            return
-        }
-        val key = if (fork) "threadFork:$id" else "threadCompact:$id"
-        if (key in loading.value) return
-        val params = JSONObject().put("threadId", id)
-        if (fork) params.put("excludeTurns", true)
-        request(key, if (fork) "thread/fork" else "thread/compact/start", params, { response ->
-            if (fork && activeThread.value == id) {
-                val newId = response.getJSONObject("thread").getString("id")
-                chooseThread(newId)
-            }
-        }, userAction = true)
-    }
+    internal val conversationActions by lazy { ConversationActionController(this) }
+    fun runSessionAction(id: String, fork: Boolean) =
+        if (fork) conversationActions.fork(id) else conversationActions.compact(id)
 
     fun bulkThreadAction(kind: String, ids: List<String>, after: () -> Unit) =
         threadOrganization.execute(kind, ids, after = after)
@@ -314,13 +300,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val history = bridge.request("thread/read", JSONObject().put("threadId", id))
                 val threadDirectory = WorkspaceSelectionContract.validate(
                     workspaceRoot, File(history.getJSONObject("thread").getString("cwd")))
-                bridge.request("thread/resume", JSONObject().put("threadId", id))
+                bridge.request("thread/resume", JSONObject().put("threadId", id).put("excludeTurns", true))
                 val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120))
                 val restored = readHistoryPage(page)
-                val turnsPage = bridge.request("thread/turns/list", JSONObject().put("threadId", id)
-                    .put("sortDirection", "desc").put("limit", 1).put("itemsView", "full"))
-                val turns = turnsPage.getJSONArray("data")
+                val turns = TimelineEventReducer.historyTurns(restored)
                 activeWorkspace.value = threadDirectory.absolutePath
                 activeProjectId.value = history.getJSONObject("thread")
                     .optString("projectId").takeIf { it.isNotBlank() }
