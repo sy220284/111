@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -252,6 +253,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
+    val canSwipeOpenDrawer = !drawerOwnsInput &&
+        (selected == "chat" || selected == "home") &&
+        WindowInsets.ime.getBottom(LocalDensity.current) == 0
     BackHandler(enabled = drawerOwnsInput || backHistory.size > 1) {
         if (drawerOwnsInput) closeDrawer() else goBack()
     }
@@ -259,6 +263,8 @@ fun CodexShell(vm: CodexViewModel) {
     Box(Modifier.fillMaxSize().background(Ink.canvas)) {
         val content: @Composable () -> Unit = {
             Scaffold(
+                modifier = Modifier.testTag("work-shell")
+                    .sidebarOpenSwipe(canSwipeOpenDrawer, ::openDrawer),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { SnackbarHost(operationSnacks) },
@@ -356,8 +362,8 @@ fun CodexShell(vm: CodexViewModel) {
         }
         ModalNavigationDrawer(
             drawerState = drawer,
-            // Closed drawer never intercepts file/image/text horizontal gestures.
-            // The explicit menu opens it; an open drawer supports swipe-to-close.
+            // Closed drawer uses the scoped homepage gesture; the native drawer
+            // handles an open panel's swipe-to-close and scrim.
             gesturesEnabled = drawerOwnsInput,
             drawerContent = {
                 ModalDrawerSheet(

@@ -30,7 +30,10 @@ internal fun ChatWorkTopBar(
     onNewThread: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).background(Ink.canvas)
+        Modifier.fillMaxWidth().background(Ink.canvas)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .heightIn(min = 56.dp)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
