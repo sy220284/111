@@ -11,20 +11,25 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
 /**
- * Only a deliberate right swipe starting in the left area of the work screen
- * opens the drawer. Main pass lets child scroll/selection gestures take priority.
- * Leave the system back-gesture edge under Android's control.
+ * Unclaimed horizontal drags cancel descendant taps on every page. Main pass
+ * gives child scrolling, selection and gestures first refusal; consuming the
+ * slop-crossing move cancels an ordinary clickable on its Final pass.
+ * Only an intentional right swipe from the work screen's left area opens
+ * the drawer. The system back edge remains under Android's control.
  */
 @Composable
-internal fun Modifier.sidebarOpenSwipe(enabled: Boolean, onOpen: () -> Unit): Modifier {
+internal fun Modifier.pageHorizontalSwipe(
+    enabled: Boolean, canOpenDrawer: Boolean, onOpen: () -> Unit
+): Modifier {
     val currentOpen = rememberUpdatedState(onOpen)
+    val currentCanOpen = rememberUpdatedState(canOpenDrawer)
     if (!enabled) return this
     return pointerInput(Unit) {
         val edgeWidth = 96.dp.toPx()
         val openDistance = 56.dp.toPx()
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
-            if (down.position.x > edgeWidth) return@awaitEachGesture
+            val eligible = currentCanOpen.value && down.position.x <= edgeWidth
             var horizontal = false
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Main)
@@ -34,16 +39,17 @@ internal fun Modifier.sidebarOpenSwipe(enabled: Boolean, onOpen: () -> Unit): Mo
                 val dx = change.position.x - down.position.x
                 val dy = change.position.y - down.position.y
                 if (!change.pressed) {
-                    if (horizontal && dx >= openDistance) {
+                    if (horizontal) {
                         change.consume()
-                        currentOpen.value()
+                        if (eligible && currentCanOpen.value && dx >= openDistance &&
+                            dx >= abs(dy) * 1.5f) currentOpen.value()
                     }
                     break
                 }
                 if (!horizontal) {
                     if (abs(dy) >= viewConfiguration.touchSlop && abs(dy) >= abs(dx)) break
                     if (abs(dx) < viewConfiguration.touchSlop) continue
-                    if (dx <= 0f || dx < abs(dy) * 1.5f) break
+                    if (abs(dx) < abs(dy) * 1.5f) continue
                     horizontal = true
                 }
                 change.consume()

@@ -264,7 +264,7 @@ fun CodexShell(vm: CodexViewModel) {
         val content: @Composable () -> Unit = {
             Scaffold(
                 modifier = Modifier.testTag("work-shell")
-                    .sidebarOpenSwipe(canSwipeOpenDrawer, ::openDrawer),
+                    .pageHorizontalSwipe(!drawerOwnsInput, canSwipeOpenDrawer, ::openDrawer),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { CodexOperationSnackbarHost(operationSnacks) },

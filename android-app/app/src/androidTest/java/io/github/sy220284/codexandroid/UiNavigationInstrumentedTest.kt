@@ -175,6 +175,18 @@ class UiNavigationInstrumentedTest {
             }
             rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed()
             rule.onNodeWithTag("nav-settings").performClick()
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            // The regression occurred on an ordinary clickable settings row, not
+            // the drawer itself. Both swipe directions must cancel the row tap.
+            val engineRow = rule.onNodeWithTag("settings-engine-overview").assertIsDisplayed()
+            engineRow.performTouchInput { swipeRight() }
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            engineRow.performTouchInput { swipeLeft() }
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
+            engineRow.performTouchInput { click() }
+            rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
+            pressSystemBack()
+            rule.onNodeWithTag("screen-title").assertTextEquals("设置")
             work.performTouchInput {
                 swipe(Offset(width * .10f, height * .35f), Offset(width * .65f, height * .35f))
             }
