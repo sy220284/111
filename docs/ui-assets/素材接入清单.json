@@ -29,12 +29,18 @@
         "ConversationLoadingSkeleton",
         "ChatWorkTopBar",
         "ThreadContextTools",
-        "LocalImageAttachments"
+        "LocalImageAttachments",
+        "AtlasComposerShortcuts",
+        "ChatTimelineComponents",
+        "AttachmentPreviewDialog"
       ],
       "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态",
       "tests": [
         "UiNavigationInstrumentedTest.chatSuggestionsStayVisibleWithinThePhoneWidth",
-        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible"
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "CodexInteractionComponentsInstrumentedTest.composerShortcutOpensRealCallbackOnlyWhenSelected",
+        "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction",
+        "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove"
       ]
     },
     {
@@ -97,12 +103,15 @@
       "title": "后续指令",
       "sources": [
         "TaskManagementScreens",
-        "ConversationComposer"
+        "ConversationComposer",
+        "AtlasQueueDragHandle",
+        "QueueReorderPolicy"
       ],
       "business": "队列顺序、编辑、取消、加载和空列表",
       "tests": [
         "UiNavigationInstrumentedTest.activeThreadOpensItsQueueWithoutHistoryPicker",
-        "UiNavigationInstrumentedTest.queueDraftSurvivesClosingAndReopeningSheet"
+        "UiNavigationInstrumentedTest.queueDraftSurvivesClosingAndReopeningSheet",
+        "CodexInteractionComponentsInstrumentedTest.queueDragHandleInvokesDragRatherThanClickAndKeepsAccessibleMenu"
       ]
     },
     {
@@ -110,12 +119,15 @@
       "title": "工作区文件",
       "sources": [
         "DeveloperScreens",
-        "ProjectRegistryPanel"
+        "ProjectRegistryPanel",
+        "WorkspaceFileEditor",
+        "WorkspaceFileActions"
       ],
       "business": "新建、文件打开、操作菜单、空目录、错误和项目加载",
       "tests": [
         "UiNavigationInstrumentedTest.workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation",
-        "UiNavigationInstrumentedTest.workspaceProjectManagerOpensWithoutExpandingTheFileList"
+        "UiNavigationInstrumentedTest.workspaceProjectManagerOpensWithoutExpandingTheFileList",
+        "CodexInteractionComponentsInstrumentedTest.fileEditorProtectsUnsavedChangesAndSavesRealFile"
       ]
     },
     {
@@ -134,11 +146,14 @@
       "title": "终端",
       "sources": [
         "TerminalPage",
-        "FullTextReaderDialog"
+        "FullTextReaderDialog",
+        "AtlasTerminalHistoryControls"
       ],
       "business": "实际终端执行、输出、停止、全文检索与错误",
       "tests": [
-        "UiNavigationInstrumentedTest.terminalExecutionShowsReadableConfirmation"
+        "UiNavigationInstrumentedTest.terminalExecutionShowsReadableConfirmation",
+        "CodexInteractionComponentsInstrumentedTest.terminalTouchHistoryRestoresOriginalDraftWithoutExecuting",
+        "CodexInteractionComponentsInstrumentedTest.fullTextSearchScrollsToDistantMatchWithinSameChunk"
       ]
     },
     {
@@ -287,11 +302,13 @@
       "route": "usage",
       "title": "账号用量",
       "sources": [
-        "AccountMetricsPage"
+        "AccountMetricsPage",
+        "AtlasDailyUsageChart"
       ],
       "business": "真实统计、读取、无数据、失败",
       "tests": [
-        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs"
+        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs",
+        "CodexInteractionComponentsInstrumentedTest.dailyUsagePeriodSelectionDoesNotTurnMissingTokensIntoZero"
       ]
     },
     {
@@ -324,7 +341,8 @@
       "title": "诊断与日志",
       "sources": [
         "EcosystemScreens",
-        "UiSharedSurfaces"
+        "UiSharedSurfaces",
+        "FullTextReaderDialog"
       ],
       "business": "连接状态、日志、真实故障、诊断与重连",
       "tests": [
@@ -443,6 +461,10 @@
         ],
         [
           "TaskManagementScreens",
+          "AtlasQueueDragHandle"
+        ],
+        [
+          "AtlasQueueDragHandle",
           "AtlasSequenceBadge"
         ],
         [
