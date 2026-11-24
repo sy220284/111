@@ -9,7 +9,7 @@ import org.json.JSONObject
 /** Keep the full write/read transaction owned by the ViewModel, including navigation away. */
 internal const val ENGINE_SETTING_SAVE = "engineSettingSave"
 internal fun configSnapshotBusy(loading: Set<String>, permissionBusy: Boolean) =
-    loading.any { it in setOf("config", ENGINE_SETTING_SAVE, "appMutation", "skillsWrite", "configWrite", "modelProviderWrite") } || permissionBusy
+    loading.any { it in setOf("config", ENGINE_SETTING_SAVE, "appMutation", "skillsWrite", "configWrite", "modelProviderWrite", "providerWrite", "providerDefaultWrite") } || permissionBusy
 internal fun CodexViewModel.configBusy() =
     configSnapshotBusy(loading.value, securitySaveBusy.value || configTransactionBusy.value)
 internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: String, owner: String = "config",

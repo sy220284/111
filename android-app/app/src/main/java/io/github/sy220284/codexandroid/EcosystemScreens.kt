@@ -105,7 +105,9 @@ fun ProvidersPage(vm: CodexViewModel) {
     var selectedPreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
     var selectedProviderId by remember { mutableStateOf<String?>(null) }
     var customApiKey by remember { mutableStateOf("") }
-    var credentialChanged by remember { mutableStateOf(false) }
+    val credentials by vm.bridge.domesticCredentials.collectAsState()
+    val changingCredentials by vm.connectionRestarter.busy.collectAsState()
+    var revokePreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -128,11 +130,17 @@ fun ProvidersPage(vm: CodexViewModel) {
             Text("国内模型预置", style = MaterialTheme.typography.titleMedium)
             Text("官方国内接口 · 需单独授权，预置模型仅供选择参考。", color = Ink.muted)
             domesticPresets.forEach { preset ->
-                val configured = entries.firstOrNull { preset.matchesEndpoint(it.optString("baseUrl")) && it.optBoolean("canEdit") }
+                val configured = entries.firstOrNull { preset.ownsProvider(it) }
                 AtlasSettingsActionRow(
                     title = preset.name,
-                    detail = if (configured != null) "已配置服务地址 · " + preset.plan else preset.plan + " · 待配置",
+                    detail = preset.plan + " · " + when {
+                        preset.id in credentials.failures -> "密钥需重新授权"
+                        configured == null -> "待配置"
+                        preset.id in credentials.loaded -> "密钥已加载"
+                        else -> "待授权"
+                    },
                     icon = CodexGlyph.Dns,
+                    enabled = !changingCredentials,
                     onClick = {
                         selectedPreset = preset
                         selectedProviderId = configured?.optString("id")
@@ -185,19 +193,16 @@ fun ProvidersPage(vm: CodexViewModel) {
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
                             singleLine = true,
-                            supportingText = { Text(if (DomesticProviderCredentials.has(context, preset)) "已保存本机加密密钥；留空保留" else "密钥仅保存在本机 Android Keystore 加密记录中") })
+                            enabled = !changingCredentials,
+                            supportingText = { Text(credentials.failures[preset.id] ?: if (DomesticProviderCredentials.has(context, preset)) "已保存本机加密密钥；留空保留" else "密钥仅保存在本机 Android Keystore 加密记录中") })
                         if (DomesticProviderCredentials.has(context, preset)) {
-                            CodexSecondaryButton(onClick = {
-                                DomesticProviderCredentials.remove(context, preset)
-                                credentialChanged = true
-                                customApiKey = ""
-                                showCustomEditor = false
-                            }) { Text("移除本机密钥") }
+                            CodexSecondaryButton(onClick = { revokePreset = preset },
+                                enabled = !changingCredentials) { Text("移除本机密钥") }
                         }
                     }
                     CodexPrimaryButton(
                         onClick = { confirmCustom = true },
-                        enabled = customName.isNotBlank() &&
+                        enabled = !changingCredentials && customName.isNotBlank() &&
                             ProviderAddressPolicy.valid(customUrl) &&
                             (selectedPreset?.matchesEndpoint(customUrl) != false) &&
                             (preset == null || DomesticProviderCredentials.valid(customApiKey.trim()) ||
@@ -206,10 +211,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                     ) { Text("保存自定义服务商") }
                 }
             }
-            if (credentialChanged || domesticPresets.any { DomesticProviderCredentials.has(context, it) }) {
-                Text("新增、修改或移除密钥后需重启核心；先完成当前任务。", color = Ink.muted)
-                CodexSecondaryButton(onClick = { vm.connectionRestarter.restart() }) { Text("重启核心使授权生效") }
-            }
+            if (changingCredentials) AtlasOperationProgress("正在核实配置及更新运行核心")
+            credentials.failures.values.distinct().forEach { ErrorText(it) }
             DividerLine()
             AtlasSettingsActionRow(
                 title = "查看服务商能力",
@@ -257,7 +260,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     if (defaultId == item.optString("id")) StatusPill("当前默认")
                 }
                 if (defaultId != item.optString("id")) {
-                    CodexSecondaryButton(onClick = { toSelect = item }, enabled = data["providers"]?.optBoolean("canChangeDefault") == true) {
+                    CodexSecondaryButton(onClick = { toSelect = item }, enabled = !changingCredentials && data["providers"]?.optBoolean("canChangeDefault") == true) {
                         Text("设为默认服务商")
                     }
                 }
@@ -270,7 +273,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     }
     if (confirmCustom) CodexConfirmDialog(
         title = "保存自定义模型服务商",
-        message = "保存自定义服务商配置。国内模型密钥加密保存在本机，重启核心后生效。",
+        message = if (selectedPreset != null) "将保存并回读配置，必要时重新启动空闲核心，验证本机密钥已加载。" else "保存自定义服务商配置。",
         detail = "名称：$customName\n服务地址：$customUrl",
         confirmLabel = "确认保存",
         onConfirm = {
@@ -280,23 +283,33 @@ fun ProvidersPage(vm: CodexViewModel) {
             if (customEnvKey.isNotBlank()) patch.put("envKey", customEnvKey.trim())
             val preset = selectedPreset
             val keyToSave = customApiKey.trim()
-            customApiKey = ""
-            vm.rpc("providerWrite", "modelProvider/config/write",
+            val completed = {
+                showCustomEditor = false
+                customApiKey = ""; customName = ""; customUrl = ""; customEnvKey = ""
+            }
+            if (preset != null) {
+                vm.domesticProviders.configure(preset, customName, keyToSave, completed)
+            } else vm.rpc("providerWrite", "modelProvider/config/write",
                 JSONObject().put("settings", patch),
                 after = {
-                    if (preset != null && keyToSave.isNotBlank()) {
-                        DomesticProviderCredentials.save(context, preset, keyToSave)
-                        credentialChanged = true
-                    }
                     vm.refresh("providers", "modelProvider/list")
                     vm.refresh("models", "model/list")
                     vm.refresh("account", "account/read")
-                    showCustomEditor = false
-                    customName = ""; customUrl = ""; customEnvKey = ""
+                    completed()
                 })
             confirmCustom = false
         }, onDismiss = { confirmCustom = false }
     )
+    revokePreset?.let { preset ->
+        CodexConfirmDialog(title = "移除本机密钥", message = "将关闭持有旧密钥的核心并移除本机密钥，历史会话保留，重新授权后才能使用该服务商。",
+            confirmLabel = "确认移除", onConfirm = {
+                revokePreset = null
+                vm.domesticProviders.revoke(preset) {
+                    customApiKey = ""
+                    showCustomEditor = false
+                }
+            }, onDismiss = { revokePreset = null })
+    }
     toSelect?.let { item ->
         CodexConfirmDialog(
             title = "切换默认模型服务商",
@@ -304,7 +317,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 PresentationPolicy.providerName(item.optString("name")),
             confirmLabel = "确认切换",
             onConfirm = {
-                vm.rpc("providers", "modelProvider/default/set",
+                vm.rpc("providerDefaultWrite", "modelProvider/default/set",
                     JSONObject().put("providerId", item.optString("id")),
                     after = {
                         vm.refresh("providers", "modelProvider/list")

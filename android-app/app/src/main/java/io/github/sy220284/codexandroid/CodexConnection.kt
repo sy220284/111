@@ -47,6 +47,7 @@ class CodexConnection(private val appContext: Context) {
     val events = RpcEventBuffer.create()
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
     val recentStderr = MutableStateFlow<List<String>>(emptyList())
+    internal val domesticCredentials = MutableStateFlow(DomesticCredentialStatus())
 
     suspend fun connect() = lifecycleMutex.withLock {
         withContext(Dispatchers.IO) {
@@ -84,7 +85,9 @@ class CodexConnection(private val appContext: Context) {
             }
             val toolsDir = NativeToolInstaller.prepare(appContext)
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
-            val providerBootstrap = DomesticProviderCredentials.bootstrap(appContext)
+            val credentialBootstrap = DomesticProviderCredentials.bootstrap(appContext)
+            val providerBootstrap = credentialBootstrap.bytes
+            domesticCredentials.value = credentialBootstrap.status.copy(loaded = emptySet())
             if (providerBootstrap != null) builder.command().add("--android-provider-bootstrap")
             val child = try {
                 builder.start().also { started ->
@@ -144,6 +147,7 @@ class CodexConnection(private val appContext: Context) {
                 .put("capabilities", capabilities))
             notify("initialized", JSONObject())
             check(process === child && child.isAlive) { "Codex 核心在初始化后已退出" }
+            domesticCredentials.value = credentialBootstrap.status
             status.value = EngineStatus.Connected
         } catch (failure: Exception) {
             val failedProcess = process
@@ -277,6 +281,7 @@ class CodexConnection(private val appContext: Context) {
         if (current != null && !current.waitFor(400, TimeUnit.MILLISECONDS)) {
             current.destroyForcibly()
         }
+        domesticCredentials.value = domesticCredentials.value.copy(loaded = emptySet())
         status.value = EngineStatus.Unavailable("连接已关闭")
         prompts.value = emptyList()
         recentStderr.value = emptyList()

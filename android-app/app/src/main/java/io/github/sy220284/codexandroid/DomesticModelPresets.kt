@@ -9,6 +9,13 @@ internal data class DomesticModelPreset(
     val plan: String, val protocol: String, val models: List<String>
 ) {
     fun matchesEndpoint(value: String): Boolean = value.trim().trimEnd('/') == baseUrl
+
+    fun ownsProvider(value: org.json.JSONObject): Boolean =
+        matchesEndpoint(value.optString("baseUrl")) &&
+            value.optJSONObject("settings")?.optString("type") == "customGateway" &&
+            value.optJSONObject("settings")?.optJSONObject("auth")?.let {
+                it.optString("mode") == "environmentVariable" && it.optString("envKey") == envKey
+            } == true
 }
 
 internal object DomesticModelPresets {
