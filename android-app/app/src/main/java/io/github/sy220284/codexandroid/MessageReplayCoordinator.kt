@@ -61,11 +61,7 @@ internal class MessageReplayCoordinator(
         val response = request("thread/fork", params)
         val thread = response.getJSONObject("thread")
         val id = thread.getString("id")
-        if (cwd != null) {
-            require(File(thread.getString("cwd")).canonicalPath == File(cwd).canonicalPath) { "内核未确认独立工作目录" }
-            val roots = response.getJSONArray("runtimeWorkspaceRoots")
-            require(roots.length() == 1 && File(roots.getString(0)).canonicalPath == File(cwd).canonicalPath) { "内核未确认独立运行范围" }
-        }
+        if (cwd != null) AnswerWorkspaceStore.verifyRuntime(response, cwd, permission)
         check(id.isNotBlank() && id != threadId) { "内核未返回独立分支" }
         return id
     }

@@ -42,4 +42,17 @@ class AnswerWorkspaceStoreTest {
             assertEquals("current", store.prepare(null, root.path, true).directory.resolve("file.txt").readText())
         } finally { base.deleteRecursively() }
     }
+    @Test fun nativeReceiptMustConfirmDirectoryRootsAndPermission() {
+        val cwd = "/isolated/version"
+        val response = org.json.JSONObject().put("thread", org.json.JSONObject().put("cwd", cwd))
+            .put("runtimeWorkspaceRoots", org.json.JSONArray().put(cwd))
+            .put("activePermissionProfile", org.json.JSONObject().put("id", ":workspace"))
+        AnswerWorkspaceStore.verifyRuntime(response, cwd, ":workspace")
+        response.put("activePermissionProfile", org.json.JSONObject().put("id", ":danger-full-access"))
+        try {
+            AnswerWorkspaceStore.verifyRuntime(response, cwd, ":workspace")
+            fail("不得在未核实隔离权限时重放")
+        } catch (expected: IllegalArgumentException) { assertTrue(expected.message.orEmpty().contains("隔离权限")) }
+    }
+
 }

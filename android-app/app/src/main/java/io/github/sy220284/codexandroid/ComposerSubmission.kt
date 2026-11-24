@@ -110,7 +110,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
  * Do not interrupt the running turn to simulate immediate execution. */
 internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: String? = null) {
     val key = "queueWrite"
-    if (activeThread.value != threadId || running.value || threadId in threadExecutions.value ||
+    if (activeThread.value != threadId || running.value || threadId in threadExecutions.value || answerFamilyBusy(threadId) ||
         firstThreadStarting.value || threadSwitching.value || steerBusy.value ||
         key in loading.value || securitySaveBusy.value || connectionRestarter.busy.value ||
         bridge.status.value != EngineStatus.Connected) {

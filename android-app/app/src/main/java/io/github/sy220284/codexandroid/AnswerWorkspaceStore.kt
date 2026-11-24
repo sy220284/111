@@ -23,6 +23,14 @@ internal class AnswerWorkspaceStore(private val root: File, private val checkpoi
             File(path).canonicalPath.startsWith(File(root, VERSIONS).canonicalPath + File.separator)
         fun permission(root: File, cwd: String, selected: String?): String? =
             if (isolated(root, cwd)) if (selected == ":read-only") selected else ":workspace" else selected
+        fun verifyRuntime(response: JSONObject, cwd: String, expectedPermission: String? = null) {
+            val path = File(cwd).canonicalPath
+            require(File(response.getJSONObject("thread").getString("cwd")).canonicalPath == path) { "内核未确认独立工作目录" }
+            val roots = response.getJSONArray("runtimeWorkspaceRoots")
+            require(roots.length() == 1 && File(roots.getString(0)).canonicalPath == path) { "内核未确认独立运行范围" }
+            val profile = response.getJSONObject("activePermissionProfile").getString("id")
+            require(profile in setOf(":workspace", ":read-only") && (expectedPermission == null || profile == expectedPermission)) { "内核未确认回答版本的隔离权限" }
+        }
     }
     private fun key(id: String): String = UUID.fromString(id).toString()
     private fun stored(id: String?): File? {

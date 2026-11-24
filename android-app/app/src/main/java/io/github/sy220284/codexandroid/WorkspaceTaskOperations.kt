@@ -30,12 +30,18 @@ internal class WorkspaceTaskOperations(
             File(WorkspaceStorage.remap(vm.getApplication(), oldCwd)))
         relocateProject(projectId)
         val params = org.json.JSONObject().put("threadId", id).put("cwd", selected.absolutePath).put("excludeTurns", true)
-        if (AnswerWorkspaceStore.isolated(workspaceRoot, selected.absolutePath)) {
-            val config = bridge.request("config/read", org.json.JSONObject().put("cwd", selected.absolutePath))
+        val isolated = AnswerWorkspaceStore.isolated(workspaceRoot, selected.absolutePath)
+        if (isolated) {
             params.put("runtimeWorkspaceRoots", org.json.JSONArray().put(selected.absolutePath))
-            ComposerPermissionPolicy.apply(params, AnswerWorkspaceStore.permission(workspaceRoot, selected.absolutePath, ComposerPermissionPolicy.selected(config)))
+            // Loaded running sessions reject permission overrides. Resume the
+            // established profile and verify it rather than attempting to change it.
+            if (id !in vm.threadExecutions.value) {
+                val config = bridge.request("config/read", org.json.JSONObject().put("cwd", selected.absolutePath))
+                ComposerPermissionPolicy.apply(params, AnswerWorkspaceStore.permission(workspaceRoot, selected.absolutePath, ComposerPermissionPolicy.selected(config)))
+            }
         }
         val resumed = bridge.request("thread/resume", params)
+        if (isolated) AnswerWorkspaceStore.verifyRuntime(resumed, selected.absolutePath)
         check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == selected) {
             "运行核心未确认新工作目录，请重新打开会话"
         }

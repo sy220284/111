@@ -16,3 +16,10 @@ internal suspend fun CodexViewModel.captureAnswerBaseline(clientId: String, work
             (failure.message ?: "无法建立快照") + "；以后重新回答时需确认使用当前文件", isError = true))
     }
 }
+
+/** One logical chat may own several native histories, but must not start competing mutations. */
+internal fun CodexViewModel.answerFamilyBusy(thread: String): Boolean =
+    answerVersions.state.value.members(thread).any { id ->
+        "threadFork:$id" in loading.value || "threadRevert:$id" in loading.value ||
+            "retry:$id" in loading.value || (id != thread && id in threadExecutions.value)
+    }

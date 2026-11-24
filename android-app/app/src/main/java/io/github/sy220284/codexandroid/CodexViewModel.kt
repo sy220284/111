@@ -415,7 +415,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
         val prompt = text.trim()
-        if (activeThread.value?.let { "threadFork:$it" in loading.value || "threadRevert:$it" in loading.value } == true) {
+        if (activeThread.value?.let(::answerFamilyBusy) == true) {
             errors.value = errors.value + ("conversation" to "正在整理会话，请完成后再发送指令")
             return
         }
@@ -482,7 +482,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         val cwd = WorkspaceSelectionContract.validate(
                             workspaceRoot, File(chosenWorkspace)).absolutePath
                         ComposerPermissionPolicy.apply(ProjectRequestContract.threadStart(
-                            File(cwd), chosenProject, chosenModel), chosenPermission)
+                            File(cwd), chosenProject, chosenModel).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, cwd)) put("runtimeWorkspaceRoots", JSONArray().put(cwd)) }, chosenPermission)
                     },
                     turnParams = { id ->
                         ComposerPermissionPolicy.apply(TurnRequestContract.build(
