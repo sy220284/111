@@ -932,6 +932,12 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("goal-sticky-save").assertExists()
         rule.onNodeWithContentDescription("关闭任务目标").assertExists()
         captureOverlay("audit-goals-sheet-android35.png")
+        rule.onNodeWithTag("goal-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithTag("codex-edit-dialog").assertExists()
+        rule.onNodeWithText("取消").performClick()
+        rule.onNodeWithTag("codex-edit-dialog").assertDoesNotExist()
+        rule.onNodeWithTag("goal-sticky-save").assertExists()
+        rule.onNodeWithTag("goal-advanced-toggle").assertExists()
     }
 
     @Test fun sidebarProjectContextOpensFilesWithoutHistoryPicker() {
