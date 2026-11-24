@@ -111,6 +111,18 @@ fun CodexDialogFrame(
 /** 轻量锚定菜单共享原生 Popup 容器，保留系统返回、焦点与主题。 */
 @Composable
 internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    floating: Boolean = false,
+    focusable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest, content = content)
+    val properties = androidx.compose.ui.window.PopupProperties(focusable = focusable)
+    if (floating) {
+        DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest,
+            modifier = modifier, properties = properties, shape = RoundedCornerShape(24.dp),
+            containerColor = Ink.elevated, tonalElevation = 0.dp, shadowElevation = 8.dp,
+            content = content)
+    } else {
+        DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest,
+            modifier = modifier, properties = properties, content = content)
+    }
 }

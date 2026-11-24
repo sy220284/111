@@ -393,42 +393,43 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 },
                 addMenu = {
-                    if (composerMenu == "add") CodexFloatingActionMenu(title = "添加内容", onDismiss = { closeComposerMenu("add") },
-                actions = buildList {
-                    add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
-                        if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
-                    }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "选择本机图片", testTag = "composer-add-photos"))
-                    add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
-                        if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
-                            try { documentPicker.launch(arrayOf("*/*")) }
-                            catch (failure: Exception) {
-                                vm.composerContent.importDocuments(emptyList())
-                                vm.composerContent.pickerFailure(failure)
-                            }
-                        }
-                    }, description = "导入当前项目并引用", testTag = "composer-add-files"))
-                    add(CodexSheetAction("引用项目文件", CodexGlyph.Link,
-                        onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"))
-                    add(CodexSheetAction("技能", CodexGlyph.School,
-                        onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
-                    if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
-                        onClick = {
-                            vm.composerContent.prepareCamera(draftOwner)?.let { uri ->
-                                try { cameraPicker.launch(uri) }
-                                catch (failure: Exception) {
-                                    vm.composerContent.finishCamera(false)
-                                    vm.composerContent.pickerFailure(failure)
+                    if (composerMenu == "add") CodexFloatingActionMenu(title = "添加内容",
+                        showDescriptions = false, onDismiss = { closeComposerMenu("add") },
+                        actions = buildList {
+                            add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
+                                if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
+                            }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "选择本机图片", testTag = "composer-add-photos"))
+                            add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
+                                if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
+                                    try { documentPicker.launch(arrayOf("*/*")) }
+                                    catch (failure: Exception) {
+                                        vm.composerContent.importDocuments(emptyList())
+                                        vm.composerContent.pickerFailure(failure)
+                                    }
                                 }
-                            }
-                        }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "拍摄并添加图片", testTag = "composer-add-camera"))
-                    if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
-                        onClick = { vm.composerContent.pasteImage(draftOwner) },
-                        enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
+                            }, description = "导入当前项目并引用", testTag = "composer-add-files"))
+                            add(CodexSheetAction("引用项目文件", CodexGlyph.Link,
+                                onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"))
+                            add(CodexSheetAction("技能", CodexGlyph.School,
+                                onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
+                            if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
+                                onClick = {
+                                    vm.composerContent.prepareCamera(draftOwner)?.let { uri ->
+                                        try { cameraPicker.launch(uri) }
+                                        catch (failure: Exception) {
+                                            vm.composerContent.finishCamera(false)
+                                            vm.composerContent.pickerFailure(failure)
+                                        }
+                                    }
+                                }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "拍摄并添加图片", testTag = "composer-add-camera"))
+                            if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
+                                onClick = { vm.composerContent.pasteImage(draftOwner) },
+                                enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
 
-                })
+                        })
                 },
                 modelMenu = {
                     if (composerMenu == "models") ModelChoiceSurface(vm, anchored = true) { closeComposerMenu("models") }
@@ -438,10 +439,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 taskMenu = {
                     if (composerMenu == "tools") CodexFloatingActionMenu(title = "任务配置", onDismiss = { closeComposerMenu("tools") },
-                actions = tools.filter { it.command !in setOf("model", "mode") }.map {
-                    CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
-                        enabled = it.enabled, testTag = "composer-tool-" + it.command)
-                })
+                        actions = tools.filter { it.command !in setOf("model", "mode") }.map {
+                            CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
+                                enabled = it.enabled, testTag = "composer-tool-" + it.command)
+                        })
                 },
                 permissionContent = {
                     ComposerPermissionControl(vm, optionsEnabled && !transferBusy,

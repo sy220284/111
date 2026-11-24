@@ -325,7 +325,7 @@ fun CodexChoiceSheet(
             choice.description.contains(query.trim(), ignoreCase = true)
     }
     if (anchored) {
-        CodexFloatingMenu(title, onDismiss, description) {
+        CodexFloatingMenu(title, onDismiss, description, wide = searchable, searchable = searchable) {
             if (recoveryLabel != null && onRecovery != null) {
                 CodexNotice(recoveryMessage, NoticeTone.Warning,
                     actionLabel = recoveryLabel, onAction = onRecovery)

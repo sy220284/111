@@ -16,6 +16,7 @@
         "ConversationComposer",
         "ComposerFollowUpUi",
         "ConversationControlBar",
+        "CodexFloatingMenu",
         "ComposerReferenceSurfaces",
         "ConversationLoadingSkeleton",
         "ChatWorkTopBar",
@@ -600,7 +601,11 @@
         ],
         [
           "ConversationScreen",
-          "CodexActionSheet"
+          "CodexFloatingActionMenu"
+        ],
+        [
+          "CodexFloatingMenu",
+          "CodexPopupMenu"
         ]
       ],
       "tests": [

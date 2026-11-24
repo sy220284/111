@@ -1,8 +1,8 @@
 package io.github.sy220284.codexandroid
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -25,6 +25,8 @@ internal fun CodexFloatingMenu(
     title: String,
     onDismiss: () -> Unit,
     description: String = "",
+    wide: Boolean = false,
+    searchable: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val config = LocalConfiguration.current
@@ -32,13 +34,15 @@ internal fun CodexFloatingMenu(
     val ime = with(density) { WindowInsets.ime.getBottom(density).toDp() }
     val height = minOf(420.dp, config.screenHeightDp.dp * .64f,
         (config.screenHeightDp.dp - ime - 24.dp).coerceAtLeast(120.dp))
-    DropdownMenu(
-        expanded = true, onDismissRequest = onDismiss,
-        modifier = Modifier.width(minOf(280.dp, (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp)))
-            .heightIn(max = height).testTag("codex-floating-menu"),
-        shape = RoundedCornerShape(24.dp),
-        containerColor = Ink.elevated,
-        tonalElevation = 0.dp, shadowElevation = 8.dp
+    // A simple menu must not steal the existing text field's IME connection.
+    // The model search needs its own editable focus; otherwise keep the IME window.
+    val focusable = searchable || ime == 0.dp
+    BackHandler(enabled = !focusable, onBack = onDismiss)
+    CodexPopupMenu(
+        expanded = true, onDismissRequest = onDismiss, floating = true, focusable = focusable,
+        modifier = Modifier.width(minOf(if (wide) 280.dp else 248.dp,
+            (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp)))
+            .heightIn(max = height).testTag("codex-floating-menu")
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -95,12 +99,13 @@ internal fun CodexFloatingMenuRow(
 }
 
 @Composable
-internal fun CodexFloatingActionMenu(title: String, actions: List<CodexSheetAction>, onDismiss: () -> Unit) {
+internal fun CodexFloatingActionMenu(title: String, actions: List<CodexSheetAction>,
+    onDismiss: () -> Unit, showDescriptions: Boolean = true) {
     CodexFloatingMenu(title, onDismiss) {
         actions.forEach { action ->
             CodexFloatingMenuRow(action.label, onClick = { onDismiss(); action.onClick() },
                 modifier = if (action.testTag == null) Modifier else Modifier.testTag(action.testTag),
-                description = action.description, icon = action.icon,
+                description = if (showDescriptions) action.description else "", icon = action.icon,
                 enabled = action.enabled, destructive = action.destructive)
         }
     }

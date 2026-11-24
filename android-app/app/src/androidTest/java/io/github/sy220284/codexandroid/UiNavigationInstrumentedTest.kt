@@ -409,6 +409,13 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
         rule.onNodeWithTag("conversation-model-control").assertIsDisplayed()
         rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
+        rule.onNodeWithTag("composer-plus").performClick()
+        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
+        rule.onNodeWithTag("composer-add-photos").assertIsDisplayed()
+        assertRealSoftKeyboardOpen()
+        rule.onNodeWithTag("conversation-top-bar").performTouchInput { click(center) }
+        rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
+        rule.onNodeWithTag("composer-input").assertTextContains(multiline)
     }
 
     @Test fun narrowConversationToolbarKeepsPrimaryActionsVisible() {
@@ -475,7 +482,10 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("composer-references").assertExists()
             rule.onNodeWithTag("composer-input").assertTextContains("检查")
             rule.onNodeWithTag("composer-task-options").performClick()
-            rule.onNodeWithTag("codex-detail-close").performClick()
+            rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
+            // Click outside the anchored popup without altering the draft.
+            rule.onNodeWithTag("conversation-top-bar").performTouchInput { click(center) }
+            rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
             rule.onNodeWithTag("composer-input").assertTextContains("检查")
             rule.onNodeWithTag("composer-input").performTextInput("\n" + "继续核对项目内容".repeat(20))
             rule.onNodeWithTag("composer-expand").performClick()

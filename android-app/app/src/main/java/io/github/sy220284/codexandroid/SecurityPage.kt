@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
-/** Only three permission choices, in the composer; saving survives closing the sheet. */
+/** Only three permission choices, in the composer; saving survives closing the popup. */
 @Composable
 internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean,
     open: Boolean, onOpen: () -> Unit, onDismiss: () -> Unit) {
@@ -49,39 +49,39 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean,
                 style = MaterialTheme.typography.labelMedium)
             CodexIcon(CodexGlyph.ExpandMore, null, Modifier.size(14.dp))
         }
-        if (open) CodexFloatingMenu(title = "执行权限", onDismiss = onDismiss,
-        description = if (isolated) "回答版本使用独立工作目录，仅可选择只读或工作区权限。" else "选择后自动保存，后续发送的任务采用此权限。") {
-        Text("可用权限方案", modifier = Modifier.testTag("security-profiles-heading"),
-            style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-        ProtocolFeedback(vm, listOf("composerPermissionConfig", "securityRequirements", "permissionProfiles"),
-            onRetry = { vm.refreshComposerPermissions() })
-        if (saving) AtlasOperationProgress("正在保存并核实权限")
-        Column(Modifier.fillMaxWidth().selectableGroup()) {
-            ComposerPermissionPolicy.ids.forEach { id ->
-                val allowed = ComposerPermissionPolicy.allowed(id, profiles, data["securityRequirements"]) && !(isolated && id == ":danger-full-access")
-                val selectable = enabled && !saving && !reading && allowed && blocked == null
-                CodexFloatingMenuRow(
-                    title = PresentationPolicy.permissionProfile(id),
-                    description = when (id) {
-                        ":read-only" -> "查看文件，修改需要批准"
-                        ":workspace" -> "编辑工作区文件，越界需要批准"
-                        else -> "允许访问工作区之外的文件与网络"
-                    } + if (!allowed && !reading && profiles.isNotEmpty()) " · 受限" else "",
-                    modifier = Modifier.testTag("security-profile-" + id.removePrefix(":")),
-                    selected = selected == id, enabled = selectable,
-                    destructive = id == ":danger-full-access",
-                    onClick = {
-                        if (selected != id && vm.activeWorkspace.value == workspace) {
-                            onDismiss()
-                            if (id == ":danger-full-access") confirmFull = true
-                            else vm.chooseComposerPermission(id)
+        if (open) CodexFloatingMenu(title = "执行权限", onDismiss = onDismiss, wide = true,
+            description = if (isolated) "回答版本使用独立工作目录，仅可选择只读或工作区权限。" else "选择后自动保存，后续发送的任务采用此权限。") {
+            Text("可用权限方案", modifier = Modifier.testTag("security-profiles-heading"),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            ProtocolFeedback(vm, listOf("composerPermissionConfig", "securityRequirements", "permissionProfiles"),
+                onRetry = { vm.refreshComposerPermissions() })
+            if (saving) AtlasOperationProgress("正在保存并核实权限")
+            Column(Modifier.fillMaxWidth().selectableGroup()) {
+                ComposerPermissionPolicy.ids.forEach { id ->
+                    val allowed = ComposerPermissionPolicy.allowed(id, profiles, data["securityRequirements"]) && !(isolated && id == ":danger-full-access")
+                    val selectable = enabled && !saving && !reading && allowed && blocked == null
+                    CodexFloatingMenuRow(
+                        title = PresentationPolicy.permissionProfile(id),
+                        description = when (id) {
+                            ":read-only" -> "查看文件，修改需要批准"
+                            ":workspace" -> "编辑工作区文件，越界需要批准"
+                            else -> "允许访问工作区之外的文件与网络"
+                        } + if (!allowed && !reading && profiles.isNotEmpty()) " · 受限" else "",
+                        modifier = Modifier.testTag("security-profile-" + id.removePrefix(":")),
+                        selected = selected == id, enabled = selectable,
+                        destructive = id == ":danger-full-access",
+                        onClick = {
+                            if (selected != id && vm.activeWorkspace.value == workspace) {
+                                onDismiss()
+                                if (id == ":danger-full-access") confirmFull = true
+                                else vm.chooseComposerPermission(id)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
-        }
-        if (!reading && blocked != null) Text(blocked, color = Ink.muted)
-        else if (!enabled) Text("当前任务结束后可调整权限", color = Ink.muted)
+            if (!reading && blocked != null) Text(blocked, color = Ink.muted)
+            else if (!enabled) Text("当前任务结束后可调整权限", color = Ink.muted)
         }
     }
     errors["securitySave"]?.let { CodexNotice(it, NoticeTone.Error) }
