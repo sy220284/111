@@ -231,7 +231,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         method: String,
         params: JSONObject? = JSONObject(),
         onSuccess: ((JSONObject) -> Unit)? = null
-    ) = request(key, method, params, onSuccess)
+    ) {
+        // A verified config write owns its snapshot until readback completes.
+        if (key == "config" && method == "config/read" &&
+            configSnapshotBusy(loading.value, securitySaveBusy.value)) return
+        request(key, method, params, onSuccess)
+    }
 
     /** Read only live MCP connections; reload the native catalog when the agent edits config. */
     fun refreshMcpServices() = mcpCatalog.refresh()

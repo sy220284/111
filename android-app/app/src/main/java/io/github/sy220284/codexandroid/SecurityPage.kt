@@ -46,7 +46,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     fun reload() {
         vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-        vm.refresh("securityRequirements", "configRequirements/read")
+        vm.refresh("securityRequirements", "configRequirements/read", null)
         vm.refresh("permissionProfiles", "permissionProfile/list",
             JSONObject().put("cwd", vm.workingDirectory))
     }
@@ -245,7 +245,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 } else {
                     val snapshot = vm.globalWorkSnapshot()
-                    if (defaultSaveBusy || ENGINE_SETTING_SAVE in vm.loading.value) {
+                    if (configSnapshotBusy(vm.loading.value, vm.securitySaveBusy.value)) {
                         saveMessage = "已有配置修改正在保存与回读，请完成后重试"
                         saveError = true
                     } else if (!snapshot.canStartNewTask) {
@@ -256,6 +256,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         vm.securitySaveBusy.value = true
                         saving = true
                         vm.viewModelScope.launch {
+                        var needsReload = false
                         saveMessage = null
                         try {
                             val verified = SecurityPermissionController.saveDefault(vm.bridge, id)
@@ -265,11 +266,12 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         } catch (failure: Exception) {
                             saveMessage = failure.message ?: "权限保存或回读失败"
                             saveError = true
-                            reload()
+                            needsReload = true
                         } finally {
                             vm.securitySaveBusy.value = false
                             saving = false
                         }
+                        if (needsReload) reload()
                         }
                     }
                 }

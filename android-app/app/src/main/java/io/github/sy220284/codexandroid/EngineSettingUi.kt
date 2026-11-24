@@ -159,11 +159,17 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
                 NoticeTone.Info, actionLabel = if (connected) "重新读取" else "重新连接", onAction = { reload() })
         }
     }
+    if (connected && "config" !in loading && errors["config"] != null) {
+        CodexNotice(PresentationPolicy.readableError(errors.getValue("config")), NoticeTone.Warning,
+            actionLabel = "重试", onAction = { reload() })
+    }
     if (connected && ((owner == "models" && errors["models"] != null) ||
             (owner == "tools" && errors["securityRequirements"] != null))) {
         CodexNotice("可用选项读取失败", NoticeTone.Warning, actionLabel = "重试", onAction = { reload() })
     }
-    val receipt = data[ENGINE_SETTING_SAVE]?.takeIf { it.optString("owner") == owner }
+    val receipt = data[ENGINE_SETTING_SAVE]?.takeIf {
+        it.optString("owner") == owner && (selectedKey == null || it.optString("keyPath") == selectedKey)
+    }
     val saveError = if (receipt != null) errors[ENGINE_SETTING_SAVE] else null
     val saveMessage = receipt?.optString("message")?.takeIf { it.isNotBlank() }
     if (selectedKey == null) {

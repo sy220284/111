@@ -6,6 +6,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class EngineSettingsTest {
+    @Test fun configSnapshotOwnershipSerializesReadAndBothWritePaths() {
+        assertFalse(configSnapshotBusy(emptySet(), false))
+        assertTrue(configSnapshotBusy(setOf("config"), false))
+        assertTrue(configSnapshotBusy(setOf(ENGINE_SETTING_SAVE), false))
+        assertTrue(configSnapshotBusy(emptySet(), true))
+        assertFalse(configSnapshotBusy(setOf("usage", "limits"), false))
+    }
+
     @Test fun everyPreferenceHasExactlyOneOwner() {
         val expected = mapOf("models" to 4, "personalization" to 1, "context" to 4,
             "tools" to 1, "environments" to 2, "appearance" to 1)
