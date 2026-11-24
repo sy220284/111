@@ -1,4 +1,4 @@
-name: 检查产物仅保留最新版
+name: 仓库管家（检查产物、分支与缓存）
 
 on:
   workflow_run:
@@ -16,11 +16,15 @@ on:
       - '.github/workflows/retain-check-artifacts.yml'
       - '.github/scripts/retain_check_artifacts.py'
       - '.github/scripts/test_retain_check_artifacts.py'
+      - '.github/scripts/repository_steward.py'
+      - '.github/scripts/test_repository_steward.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/retain-check-artifacts.yml'
       - '.github/scripts/retain_check_artifacts.py'
+      - '.github/scripts/repository_steward.py'
+      - '.github/scripts/test_repository_steward.py'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -44,7 +48,9 @@ jobs:
         with:
           sparse-checkout: .github/scripts
           persist-credentials: false
-      - run: python3 -m unittest discover -s .github/scripts -p test_retain_check_artifacts.py
+      - run: |
+          python3 -m unittest discover -s .github/scripts -p test_retain_check_artifacts.py
+          python3 -m unittest discover -s .github/scripts -p test_repository_steward.py
   retain:
     if: github.event_name != 'pull_request'
     permissions:
@@ -71,3 +77,29 @@ jobs:
           args=(--repo "$GITHUB_REPOSITORY")
           if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
           python3 .github/scripts/retain_check_artifacts.py "${args[@]}"
+  stewardship:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+      actions: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: .github/scripts
+      - name: 验证管家规则
+        run: python3 -m unittest discover -s .github/scripts -p test_repository_steward.py
+      - name: 清理安全合并分支与失效缓存
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--repo "$GITHUB_REPOSITORY")
+          if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
+          python3 .github/scripts/repository_steward.py "${args[@]}"
