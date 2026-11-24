@@ -603,7 +603,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
         )
     }
     if (showSectionEditor) {
-        AlertDialog(
+        CodexDialogFrame(
             onDismissRequest = { showSectionEditor = false },
             title = { Text(if (editingSection) "重命名分组" else "新建会话分组") },
             text = {
@@ -678,7 +678,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     }
     rename?.let { thread ->
         val id = thread.optString("id")
-        AlertDialog(
+        CodexDialogFrame(
             onDismissRequest = { rename = null },
             containerColor = Ink.elevated,
             title = { Text("重命名会话") },

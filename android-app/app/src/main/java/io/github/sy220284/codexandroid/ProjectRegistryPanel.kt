@@ -233,7 +233,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
         }
     }
     if (confirmCreate) {
-        AlertDialog(onDismissRequest = { confirmCreate = false },
+        CodexDialogFrame(onDismissRequest = { confirmCreate = false },
             title = { Text("登记 Codex 项目") },
             text = {
                 Column {
@@ -266,7 +266,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
         )
     }
     editing?.let { item ->
-        AlertDialog(onDismissRequest = { editing = null },
+        CodexDialogFrame(onDismissRequest = { editing = null },
             title = { Text("修改项目名称") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

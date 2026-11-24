@@ -122,14 +122,7 @@ fun ModelsPage(vm: CodexViewModel) {
         }
     }
     selectedModelDetail?.let { (title, description) ->
-        AlertDialog(
-            onDismissRequest = { selectedModelDetail = null },
-            title = { Text(title) },
-            text = { Text(description) },
-            confirmButton = {
-                TextButton(onClick = { selectedModelDetail = null }) { Text("关闭") }
-            }
-        )
+        CodexInfoDialog(title = title, onDismiss = { selectedModelDetail = null }) { Text(description) }
     }
 }
 

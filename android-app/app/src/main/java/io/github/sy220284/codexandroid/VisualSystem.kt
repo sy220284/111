@@ -214,14 +214,7 @@ fun SectionIntro(title: String, subtitle: String = "") {
             }
         }
     }
-    if (showExplanation) AlertDialog(
-        onDismissRequest = { showExplanation = false },
-        title = { Text(title) },
-        text = { Text(subtitle) },
-        confirmButton = {
-            TextButton(onClick = { showExplanation = false }) { Text("关闭") }
-        }
-    )
+    if (showExplanation) CodexInfoDialog(title = title, onDismiss = { showExplanation = false }) { Text(subtitle) }
 }
 
 enum class StatusTone { Neutral, Info, Success, Warning, Danger }

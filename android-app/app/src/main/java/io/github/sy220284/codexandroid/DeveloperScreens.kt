@@ -334,7 +334,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     fileAction?.let { (kind, target) ->
         if (kind == "rename") {
-            AlertDialog(
+            CodexDialogFrame(
                 onDismissRequest = { fileAction = null },
                 title = { Text("重命名") },
                 containerColor = Ink.elevated,
@@ -372,7 +372,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
             )
         } else if (kind == "copy") {
-            AlertDialog(
+            CodexDialogFrame(
                 onDismissRequest = { fileAction = null },
                 title = { Text("复制到当前目录") },
                 containerColor = Ink.elevated,
