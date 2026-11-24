@@ -100,6 +100,8 @@ internal fun SidebarSessions(
     var rename by remember { mutableStateOf<JSONObject?>(null) }
     var name by rememberSaveable { mutableStateOf("") }
     var confirm by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
+    LaunchedEffect(state.archived, connected) { vm.sessions.showArchive(state.archived && connected) }
+    DisposableEffect(vm) { onDispose { vm.sessions.showArchive(false) } }
     LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected) {
         if (state.searching && state.fullText) {
             delay(250)
@@ -178,6 +180,8 @@ internal fun SidebarSessions(
             CodexNotice(PresentationPolicy.readableError(error), NoticeTone.Warning,
                 actionLabel = "重试", onAction = vm::syncRecentThreads)
         }
+        if (state.archived && response == null && "sidebarThreads" in loading)
+            AtlasOperationProgress("正在读取归档会话")
         SidebarSessionsContent(all = rows, modifier = Modifier.weight(1f).fillMaxWidth(),
             connected = connected, activeId = activeId, running = running, switching = busy,
             onOpenThread = { id ->

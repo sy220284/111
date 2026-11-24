@@ -110,10 +110,16 @@ internal class ExtensionCatalogController(
 
     fun invalidate(pluginsOnly: Boolean = false, preserveAuthorization: Boolean = false) {
         if (!pluginsOnly) {
+            vm.invalidateConfigScope()
+            if (!preserveAuthorization) vm.sessions.invalidateIdentity()
             lastAppDirectoryEvent = null
             if (!preserveAuthorization) appAuthorizationPending = false
         }
         invalidateKeys { ExtensionCatalogPolicy.isScopedKey(it, pluginsOnly) }
+        if (!pluginsOnly && vm.bridge.status.value == EngineStatus.Connected) {
+            vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+            vm.refreshComposerPermissions()
+        }
     }
 
     fun invalidatePluginSearchResults() = invalidateKeys {

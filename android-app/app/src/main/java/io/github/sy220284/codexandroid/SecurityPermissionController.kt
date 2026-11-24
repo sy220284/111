@@ -21,23 +21,28 @@ internal object ComposerPermissionPolicy {
 
 /** Persist to the core, and report success only after reading the effective configuration. */
 object SecurityPermissionController {
-    suspend fun saveDefault(bridge: CodexConnection, profileId: String, cwd: String? = null): JSONObject =
-        saveDefault(profileId, cwd) { method, params -> bridge.request(method, params) }
+    suspend fun saveDefault(bridge: CodexConnection, profileId: String, cwd: String? = null,
+        isCurrent: () -> Boolean = { true }): JSONObject =
+        saveDefault(profileId, cwd, isCurrent = isCurrent) { method, params -> bridge.request(method, params) }
 
-    internal suspend fun saveDefault(profileId: String, cwd: String?, request: suspend (String, JSONObject) -> JSONObject): JSONObject {
+    internal suspend fun saveDefault(profileId: String, cwd: String?,
+        isCurrent: () -> Boolean = { true }, request: suspend (String, JSONObject) -> JSONObject): JSONObject {
         require(profileId in ComposerPermissionPolicy.ids) { "未知权限方案" }
         val params = JSONObject().put("edits", JSONArray().put(JSONObject()
             .put("keyPath", "default_permissions").put("value", profileId)
             .put("mergeStrategy", "replace"))).put("reloadUserConfig", true)
-        val write = request("config/batchWrite", params)
-        check(write.optString("status") == "ok") { "权限设置受到更高优先级策略覆盖" }
-        val read = request("config/read", JSONObject().put("includeLayers", true).apply {
-            if (!cwd.isNullOrBlank()) put("cwd", cwd)
-        })
-        check(ComposerPermissionPolicy.selected(read) == profileId) {
-            "权限已写入，但实际生效方案与所选不一致"
-        }
-        return read
+        return ConfigWriteTransaction.execute(
+            write = { request("config/batchWrite", params) },
+            read = { request("config/read", JSONObject().put("includeLayers", true).apply {
+                if (!cwd.isNullOrBlank()) put("cwd", cwd)
+            }) },
+            isCurrent = isCurrent,
+            verify = { write, read ->
+                check(write.optString("status") == "ok") { "权限设置受到更高优先级策略覆盖" }
+                check(ComposerPermissionPolicy.selected(read) == profileId) {
+                    "权限已写入，但实际生效方案与所选不一致"
+                }
+            })
     }
 }
 
@@ -73,17 +78,20 @@ internal fun CodexViewModel.chooseComposerPermission(id: String) {
         return
     }
     val cwd = activeWorkspace.value
+    val generation = configGeneration
     securitySaveBusy.value = true
     errors.value = errors.value - "securitySave"
     viewModelScope.launch {
         try {
-            val verified = SecurityPermissionController.saveDefault(bridge, id, cwd)
-            if (activeWorkspace.value == cwd) data.value = data.value + ("composerPermissionConfig" to verified)
+            val verified = SecurityPermissionController.saveDefault(bridge, id, cwd) { configGeneration == generation }
+            if (activeWorkspace.value == cwd && configGeneration == generation)
+                data.value = data.value + ("composerPermissionConfig" to verified)
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
             errors.value = errors.value + ("securitySave" to (failure.message ?: "权限保存或回读失败"))
-            data.value = data.value - "composerPermissionConfig"
+            if (activeWorkspace.value == cwd && configGeneration == generation)
+                data.value = data.value - "composerPermissionConfig"
         } finally {
             securitySaveBusy.value = false
             // The write targets the user config; invalidate both global and cwd-scoped snapshots.

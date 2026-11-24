@@ -59,16 +59,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val documentOwner by vm.composerContent.documentOwner.collectAsState()
     val documentBusy = documentOwner == draftOwner
     var composerMenu by remember(draftOwner) { mutableStateOf("") }
+    fun closeComposerMenu(route: String) { if (composerMenu == route) composerMenu = "" }
     var referenceQuery by remember(draftOwner) { mutableStateOf<String?>(null) }
-    var showModels by remember { mutableStateOf(false) }
-    var showModes by remember { mutableStateOf(false) }
-    var showContextTools by remember(thread) { mutableStateOf(false) }
     var sessionAction by remember(draftOwner) { mutableStateOf("") }
-    var showTerminalSheet by remember { mutableStateOf(false) }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
-    var showEngineStatus by remember { mutableStateOf(false) }
-    var showApprovalQuick by remember { mutableStateOf(false) }
     var stopRequestedForTurn by remember { mutableStateOf<String?>(null) }
     val stopping = busy && (("interrupt" in loading) ||
         (stopRequestedForTurn != null && stopRequestedForTurn == activeTurn &&
@@ -137,8 +132,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
     ) { selected -> vm.importPickedImages(selected) }
     // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
-    LaunchedEffect(showContextTools, pendingContextRoute) {
-        if (!showContextTools) {
+    LaunchedEffect(composerMenu, pendingContextRoute) {
+        if (composerMenu != "context-tools") {
             pendingContextRoute?.let { destination ->
                 pendingContextRoute = null
                 navigate(destination)
@@ -212,7 +207,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(
                     "当前任务有 ${prompts.size} 项待审批操作，确认后才能继续。",
                     NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                    actionLabel = "立即处理", onAction = { showApprovalQuick = true }
+                    actionLabel = "立即处理", onAction = { composerMenu = "approval" }
                 )
             } else if (busy) {
                 ConversationExecutionNotice(vm, stopping)
@@ -297,18 +292,18 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     "选择已登记项目或工作目录", CodexGlyph.Folder, enabled = optionsEnabled,
                     onOpen = { keyboard?.hide(); composerMenu = "projects" }))
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
-                    enabled = !switching, onOpen = { keyboard?.hide(); showTerminalSheet = true }))
+                    enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "terminal" }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
-                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); showModels = true }))
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
-                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); showModes = true }))
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "modes" }))
                 add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
                     enabled = optionsEnabled, onOpen = { keyboard?.hide(); navigate("review") }))
                 add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
                 if (thread != null) {
                     add(ComposerShortcut("context", "会话选项", "创建分支、整理上下文和回退", CodexGlyph.MoreHoriz,
-                        enabled = !switching, onOpen = { keyboard?.hide(); showContextTools = true }))
+                        enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "context-tools" }))
                     add(ComposerShortcut("usage", "上下文容量", "查看当前会话容量", CodexGlyph.Insights,
                         onOpen = { keyboard?.hide(); composerMenu = "usage" }))
                     add(ComposerShortcut("goal", "任务目标", "查看和编辑当前会话目标", CodexGlyph.Flag,
@@ -321,7 +316,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "compact" }))
                 }
                 add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
-                    onOpen = { keyboard?.hide(); showEngineStatus = true }))
+                    onOpen = { keyboard?.hide(); composerMenu = "engine-status" }))
             }
             val sending = firstThreadStarting || steering || "queueWrite" in loading
             val sendBlockReason = when {
@@ -371,8 +366,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 modeLabel = selectedMode,
                 effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
                 optionsEnabled = optionsEnabled,
-                onModel = { keyboard?.hide(); showModels = true },
-                onMode = { keyboard?.hide(); showModes = true },
+                onModel = { keyboard?.hide(); composerMenu = "models" },
+                onMode = { keyboard?.hide(); composerMenu = "modes" },
                 onTaskOptions = { keyboard?.hide(); composerMenu = "tools" },
                 onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
                 statusContent = {
@@ -451,9 +446,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
         onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
         onDismiss = { composerMenu = "" })
-    if (showTerminalSheet) {
+    if (composerMenu == "terminal") {
         CodexSheetFrame(
-            onDismissRequest = { showTerminalSheet = false },
+            onDismissRequest = { closeComposerMenu("terminal") },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Ink.canvas
         ) {
@@ -465,7 +460,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(PresentationPolicy.workspaceName(selectedWorkspace),
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
-                    CodexIconAction(onClick = { showTerminalSheet = false }) {
+                    CodexIconAction(onClick = { closeComposerMenu("terminal") }) {
                         CodexIcon(CodexGlyph.Close, "收起终端")
                     }
                 }
@@ -473,16 +468,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    if (showContextTools) {
+    if (composerMenu == "context-tools") {
         ThreadContextTools(
             vm = vm,
             navigate = { destination ->
                 pendingContextRoute = destination
-                showContextTools = false
+                closeComposerMenu("context-tools")
             },
-            onDismiss = { showContextTools = false },
-            onFork = { showContextTools = false; sessionAction = "fork" },
-            onCompact = { showContextTools = false; sessionAction = "compact" }
+            onDismiss = { closeComposerMenu("context-tools") },
+            onFork = { closeComposerMenu("context-tools"); sessionAction = "fork" },
+            onCompact = { closeComposerMenu("context-tools"); sessionAction = "compact" }
         )
     }
     if (sessionAction.isNotBlank() && thread != null) {
@@ -513,11 +508,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onDismiss = { confirmPlan = false }
         )
     }
-    if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }
-    if (showModels) ModelChoiceSurface(vm) { showModels = false }
-    if (showModes) ModeChoiceSurface(vm) { showModes = false }
-    if (showEngineStatus) EngineStatusSheet(
-        vm, onDismiss = { showEngineStatus = false }, navigate = navigate
+    if (composerMenu == "approval") ApprovalQuickSheet(vm) { closeComposerMenu("approval") }
+    if (composerMenu == "models") ModelChoiceSurface(vm) { closeComposerMenu("models") }
+    if (composerMenu == "modes") ModeChoiceSurface(vm) { closeComposerMenu("modes") }
+    if (composerMenu == "engine-status") EngineStatusSheet(
+        vm, onDismiss = { closeComposerMenu("engine-status") }, navigate = navigate
     )
 }
 

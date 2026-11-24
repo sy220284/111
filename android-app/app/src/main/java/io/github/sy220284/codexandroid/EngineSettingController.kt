@@ -23,6 +23,7 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         errors.value = errors.value + (saveKey to "请先连接并读取当前配置")
         return
     }
+    val generation = configGeneration
     loading.value = loading.value + saveKey
     data.value = data.value + (saveKey to JSONObject().put("owner", owner).put("keyPath", path))
     errors.value = errors.value - saveKey
@@ -30,13 +31,16 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         var readObtained = false
         var needsRefresh = false
         try {
-            val write = bridge.request("config/value/write", EngineSettings.writeParams(path, value))
-            val read = bridge.request("config/read", JSONObject().put("includeLayers", true))
-            read.getJSONObject("config")
-            readObtained = true
-            data.value = data.value + ("config" to read)
-            errors.value = errors.value - "config"
-            EngineSettings.verify(write, read, path.trim(), value)
+            ConfigWriteTransaction.execute(
+                write = { bridge.request("config/value/write", EngineSettings.writeParams(path, value)) },
+                read = { bridge.request("config/read", JSONObject().put("includeLayers", true)) },
+                isCurrent = { configGeneration == generation },
+                publish = { read ->
+                    readObtained = true
+                    data.value = data.value + ("config" to read)
+                    errors.value = errors.value - "config"
+                },
+                verify = { write, read -> EngineSettings.verify(write, read, path.trim(), value) })
             data.value = data.value + (saveKey to JSONObject().put("owner", owner).put("keyPath", path).put("message", "$title 已保存并核实"))
         } catch (timeout: TimeoutCancellationException) {
             errors.value = errors.value + (saveKey to "配置保存或回读超时，请核对实际设置")

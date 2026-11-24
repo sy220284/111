@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" role="img" aria-label="PR86 原生会话工作台组件设计">
-<rect x="0" y="0" width="1600" height="960" rx="0" fill="#F6F7F8" stroke="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1260" viewBox="0 0 1600 1260" role="img" aria-label="PR86 原生会话工作台组件设计">
+<rect x="0" y="0" width="1600" height="1260" rx="0" fill="#F6F7F8" stroke="none"/>
 <text x="34" y="52" fill="#263139" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="700">111 / PR86 · 原生会话工作台</text>
 <text x="35" y="82" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">四技能设计调整 · 360dp 竖屏 · 示例内容仅用于设计核对，实际状态由原生内核提供</text>
 <path d="M35 103H1565" fill="none" stroke="#D8DEE1"/>
@@ -138,4 +138,46 @@
 <text x="1235" y="864" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="14" font-weight="400">输入命令</text>
 <g transform="translate(1515 846)" fill="none" stroke="#56646D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l7-7 7 7M12 6V21"/></g>
 <text x="35" y="931" fill="#56646D" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="400">动效沿用 CodexMotion：按压 100ms / 释放 140ms / 展开 240ms / 原生弹层；减少动效时直接交接。</text>
+<g font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif">
+<text x="35" y="983" fill="#263139" font-size="22" font-weight="700">05 会话与面板状态 · 同一工作上下文</text>
+<g transform="translate(35 1005)">
+<rect width="360" height="214" rx="16" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="18" y="31" font-size="16" font-weight="700" fill="#263139">侧栏 · 首屏优先</text>
+<rect x="18" y="49" width="324" height="38" rx="10" fill="#F6F7F8"/>
+<text x="31" y="73" font-size="13" fill="#263139">当前会话</text><text x="259" y="73" font-size="12" fill="#56646D">已打开</text>
+<path d="M18 101H342M18 143H342" stroke="#D8DEE1"/>
+<text x="22" y="126" font-size="14" fill="#263139">优化消息展示</text>
+<text x="22" y="168" font-size="14" fill="#263139">检查配置保存</text>
+<text x="22" y="196" font-size="12" fill="#56646D">历史自动补齐，归档按需读取</text>
+</g>
+<g transform="translate(425 1005)">
+<rect width="360" height="214" rx="16" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="18" y="31" font-size="16" font-weight="700" fill="#263139">切换会话 · 加载中</text>
+<rect x="18" y="49" width="213" height="14" rx="7" fill="#D8DEE1"/>
+<rect x="18" y="83" width="324" height="18" rx="9" fill="#F6F7F8"/>
+<rect x="18" y="109" width="270" height="18" rx="9" fill="#F6F7F8"/>
+<rect x="18" y="135" width="190" height="18" rx="9" fill="#F6F7F8"/>
+<text x="18" y="191" font-size="12" fill="#56646D">恢复完成后整体呈现，不混入上一会话</text>
+</g>
+<g transform="translate(815 1005)">
+<rect width="360" height="214" rx="16" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="18" y="31" font-size="16" font-weight="700" fill="#263139">权限 · 核实生效</text>
+<rect x="18" y="50" width="324" height="58" rx="12" fill="#F6F7F8" stroke="#D8DEE1"/>
+<circle cx="40" cy="79" r="9" fill="none" stroke="#7B8992"/>
+<text x="60" y="76" font-size="14" fill="#263139">可编辑工作区</text>
+<text x="60" y="94" font-size="12" fill="#56646D">正在读取实际生效配置</text>
+<text x="18" y="142" font-size="13" fill="#56646D">保存期间禁止重复提交</text>
+<text x="18" y="191" font-size="12" fill="#56646D">只有真实回读成功才更新选择</text>
+</g>
+<g transform="translate(1205 1005)">
+<rect width="360" height="214" rx="16" fill="#FFFFFF" stroke="#D8DEE1"/>
+<text x="18" y="31" font-size="16" font-weight="700" fill="#263139">面板 · 唯一活动入口</text>
+<rect x="18" y="52" width="324" height="36" rx="9" fill="#F6F7F8"/>
+<text x="32" y="75" font-size="13" fill="#263139">收起键盘与侧栏</text>
+<path d="M180 91V107" stroke="#7B8992" stroke-width="1.6"/>
+<rect x="18" y="110" width="324" height="42" rx="9" fill="#F6F7F8"/>
+<text x="32" y="136" font-size="13" fill="#263139">打开目标操作面板</text>
+<text x="18" y="191" font-size="12" fill="#56646D">返回优先关闭当前面板，保留页面</text>
+</g>
+</g>
 </svg>

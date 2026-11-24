@@ -145,6 +145,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
+    internal var configGeneration = 0L
+        private set
+    internal fun invalidateConfigScope() {
+        configGeneration += 1
+        val keys = setOf("config", "composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
+        keys.forEach { latestRequests.cancel(it) }
+        data.value = data.value - keys
+        loading.value = loading.value - keys
+        errors.value = errors.value - keys
+    }
     internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     // Query cache ownership is independent of the ViewModel's RPC orchestration.
     private val dynamicRequestHistory by lazy {
@@ -196,6 +206,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
         dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
+        val configOwner = configGeneration
+        val permissionWorkspace = if (key in setOf("composerPermissionConfig", "permissionProfiles")) params?.optString("cwd") else null
+        fun ownsReceipt() = latestRequests.isLatest(key, ticket) &&
+            (method !in setOf("config/read", "configRequirements/read", "permissionProfile/list") || configOwner == configGeneration) &&
+            (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
         if (userAction || (!retainQueue && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
             data.value = data.value - key
@@ -204,12 +219,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val response = bridge.request(method, params)
-                if (latestRequests.isLatest(key, ticket)) {
+                if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
                         ExtensionCatalogPolicy.appendApps(data.value[key], response) else response
                     data.value = data.value + (key to published)
                     errors.value = errors.value - key
+                    if (method == "account/read" && key == "account") sessions.accountReady(response)
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {
                         accountMetrics.accountChanged()
@@ -223,7 +239,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                                 listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank)))))
                 }
             } catch (failure: Exception) {
-                if (latestRequests.isLatest(key, ticket)) {
+                if (ownsReceipt()) {
                     val reason = failure.message ?: "请求失败"
                     errors.value = errors.value + (key to reason)
                     if (userAction) actionFeedback.emit(

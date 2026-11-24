@@ -12,6 +12,21 @@ class EngineSettingsTest {
         assertTrue(configSnapshotBusy(setOf(ENGINE_SETTING_SAVE), false))
         assertTrue(configSnapshotBusy(emptySet(), true))
         assertFalse(configSnapshotBusy(setOf("usage", "limits"), false))
+        kotlinx.coroutines.runBlocking {
+            var current = true
+            var read = false
+            var published = false
+            val result = runCatching {
+                ConfigWriteTransaction.execute(
+                    write = { current = false; JSONObject().put("status", "ok") },
+                    read = { read = true; JSONObject().put("config", JSONObject()) },
+                    isCurrent = { current }, publish = { published = true },
+                    verify = { _, _ -> })
+            }
+            assertTrue(result.isFailure)
+            assertFalse(read)
+            assertFalse(published)
+        }
     }
 
     @Test fun everyPreferenceHasExactlyOneOwner() {

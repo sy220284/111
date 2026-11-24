@@ -121,16 +121,22 @@ fun CodexShell(vm: CodexViewModel) {
     val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
         firstThreadStarting, switching
     )
-    var showStatus by remember { mutableStateOf(false) }
-    var showReview by remember { mutableStateOf(false) }
-    var showGoal by remember { mutableStateOf(false) }
-    var showMode by remember { mutableStateOf(false) }
-    var showHistory by remember { mutableStateOf(false) }
-    var showAttachments by remember { mutableStateOf(false) }
-    var showApprovals by remember { mutableStateOf(false) }
-    var showQueue by remember { mutableStateOf(false) }
-    var showModels by remember { mutableStateOf(false) }
-    var showAbout by remember { mutableStateOf(false) }
+    var activeSheet by remember { mutableStateOf<String?>(null) }
+    var requestedSheet by remember { mutableStateOf<String?>(null) }
+    fun openSheet(route: String) {
+        focusManager.clearFocus()
+        keyboard?.hide()
+        if (drawer.isOpen || drawer.targetValue == DrawerValue.Open) {
+            requestedSheet = route
+            closeDrawer()
+        } else {
+            requestedSheet = null
+            activeSheet = route
+        }
+    }
+    fun closeSheet(route: String) {
+        if (activeSheet == route) activeSheet = null
+    }
     // Carry the original action across a successful thread selection.
     var pendingThreadAction by remember { mutableStateOf<String?>(null) }
     val move: (String) -> Unit = move@{ requested ->
@@ -152,37 +158,37 @@ fun CodexShell(vm: CodexViewModel) {
                 return@move
             }
             "queue" -> {
-                showQueue = true
+                openSheet("queue")
                 closeDrawer()
                 return@move
             }
             "models" -> if (page.id != "settings") {
-                showModels = true
+                openSheet("models")
                 closeDrawer()
                 return@move
             }
             "about" -> {
-                showAbout = true
+                openSheet("about")
                 closeDrawer()
                 return@move
             }
             "approvals" -> {
-                showApprovals = true
+                openSheet("approvals")
                 closeDrawer()
                 return@move
             }
             "review" -> {
-                showReview = true
+                openSheet("review")
                 closeDrawer()
                 return@move
             }
             "goals" -> {
-                showGoal = true
+                openSheet("goals")
                 closeDrawer()
                 return@move
             }
             "modes" -> {
-                showMode = true
+                openSheet("modes")
                 closeDrawer()
                 return@move
             }
@@ -193,8 +199,8 @@ fun CodexShell(vm: CodexViewModel) {
                     sidebarState.searching = false
                     openDrawer()
                     return@move
-                } else if (destination == "history-tools") showHistory = true
-                else showAttachments = true
+                } else if (destination == "history-tools") openSheet("history-tools")
+                else openSheet("thread-attachments")
                 closeDrawer()
                 return@move
             }
@@ -208,6 +214,8 @@ fun CodexShell(vm: CodexViewModel) {
                 "diagnostics" -> vm.refresh("diagnostics", "server/diagnostics")
             }
         }
+        activeSheet = null
+        requestedSheet = null
         savedRoute = destination
         focusManager.clearFocus()
         keyboard?.hide()
@@ -256,6 +264,12 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
+    LaunchedEffect(requestedSheet, drawerOwnsInput) {
+        if (!drawerOwnsInput) requestedSheet?.let { route ->
+            activeSheet = route
+            requestedSheet = null
+        }
+    }
     var drawerWasOpen by remember { mutableStateOf(false) }
     LaunchedEffect(drawerOwnsInput, status) {
         if (drawerOwnsInput && status == EngineStatus.Connected) vm.sessions.refreshIfStale()
@@ -329,7 +343,7 @@ fun CodexShell(vm: CodexViewModel) {
                                     CodexIconAction(onClick = { move("approvals") }) { CodexIcon(CodexGlyph.Security, "待审批") }
                                 }
                             }
-                            CodexIconAction(onClick = { showStatus = true },
+                            CodexIconAction(onClick = { openSheet("status") },
                                 modifier = Modifier.testTag("engine-status-open")) {
                                 CodexIcon(
                                     if (status == EngineStatus.Connected) CodexGlyph.TaskComplete
@@ -375,7 +389,7 @@ fun CodexShell(vm: CodexViewModel) {
                         if (drawerOwnsInput) Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
-                            showStatus = true
+                            openSheet("status")
                             closeDrawer()
                         } else move(id)
                     }, status, pendingCount, newThreadBlockReason,
@@ -394,26 +408,26 @@ fun CodexShell(vm: CodexViewModel) {
             }
         ) { content() }
 
-        if (showStatus) {
-            EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
+        if (activeSheet == "status") {
+            EngineStatusSheet(vm, onDismiss = { closeSheet("status") }, navigate = move)
         }
-        if (showReview) pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
-            ReviewScopeSheet(vm, onDismiss = { showReview = false }, navigate = move)
+        if (activeSheet == "review") pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
+            ReviewScopeSheet(vm, onDismiss = { closeSheet("review") }, navigate = move)
         }
-        if (showGoal) pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
-            ThreadGoalSheet(vm, onDismiss = { showGoal = false })
+        if (activeSheet == "goals") pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
+            ThreadGoalSheet(vm, onDismiss = { closeSheet("goals") })
         }
-        if (showMode) ModeChoiceSurface(vm) { showMode = false }
-        if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
-        if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
-        if (showApprovals) pageStateHolder.SaveableStateProvider("sheet:approvals") {
-            ApprovalQuickSheet(vm) { showApprovals = false }
+        if (activeSheet == "modes") ModeChoiceSurface(vm) { closeSheet("modes") }
+        if (activeSheet == "history-tools") ThreadHistorySheet(vm) { closeSheet("history-tools") }
+        if (activeSheet == "thread-attachments") ThreadAttachmentsSheet(vm) { closeSheet("thread-attachments") }
+        if (activeSheet == "approvals") pageStateHolder.SaveableStateProvider("sheet:approvals") {
+            ApprovalQuickSheet(vm) { closeSheet("approvals") }
         }
-        if (showQueue) pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
-            ThreadQueueQuickSheet(vm) { showQueue = false }
+        if (activeSheet == "queue") pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
+            ThreadQueueQuickSheet(vm) { closeSheet("queue") }
         }
-        if (showModels) ModelChoiceSurface(vm) { showModels = false }
-        if (showAbout) AboutInfoSheet(vm) { showAbout = false }
+        if (activeSheet == "models") ModelChoiceSurface(vm) { closeSheet("models") }
+        if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }
         // Archive transfer must block all foreground pages and sheets.
         ObserveDataTransferBusyOverlay()
     }
