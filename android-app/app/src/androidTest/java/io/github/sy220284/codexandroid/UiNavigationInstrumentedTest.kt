@@ -153,9 +153,26 @@ class UiNavigationInstrumentedTest {
             }
             rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
             val work = rule.onNodeWithTag("work-shell")
-            // 中央横滑和左侧竖滑均保留原行为。
+            // 中央与右半屏也可起滑，不再限制左侧 96dp。
             work.performTouchInput {
                 swipe(Offset(width * .48f, height * .35f), Offset(width * .86f, height * .35f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed()
+            pressSystemBack()
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            work.performTouchInput {
+                swipe(Offset(width * .62f, height * .35f), Offset(width * .94f, height * .35f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed()
+            pressSystemBack()
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            // 左滑、短距离拖动与竖滑均不打开侧栏。
+            work.performTouchInput {
+                swipe(Offset(width * .70f, height * .35f), Offset(width * .25f, height * .35f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+            work.performTouchInput {
+                swipe(Offset(width * .48f, height * .35f), Offset(width * .52f, height * .35f))
             }
             rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
             work.performTouchInput {
@@ -169,9 +186,23 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
             rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
 
+            // 真正展开软键盘后，从顶栏中央右滑仍可打开，并保留输入草稿。
+            rule.onNodeWithTag("composer-input").performClick()
+            assertRealSoftKeyboardOpen()
+            rule.onNodeWithTag("conversation-top-bar").performTouchInput {
+                swipe(Offset(width * .35f, height * .5f), Offset(width * .80f, height * .5f))
+            }
+            rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed()
+            rule.waitUntil(10_000L) {
+                val insets = rule.activity.window.decorView.rootWindowInsets
+                insets != null && !insets.isVisible(android.view.WindowInsets.Type.ime())
+            }
+            pressSystemBack()
+            rule.onNodeWithTag("composer-input").assertTextContains("横滑及转场保留的草稿")
+
             rule.runOnUiThread { UiPreferences.reducedMotion.value = true }
             work.performTouchInput {
-                swipe(Offset(width * .10f, height * .35f), Offset(width * .65f, height * .35f))
+                swipe(Offset(width * .48f, height * .35f), Offset(width * .86f, height * .35f))
             }
             rule.onNodeWithTag("sidebar-drawer").assertIsDisplayed()
             rule.onNodeWithTag("nav-settings").performClick()

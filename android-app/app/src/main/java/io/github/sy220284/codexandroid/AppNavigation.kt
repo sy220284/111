@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -255,9 +254,9 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
-    val canSwipeOpenDrawer = !drawerOwnsInput &&
-        (selected == NavigationPolicy.startRoute) &&
-        WindowInsets.ime.getBottom(LocalDensity.current) == 0
+    // The homepage may open the drawer from any unclaimed horizontal swipe.
+    // openDrawer clears focus and hides the IME; child controls retain priority.
+    val canSwipeOpenDrawer = !drawerOwnsInput && selected == NavigationPolicy.startRoute
     BackHandler(enabled = drawerOwnsInput || backHistory.size > 1) {
         if (drawerOwnsInput) closeDrawer() else goBack()
     }

@@ -14,7 +14,7 @@ import kotlin.math.abs
  * Unclaimed horizontal drags cancel descendant taps on every page. Main pass
  * gives child scrolling, selection and gestures first refusal; consuming the
  * slop-crossing move cancels an ordinary clickable on its Final pass.
- * Only an intentional right swipe from the work screen's left area opens
+ * Intentional unclaimed right swipes anywhere on the task homepage open
  * the drawer. The system back edge remains under Android's control.
  */
 @Composable
@@ -25,11 +25,10 @@ internal fun Modifier.pageHorizontalSwipe(
     val currentCanOpen = rememberUpdatedState(canOpenDrawer)
     if (!enabled) return this
     return pointerInput(Unit) {
-        val edgeWidth = 96.dp.toPx()
         val openDistance = 56.dp.toPx()
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
-            val eligible = currentCanOpen.value && down.position.x <= edgeWidth
+            val eligible = currentCanOpen.value
             var horizontal = false
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Main)
