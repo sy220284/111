@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -33,7 +33,7 @@ internal fun ChatWorkTopBar(
     onNewThread: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().height(64.dp).background(Ink.canvas)
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).background(Ink.canvas)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -67,7 +67,7 @@ internal fun ChatWorkTopBar(
                     .testTag("top-new-chat")
                     .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
             ) {
-                Icon(Icons.Outlined.ChatBubbleOutline, "新建聊天",
+                Icon(Icons.Outlined.EditNote, "新建聊天",
                     tint = if (newThreadBlockReason != null) Ink.muted else Ink.parchment)
             }
         }

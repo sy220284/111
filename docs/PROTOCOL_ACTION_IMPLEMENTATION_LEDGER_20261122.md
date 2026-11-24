@@ -507,3 +507,10 @@
 - 以 `main@b42628a7` 和 #71 合并候选树 `b2c21cdd7d62db50e9a4dd0f71740251e6be7379` 实际读取源码，发现 `CodexViewModel.kt` 合并后 766 行，超过 760 行源文件预算，属于两项功能在同一类中不断累积职责的结构性风险。
 - 已将 `library:`、`fullSearch:` 两类临时结果缓存的最近使用顺序、超过 32 条时的淘汰、旧请求所有权撤销、成功/错误/加载状态共同清理提取为独立 `TransientRequestCache.kt`，由 ViewModel 委托执行。保留 #70 MCP 账号与服务管理功能及 #71 全局状态控制；没有更改 Codex RPC 字段或用户数据。
 - 新增 `TransientRequestCacheTest.kt` 覆盖缓存淘汰时三类状态与旧回执共同失效、重复访问刷新最近使用顺序、常驻键不被淘汰、无效缓存容量被拒绝。新合并候选需运行完整 Kotlin/协议/Lint 与三档模拟器验收后方可合并，结果按当前 PR HEAD 登记。
+
+
+### 2026-11-24 聊天首页与输入面板调整
+- 变更位置：`AppNavigation.kt`、`NavigationPolicy.kt`、`ConversationScreen.kt`、`ConversationComposer.kt`、`ConversationControlBar.kt`、`ChatWorkTopBar.kt`。
+- `thread/start` / `turn/start`：冷启动仅展示对话页，发送时沿用现有创建、执行、草稿回执与前台服务链路；首会话创建期间阻断重复发送。 `review/start`：空态审查入口统一交给原有会话依赖路由（无会话时选择已有会话）。
+- `model/list` / `collaborationMode/list` / `server/diagnostics`：继续使用已有真实状态与选择弹层；键盘展开时通过输入面板内菜单进入。 `thread/read` / `thread/resume`：保留历史分页和会话恢复，尾部定位纳入历史加载行。协议字段、方向、195 项分类均未改动。
+- 验收：新增 `coldStartRouteIsChatWithoutRemovingWorkbench`、`coldStartOpensChatAndKeepsDraftSafe`，更新工作台、返回、终端及截图路径测试。基线 75c1740e9bc86f35ee630a8281a5489e930b0ab9；本次提交 CI、Android 35 三档实际截图与真实内核回执待运行核验；Figma Starter 配额不足，设计稿未写入。

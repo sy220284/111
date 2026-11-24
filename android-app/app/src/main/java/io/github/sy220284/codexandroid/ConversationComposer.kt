@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
@@ -57,27 +59,31 @@ internal fun ConversationComposer(
     onModel: () -> Unit = {},
     onMode: () -> Unit = {},
     onDiagnostics: () -> Unit = {},
-    onReconnect: () -> Unit = {}
+    onReconnect: () -> Unit = {},
+    focusRequester: FocusRequester? = null,
+    controls: (@Composable () -> Unit)? = null
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var compactMenuExpanded by remember { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("conversation-composer"),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(23.dp),
         color = Ink.panel,
         border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
-        shadowElevation = 4.dp
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(start = 13.dp, end = 10.dp,
                 top = if (compactControls) 6.dp else 10.dp,
                 bottom = if (compactControls) 6.dp else 8.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
+            controls?.invoke()
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier.fillMaxWidth()
+                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                     .heightIn(min = if (compactControls) 32.dp else 40.dp)
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
@@ -91,7 +97,7 @@ internal fun ConversationComposer(
                         if (draft.isEmpty()) {
                             Text(
                                 if (running) "补充当前任务要求…"
-                                else "询问 Codex 或描述工作任务…",
+                                else "给 Codex 发消息…",
                                 color = Ink.muted,
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -112,14 +118,14 @@ internal fun ConversationComposer(
                         onClick = { onFollowUpModeChange("queue") },
                         label = { Text("完成后执行") },
                         enabled = !sending,
-                        modifier = Modifier.testTag("composer-mode-queue")
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("composer-mode-queue")
                     )
                     FilterChip(
                         selected = followUpMode == "steer",
                         onClick = { onFollowUpModeChange("steer") },
                         label = { Text("立即纠偏") },
                         enabled = !sending,
-                        modifier = Modifier.testTag("composer-mode-steer")
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("composer-mode-steer")
                     )
                 }
             }
@@ -159,6 +165,7 @@ internal fun ConversationComposer(
                                 text = { Text("任务模式 · " +
                                     (if (compactModeLabel == "plan") "先计划" else "执行")) },
                                 leadingIcon = { Icon(Icons.Outlined.Tune, null) },
+                                enabled = !running && !sending,
                                 onClick = { compactMenuExpanded = false; onMode() },
                                 modifier = Modifier.testTag("composer-compact-mode"))
                             DropdownMenuItem(
@@ -166,21 +173,18 @@ internal fun ConversationComposer(
                                 leadingIcon = { Icon(Icons.Outlined.Info, null) },
                                 onClick = { compactMenuExpanded = false; onDiagnostics() },
                                 modifier = Modifier.testTag("composer-compact-diagnostics"))
+                            if (compactCanReconnect) {
+                                DropdownMenuItem(text = { Text("重新连接（草稿已保留）") },
+                                    onClick = { compactMenuExpanded = false; onReconnect() },
+                                    modifier = Modifier.testTag("composer-reconnect"))
+                            }
                         }
                     }
-                    if (compactCanReconnect) {
-                        TextButton(onClick = onReconnect,
-                            modifier = Modifier.heightIn(min = 48.dp)
-                                .testTag("composer-reconnect")) { Text("重连") }
-                    }
                 }
-                if (attachedCount > 0) {
+                if (!compactControls && attachedCount > 0) {
                     Text("${attachedCount} 张图片",
-                        color = Ink.copper, style = MaterialTheme.typography.labelMedium)
-                } else if (running || !connected) {
-                    Text(if (running) "执行中"
-                        else if (compactControls) "草稿保留" else "等待连接",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        color = Ink.muted, style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.weight(1f, fill = false))
                 }
                 Spacer(Modifier.weight(1f))
                 AnimatedVisibility(
@@ -190,22 +194,19 @@ internal fun ConversationComposer(
                     exit = shrinkHorizontally(tween(CodexMotion.duration(110, reduceMotion))) +
                         fadeOut(tween(CodexMotion.duration(110, reduceMotion)))
                 ) {
-                    OutlinedButton(
+                    IconButton(
                         onClick = onStop,
                         enabled = canStop && !stopping,
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("composer-stop")
+                        modifier = Modifier.size(48.dp).testTag("composer-stop")
                             .explainDisabled(stopping || !canStop,
-                                if (stopping) "已发出停止请求，等待运行核心响应" else "当前任务尚无可停止的执行回合"),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red),
-                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                if (stopping) "已发出停止请求，等待运行核心响应" else "当前任务尚无可停止的执行回合")
+                            .semantics { contentDescription = if (stopping) "正在停止任务" else "停止任务" }
                     ) {
                         if (stopping) {
                             CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp,
                                 color = Ink.red)
                         } else Icon(Icons.Outlined.StopCircle, null,
-                            modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (stopping) "停止中" else "停止")
+                            tint = Ink.red, modifier = Modifier.size(24.dp))
                     }
                 }
                 Button(
@@ -226,8 +227,8 @@ internal fun ConversationComposer(
                     shape = androidx.compose.foundation.shape.CircleShape,
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Ink.coral,
-                        contentColor = androidx.compose.ui.graphics.Color.White,
+                        containerColor = Ink.parchment,
+                        contentColor = Ink.canvas,
                         disabledContainerColor = Ink.border,
                         disabledContentColor = Ink.muted
                     )

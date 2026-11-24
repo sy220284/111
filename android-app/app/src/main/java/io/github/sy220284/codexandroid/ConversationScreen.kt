@@ -27,6 +27,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,6 +51,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
     val thread by vm.activeThread.collectAsState()
     val busy by vm.running.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
@@ -106,14 +111,27 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         items.drop(lastPlanIndex + 1).any { it.kind == "user" }
     val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
         selectedMode == "plan" && !busy && !switching && thread != null
-    val currentTitle = thread?.let { threadId ->
-        (records(models["threads"]) + records(models["sidebarThreads"]))
-            .firstOrNull { it.optString("id") == threadId }?.let {
-            PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
-        }
-    }
+    val workspaceLabel = if (selectedWorkspace == vm.workingDirectory) "本机工作区"
+        else File(selectedWorkspace).name.ifBlank { "本机工作区" }
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val composerFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    fun startFromSuggestion(prompt: String) {
+        if (draft.isNotBlank()) return
+        vm.editComposerText(thread, prompt)
+        composerFocus.requestFocus()
+        keyboard?.show()
+    }
+    val tailIndex = if (items.isEmpty()) 0 else items.lastIndex +
+        if (olderTimelineCount > 0 && thread != null) 1 else 0
+    suspend fun scrollToLatest() {
+        scroll.scrollToItem(tailIndex)
+        // A long last message may occupy more than one viewport.
+        val lastSize = scroll.layoutInfo.visibleItemsInfo
+            .firstOrNull { it.index == tailIndex }?.size ?: 0
+        if (lastSize > 0) scroll.scrollBy(lastSize.toFloat())
+    }
     // Pickers use the actual remaining quota, so no selected image silently vanishes.
     val oneImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -148,6 +166,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var followTail by remember { mutableStateOf(true) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
     var lastKnownTailId by remember { mutableStateOf<String?>(null) }
+    var lastKnownTailText by remember { mutableStateOf<String?>(null) }
+    var autoScrolling by remember { mutableStateOf(false) }
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
     // Reset only after thread/read and thread/resume have finished swapping the timeline.
@@ -158,26 +178,35 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             unreadSteps = 0
             lastKnownStepCount = items.size
             lastKnownTailId = items.lastOrNull()?.id
-            scroll.scrollToItem(if (items.isEmpty()) 0 else items.lastIndex)
+            lastKnownTailText = items.lastOrNull()?.text
+            if (items.isNotEmpty()) {
+                autoScrolling = true
+                try { scrollToLatest() } finally { autoScrolling = false }
+            }
         }
     }
     LaunchedEffect(scroll) {
-        snapshotFlow { !scroll.canScrollForward }.collect { atBottom ->
-            followTail = atBottom
-            if (atBottom) unreadSteps = 0
+        snapshotFlow { scroll.isScrollInProgress to !scroll.canScrollForward }.collect { (scrolling, atBottom) ->
+            if (atBottom) {
+                followTail = true
+                unreadSteps = 0
+            } else if (scrolling && !autoScrolling) followTail = false
         }
     }
-    LaunchedEffect(items.size, switching, thread) {
+    LaunchedEffect(items.size, items.lastOrNull()?.text, switching, thread, olderTimelineCount) {
         if (switching || observedThread != thread) return@LaunchedEffect
         // Reading older pages prepends items but does not create unread steps.
         val tailId = items.lastOrNull()?.id
         val tailChanged = tailId != lastKnownTailId
         val added = if (tailChanged) (items.size - lastKnownStepCount).coerceAtLeast(0) else 0
+        val tailText = items.lastOrNull()?.text
+        val tailTextChanged = tailText != lastKnownTailText
+        lastKnownTailText = tailText
         lastKnownTailId = tailId
         lastKnownStepCount = items.size
-        if (items.isNotEmpty() && followTail && tailChanged) {
-            if (reducedMotion) scroll.scrollToItem(items.size - 1)
-            else scroll.animateScrollToItem(items.size - 1)
+        if (items.isNotEmpty() && followTail && (tailChanged || tailTextChanged)) {
+            autoScrolling = true
+            try { scrollToLatest() } finally { autoScrolling = false }
         } else if (!followTail) {
             unreadSteps += added
         }
@@ -185,33 +214,32 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp,
-            vertical = if (compactWorkArea) 0.dp else 8.dp),
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp,
+            vertical = if (compactWorkArea) 0.dp else 2.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(currentTitle ?: if (thread == null) "新任务" else "当前任务",
-                    style = MaterialTheme.typography.titleMedium)
-                if (!compactWorkArea) {
-                    Text(File(selectedWorkspace).relativeTo(File(vm.workingDirectory)).path
-                        .takeIf { it != "." }?.let { "projects/" + it } ?: "projects/",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
+            Row(Modifier.weight(1f).heightIn(min = 48.dp)
+                .testTag("chat-workspace-context"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(workspaceLabel, modifier = Modifier.weight(1f, fill = false),
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             IconButton(onClick = { navigate("files") },
                 modifier = Modifier.testTag("chat-project-files")) {
-                Icon(Icons.Outlined.FolderOpen, "打开项目文件")
+                Icon(Icons.Outlined.FolderOpen, "打开项目文件", tint = Ink.parchment)
             }
             IconButton(onClick = { showTerminalSheet = true },
                 modifier = Modifier.testTag("chat-project-terminal")) {
-                Icon(Icons.Outlined.Terminal, "展开项目终端")
+                Icon(Icons.Outlined.Terminal, "展开项目终端", tint = Ink.parchment)
             }
             if (thread != null) {
                 IconButton(onClick = { showContextTools = true }, enabled = !switching) {
-                    Icon(Icons.Outlined.MoreHoriz, "会话选项")
+                    Icon(Icons.Outlined.MoreHoriz, "会话选项", tint = Ink.parchment)
                 }
             }
         }
-        DividerLine()
+        HorizontalDivider(color = Ink.border.copy(alpha = .5f))
         if (goal != null) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
@@ -285,57 +313,51 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else if (items.isEmpty()) {
                 val shortViewport = compactWorkArea || maxHeight < 345.dp
                 Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.Center).verticalScroll(rememberScrollState())
-                        .padding(horizontal = 19.dp, vertical = if (shortViewport) 5.dp else 15.dp),
+                    modifier = Modifier.fillMaxWidth().align(Alignment.Center)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = if (shortViewport) 6.dp else 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 10.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 12.dp)
                 ) {
-                    Text("今天想做什么？",
-                        style = if (shortViewport) MaterialTheme.typography.titleLarge
-                            else MaterialTheme.typography.headlineSmall,
-                        color = Ink.parchment, textAlign = TextAlign.Center)
-                    if (!shortViewport) {
-                        Text("描述一个目标，或从快捷任务开始",
-                            color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center)
+                    if (!compactWorkArea) {
+                        if (!shortViewport) {
+                            Surface(shape = RoundedCornerShape(20.dp),
+                                color = Ink.parchment.copy(alpha = .05f)) {
+                                Icon(Icons.Outlined.AutoAwesome, null,
+                                    modifier = Modifier.padding(14.dp).size(28.dp),
+                                    tint = Ink.parchment)
+                            }
+                        }
+                        Text("今天想做什么？",
+                            style = if (shortViewport) MaterialTheme.typography.titleLarge
+                                else MaterialTheme.typography.headlineSmall,
+                            color = Ink.parchment, textAlign = TextAlign.Center)
+                        if (!shortViewport) {
+                            Text("提出问题，或交给 Codex 一项任务",
+                                color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center)
+                        }
                     }
-                    if (!busy) {
-                        Spacer(Modifier.height(4.dp))
+                    if (!busy && !firstThreadStarting && !compactWorkArea && draft.isBlank()) {
                         Column(
                             modifier = Modifier.fillMaxWidth().testTag("chat-suggestions"),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                AssistChip(
-                                    onClick = { navigate("files") },
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                        .testTag("chat-suggestion-files"),
-                                    label = { Text("浏览文件", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp)) }
-                                )
-                                AssistChip(
-                                    onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                        .testTag("chat-suggestion-script"),
-                                    label = { Text("写个脚本", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.Code, null, Modifier.size(18.dp)) }
-                                )
+                                ChatStarter("浏览文件", Icons.Outlined.FolderOpen,
+                                    Modifier.weight(1f).testTag("chat-suggestion-files")) { navigate("files") }
+                                ChatStarter("编写脚本", Icons.Outlined.Code,
+                                    Modifier.weight(1f).testTag("chat-suggestion-script")) {
+                                    startFromSuggestion("帮我写一个脚本，目标是：")
+                                }
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                AssistChip(
-                                    onClick = { vm.editComposerText(thread, "请协助初始化一个新项目，需求是：") },
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                        .testTag("chat-suggestion-project"),
-                                    label = { Text("新建项目", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(18.dp)) }
-                                )
-                                AssistChip(
-                                    onClick = { navigate(if (thread == null) "threads" else "review") },
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                        .testTag("chat-suggestion-review"),
-                                    label = { Text("代码审查", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.FactCheck, null, Modifier.size(18.dp)) }
-                                )
+                                ChatStarter("新建项目", Icons.Outlined.CreateNewFolder,
+                                    Modifier.weight(1f).testTag("chat-suggestion-project")) {
+                                    startFromSuggestion("请协助初始化一个新项目，需求是：")
+                                }
+                                ChatStarter("代码审查", Icons.Outlined.FactCheck,
+                                    Modifier.weight(1f).testTag("chat-suggestion-review")) { navigate("review") }
                             }
                         }
                     }
@@ -362,8 +384,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         .clickable {
                             scope.launch {
                                 if (items.isNotEmpty()) {
-                                    if (reducedMotion) scroll.scrollToItem(items.lastIndex)
-                                    else scroll.animateScrollToItem(items.lastIndex)
+                                    autoScrolling = true
+                                    followTail = true
+                                    try { scrollToLatest() } finally { autoScrolling = false }
                                 }
                                 unreadSteps = 0
                             }
@@ -418,19 +441,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         errors["steer"]?.let { ErrorText(it) }
         errors["interrupt"]?.let { ErrorText(it) }
-        DividerLine()
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp,
-            vertical = if (compactWorkArea) 4.dp else 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 9.dp)) {
-            if (!compactWorkArea) ConversationControlBar(
-                modelName = vm.modelId.collectAsState().value,
-                mode = selectedMode,
-                connected = status == EngineStatus.Connected,
-                running = busy,
-                onModel = { showModels = true },
-                onMode = { showModes = true },
-                onDiagnostics = { showEngineStatus = true }
-            )
+        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp,
+            vertical = if (compactWorkArea) 4.dp else 8.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 7.dp)) {
             if (status is EngineStatus.Unavailable && !compactWorkArea) {
                 CodexNotice(
                     "运行核心连接中断，未发送文字已保留在本机。",
@@ -478,17 +491,32 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             ConversationComposer(
                 draft = draft,
+                focusRequester = composerFocus,
+                controls = if (compactWorkArea) null else {
+                    {
+                        ConversationControlBar(
+                            modelName = vm.modelId.collectAsState().value,
+                            mode = selectedMode,
+                            connected = status == EngineStatus.Connected,
+                            starting = status == EngineStatus.Starting,
+                            running = busy || firstThreadStarting || switching,
+                            onModel = { showModels = true },
+                            onMode = { showModes = true },
+                            onDiagnostics = { showEngineStatus = true }
+                        )
+                    }
+                },
                 onDraftChange = { vm.editComposerText(thread, it) },
                 attachedCount = attachedImages.size,
                 connected = status == EngineStatus.Connected,
                 running = busy,
                 stopping = stopping,
                 canStop = busy && !activeTurn.isNullOrBlank(),
-                canSend = status == EngineStatus.Connected && !switching && !attachmentBusy &&
+                canSend = status == EngineStatus.Connected && !switching && !firstThreadStarting && !attachmentBusy &&
                     (if (busy) draft.isNotBlank() && thread != null &&
                         (followUpMode == "queue" || (!activeTurn.isNullOrBlank() && !steering))
                      else draft.isNotBlank() || attachedImages.isNotEmpty()),
-                sending = steering || "queueWrite" in loading ||
+                sending = firstThreadStarting || steering || "queueWrite" in loading ||
                     (busy && activeTurn.isNullOrBlank() && followUpMode == "steer"),
                 followUpMode = followUpMode,
                 onFollowUpModeChange = { followUpMode = it },
@@ -588,8 +616,25 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 /** Every tool step retains the source payload for verification while keeping the chat readable. */
 @Composable
+private fun ChatStarter(label: String, icon: ImageVector, modifier: Modifier = Modifier,
+    onClick: () -> Unit) {
+    Surface(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
+        shape = RoundedCornerShape(14.dp), color = Ink.canvas,
+        border = BorderStroke(1.dp, Ink.border.copy(alpha = .8f))) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Icon(icon, null, Modifier.size(20.dp), tint = Ink.muted)
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment,
+                modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
 private fun TimelineStepCard(item: TimelineItem) {
-    val user = item.kind == "user"
+    val user = item.kind in setOf("user", "userMessage")
+    val assistant = item.kind in setOf("agent", "agentMessage")
     val failure = item.kind == "error" ||
         item.status.contains("failed", ignoreCase = true)
     val active = item.status.contains("progress", ignoreCase = true) ||
@@ -611,41 +656,39 @@ private fun TimelineStepCard(item: TimelineItem) {
         else -> Icons.Outlined.AutoAwesome
     }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = if (user) Modifier.fillMaxWidth(.88f).testTag("chat-user-message")
+            else Modifier.fillMaxWidth().testTag(if (assistant) "chat-assistant-message" else "chat-execution-step"),
         shape = RoundedCornerShape(17.dp),
-        color = Ink.canvas,
-        border = BorderStroke(1.dp, if (failure) Ink.red.copy(alpha = .5f) else
-            if (user) Ink.copperDim else Ink.border.copy(alpha = .65f))
+        color = if (user) Ink.parchment.copy(alpha = .055f) else Ink.canvas,
+        border = when {
+            failure -> BorderStroke(1.dp, Ink.red.copy(alpha = .5f))
+            user || assistant -> null
+            else -> BorderStroke(1.dp, Ink.border.copy(alpha = .65f))
+        }
     ) {
-        Row(Modifier.padding(start = 12.dp, end = 12.dp, top = 13.dp, bottom = 13.dp)) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(
-                    color = Ink.canvas,
-                    border = BorderStroke(1.dp, tone.copy(alpha = .32f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(icon, null, tint = tone, modifier = Modifier.padding(10.dp).size(18.dp))
-                }
-                if (!user) {
-                    Spacer(Modifier.height(7.dp))
-                    Box(Modifier.width(1.dp).height(20.dp).background(Ink.border))
-                }
+        Row(Modifier.padding(horizontal = if (assistant) 2.dp else 12.dp, vertical = 12.dp)) {
+            if (!user && !assistant) {
+                Icon(icon, null, tint = tone, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
             }
-            Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f))
+                    Text(title, style = MaterialTheme.typography.labelLarge,
+                        color = Ink.muted, modifier = Modifier.weight(1f))
                     val statusLabel = PresentationPolicy.timelineStatus(item.status)
                     if (statusLabel.isNotEmpty()) {
                         Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
                     }
                 }
-                Text(item.text.takeUnless { it == item.kind || PresentationPolicy.meaningful(it).isEmpty() }
-                    ?: "正在处理…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
+                SelectionContainer {
+                    Text(item.text.takeUnless { it == item.kind || PresentationPolicy.meaningful(it).isEmpty() }
+                        ?: "正在处理…",
+                        style = if (user || assistant) MaterialTheme.typography.bodyLarge
+                            else MaterialTheme.typography.bodyMedium,
+                        fontFamily = if (item.kind == "commandExecution") FontFamily.Monospace else null)
+                }
                 if (item.evidence.isNotBlank()) {
                     TextButton(onClick = { evidenceOpen = true },
                         modifier = Modifier.heightIn(min = 46.dp)) {
@@ -656,6 +699,7 @@ private fun TimelineStepCard(item: TimelineItem) {
                 }
             }
         }
+    }
     }
     if (evidenceOpen) CodexEvidenceSheet(
         title = title + " · 执行依据",

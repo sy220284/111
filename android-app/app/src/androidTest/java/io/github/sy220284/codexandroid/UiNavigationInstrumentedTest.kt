@@ -94,9 +94,14 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun drawerOpensAndNavigatesToConversation() {
-        rule.onNodeWithText("从一项任务开始").assertIsDisplayed()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("home-task-hero").assertDoesNotExist()
+        rule.onNodeWithText("今天想做什么？").assertIsDisplayed()
         assertEquals(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
             rule.activity.requestedOrientation)
+        capture("chat-android35.png")
+        openDrawerRoute("home")
+        rule.onNodeWithTag("home-task-hero").assertIsDisplayed()
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-chat").assertExists()
@@ -110,7 +115,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
-        capture("chat-android35.png")
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
     @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
@@ -295,12 +300,14 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun androidBackReturnsToPreviousScreen() {
-        openDrawerRoute("chat")
         rule.onNodeWithTag("conversation-top-title").assertExists()
+        openDrawerRoute("home")
+        rule.onNodeWithTag("home-task-hero").assertExists()
         rule.waitForIdle()
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
-        rule.onNodeWithText("从一项任务开始").assertExists()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("home-task-hero").assertDoesNotExist()
     }
 
     @Test fun modeSheetRespectsRealEngineCapability() {
@@ -324,6 +331,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
+        openDrawerRoute("home")
         rule.onNodeWithTag("home-task-hero").assertExists()
         rule.onNodeWithTag("home-primary-action").assertExists()
         rule.onNodeWithText("当前项目").assertExists()
@@ -382,6 +390,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
+        openDrawerRoute("home")
         rule.onNodeWithTag("home-shortcut-terminal").performClick()
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
@@ -607,6 +616,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-providers").assertExists()
         rule.onNodeWithText("配置模型服务商").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
+    }
+
+    @Test fun coldStartOpensChatAndKeepsDraftSafe() {
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("home-primary-action").assertDoesNotExist()
+        rule.onNodeWithTag("chat-suggestion-script").performClick()
+        rule.onNodeWithTag("composer-input").assertTextContains("帮我写一个脚本，目标是：")
+        rule.onNodeWithTag("chat-suggestions").assertDoesNotExist()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
     @Test fun chatSuggestionsStayVisibleWithinThePhoneWidth() {

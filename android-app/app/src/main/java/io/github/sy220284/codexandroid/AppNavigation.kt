@@ -83,8 +83,8 @@ val pages = listOf(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun CodexShell(vm: CodexViewModel) {
-    var selected by rememberSaveable { mutableStateOf("home") }
-    var backHistory by rememberSaveable { mutableStateOf(listOf("home")) }
+    var selected by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
+    var backHistory by rememberSaveable { mutableStateOf(listOf(NavigationPolicy.startRoute)) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val sidebarState = rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val pageStateHolder = rememberSaveableStateHolder()
@@ -112,7 +112,7 @@ fun CodexShell(vm: CodexViewModel) {
             )
         }
     }
-    val page = pages.firstOrNull { it.id == selected } ?: pages.first()
+    val page = pages.firstOrNull { it.id == selected } ?: pages.first { it.id == NavigationPolicy.startRoute }
     val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
         firstThreadStarting, switching
     )
@@ -215,8 +215,8 @@ fun CodexShell(vm: CodexViewModel) {
         val history = NavigationPolicy.pageHistory(backHistory)
         when {
             UiFeatureCatalog.isSheet(restored) -> {
-                selected = history.lastOrNull() ?: "home"
-                backHistory = history.ifEmpty { listOf("home") }
+                selected = history.lastOrNull() ?: NavigationPolicy.startRoute
+                backHistory = history.ifEmpty { listOf(NavigationPolicy.startRoute) }
                 move(restored)
             }
             UiFeatureCatalog.byRoute[restored]?.surface !in

@@ -4,6 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
+    @Test fun coldStartRouteIsChatWithoutRemovingWorkbench() {
+        assertEquals("chat", NavigationPolicy.startRoute)
+        assertTrue(NavigationPolicy.isCommon(NavigationPolicy.startRoute))
+        assertTrue(NavigationPolicy.isCommon("home"))
+    }
+
     @Test fun newThreadAvailabilityMatchesAcrossTopBarAndSidebar() {
         // 其他会话正在运行也能继续新建；只有创建或切换的真实竞争状态需要阻断。
         assertNull(NavigationPolicy.newThreadBlockReason(false, false))

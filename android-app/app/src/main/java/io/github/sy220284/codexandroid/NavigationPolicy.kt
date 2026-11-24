@@ -4,6 +4,8 @@ package io.github.sy220284.codexandroid
 data class FeatureGroup(val title: String, val routes: List<String>)
 
 object NavigationPolicy {
+    /** 冷启动直接进入对话；工作总览仍由侧栏进入。 */
+    const val startRoute = "chat"
     val sidebarRoutes get() = UiFeatureCatalog.sidebarRoutes
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }
