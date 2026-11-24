@@ -66,7 +66,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val attachmentController by lazy {
         AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors) {
-            threadExecutions.value.values.flatMap { it.images } + firstTurnImages
+            threadExecutions.value.values.flatMap { it.images } + firstTurnImages + pendingComposerImages.value
         }
     }
     val attachmentImport get() = attachmentController.state
@@ -80,8 +80,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val actionFeedback = MutableSharedFlow<ActionFeedbackReceipt>(extraBufferCapacity = 24)
     internal val threadOrganization by lazy { ThreadOrganizationController(this) }
     val latestDiff = MutableStateFlow("")
-    val modelId = MutableStateFlow("")
-    val selectedMode = MutableStateFlow("default")
+    val modelId = MutableStateFlow(composerDrafts.value[ThreadComposerDrafts.NEW_THREAD]?.options?.model.orEmpty())
+    val selectedMode = MutableStateFlow(composerDrafts.value[ThreadComposerDrafts.NEW_THREAD]?.options?.mode ?: "default")
+    internal val pendingComposerImages = MutableStateFlow<Set<String>>(emptySet())
     val accountLoginUrl = MutableStateFlow("")
     val deviceLoginCode = MutableStateFlow("")
     val deviceLoginUrl = MutableStateFlow("")
@@ -313,6 +314,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 // The server history is authoritative; avoid retaining a second full
                 // JSON copy after materializing the bounded timeline window.
                 val newest = timelineWindow.replace(id, restored)
+                restoreComposerOptions(id)
                 activeThread.value = id
                 val execution = threadExecutions.value[id]
                 running.value = execution != null
@@ -353,6 +355,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Preserve unsent text in case New Chat is tapped accidentally.
         // Users can intentionally clear it in the input field.
+        restoreComposerOptions(null)
         activeThread.value = null
         activeTurn.value = null
         errors.value = errors.value - "conversation"
@@ -383,7 +386,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun clearComposerAfterAccepted(threadId: String?, text: String, images: List<String>) =
         attachmentController.clearAfterAccepted(threadId, text, images)
 
-    fun sendPrompt(text: String, localImages: List<String> = emptyList(), afterAccepted: (String) -> Unit = {}) {
+    fun sendPrompt(text: String, localImages: List<String> = emptyList(),
+                   references: List<ComposerReference> = emptyList(), afterAccepted: (String) -> Unit = {}) {
         if (!globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("conversation" to
                 "本机数据正在备份或恢复，完成后再发送指令")
@@ -396,7 +400,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         val submittedThread = activeThread.value
-        if ((prompt.isEmpty() && localImages.isEmpty()) || running.value ||
+        if ((prompt.isEmpty() && localImages.isEmpty() && references.isEmpty()) || running.value ||
             (submittedThread == null && firstThreadStarting.value) ||
             (submittedThread != null && submittedThread in threadExecutions.value)) return
         val images = localImages.toList()
@@ -415,6 +419,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         running.value = true
         val chosenModel = modelId.value
         val chosenMode = selectedMode.value
+        val chosenEffort = composerDrafts.value[ThreadComposerDrafts.key(submittedThread)]?.options?.effort.orEmpty()
         val chosenWorkspace = activeWorkspace.value
         val chosenProject = activeProjectId.value
         viewModelScope.launch {
@@ -432,14 +437,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 require(chosenMode == "default" || chosenMode == "plan") {
                     "未知协作方式：" + chosenMode
                 }
-                require(images.size <= LocalImageAttachments.MAX_FILES) { "图片附件数量超限" }
-                val permittedFolder = LocalImageAttachments.directory(getApplication()).canonicalFile
-                images.forEach { path ->
-                    val file = File(path).canonicalFile
-                    require(file.parentFile == permittedFolder && file.isFile && file.length() > 0L) {
-                        "图片附件不在本应用缓存中或已失效"
-                    }
-                }
+                ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), workspaceRoot)
                 val catalog = records(data.value["models"])
                 if (chosenMode == "plan") {
                     require(chosenModel.isNotBlank() || catalog.any {
@@ -459,7 +457,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     turnParams = { id ->
                         TurnRequestContract.build(
                             threadId = id, text = prompt, modelId = chosenModel,
-                            mode = chosenMode, catalog = catalog, localImages = images
+                            mode = chosenMode, catalog = catalog, localImages = images,
+                            effort = chosenEffort, references = references
                         )
                     },
                     onThreadCreated = { createdId ->
@@ -526,6 +525,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             composerDrafts.update {
                                 ThreadComposerDrafts.reclaimRejectedNewThread(it, created)
                             }
+                            restoreComposerOptions(null)
                             activeThread.value = null
                             syncRecentThreads()
                         }
@@ -560,34 +560,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * Capture the running turn and reserve ownership before launching so rapid
      * repeated taps do not send the same instruction twice.
      */
-    fun steerPrompt(text: String, afterAccepted: () -> Unit) {
-        if (steerBusy.value) return
-        val threadId = activeThread.value
-        val turnId = activeTurn.value
-        if (!running.value || threadId.isNullOrBlank() || turnId.isNullOrBlank()) {
-            errors.value = errors.value + ("steer" to "当前没有可补充指令的运行任务")
-            return
-        }
-        val prompt = text.trim()
-        if (prompt.isBlank()) return
-        steerBusy.value = true
-        viewModelScope.launch {
-            try {
-                bridge.request("turn/steer", TurnRequestContract.steer(threadId, turnId, prompt))
-                if (activeThread.value == threadId && activeTurn.value == turnId) {
-                    timeline.value = timeline.value + TimelineItem(
-                        "steer-" + System.nanoTime(), "user", "补充指令：" + prompt)
-                    afterAccepted()
-                }
-                errors.value = errors.value - "steer"
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("steer" to
-                    (failure.message ?: "补充指令未被接受"))
-            } finally {
-                steerBusy.value = false
-            }
-        }
-    }
+    fun steerPrompt(text: String, afterAccepted: () -> Unit) =
+        submitRunningComposer(ComposerDraft(text = text), "steer", afterAccepted)
 
     fun interrupt() {
         val tid = activeThread.value ?: return

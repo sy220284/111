@@ -338,8 +338,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         all.forEachIndexed { index, item ->
             val input = item.optJSONArray("input") ?: JSONArray()
-            val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it)?.optString("text") }
-                .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
+            val summary = input.objects().mapNotNull { part ->
+                when (part.optString("type")) {
+                    "text" -> part.optString("text").takeIf { it.isNotBlank() }
+                    "image", "localImage" -> "图片附件"
+                    "skill" -> "技能：" + part.optString("name")
+                    else -> "其他任务输入"
+                }
+            }.joinToString("\n").ifBlank { "非文本任务输入" }
             val itemId = item.optString("id")
             val lifted = dragging == index
             val insertion = dragging >= 0 && destination == index && !lifted

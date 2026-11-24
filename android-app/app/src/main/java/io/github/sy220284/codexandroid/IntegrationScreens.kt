@@ -64,7 +64,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
                         Text(name, style = MaterialTheme.typography.titleMedium)
                         Text(description, color = Ink.muted)
                     }
-                    CodexRadio(selected == id, onClick = { vm.selectedMode.value = id },
+                    CodexRadio(selected == id, onClick = { vm.chooseComposerMode(id) },
                         enabled = canSelect)
                 }
                 if (id == "plan" && !planSupported)

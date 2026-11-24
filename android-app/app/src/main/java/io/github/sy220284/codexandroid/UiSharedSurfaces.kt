@@ -94,7 +94,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         },
         searchable = true,
         loading = "models" in loading,
-        onSelect = { id -> vm.modelId.value = id; onDismiss() },
+        onSelect = { id -> vm.chooseComposerModel(id); onDismiss() },
         onDismiss = onDismiss
     )
 }
@@ -138,7 +138,7 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         loading = refreshing,
         onSelect = { id ->
             if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
-                vm.selectedMode.value = id
+                vm.chooseComposerMode(id)
                 onDismiss()
             }
         }, onDismiss = onDismiss

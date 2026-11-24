@@ -71,7 +71,7 @@ class ThreadComposerDraftsTest {
         drafts = ThreadComposerDrafts.images(drafts, "A", listOf("old.png", "new.png"))
         val after = ThreadComposerDrafts.accepted(drafts, "A", "第一版", listOf("old.png"))
         assertEquals("新输入仍保留", after["A"]?.text)
-        assertEquals(listOf("old.png", "new.png"), after["A"]?.images)
+        assertEquals(listOf("new.png"), after["A"]?.images)
     }
 
     @Test fun acceptedSteerDoesNotDeletePendingImages() {

@@ -73,7 +73,7 @@ fun ModelsPage(vm: CodexViewModel) {
             Text("新会话使用的模型", style = MaterialTheme.typography.titleMedium)
             Text(chosen.ifBlank { "遵循 Codex 默认模型" }, color = Ink.copper)
             Text("更改这里的选择不会中断已经启动的会话。", color = Ink.muted)
-            CodexSecondaryButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
+            CodexSecondaryButton(onClick = { vm.chooseComposerModel("") }) { Text("恢复默认模型") }
         }
         SourceState(vm, "models") { vm.refresh("models", "model/list") }
         if (items.isEmpty() && data["models"] != null && "models" !in loading && errors["models"] == null) {
@@ -85,7 +85,7 @@ fun ModelsPage(vm: CodexViewModel) {
             val title = item.optString("displayName").ifBlank { item.optString("model", id) }
             val chosenNow = chosen == id
             Surface(
-                modifier = Modifier.fillMaxWidth().clickable { vm.modelId.value = id }
+                modifier = Modifier.fillMaxWidth().clickable { vm.chooseComposerModel(id) }
                     .animateContentSize(animationSpec = tween(CodexMotion.duration(180, reduced))),
                 shape = RoundedCornerShape(18.dp),
                 color = Ink.canvas,
@@ -105,7 +105,7 @@ fun ModelsPage(vm: CodexViewModel) {
                                 CodexIcon(CodexGlyph.Info, contentDescription = "查看" + title + "说明")
                             }
                         }
-                        CodexRadio(chosenNow, onClick = { vm.modelId.value = id })
+                        CodexRadio(chosenNow, onClick = { vm.chooseComposerModel(id) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         if (item.optBoolean("isDefault")) StatusPill("官方默认")

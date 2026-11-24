@@ -31,9 +31,11 @@ internal object DraftPersistence {
             val names = entry.optJSONArray("images") ?: JSONArray()
             val saved = ComposerDraft(
                 text = entry.optString("text"),
-                images = (0 until names.length()).map { names.getString(it) }
+                images = (0 until names.length()).map { names.getString(it) },
+                options = ComposerTaskOptions.decode(entry.optJSONObject("options")),
+                references = entry.optJSONArray("references")?.objects().orEmpty().map(ComposerReference::decode)
             )
-            if (saved.text.isNotBlank() || saved.images.isNotEmpty()) result[id] = saved
+            if (saved.hasStoredState) result[id] = saved
         }
         return result
     }
@@ -48,9 +50,11 @@ internal object DraftPersistence {
                 }
                 name
             }.distinct()
-            if (draft.text.isNotBlank() || names.isNotEmpty()) {
-                source.put(id, JSONObject().put("text", draft.text)
-                    .put("images", JSONArray(names)))
+            if (draft.hasStoredState) {
+                val entry = JSONObject().put("text", draft.text).put("images", JSONArray(names))
+                if (draft.options != ComposerTaskOptions()) entry.put("options", draft.options.encode())
+                if (draft.references.isNotEmpty()) entry.put("references", JSONArray(draft.references.map { it.encode() }))
+                source.put(id, entry)
             }
         }
         return source.toString()
@@ -76,7 +80,7 @@ internal object DraftPersistence {
                 } else missing++
             }
             val saved = draft.copy(images = files)
-            if (saved.text.isNotBlank() || files.isNotEmpty()) resolved[id] = saved
+            if (saved.hasStoredState) resolved[id] = saved
         }
         return DraftRestoreResult(resolved, missing)
     }

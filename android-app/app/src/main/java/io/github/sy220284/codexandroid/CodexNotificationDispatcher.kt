@@ -146,6 +146,12 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
+        if (method == "thread/tokenUsage/updated" && threadId.isNotBlank()) {
+            params.optJSONObject("tokenUsage")?.let { usage ->
+                data.value = data.value + ("tokenUsage:$threadId" to usage)
+            }
+            return
+        }
         // Keep thread-owned goal and queue UI synchronized with agent-side mutations.
         // These notifications are emitted even when changes do not originate in the UI.
         if (threadId.isNotBlank() && threadId == activeThread.value) {

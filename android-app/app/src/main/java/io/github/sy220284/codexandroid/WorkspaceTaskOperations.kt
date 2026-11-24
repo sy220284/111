@@ -63,7 +63,7 @@ internal class WorkspaceTaskOperations(
                     "等待方案确认期间会话状态已变化，请重新核对后批准"
                 }
                 val prompt = PlanExecutionContract.prompt(prepared)
-                selectedMode.value = "default"
+                vm.chooseComposerMode("default")
                 sendPrompt(prompt)
             } catch (failure: Exception) {
                 errors.value = errors.value + ("planApproval" to
