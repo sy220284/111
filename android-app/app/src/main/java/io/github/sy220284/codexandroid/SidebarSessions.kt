@@ -96,8 +96,8 @@ internal fun SidebarSessionsContent(
                 active = activeId == id,
                 running = running && activeId == id,
                 pendingApprovals = if (activeId == id) pendingApprovals else 0,
-                activity = ThreadActivityPolicy.effective(
-                    entry, liveActivities[id], id in liveExecutions, 0),
+                activity = liveActivities[id] ?: ThreadActivityPolicy.effective(
+                    entry, null, id in liveExecutions, 0),
                 enabled = connected && !switching,
                 onClick = { onOpenThread(id) },
                 onStop = if (liveExecutions[id]?.turnId != null) {

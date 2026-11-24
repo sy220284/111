@@ -405,6 +405,10 @@ class UiPopulatedSubpagesInstrumentedTest {
                         liveActivities = mapOf(
                             "remote-approval" to ThreadActivity.WaitingApproval,
                             "remote-input" to ThreadActivity.WaitingAnswer
+                        ),
+                        liveExecutions = mapOf(
+                            "remote-approval" to ThreadExecution(turnId = "turn-approval"),
+                            "remote-input" to ThreadExecution(turnId = "turn-input")
                         )
                     )
                 }
