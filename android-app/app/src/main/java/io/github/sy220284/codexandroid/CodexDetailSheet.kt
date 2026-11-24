@@ -58,7 +58,7 @@ fun CodexDetailSheet(
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                IconButton(
+                CodexIconAction(
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("codex-detail-close")
                 ) {
@@ -87,7 +87,7 @@ fun CodexDetailTrigger(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)) {
+    CodexTextAction(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)) {
         Text(label)
         Spacer(Modifier.width(4.dp))
         CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
@@ -216,7 +216,7 @@ fun CodexInfoDialog(
             )
         },
         confirmButton = {
-            TextButton(
+            CodexTextAction(
                 onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp)
                     .testTag("codex-info-close")
@@ -263,12 +263,12 @@ fun CodexEditDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
+            CodexTextAction(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text("取消")
             }
         },
         confirmButton = {
-            TextButton(
+            CodexTextAction(
                 onClick = onConfirm,
                 enabled = canConfirm,
                 modifier = Modifier.heightIn(min = 48.dp).testTag("codex-edit-confirm")

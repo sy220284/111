@@ -171,6 +171,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     AtlasFormField(customName, { customName = it }, "服务商名称")
                     AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
                         placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                        confirmedValid = customUrl.isNotBlank() && ProviderAddressPolicy.valid(customUrl),
                         error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
                             "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
                     AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",

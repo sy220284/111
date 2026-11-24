@@ -20,7 +20,7 @@ internal fun AtlasQueueDragHandle(position: Int, total: Int, enabled: Boolean, i
     val move by rememberUpdatedState(onMove)
     val end by rememberUpdatedState(onEnd)
     val cancel by rememberUpdatedState(onCancel)
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)
+    CodexIconAction(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)
         .testTag("queue-drag-" + itemId)
         .semantics { contentDescription = "第 ${position} 项，长按拖动排序" }
         .pointerInput(itemId, enabled) {

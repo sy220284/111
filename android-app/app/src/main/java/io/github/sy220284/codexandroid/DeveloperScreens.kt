@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -191,18 +192,18 @@ fun WorkspacePage(vm: CodexViewModel) {
                 subtitle = "在当前目录创建文件或文件夹",
                 onDismiss = { showCreate = false }
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    CodexFilterChip(selected = createKind == "file",
+                Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    AtlasExclusiveChip(selected = createKind == "file",
                         onClick = { createKind = "file" }, label = { Text("文本文件") },
                         leadingIcon = { CodexIcon(CodexGlyph.Description, null) })
-                    CodexFilterChip(selected = createKind == "folder",
+                    AtlasExclusiveChip(selected = createKind == "folder",
                         onClick = { createKind = "folder" }, label = { Text("文件夹") },
                         modifier = Modifier.testTag("workspace-folder-mode"),
                         leadingIcon = { CodexIcon(CodexGlyph.CreateNewFolder, null) })
                 }
-                CodexInputField(createName, { createName = it },
-                    label = { Text(if (createKind == "file") "文件名（如 README.md）" else "文件夹名称") },
-                    modifier = Modifier.fillMaxWidth().testTag("workspace-new-name"), singleLine = true)
+                AtlasFormField(createName, { createName = it },
+                    label = if (createKind == "file") "文件名（如 README.md）" else "文件夹名称",
+                    modifier = Modifier.testTag("workspace-new-name"))
                 CodexSecondaryButton(onClick = {
                     try {
                         val created = if (createKind == "file")
@@ -354,9 +355,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("对象：" + target.name, color = Ink.muted)
-                        CodexInputField(renameName, { renameName = it },
-                            label = { Text("新名称") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth())
+                        AtlasFormField(renameName, { renameName = it }, "新名称")
                     }
                 },
                 confirmButton = {
@@ -393,9 +392,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("来源：" + target.relativeTo(root).path,
                             color = Ink.muted)
-                        CodexInputField(copyName, { copyName = it },
-                            label = { Text("新文件或文件夹名称") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth())
+                        AtlasFormField(copyName, { copyName = it }, "新文件或文件夹名称")
                         Text("创建独立副本；如已存在同名文件则停止操作。",
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }

@@ -378,11 +378,11 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 AtlasFormField(path, { path = it }, "设置项名称", placeholder = "approval_policy")
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
                 val types = listOf("text" to "文本", "boolean" to "开关", "number" to "数字", "json" to "高级数据")
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     types.chunked(2).forEach { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             row.forEach { (id, label) ->
-                                CodexFilterChip(selected = kind == id, onClick = { kind = id },
+                                AtlasExclusiveChip(selected = kind == id, onClick = { kind = id },
                                     label = { Text(label) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp))
                             }
                         }

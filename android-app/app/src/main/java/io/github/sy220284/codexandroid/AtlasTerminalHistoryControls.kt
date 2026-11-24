@@ -14,19 +14,19 @@ internal fun AtlasTerminalHistoryControls(command: String, recent: List<String>,
     position: TerminalHistoryPosition, enabled: Boolean,
     onChoice: (TerminalHistoryChoice) -> Unit, onOpenHistory: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = {
+        CodexIconAction(onClick = {
             TerminalHistoryNavigation.previous(command, recent, position)?.let(onChoice)
         }, enabled = enabled && recent.isNotEmpty() && position.index < recent.lastIndex,
             modifier = Modifier.size(48.dp).testTag("terminal-history-previous")) {
             CodexIcon(CodexGlyph.ArrowUpward, "上一条历史命令")
         }
-        IconButton(onClick = {
+        CodexIconAction(onClick = {
             TerminalHistoryNavigation.next(recent, position)?.let(onChoice)
         }, enabled = enabled && position.index >= 0,
             modifier = Modifier.size(48.dp).testTag("terminal-history-next")) {
             CodexIcon(CodexGlyph.ArrowDownward, "下一条历史命令或原草稿")
         }
-        TextButton(onClick = onOpenHistory, enabled = enabled && recent.isNotEmpty(),
+        CodexTextAction(onClick = onOpenHistory, enabled = enabled && recent.isNotEmpty(),
             modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("terminal-history-toggle")) {
             CodexIcon(CodexGlyph.History, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))

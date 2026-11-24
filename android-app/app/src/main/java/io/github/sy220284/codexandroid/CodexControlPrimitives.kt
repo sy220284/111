@@ -2,7 +2,11 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,7 +75,7 @@ internal fun CodexInputField(value: String, onValueChange: (String) -> Unit,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default, singleLine: Boolean = false,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE, minLines: Int = 1,
-    shape: Shape = RoundedCornerShape(13.dp)) {
+    shape: Shape = RoundedCornerShape(13.dp), confirmedValid: Boolean = false) {
     OutlinedTextField(value = value, onValueChange = onValueChange, modifier = modifier,
         enabled = enabled, readOnly = readOnly, textStyle = textStyle, label = label,
         placeholder = placeholder, leadingIcon = leadingIcon, trailingIcon = trailingIcon,
@@ -79,7 +83,8 @@ internal fun CodexInputField(value: String, onValueChange: (String) -> Unit,
         keyboardOptions = keyboardOptions, keyboardActions = keyboardActions, singleLine = singleLine,
         maxLines = maxLines, minLines = minLines, shape = shape,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Ink.copper, unfocusedBorderColor = Ink.border,
+            focusedBorderColor = if (confirmedValid && !isError) Ink.jade else Ink.copper,
+            unfocusedBorderColor = if (confirmedValid && !isError) Ink.jade else Ink.border,
             focusedLabelColor = Ink.copper, unfocusedLabelColor = Ink.muted,
             cursorColor = Ink.copper, errorBorderColor = Ink.red, errorLabelColor = Ink.red,
             errorCursorColor = Ink.red, disabledBorderColor = Ink.border,
@@ -124,4 +129,37 @@ internal fun CodexActivityIndicator(modifier: Modifier = Modifier,
         modifier = modifier.semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate },
         tint = color)
     else CircularProgressIndicator(modifier = modifier, color = color, strokeWidth = strokeWidth)
+}
+
+/** Exclusive compact choice with radio semantics, including the file/folder and config type selectors. */
+@Composable
+internal fun AtlasExclusiveChip(selected: Boolean, onClick: () -> Unit, label: @Composable () -> Unit,
+    modifier: Modifier = Modifier, enabled: Boolean = true,
+    leadingIcon: (@Composable () -> Unit)? = null) {
+    val press = remember { MutableInteractionSource() }
+    Surface(modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled)
+        .selectable(selected = selected, enabled = enabled, role = Role.RadioButton,
+            interactionSource = press, indication = androidx.compose.foundation.LocalIndication.current,
+            onClick = onClick),
+        color = if (selected) Ink.copper.copy(alpha = .10f) else Ink.canvas,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else Ink.border)) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            if (leadingIcon != null) leadingIcon()
+            CodexRadio(selected = selected, onClick = null, enabled = enabled, modifier = Modifier.size(24.dp))
+            label()
+        }
+    }
+}
+
+/** Suggestion inserts text only. It never submits a command. */
+@Composable
+internal fun CodexSuggestionChip(onClick: () -> Unit, label: @Composable () -> Unit,
+    modifier: Modifier = Modifier, enabled: Boolean = true) {
+    val press = remember { MutableInteractionSource() }
+    AssistChip(onClick = onClick, label = label, enabled = enabled,
+        modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled),
+        shape = RoundedCornerShape(12.dp), interactionSource = press)
 }

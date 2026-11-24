@@ -200,7 +200,7 @@ fun SectionIntro(title: String, subtitle: String = "") {
                     modifier = Modifier.weight(1f))
             } else Spacer(Modifier.weight(1f))
             if (subtitle.isNotBlank()) {
-                IconButton(
+                CodexIconAction(
                     onClick = { showExplanation = true },
                     modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 ) {

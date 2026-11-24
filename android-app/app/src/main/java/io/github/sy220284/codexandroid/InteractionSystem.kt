@@ -155,7 +155,7 @@ fun CodexNotice(
                         CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
                         Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
-                    TextButton(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
+                    CodexTextAction(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
                         Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
                     }
                 }
@@ -163,7 +163,7 @@ fun CodexNotice(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
                 Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                if (actionLabel != null) TextButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
+                if (actionLabel != null) CodexTextAction(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
                 }
             }
@@ -265,7 +265,7 @@ fun CodexRecoveryState(
             actionLabel = actionLabel, onAction = onAction, artworkRes = artworkRes
         )
         if (onDiagnostics != null) {
-            TextButton(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
+            CodexTextAction(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text("查看诊断", color = Ink.parchment)
             }
         }
@@ -279,11 +279,11 @@ fun CodexRefreshIcon(
     onRefresh: () -> Unit,
     label: String = "刷新"
 ) {
-    IconButton(
+    CodexIconAction(
         onClick = onRefresh, enabled = !busy,
         modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
     ) {
-        if (busy) CircularProgressIndicator(
+        if (busy) CodexActivityIndicator(
             Modifier.size(19.dp), strokeWidth = 2.dp, color = Ink.copper
         ) else CodexIcon(CodexGlyph.Retry, contentDescription = label)
     }
@@ -323,7 +323,7 @@ fun CodexChoiceSheet(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
@@ -417,10 +417,10 @@ fun CodexEvidenceSheet(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                CodexSecondaryButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                     Text("关闭")
                 }
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = { clipboard.setText(AnnotatedString(copyText)) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
@@ -482,7 +482,7 @@ fun CodexConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            CodexPrimaryButton(
                 onClick = onConfirm,
                 enabled = confirmEnabled,
                 colors = ButtonDefaults.buttonColors(
@@ -494,7 +494,7 @@ fun CodexConfirmDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss,
+            CodexTextAction(onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp).testTag("confirm-dialog-cancel")) {
                 Text("取消")
             }

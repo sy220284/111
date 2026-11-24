@@ -14,13 +14,13 @@ import androidx.compose.ui.unit.dp
 internal fun AtlasFormField(value: String, onValueChange: (String) -> Unit,
     label: String, modifier: Modifier = Modifier, placeholder: String = "",
     helper: String = "", error: String? = null, keyboardType: KeyboardType = KeyboardType.Text,
-    enabled: Boolean = true, singleLine: Boolean = true) {
+    enabled: Boolean = true, singleLine: Boolean = true, confirmedValid: Boolean = false) {
     CodexInputField(value, onValueChange, modifier = modifier.fillMaxWidth(),
         label = { Text(label) }, placeholder = if (placeholder.isNotBlank()) {{ Text(placeholder) }} else null,
         supportingText = if (error != null || helper.isNotBlank()) {{
             Text(error ?: helper, color = if (error != null) Ink.red else Ink.muted)
         }} else null,
-        singleLine = singleLine, enabled = enabled, isError = error != null,
+        singleLine = singleLine, enabled = enabled, isError = error != null, confirmedValid = confirmedValid,
         shape = RoundedCornerShape(13.dp), keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         trailingIcon = if (value.isNotEmpty() && enabled) {{
             CodexIconAction(onClick = { onValueChange("") }, modifier = Modifier.size(48.dp)) {

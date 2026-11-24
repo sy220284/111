@@ -107,6 +107,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                     placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"))
                 AtlasFormField(endpoint, { endpoint = it }, "安全连接地址（WebSocket）",
                     placeholder = "wss://example.com/exec",
+                    confirmedValid = endpoint.isNotBlank() && ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint),
                     helper = "使用 wss:// 加密连接；本机回环地址可使用 ws://127.0.0.1",
                     error = if (endpoint.isNotBlank() && !ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint))
                         "连接地址格式不正确，或不符合安全连接要求。" else null,

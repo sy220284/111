@@ -176,12 +176,16 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                         CodexInputField(ttyRows, {
                                             ttyRows = it.filter(Char::isDigit).take(3)
                                         }, label = { Text("行数") }, singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            isError = ttyRows.isNotBlank() && ttyRows.toIntOrNull() !in 2..300,
                                             modifier = Modifier.weight(1f)
                                                 .testTag("terminal-resize-rows"),
                                             enabled = !session.terminating)
                                         CodexInputField(ttyCols, {
                                             ttyCols = it.filter(Char::isDigit).take(3)
                                         }, label = { Text("列数") }, singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            isError = ttyCols.isNotBlank() && ttyCols.toIntOrNull() !in 10..400,
                                             modifier = Modifier.weight(1f)
                                                 .testTag("terminal-resize-cols"),
                                             enabled = !session.terminating)
@@ -339,7 +343,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("pwd", "ls -la", "git status").forEach { example ->
-                                AssistChip(onClick = { command = example },
+                                CodexSuggestionChip(onClick = { command = example },
                                     label = { Text(example, fontFamily = FontFamily.Monospace) })
                             }
                         }
