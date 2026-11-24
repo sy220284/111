@@ -1,4 +1,5 @@
 mod domestic_catalog;
+pub use domestic_catalog::is_domestic_live_catalog;
 mod amazon_bedrock;
 mod auth;
 mod bearer_auth_provider;

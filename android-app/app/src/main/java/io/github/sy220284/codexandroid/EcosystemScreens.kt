@@ -108,6 +108,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     val credentials by vm.bridge.domesticCredentials.collectAsState()
     val changingCredentials by vm.connectionRestarter.busy.collectAsState()
     var revokePreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
+    var inspectCatalog by remember { mutableStateOf<Pair<DomesticModelPreset, String>?>(null) }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -249,6 +250,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             }
             val errors by vm.errors.collectAsState()
             errors["providerWrite"]?.let { ErrorText(it) }
+            errors["providerDefaultWrite"]?.let { ErrorText(it) }
         }
         entries.forEach { item ->
             MaterialPanel(Modifier.fillMaxWidth()) {
@@ -264,6 +266,11 @@ fun ProvidersPage(vm: CodexViewModel) {
                         Text("设为默认服务商")
                     }
                 }
+                domesticPresets.firstOrNull { it.ownsProvider(item) }?.let { preset ->
+                    CodexSecondaryButton(onClick = { inspectCatalog = preset to item.optString("id") }, enabled = !changingCredentials) {
+                        Text(if (preset.catalog == "openai-list") "实时模型目录 / 授权检查" else "查看候选模型")
+                    }
+                }
                 DetailToggle(item)
             }
         }
@@ -271,6 +278,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             CodexEmptyState("暂无可用模型服务商", "当前内核没有返回已配置的服务商。")
         }
     }
+    inspectCatalog?.let { (preset, id) -> DomesticCatalogSheet(vm, preset, id) { inspectCatalog = null } }
     if (confirmCustom) CodexConfirmDialog(
         title = "保存自定义模型服务商",
         message = if (selectedPreset != null) "将保存并回读配置，必要时重新启动空闲核心，验证本机密钥已加载。" else "保存自定义服务商配置。",

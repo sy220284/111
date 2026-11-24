@@ -15,6 +15,7 @@ use codex_http_client::HttpClientFactory;
 use codex_login::AuthManager;
 use codex_protocol::auth::AuthMode;
 use codex_protocol::config_types::CollaborationModeMask;
+use codex_protocol::error::CodexErr;
 use codex_protocol::error::CodexErrorDetails;
 use codex_protocol::error::Result as CoreResult;
 use codex_protocol::openai_models::ModelInfo;
@@ -256,6 +257,16 @@ pub trait ModelsManager: fmt::Debug + Send + Sync {
         refresh_strategy: RefreshStrategy,
         http_client_factory: HttpClientFactory,
     ) -> ModelsManagerFuture<'_, Vec<CatalogModel>>;
+
+    /// Explicit account inspection must report remote failures to its caller.
+    fn refresh_catalog_checked(
+        &self,
+        _http_client_factory: HttpClientFactory,
+    ) -> ModelsManagerFuture<'_, CoreResult<()>> {
+        Box::pin(std::future::ready(Err(CodexErr::InvalidRequest(
+            "this provider has no live account catalog".into(),
+        ))))
+    }
 
     /// Best-effort refresh when the in-memory catalog belongs to different credentials.
     /// Static catalogs need no refresh. Failures follow the catalog's fallback policy.
@@ -537,6 +548,18 @@ impl StaticModelsManager {
 }
 
 impl ModelsManager for OpenAiModelsManager {
+    fn refresh_catalog_checked(
+        &self,
+        http_client_factory: HttpClientFactory,
+    ) -> ModelsManagerFuture<'_, CoreResult<()>> {
+        Box::pin(async move {
+            if self.api_key_discovery_disabled() || !self.should_refresh_models().await {
+                return Err(CodexErr::InvalidRequest("account model discovery is disabled or unavailable".into()));
+            }
+            self.refresh_available_models(RefreshStrategy::Online, &http_client_factory).await
+        })
+    }
+
     fn needs_initialization(&self) -> bool {
         if self.endpoint_client.auth_requires_resolution() {
             return true;

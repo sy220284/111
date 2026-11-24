@@ -6,7 +6,7 @@ import org.json.JSONArray
 /** One bundled catalog shared with the Rust provider layer. Presets are not authorization. */
 internal data class DomesticModelPreset(
     val id: String, val name: String, val baseUrl: String, val envKey: String,
-    val plan: String, val protocol: String, val models: List<String>
+    val plan: String, val protocol: String, val models: List<String>, val catalog: String = "manual"
 ) {
     fun matchesEndpoint(value: String): Boolean = value.trim().trimEnd('/') == baseUrl
 
@@ -30,7 +30,8 @@ internal object DomesticModelPresets {
             DomesticModelPreset(
                 item.getString("id"), item.getString("name"), item.getString("baseUrl"),
                 item.getString("envKey"), item.getString("plan"), item.getString("protocol"),
-                (0 until models.length()).map { models.getJSONObject(it).getString("id") }
+                (0 until models.length()).map { models.getJSONObject(it).getString("id") },
+                item.getString("catalog")
             )
         }.also { presets ->
             require(presets.map { it.id }.distinct().size == presets.size)
