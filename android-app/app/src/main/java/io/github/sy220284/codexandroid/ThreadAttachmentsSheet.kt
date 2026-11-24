@@ -123,7 +123,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }
                     if (cursor.isNotBlank()) item {
                         CodexSecondaryButton(onClick = {
-                            val threadId = active ?: return@OutlinedButton
+                            val threadId = active ?: return@CodexSecondaryButton
                             val nextPage = page + 1
                             page = nextPage
                             vm.refresh(baseKey + nextPage, "thread/attachment/list",
