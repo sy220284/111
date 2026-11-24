@@ -33,7 +33,8 @@
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction",
         "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove",
         "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts",
-        "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath"
+        "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath",
+        "UiNavigationInstrumentedTest.composerReferenceAndExpandedEditorPreserveDraft"
       ]
     },
     {
@@ -418,6 +419,7 @@
       "business": "对话输入、进度、选择、反馈、骨架、详情与菜单；媒体播放/轮播仅设计参考",
       "components": [
         [
+          "ConversationComposer",
           "ConversationComposer"
         ],
         [
@@ -425,6 +427,7 @@
           "AtlasOperationProgress"
         ],
         [
+          "CodexDetailSheet",
           "CodexDetailSheet"
         ],
         [
@@ -498,6 +501,7 @@
           "ConversationLoadingSkeleton"
         ],
         [
+          "SkillsPage",
           "SkillsPage"
         ]
       ],
@@ -511,9 +515,11 @@
       "business": "共享图标、空态/失败、统一容器、搜索与持久反馈；实际操作由业务状态驱动",
       "components": [
         [
+          "CodexIcon",
           "CodexIcon"
         ],
         [
+          "CodexStateArtwork",
           "CodexStateArtwork"
         ],
         [
