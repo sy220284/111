@@ -773,4 +773,41 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("message-copy-version-message").assertExists()
     }
 
+
+    @Test fun progressiveReplyShowsFragmentsThenOneAnswerAction() {
+        val partial = TimelineItem("partial-ui", "agentMessage", "第一部分\n\n", "completed",
+            turnId = "progressive-ui", phase = "partial_answer")
+        val commentary = TimelineItem("commentary-ui", "agentMessage", "继续检查", "completed",
+            turnId = "progressive-ui", phase = "commentary")
+        val final = TimelineItem("final-ui", "agentMessage", "第二部分", "completed",
+            turnId = "progressive-ui", phase = "final_answer")
+        val running = androidx.compose.runtime.mutableStateOf(true)
+        val events = androidx.compose.runtime.mutableStateOf(listOf(partial, commentary))
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.foundation.layout.Column {
+                    val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(events.value),
+                        running.value, if (running.value) "progressive-ui" else null, false)
+                    rows.forEach { row ->
+                        androidx.compose.runtime.key(row.key) {
+                            TimelineActivityGroup(row.group, showMessageActions = row.showActions,
+                                actionItem = row.actionItem, forceActivity = row.forceActivity, note = row.note)
+                        }
+                    }
+                }
+            }
+        }
+        rule.onNodeWithText("第一部分").assertExists()
+        rule.onNodeWithTag("chat-commentary").assertExists()
+        rule.onNodeWithTag("message-copy-partial-ui").assertDoesNotExist()
+        rule.runOnIdle { events.value = events.value + final; running.value = false }
+        rule.onNodeWithTag("message-copy-final-ui").assertExists()
+        rule.onNodeWithTag("message-copy-partial-ui").assertDoesNotExist()
+        rule.onNodeWithTag("chat-commentary").assertDoesNotExist()
+        rule.onNodeWithTag("timeline-header-final-ui").performClick()
+        rule.onNodeWithText("全文阅读").performClick()
+        rule.onNodeWithTag("full-text-reader").assertExists()
+        rule.onNodeWithTag("full-text-search").performTextInput("第二部分")
+        rule.onNodeWithText("第 1 / 1 处").assertExists()
+    }
 }

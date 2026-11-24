@@ -111,4 +111,56 @@ class TimelineReconcilerTest {
         assertEquals(sequential, TimelineEventReducer.reduce("item/agentMessage/delta",
             batch.notification().getJSONObject("params"), emptyList()))
     }
+
+    @Test fun progressiveReplyKeepsLiveOrderingAndOneCompleteAnswerAfterTurn() {
+        val user = TimelineItem("u", "user", "任务", "completed", turnId = "t")
+        val partial = TimelineItem("p", "agentMessage", "第一部分\n\n", "completed", turnId = "t", phase = "partial_answer")
+        val commentary = TimelineItem("c", "agentMessage", "继续检查", "completed", turnId = "t", phase = "commentary")
+        val tool = TimelineItem("tool", "commandExecution", "运行命令", "completed", turnId = "t")
+        val final = TimelineItem("f", "agentMessage", "第二部分", "streaming", turnId = "t", phase = "final_answer")
+        val live = listOf(user, partial, commentary, tool, final)
+        fun rows(items: List<TimelineItem>, running: Boolean, earlier: Boolean = false) =
+            ProgressiveReplyProjection.rows(TimelineEventReducer.groups(items), running, if (running) "t" else null, earlier)
+        val visible = rows(live, true)
+        assertEquals(live.map { it.id }, visible.flatMap { it.group }.map { it.id })
+        org.junit.Assert.assertFalse(visible.first { it.key == "p" }.showActions)
+        org.junit.Assert.assertFalse(visible.first { it.key == "f" }.showActions)
+        val ended = rows(live.dropLast(1) + final.copy(status = "completed"), false)
+        assertEquals(listOf("u", "c", "p"), ended.map { it.key })
+        assertEquals(listOf("c", "tool"), ended[1].group.map { it.id })
+        org.junit.Assert.assertTrue(ended[1].forceActivity)
+        assertEquals("第一部分\n\n第二部分", ended.last().group.single().text)
+        assertEquals("第一部分\n\n第二部分", ended.last().actionItem?.text)
+        assertEquals("f", ended.last().actionItem?.id)
+        assertEquals("t", ended.last().actionItem?.turnId)
+        val interrupted = rows(live.dropLast(1), false)
+        assertEquals("第一部分\n\n", interrupted.last().actionItem?.text)
+        assertEquals("已保留阶段性回答，未收到最终回答", interrupted.last().note)
+        val clipped = rows(live.drop(1).dropLast(1) + final.copy(status = "completed"), false, true)
+        org.junit.Assert.assertFalse(clipped.last().showActions)
+        org.junit.Assert.assertNotNull(clipped.last().note)
+        val steering = user.copy(id = "steer", text = "继续")
+        val steered = rows(listOf(user, partial, steering, commentary, tool, final.copy(status = "completed")), false)
+        assertEquals(listOf("u", "p", "steer", "c", "f"), steered.map { it.key })
+        org.junit.Assert.assertFalse(steered[1].showActions)
+        assertEquals("第一部分\n\n第二部分", steered.last().actionItem?.text)
+        assertEquals(1, steered.count { it.actionItem != null && it.showActions })
+        val unknown = final.copy(phase = "", status = "completed")
+        assertEquals(unknown, rows(listOf(unknown), false).single().group.single())
+        val other = final.copy(id = "other", turnId = "other-turn", status = "completed")
+        val separate = rows(listOf(user, partial, other), false)
+        assertEquals("第一部分\n\n", separate[1].actionItem?.text)
+        assertEquals("第二部分", separate.last().group.single().text)
+        val instruction = ProgressiveReplyProjection.appendInstruction("原有指令")
+        org.junit.Assert.assertTrue(instruction.startsWith("原有指令\n\n"))
+        assertEquals(instruction, ProgressiveReplyProjection.appendInstruction(instruction))
+    }
+
+    @Test fun streamingMarkdownNeverCommitsBlankLinesInsideOpenCode() {
+        val opening = "标题\n\n" + "\u0060\u0060\u0060kt\n第一行\n\n第二行"
+        assertEquals("标题\n\n".length, MessageMarkdown.stablePrefixLength(opening))
+        val closed = opening + "\n\u0060\u0060\u0060\n\n"
+        assertEquals(closed.length, MessageMarkdown.stablePrefixLength(closed))
+        assertEquals(closed.length, MessageMarkdown.stablePrefixLength(closed + "未完"))
+    }
 }

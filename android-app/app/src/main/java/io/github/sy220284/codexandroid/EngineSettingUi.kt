@@ -91,7 +91,16 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
             "number" -> AtlasFormField(draft, { edited = true; draft = it }, "数值（" + setting.unit + "）",
                 keyboardType = KeyboardType.Number, enabled = !busy,
                 error = if (draft.isNotBlank() && parsed.isFailure) parsed.exceptionOrNull()?.message else null)
-            else -> AtlasFormField(draft, { edited = true; draft = it }, "执行指令", singleLine = false, enabled = !busy)
+            else -> {
+                if (setting.key == "developer_instructions") {
+                    CodexTextAction(onClick = {
+                        edited = true
+                        draft = ProgressiveReplyProjection.appendInstruction(draft)
+                    }, enabled = enabled && !busy && !draft.contains(ProgressiveReplyProjection.instruction),
+                        modifier = Modifier.testTag("append-progressive-reply-instruction")) { Text("添加渐进式回复指令") }
+                }
+                AtlasFormField(draft, { edited = true; draft = it }, "执行指令", singleLine = false, enabled = !busy)
+            }
         }
         saveError?.let { ErrorText(it) }
         saveMessage?.let { CodexNotice(it, NoticeTone.Success) }

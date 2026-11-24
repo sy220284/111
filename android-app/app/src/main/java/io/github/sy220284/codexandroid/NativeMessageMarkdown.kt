@@ -25,6 +25,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
 
 internal data class MessageBlock(val kind: String, val text: String, val level: Int = 0,
@@ -46,6 +47,28 @@ internal object MessageMarkdown {
             cells(lines[index]).size > 1 && cells(lines[index + 1]).let { parts ->
                 parts.size == cells(lines[index]).size && parts.all { delimiter.matches(it) }
             }
+
+    /** Only commit complete blocks while streaming; blank lines inside code are not boundaries. */
+    fun stablePrefixLength(source: String): Int {
+        var start = 0
+        var stable = 0
+        var opening: String? = null
+        while (start < source.length) {
+            val end = source.indexOf('\n', start)
+            if (end < 0) break
+            val line = source.substring(start, end).trim()
+            val current = opening
+            if (current != null) {
+                if (line.length >= current.length && line.all { it == current.first() }) opening = null
+            } else {
+                val marker = fence.matchEntire(line)
+                if (marker != null) opening = marker.groupValues[1]
+                else if (line.isBlank()) stable = end + 1
+            }
+            start = end + 1
+        }
+        return stable
+    }
 
     fun blocks(source: String): List<MessageBlock> {
         val result = mutableListOf<MessageBlock>()
@@ -145,14 +168,26 @@ internal object MessageMarkdown {
 }
 
 @Composable
-internal fun NativeMessageMarkdown(source: String) {
-    // Long outputs are parsed away from the main thread; the current text remains readable.
-    val blocks = if (source.length < 4096) remember(source) { MessageMarkdown.blocks(source) } else {
-        val parsed by produceState<Pair<String, List<MessageBlock>>?>(null, source) {
-            value = source to withContext(Dispatchers.Default) { MessageMarkdown.blocks(source) }
-        }
-        parsed?.takeIf { it.first == source }?.second ?: listOf(MessageBlock("paragraph", source))
+internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
+    // Keep the already formatted prefix while a long answer is extending. A single conflated
+    // collector finishes each background parse; the next delta cannot cancel it repeatedly.
+    val target = remember(source, streaming) {
+        if (streaming) source.take(MessageMarkdown.stablePrefixLength(source)) else source
     }
+    val latest by rememberUpdatedState(target)
+    var parsed by remember { mutableStateOf<Pair<String, List<MessageBlock>>?>(null) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { latest }.conflate().collect { value ->
+            if (value.length >= 4096) parsed = value to withContext(Dispatchers.Default) { MessageMarkdown.blocks(value) }
+        }
+    }
+    val ready = if (target.length < 4096) target to remember(target) { MessageMarkdown.blocks(target) }
+        else parsed?.takeIf { (prefix, _) -> prefix == target ||
+            (target.startsWith(prefix) && MessageMarkdown.stablePrefixLength(prefix) == prefix.length) }
+    val prefix = ready?.first.orEmpty()
+    val tail = source.substring(prefix.length)
+    val blocks = ready?.second.orEmpty() + if (tail.isEmpty()) emptyList() else
+        listOf(MessageBlock("stream-tail", tail))
     SelectionContainer {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             blocks.forEach { block ->
@@ -172,6 +207,7 @@ internal fun NativeMessageMarkdown(source: String) {
                         Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
                             color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                     }
+                    "stream-tail" -> Text(block.text, style = MaterialTheme.typography.bodyLarge)
                     else -> Text(MessageMarkdown.inlineText(block.text), style = MaterialTheme.typography.bodyLarge)
                 }
             }

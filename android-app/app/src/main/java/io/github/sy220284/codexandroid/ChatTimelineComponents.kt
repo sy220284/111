@@ -31,17 +31,20 @@ private fun TimelineItem.failed() = kind == "error" || status in setOf("failed",
 internal fun TimelineActivityGroup(
     group: List<TimelineItem>, workspaceRoot: String? = null,
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
-    version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null
+    version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
+    showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
+    forceActivity: Boolean = false, note: String? = null
 ) {
-    if (group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
+    if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
-        TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion)
+        TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
+            showMessageActions, actionItem, note)
         return
     }
     val active = group.any { it.active() }
     val failed = group.count { it.failed() }
     var expanded by rememberSaveable(group.first().id) { mutableStateOf(false) }
-    val summary = group.groupingBy { PresentationPolicy.timelineKind(it.kind) }.eachCount()
+    val summary = group.groupingBy { if (ProgressiveReplyProjection.commentary(it)) "过程回复" else PresentationPolicy.timelineKind(it.kind) }.eachCount()
         .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
     Column(Modifier.fillMaxWidth().testTag("chat-activity-group")
         .border(1.dp, Ink.border, RoundedCornerShape(12.dp))
@@ -74,11 +77,14 @@ internal fun TimelineActivityGroup(
 internal fun TimelineStepCard(
     item: TimelineItem, workspaceRoot: String? = null,
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
-    version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null
+    version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
+    showMessageActions: Boolean = true, actionItem: TimelineItem? = null, note: String? = null
 ) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
     val active = item.active()
+    val commentary = ProgressiveReplyProjection.commentary(item)
+    val actionMessage = actionItem ?: item
     val failure = item.failed()
     val tone = if (failure) Ink.red else Ink.muted
     val title = PresentationPolicy.timelineKind(item.kind)
@@ -97,13 +103,23 @@ internal fun TimelineStepCard(
         }
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
-        if (user || assistant) {
+        if (commentary) {
+            Column(Modifier.fillMaxWidth().testTag("chat-commentary").padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(if (active) "正在执行" else "过程回复", color = Ink.muted,
+                    style = MaterialTheme.typography.labelSmall)
+                SelectionContainer {
+                    Text(MessageMarkdown.inlineText(shownText), color = Ink.muted,
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        } else if (user || assistant) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
                 Surface(Modifier.fillMaxWidth(if (user) .88f else 1f)
                     .testTag(if (user) "chat-user-message" else "chat-assistant-message"),
                     color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
-                        if (assistant) NativeMessageMarkdown(shownText)
+                        if (assistant) NativeMessageMarkdown(shownText, streaming = active)
                         else {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
@@ -116,12 +132,14 @@ internal fun TimelineStepCard(
                         if (user) NativeTimelineMedia(item, raw, workspaceRoot)
                     }
                 }
-                if (!active && (user || item.phase != "commentary")) {
+                note?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(vertical = 4.dp)) }
+                if (!active && showMessageActions && (user || item.phase != "commentary")) {
                     if (!user && version != null) FlowRow(Modifier.fillMaxWidth()) {
-                        AnswerVersionSwitcher(version, onVersion, item.id)
-                        MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
-                    } else MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
-                }
+                        AnswerVersionSwitcher(version, onVersion, actionMessage.id)
+                        MessageActionRow(actionMessage, user, onTurnAction, onRead = { readerOpen = true })
+                    } else MessageActionRow(actionMessage, user, onTurnAction, onRead = { readerOpen = true })
+                } else if (!active && version != null) AnswerVersionSwitcher(version, onVersion, actionMessage.id)
             }
         } else {
             val icon = when (item.kind) {
@@ -180,7 +198,7 @@ internal fun TimelineStepCard(
                 description = "包含命令、路径和原始输出，请谨慎分享"))
         }
     })
-    if (readerOpen) FullTextReaderDialog(title, item.text) { readerOpen = false }
+    if (readerOpen) FullTextReaderDialog(title, actionMessage.text) { readerOpen = false }
     if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
         onDismiss = { evidenceOpen = false })
     if (rawOpen) FullTextReaderDialog("原始执行记录", TimelineEvidenceText.render(item)) { rawOpen = false }

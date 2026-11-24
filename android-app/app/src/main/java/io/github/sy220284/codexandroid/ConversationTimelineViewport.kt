@@ -34,6 +34,10 @@ internal fun ConversationTimelineViewport(
     val olderCursor by vm.olderServerCursor.collectAsState()
     val loadingEarlier by vm.loadingEarlier.collectAsState()
     val groups = remember(items) { TimelineEventReducer.groups(items) }
+    val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
+    val rows = remember(groups, frame.running, frame.turnId, olderPageVisible) {
+        ProgressiveReplyProjection.rows(groups, frame.running, frame.turnId, olderPageVisible)
+    }
     val answerVersions by vm.answerVersions.state.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val scroll = rememberLazyListState()
@@ -60,8 +64,7 @@ internal fun ConversationTimelineViewport(
         val turn = version.versions[version.index].turnId
         items.none { it.turnId == turn && it.kind in setOf("agent", "agentMessage") && it.phase != "commentary" }
     }
-    val visibleGroups = groups.size + if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
-    val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
+    val visibleGroups = rows.size + if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
     val latestIndex = TimelineViewportPolicy.latestIndex(visibleGroups, olderPageVisible)
 
     // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
@@ -170,12 +173,16 @@ internal fun ConversationTimelineViewport(
                     Text(if (loadingEarlier) "正在加载…" else "加载更早记录")
                 }
             }
-            items(groups, key = { it.first().id }) { group ->
-                val message = group.singleOrNull()?.takeIf { it.kind in setOf("agent", "agentMessage") && it.phase != "commentary" }
+            items(rows, key = { it.key }) { row ->
+                val message = row.actionItem ?: row.group.singleOrNull()?.takeIf {
+                    row.showActions && ProgressiveReplyProjection.answer(it)
+                }
                 val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
-                TimelineActivityGroup(group, workspaceRoot = vm.workingDirectory,
+                TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
-                    version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null)
+                    version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
+                    showMessageActions = row.showActions, actionItem = row.actionItem,
+                    forceActivity = row.forceActivity, note = row.note)
             }
             if (fallbackVersion != null) item(key = "answer-version-recovery") {
                 Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
