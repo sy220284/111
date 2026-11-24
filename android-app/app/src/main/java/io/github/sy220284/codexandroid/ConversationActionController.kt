@@ -4,22 +4,23 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.first
-import org.json.JSONArray
-import java.io.File
 import java.util.UUID
 import org.json.JSONObject
 
 /** Conversation commands execute on their captured thread with foreground protection. */
 internal class ConversationActionController(private val vm: CodexViewModel) {
-    private fun available(id: String): Boolean = with(vm) {
-        if (id == activeThread.value && !running.value && !threadSwitching.value &&
-            !firstThreadStarting.value && !loadingEarlier.value && !timelineCompacting && !securitySaveBusy.value && !connectionRestarter.busy.value &&
+    private fun available(id: String, foregroundOnly: Boolean = true): Boolean = with(vm) {
+        val foregroundReady = id == activeThread.value && !running.value && !threadSwitching.value &&
+            !firstThreadStarting.value && !loadingEarlier.value && !timelineCompacting
+        if ((!foregroundOnly || foregroundReady) && (id != activeThread.value || !running.value) &&
+            !securitySaveBusy.value && !connectionRestarter.busy.value &&
             id !in threadExecutions.value && bridge.status.value == EngineStatus.Connected &&
             globalWorkSnapshot().canStartNewTask &&
             "threadFork:$id" !in loading.value && "threadRevert:$id" !in loading.value) true
         else {
-            errors.value = errors.value + ("conversation" to "请等待当前任务或连接恢复后再操作")
+            val reason = "请等待当前任务或连接恢复后再操作"
+            if (id == activeThread.value) errors.value = errors.value + ("conversation" to reason)
+            else actionFeedback.tryEmit(ActionFeedbackReceipt(reason, isError = true))
             false
         }
     }
@@ -38,39 +39,34 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
     fun retry(id: String, turnId: String) = with(vm) {
         if (!available(id) || turnId.isBlank()) return@with
         val key = "threadFork:$id"
+        val cwd = activeWorkspace.value
         loading.value = loading.value + key
         errors.value = errors.value - "conversation" - key
         viewModelScope.launch {
             var forkId: String? = null
             try {
-                val input = firstUserInput(id, turnId)
-                val images = validateReplayInput(input)
-                check(activeThread.value == id && !running.value && !threadSwitching.value) { "当前会话已变化，请重新选择消息" }
-                val fork = bridge.request("thread/fork", JSONObject().put("threadId", id)
-                    .put("lastTurnId", turnId).put("excludeTurns", true))
-                val target = fork.getJSONObject("thread").getString("id")
-                check(target.isNotBlank() && target != id) { "内核未返回独立分支" }
+                val replay = MessageReplayCoordinator { method, params -> bridge.request(method, params) }
+                val input = replay.readInput(id, turnId)
+                val images = replay.validateInput(input)
+                check(activeThread.value == id && !running.value && !threadSwitching.value &&
+                    !securitySaveBusy.value && !connectionRestarter.busy.value &&
+                    globalWorkSnapshot().canStartNewTask) { "当前会话或权限状态已变化，请重新选择消息" }
+                // The locked Rust protocol has experimental beforeTurnId; the
+                // connection already negotiates experimentalApi. One native
+                // fork excludes the selected turn without any history mutation.
+                val target = replay.forkBefore(id, turnId)
                 forkId = target
-                // Revert only the new fork, using its own actual final turn ID.
-                val last = bridge.request("thread/turns/list", JSONObject().put("threadId", target)
-                    .put("limit", 1).put("sortDirection", "desc")).getJSONArray("data").getJSONObject(0).getString("id")
-                bridge.request("thread/revert", JSONObject().put("threadId", target).put("beforeTurnId", last))
-                if (activeThread.value != id || threadSwitching.value) {
-                    actionFeedback.emit(ActionFeedbackReceipt("已保留独立分支，请从侧栏打开后继续"))
-                } else chooseThread(target, onOpened = {
-                    viewModelScope.launch {
-                        threadSwitching.first { !it }
-                        if (activeThread.value == target) {
-                            val cwd = activeWorkspace.value
-                            start(target, "retry:$target", "turn/start", images, prepare = {
-                                val config = bridge.request("config/read", JSONObject().put("cwd", cwd))
-                                val params = JSONObject().put("threadId", target).put("input", input)
-                                    .put("clientUserMessageId", UUID.randomUUID().toString())
-                                ComposerPermissionPolicy.apply(params, ComposerPermissionPolicy.selected(config))
-                            }) { params -> bridge.request("turn/start", params) }
-                        } else actionFeedback.emit(ActionFeedbackReceipt("已创建分支，但会话已切换；尚未重新提交指令", isError = true))
-                    }
-                })
+                val launched = start(target, "retry:$target", "turn/start", images, foregroundOnly = false, prepare = {
+                    val config = bridge.request("config/read", JSONObject().put("cwd", cwd))
+                    val params = JSONObject().put("threadId", target).put("input", input)
+                        .put("clientUserMessageId", UUID.randomUUID().toString())
+                    ComposerPermissionPolicy.apply(params, ComposerPermissionPolicy.selected(config))
+                }) { params -> bridge.request("turn/start", params) }
+                if (!launched) {
+                    actionFeedback.emit(ActionFeedbackReceipt("已保留独立分支，重新回答尚未启动，请核对权限和连接后重试", isError = true))
+                } else if (activeThread.value == id && !threadSwitching.value) {
+                    chooseThread(target)
+                }
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 throw cancel
             } catch (failure: Exception) {
@@ -87,41 +83,6 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         Unit
     }
 
-    private suspend fun firstUserInput(id: String, turnId: String): JSONArray {
-        var cursor: String? = null
-        do {
-            val params = JSONObject().put("threadId", id).put("turnId", turnId)
-                .put("sortDirection", "asc").put("limit", 100)
-            cursor?.let { params.put("cursor", it) }
-            val page = vm.bridge.request("thread/items/list", params)
-            val rows = page.getJSONArray("data")
-            for (index in 0 until rows.length()) {
-                val item = rows.getJSONObject(index).getJSONObject("item")
-                if (item.optString("type") == "userMessage") return item.getJSONArray("content")
-            }
-            cursor = historyCursor(page)
-        } while (cursor != null)
-        error("该回合没有可重新提交的原始指令")
-    }
-
-    private fun validateReplayInput(input: JSONArray): List<String> {
-        require(input.length() > 0) { "原始指令为空" }
-        val images = mutableListOf<String>()
-        for (index in 0 until input.length()) {
-            val part = input.getJSONObject(index)
-            when (part.getString("type")) {
-                "text", "image", "audio", "mention" -> Unit
-                "localImage", "localAudio", "skill" -> {
-                    val path = part.getString("path")
-                    require(File(path).isAbsolute && File(path).isFile) { "原始附件或引用已失效，请重新添加后发送" }
-                    if (part.getString("type") == "localImage") images += path
-                }
-                else -> error("原始指令包含当前版本无法重放的内容")
-            }
-        }
-        return images
-    }
-
     fun revert(id: String, beforeTurnId: String) = with(vm) {
         if (!available(id)) return@with
         rpc("threadRevert:$id", "thread/revert",
@@ -130,27 +91,32 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             })
     }
 
-    fun compact(id: String) = start(id, "threadCompact:$id", "thread/compact/start") {
-        vm.bridge.request("thread/compact/start", JSONObject().put("threadId", id))
+    fun compact(id: String) {
+        start(id, "threadCompact:$id", "thread/compact/start") {
+            vm.bridge.request("thread/compact/start", JSONObject().put("threadId", id))
+        }
     }
 
-    fun review(id: String, target: JSONObject) = start(id, "review:$id", "review/start") {
-        vm.bridge.request("review/start", JSONObject().put("threadId", id)
-            .put("delivery", "inline").put("target", target))
+    fun review(id: String, target: JSONObject) {
+        start(id, "review:$id", "review/start") {
+            vm.bridge.request("review/start", JSONObject().put("threadId", id)
+                .put("delivery", "inline").put("target", target))
+        }
     }
 
     private fun start(id: String, key: String, method: String, images: List<String> = emptyList(),
-        prepare: suspend () -> JSONObject = { JSONObject() },
-        execute: suspend (JSONObject) -> JSONObject) = with(vm) {
-        if (!available(id) || key in loading.value) return@with
+        foregroundOnly: Boolean = true, prepare: suspend () -> JSONObject = { JSONObject() },
+        execute: suspend (JSONObject) -> JSONObject): Boolean = with(vm) {
+        if (!available(id, foregroundOnly) || key in loading.value) return@with false
         loading.value = loading.value + key
         data.value = data.value - key
-        errors.value = errors.value - key - "conversation"
+        errors.value = errors.value - key
+        if (activeThread.value == id) errors.value = errors.value - "conversation"
         threadFailures.value = threadFailures.value - id
         threadExecutions.value = ThreadExecutionPolicy.reserve(threadExecutions.value, id, images)
         val reservation = threadExecutions.value.getValue(id)
         threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value, id, ThreadActivity.Running)
-        running.value = true
+        if (activeThread.value == id) running.value = true
         viewModelScope.launch {
             var dispatched = false
             try {
@@ -179,14 +145,16 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                     threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value, id, ThreadActivity.Failed)
                     if (activeThread.value == id) { conversationState.update { it.copy(running = false, turnId = null) } }
                 }
-                errors.value = errors.value + (key to reason)
-                if (activeThread.value == id) errors.value = errors.value + ("conversation" to reason)
-                actionFeedback.emit(ActionFeedbackCopy.failure(method, reason))
+                val message = if (method == "turn/start") SubmissionFailurePolicy.message(failure, dispatched) else reason
+                errors.value = errors.value + (key to message)
+                if (method == "turn/start") threadFailures.value = ThreadExecutionPolicy.failureUpdated(threadFailures.value, id, message)
+                if (activeThread.value == id) errors.value = errors.value + ("conversation" to message)
+                actionFeedback.emit(ActionFeedbackCopy.failure(method, message))
             } finally {
                 loading.value = loading.value - key
                 syncRecentThreads()
             }
         }
-        Unit
+        true
     }
 }
