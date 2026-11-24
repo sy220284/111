@@ -393,8 +393,7 @@
       ],
       "business": "全局执行指令的编辑、清空和保存回读",
       "tests": [
-        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners",
-        "EngineSettingsTest.everyPreferenceHasExactlyOneOwner"
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -407,8 +406,7 @@
       ],
       "business": "上下文容量、自动压缩与工具输出保留",
       "tests": [
-        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners",
-        "EngineSettingsTest.everyPreferenceHasExactlyOneOwner"
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -421,8 +419,7 @@
       ],
       "business": "策略允许的搜索模式、选择和保存回读",
       "tests": [
-        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners",
-        "EngineSettingsTest.everyPreferenceHasExactlyOneOwner"
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     }
   ],

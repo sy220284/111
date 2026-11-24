@@ -57,9 +57,14 @@ object TurnRequestContract {
         val model = catalog.firstOrNull { it.optString("id") == selected }
         val configuredEffort = effectiveConfig?.optString("plan_mode_reasoning_effort")?.takeIf { it.isNotBlank() && it != "null" }
         val supported = model?.optJSONArray("supportedReasoningEfforts")
-        val effort = configuredEffort?.takeIf { selectedEffort ->
+        val matchingEffort = configuredEffort?.takeIf { selectedEffort ->
             supported != null && (0 until supported.length()).any { supported.optJSONObject(it)?.optString("reasoningEffort") == selectedEffort }
-        } ?: model?.optString("defaultReasoningEffort")?.takeIf { it.isNotBlank() }
+        }
+        require(configuredEffort == null || matchingEffort != null || modelId.isNotBlank()) {
+            "计划模式思考深度与默认模型不匹配，请在模型设置中调整"
+        }
+        // A user-selected task model may have a different supported effort range.
+        val effort = matchingEffort ?: model?.optString("defaultReasoningEffort")?.takeIf { it.isNotBlank() }
         val settings = JSONObject()
             .put("model", selected)
             .put("reasoning_effort", effort ?: JSONObject.NULL)

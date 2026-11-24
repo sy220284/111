@@ -66,7 +66,7 @@ internal object EngineSettings {
         EngineSetting("model_reasoning_effort", "models", "默认思考深度",
             "复杂任务可选择更深入的思考，通常需要更多时间。选项来自当前默认模型。", "reasoning"),
         EngineSetting("plan_mode_reasoning_effort", "models", "计划模式思考深度",
-            "制定任务计划时使用的思考深度，选项来自当前默认模型。", "reasoning"),
+            "制定任务计划时使用的思考深度，选项来自当前默认模型；对话临时切换到不支持该深度的模型时，沿用该模型默认深度。", "reasoning"),
         EngineSetting("model_verbosity", "models", "回复详细程度",
             "调整支持此功能的模型输出内容的详略。", "choice", verbosity),
         EngineSetting("developer_instructions", "personalization", "全局执行指令",
