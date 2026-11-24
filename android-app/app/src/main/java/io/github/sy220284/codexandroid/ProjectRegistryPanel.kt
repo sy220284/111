@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -142,7 +140,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                             enabled = projectId.isNotBlank(),
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(Icons.Outlined.MoreVert, "管理" + displayName)
+                            CodexIcon(CodexGlyph.MoreVert, "管理" + displayName)
                         }
                         if (actionMenuId == projectId && projectId.isNotBlank()) {
                             CodexActionDialog(
@@ -151,7 +149,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                                 actions = listOf(
                                     CodexSheetAction(
                                         label = "查看详情",
-                                        icon = Icons.Outlined.Info,
+                                        icon = CodexGlyph.Info,
                                         onClick = {
                                             detailsId = projectId
                                             vm.refresh("projectDetail", "project/read",
@@ -160,7 +158,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                                     ),
                                     CodexSheetAction(
                                         label = "重命名",
-                                        icon = Icons.Outlined.Edit,
+                                        icon = CodexGlyph.Edit,
                                         enabled = canModify,
                                         onClick = {
                                             editing = project
@@ -169,7 +167,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                                     ),
                                     CodexSheetAction(
                                         label = "向上移动",
-                                        icon = Icons.Outlined.ArrowUpward,
+                                        icon = CodexGlyph.ArrowUpward,
                                         enabled = canModify && index > 0,
                                         onClick = {
                                             vm.rpc("projectWrite", "project/move",
@@ -180,7 +178,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                                     ),
                                     CodexSheetAction(
                                         label = "向下移动",
-                                        icon = Icons.Outlined.ArrowDownward,
+                                        icon = CodexGlyph.ArrowDownward,
                                         enabled = canModify && index < projects.lastIndex,
                                         onClick = {
                                             vm.rpc("projectWrite", "project/move",
@@ -191,7 +189,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                                     ),
                                     CodexSheetAction(
                                         label = "移除项目登记",
-                                        icon = Icons.Outlined.DeleteOutline,
+                                        icon = CodexGlyph.DeleteOutline,
                                         description = "只移除登记，保留本机目录；确认后执行",
                                         enabled = canModify,
                                         destructive = true,

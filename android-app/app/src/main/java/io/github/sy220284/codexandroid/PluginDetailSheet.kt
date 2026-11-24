@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -56,7 +54,7 @@ fun PluginDetailSheet(
                 ?.ifBlank { name } ?: name, "安装或启用之前查看实际提供的能力和来源。")
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text("插件信息", style = MaterialTheme.typography.titleMedium)
@@ -91,7 +89,7 @@ fun PluginDetailSheet(
                 }
                 OutlinedButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Refresh, null)
+                    CodexIcon(CodexGlyph.Retry, null)
                     Spacer(Modifier.width(7.dp))
                     Text("刷新插件详情")
                 }
@@ -103,18 +101,18 @@ fun PluginDetailSheet(
             }
             detail?.let { info ->
                 for ((field, label, icon) in listOf(
-                    Triple("skills", "提供的技能", Icons.Outlined.School),
-                    Triple("mcpServers", "工具服务", Icons.Outlined.Hub),
-                    Triple("apps", "连接应用", Icons.Outlined.Apps),
-                    Triple("hooks", "运行钩子", Icons.Outlined.Bolt),
-                    Triple("appTemplates", "应用模板", Icons.Outlined.Widgets),
-                    Triple("scheduledTasks", "定时能力声明", Icons.Outlined.Schedule)
+                    Triple("skills", "提供的技能", CodexGlyph.School),
+                    Triple("mcpServers", "工具服务", CodexGlyph.Hub),
+                    Triple("apps", "连接应用", CodexGlyph.Apps),
+                    Triple("hooks", "运行钩子", CodexGlyph.Bolt),
+                    Triple("appTemplates", "应用模板", CodexGlyph.Widgets),
+                    Triple("scheduledTasks", "定时能力声明", CodexGlyph.TaskRunning)
                 )) {
                     val entries = info.optJSONArray(field) ?: continue
                     if (entries.length() == 0) continue
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(icon, null, tint = Ink.copper)
+                            CodexIcon(icon, null, tint = Ink.copper)
                             Spacer(Modifier.width(10.dp))
                             Text(label, style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f))
@@ -127,7 +125,7 @@ fun PluginDetailSheet(
                                 .ifBlank { obj?.optString("displayName").orEmpty() }
                                 .ifBlank { "第 ${i + 1} 项能力" }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Outlined.CheckCircleOutline, null, tint = Ink.jade,
+                                CodexIcon(CodexGlyph.TaskComplete, null, tint = Ink.jade,
                                     modifier = Modifier.size(17.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(title, style = MaterialTheme.typography.bodyMedium,

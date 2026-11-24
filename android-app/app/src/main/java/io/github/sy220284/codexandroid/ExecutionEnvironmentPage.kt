@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -76,28 +74,28 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-local-option")
         ) {
-            Icon(Icons.Outlined.PhoneAndroid, null)
+            CodexIcon(CodexGlyph.PhoneAndroid, null)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("在这台手机上执行", style = MaterialTheme.typography.titleMedium)
                 Text("使用应用私有工作区", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
-            if (!useRemote) Icon(Icons.Outlined.CheckCircle, "已选择")
+            if (!useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
         }
         OutlinedButton(
             onClick = { useRemote = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-remote-option")
         ) {
-            Icon(Icons.Outlined.Computer, null)
+            CodexIcon(CodexGlyph.Computer, null)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("连接其他设备", style = MaterialTheme.typography.titleMedium)
                 Text("使用兼容的外部执行服务", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
-            if (useRemote) Icon(Icons.Outlined.CheckCircle, "已选择")
+            if (useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
         }
 
         if (useRemote) {
@@ -137,7 +135,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("environment-connect")
                 ) {
-                    Icon(Icons.Outlined.Link, null)
+                    CodexIcon(CodexGlyph.Link, null)
                     Spacer(Modifier.width(8.dp))
                     Text(if (writeBusy) "正在提交连接" else "添加并检查连接")
                 }

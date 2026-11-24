@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,7 +79,7 @@ fun ReviewScopePanel(
                     (selection == "uncommittedChanges" || value.isNotBlank()),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)
             ) {
-                Icon(Icons.Outlined.FactCheck, null)
+                CodexIcon(CodexGlyph.FactCheck, null)
                 Spacer(Modifier.width(8.dp))
                 Text("发起代码审查")
             }
@@ -150,7 +148,7 @@ fun ReviewScopeSheet(
                 Text("发起代码审查", style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭代码审查")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭代码审查")
                 }
             }
             Text("选择审查范围；任务由本机 Codex 处理。",

@@ -11,8 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -93,7 +91,7 @@ fun ModelsPage(vm: CodexViewModel) {
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.AutoAwesome, null, tint = if (chosenNow) Ink.copper else Ink.muted)
+                        CodexIcon(CodexGlyph.AutoAwesome, null, tint = if (chosenNow) Ink.copper else Ink.muted)
                         Spacer(Modifier.width(11.dp))
                         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         val description = PresentationPolicy.meaningful(item.optString("description"))
@@ -102,7 +100,7 @@ fun ModelsPage(vm: CodexViewModel) {
                                 onClick = { selectedModelDetail = title to description },
                                 modifier = Modifier.testTag("model-detail-" + id)
                             ) {
-                                Icon(Icons.Outlined.Info, contentDescription = "查看" + title + "说明")
+                                CodexIcon(CodexGlyph.Info, contentDescription = "查看" + title + "说明")
                             }
                         }
                         RadioButton(chosenNow, onClick = { vm.modelId.value = id })
@@ -166,7 +164,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             AtlasSettingsActionRow(
                 title = "添加自定义服务商",
                 detail = "配置服务名称、连接地址与密钥变量",
-                icon = Icons.Outlined.AddCircleOutline,
+                icon = CodexGlyph.AddCircleOutline,
                 onClick = { showCustomEditor = true }
             )
             if (showCustomEditor) {
@@ -199,7 +197,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             AtlasSettingsActionRow(
                 title = "查看服务商能力",
                 detail = "读取实际服务能力与已声明的支持情况",
-                icon = Icons.Outlined.Info,
+                icon = CodexGlyph.Info,
                 onClick = {
                     showCapabilities = true
                     vm.refresh("providerCapabilities", "modelProvider/capabilities/read")
@@ -225,7 +223,7 @@ fun ProvidersPage(vm: CodexViewModel) {
         entries.forEach { item ->
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Dns, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Dns, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Text(PresentationPolicy.providerName(item.optString("name")),
                         style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -377,7 +375,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                         CatalogRequestContract.workspace(vm.workingDirectory)
                             .put("forceRefetch", true))
                 }) {
-                    Icon(Icons.Outlined.Refresh, "刷新插件列表")
+                    CodexIcon(CodexGlyph.Retry, "刷新插件列表")
                 }
             }
         }
@@ -433,7 +431,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     .orEmpty().ifBlank { item.optString("name") }
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                        CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
                         Spacer(Modifier.width(9.dp))
                         Text(display, style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.weight(1f))
@@ -475,7 +473,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 val meta = item.optJSONObject("interface") ?: JSONObject()
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                        CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
                         Spacer(Modifier.width(11.dp))
                         Text(meta.optString("displayName").ifBlank { item.optString("name") },
                             style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -498,7 +496,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     TextButton(onClick = { selectedPlugin = market to item },
                         enabled = "pluginMutation" !in busy,
                         modifier = Modifier.heightIn(min = 48.dp)) {
-                        Icon(Icons.Outlined.Info, null)
+                        CodexIcon(CodexGlyph.Info, null)
                         Spacer(Modifier.width(6.dp))
                         Text("查看插件详情")
                     }
@@ -575,7 +573,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
         SectionIntro("内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Memory, null, tint = Ink.copper)
+                CodexIcon(CodexGlyph.Memory, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("本机运行服务", style = MaterialTheme.typography.titleMedium)
@@ -613,7 +611,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                             restarting || !ConnectionRestartPolicy.canRestart(work),
                             "有任务或待处理的审批，先完成后再重启内核")
                 ) {
-                    Icon(Icons.Outlined.RestartAlt, null)
+                    CodexIcon(CodexGlyph.Retry, null)
                     Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
                 OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },

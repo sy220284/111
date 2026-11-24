@@ -6,8 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +46,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
 
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+            CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("MCP 服务请求用户操作", style = MaterialTheme.typography.titleMedium)
@@ -167,7 +165,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             Text("请在浏览器完成外部服务验证，返回后再确认。", color = Ink.muted)
             if (link.startsWith("https://") || link.startsWith("http://127.0.0.1:")) {
                 OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }) {
-                    Icon(Icons.Outlined.OpenInBrowser, null); Text("打开授权页面")
+                    CodexIcon(CodexGlyph.OpenInNew, null); Text("打开授权页面")
                 }
             } else ErrorText("服务端提供了不安全的跳转地址")
         } else {

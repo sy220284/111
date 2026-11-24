@@ -6,8 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +47,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         item {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Difference, contentDescription = null,
+                    CodexIcon(CodexGlyph.Diff, contentDescription = null,
                         tint = Ink.copper, modifier = Modifier.size(23.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
@@ -72,7 +70,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     CodexPrimaryButton(onClick = { navigate("review") },
                         enabled = active != null && files.isNotEmpty(),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Icon(Icons.Outlined.FactCheck, null, modifier = Modifier.size(18.dp))
+                        CodexIcon(CodexGlyph.FactCheck, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(5.dp))
                         Text("代码审查")
                     }
@@ -81,7 +79,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         copied = true
                     }, enabled = diff.isNotBlank(),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Icon(Icons.Outlined.ContentCopy, null, modifier = Modifier.size(18.dp))
+                        CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(5.dp))
                         Text(if (copied) "已复制" else "复制全部差异")
                     }
@@ -102,7 +100,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     else "当前会话尚未上报代码修改。可以返回任务继续工作。",
                     actionLabel = "返回任务",
                     onAction = { navigate("chat") },
-                    icon = Icons.Outlined.Code,
+                    icon = CodexGlyph.Code,
                     artworkRes = R.drawable.ic_empty_diff
                 )
             }
@@ -111,8 +109,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 item(key = "diff-heading-$index") {
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (file.binary) Icons.Outlined.Attachment
-                                else Icons.Outlined.Description,
+                            CodexIcon(if (file.binary) CodexGlyph.Attachment
+                                else CodexGlyph.Description,
                                 contentDescription = null, tint = Ink.copper,
                                 modifier = Modifier.size(22.dp))
                             Spacer(Modifier.width(10.dp))
@@ -132,8 +130,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 modifier = Modifier.heightIn(min = 48.dp)
                             ) {
                                 Text(if (index in expanded) "收起" else "展开")
-                                Icon(if (index in expanded) Icons.Outlined.ExpandLess
-                                    else Icons.Outlined.ExpandMore,
+                                CodexIcon(if (index in expanded) CodexGlyph.ExpandLess
+                                    else CodexGlyph.ExpandMore,
                                     contentDescription = null)
                             }
                         }

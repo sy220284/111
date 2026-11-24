@@ -2,8 +2,6 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,7 +65,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.GppGood, null, tint = Ink.jade,
+                CodexIcon(CodexGlyph.Security, null, tint = Ink.jade,
                     modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("当前默认权限", color = Ink.muted,

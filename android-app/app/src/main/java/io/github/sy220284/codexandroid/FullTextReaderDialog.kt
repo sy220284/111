@@ -5,8 +5,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -46,7 +44,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "关闭全文阅读")
+                        CodexIcon(CodexGlyph.ArrowBack, contentDescription = "关闭全文阅读")
                     }
                     Column(Modifier.weight(1f)) {
                         Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
@@ -55,14 +53,12 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                     }
                     IconButton(onClick = { clipboard.setText(AnnotatedString(text)) },
                         modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Outlined.ContentCopy, contentDescription = "复制全文")
+                        CodexIcon(CodexGlyph.ContentCopy, contentDescription = "复制全文")
                     }
                 }
-                OutlinedTextField(value = search, onValueChange = {
+                AtlasSearchField(value = search, onValueChange = {
                     search = it; currentMatch = 0
-                }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    placeholder = { Text("在全文中查找") },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) })
+                }, placeholder = "在全文中查找", onClear = { search = ""; currentMatch = 0 })
                 if (search.isNotBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(if (hits.isEmpty()) "没有匹配结果" else
@@ -74,7 +70,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                                 scope.launch { state.animateScrollToItem(hits[currentMatch] / 3200) }
                             }
                         }, enabled = hits.isNotEmpty()) {
-                            Icon(Icons.Outlined.ArrowDownward, contentDescription = "下一个匹配")
+                            CodexIcon(CodexGlyph.ArrowDownward, contentDescription = "下一个匹配")
                         }
                     }
                 }

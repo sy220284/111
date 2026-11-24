@@ -22,8 +22,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,7 +34,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,10 +112,10 @@ fun CodexNotice(
         NoticeTone.Error -> Ink.red
     }
     val icon = when (tone) {
-        NoticeTone.Info -> Icons.Outlined.Info
-        NoticeTone.Success -> Icons.Outlined.CheckCircle
-        NoticeTone.Warning -> Icons.Outlined.WarningAmber
-        NoticeTone.Error -> Icons.Outlined.ErrorOutline
+        NoticeTone.Info -> CodexGlyph.Info
+        NoticeTone.Success -> CodexGlyph.TaskComplete
+        NoticeTone.Warning -> CodexGlyph.WarningAmber
+        NoticeTone.Error -> CodexGlyph.TaskError
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -131,7 +128,7 @@ fun CodexNotice(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+            CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
             Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             if (actionLabel != null) TextButton(
                 onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)
@@ -180,7 +177,7 @@ fun CodexEmptyState(
     title: String,
     description: String,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Outlined.Inbox,
+    icon: CodexGlyph = CodexGlyph.Inbox,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
     artworkRes: Int? = null
@@ -191,17 +188,13 @@ fun CodexEmptyState(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (artworkRes != null) {
-            Image(
-                painter = painterResource(artworkRes),
-                contentDescription = null,
-                modifier = Modifier.size(width = 152.dp, height = 116.dp)
-            )
+            CodexStateArtwork(artworkRes, Modifier.size(width = 152.dp, height = 116.dp))
         } else {
             Surface(
                 color = Ink.border.copy(alpha = .24f),
                 shape = RoundedCornerShape(20.dp)
             ) {
-                Icon(icon, null, tint = Ink.copper,
+                CodexIcon(icon, null, tint = Ink.copper,
                     modifier = Modifier.padding(17.dp).size(27.dp))
             }
         }
@@ -233,7 +226,7 @@ fun CodexRecoveryState(
 ) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         CodexEmptyState(
-            title = title, description = description, icon = Icons.Outlined.SyncProblem,
+            title = title, description = description, icon = CodexGlyph.SyncProblem,
             actionLabel = actionLabel, onAction = onAction
         )
         if (onDiagnostics != null) {
@@ -257,7 +250,7 @@ fun CodexRefreshIcon(
     ) {
         if (busy) CircularProgressIndicator(
             Modifier.size(19.dp), strokeWidth = 2.dp, color = Ink.copper
-        ) else Icon(Icons.Outlined.Refresh, contentDescription = label)
+        ) else CodexIcon(CodexGlyph.Retry, contentDescription = label)
     }
 }
 
@@ -288,7 +281,7 @@ fun CodexChoiceSheet(
                 Text(title, style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭选择面板")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
             Spacer(Modifier.height(5.dp))
@@ -397,7 +390,7 @@ fun CodexEvidenceSheet(
                     onClick = { clipboard.setText(AnnotatedString(copyText)) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
-                    Icon(Icons.Outlined.ContentCopy, null, modifier = Modifier.size(18.dp))
+                    CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
                     Text("复制执行详情")
                 }
@@ -426,8 +419,8 @@ fun CodexConfirmDialog(
         textContentColor = Ink.parchment,
         shape = RoundedCornerShape(24.dp),
         icon = {
-            Icon(
-                if (destructive) Icons.Outlined.GppMaybe else Icons.Outlined.FactCheck,
+            CodexIcon(
+                if (destructive) CodexGlyph.TaskApproval else CodexGlyph.FactCheck,
                 null, tint = if (destructive) Ink.red else Ink.copper
             )
         },
@@ -480,7 +473,7 @@ fun CodexConfirmDialog(
 fun CodexActionTile(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: CodexGlyph,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -502,14 +495,14 @@ fun CodexActionTile(
     ) {
         Row(Modifier.padding(15.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(color = Ink.canvas, shape = RoundedCornerShape(12.dp)) {
-                Icon(icon, null, tint = Ink.copper, modifier = Modifier.padding(10.dp).size(23.dp))
+                CodexIcon(icon, null, tint = Ink.copper, modifier = Modifier.padding(10.dp).size(23.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+            CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted)
         }
     }
 }

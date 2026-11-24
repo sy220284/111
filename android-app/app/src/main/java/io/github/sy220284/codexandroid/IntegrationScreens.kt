@@ -9,8 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,7 +56,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
             val canSelect = ModeSelectionPolicy.maySelect(id, planSupported, running, refreshing)
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (id == "plan") Icons.Outlined.Assignment else Icons.Outlined.Build,
+                    CodexIcon(if (id == "plan") CodexGlyph.Assignment else CodexGlyph.Build,
                         null, tint = Ink.copper)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -122,7 +120,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
             }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Refresh, null)
+                CodexIcon(CodexGlyph.Retry, null)
                 Spacer(Modifier.width(6.dp))
                 Text("刷新")
             }
@@ -174,7 +172,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 ) {
                     Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
                         border = BorderStroke(1.dp, Ink.copperDim)) {
-                        Icon(Icons.Outlined.Apps, null, tint = Ink.copper,
+                        CodexIcon(CodexGlyph.Apps, null, tint = Ink.copper,
                             modifier = Modifier.padding(12.dp).size(22.dp))
                     }
                     Spacer(Modifier.width(12.dp))
@@ -183,7 +181,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                     StatusPill(appStatus, callable)
                     Spacer(Modifier.width(7.dp))
-                    Icon(Icons.Outlined.ChevronRight, contentDescription = "查看应用详情",
+                    CodexIcon(CodexGlyph.ChevronRight, contentDescription = "查看应用详情",
                         tint = Ink.muted)
                 }
             }
@@ -226,7 +224,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
                         }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     ) {
-                        Icon(Icons.Outlined.OpenInNew, null)
+                        CodexIcon(CodexGlyph.OpenInNew, null)
                         Spacer(Modifier.width(8.dp))
                         Text("管理应用授权")
                     }
@@ -300,7 +298,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 CodexEmptyState(
                     "暂无可用 MCP 服务",
                     "在任务对话中要求智能体接入 MCP 服务，连通后会自动显示。",
-                    icon = Icons.Outlined.Hub,
+                    icon = CodexGlyph.Hub,
                     actionLabel = "刷新服务", onAction = { vm.refreshMcpServices() }
                 )
             } else {
@@ -332,7 +330,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
             Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { details = true },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
+            CodexIcon(CodexGlyph.Hub, null, tint = Ink.copper)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(McpAvailableServices.displayName(server),
@@ -344,7 +342,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
             }
             StatusPill("可用", true)
             Spacer(Modifier.width(4.dp))
-            Icon(Icons.Outlined.ChevronRight,
+            CodexIcon(CodexGlyph.ChevronRight,
                 contentDescription = "查看服务详情", tint = Ink.muted)
         }
     }

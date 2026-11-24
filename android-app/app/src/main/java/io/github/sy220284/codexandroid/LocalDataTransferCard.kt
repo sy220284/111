@@ -5,8 +5,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -46,7 +44,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
         Column(Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Outlined.SaveAlt, "本机备份", tint = Ink.copper)
+                CodexIcon(CodexGlyph.SaveAlt, "本机备份", tint = Ink.copper)
                 Text("备份与恢复", style = MaterialTheme.typography.titleMedium)
             }
             Text("更换安装签名、重装应用前，先导出本机项目、会话和设置。账号凭据需在恢复后重新登录。",
