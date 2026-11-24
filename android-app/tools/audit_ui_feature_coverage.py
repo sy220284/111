@@ -182,7 +182,13 @@ def declared_method_resolvers(files: dict[str, str], official: set[str]) -> dict
     match = re.search(r'fun\s+method\(kind:\s*String\)\s*:\s*String\s*=\s*when\s*\(kind\)\s*\{([^}]+)\}', source)
     if match is None:
         return {}
-    methods = set(re.findall(r'^\s*"[^"]+"\s*->\s*"([^"]+)"\s*
+    methods = set(re.findall(r'^\s*"[^"]+"\s*->\s*"([^"]+)"\s*$', match.group(1), re.M))
+    if methods != {"thread/archive", "thread/unarchive", "thread/delete"}:
+        return {}
+    return {"ThreadBulkActionPolicy.method": methods & official}
+
+
+def find_rpc_calls(code: str, official: set[str], resolvers: dict[str, set[str]] | None = None) -> set[str]:
     found: set[str] = set()
     candidates = {
         m.group("variable"): {m.group("first"), m.group("second")}
