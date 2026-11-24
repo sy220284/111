@@ -20,7 +20,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
     }
 
     fun fork(id: String, lastTurnId: String? = null) = with(vm) {
-        if (!available(id)) return
+        if (!available(id)) return@with
         val key = "threadFork:$id"
         val params = JSONObject().put("threadId", id).put("excludeTurns", true)
         if (lastTurnId != null) params.put("lastTurnId", lastTurnId)
@@ -31,7 +31,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
     }
 
     fun revert(id: String, beforeTurnId: String) = with(vm) {
-        if (!available(id)) return
+        if (!available(id)) return@with
         rpc("threadRevert:$id", "thread/revert",
             JSONObject().put("threadId", id).put("beforeTurnId", beforeTurnId), after = {
                 if (activeThread.value == id) chooseThread(id, forceReload = true)
@@ -49,7 +49,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
 
     private fun start(id: String, key: String, method: String,
         execute: suspend () -> JSONObject) = with(vm) {
-        if (!available(id) || key in loading.value) return
+        if (!available(id) || key in loading.value) return@with
         loading.value = loading.value + key
         data.value = data.value - key
         errors.value = errors.value - key - "conversation"

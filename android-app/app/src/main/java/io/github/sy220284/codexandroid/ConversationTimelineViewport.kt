@@ -41,6 +41,7 @@ internal fun ConversationTimelineViewport(
     var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
+    var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, Boolean>?>(null) }
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
     val latestIndex = TimelineViewportPolicy.latestIndex(groups.size, olderPageVisible)
 
@@ -146,7 +147,7 @@ internal fun ConversationTimelineViewport(
                 }
             }
             items(groups, key = { it.first().id }) { group ->
-                TimelineActivityGroup(group)
+                TimelineActivityGroup(group, if (!busy && thread != null && !switching) ({ item, fork -> turnAction = item to fork }) else null)
             }
         }
         if (!switching && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
@@ -180,6 +181,20 @@ internal fun ConversationTimelineViewport(
                     color = Ink.copper, style = MaterialTheme.typography.labelMedium)
             }
         }
+    }
+    turnAction?.let { (item, fork) ->
+        CodexConfirmDialog(
+            title = if (fork) "从此回合创建分支" else "回退会话历史",
+            message = if (fork) "保留原会话，复制到此回合结束为止。"
+                else "移除该回合及其之后的会话记录；已经修改的本机文件保持现状。",
+            confirmLabel = if (fork) "创建分支" else "确认回退",
+            destructive = !fork,
+            onConfirm = {
+                turnAction = null
+                thread?.let { if (fork) vm.conversationActions.fork(it, item.turnId)
+                    else vm.conversationActions.revert(it, item.turnId) }
+            },
+            onDismiss = { turnAction = null })
     }
 }
 

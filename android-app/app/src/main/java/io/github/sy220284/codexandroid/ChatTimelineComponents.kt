@@ -21,10 +21,10 @@ private fun TimelineItem.active() = status in setOf("inProgress", "in_progress",
 private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "declined", "interrupted", "cancelled")
 
 @Composable
-internal fun TimelineActivityGroup(group: List<TimelineItem>) {
+internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((TimelineItem, Boolean) -> Unit)? = null) {
     if (group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
-        TimelineStepCard(group.first())
+        TimelineStepCard(group.first(), onTurnAction)
         return
     }
     val active = group.any { it.active() }
@@ -50,14 +50,15 @@ internal fun TimelineActivityGroup(group: List<TimelineItem>) {
         }
         CodexReveal(visible = expanded) {
             Column(Modifier.fillMaxWidth().padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                group.forEach { item -> key(item.id) { TimelineStepCard(item) } }
+                group.forEach { item -> key(item.id) { TimelineStepCard(item, onTurnAction) } }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun TimelineStepCard(item: TimelineItem) {
+internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, Boolean) -> Unit)? = null) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
     val active = item.active()
@@ -65,6 +66,7 @@ internal fun TimelineStepCard(item: TimelineItem) {
     val tone = if (failure) Ink.red else Ink.muted
     val title = PresentationPolicy.timelineKind(item.kind)
     val clipboard = LocalClipboardManager.current
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
@@ -88,14 +90,18 @@ internal fun TimelineStepCard(item: TimelineItem) {
                 Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
                     if (assistant) NativeMessageMarkdown(shownText)
                     else SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
+                    if (user) NativeTimelineMedia(item, raw)
                     if (!active && (user || item.phase != "commentary")) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIconAction(onClick = { clipboard.setText(AnnotatedString(item.text)) },
                                 modifier = Modifier.size(48.dp)) {
                                 CodexIcon(CodexGlyph.ContentCopy, "复制消息", tint = Ink.muted, modifier = Modifier.size(18.dp))
                             }
-                            CodexIconAction(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)
-                                .testTag("timeline-more-" + item.id)) {
+                            Box(Modifier.size(48.dp).testTag("timeline-header-" + item.id)
+                                .combinedClickable(onClick = { menuOpen = true }, onLongClick = {
+                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                    menuOpen = true
+                                }), contentAlignment = Alignment.Center) {
                                 CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = Ink.muted)
                             }
                         }
@@ -143,6 +149,7 @@ internal fun TimelineStepCard(item: TimelineItem) {
                     }
                 }
                 if (item.kind in setOf("plan", "planProgress")) NativeMessageMarkdown(item.text)
+                if (item.kind == "imageGeneration" || item.kind == "imageView") NativeTimelineMedia(item, raw)
             }
         }
     }
@@ -151,6 +158,14 @@ internal fun TimelineStepCard(item: TimelineItem) {
             add(CodexSheetAction("复制内容", CodexGlyph.ContentCopy,
                 { clipboard.setText(AnnotatedString(item.text)) }))
             add(CodexSheetAction("全文阅读", CodexGlyph.OpenInFull, { readerOpen = true }))
+        }
+        if (user && item.turnId.isNotBlank() && onTurnAction != null) {
+            add(CodexSheetAction("从此回合回退", CodexGlyph.History,
+                { onTurnAction(item, false) }, destructive = true))
+        }
+        if (assistant && item.turnId.isNotBlank() && onTurnAction != null && !active && item.phase != "commentary") {
+            add(CodexSheetAction("从此回合创建分支", CodexGlyph.CallSplit,
+                { onTurnAction(item, true) }))
         }
         if (detail) {
             add(CodexSheetAction("执行详情", CodexGlyph.Description, { evidenceOpen = true }))
@@ -161,5 +176,5 @@ internal fun TimelineStepCard(item: TimelineItem) {
     if (readerOpen) FullTextReaderDialog(title, item.text) { readerOpen = false }
     if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
         onDismiss = { evidenceOpen = false })
-    if (rawOpen) FullTextReaderDialog("原始执行记录", item.evidence) { rawOpen = false }
+    if (rawOpen) FullTextReaderDialog("原始执行记录", TimelineEvidenceText.render(item)) { rawOpen = false }
 }
