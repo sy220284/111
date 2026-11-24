@@ -271,7 +271,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                 SemanticsProperties.StateDescription, "请先选择会话"))
     }
 
-    @Test fun sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection() {
+    @Test fun sidebarUsesRealThreadListWithoutExtraControls() {
         val now = java.time.Instant.now().epochSecond
         val response = JSONObject().put("threads", JSONArray()
             .put(JSONObject().put("id", "ci-selected")
@@ -286,23 +286,40 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = sessions, hasResponse = true, connected = true,
-                        loading = false, hasError = false, activeId = "ci-selected",
-                        running = false, switching = false, onRefresh = {}, onOpenThread = {}
+                        all = sessions, connected = true, activeId = "ci-selected",
+                        running = false, switching = false, onOpenThread = {}
                     )
                 }
             }
         }
         rule.onNodeWithText("修复工作区登录").assertExists()
         rule.onNodeWithText("检查构建流水线").assertExists()
-        rule.onNodeWithTag("sidebar-project-/projects/a").assertExists()
-        rule.onNodeWithTag("sidebar-project-/projects/b").assertExists()
         rule.onNodeWithContentDescription("当前会话").assertExists()
-        rule.onNodeWithTag("sidebar-search-toggle").performClick()
-        rule.onNodeWithTag("sidebar-search").performTextInput("构建")
-        rule.onNodeWithText("修复工作区登录").assertDoesNotExist()
-        rule.onNodeWithText("检查构建流水线").assertExists()
-        capture("audit-sidebar-filtered-android35.png")
+        rule.onNodeWithTag("sidebar-search-toggle").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-search").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-refresh").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-view-all").assertDoesNotExist()
+        rule.onNodeWithText("最近会话").assertDoesNotExist()
+        rule.onNodeWithText("查看全部会话").assertDoesNotExist()
+        capture("audit-sidebar-list-android35.png")
+    }
+
+    @Test fun emptySidebarContainsNoPlaceholderOrExtraControls() {
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionsContent(
+                    all = emptyList(), connected = true, activeId = null,
+                    running = false, switching = false, onOpenThread = {}
+                )
+            }
+        }
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
+        rule.onNodeWithText("最近会话").assertDoesNotExist()
+        rule.onNodeWithText("暂无历史会话", substring = true).assertDoesNotExist()
+        rule.onNodeWithText("查看全部会话").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-search-toggle").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-refresh").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
     }
 
     @Test fun batchToolbarSupportsAllSelectAndActionWithRealComposeClicks() {
@@ -383,9 +400,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = entries, hasResponse = true, connected = true,
-                        loading = false, hasError = false, activeId = "local",
-                        running = false, switching = false, onRefresh = {}, onOpenThread = {},
+                        all = entries, connected = true, activeId = "local",
+                        running = false, switching = false, onOpenThread = {},
                         liveActivities = mapOf(
                             "remote-approval" to ThreadActivity.WaitingApproval,
                             "remote-input" to ThreadActivity.WaitingAnswer
@@ -394,14 +410,14 @@ class UiPopulatedSubpagesInstrumentedTest {
                 }
             }
         }
-        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
         rule.onNodeWithText("等待审批").assertExists()
         rule.onNodeWithText("等待回答").assertExists()
         rule.onNodeWithContentDescription("当前会话").assertExists()
         capture("audit-sidebar-background-status-android35.png")
     }
 
-    @Test fun sidebarTaskCenterSwitchesAndStopsOnlyTheSelectedThread() {
+    @Test fun sidebarListSwitchesAndStopsOnlyTheSelectedThread() {
         val entries = listOf(
             JSONObject().put("id", "first").put("name", "任务甲"),
             JSONObject().put("id", "second").put("name", "任务乙")
@@ -411,9 +427,8 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.setContent {
             CodexTheme {
                 SidebarSessionsContent(
-                    all = entries, hasResponse = true, connected = true,
-                    loading = false, hasError = false, activeId = "first",
-                    running = true, switching = false, onRefresh = {},
+                    all = entries, connected = true, activeId = "first",
+                    running = true, switching = false,
                     onOpenThread = { opened = it }, onStopThread = { stopped = it },
                     liveExecutions = mapOf(
                         "first" to ThreadExecution(turnId = "turn-one"),
@@ -422,8 +437,8 @@ class UiPopulatedSubpagesInstrumentedTest {
                 )
             }
         }
-        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
-        rule.onNodeWithTag("sidebar-task-open-second").performClick()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-thread-second").performClick()
         rule.runOnIdle { assertEquals("second", opened) }
         rule.onNodeWithTag("sidebar-task-stop-first").performClick()
         rule.runOnIdle { assertEquals("first", stopped) }

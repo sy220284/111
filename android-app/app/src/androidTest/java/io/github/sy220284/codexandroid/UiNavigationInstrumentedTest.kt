@@ -69,7 +69,8 @@ class UiNavigationInstrumentedTest {
 
     private fun openThreadLibrary() {
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
-        rule.onNodeWithTag("sidebar-view-all").performScrollTo().performClick()
+        rule.onNodeWithTag("sidebar-global-search").performClick()
+        rule.onNodeWithText("标题搜索", substring = false).performClick()
         rule.onNodeWithTag("thread-library-list").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
@@ -111,9 +112,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-settings").assertExists()
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
-        rule.onNodeWithContentDescription("搜索侧栏会话").performClick()
-        rule.onNodeWithTag("sidebar-search").assertIsDisplayed()
-        rule.onNodeWithContentDescription("关闭会话搜索").performClick()
+        rule.onNodeWithTag("sidebar-search-toggle").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-refresh").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-view-all").assertDoesNotExist()
         capture("sidebar-android35.png")
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("conversation-top-title").assertExists()

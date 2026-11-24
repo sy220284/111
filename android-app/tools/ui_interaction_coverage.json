@@ -181,9 +181,9 @@
       "parent": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessionsContent",
-      "component": "AtlasSearchField",
-      "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
-      "screenshot": "audit-sidebar-filtered"
+      "component": "SidebarSessionRow",
+      "test": "sidebarUsesRealThreadListWithoutExtraControls",
+      "screenshot": "audit-sidebar-list"
     },
     {
       "id": "thread-context",

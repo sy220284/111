@@ -83,6 +83,9 @@ fun CodexShell(vm: CodexViewModel) {
     val activeThread by vm.activeThread.collectAsState()
     val libraryData by vm.data.collectAsState()
     val status by vm.bridge.status.collectAsState()
+    LaunchedEffect(drawer.isOpen, status) {
+        if (drawer.isOpen && status == EngineStatus.Connected) vm.syncRecentThreads()
+    }
     val pending by vm.bridge.prompts.collectAsState()
     val terminalSession by vm.terminalSession.collectAsState()
     val dataTransfer by AppDataTransfer.state.collectAsState()
@@ -498,7 +501,7 @@ private fun Sidebar(
             modifier = Modifier.padding(vertical = 7.dp),
             color = Ink.border.copy(alpha = .65f))
         Box(Modifier.fillMaxWidth().weight(1f)) {
-            SidebarSessions(vm, onOpenThread, onViewAll = { onSelect("threads") },
+            SidebarSessions(vm, onOpenThread,
                 modifier = Modifier.fillMaxSize(), uiState = sidebarState)
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))

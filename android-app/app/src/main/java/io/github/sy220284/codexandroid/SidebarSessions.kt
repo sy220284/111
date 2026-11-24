@@ -3,19 +3,14 @@ package io.github.sy220284.codexandroid
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,49 +19,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
-/** Preserves the exact same drawer selection/search/scroll during width changes. */
-internal class SidebarUiState(
-    initialSearch: String = "",
-    initialSearching: Boolean = false,
-    initialMore: Boolean = false,
-    initialIndex: Int = 0,
-    initialOffset: Int = 0
-) {
-    var search by mutableStateOf(initialSearch)
-    var searching by mutableStateOf(initialSearching)
-    var more by mutableStateOf(initialMore)
+/** Preserve the drawer's scroll position across navigation and recreation. */
+internal class SidebarUiState(initialIndex: Int = 0, initialOffset: Int = 0) {
     val scroll = LazyListState(initialIndex, initialOffset)
 
     companion object {
-        val Saver = listSaver<SidebarUiState, Any>(
-            save = {
-                listOf(it.search, it.searching, it.more,
-                    it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset)
-            },
-            restore = {
-                SidebarUiState(it[0] as String, it[1] as Boolean, it[2] as Boolean,
-                    it[3] as Int, it[4] as Int)
-            }
+        val Saver = listSaver<SidebarUiState, Int>(
+            save = { listOf(it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset) },
+            restore = { SidebarUiState(it[0], it[1]) }
         )
     }
 }
 
-/**
- * 最近会话与工作台入口共享同一个抽屉。列表来自 thread/list，
- * 点击只提交真实会话 ID 给 ViewModel，不在界面伪造恢复成功。
- */
+/** 侧栏直接显示真实会话；搜索和管理集中在独立会话资料库。 */
 @Composable
 internal fun SidebarSessions(
     vm: CodexViewModel,
     onOpenThread: (String) -> Unit,
-    onViewAll: () -> Unit,
     modifier: Modifier = Modifier,
     uiState: SidebarUiState? = null
 ) {
-    val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val data by vm.data.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
     val status by vm.bridge.status.collectAsState()
     val running by vm.running.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
@@ -75,17 +48,10 @@ internal fun SidebarSessions(
     val activeId by vm.activeThread.collectAsState()
     val approvals by vm.bridge.prompts.collectAsState()
     val liveActivities by vm.threadActivities.collectAsState()
-    val sidebarResponse = data["sidebarThreads"] ?: data["threads"]
-    val all = records(sidebarResponse).filter { it.optString("id").isNotBlank() }
-        .distinctBy { it.optString("id") }
     SidebarSessionsContent(
-        all = all,
+        all = records(data["sidebarThreads"] ?: data["threads"]),
         modifier = modifier,
-        onViewAll = onViewAll,
-        hasResponse = sidebarResponse != null,
         connected = status == EngineStatus.Connected,
-        loading = "sidebarThreads" in loading,
-        hasError = errors["sidebarThreads"] != null,
         activeId = activeId,
         running = running,
         switching = switching || firstThreadStarting,
@@ -93,28 +59,20 @@ internal fun SidebarSessions(
         onStopThread = vm::interruptThread,
         pendingApprovals = approvals.size,
         liveActivities = liveActivities,
-        onRefresh = {
-            vm.refresh("sidebarThreads", "thread/list", JSONObject().put("limit", 100))
-        },
         onOpenThread = onOpenThread,
-        uiState = state
+        uiState = uiState
     )
 }
 
-/** 与连接副作用分离：同一界面可以用固定协议数据做稳定的搜索与选择测试。 */
+/** 仅渲染会话行，空列表不占用额外提示空间；同一会话只显示一次。 */
 @Composable
 internal fun SidebarSessionsContent(
     all: List<JSONObject>,
     modifier: Modifier = Modifier,
-    onViewAll: () -> Unit = {},
-    hasResponse: Boolean,
     connected: Boolean,
-    loading: Boolean,
-    hasError: Boolean,
     activeId: String?,
     running: Boolean,
     switching: Boolean,
-    onRefresh: () -> Unit,
     onOpenThread: (String) -> Unit,
     pendingApprovals: Int = 0,
     liveActivities: Map<String, ThreadActivity> = emptyMap(),
@@ -123,196 +81,31 @@ internal fun SidebarSessionsContent(
     uiState: SidebarUiState? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
-    val searching = state.searching
-    val search = state.search
-    val matches = all.filter { item ->
-        search.isBlank() || listOf(
-            item.optString("name"), item.optString("preview"), item.optString("cwd")
-        ).any { it.contains(search.trim(), ignoreCase = true) }
-    }
-
-    val activeIds = (liveExecutions.keys + all.mapNotNull { entry ->
-        val id = entry.optString("id")
-        id.takeIf { it.isNotBlank() &&
-            ThreadActivityPolicy.isActive(ThreadActivityPolicy.effective(
-                entry, liveActivities[id], id in liveExecutions, 0)) }
-    }).distinct()
-    val backgroundActive = activeIds.count { it != activeId }
-    val scroll = state.scroll
-    LaunchedEffect(search, searching) {
-        if (searching || search.isNotBlank()) scroll.scrollToItem(0)
-    }
-    Column(modifier.fillMaxWidth()) {
-        if (running || pendingApprovals > 0 || activeIds.isNotEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 7.dp)
-                    .testTag("sidebar-task-status"),
-                color = if (pendingApprovals > 0) Ink.warning.copy(alpha = .08f)
-                    else Ink.jade.copy(alpha = .07f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp,
-                    if (pendingApprovals > 0) Ink.warning.copy(alpha = .32f)
-                    else Ink.jade.copy(alpha = .25f))
-            ) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    Text(
-                        when {
-                            pendingApprovals > 0 -> "待处理 ${pendingApprovals} 项审批 · ${activeIds.size} 条活跃会话"
-                            activeIds.isNotEmpty() -> "${activeIds.size} 条会话正在执行或等待回应"
-                            else -> "当前任务正在创建会话"
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (pendingApprovals > 0) Ink.warning else Ink.jade
-                    )
-                    activeIds.take(4).forEach { id ->
-                        val entry = all.firstOrNull { it.optString("id") == id }
-                        val name = entry?.let {
-                            PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview"))
-                        } ?: "会话 " + id.take(8)
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            CodexTextAction(
-                                onClick = { onOpenThread(id) },
-                                enabled = connected && !switching,
-                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                    .testTag("sidebar-task-open-" + id)
-                            ) {
-                                Text(name, modifier = Modifier.weight(1f),
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                CodexIcon(CodexGlyph.ChevronRight, contentDescription = null)
-                            }
-                            if (liveExecutions[id]?.turnId != null) {
-                                CodexIconAction(
-                                    onClick = { onStopThread(id) },
-                                    enabled = connected,
-                                    modifier = Modifier.size(48.dp)
-                                        .testTag("sidebar-task-stop-" + id)
-                                ) {
-                                    CodexIcon(CodexGlyph.Stop,
-                                        contentDescription = "停止会话 " + name)
-                                }
-                            }
-                        }
-                    }
-                    if (activeIds.size > 4) Text(
-                        "另有 ${activeIds.size - 4} 条活跃会话，可在下方列表切换",
-                        color = Ink.muted, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
+    val sessions = all.filter { it.optString("id").isNotBlank() }
+        .distinctBy { it.optString("id") }
     LazyColumn(
-        state = scroll,
-        modifier = Modifier.fillMaxWidth().weight(1f).testTag("sidebar-thread-list"),
+        state = state.scroll,
+        modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(5.dp),
         contentPadding = PaddingValues(bottom = 12.dp)
     ) {
-        item(key = "session-list-heading") {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("最近会话", modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                CodexIconAction(
-                    onClick = {
-                        state.searching = !searching
-                        if (!state.searching) state.search = ""
-                    },
-                    modifier = Modifier.size(48.dp).testTag("sidebar-search-toggle")
-                ) {
-                    CodexIcon(if (searching) CodexGlyph.Close else CodexGlyph.Search,
-                        contentDescription = if (searching) "关闭会话搜索"
-                            else "搜索侧栏会话",
-                        modifier = Modifier.size(19.dp), tint = Ink.muted)
-                }
-                CodexIconAction(
-                    onClick = onRefresh,
-                    enabled = connected && !loading,
-                    modifier = Modifier.size(48.dp).testTag("sidebar-refresh")
-                        .explainDisabled(!connected || loading,
-                            if (!connected) "运行核心未连接，暂不能刷新会话" else "会话正在刷新")
-                ) {
-                    CodexIcon(CodexGlyph.Retry, contentDescription = "刷新侧栏会话",
-                        modifier = Modifier.size(19.dp), tint = Ink.muted)
-                }
-            }
+        items(sessions, key = { it.optString("id") }) { entry ->
+            val id = entry.optString("id")
+            SidebarSessionRow(
+                item = entry,
+                active = activeId == id,
+                running = running && activeId == id,
+                pendingApprovals = if (activeId == id) pendingApprovals else 0,
+                activity = ThreadActivityPolicy.effective(
+                    entry, liveActivities[id], id in liveExecutions, 0),
+                enabled = connected && !switching,
+                onClick = { onOpenThread(id) },
+                onStop = if (liveExecutions[id]?.turnId != null) {
+                    { onStopThread(id) }
+                } else null,
+                stopEnabled = connected
+            )
         }
-        if (searching) item(key = "session-search") {
-            AtlasSearchField(value = search, onValueChange = { state.search = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).testTag("sidebar-search"),
-                placeholder = "搜索当前会话", onClear = { state.search = "" })
-        }
-        item(key = "session-list-status") {
-            when {
-                !connected -> Text("连接内核后同步历史会话",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                loading && all.isEmpty() -> {
-                    AtlasLoadingResults("正在同步会话", placeholderRows = 2, modifier = Modifier.padding(horizontal = 12.dp))
-                }
-                hasError -> Text("会话同步失败，点击上方刷新重试",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall, color = Ink.red)
-                all.isEmpty() && hasResponse -> Text(
-                    "暂无历史会话，开始第一项任务后会显示在这里",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                all.isEmpty() -> Text("正在等待会话列表",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                matches.isEmpty() -> Text("没有匹配的会话",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-            }
-        }
-        // Desktop-style organization: conversations live below their projects,
-        // rather than presenting unrelated work in one date-only flat list.
-        matches.groupBy { it.optString("cwd").ifBlank { "未知项目" } }
-            .forEach { (cwd, projectThreads) ->
-                item(key = "sidebar-project-" + cwd) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .testTag("sidebar-project-" + cwd).padding(
-                            start = 12.dp, end = 8.dp, top = 11.dp, bottom = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CodexIcon(CodexGlyph.Project, null, tint = Ink.muted,
-                            modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text(
-                            if (cwd == "未知项目") cwd else PresentationPolicy.workspaceName(cwd),
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Ink.muted, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(projectThreads.size.toString(), color = Ink.muted,
-                            style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-                items(projectThreads, key = { it.optString("id") }) { entry ->
-                    val id = entry.optString("id")
-                    SidebarSessionRow(
-                        item = entry,
-                        active = activeId == id,
-                        running = running && activeId == id,
-                        pendingApprovals = if (activeId == id) pendingApprovals else 0,
-                        activity = liveActivities[id] ?: ThreadActivityPolicy.fromThread(entry),
-                        enabled = connected && !switching,
-                        onClick = { onOpenThread(id) }
-                    )
-                }
-            }
-        item(key = "session-view-all") {
-            CodexTextAction(
-                onClick = onViewAll,
-                modifier = Modifier.fillMaxWidth().testTag("sidebar-view-all")
-            ) {
-                Text("查看全部会话", style = MaterialTheme.typography.bodyMedium)
-                CodexIcon(CodexGlyph.ChevronRight, null,
-                    modifier = Modifier.size(17.dp))
-            }
-        }
-    }
     }
 }
 
@@ -324,7 +117,9 @@ internal fun SidebarSessionRow(
     enabled: Boolean,
     onClick: () -> Unit,
     pendingApprovals: Int = 0,
-    activity: ThreadActivity = ThreadActivityPolicy.fromThread(item)
+    activity: ThreadActivity = ThreadActivityPolicy.fromThread(item),
+    onStop: (() -> Unit)? = null,
+    stopEnabled: Boolean = enabled
 ) {
     val id = item.optString("id")
     val actual = when {
@@ -373,6 +168,13 @@ internal fun SidebarSessionRow(
                         else -> Ink.muted
                     },
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (onStop != null) CodexIconAction(
+                onClick = onStop, enabled = stopEnabled,
+                modifier = Modifier.size(48.dp).testTag("sidebar-task-stop-" + id)
+            ) {
+                CodexIcon(CodexGlyph.Stop, contentDescription = "停止会话 " +
+                    PresentationPolicy.threadTitle(item.optString("name"), item.optString("preview")))
             }
             if (active) CodexIcon(CodexGlyph.TaskComplete, contentDescription = "当前会话",
                 tint = Ink.coral, modifier = Modifier.size(17.dp))

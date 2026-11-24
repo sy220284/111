@@ -56,7 +56,7 @@
       "business": "标题搜索、归档、批量管理、列表加载和空态",
       "tests": [
         "UiNavigationInstrumentedTest.threadLibraryExposesServerBackedManagementLayout",
-        "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection"
+        "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListWithoutExtraControls"
       ]
     },
     {
@@ -543,7 +543,7 @@
         ],
         [
           "SidebarSessions",
-          "AtlasSearchField"
+          "SidebarSessionRow"
         ],
         [
           "ConversationComposer",
