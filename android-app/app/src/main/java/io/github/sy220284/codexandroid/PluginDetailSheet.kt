@@ -20,20 +20,30 @@ fun PluginDetailSheet(
     marketplace: JSONObject,
     entry: JSONObject,
     vm: CodexViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onManage: (() -> Unit)? = null,
+    manageLabel: String = "安装插件",
+    installedState: Boolean? = null
 ) {
     val name = entry.optString("name")
     val marketName = marketplace.optString("name")
     val marketPath = marketplace.optString("path")
     val key = "pluginDetail:" + marketName + ":" + name
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val data by vm.data.collectEntries(key)
+    val detail = data[key]?.optJSONObject("plugin")
+    val remoteId = ExtensionCatalogPolicy.remotePluginId(entry)
+    val skillKeys = remember(detail, remoteId, marketName) {
+        val skills = detail?.optJSONArray("skills")
+        (0 until (skills?.length() ?: 0)).mapNotNull { index ->
+            skills?.optJSONObject(index)?.optString("name")?.takeIf { it.isNotBlank() }
+                ?.let { "pluginSkill:$marketName:$remoteId:$it" }
+        }.toSet()
+    }
+    val errors by vm.errors.collectEntries(key, *skillKeys.toTypedArray())
+    val loading by vm.loading.collectProjection { it.intersect(skillKeys + key) }
     var readerText by remember(name, marketName) { mutableStateOf<String?>(null) }
     var readerTitle by remember(name, marketName) { mutableStateOf("") }
     var readerProblem by remember(name, marketName) { mutableStateOf("") }
-    val detail = data[key]?.optJSONObject("plugin")
-
     fun refresh() {
         if (name.isBlank()) return
         vm.refresh(key, "plugin/read", InspectionContracts.plugin(name, marketName, marketPath))
@@ -55,8 +65,8 @@ fun PluginDetailSheet(
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
                 val summary = detail?.optJSONObject("summary") ?: entry
-                StatusPill(if (summary.optBoolean("installed")) "已安装" else "未安装",
-                    summary.optBoolean("installed"))
+                val installed = installedState ?: summary.optBoolean("installed")
+                StatusPill(if (installed) "已安装" else "未安装", installed)
             }
             val summary = detail?.optJSONObject("summary") ?: entry
             val version = summary.optString("version")
@@ -80,11 +90,14 @@ fun PluginDetailSheet(
                     Text("查看插件原始说明")
                 }
             }
-            CodexSecondaryButton(onClick = { refresh() }, enabled = name.isNotBlank() && key !in loading,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                CodexIcon(CodexGlyph.Retry, null)
-                Spacer(Modifier.width(7.dp))
-                Text("刷新插件详情")
+            if (onManage != null) {
+                if (manageLabel == "卸载插件") CodexSecondaryButton(onClick = onManage,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(manageLabel) }
+                else CodexPrimaryButton(onClick = onManage,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(manageLabel) }
+            }
+            if (key in errors) CodexTextAction(onClick = { refresh() }, enabled = key !in loading) {
+                Text("重新读取详情")
             }
         }
         if (key in loading) AtlasLoadingResults("正在读取插件详情", placeholderRows = 2)
@@ -124,10 +137,9 @@ fun PluginDetailSheet(
                             Text(title, style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f))
                             val skillId = obj?.optString("name").orEmpty()
-                            val remoteId = entry.optString("id")
-                            if (field == "skills" && skillId.isNotBlank() &&
+                             if (field == "skills" && skillId.isNotBlank() &&
                                 remoteId.isNotBlank() && marketName.isNotBlank()) {
-                                val skillKey = "pluginSkill:" + remoteId + ":" + skillId
+                                val skillKey = "pluginSkill:$marketName:$remoteId:$skillId"
                                 CodexTextAction(
                                     onClick = {
                                         readerTitle = title

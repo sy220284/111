@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import java.net.SocketTimeoutException
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
+import org.json.JSONArray
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -104,4 +105,53 @@ class TurnSubmissionCoordinatorTest {
         assertTrue(requests.isEmpty())
         assertFalse(failure.turnRequestDispatched)
     }
+    @Test fun messageReplayReadsNativeInputAndForksBeforeSelectedTurn() = runBlocking {
+        val calls = mutableListOf<String>()
+        val original = JSONArray().put(JSONObject().put("type", "text").put("text", "原始指令")
+            .put("text_elements", JSONArray())).put(JSONObject().put("type", "image").put("fileId", "image-one"))
+        fun entry(item: JSONObject) = JSONObject().put("turnId", "selected-turn").put("item", item)
+        val replay = MessageReplayCoordinator { method, params ->
+            calls += method
+            when (method) {
+                "thread/items/list" -> {
+                    assertEquals("source", params.getString("threadId"))
+                    assertEquals("selected-turn", params.getString("turnId"))
+                    assertEquals("asc", params.getString("sortDirection"))
+                    if (!params.has("cursor")) JSONObject().put("data", JSONArray().put(entry(
+                        JSONObject().put("type", "hookPrompt")))).put("nextCursor", "page-two")
+                    else {
+                        assertEquals("page-two", params.getString("cursor"))
+                        JSONObject().put("data", JSONArray().put(entry(JSONObject().put("type", "userMessage")
+                            .put("content", original)))).put("nextCursor", JSONObject.NULL)
+                    }
+                }
+                "thread/fork" -> {
+                    assertEquals("source", params.getString("threadId"))
+                    assertEquals("selected-turn", params.getString("beforeTurnId"))
+                    assertFalse(params.has("lastTurnId"))
+                    assertTrue(params.getBoolean("excludeTurns"))
+                    created("independent")
+                }
+                else -> error("unexpected RPC: $method")
+            }
+        }
+        val input = replay.readInput("source", "selected-turn")
+        assertEquals(original.toString(), input.toString())
+        assertTrue(replay.validateInput(input).isEmpty())
+        assertEquals("independent", replay.forkBefore("source", "selected-turn"))
+        assertEquals(listOf("thread/items/list", "thread/items/list", "thread/fork"), calls)
+    }
+
+    @Test fun messageReplayRejectsExpiredLocalAttachmentBeforeFork() {
+        val replay = MessageReplayCoordinator { _, _ -> error("不应发送请求") }
+        val input = JSONArray().put(JSONObject().put("type", "localImage")
+            .put("path", "/missing-" + java.util.UUID.randomUUID()))
+        try {
+            replay.validateInput(input)
+            fail("失效附件必须阻止重新执行")
+        } catch (failure: IllegalArgumentException) {
+            assertTrue(failure.message.orEmpty().contains("已失效"))
+        }
+    }
+
 }

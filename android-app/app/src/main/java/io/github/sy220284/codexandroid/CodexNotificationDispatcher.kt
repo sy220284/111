@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 
 /**
@@ -30,6 +31,14 @@ internal object CodexNotificationDispatcher {
             }
             return
         }
+        if (method == "app/list/updated") {
+            extensions.appDirectoryChanged(params)
+            return
+        }
+        if (method == "account/rateLimits/updated") {
+            accountMetrics.refresh(setOf("limits"))
+            return
+        }
         if (method == "account/login/completed") {
             val result = AccountLoginContract.completion(params, activeLoginId.value)
             if (result != null) {
@@ -44,6 +53,8 @@ internal object CodexNotificationDispatcher {
                 if (result.success) {
                     refresh("models", "model/list")
                     catalogWarmup.accountChanged()
+                    accountMetrics.accountChanged()
+                    extensions.invalidate()
                     refresh("mcp", "mcpServerStatus/list",
                         CatalogRequestContract.mcpStatus(activeThread.value))
                 }
@@ -52,6 +63,8 @@ internal object CodexNotificationDispatcher {
             refresh("account", "account/read")
             refresh("models", "model/list")
             catalogWarmup.accountChanged()
+            accountMetrics.accountChanged()
+            extensions.invalidate()
             refreshMcpServices()
         }
         if (method == "project/changed") {
@@ -61,6 +74,11 @@ internal object CodexNotificationDispatcher {
             projectCatalogRevision.value += 1
             return
         }
+        if (method == "thread/readState/changed" && threadId.isNotBlank()) {
+            params.optJSONObject("readState")?.let { sessions.receipt(threadId, it) }
+            return
+        }
+        if (method in setOf("thread/name/updated", "thread/section/changed", "thread/closed")) sessions.refreshChanged(threadId)
         if (method == "thread/status/changed" && threadId.isNotBlank()) {
             threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
                 threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
@@ -71,7 +89,7 @@ internal object CodexNotificationDispatcher {
                 activeProjectId.value = params.optString("projectId")
                     .takeIf { it.isNotBlank() }
             }
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
             projectCatalogRevision.value += 1
             return
         }
@@ -91,23 +109,31 @@ internal object CodexNotificationDispatcher {
         }
         if (method in setOf("thread/archived", "thread/unarchived", "thread/deleted")) {
             threadOrganization.observe(method, threadId)
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
         } else if (method == "thread/started") {
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
+        }
+        if (method == "thread/deleted") {
+            answerVersions.remove(threadId)
+            sessions.removePin(threadId)
+            liveTimelines.remove(threadId)
+            queuePausedThreads.value = queuePausedThreads.value - threadId
         }
         // Apply turn lifecycle to every thread before filtering display events to
         // the visible timeline. An offscreen task must still finish and free images.
         if (threadId.isNotBlank() && method == "turn/started") {
+            queuePausedThreads.value = queuePausedThreads.value - threadId
             val turnId = params.optJSONObject("turn")?.optString("id")
+            if (!turnId.isNullOrBlank()) answerVersions.bind(threadId, turnId)
             threadExecutions.value = ThreadExecutionPolicy.started(
                 threadExecutions.value, threadId, turnId)
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId, ThreadActivity.Running)
             if (threadId == activeThread.value) {
-                activeTurn.value = threadExecutions.value[threadId]?.turnId
-                running.value = true
+                conversationState.update { it.copy(turnId = threadExecutions.value[threadId]?.turnId, running = true) }
             }
         }
+        if (threadId.isNotBlank() && method == "turn/started") sessions.refreshChanged(threadId)
         if (threadId.isNotBlank() && method == "turn/completed") {
             val completedId = params.optJSONObject("turn")?.optString("id")
             val execution = threadExecutions.value[threadId]
@@ -116,7 +142,9 @@ internal object CodexNotificationDispatcher {
             if (!validCompletion) return
             threadExecutions.value = ThreadExecutionPolicy.finish(
                 threadExecutions.value, threadId)
-            val completed = params.optJSONObject("turn")?.optString("status") == "completed"
+            val turnStatus = params.optJSONObject("turn")?.optString("status")
+            if (turnStatus == "interrupted") queuePausedThreads.value = queuePausedThreads.value + threadId
+            val completed = turnStatus == "completed"
             if (!completed) {
                 val reason = params.optJSONObject("turn")?.optJSONObject("error")
                     ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }
@@ -127,17 +155,17 @@ internal object CodexNotificationDispatcher {
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
             if (threadId == activeThread.value) {
-                running.value = false
-                activeTurn.value = null
+                conversationState.update { it.copy(running = false, turnId = null) }
             }
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
+            accountMetrics.refresh()
             val finishedImages = execution?.images.orEmpty()
             if (finishedImages.isNotEmpty()) viewModelScope.launch {
                 for (path in finishedImages) {
                     try {
                         if (AttachmentRetentionPolicy.canRelease(
                                 path, composerDrafts.value.values,
-                                threadExecutions.value.values.flatMap { it.images }
+                                threadExecutions.value.values.flatMap { it.images } + pendingComposerImages.value
                             )) LocalImageAttachments.release(getApplication(), path)
                     } catch (failure: Exception) {
                         errors.value = errors.value + ("attachments" to
@@ -145,6 +173,12 @@ internal object CodexNotificationDispatcher {
                     }
                 }
             }
+        }
+        if (method == "thread/tokenUsage/updated" && threadId.isNotBlank()) {
+            params.optJSONObject("tokenUsage")?.let { usage ->
+                data.value = data.value + ("tokenUsage:$threadId" to usage)
+            }
+            return
         }
         // Keep thread-owned goal and queue UI synchronized with agent-side mutations.
         // These notifications are emitted even when changes do not originate in the UI.
@@ -167,33 +201,34 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
+        if (threadId.isNotBlank() && (threadId == hydratingThread || threadId != activeThread.value) &&
+            method in TimelineEventReducer.methods) {
+            liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
+            return
+        }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
-            "item/agentMessage/delta", "item/plan/delta",
-            "item/reasoning/summaryTextDelta", "item/started", "item/completed" ->
+            in TimelineEventReducer.methods - "turn/completed" ->
                 timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/completed" -> {
-                timeline.value = timeline.value.map { item ->
-                    if (item.id.startsWith("pending-") && item.status == "sending")
-                        item.copy(status = "") else item
-                }
-                val turn = params.optJSONObject("turn")
-                if (turn?.optString("status") != "completed") {
-                    timeline.value = timeline.value + TimelineItem(
-                        "status-" + System.nanoTime(), "error",
-                        turn?.optJSONObject("error")?.optString("message") ?: "任务已中断或失败"
-                    )
-                }
-            }
+            "turn/completed" -> timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
         }
-        if (!threadSwitching.value && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+        if (!threadSwitching.value && !running.value && !loadingEarlier.value && !timelineCompacting && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+            val epoch = timelineEpoch
+            val owner = activeThread.value
+            val snapshot = timeline.value
+            timelineCompacting = true
             try {
-                timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
+                val compacted = timelineWindow.compact(owner, snapshot, epoch)
+                if (timelineEpoch == epoch && activeThread.value == owner) {
+                    // Concurrent send may append a pending user item while disk I/O runs.
+                    val retained = timeline.value.drop(snapshot.size - compacted.size)
+                    timeline.value = retained
+                }
             } catch (failure: Exception) {
                 errors.value = errors.value + ("timeline" to
                     (failure.message ?: "会话历史无法暂存，当前记录仍保留在内存"))
-            }
+            } finally { timelineCompacting = false }
         }
         }
     }

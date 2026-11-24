@@ -4,8 +4,9 @@ package io.github.sy220284.codexandroid
 data class FeatureGroup(val title: String, val routes: List<String>)
 
 object NavigationPolicy {
-    /** 冷启动直接进入对话；工作总览仍由侧栏进入。 */
+    /** 冷启动、恢复和新建任务统一使用唯一任务首页。 */
     const val startRoute = "chat"
+    fun canonicalRoute(route: String): String = if (route in setOf("home", "security")) startRoute else route
     val sidebarRoutes get() = UiFeatureCatalog.sidebarRoutes
     val featureGroups get() = UiFeatureCatalog.settingsGroups
     val settingsRoutes get() = featureGroups.flatMap { it.routes }
@@ -22,33 +23,37 @@ object NavigationPolicy {
         else -> null
     }
 
-    fun isCommon(id: String) = id in sidebarRoutes
+    fun isCommon(id: String) = id == startRoute || id in sidebarRoutes
     /** Old saved stacks may still contain routes that are now shown as sheets. */
-    fun pageHistory(routes: List<String>): List<String> = routes.filter {
+    fun pageHistory(routes: List<String>): List<String> = routes.map(::canonicalRoute).filter {
         UiFeatureCatalog.byRoute[it]?.surface in
             setOf(FeatureSurface.Page, FeatureSurface.Reader)
+    }.fold(emptyList()) { history, route ->
+        if (history.lastOrNull() == route) history else history + route
     }
     // 设置归属只用于设置项高亮；任务工具与工作区页面有独立归属。
     fun isSettingsChild(id: String) = id in settingsRoutes
     // 所有二级全屏页面保留返回按钮，返回实际来路而非误认为设置页。
     fun isDetailPage(id: String) = UiFeatureCatalog.byRoute[id]?.surface in
-        setOf(FeatureSurface.Page, FeatureSurface.Reader) && id !in sidebarRoutes
+        setOf(FeatureSurface.Page, FeatureSurface.Reader) && !isCommon(id)
     /** 同一设置的常用叫法归到唯一功能入口；搜索索引不包含后台接口名。 */
     data class SettingsTopic(val route: String, val label: String, val aliases: List<String>)
     val settingsTopics = listOf(
         SettingsTopic("account", "账户登录与切换", listOf("登录", "退出", "账户切换", "绑定", "订阅")),
         SettingsTopic("providers", "API 密钥和模型服务商", listOf("API Key", "密钥", "模型渠道", "接口地址", "Base URL", "自定义服务商")),
-        SettingsTopic("models", "运行模型选择", listOf("模型选择", "模型列表", "思考模型")),
+        SettingsTopic("models", "默认模型与推理", listOf("模型选择", "模型列表", "模型目录", "思考模型", "思考深度", "回复详略")),
         SettingsTopic("usage", "用量与额度", listOf("使用量", "用量", "调用量", "消耗", "调用统计", "限额", "额度", "频率", "速率", "剩余额度")),
         SettingsTopic("skills", "技能启用和配置", listOf("技能开关", "技能管理", "skill")),
         SettingsTopic("plugins", "插件安装和管理", listOf("插件市场", "安装插件", "扩展商店")),
         SettingsTopic("apps", "连接应用与授权", listOf("应用授权", "连接应用", "连接器")),
         SettingsTopic("mcp", "MCP 工具服务", listOf("工具服务", "MCP服务器", "外部工具")),
-        SettingsTopic("environments", "选择执行设备", listOf("远程主机", "执行环境", "工作主机", "远程执行服务", "本机执行", "连接其他设备")),
-        SettingsTopic("config", "运行核心高级配置", listOf("高级设置", "运行参数", "环境变量")),
-        SettingsTopic("security", "执行权限与确认", listOf("免审批", "审批模式", "授权", "沙箱", "权限方案", "危险操作")),
+        SettingsTopic("environments", "选择执行设备", listOf("远程主机", "执行环境", "工作主机", "远程执行服务", "本机执行", "连接其他设备", "后台运行", "终端等待", "会话释放", "运行参数")),
+        SettingsTopic("config", "开发者高级配置", listOf("高级设置", "引擎配置", "配置键值")),
+        SettingsTopic("personalization", "全局执行指令", listOf("自定义指令", "工作偏好", "个性化")),
+        SettingsTopic("context", "上下文管理", listOf("上下文", "历史压缩", "自动压缩", "词元", "工具输出")),
+        SettingsTopic("tools", "联网搜索", listOf("联网", "网络搜索", "搜索方式")),
         SettingsTopic("diagnostics", "连接诊断和日志", listOf("日志", "内核日志", "故障排查", "连接失败", "无法连接")),
-        SettingsTopic("appearance", "字体主题与动效", listOf("字体", "字号", "主题", "深色", "夜间", "浅色", "动效", "减少动画")),
+        SettingsTopic("appearance", "字体主题与动效", listOf("字体", "字号", "主题", "深色", "夜间", "浅色", "动效", "减少动画", "外观与交互", "推理摘要")),
         SettingsTopic("about", "应用版本信息", listOf("应用版本", "版本号", "关于")),
         SettingsTopic("update", "检查与安装更新", listOf("更新", "升级", "安装包", "新版本"))
     )
@@ -65,10 +70,18 @@ object NavigationPolicy {
         SettingsSpot("providers", "custom", "配置模型服务商", listOf("API Key", "Base URL", "接口地址", "自定义服务商", "密钥变量")),
         SettingsSpot("diagnostics", "logs", "查看诊断日志", listOf("日志", "内核日志", "启动日志", "故障排查")),
         SettingsSpot("config", "advanced", "高级自定义配置", listOf("高级配置", "自定义配置", "配置键值")),
-        SettingsSpot("security", "profiles", "可用权限方案", listOf("权限方案", "授权方案", "执行权限方案")),
         SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
         SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
-    )
+    ) + EngineSettings.all.map { setting ->
+        SettingsSpot(setting.owner, setting.key, setting.title, when (setting.key) {
+            "developer_instructions" -> listOf("全局执行指令", "自定义指令")
+            "model_verbosity" -> listOf("回复详细程度", "回复详略")
+            "web_search" -> listOf("联网搜索方式", "网络搜索方式")
+            "hide_agent_reasoning" -> listOf("隐藏推理摘要", "推理摘要")
+            "background_terminal_max_timeout" -> listOf("后台终端单次等待上限", "终端等待")
+            else -> listOf(setting.title)
+        })
+    }
     fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
         val q = query.trim()
         if (q.isBlank()) return null
@@ -77,11 +90,13 @@ object NavigationPolicy {
         val pageTitle = pages.firstOrNull { it.id == id }?.title
             ?: if (id == "update") "应用更新" else null
         if (pageTitle?.equals(q, ignoreCase = true) == true) return null
-        return settingsSpots.firstOrNull { spot ->
-            spot.route == id &&
-                (q.contains(spot.label, ignoreCase = true) ||
-                    spot.terms.any { q.contains(it, ignoreCase = true) })
-        }
+        val candidates = settingsSpots.filter { it.route == id }
+        // Prefer the longest exact operation wording (e.g. plan effort vs general effort).
+        candidates.filter { spot -> q.contains(spot.label, true) || spot.terms.any { q.contains(it, true) } }
+            .maxByOrNull { spot -> (listOf(spot.label) + spot.terms).filter { q.contains(it, true) }.maxOf { it.length } }
+            ?.let { return it }
+        return candidates.filter { spot -> q.length >= 2 &&
+            (listOf(spot.label) + spot.terms).any { it.contains(q, true) } }.singleOrNull()
     }
 
     fun matchedSettingTopic(id: String, query: String): String? {

@@ -1,21 +1,15 @@
 {
   "routes": [
     {
-      "route": "home",
-      "file": "Screens.kt",
-      "owner": "HomePage",
-      "component": "AtlasListHeading"
-    },
-    {
       "route": "chat",
-      "file": "ConversationComposer.kt",
-      "owner": "ConversationComposer",
-      "component": "AtlasCompactChoice"
+      "file": "ConversationScreen.kt",
+      "owner": "ConversationPage",
+      "component": "ComposerQueueAction"
     },
     {
       "route": "threads",
-      "file": "ThreadLibraryPage.kt",
-      "owner": "ThreadLibraryPage",
+      "file": "SidebarSessions.kt",
+      "owner": "SidebarSessions",
       "component": "AtlasSearchField"
     },
     {
@@ -26,8 +20,8 @@
     },
     {
       "route": "search",
-      "file": "ThreadLibraryPage.kt",
-      "owner": "ThreadLibraryPage",
+      "file": "SidebarSessions.kt",
+      "owner": "SidebarSessions",
       "component": "AtlasSearchField"
     },
     {
@@ -68,9 +62,9 @@
     },
     {
       "route": "models",
-      "file": "UiSharedSurfaces.kt",
-      "owner": "ModelChoiceSurface",
-      "component": "CodexChoiceSheet"
+      "file": "EcosystemScreens.kt",
+      "owner": "ModelsPage",
+      "component": "EngineSettingsSection"
     },
     {
       "route": "modes",
@@ -129,7 +123,7 @@
     {
       "route": "security",
       "file": "SecurityPage.kt",
-      "owner": "SecurityPage",
+      "owner": "ComposerPermissionControl",
       "component": "ProtocolFeedback"
     },
     {
@@ -146,9 +140,9 @@
     },
     {
       "route": "appearance",
-      "file": "SettingsHub.kt",
-      "owner": "SettingsHubPage",
-      "component": "CodexDetailSheet"
+      "file": "ControlScreens.kt",
+      "owner": "AppearancePage",
+      "component": "EngineSettingsSection"
     },
     {
       "route": "diagnostics",
@@ -173,6 +167,24 @@
       "file": "AppUpdateCard.kt",
       "owner": "AppUpdateCard",
       "component": "CodexDetailSheet"
+    },
+    {
+      "route": "personalization",
+      "file": "EngineSettingUi.kt",
+      "owner": "PersonalizationPage",
+      "component": "EngineSettingsSection"
+    },
+    {
+      "route": "context",
+      "file": "EngineSettingUi.kt",
+      "owner": "ContextManagementPage",
+      "component": "EngineSettingsSection"
+    },
+    {
+      "route": "tools",
+      "file": "EngineSettingUi.kt",
+      "owner": "SearchCapabilityPage",
+      "component": "EngineSettingsSection"
     }
   ],
   "subpages": [
@@ -180,7 +192,7 @@
       "id": "sidebar",
       "parent": "threads",
       "file": "SidebarSessions.kt",
-      "owner": "SidebarSessionsContent",
+      "owner": "SidebarSessions",
       "component": "AtlasSearchField",
       "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
       "screenshot": "audit-sidebar-filtered"
@@ -190,7 +202,7 @@
       "parent": "chat",
       "file": "ThreadContextTools.kt",
       "owner": "ThreadContextTools",
-      "component": "CodexDetailSheet",
+      "component": "CodexActionSheet",
       "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": "audit-thread-context"
     },
@@ -297,8 +309,8 @@
       "id": "message-menu",
       "parent": "chat",
       "file": "ChatTimelineComponents.kt",
-      "owner": "TimelineStepCard",
-      "component": "CodexActionSheet",
+      "owner": "MessageActionRow",
+      "component": "CodexPopupMenu",
       "test": "messageHeaderLongPressPreservesReaderAction",
       "screenshot": "audit-message-menu"
     },
@@ -463,6 +475,42 @@
       "component": "AtlasExclusiveChip",
       "test": "unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction",
       "screenshot": null
+    },
+    {
+      "id": "model-preferences",
+      "parent": "models",
+      "file": "EcosystemScreens.kt",
+      "owner": "ModelsPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-models"
+    },
+    {
+      "id": "personalization-preferences",
+      "parent": "personalization",
+      "file": "EngineSettingUi.kt",
+      "owner": "PersonalizationPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-personalization"
+    },
+    {
+      "id": "context-preferences",
+      "parent": "context",
+      "file": "EngineSettingUi.kt",
+      "owner": "ContextManagementPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-context"
+    },
+    {
+      "id": "search-preferences",
+      "parent": "tools",
+      "file": "EngineSettingUi.kt",
+      "owner": "SearchCapabilityPage",
+      "component": "EngineSettingsSection",
+      "test": "settingsPreferencesAreDistributedToTheirOwners",
+      "screenshot": "audit-tools"
     }
   ]
 }

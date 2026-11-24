@@ -21,10 +21,9 @@ NOTIFICATION_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\(')
 SERDE_NOTIFICATION = re.compile(r'(?m)^\s*#\[serde\(rename\s*=\s*"([^"]+/[^"]+)"\)\]')
 LITERAL = re.compile(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"')
 CALL = re.compile(
-    r'\b(?:(?:bridge|vm)\.)?(?:request|rpc|refresh|ensureCatalog)\s*\(\s*'
-    r'(?:"[^"\n]*"\s*,\s*)?'
+    r'\b(?:request\s*\(\s*|(?:rpc|refresh|ensureCatalog)\s*\(\s*'
+    r'(?:[A-Za-z_][A-Za-z0-9_]*|"[^"\n]*")\s*,\s*)'
     r'"(?P<method>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"',
-    re.M,
 )
 
 
@@ -44,20 +43,25 @@ def verify_sources(source: str, files: dict[str, str]) -> tuple[list[str], set[s
     notifications = parse_notifications(source)
     errors: list[str] = []
     used: set[str] = set()
+    namespaces = {name.split("/", 1)[0] for name in contracts.keys() | notifications}
     for file, code in sorted(files.items()):
+        calls = list(CALL.finditer(code))
+        explicit_calls = {(code.count("\n", 0, match.start("method")) + 1, match.group("method"))
+                          for match in calls}
         for line_number, line in enumerate(code.splitlines(), start=1):
             for match in LITERAL.finditer(line):
                 method = match.group(1)
                 if method in contracts:
                     used.add(method)
-                elif (method not in notifications
+                elif ((method.split("/", 1)[0] in namespaces or (line_number, method) in explicit_calls)
+                      and method not in notifications
                       and method not in INTERNAL_EVENTS
                       and method not in PROTOCOL_VARIANTS
                       and not is_standard_mime(method)):
                     errors.append(f"协议未定义：{file}:{line_number}: {method}")
         # Only explicit call-sites are direction checks. Bare literals can be
         # metadata, state filters or service-originated requests.
-        for match in CALL.finditer(code):
+        for match in calls:
             name = match.group("method")
             contract = contracts.get(name)
             if contract is not None and contract.direction != "client_request":

@@ -31,6 +31,10 @@ fun ReviewScopePanel(
     val value = reviewDraft.reviewText
     var confirm by remember { mutableStateOf(false) }
     var submitted by remember(active) { mutableStateOf(false) }
+    val requestKey = "review:$active"
+    LaunchedEffect(submitted, data[requestKey]) {
+        if (submitted && data[requestKey] != null) onStarted()
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (active == null) {
@@ -46,7 +50,7 @@ fun ReviewScopePanel(
                 ).forEach { (id, label, description) ->
                     AtlasChoiceRow(label, description, selection == id,
                         onClick = { vm.editTaskPanelDraft(active) { it.copy(reviewScope = id) } },
-                        enabled = !running && "review" !in loading)
+                        enabled = !running && requestKey !in loading)
                 }
             }
             if (selection != "uncommittedChanges") {
@@ -65,7 +69,7 @@ fun ReviewScopePanel(
             if (running) CodexNotice("当前任务执行中，完成后再发起审查。", NoticeTone.Info)
             CodexPrimaryButton(
                 onClick = { confirm = true },
-                enabled = !running && "review" !in loading &&
+                enabled = !running && requestKey !in loading &&
                     (selection == "uncommittedChanges" || value.isNotBlank()),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)
             ) {
@@ -74,9 +78,9 @@ fun ReviewScopePanel(
                 Text("发起代码审查")
             }
         }
-        if (submitted && "review" in loading) AtlasOperationProgress("正在提交代码审查")
-        if (submitted) errors["review"]?.let { ErrorText(it) }
-        if (submitted) data["review"]?.let { response ->
+        if (submitted && requestKey in loading) AtlasOperationProgress("正在提交代码审查")
+        if (submitted) errors[requestKey]?.let { ErrorText(it) }
+        if (submitted) data[requestKey]?.let { response ->
             val status = response.optJSONObject("turn")?.optString("status").orEmpty()
             CodexNotice("内核已受理代码审查。审查过程和结果将在会话任务流中更新。",
                 NoticeTone.Success, actionLabel = "返回任务", onAction = onStarted)
@@ -104,10 +108,7 @@ fun ReviewScopePanel(
                     "custom" -> target.put("instructions", value.trim())
                 }
                 submitted = true
-                vm.rpc("review", "review/start", JSONObject()
-                    .put("threadId", active)
-                    .put("delivery", "inline")
-                    .put("target", target))
+                active?.let { vm.conversationActions.review(it, target) }
                 confirm = false
             },
             onDismiss = { confirm = false }

@@ -36,4 +36,17 @@ class TimelineWindowStoreTest {
             assertEquals((0 until 1280).map { "id-$it" }, window.map { it.id })
         } finally { file.delete() }
     }
+    @Test fun oldGenerationCannotReplaceOrClearNewHistory() = runBlocking {
+        val file = File.createTempFile("codex-timeline-owner-", ".jsonl")
+        try {
+            val store = TimelineWindowStore(file)
+            val records = (0 until 700).map { TimelineItem("new-$it", "user", "记录 $it") }
+            val current = store.replace("new", records, 2)
+            store.clear(1)
+            store.replace("old", records, 1)
+            assertTrue(store.readEarlier("old", 1).isEmpty())
+            assertEquals(records.size - current.size, store.olderCount.value)
+            assertTrue(store.readEarlier("new", 2).all { it.id.startsWith("new-") })
+        } finally { file.delete() }
+    }
 }

@@ -38,6 +38,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+private data class WorkspaceDirectoryEntry(val file: File, val directory: Boolean, val bytes: Long)
+
 @Composable
 fun WorkspacePage(vm: CodexViewModel) {
     val ctx = LocalContext.current
@@ -48,8 +50,8 @@ fun WorkspacePage(vm: CodexViewModel) {
     val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val running by vm.running.collectAsState()
-    val terminal by vm.terminalSession.collectAsState()
-    val vmErrors by vm.errors.collectAsState()
+    val terminalRunning by vm.terminalSession.collectProjection { it.running }
+    val vmErrors by vm.errors.collectEntries("workspace")
     var folder by remember { mutableStateOf(root) }
     var pendingWorkspace by remember { mutableStateOf<File?>(null) }
     var focus by remember { mutableStateOf<File?>(null) }
@@ -59,6 +61,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createKind by remember { mutableStateOf("file") }
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var showProjectManager by rememberSaveable { mutableStateOf(false) }
+    var selectedEntry by remember(folder) { mutableStateOf<WorkspaceDirectoryEntry?>(null) }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
     var renameName by remember { mutableStateOf("") }
     var copyName by remember { mutableStateOf("") }
@@ -99,6 +102,28 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
 
+    // Shared storage may be changed by the native core, terminal or system file manager.
+    DisposableEffect(folder) {
+        var refreshJob: kotlinx.coroutines.Job? = null
+        val observer = object : android.os.FileObserver(folder,
+            android.os.FileObserver.CREATE or android.os.FileObserver.DELETE or
+                android.os.FileObserver.MOVED_FROM or android.os.FileObserver.MOVED_TO or
+                android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.DELETE_SELF or
+                android.os.FileObserver.MOVE_SELF) {
+            override fun onEvent(event: Int, path: String?) {
+                scope.launch {
+                    refreshJob?.cancel()
+                    refreshJob = scope.launch {
+                        kotlinx.coroutines.delay(180)
+                        refresh++
+                    }
+                }
+            }
+        }
+        observer.startWatching()
+        onDispose { observer.stopWatching(); refreshJob?.cancel() }
+    }
+
     if (focus != null) {
         FileEditor(focus!!, root, onBack = { focus = null; refresh++ })
         return
@@ -108,14 +133,28 @@ fun WorkspacePage(vm: CodexViewModel) {
             it.path == root.path || it.path.startsWith(root.path + File.separator)
         } ?: root
     }
-    val children = remember(folder, refresh) {
-        folder.listFiles()?.filterNot { WorkspaceImport.isStagingName(it.name) }
-            ?.sortedWith(compareBy<File> { !it.isDirectory }
-                .thenBy { it.name.lowercase() }) ?: emptyList()
+    // Keep the last directory snapshot visible until its replacement is ready.
+    val directoryResult by key(folder) {
+        produceState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
+            try {
+                val entries = withContext(Dispatchers.IO) {
+                    val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }
+                    entries.asSequence()
+                        .filterNot { WorkspaceImport.isStagingName(it.name) }
+                        .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
+                        .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
+                            .thenBy { it.file.name.lowercase() }).toList()
+                }
+                value = Result.success(entries)
+            } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
+            catch (failure: Exception) { value = Result.failure(failure) }
+        }
     }
-
+    val children = directoryResult?.getOrNull().orEmpty()
     var fileQuery by remember(folder) { mutableStateOf("") }
-    val visibleChildren = children.filter { it.name.contains(fileQuery.trim(), ignoreCase = true) }
+    val visibleChildren = remember(children, fileQuery) {
+        children.filter { it.file.name.contains(fileQuery.trim(), ignoreCase = true) }
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -128,7 +167,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Column(Modifier.weight(1f)) {
                     Text("当前目录", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     Text(folder.relativeTo(root).path.takeIf { it != "." }
-                        ?.let { "projects/" + it } ?: "projects/",
+                        ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it } ?: (WorkspaceStorage.DISPLAY_ROOT + "/"),
                         fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -157,7 +196,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
                 if (selectedWorkspace != folder.canonicalPath) {
                     CodexTextAction(onClick = { pendingWorkspace = folder },
-                        enabled = !running && !terminal.running && !actionBusy,
+                        enabled = !running && !terminalRunning && !actionBusy,
                         modifier = Modifier.testTag("workspace-select-current")) {
                         Text("设为当前项目", maxLines = 1)
                     }
@@ -231,8 +270,12 @@ fun WorkspacePage(vm: CodexViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("目录内容", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                Text(if (fileQuery.isBlank()) "${children.size} 项" else "${visibleChildren.size} / ${children.size} 项", style = MaterialTheme.typography.labelMedium,
-                    color = Ink.muted)
+                Text(when {
+                    directoryResult == null -> "读取中"
+                    directoryResult?.isFailure == true -> "读取失败"
+                    fileQuery.isBlank() -> "${children.size} 项"
+                    else -> "${visibleChildren.size} / ${children.size} 项"
+                }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
         }
         if (children.isNotEmpty()) item(key = "workspace-search") {
@@ -243,18 +286,28 @@ fun WorkspacePage(vm: CodexViewModel) {
             CodexEmptyState("没有匹配的文件", "试试其他文件名。",
                 actionLabel = "清除搜索", onAction = { fileQuery = "" })
         }
-        if (children.isEmpty()) item {
-            CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
-                icon = CodexGlyph.Project)
+        when {
+            directoryResult == null -> item(key = "workspace-directory-loading") {
+                AtlasOperationProgress("正在读取目录", Modifier.testTag("workspace-directory-loading"))
+            }
+            directoryResult?.isFailure == true -> item(key = "workspace-directory-error") {
+                CodexRecoveryState("目录读取失败",
+                    directoryResult?.exceptionOrNull()?.message ?: "无法读取当前目录",
+                    "重新读取", { refresh++ })
+            }
+            children.isEmpty() -> item {
+                CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
+                    icon = CodexGlyph.Project)
+            }
         }
-        items(visibleChildren, key = { it.absolutePath }) { file ->
-            var optionsOpen by remember(file.path) { mutableStateOf(false) }
+        items(visibleChildren, key = { it.file.absolutePath }) { entry ->
+            val file = entry.file
             Surface(
                 color = Ink.panel,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
                 modifier = Modifier.fillMaxWidth().combinedClickable(
-                    onLongClick = { if (!actionBusy) optionsOpen = true },
+                    onLongClick = { if (!actionBusy) selectedEntry = entry },
                     onClick = {
                         val safe = file.canonicalFile
                         if (safe.path.startsWith(root.path + File.separator)) {
@@ -265,7 +318,7 @@ fun WorkspacePage(vm: CodexViewModel) {
             ) {
                 Row(Modifier.padding(start = 14.dp, end = 5.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(if (file.isDirectory) CodexGlyph.Folder
+                    CodexIcon(if (entry.directory) CodexGlyph.Folder
                         else CodexGlyph.Description,
                         contentDescription = null, tint = Ink.copper,
                         modifier = Modifier.size(24.dp))
@@ -273,52 +326,53 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Column(Modifier.weight(1f)) {
                         Text(file.name, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodyMedium)
-                        Text(if (file.isDirectory) "文件夹" else "${file.length() / 1024} KB",
+                        Text(if (entry.directory) "文件夹" else "${entry.bytes / 1024} KB",
                             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
-                    Box {
-                        CodexIconAction(onClick = { optionsOpen = true },
-                            enabled = !actionBusy,
-                            modifier = Modifier.testTag("workspace-menu-" + file.name)) {
-                            CodexIcon(CodexGlyph.MoreVert, "管理 " + file.name)
-                        }
-                        if (optionsOpen) CodexActionSheet(
-                            title = "管理 " + file.name,
-                            onDismiss = { optionsOpen = false },
-                            actions = listOf(
-                                CodexSheetAction(
-                                    label = "重命名",
-                                    description = "更改当前文件或文件夹的名称",
-                                    icon = CodexGlyph.Edit,
-                                    onClick = {
-                                        renameName = file.name
-                                        fileAction = "rename" to file
-                                    }
-                                ),
-                                CodexSheetAction(
-                                    label = "复制",
-                                    description = "在当前目录建立一份副本",
-                                    icon = CodexGlyph.ContentCopy,
-                                    onClick = {
-                                        copyName = if (file.isDirectory) file.name + "-副本"
-                                            else file.nameWithoutExtension + "-副本" +
-                                                (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
-                                        fileAction = "copy" to file
-                                    }
-                                ),
-                                CodexSheetAction(
-                                    label = "删除",
-                                    description = "删除前将再次确认目标",
-                                    icon = CodexGlyph.DeleteOutline,
-                                    onClick = { fileAction = "delete" to file },
-                                    destructive = true
-                                )
-                            )
-                        )
+                    CodexIconAction(onClick = { selectedEntry = entry }, enabled = !actionBusy,
+                        modifier = Modifier.testTag("workspace-menu-" + file.name)) {
+                        CodexIcon(CodexGlyph.MoreVert, "管理 " + file.name)
                     }
                 }
             }
         }
+    }
+
+    selectedEntry?.let { entry ->
+        val file = entry.file
+        CodexActionSheet(
+            title = "管理 " + file.name,
+            onDismiss = { selectedEntry = null },
+            actions = listOf(
+                CodexSheetAction(
+                    label = "重命名",
+                    description = "更改当前文件或文件夹的名称",
+                    icon = CodexGlyph.Edit,
+                    onClick = {
+                        renameName = file.name
+                        fileAction = "rename" to file
+                    }
+                ),
+                CodexSheetAction(
+                    label = "复制",
+                    description = "在当前目录建立一份副本",
+                    icon = CodexGlyph.ContentCopy,
+                    onClick = {
+                        copyName = if (entry.directory) file.name + "-副本"
+                            else file.nameWithoutExtension + "-副本" +
+                                (file.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                        fileAction = "copy" to file
+                    }
+                ),
+                CodexSheetAction(
+                    label = "删除",
+                    description = "删除前将再次确认目标",
+                    icon = CodexGlyph.DeleteOutline,
+                    onClick = { fileAction = "delete" to file },
+                    destructive = true
+                )
+            )
+        )
     }
 
     if (showProjectManager) {
@@ -331,7 +385,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 "后续新对话和本地终端将在选定目录工作。"
             else "当前会话会保留在历史中，切换后将从新会话继续工作。",
             detail = target.relativeTo(root).path.takeIf { it != "." }
-                ?.let { "projects/" + it } ?: "projects/",
+                ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it } ?: (WorkspaceStorage.DISPLAY_ROOT + "/"),
             confirmLabel = "确认使用此项目",
             onConfirm = {
                 try {

@@ -24,13 +24,13 @@ import androidx.compose.ui.window.DialogProperties
 @Composable
 internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val visible by vm.running.collectAsState()
-    val executions by vm.threadExecutions.collectAsState()
+    val executions by vm.threadExecutions.collectProjection { it.size }
     val creating by vm.firstThreadStarting.collectAsState()
-    val terminal by vm.terminalSession.collectAsState()
-    val approvals by vm.bridge.prompts.collectAsState()
-    val transfer by AppDataTransfer.state.collectAsState()
-    val requests by vm.loading.collectAsState()
-    val wireRequests by vm.bridge.activeRpcRequests.collectAsState()
+    val terminalRunning by vm.terminalSession.collectProjection { it.running }
+    val approvals by vm.bridge.prompts.collectProjection { it.size }
+    val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
+    val requests by vm.loading.collectProjection { it.size }
+    val wireRequests by vm.bridge.activeRpcRequests.collectProjection { it.size }
     val login by vm.loginBusy.collectAsState()
     val planApproval by vm.planApprovalBusy.collectAsState()
     val threadSwitching by vm.threadSwitching.collectAsState()
@@ -40,12 +40,12 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val restarting by vm.connectionRestarter.busy.collectAsState()
     return GlobalWorkSnapshot(
         visibleTurnRunning = visible,
-        executingThreads = executions.size,
+        executingThreads = executions,
         creatingThread = creating,
-        terminalRunning = terminal.running,
-        pendingApprovals = approvals.size,
-        dataTransferBusy = transfer.busy,
-        inFlightRequests = requests.size + wireRequests.size,
+        terminalRunning = terminalRunning,
+        pendingApprovals = approvals,
+        dataTransferBusy = transferBusy,
+        inFlightRequests = requests + wireRequests,
         loginBusy = login,
         planApprovalBusy = planApproval,
         switchingThread = threadSwitching,
@@ -102,4 +102,11 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
             }
         }
     }
+}
+
+/** Keep changing archive progress in its own overlay rather than invalidating the page shell. */
+@Composable
+internal fun ObserveDataTransferBusyOverlay() {
+    val transfer by AppDataTransfer.state.collectAsState()
+    DataTransferBusyOverlay(transfer)
 }

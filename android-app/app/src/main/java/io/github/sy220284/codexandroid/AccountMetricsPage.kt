@@ -27,14 +27,13 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     var selectedTab by rememberSaveable(id, requestedTab) {
         mutableStateOf(if (id == "limits" || requestedTab == "limits") "limits" else "usage")
     }
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("usage", "limits")
     val engineStatus by vm.bridge.status.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectEntries("usage", "limits")
+    val loading by vm.loading.collectProjection { it.intersect(setOf("usage", "limits")) }
     val result = data[selectedTab]
     val usage = selectedTab == "usage"
-    val method = if (usage) "account/usage/read" else "account/rateLimits/read"
-    LaunchedEffect(selectedTab) { vm.refresh(selectedTab, method) }
+    // Both tabs observe process-owned snapshots; entering or switching never clears data.
     ScreenColumn {
         AtlasCompactChoice(selectedTab, listOf("usage" to "用量", "limits" to "额度"),
             onSelect = { selectedTab = it })
@@ -46,20 +45,21 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 Column(Modifier.weight(1f)) {
                     Text(if (usage) "账号使用概况" else "额度窗口",
                         style = MaterialTheme.typography.titleMedium)
-                    Text("与当前登录账号同步",
+                    Text("后台自动同步",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                 }
-                CodexRefreshIcon(busy = selectedTab in loading,
-                    onRefresh = { vm.refresh(selectedTab, method) },
-                    label = "刷新账号数据")
             }
-            if (selectedTab in loading) AtlasOperationProgress(if (usage) "正在读取用量" else "正在读取额度")
+            if (result == null && selectedTab in loading)
+                AtlasOperationProgress(if (usage) "正在读取用量" else "正在读取额度")
         }
         if (result != null && engineStatus != EngineStatus.Connected) {
             CodexNotice("当前显示上次读取的账号数据，连接后可更新。", NoticeTone.Warning,
                 actionLabel = if (engineStatus is EngineStatus.Unavailable) "重新连接" else null,
                 onAction = { vm.connect() })
-        } else if (result != null && selectedTab !in loading) errors[selectedTab]?.let { ErrorText(it) }
+        } else if (result != null && selectedTab !in loading && selectedTab in errors) {
+            CodexNotice("后台同步失败，当前保留上次读取的数据。", NoticeTone.Warning,
+                actionLabel = "重试", onAction = { vm.accountMetrics.refresh(setOf(selectedTab)) })
+        }
         if (result == null && selectedTab !in loading) {
             when {
                 engineStatus != EngineStatus.Connected -> {
@@ -70,7 +70,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                 selectedTab in errors -> {
                     CodexRecoveryState("账号数据读取失败",
                         "检查登录状态后可重试读取。",
-                        "重新读取", { vm.refresh(selectedTab, method) },
+                        "重新读取", { vm.accountMetrics.refresh(setOf(selectedTab)) },
                         { navigate("diagnostics") })
                 }
                 else -> CodexEmptyState("登录后查看账号数据",
@@ -125,11 +125,11 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             if (groups != null && groups.length() > 0) {
                 for (bucket in groups.keys()) {
                     val snapshot = groups.optJSONObject(bucket) ?: continue
-                    LimitBucketCard(snapshot.optString("limitName").ifBlank { bucket }, snapshot)
+                    LimitBucketCard(metricLabel(snapshot, "limitName", bucket), snapshot)
                 }
             } else {
                 result.optJSONObject("rateLimits")?.let {
-                    LimitBucketCard(it.optString("limitName").ifBlank { "当前账号" }, it)
+                    LimitBucketCard(metricLabel(it, "limitName", "当前账号"), it)
                 }
             }
             if (groups == null && result.optJSONObject("rateLimits") == null) {
@@ -138,6 +138,9 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
         }
     }
 }
+
+private fun metricLabel(value: JSONObject, key: String, fallback: String): String =
+    (value.opt(key) as? String)?.takeIf { it.isNotBlank() && it != "null" } ?: fallback
 
 private fun formatMetricNumber(raw: Any?): String =
     if (raw is Number) NumberFormat.getIntegerInstance(Locale.CHINA).format(raw.toLong())
@@ -156,7 +159,7 @@ private fun MetricNumberCard(label: String, value: String, note: String, modifie
 private fun LimitBucketCard(title: String, snapshot: JSONObject) {
     MaterialPanel(Modifier.fillMaxWidth()) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        val plan = snapshot.optString("planType")
+        val plan = metricLabel(snapshot, "planType", "")
         if (plan.isNotBlank()) Text("账号计划已读取", color = Ink.muted,
             style = MaterialTheme.typography.bodySmall)
         val reached = snapshot.optString("rateLimitReachedType")
@@ -185,7 +188,7 @@ private fun LimitBucketCard(title: String, snapshot: JSONObject) {
         snapshot.optJSONObject("credits")?.let { credits ->
             Text("额外额度", style = MaterialTheme.typography.titleMedium)
             Text(if (credits.optBoolean("unlimited")) "无限额度"
-                else credits.optString("balance").ifBlank { "余额未提供" },
+                else metricLabel(credits, "balance", "余额未提供"),
                 color = Ink.muted)
         }
     }

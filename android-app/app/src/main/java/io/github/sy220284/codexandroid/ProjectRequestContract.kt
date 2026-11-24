@@ -36,6 +36,12 @@ object ProjectRequestContract {
             .put("threads", JSONArray().put(threadId))
     }
 
+    /** Update only root paths while preserving the server's name, metadata and project identity. */
+    fun relocate(id: String, roots: JSONArray): JSONObject {
+        require(id.isNotBlank() && roots.length() > 0) { "项目迁移参数不完整" }
+        return JSONObject().put("projectId", id).put("roots", roots)
+    }
+
     fun rename(id: String, newName: String): JSONObject {
         require(id.isNotBlank() && newName.trim().isNotEmpty()) { "请提供项目和名称" }
         return JSONObject().put("projectId", id).put("name", newName.trim())

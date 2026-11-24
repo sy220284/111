@@ -537,7 +537,7 @@ class CodexInteractionComponentsInstrumentedTest {
                 TimelineStepCard(TimelineItem("test-message-reader", "agentMessage", "可核对的原始内容"))
             }
         }
-        rule.onNodeWithTag("timeline-more-test-message-reader").performClick()
+        rule.onNodeWithTag("timeline-header-test-message-reader").performClick()
         rule.onNodeWithText("全文阅读").performClick()
         rule.onNodeWithTag("full-text-search").assertExists()
         rule.onNodeWithTag("full-text-search").performTextInput("原始")
@@ -578,12 +578,23 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
     @Test fun messageHeaderLongPressPreservesReaderAction() {
+        var action: Pair<String, MessageTurnAction>? = null
         rule.setContent {
-            CodexTheme { TimelineStepCard(TimelineItem("long-press", "agentMessage", "原始消息正文")) }
+            CodexTheme {
+                TimelineStepCard(TimelineItem("long-press", "agentMessage", "原始消息正文", "completed", turnId = "test-turn"),
+                    onTurnAction = { item, selected -> action = item.turnId to selected })
+            }
         }
+        rule.onNodeWithTag("message-copy-long-press").assertExists()
+        rule.onNodeWithTag("message-share-long-press").assertExists()
+        rule.onNodeWithTag("message-retry-long-press").assertIsEnabled().performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Retry, action) }
         rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
-        rule.onNodeWithText("复制内容").assertExists()
+        rule.onNodeWithTag("message-fork-long-press").assertIsEnabled()
         captureComponentEvidence("audit-message-menu-android35.png")
+        rule.onNodeWithTag("message-fork-long-press").performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Fork, action) }
+        rule.onNodeWithTag("timeline-header-long-press").performClick()
         rule.onNodeWithText("全文阅读").performClick()
         rule.onNode(hasText("原始消息正文") and hasAnyAncestor(hasTestTag("full-text-reader"))).assertExists()
     }
@@ -745,5 +756,58 @@ class CodexInteractionComponentsInstrumentedTest {
 
     @Test fun v8RouteMotionConvergesAndReducedMotionSnaps() {
         assertV8RouteMotion(rule)
+    }
+    @Test fun answerVersionSwitcherKeepsNavigationInTheMessage() {
+        var chosen = ""
+        val state = AnswerVersionState().add("original", "turn-one", "retry").bind("retry", "turn-two")
+        rule.setContent {
+            CodexTheme {
+                TimelineStepCard(TimelineItem("version-message", "agentMessage", "第二版回答", "completed", turnId = "turn-two"),
+                    version = state.choice("retry", "turn-two"), onVersion = { chosen = it })
+            }
+        }
+        rule.onNodeWithText("2 / 2").assertExists()
+        rule.onNodeWithTag("answer-next-version-message").assertIsNotEnabled()
+        rule.onNodeWithTag("answer-previous-version-message").assertIsEnabled().performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals("original", chosen) }
+        rule.onNodeWithTag("message-copy-version-message").assertExists()
+    }
+
+
+    @Test fun progressiveReplyShowsFragmentsThenOneAnswerAction() {
+        val partial = TimelineItem("partial-ui", "agentMessage", "第一部分\n\n", "completed",
+            turnId = "progressive-ui", phase = "partial_answer")
+        val commentary = TimelineItem("commentary-ui", "agentMessage", "继续检查", "completed",
+            turnId = "progressive-ui", phase = "commentary")
+        val final = TimelineItem("final-ui", "agentMessage", "第二部分", "completed",
+            turnId = "progressive-ui", phase = "final_answer")
+        val running = androidx.compose.runtime.mutableStateOf(true)
+        val events = androidx.compose.runtime.mutableStateOf(listOf(partial, commentary))
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.foundation.layout.Column {
+                    val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(events.value),
+                        running.value, if (running.value) "progressive-ui" else null, false)
+                    rows.forEach { row ->
+                        androidx.compose.runtime.key(row.key) {
+                            TimelineActivityGroup(row.group, showMessageActions = row.showActions,
+                                actionItem = row.actionItem, forceActivity = row.forceActivity, note = row.note)
+                        }
+                    }
+                }
+            }
+        }
+        rule.onNodeWithText("第一部分").assertExists()
+        rule.onNodeWithTag("chat-commentary").assertExists()
+        rule.onNodeWithTag("message-copy-partial-ui").assertDoesNotExist()
+        rule.runOnIdle { events.value = events.value + final; running.value = false }
+        rule.onNodeWithTag("message-copy-final-ui").assertExists()
+        rule.onNodeWithTag("message-copy-partial-ui").assertDoesNotExist()
+        rule.onNodeWithTag("chat-commentary").assertDoesNotExist()
+        rule.onNodeWithTag("timeline-header-final-ui").performClick()
+        rule.onNodeWithText("全文阅读").performClick()
+        rule.onNodeWithTag("full-text-reader").assertExists()
+        rule.onNodeWithTag("full-text-search").performTextInput("第二部分")
+        rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
 }

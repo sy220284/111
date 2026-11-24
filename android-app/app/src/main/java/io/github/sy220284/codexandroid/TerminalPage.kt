@@ -51,9 +51,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var recentCommands by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var historyVisible by rememberSaveable { mutableStateOf(false) }
     var historyPosition by remember { mutableStateOf(TerminalHistoryPosition()) }
-    var showFullOutput by rememberSaveable { mutableStateOf(false) }
-    var showOlderOutput by rememberSaveable { mutableStateOf(false) }
-    val clipboard = LocalClipboardManager.current
+    var readerOutput by remember { mutableStateOf<Pair<String, String>?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val transcriptAvailable by vm.terminalTranscript.available.collectAsState()
@@ -86,26 +84,53 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     }
     var confirm by remember { mutableStateOf(false) }
     var input by rememberSaveable { mutableStateOf("") }
-    val session by vm.terminalSession.collectAsState()
+    val session by vm.terminalSession.collectProjection { TerminalControlState.from(it) }
+    val outputState = vm.terminalSession.collectFrameState(session.processId)
+    val renderedOutput = rememberTerminalOutput(outputState, session.processId)
     val terminalStarting by vm.terminalStarting.collectAsState()
-    val errors by vm.errors.collectAsState()
-    var historicalStdout by remember(session.processId) { mutableStateOf("") }
+    val errors by vm.errors.collectEntries("terminal", "terminalInput", "terminalStop", "terminalResize")
+    var historicalPages by remember(session.processId) { mutableStateOf<List<String>>(emptyList()) }
+    var selectedHistoryPage by remember(session.processId) { mutableIntStateOf(0) }
+    val historicalStdout = historicalPages.getOrNull(selectedHistoryPage).orEmpty()
     var historicalOffset by remember(session.processId) { mutableStateOf<Long?>(null) }
     var historicalMore by remember(session.processId) { mutableStateOf(true) }
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
     var historicalError by remember(session.processId) { mutableStateOf("") }
     val activeWorkspace by vm.activeWorkspace.collectAsState()
-    val consoleScroll = rememberScrollState()
+    val consoleScroll = key(session.processId) { rememberScrollState() }
     var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
-    LaunchedEffect(consoleScroll) {
-        snapshotFlow { consoleScroll.isScrollInProgress to
-            (consoleScroll.value >= consoleScroll.maxValue - 24) }.collect { (scrolling, atEnd) ->
-            if (scrolling) followConsoleTail = atEnd
+    var automaticConsoleScroll by remember(session.processId) { mutableStateOf(false) }
+    LaunchedEffect(consoleScroll, session.processId) {
+        consoleScroll.interactionSource.interactions.collect { interaction ->
+            if (interaction is androidx.compose.foundation.interaction.DragInteraction.Start)
+                followConsoleTail = false
         }
     }
     LaunchedEffect(consoleScroll, session.processId) {
-        snapshotFlow { consoleScroll.maxValue }.collect { bottom ->
-            if (followConsoleTail) consoleScroll.scrollTo(bottom)
+        snapshotFlow { Triple(consoleScroll.isScrollInProgress,
+            consoleScroll.value >= consoleScroll.maxValue - 24, automaticConsoleScroll) }
+            .collect { (scrolling, atEnd, automatic) ->
+                if (!scrolling && atEnd) followConsoleTail = true
+                else if (scrolling && !automatic) followConsoleTail = false
+            }
+    }
+    LaunchedEffect(consoleScroll, session.processId) {
+        snapshotFlow { consoleScroll.maxValue to renderedOutput.value }.collect {
+            if (followConsoleTail) {
+                withFrameNanos { }
+                if (followConsoleTail && consoleScroll.value < consoleScroll.maxValue) {
+                    kotlinx.coroutines.coroutineScope {
+                        launch {
+                            automaticConsoleScroll = true
+                            try {
+                                consoleScroll.scrollTo(consoleScroll.maxValue)
+                            } finally {
+                                automaticConsoleScroll = false
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -218,31 +243,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
                     }
                     MaterialPanel(Modifier.fillMaxWidth()) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("标准输出", modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleMedium)
-                            CodexTextAction(
-                                onClick = {
-                                    clipboard.setText(AnnotatedString(session.stdoutText))
-                                    vm.actionFeedback.tryEmit(ActionFeedbackReceipt("终端输出已复制"))
-                                },
-                                enabled = session.stdoutText.isNotBlank(),
-                                modifier = Modifier.heightIn(min = 48.dp)
-                            ) {
-                                CodexIcon(CodexGlyph.ContentCopy, null,
-                                    modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("复制")
-                            }
-                            CodexTextAction(
-                                onClick = { showFullOutput = true },
-                                enabled = session.stdoutText.length > 16_000,
-                                modifier = Modifier.heightIn(min = 48.dp)
-                                    .testTag("terminal-full-stdout")
-                            ) { Text("查看完整输出") }
+                        TerminalOutputHeader(vm, session.processId, renderedOutput, session.outputTruncated) { text ->
+                            readerOutput = "终端标准输出" to text
                         }
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
                             CodexSecondaryButton(
@@ -257,7 +259,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                             if (vm.terminalSession.value.processId == targetId) {
                                                 historicalOffset = page.beforeOffset
                                                 historicalMore = page.hasMore
-                                                historicalStdout = (page.text + historicalStdout).takeLast(256_000)
+                                                if (page.text.isNotEmpty()) {
+                                                    historicalPages = historicalPages + page.text
+                                                    selectedHistoryPage = historicalPages.lastIndex
+                                                }
                                             }
                                         } catch (failure: Exception) {
                                             historicalError = failure.message ?: "无法读取更早的输出"
@@ -277,10 +282,17 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         }
                         if (historicalError.isNotBlank()) ErrorText(historicalError)
                         if (historicalStdout.isNotBlank()) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                CodexTextAction(onClick = { selectedHistoryPage-- }, enabled = selectedHistoryPage > 0) { Text("较新") }
+                                Text("历史段 " + (selectedHistoryPage + 1) + " / " + historicalPages.size,
+                                    style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                                CodexTextAction(onClick = { selectedHistoryPage++ }, enabled = selectedHistoryPage < historicalPages.lastIndex) { Text("较早") }
+                            }
                             Text("较早的标准输出（本机分页读取）",
                                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                             CodexTextAction(
-                                onClick = { showOlderOutput = true },
+                                onClick = { readerOutput = "较早的标准输出" to historicalStdout },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("terminal-older-stdout-open")
                             ) {
@@ -310,22 +322,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 color = if (exportStatus.contains("失败")) Ink.red else Ink.jade,
                                 style = MaterialTheme.typography.labelMedium)
                         DividerLine()
-                        SelectionContainer {
-                            Text(session.stdoutText.takeLast(16_000).ifBlank {
-                                if (session.running) "等待命令输出…" else "(无标准输出)"
-                            }, fontFamily = FontFamily.Monospace, color = Ink.parchment,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.testTag("terminal-stdout"))
-                        }
-                        if (session.stderrBytes.isNotEmpty()) {
-                            Spacer(Modifier.height(10.dp))
-                            Text("错误输出", style = MaterialTheme.typography.titleMedium)
-                            SelectionContainer {
-                                Text(session.stderrText.takeLast(16_000),
-                                    fontFamily = FontFamily.Monospace, color = Ink.red,
-                                    style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                        TerminalOutputPreview(session.processId, session.running, renderedOutput)
                     }
                 } else {
                     MaterialPanel(Modifier.fillMaxWidth().heightIn(min = minOf(consoleHeight.value, 172f).dp)
@@ -471,16 +468,9 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
         }
         errors["terminal"]?.let { ErrorText(it) }
     }
-    if (showFullOutput) FullTextReaderDialog(
-        title = "终端标准输出",
-        text = session.stdoutText,
-        onDismiss = { showFullOutput = false }
-    )
-    if (showOlderOutput) FullTextReaderDialog(
-        title = "较早的标准输出",
-        text = historicalStdout,
-        onDismiss = { showOlderOutput = false }
-    )
+    readerOutput?.let { (title, text) ->
+        FullTextReaderDialog(title = title, text = text, onDismiss = { readerOutput = null })
+    }
     if (confirm) CodexConfirmDialog(
         title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
         message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",

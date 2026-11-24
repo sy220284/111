@@ -71,7 +71,7 @@ class ThreadComposerDraftsTest {
         drafts = ThreadComposerDrafts.images(drafts, "A", listOf("old.png", "new.png"))
         val after = ThreadComposerDrafts.accepted(drafts, "A", "第一版", listOf("old.png"))
         assertEquals("新输入仍保留", after["A"]?.text)
-        assertEquals(listOf("old.png", "new.png"), after["A"]?.images)
+        assertEquals(listOf("new.png"), after["A"]?.images)
     }
 
     @Test fun acceptedSteerDoesNotDeletePendingImages() {
@@ -82,5 +82,18 @@ class ThreadComposerDraftsTest {
         val after = ThreadComposerDrafts.accepted(drafts, "A", "补充要求", emptyList())
         assertEquals("", after["A"]?.text)
         assertEquals(listOf("pending.png"), after["A"]?.images)
+    }
+    @org.junit.Test fun projectDraftsRemainIndependentWhenFirstTurnCreatesThread() {
+        val a = ThreadComposerDrafts.key(null, "/project/a")
+        val b = ThreadComposerDrafts.key(null, "/project/b")
+        var drafts = ThreadComposerDrafts.text(emptyMap(), a, "甲")
+        drafts = ThreadComposerDrafts.text(drafts, b, "乙")
+        drafts = ThreadComposerDrafts.attachNewThread(drafts, "thread-a", a)
+        org.junit.Assert.assertEquals("甲", drafts["thread-a"]?.text)
+        org.junit.Assert.assertEquals("乙", drafts[b]?.text)
+        org.junit.Assert.assertNull(drafts[a])
+        drafts = ThreadComposerDrafts.reclaimRejectedNewThread(drafts, "thread-a", a)
+        org.junit.Assert.assertEquals("甲", drafts[a]?.text)
+        org.junit.Assert.assertEquals("乙", drafts[b]?.text)
     }
 }

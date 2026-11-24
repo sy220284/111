@@ -2,11 +2,10 @@ package io.github.sy220284.codexandroid
 
 import android.content.Context
 import org.json.JSONArray
-import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
 
-/** Persist user text and portable image filenames, never absolute device paths. */
+/** Persist user text, portable image filenames, explicit choices and local references. */
 internal data class DraftRestoreResult(
     val drafts: Map<String, ComposerDraft>,
     val missingImages: Int = 0,
@@ -31,9 +30,13 @@ internal object DraftPersistence {
             val names = entry.optJSONArray("images") ?: JSONArray()
             val saved = ComposerDraft(
                 text = entry.optString("text"),
-                images = (0 until names.length()).map { names.getString(it) }
+                images = (0 until names.length()).map { names.getString(it) },
+                options = ComposerTaskOptions.decode(entry.optJSONObject("options")),
+                references = entry.optJSONArray("references")?.let { array ->
+                    (0 until array.length()).map { ComposerReference.decode(array.getJSONObject(it)) }
+                }.orEmpty()
             )
-            if (saved.text.isNotBlank() || saved.images.isNotEmpty()) result[id] = saved
+            if (saved.hasStoredState) result[id] = saved
         }
         return result
     }
@@ -48,9 +51,11 @@ internal object DraftPersistence {
                 }
                 name
             }.distinct()
-            if (draft.text.isNotBlank() || names.isNotEmpty()) {
-                source.put(id, JSONObject().put("text", draft.text)
-                    .put("images", JSONArray(names)))
+            if (draft.hasStoredState) {
+                val entry = JSONObject().put("text", draft.text).put("images", JSONArray(names))
+                if (draft.options != ComposerTaskOptions()) entry.put("options", draft.options.encode())
+                if (draft.references.isNotEmpty()) entry.put("references", JSONArray(draft.references.map { it.encode() }))
+                source.put(id, entry)
             }
         }
         return source.toString()
@@ -76,7 +81,7 @@ internal object DraftPersistence {
                 } else missing++
             }
             val saved = draft.copy(images = files)
-            if (saved.text.isNotBlank() || files.isNotEmpty()) resolved[id] = saved
+            if (saved.hasStoredState) resolved[id] = saved
         }
         return DraftRestoreResult(resolved, missing)
     }
@@ -86,7 +91,7 @@ internal object DraftPersistence {
         val raw = prefs.getString(KEY, null) ?: return DraftRestoreResult(emptyMap())
         val decoded = try {
             decode(raw)
-        } catch (failure: JSONException) {
+        } catch (failure: Exception) {
             // Keep an untouched local copy before any new save can overwrite it.
             val backupKey = "drafts-recovery-" + System.currentTimeMillis()
             check(prefs.edit().putString(backupKey, raw).commit()) {
@@ -95,7 +100,22 @@ internal object DraftPersistence {
             return DraftRestoreResult(emptyMap(), warning =
                 "发现无法读取的旧草稿，原始记录已保存在本机备份 $backupKey；可通过本地数据导出保留")
         }
-        return resolveStoredImages(LocalImageAttachments.directory(context), decoded)
+        val relocated = linkedMapOf<String, ComposerDraft>()
+        for ((id, draft) in decoded) {
+            val prefix = ThreadComposerDrafts.NEW_THREAD + ":"
+            val owner = if (id.startsWith(prefix))
+                prefix + WorkspaceStorage.remap(context, id.removePrefix(prefix)) else id
+            val updated = draft.copy(references = draft.references.map { reference ->
+                if (reference.kind == "file") reference.copy(path = WorkspaceStorage.remap(context, reference.path))
+                else reference
+            })
+            val previous = relocated[owner]
+            relocated[owner] = if (previous == null || previous == updated) updated
+                else previous.copy(text = listOf(previous.text, updated.text).filter { it.isNotBlank() }.distinct().joinToString("\n"),
+                    images = (previous.images + updated.images).distinct(),
+                    references = (previous.references + updated.references).distinct())
+        }
+        return resolveStoredImages(LocalImageAttachments.directory(context), relocated)
     }
 
     fun save(context: Context, drafts: Map<String, ComposerDraft>) {

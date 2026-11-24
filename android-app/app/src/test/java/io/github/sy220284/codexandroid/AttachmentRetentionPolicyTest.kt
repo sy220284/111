@@ -19,11 +19,20 @@ class AttachmentRetentionPolicyTest {
                 setLastModified(now - 2L * AttachmentRetentionPolicy.ORPHAN_TTL_MILLIS)
             }
             val recent = File(folder, "recent.png").apply { writeText("recent") }
+            val historical = File(folder, "sent.png").apply {
+                writeText("sent")
+                setLastModified(now - 9L * AttachmentRetentionPolicy.ORPHAN_TTL_MILLIS)
+            }
+            repeat(2) {
+                AttachmentRetentionPolicy.preserveForHistory(folder, listOf(historical.canonicalPath))
+            }
             assertEquals(1, AttachmentRetentionPolicy.prune(
                 folder, setOf(referenced.canonicalPath), now))
             assertTrue(referenced.isFile)
             assertFalse(orphan.exists())
             assertTrue(recent.isFile)
+            assertTrue(historical.isFile)
+            assertTrue(AttachmentRetentionPolicy.isHistorical(folder, historical))
         } finally {
             folder.deleteRecursively()
         }

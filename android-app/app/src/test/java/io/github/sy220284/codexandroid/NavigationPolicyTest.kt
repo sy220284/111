@@ -4,10 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationPolicyTest {
-    @Test fun coldStartRouteIsChatWithoutRemovingWorkbench() {
+    @Test fun coldStartRouteIsSingleTaskHome() {
         assertEquals("chat", NavigationPolicy.startRoute)
         assertTrue(NavigationPolicy.isCommon(NavigationPolicy.startRoute))
-        assertTrue(NavigationPolicy.isCommon("home"))
+        assertFalse(NavigationPolicy.isCommon("home"))
+        assertEquals("chat", NavigationPolicy.canonicalRoute("home"))
+        assertFalse("home" in UiFeatureCatalog.byRoute)
     }
 
     @Test fun newThreadAvailabilityMatchesAcrossTopBarAndSidebar() {
@@ -53,7 +55,10 @@ class NavigationPolicyTest {
         assertEquals("limits", NavigationPolicy.matchedSettingSpot("usage", "额度")?.target)
         assertEquals("advanced", NavigationPolicy.matchedSettingSpot("config", "高级配置")?.target)
         assertEquals("check", NavigationPolicy.matchedSettingSpot("update", "检查更新")?.target)
-        assertEquals("profiles", NavigationPolicy.matchedSettingSpot("security", "权限方案")?.target)
+        assertNull(NavigationPolicy.matchedSettingSpot("security", "权限方案"))
+        assertEquals("chat", NavigationPolicy.canonicalRoute("security"))
+        assertEquals(FeatureSurface.Inline, UiFeatureCatalog.find("security").surface)
+        assertFalse(NavigationPolicy.isSettingsChild("security"))
         assertEquals("motion", NavigationPolicy.matchedSettingSpot("appearance", "减少动效")?.target)
         assertEquals("custom", NavigationPolicy.matchedSettingSpot(
             "providers", "配置模型服务商")?.target)
@@ -69,39 +74,40 @@ class NavigationPolicyTest {
     }
 
     @Test fun commonNavigationRemainsCompact() {
-        assertEquals(listOf("chat", "home", "files", "settings"),
+        assertEquals(listOf("files", "settings"),
             NavigationPolicy.sidebarRoutes)
         assertFalse(NavigationPolicy.isCommon("approvals"))
         assertFalse(NavigationPolicy.isCommon("threads"))
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
-        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("threads").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
         assertFalse(NavigationPolicy.isCommon("review"))
         assertTrue(NavigationPolicy.isSettingsChild("plugins"))
         assertFalse(NavigationPolicy.isSettingsChild("terminal"))
         assertFalse(NavigationPolicy.isSettingsChild("review"))
         assertFalse(NavigationPolicy.isSettingsChild("threads"))
-        assertTrue(NavigationPolicy.isDetailPage("threads"))
+        assertFalse(NavigationPolicy.isDetailPage("threads"))
         assertFalse(NavigationPolicy.isDetailPage("approvals"))
         assertFalse(NavigationPolicy.isDetailPage("queue"))
-        assertTrue(NavigationPolicy.isDetailPage("search"))
+        assertFalse(NavigationPolicy.isDetailPage("search"))
         assertTrue(NavigationPolicy.isDetailPage("terminal"))
         assertTrue(NavigationPolicy.isDetailPage("diff"))
         assertTrue(NavigationPolicy.isDetailPage("limits"))
         assertTrue(NavigationPolicy.isDetailPage("plugins"))
         assertFalse(NavigationPolicy.isDetailPage("home"))
         assertFalse(NavigationPolicy.isDetailPage("settings"))
-        assertEquals(listOf("home", "threads", "chat", "limits"),
+        assertEquals(listOf("chat", "limits"),
             NavigationPolicy.pageHistory(listOf("home", "threads", "chat", "queue", "limits")))
-        assertEquals(listOf("search"),
+        assertEquals(listOf("chat", "files"), NavigationPolicy.pageHistory(listOf("home", "chat", "files")))
+        assertEquals(emptyList<String>(),
             NavigationPolicy.pageHistory(listOf("search", "approvals", "about")))
     }
 
     @Test fun userRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.distinct().size)
-        assertEquals(4, NavigationPolicy.featureGroups.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.distinct().size)
+        assertEquals(5, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(15, settings.size)
+        assertEquals(17, settings.size)
         assertEquals(settings.size, settings.distinct().size)
         assertTrue(settings.containsAll(listOf("models","usage","appearance","about","update")))
         assertFalse(settings.contains("limits")) // 兼容旧路由，但设置里只有一个用量与额度入口
@@ -109,7 +115,7 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.matches("用量", "", "", "usage"))
         assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("limits").surface)
         assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
     @Test fun projectAndThreadToolsUseTheirOwnContext() {
@@ -125,9 +131,19 @@ class NavigationPolicyTest {
         assertEquals(FeatureOwner.Global, UiFeatureCatalog.find("search").owner)
     }
 
+    @Test fun enginePreferencesSearchOnlyTheirOwningPage() {
+        for (setting in EngineSettings.all) {
+            assertEquals(setting.key, NavigationPolicy.matchedSettingSpot(setting.owner, setting.title)?.target)
+            assertNull(NavigationPolicy.matchedSettingSpot("config", setting.title))
+        }
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("models").surface)
+        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("appearance").surface)
+        assertEquals("developer_instructions", NavigationPolicy.matchedSettingSpot("personalization", "自定义指令")?.target)
+    }
+
     @Test fun settingsSearchResolvesCommonNamesToRegisteredDestinations() {
         val samples = mapOf(
-            "API Key" to "providers", "免审批" to "security", "字号" to "appearance",
+            "API Key" to "providers", "字号" to "appearance",
             "日志" to "diagnostics", "升级" to "update", "远程主机" to "environments",
             "插件市场" to "plugins", "MCP服务器" to "mcp"
         )

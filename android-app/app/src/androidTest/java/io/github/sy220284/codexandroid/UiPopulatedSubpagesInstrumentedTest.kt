@@ -286,23 +286,45 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = sessions, hasResponse = true, connected = true,
-                        loading = false, hasError = false, activeId = "ci-selected",
-                        running = false, switching = false, onRefresh = {}, onOpenThread = {}
+                        all = sessions, connected = true, activeId = "ci-selected",
+                        running = false, switching = false, onOpenThread = {}
                     )
                 }
             }
         }
         rule.onNodeWithText("修复工作区登录").assertExists()
         rule.onNodeWithText("检查构建流水线").assertExists()
-        rule.onNodeWithTag("sidebar-project-/projects/a").assertExists()
-        rule.onNodeWithTag("sidebar-project-/projects/b").assertExists()
-        rule.onNodeWithContentDescription("当前会话").assertExists()
-        rule.onNodeWithTag("sidebar-search-toggle").performClick()
-        rule.onNodeWithTag("sidebar-search").performTextInput("构建")
-        rule.onNodeWithText("修复工作区登录").assertDoesNotExist()
-        rule.onNodeWithText("检查构建流水线").assertExists()
+        rule.onNodeWithTag("sidebar-project-/projects/a").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-project-/projects/b").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-thread-ci-selected").assertIsSelected()
+        rule.onNodeWithTag("sidebar-search-toggle").assertDoesNotExist()
+        rule.onNodeWithText("最近会话").assertDoesNotExist()
+        rule.onNodeWithText("查看全部会话").assertDoesNotExist()
         capture("audit-sidebar-filtered-android35.png")
+    }
+
+    @Test fun flatSidebarHasPinnedUnreadAndLongPressWithoutHeadings() {
+        val records = (1..130).map { index -> JSONObject().put("id", "session-$index")
+            .put("name", "会话 $index").put("recencyAt", index) }
+        var managed = ""
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionsContent(all = records, connected = true, activeId = "session-130",
+                    running = false, switching = false, onOpenThread = {},
+                    pinned = setOf("session-1"), readStates = mapOf("session-1" to
+                        JSONObject().put("firstUnread", JSONObject().put("type", "threadStart"))),
+                    onLongPress = { managed = SessionListPolicy.id(it) })
+            }
+        }
+        rule.onNodeWithTag("sidebar-thread-session-1").assertIsDisplayed()
+        rule.onNodeWithContentDescription("已置顶").assertExists()
+        rule.onNodeWithContentDescription("未读").assertExists()
+        rule.onNodeWithTag("sidebar-thread-session-1").performTouchInput { longClick() }
+        rule.runOnIdle { assertEquals("session-1", managed) }
+        rule.onNodeWithTag("sidebar-thread-list").performScrollToNode(hasTestTag("sidebar-thread-session-2"))
+        rule.onNodeWithTag("sidebar-thread-session-2").assertExists()
+        rule.onNodeWithText("下一页").assertDoesNotExist()
+        rule.onNodeWithText("今天").assertDoesNotExist()
     }
 
     @Test fun batchToolbarSupportsAllSelectAndActionWithRealComposeClicks() {
@@ -321,7 +343,7 @@ class UiPopulatedSubpagesInstrumentedTest {
             }
         }
         rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
-        rule.onNodeWithContentDescription("全选本页").performClick()
+        rule.onNodeWithContentDescription("全选当前结果").performClick()
         rule.onNodeWithText("已选 2 条").assertExists()
         rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
         rule.onNodeWithTag("thread-bulk-delete").performClick()
@@ -357,7 +379,6 @@ class UiPopulatedSubpagesInstrumentedTest {
                     attachedCount = 0, connected = true, running = false,
                     stopping = false, canStop = false,
                     canSend = text.isNotBlank(), sending = false,
-                    followUpMode = "queue", onFollowUpModeChange = {},
                     onStop = {}, onSend = { submitted = text }
                 )
             }
@@ -383,9 +404,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = entries, hasResponse = true, connected = true,
-                        loading = false, hasError = false, activeId = "local",
-                        running = false, switching = false, onRefresh = {}, onOpenThread = {},
+                        all = entries, connected = true, activeId = "local",
+                        running = false, switching = false, onOpenThread = {},
                         liveActivities = mapOf(
                             "remote-approval" to ThreadActivity.WaitingApproval,
                             "remote-input" to ThreadActivity.WaitingAnswer
@@ -394,10 +414,10 @@ class UiPopulatedSubpagesInstrumentedTest {
                 }
             }
         }
-        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
         rule.onNodeWithText("等待审批").assertExists()
         rule.onNodeWithText("等待回答").assertExists()
-        rule.onNodeWithContentDescription("当前会话").assertExists()
+        rule.onNodeWithTag("sidebar-thread-local").assertIsSelected()
         capture("audit-sidebar-background-status-android35.png")
     }
 
@@ -411,9 +431,8 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.setContent {
             CodexTheme {
                 SidebarSessionsContent(
-                    all = entries, hasResponse = true, connected = true,
-                    loading = false, hasError = false, activeId = "first",
-                    running = true, switching = false, onRefresh = {},
+                    all = entries, connected = true, activeId = "first",
+                    running = true, switching = false,
                     onOpenThread = { opened = it }, onStopThread = { stopped = it },
                     liveExecutions = mapOf(
                         "first" to ThreadExecution(turnId = "turn-one"),
@@ -422,13 +441,28 @@ class UiPopulatedSubpagesInstrumentedTest {
                 )
             }
         }
-        rule.onNodeWithText("2 条会话正在执行或等待回应").assertExists()
-        rule.onNodeWithTag("sidebar-task-open-second").performClick()
+        rule.onNodeWithTag("sidebar-task-status").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-thread-second").performClick()
         rule.runOnIdle { assertEquals("second", opened) }
         rule.onNodeWithTag("sidebar-task-stop-first").performClick()
         rule.runOnIdle { assertEquals("first", stopped) }
         rule.onNodeWithTag("sidebar-thread-second").assertExists()
         capture("audit-multi-thread-tasks-android35.png")
+    }
+
+    @Test fun sidebarStopsOtherTurnWhileSessionSwitchIsBusy() {
+        val row = JSONObject().put("id", "running-other").put("name", "后台任务")
+        var stopped = ""
+        rule.setContent {
+            CodexTheme {
+                SidebarSessionsContent(all = listOf(row), connected = true, activeId = "current",
+                    running = false, switching = true, onOpenThread = {},
+                    onStopThread = { stopped = it },
+                    liveExecutions = mapOf("running-other" to ThreadExecution(turnId = "turn-other")))
+            }
+        }
+        rule.onNodeWithTag("sidebar-task-stop-running-other").assertIsEnabled().performClick()
+        rule.runOnIdle { assertEquals("running-other", stopped) }
     }
 
     @Test fun questionApprovalRequiresAnswersAndHasNoInvalidDeclineButton() {
@@ -459,7 +493,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsDisplayed()
         rule.onNodeWithText("检查工作区代码").assertExists()
-        rule.onNodeWithContentDescription("当前会话").assertExists()
+        rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsSelected()
         capture("audit-sidebar-thread-android35.png")
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").performClick()
         rule.runOnIdle { assertEquals("ci-thread-001", opened) }
@@ -467,30 +501,51 @@ class UiPopulatedSubpagesInstrumentedTest {
 
     @Test fun composerKeepsStopAndSteerReachableDuringActiveTurn() {
         var sent = false
+        var queued = false
         var stopped = false
+        var runningDraft by mutableStateOf("")
         rule.setContent {
-            var mode by remember { mutableStateOf("queue") }
             CodexTheme {
-                ConversationComposer(
-                    draft = "检查这一轮修改", onDraftChange = {},
-                    attachedCount = 0, connected = true,
-                    running = true, stopping = false,
-                    canStop = true, canSend = true, sending = false,
-                    followUpMode = mode, onFollowUpModeChange = { mode = it },
-                    onStop = { stopped = true }, onSend = { sent = true }
-                )
+                androidx.compose.foundation.layout.Column {
+                    ComposerQueueAction(visible = runningDraft.isNotBlank(), enabled = true,
+                        onQueue = { queued = true; runningDraft = "" },
+                        stopEnabled = true, onStop = { stopped = true })
+                    ConversationComposer(
+                        draft = runningDraft, onDraftChange = { runningDraft = it },
+                        attachedCount = 0, connected = true,
+                        running = true, stopping = false,
+                        canStop = true, canSend = runningDraft.isNotBlank(), sending = false,
+                        onStop = { stopped = true }, onSend = { sent = true; runningDraft = "" }
+                    )
+                }
             }
         }
+        rule.onNodeWithTag("composer-primary-action").assertIsDisplayed()
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
+        rule.onNodeWithTag("composer-send").assertDoesNotExist()
+        rule.onNodeWithTag("composer-stop-with-draft").assertDoesNotExist()
+        rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
+        rule.onNodeWithTag("composer-input").performTextInput("检查这一轮修改")
+        rule.onNodeWithTag("composer-send-queue").assertIsDisplayed()
+        rule.onNode(hasTestTag("composer-send-queue") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertDoesNotExist()
+        rule.onNodeWithContentDescription("引导当前任务").assertExists()
+        rule.onNodeWithTag("composer-stop").assertDoesNotExist()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
-        rule.onNodeWithTag("composer-mode-queue").assertIsDisplayed()
-        rule.onNodeWithTag("composer-mode-steer").assertIsDisplayed()
-        rule.onNodeWithContentDescription("加入后续执行队列").assertExists()
-        rule.onNodeWithTag("composer-mode-steer").performClick()
-        rule.onNodeWithContentDescription("立即调整当前任务").assertExists()
+        rule.onNodeWithTag("composer-stop-with-draft").assertIsDisplayed()
+        rule.onNode(hasTestTag("composer-stop-with-draft") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertDoesNotExist()
+        rule.onNodeWithTag("composer-stop-with-draft").performClick()
+        rule.runOnIdle { assertEquals(true, stopped); stopped = false }
+        rule.onNodeWithTag("composer-input").assertTextContains("检查这一轮修改")
         capture("audit-composer-running-android35.png")
-        rule.onNodeWithTag("composer-stop").performClick()
+        rule.onNodeWithTag("composer-send-queue").performClick()
+        rule.runOnIdle { assertEquals(true, queued) }
+        rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
+        rule.onNodeWithTag("composer-stop").assertIsDisplayed()
+        rule.onNodeWithTag("composer-send").assertDoesNotExist()
+        rule.onNodeWithTag("composer-input").performTextInput("补充当前任务")
         rule.onNodeWithTag("composer-send").performClick()
+        rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
+        rule.onNodeWithTag("composer-stop").performClick()
         rule.runOnIdle {
             assertEquals(true, stopped)
             assertEquals(true, sent)
@@ -663,11 +718,65 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.waitForIdle()
         vm.data.value = vm.data.value + ("models" to JSONObject()
             .put("data", JSONArray().put(entry)))
-        rule.onNodeWithText("测试模型").assertExists()
         rule.onNodeWithText("模型说明从列表进入详情后展示。").assertDoesNotExist()
-        rule.onNodeWithTag("model-detail-audit-model").performClick()
+        rule.onNodeWithTag("model-catalog-info").performScrollTo().performClick()
+        rule.onNodeWithText("测试模型").assertExists()
         rule.onNodeWithText("模型说明从列表进入详情后展示。").assertIsDisplayed()
         assertEquals("", vm.modelId.value)
+    }
+
+    @Test fun installedAppSnapshotAppearsBeforeFullDirectory() {
+        val vm = viewModel()
+        rule.setContent { CodexTheme { ConnectedAppsPage(vm) {} } }
+        rule.waitForIdle()
+        rule.runOnIdle {
+            vm.data.value = vm.data.value - "apps" + ("appInstalled" to JSONObject().put("apps",
+                JSONArray().put(JSONObject().put("id", "test_app").put("runtimeName", "样例应用")
+                    .put("enabled", true).put("callable", true))))
+        }
+        rule.onNodeWithText("样例应用").assertIsDisplayed()
+        rule.onNodeWithText("搜索应用").assertExists()
+        capture("audit-apps-installed-snapshot-android35.png")
+        rule.onNodeWithText("样例应用").performClick()
+        rule.onNodeWithText("应用说明").assertIsDisplayed()
+    }
+
+    @Test fun installedPluginRowsOpenDetailsWithoutInlineUninstall() {
+        val vm = viewModel()
+        val plugin = JSONObject().put("id", "test-plugin").put("name", "test")
+            .put("installed", true).put("enabled", true)
+            .put("interface", JSONObject().put("displayName", "样例插件"))
+        val market = JSONObject().put("name", "样例来源").put("plugins", JSONArray().put(plugin))
+        rule.setContent { CodexTheme { PluginsPage(vm) } }
+        rule.waitForIdle()
+        rule.runOnIdle {
+            vm.data.value = vm.data.value + ("installedPlugins" to JSONObject()
+                .put("marketplaces", JSONArray().put(market)))
+        }
+        rule.onNodeWithText("样例插件").assertIsDisplayed()
+        rule.onNodeWithText("卸载", substring = false).assertDoesNotExist()
+        rule.onNodeWithText("搜索已安装插件").assertExists()
+        capture("audit-plugins-compact-installed-android35.png")
+        rule.onNodeWithText("样例插件").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+    }
+
+    @Test fun discoveryRowSeparatesInstallFromDetail() {
+        val item = JSONObject().put("id", "sample").put("name", "样例插件")
+            .put("installPolicy", "AVAILABLE")
+        var opened = false
+        var installed = false
+        rule.setContent {
+            CodexTheme {
+                ExtensionPluginRow(item, false, true,
+                    onDetails = { opened = true }, onInstall = { installed = true })
+            }
+        }
+        rule.onNodeWithText("样例插件").performClick()
+        rule.runOnIdle { assertTrue(opened); assertTrue(!installed) }
+        rule.onNodeWithTag("plugin-install-sample").performClick()
+        rule.runOnIdle { assertTrue(installed) }
+        capture("audit-plugins-compact-discovery-android35.png")
     }
 
     @Test fun pluginOriginalEnglishDescriptionIsAvailableOnlyOnDemand() {

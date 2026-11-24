@@ -80,12 +80,19 @@ object LocalImageAttachments {
             AttachmentRetentionPolicy.prune(directory(context), referenced)
         }
 
-    /** Deletes only files created inside the dedicated turn-image directory. */
+    suspend fun preserveForHistory(context: Context, paths: List<String>) {
+        if (paths.isNotEmpty()) withContext(Dispatchers.IO) {
+            AttachmentRetentionPolicy.preserveForHistory(directory(context), paths)
+        }
+    }
+
+    /** Deletes an unsent file only; conversation history can reference a path in multiple branches. */
     suspend fun release(context: Context, path: String) = withContext(Dispatchers.IO) {
         val folder = directory(context).canonicalFile
         val target = File(path).canonicalFile
         require(target.parentFile == folder) { "图片路径不属于本应用的私有附件目录" }
-        if (target.exists()) check(target.delete()) { "无法清理图片附件" }
+        if (target.exists() && !AttachmentRetentionPolicy.isHistorical(folder, target))
+            check(target.delete()) { "无法清理图片附件" }
     }
 }
 

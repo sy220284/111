@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 
-from audit_ui_feature_coverage import find_rpc_calls, audit_surface_hierarchy
+from audit_ui_feature_coverage import find_rpc_calls, audit_surface_hierarchy, declared_method_resolvers
 
 
 class SourceCallsiteClassificationTest(unittest.TestCase):
@@ -65,6 +65,22 @@ class SourceCallsiteClassificationTest(unittest.TestCase):
         self.assertEqual(methods, find_rpc_calls(code, methods))
         self.assertEqual(set(), find_rpc_calls(code.split("vm.refresh")[0], methods))
 
+    def test_organization_dispatch_traces_checked_policy_only_at_actual_request(self):
+        policy = """
+        fun method(kind: String): String = when (kind) {
+            "archive" -> "thread/archive"
+            "unarchive" -> "thread/unarchive"
+            "delete" -> "thread/delete"
+            else -> throw IllegalArgumentException("unknown")
+        }
+        """
+        methods = {"thread/archive", "thread/unarchive", "thread/delete"}
+        resolvers = declared_method_resolvers({"ThreadBulkActionPolicy.kt": policy}, methods)
+        actual = 'val method = try { ThreadBulkActionPolicy.method(kind) }'
+        self.assertEqual(set(), find_rpc_calls(actual, methods, resolvers))
+        self.assertEqual(methods, find_rpc_calls(actual + '\nbridge.request(method, params)', methods, resolvers))
+        self.assertEqual(set(), find_rpc_calls(actual + '\nbridge.request(method, params)', methods, {}))
+
     def test_unrelated_method_literals_do_not_prove_execution(self):
         code = '''
         val description = "thread/archive"
@@ -91,11 +107,11 @@ class SurfaceHierarchyContractTest(unittest.TestCase):
         navigation = '''
         val move: (String) -> Unit = { destination ->
           when (destination) {
-            "threads" -> { showThreadLibrary = true }
+            "threads" -> { openDrawer() }
           }
           if (page.id != destination) {}
         }
-        if (showThreadLibrary) ThreadLibraryQuickSheet()
+        SidebarSessions()
         '''
         return {
             "UiFeatureCatalog.kt": catalog,
@@ -112,6 +128,17 @@ class SurfaceHierarchyContractTest(unittest.TestCase):
         self.assertEqual([], report["invalidHierarchy"])
         self.assertEqual([], report["missingSurfaceMappings"])
         self.assertEqual([], report["emptyActionHandlers"])
+        fixture = self.fixture()
+        fixture["UiFeatureCatalog.kt"] += '\nUiFeature("queue", FeatureSurface.Sheet, FeatureOwner.Global, true)'
+        fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
+            '"threads" -> { openDrawer() }', '"threads" -> { openDrawer() }\n"queue" -> { openSheet("queue") }')
+        fixture["AppNavigation.kt"] += '\nif (activeSheet == "queue") ThreadQueueQuickSheet(vm)'
+        valid = audit_surface_hierarchy(fixture, {"home", "threads", "usage", "limits", "queue"})
+        self.assertEqual([], valid["missingSurfaceMappings"])
+        fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
+            'activeSheet == "queue"', 'activeSheet == "review"')
+        invalid = audit_surface_hierarchy(fixture, {"home", "threads", "usage", "limits", "queue"})
+        self.assertIn("queue:弹层入口或组件未接通", invalid["missingSurfaceMappings"])
 
     def test_duplicate_settings_and_empty_buttons_are_detected(self):
         fixture = self.fixture()
@@ -127,7 +154,7 @@ class SurfaceHierarchyContractTest(unittest.TestCase):
     def test_missing_sheet_dispatch_is_detected(self):
         fixture = self.fixture()
         fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
-            "showThreadLibrary = true", "unrelated = true")
+            "openDrawer()", "unrelated = true")
         report = audit_surface_hierarchy(
             fixture, {"home", "threads", "usage", "limits"})
         self.assertIn("threads:弹层入口或组件未接通",

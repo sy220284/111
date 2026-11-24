@@ -8,24 +8,15 @@
   "iconTest": "CodexInteractionComponentsInstrumentedTest.everyGlyphAndStateArtworkRendersThroughSharedComponents",
   "routes": [
     {
-      "route": "home",
-      "title": "工作台总览",
-      "sources": [
-        "Screens",
-        "AppNavigation"
-      ],
-      "business": "连接、任务、待审批与快捷任务",
-      "tests": [
-        "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts"
-      ]
-    },
-    {
       "route": "chat",
       "title": "任务对话",
       "sources": [
         "ConversationScreen",
+        "ConversationTimelineViewport",
         "ConversationComposer",
+        "ComposerFollowUpUi",
         "ConversationControlBar",
+        "ComposerReferenceSurfaces",
         "ConversationLoadingSkeleton",
         "ChatWorkTopBar",
         "ThreadContextTools",
@@ -34,26 +25,31 @@
         "ChatTimelineComponents",
         "AttachmentPreviewDialog"
       ],
-      "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态",
+      "business": "新会话插画、恢复骨架、发送/补充/停止、附件及键盘状态；唯一任务首页、侧栏新建与历史恢复、工作区文件和终端；运行中有草稿才显示引导任务/排队发送；正文下方复制、重新回答、分享及锚定分支菜单",
       "tests": [
-        "UiNavigationInstrumentedTest.chatSuggestionsStayVisibleWithinThePhoneWidth",
+        "UiNavigationInstrumentedTest.emptyChatHasNoSuggestionCardsAndKeepsComposerAccessible",
         "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "UiNavigationInstrumentedTest.narrowConversationToolbarKeepsPrimaryActionsVisible",
+        "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
         "CodexInteractionComponentsInstrumentedTest.composerShortcutOpensRealCallbackOnlyWhenSelected",
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction",
-        "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove"
+        "CodexInteractionComponentsInstrumentedTest.answerVersionSwitcherKeepsNavigationInTheMessage",
+        "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove",
+        "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts",
+        "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath",
+        "UiNavigationInstrumentedTest.composerReferenceAndExpandedEditorPreserveDraft"
       ]
     },
     {
       "route": "threads",
-      "title": "会话资料库",
+      "title": "侧栏会话列表",
       "sources": [
-        "ThreadLibraryPage",
         "SidebarSessions",
         "ThreadBulkToolbar",
-        "ThreadLibraryQuickSheet",
+        "SessionListController",
         "ThreadHistorySheet"
       ],
-      "business": "标题搜索、归档、批量管理、列表加载和空态",
+      "business": "侧栏全量连续列表、置顶、未读、搜索、归档、批量管理",
       "tests": [
         "UiNavigationInstrumentedTest.threadLibraryExposesServerBackedManagementLayout",
         "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection"
@@ -77,7 +73,7 @@
       "route": "search",
       "title": "全文检索",
       "sources": [
-        "ThreadLibraryPage",
+        "SidebarSessions",
         "FullTextReaderDialog"
       ],
       "business": "搜索提交、无结果、全文查看与命中导航",
@@ -104,10 +100,11 @@
       "sources": [
         "TaskManagementScreens",
         "ConversationComposer",
+        "ComposerFollowUpUi",
         "AtlasQueueDragHandle",
         "QueueReorderPolicy"
       ],
-      "business": "队列顺序、编辑、取消、加载和空列表",
+      "business": "真实队列预览、顺序、编辑、删除、暂停恢复与空闲启动、加载和空列表",
       "tests": [
         "UiNavigationInstrumentedTest.activeThreadOpensItsQueueWithoutHistoryPicker",
         "UiNavigationInstrumentedTest.queueDraftSurvivesClosingAndReopeningSheet",
@@ -170,15 +167,18 @@
     },
     {
       "route": "models",
-      "title": "模型目录",
+      "title": "模型设置",
       "sources": [
         "EcosystemScreens",
-        "UiSharedSurfaces"
+        "UiSharedSurfaces",
+        "EngineSettingUi",
+        "EngineSettings"
       ],
-      "business": "模型选择、加载、可用性、详情与空目录",
+      "business": "默认模型、思考深度与回复详略、真实目录说明及任务快捷选模",
       "tests": [
         "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
-        "UiPopulatedSubpagesInstrumentedTest.modelDescriptionOpensSecondLevelWithoutChangingSelection"
+        "UiPopulatedSubpagesInstrumentedTest.modelDescriptionOpensSecondLevelWithoutChangingSelection",
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -210,23 +210,30 @@
       "title": "插件",
       "sources": [
         "EcosystemScreens",
-        "PluginDetailSheet"
+        "PluginDetailSheet",
+        "ExtensionCatalogComponents",
+        "ExtensionCatalogPolicy"
       ],
       "business": "目录、检索、安装状态、空结果与能力详情",
       "tests": [
         "UiNavigationInstrumentedTest.pluginDiscoveryCanOpenSearchWithoutInventedResults",
-        "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata"
+        "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata",
+        "UiPopulatedSubpagesInstrumentedTest.installedPluginRowsOpenDetailsWithoutInlineUninstall",
+        "UiPopulatedSubpagesInstrumentedTest.discoveryRowSeparatesInstallFromDetail"
       ]
     },
     {
       "route": "apps",
       "title": "连接应用",
       "sources": [
-        "IntegrationScreens"
+        "IntegrationScreens",
+        "ExtensionCatalogComponents",
+        "ExtensionCatalogPolicy"
       ],
       "business": "应用授权、详情、无目录、失败及重试",
       "tests": [
-        "UiPopulatedSubpagesInstrumentedTest.connectedAppDescriptionAppearsOnlyAfterOpeningDetail"
+        "UiPopulatedSubpagesInstrumentedTest.connectedAppDescriptionAppearsOnlyAfterOpeningDetail",
+        "UiPopulatedSubpagesInstrumentedTest.installedAppSnapshotAppearsBeforeFullDirectory"
       ]
     },
     {
@@ -243,13 +250,15 @@
     },
     {
       "route": "environments",
-      "title": "执行环境",
+      "title": "运行管理",
       "sources": [
-        "ExecutionEnvironmentPage"
+        "ExecutionEnvironmentPage",
+        "EngineSettingUi"
       ],
-      "business": "本地/远程选择、真实连接反馈、查询详情",
+      "business": "本地/远程选择、后台运行策略、终端等待、真实连接反馈",
       "tests": [
-        "UiNavigationInstrumentedTest.executionEnvironmentDiagnosticsUseSeparateDetailSheet"
+        "UiNavigationInstrumentedTest.executionEnvironmentDiagnosticsUseSeparateDetailSheet",
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -278,11 +287,12 @@
     },
     {
       "route": "config",
-      "title": "引擎配置",
+      "title": "开发者设置",
       "sources": [
-        "ControlScreens"
+        "ControlScreens",
+        "EngineSettingController"
       ],
-      "business": "读取、校验、写入、确认及回读",
+      "business": "专业参数校验、写入、确认及回读；日常配置由所属页面管理",
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchDirectlyExpandsAdvancedConfig"
       ]
@@ -315,25 +325,29 @@
       "route": "limits",
       "title": "使用限额",
       "sources": [
-        "AccountMetricsPage"
+        "AccountMetricsPage",
+        "SidebarQuota"
       ],
-      "business": "真实限额、窗口、进度、无数据",
+      "business": "真实限额、窗口、进度、无数据；侧栏双额度动画、无障碍说明与详情入口",
       "tests": [
-        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs"
+        "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs",
+        "UiNavigationInstrumentedTest.sidebarQuotaOpensLimitsWithoutFooterLabels"
       ]
     },
     {
       "route": "appearance",
-      "title": "外观与交互",
+      "title": "外观与显示",
       "sources": [
         "SettingsHub",
         "VisualSystem",
-        "ControlScreens"
+        "ControlScreens",
+        "EngineSettingUi"
       ],
-      "business": "亮暗主题、字号、动效、独立面板",
+      "business": "亮暗主题、字号、布局、动效、推理摘要显示",
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchOpensAppearanceSheetWithoutInlineExpansion",
-        "UiPopulatedSubpagesInstrumentedTest.darkAppearanceWithSystemDoubleFontRemainsReachable"
+        "UiPopulatedSubpagesInstrumentedTest.darkAppearanceWithSystemDoubleFontRemainsReachable",
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     },
     {
@@ -373,6 +387,45 @@
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchFindsActualOptionsByUserWording",
         "UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage"
+      ]
+    },
+    {
+      "route": "personalization",
+      "title": "个性化设置",
+      "sources": [
+        "EngineSettingUi",
+        "EngineSettings",
+        "EngineSettingController"
+      ],
+      "business": "全局执行指令的编辑、清空和保存回读",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ]
+    },
+    {
+      "route": "context",
+      "title": "上下文管理",
+      "sources": [
+        "EngineSettingUi",
+        "EngineSettings",
+        "EngineSettingController"
+      ],
+      "business": "上下文容量、自动压缩与工具输出保留",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ]
+    },
+    {
+      "route": "tools",
+      "title": "联网搜索",
+      "sources": [
+        "EngineSettingUi",
+        "EngineSettings",
+        "EngineSettingController"
+      ],
+      "business": "策略允许的搜索模式、选择和保存回读",
+      "tests": [
+        "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
       ]
     }
   ],
@@ -496,7 +549,7 @@
       "business": "会话恢复、搜索、模型协作与扩展管理",
       "components": [
         [
-          "ThreadLibraryPage",
+          "SidebarSessions",
           "AtlasSearchField"
         ],
         [
@@ -504,7 +557,7 @@
           "ModeChoiceSurface"
         ],
         [
-          "ConversationScreen",
+          "ConversationTimelineViewport",
           "ConversationLoadingSkeleton"
         ],
         [
@@ -546,7 +599,7 @@
           "AtlasSearchField"
         ],
         [
-          "ConversationComposer",
+          "ConversationScreen",
           "CodexActionSheet"
         ]
       ],
@@ -584,6 +637,36 @@
       "tests": [
         "CodexInteractionComponentsInstrumentedTest.v8BusyButtonRetainsWidthAndSecretCanBeHidden",
         "CodexInteractionComponentsInstrumentedTest.v8ControlBordersHaveAccessibleContrastInBothThemes"
+      ]
+    },
+    {
+      "asset": "pr86-conversation-workbench.svg",
+      "business": "原生对话正文、执行摘要、项目权限及终端近期/历史分段阅读；可编辑设计参考",
+      "components": [
+        [
+          "ChatTimelineComponents",
+          "TimelineActivityGroup"
+        ],
+        [
+          "NativeMessageMarkdown",
+          "NativeMessageMarkdown"
+        ],
+        [
+          "SecurityPage",
+          "ComposerPermissionControl"
+        ],
+        [
+          "TerminalOutputUi",
+          "TerminalOutputHeader"
+        ],
+        [
+          "TerminalPage",
+          "historicalPages"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction"
       ]
     }
   ]

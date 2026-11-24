@@ -14,6 +14,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
@@ -27,32 +29,42 @@ import androidx.compose.ui.window.DialogProperties
 /** 任务/资源大文本全部可读、可复制、可检索；分块渲染避免弹层截断。 */
 @Composable
 fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
-    val chunks = remember(text) { text.chunked(FullTextSearchPolicy.CHUNK_SIZE).ifEmpty { listOf("") } }
-    var search by remember(text) { mutableStateOf("") }
-    var currentMatch by remember(text, search) { mutableIntStateOf(0) }
-    val hits = remember(text, search) { FullTextSearchPolicy.find(text, search) }
-    val state = rememberLazyListState()
-    val clipboard = LocalClipboardManager.current
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    val layouts = remember(text) { mutableStateMapOf<Int, TextLayoutResult>() }
-    val topInset = with(LocalDensity.current) { 16.dp.roundToPx() }
-    LaunchedEffect(text, search, currentMatch, topInset) {
-        val hit = hits.getOrNull(currentMatch) ?: return@LaunchedEffect
-        val index = hit / FullTextSearchPolicy.CHUNK_SIZE
-        if (state.layoutInfo.visibleItemsInfo.none { it.index == index } || layouts[index] == null) {
-            state.scrollToItem(index)
-        }
-        val layout = snapshotFlow { layouts[index] }.filterNotNull().first()
-        val local = (hit - index * FullTextSearchPolicy.CHUNK_SIZE).coerceIn(0, chunks[index].length)
-        val offset = (layout.getLineTop(layout.getLineForOffset(local)).roundToInt() - topInset).coerceAtLeast(0)
-        if (reducedMotion || currentMatch == 0) state.scrollToItem(index, offset)
-        else state.animateScrollToItem(index, offset)
-    }
-    fun moveMatch(delta: Int) {
-        if (hits.isNotEmpty()) currentMatch = (currentMatch + delta + hits.size) % hits.size
-    }
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val chunks = remember(text) { text.chunked(FullTextSearchPolicy.CHUNK_SIZE).ifEmpty { listOf("") } }
+        var search by remember(text) { mutableStateOf("") }
+        var currentMatch by remember(text, search) { mutableIntStateOf(0) }
+        val query = search
+        val searchHits: List<Int>? = if (text.length <= 32768 || query.isBlank()) {
+            remember(text, query) { FullTextSearchPolicy.find(text, query) }
+        } else {
+            val result by produceState<Triple<String, String, List<Int>>?>(null, text, query) {
+                val matches = withContext(Dispatchers.Default) { FullTextSearchPolicy.find(text, query) }
+                value = Triple(text, query, matches)
+            }
+            result?.takeIf { it.first == text && it.second == query }?.third
+        }
+        val hits = searchHits.orEmpty()
+        val state = rememberLazyListState()
+        val clipboard = LocalClipboardManager.current
+        val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+        val layouts = remember(text) { mutableStateMapOf<Int, TextLayoutResult>() }
+        val topInset = with(LocalDensity.current) { 16.dp.roundToPx() }
+        LaunchedEffect(text, search, searchHits, currentMatch, topInset) {
+            val hit = hits.getOrNull(currentMatch) ?: return@LaunchedEffect
+            val index = hit / FullTextSearchPolicy.CHUNK_SIZE
+            if (state.layoutInfo.visibleItemsInfo.none { it.index == index } || layouts[index] == null) {
+                state.scrollToItem(index)
+            }
+            val layout = snapshotFlow { layouts[index] }.filterNotNull().first()
+            val local = (hit - index * FullTextSearchPolicy.CHUNK_SIZE).coerceIn(0, chunks[index].length)
+            val offset = (layout.getLineTop(layout.getLineForOffset(local)).roundToInt() - topInset).coerceAtLeast(0)
+            if (reducedMotion || currentMatch == 0) state.scrollToItem(index, offset)
+            else state.animateScrollToItem(index, offset)
+        }
+        fun moveMatch(delta: Int) {
+            if (hits.isNotEmpty()) currentMatch = (currentMatch + delta + hits.size) % hits.size
+        }
         Surface(color = Ink.canvas, modifier = Modifier.fillMaxSize().testTag("full-text-reader")) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(13.dp),
                 verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -75,7 +87,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                     onClear = { search = "" })
                 if (search.isNotBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (hits.isEmpty()) "没有匹配结果" else
+                        Text(if (searchHits == null) "正在查找…" else if (hits.isEmpty()) "没有匹配结果" else
                             "第 ${currentMatch + 1} / ${hits.size} 处" +
                                 if (hits.size == FullTextSearchPolicy.MAX_MATCHES) "（最多显示前 2000 处）" else "",
                             color = Ink.muted, modifier = Modifier.weight(1f))
@@ -94,14 +106,15 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                     contentPadding = PaddingValues(bottom = 30.dp)) {
                     itemsIndexed(chunks) { index, part ->
                         DisposableEffect(index) { onDispose { layouts.remove(index) } }
-                        val marked = buildAnnotatedString {
+                        val highlight = Ink.copper
+                        val marked = remember(part, index, search, hits, currentMatch, highlight) { buildAnnotatedString {
                             append(part)
                             FullTextSearchPolicy.slices(index, part.length, search.length, hits, currentMatch)
                                 .forEach { slice ->
-                                    addStyle(SpanStyle(background = Ink.copper.copy(
+                                    addStyle(SpanStyle(background = highlight.copy(
                                         alpha = if (slice.active) .42f else .15f)), slice.start, slice.end)
                                 }
-                        }
+                        } }
                         SelectionContainer {
                             Text(marked, fontFamily = FontFamily.Monospace,
                                 color = Ink.parchment, style = MaterialTheme.typography.bodyMedium,

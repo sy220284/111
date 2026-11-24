@@ -38,8 +38,9 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var useRemote by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (SettingsDeepLink.take("environments") == "remote") useRemote = true
+    val target = remember { SettingsDeepLink.take("environments") }
+    LaunchedEffect(target) {
+        if (target == "remote") useRemote = true
     }
     var remoteName by rememberSaveable { mutableStateOf("") }
     var endpoint by rememberSaveable { mutableStateOf("") }
@@ -65,7 +66,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     }
 
     ScreenColumn {
-        SectionIntro("执行环境",
+        SectionIntro("运行管理",
             "选择工作在这台手机上完成，或连接已部署的外部执行服务。")
         Text("在哪里执行任务", style = MaterialTheme.typography.titleLarge)
         Text("先选择运行位置，需要连接时再填写配置。", color = Ink.muted)
@@ -203,5 +204,6 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 AtlasFieldFeedback("请选择检查状态或查看详情以获取最新信息")
             }
         }
+        EngineSettingsSection(vm, "environments", target)
     }
 }

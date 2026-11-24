@@ -230,15 +230,8 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             confirmLabel = "确认删除该回合及之后历史", destructive = true,
             onConfirm = {
                 thread?.let { id ->
-                    vm.rpc("threadRevert", "thread/revert",
-                        JSONObject().put("threadId", id).put("beforeTurnId", turnId),
-                        after = {
-                            page = 0
-                            vm.refresh(prefix + "0", "thread/turns/list",
-                                JSONObject().put("threadId", id).put("limit", 40)
-                                    .put("sortDirection", "desc"))
-                            vm.chooseThread(id)
-                        })
+                    vm.conversationActions.revert(id, turnId)
+                    onDismiss()
                 }
                 target = null
             },

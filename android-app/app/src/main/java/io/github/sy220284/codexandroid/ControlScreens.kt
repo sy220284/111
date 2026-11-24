@@ -93,16 +93,21 @@ fun ApprovalsPage(vm: CodexViewModel) {
 /** Same validated approval flow, directly accessible from the active conversation. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApprovalQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val prompts by vm.bridge.prompts.collectAsState()
-    ApprovalQuickSheetContent(vm, prompts, onDismiss)
+fun ApprovalQuickSheet(vm: CodexViewModel, threadId: String? = null, onDismiss: () -> Unit) {
+    val prompts by vm.bridge.prompts.collectProjection { all ->
+        if (threadId == null) all else all.forThread(threadId)
+    }
+    ApprovalQuickSheetContent(vm, prompts, onDismiss, includeAudit = threadId == null)
 }
+
+internal fun List<ServerPrompt>.forThread(threadId: String?): List<ServerPrompt> =
+    if (threadId.isNullOrBlank()) emptyList() else filter { it.params.optString("threadId") == threadId }
 
 /** Complete sheet bound to an explicit prompt snapshot for deterministic rendering. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ApprovalQuickSheetContent(
-    vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit
+    vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit, includeAudit: Boolean = true
 ) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
@@ -122,7 +127,7 @@ internal fun ApprovalQuickSheetContent(
                 key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
             }
         }
-        if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
+        if (includeAudit && (auditRecords.isNotEmpty() || !auditError.isNullOrBlank())) {
             ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
         }
         Spacer(Modifier.height(12.dp))
@@ -305,8 +310,10 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var advanced by rememberSaveable { mutableStateOf(false) }
+    var rawError by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        if (SettingsDeepLink.take("config") == "advanced") advanced = true
+        val target = SettingsDeepLink.take("config")
+        if (target == "advanced") advanced = true
     }
     var path by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
@@ -314,11 +321,29 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var booleanValue by rememberSaveable { mutableStateOf(true) }
     var showConfirm by remember { mutableStateOf(false) }
     var parsed by remember { mutableStateOf<Any?>(null) }
-    val ready = data["config"] != null
+    val config = data["config"]?.optJSONObject("config")
+    val ready = config != null
+    val saving = ENGINE_SETTING_SAVE in loading
+    val receipt = data[ENGINE_SETTING_SAVE]?.takeIf { it.optString("owner") == "config" }
+    val saveError = if (receipt != null) errors[ENGINE_SETTING_SAVE] else null
+    val saveMessage = receipt?.optString("message")?.takeIf { it.isNotBlank() }
+    fun clearSaveFeedback() {
+        if (!saving && vm.data.value[ENGINE_SETTING_SAVE]?.optString("owner") == "config") {
+            vm.errors.value = vm.errors.value - ENGINE_SETTING_SAVE
+            vm.data.value = vm.data.value - ENGINE_SETTING_SAVE
+        }
+    }
+    val permissionBusy by vm.securitySaveBusy.collectAsState()
+    val enabled = ready && engineStatus == EngineStatus.Connected && "config" !in loading && !saving && !permissionBusy
+    LaunchedEffect(engineStatus) {
+        if (engineStatus == EngineStatus.Connected) {
+            if ("config" !in vm.loading.value && !saving) vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
+        }
+    }
 
     ScreenColumn {
-        SectionIntro("引擎配置",
-            "常用设置可直接在设置页管理；这里只处理需要手动填写的高级参数。")
+        SectionIntro("开发者设置",
+            "专业参数编辑与本机运行诊断。日常模型、工作偏好、上下文和工具设置各有独立入口。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(CodexGlyph.Settings, null, tint = Ink.copper)
@@ -335,7 +360,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 CodexIconAction(onClick = {
                     vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-                }, enabled = "config" !in loading) {
+                }, enabled = "config" !in loading && !saving) {
                     CodexIcon(CodexGlyph.Retry, "读取生效配置")
                 }
             }
@@ -362,9 +387,18 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         else R.drawable.ic_empty_content)
             }
         }
+        if (saving) AtlasOperationProgress("正在保存并核实配置")
+        saveError?.let { ErrorText(it) }
+        saveMessage?.let {
+            CodexNotice(it, NoticeTone.Success)
+        }
+        MaterialPanel(Modifier.fillMaxWidth()) {
+            CodexDetailTrigger("诊断与日志", { navigate("diagnostics") }, Modifier.fillMaxWidth())
+        }
+        Text("专业配置", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
         CodexDetailTrigger(
             label = "高级自定义配置",
-            onClick = { advanced = true },
+            onClick = { clearSaveFeedback(); advanced = true },
             modifier = Modifier.fillMaxWidth().testTag("config-advanced-toggle")
         )
         if (advanced) {
@@ -373,9 +407,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 subtitle = "请核对设置项和值。保存前还需确认更改范围。",
                 onDismiss = { advanced = false }
             ) {
-                Text("适用于已经了解目标设置项的用户。修改前核对名称和值；每次只提交一项。",
+                Text("仅供需要直接编辑底层参数的用户。常用设置请返回对应功能页面；复杂数据将替换整个指定配置项。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                AtlasFormField(path, { path = it }, "设置项名称", placeholder = "approval_policy")
+                AtlasFormField(path, { path = it }, "设置项名称", placeholder = "例如 tool_output_token_limit")
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
                 val types = listOf("text" to "文本", "boolean" to "开关", "number" to "数字", "json" to "高级数据")
                 Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -418,21 +452,25 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }) }
                     )
                 }
+                rawError?.let { ErrorText(it) }
+                saveError?.let { ErrorText(it) }
+                saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
+                if (saving) AtlasOperationProgress("正在保存并核实配置")
+                if (!enabled && !saving) Text("连接并读取当前配置后才能保存。", color = Ink.muted)
                 CodexPrimaryButton(
                     onClick = {
                         try {
                             require(path.isNotBlank()) { "请填写设置项名称" }
                             parsed = ConfigInputParser.parse(kind, value, booleanValue)
-                            vm.errors.value = vm.errors.value - "config"
+                            rawError = null
                             showConfirm = true
                         } catch (failure: Exception) {
-                            vm.errors.value = vm.errors.value +
-                                ("config" to (failure.message ?: "设置值格式不正确"))
+                            rawError = failure.message ?: "设置值格式不正确"
                         }
                     },
                     enabled = path.isNotBlank() &&
                         (kind == "boolean" || value.isNotBlank()) &&
-                        "config" !in loading,
+                        enabled,
                     modifier = Modifier.heightIn(min = 48.dp)
                 ) {
                     Text("检查并保存")
@@ -446,13 +484,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         detail = "设置项：$path\n设置值：" +
             if (kind == "boolean") (if (booleanValue) "启用" else "关闭") else value,
         confirmLabel = "确认保存",
+        confirmEnabled = enabled,
         onConfirm = {
-            vm.rpc("config", "config/value/write",
-                JSONObject().put("keyPath", path)
-                    .put("value", parsed).put("mergeStrategy", "replace"),
-                after = {
-                    vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
-                })
+            parsed?.let { vm.saveEngineSetting(path.trim(), it, "高级配置") }
             showConfirm = false
         },
         onDismiss = { showConfirm = false }
@@ -461,53 +495,11 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 
 @Composable
-fun AppearancePage() {
-    val compact by UiPreferences.compact.collectAsState()
-    val lessMotion by UiPreferences.reducedMotion.collectAsState()
-    val softMaterial by UiPreferences.softMaterial.collectAsState()
+fun AppearancePage(vm: CodexViewModel) {
+    val target = remember { SettingsDeepLink.take("appearance") }
     ScreenColumn {
-        SectionIntro("外观与交互", "全局典雅白底，暖铜文字与边框强调操作，支持轻阴影和精简动效。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("界面材料", style = MaterialTheme.typography.titleMedium)
-            Text("典雅白底 / 柔和细边 / 清晰文字层级", color = Ink.muted)
-            DividerLine()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("紧凑信息密度")
-                    Text("缩小面板间距，让代码和数据占据更多空间", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                WhiteSwitch(compact, onCheckedChange = UiPreferences::setCompact)
-            }
-            DividerLine()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("柔雾层次材质")
-                    Text("开启后增加轻微卡片阴影；关闭后保留白底和细边框",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                WhiteSwitch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
-            }
-            DividerLine()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("减弱页面动效")
-                    Text("缩短或关闭转场动画，保留状态反馈", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                WhiteSwitch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
-            }
-        }
-        CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", CodexGlyph.TouchApp,
-            onClick = { UiPreferences.setCompact(!compact) }, modifier = Modifier.fillMaxWidth())
-        CodexNotice(if (lessMotion) "已关闭装饰性位移动画，状态仍会立即更新"
-            else "页面转场与操作反馈已经启用", NoticeTone.Info)
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("颜色职责", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatusPill("主要操作", tone = StatusTone.Info)
-                StatusPill("风险确认", tone = StatusTone.Danger)
-            }
-            Text("页面、卡片、选中态和按钮均使用白色背景；暖铜用于关键文字、图标和边框。", color = Ink.muted)
-        }
+        AppearanceInlineControls(focusTarget = target, modifier = Modifier)
+        EngineSettingsSection(vm, "appearance", target)
     }
 }
 

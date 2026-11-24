@@ -83,7 +83,16 @@ object PresentationPolicy {
         "plan" -> "任务计划"
         "commandExecution" -> "命令执行"
         "fileChange" -> "文件变更"
-        "mcpToolCall" -> "工具调用"
+        "mcpToolCall", "dynamicToolCall", "functionCallOutput" -> "工具调用"
+        "planProgress" -> "计划进度"
+        "webSearch" -> "网络搜索"
+        "imageView" -> "查看图片"
+        "imageGeneration" -> "生成图片"
+        "sleep" -> "等待"
+        "hookPrompt" -> "任务提示"
+        "collabAgentToolCall", "subAgentActivity" -> "协作活动"
+        "enteredReviewMode", "exitedReviewMode" -> "代码审查"
+        "contextCompaction" -> "上下文整理"
         "error" -> "执行异常"
         else -> "任务进展"
     }
@@ -93,6 +102,7 @@ object PresentationPolicy {
         "inprogress", "in_progress", "running", "streaming" -> "执行中"
         "failed" -> "失败"
         "declined" -> "已拒绝"
+        "interrupted", "cancelled" -> "已停止"
         else -> ""
     }
 
@@ -251,7 +261,9 @@ object PresentationPolicy {
         "medium" -> "均衡"
         "high" -> "深入"
         "xhigh" -> "深度"
-        else -> "默认"
+        "ultra" -> "超深度"
+        "none" -> "无额外思考"
+        else -> meaningful(value).ifBlank { "默认" }
     }
 
     fun goalStatus(value: String?): String = when (meaningful(value)) {
@@ -288,7 +300,13 @@ object PresentationPolicy {
                 if (exitCode == 0) "执行成功" else "执行结束，返回码 $exitCode"
         }
         add("command", "执行命令")
-        add("summary", "结果摘要")
+        val summary = record.optJSONArray("summary")
+        if (summary != null) sections += "思考摘要" to (0 until summary.length()).joinToString("\n") { summary.optString(it) }
+        else add("summary", "结果摘要")
+        add("progress", "工具进度")
+        add("query", "搜索内容")
+        add("result", "工具结果")
+        add("contentItems", "工具结果")
         add("text", "执行内容")
         val changes = record.optJSONArray("changes")?.length()
             ?: record.optJSONObject("changes")?.length()

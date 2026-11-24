@@ -47,17 +47,18 @@ FEATURE = re.compile(
 # The shell dispatches sheets to exactly one contextual overlay; they should not
 # silently turn back into top-level pages when the catalog grows.
 SHEET_DISPATCH = {
-    "threads": ("showThreadLibrary = true", "ThreadLibraryQuickSheet("),
-    "search": ("showThreadLibrary = true", "ThreadLibraryQuickSheet("),
-    "approvals": ("showApprovals = true", "ApprovalQuickSheet("),
-    "goals": ("showGoal = true", "ThreadGoalSheet("),
-    "queue": ("showQueue = true", "ThreadQueueQuickSheet("),
-    "review": ("showReview = true", "ReviewScopeSheet("),
-    "models": ("showModels = true", "ModelChoiceSurface("),
-    "modes": ("showMode = true", "ModeChoiceSurface("),
-    "about": ("showAbout = true", "AboutInfoSheet("),
+    "threads": ("openDrawer()", "SidebarSessions("),
+    "search": ("openDrawer()", "SidebarSessions("),
+    "approvals": ('openSheet("approvals")', "ApprovalQuickSheet("),
+    "goals": ('openSheet("goals")', "ThreadGoalSheet("),
+    "queue": ('openSheet("queue")', "ThreadQueueQuickSheet("),
+    "review": ('openSheet("review")', "ReviewScopeSheet("),
+    "models": ('openSheet("models")', "ModelChoiceSurface("),
+    "modes": ('openSheet("modes")', "ModeChoiceSurface("),
+    "about": ('openSheet("about")', "AboutInfoSheet("),
 }
 INLINE_DISPATCH = {
+    "security": ("ConversationScreen.kt", "ComposerPermissionControl("),
     "appearance": ("SettingsHub.kt", "AppearanceInlineControls("),
     "update": ("SettingsHub.kt", "AppUpdateCard("),
 }
@@ -93,7 +94,7 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
     if len({"usage", "limits"} & set(settings_ids)) != 1:
         invalid.append("用量和额度必须由同一个账号入口管理")
     task_actions = {"threads", "approvals", "search", "goals", "queue",
-                    "diff", "terminal", "review", "modes"}
+                    "diff", "terminal", "review", "modes", "security"}
     if task_actions & set(settings_ids):
         invalid.append("设置首页混入会话或工作区操作")
     move_start = navigation.find("val move:")
@@ -107,7 +108,10 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
             if expected is None:
                 missing_surfaces.append(f"{name}:缺少弹层归属")
             elif (f'"{name}"' not in route_handlers
-                  or expected[0] not in route_handlers or expected[1] not in navigation):
+                  or expected[0] not in route_handlers or expected[1] not in navigation
+                  or (name not in {"threads", "search"} and
+                      not re.search(r'if \(activeSheet == "' + re.escape(name) +
+                                    r'"\)[^\n]*(?:\n[^\n]*){0,2}?' + re.escape(expected[1]), navigation))):
                 missing_surfaces.append(f"{name}:弹层入口或组件未接通")
         elif kind == "Inline":
             expected = INLINE_DISPATCH.get(name)
@@ -176,13 +180,27 @@ def _call_arguments(source: str, begin: int) -> list[str]:
     return []
 
 
-def find_rpc_calls(code: str, official: set[str]) -> set[str]:
-    """只提取 RPC 的 method 实参，包括 when 分流和验证过的局部 if 分流。"""
+def declared_method_resolvers(files: dict[str, str], official: set[str]) -> dict[str, set[str]]:
+    """Trace the single checked organization policy, rather than requiring duplicate literal RPC calls."""
+    source = files.get("ThreadBulkActionPolicy.kt", "")
+    match = re.search(r'fun\s+method\(kind:\s*String\)\s*:\s*String\s*=\s*when\s*\(kind\)\s*\{([^}]+)\}', source)
+    if match is None:
+        return {}
+    methods = set(re.findall(r'^\s*"[^"]+"\s*->\s*"([^"]+)"\s*$', match.group(1), re.M))
+    if methods != {"thread/archive", "thread/unarchive", "thread/delete"}:
+        return {}
+    return {"ThreadBulkActionPolicy.method": methods & official}
+
+
+def find_rpc_calls(code: str, official: set[str], resolvers: dict[str, set[str]] | None = None) -> set[str]:
     found: set[str] = set()
     candidates = {
         m.group("variable"): {m.group("first"), m.group("second")}
         for m in DYNAMIC_METHOD.finditer(code)
     }
+    for match in re.finditer(r'\bval\s+(\w+)\s*=\s*(?:try\s*\{\s*)?([A-Za-z_]\w*\.\w+)\s*\(', code):
+        if match.group(2) in (resolvers or {}):
+            candidates[match.group(1)] = resolvers[match.group(2)]
     for match in RPC_CALL_HEAD.finditer(code):
         args = _call_arguments(code, match.end())
         index = 0 if match.group("callee").endswith("request") else 1
@@ -221,6 +239,17 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
             if name in routes:
                 raise ValueError(f"页面 {name} 有重复路由")
             routes[name] = match.group("handler")
+
+    # Threads and search are logical capabilities of the same drawer, not pages.
+    # Verify actual navigation and the single owner instead of requiring dummy page handlers.
+    shell = files["AppNavigation.kt"]
+    if '"threads", "search" -> {' in shell and "SidebarSessions(" in shell:
+        for name in ("threads", "search"):
+            if name in routes:
+                raise ValueError(f"会话能力 {name} 重复注册为独立页面")
+            routes[name] = "SidebarSessions"
+    if "ComposerPermissionControl(" in files.get("ConversationScreen.kt", "") and "security" not in routes:
+        routes["security"] = "ComposerPermissionControl"
 
     defined: dict[str, str] = {}
     for filename, code in files.items():
@@ -265,10 +294,11 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
                     called[name].append(filename)
 
     call_sites: dict[str, list[str]] = {}
+    resolvers = declared_method_resolvers(files, client_requests)
     for filename, source in files.items():
         if filename in declaration_files:
             continue
-        for method in find_rpc_calls(source, client_requests):
+        for method in find_rpc_calls(source, client_requests, resolvers):
             call_sites.setdefault(method, []).append(filename)
 
     equivalents: dict[str, dict] = {}

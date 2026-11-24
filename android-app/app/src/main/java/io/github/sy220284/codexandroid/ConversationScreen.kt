@@ -4,20 +4,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.platform.testTag
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,10 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.interaction.DragInteraction
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,58 +27,65 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
-    val thread by vm.activeThread.collectAsState()
-    val busy by vm.running.collectAsState()
+    val conversation by vm.conversationState.collectProjection { it.header }
+    val thread = conversation.threadId
+    val busy = conversation.running
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val activeTurn by vm.activeTurn.collectAsState()
+    val activeTurn = conversation.turnId
     val steering by vm.steerBusy.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val items by vm.timeline.collectAsState()
-    val olderTimelineCount by vm.olderTimelineCount.collectAsState()
-    val latestDiff by vm.latestDiff.collectAsState()
-    val models by vm.data.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("interrupt", "queueWrite")) }
+    val latestDiff = conversation.diff
+    val models by vm.data.collectEntries("account", "models", "goal:$thread", "queue:$thread", "tokenUsage:$thread")
     val setupHint = if (thread == null) ChatSetupPolicy.hint(
         status == EngineStatus.Connected, models["account"], models["models"]) else null
-    val errors by vm.errors.collectAsState()
-    val prompts by vm.bridge.prompts.collectAsState()
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
-    val composerDrafts by vm.composerDrafts.collectAsState()
-    val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
+    val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
+    val prompts by vm.bridge.prompts.collectProjection { it.forThread(thread) }
+    val selectedWorkspace = conversation.workspace
+    val draftOwner = vm.composerOwner(thread, selectedWorkspace)
+    val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
+    val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
-    var showModels by remember { mutableStateOf(false) }
-    var showModes by remember { mutableStateOf(false) }
-    var showContextTools by remember { mutableStateOf(false) }
-    var showTerminalSheet by remember { mutableStateOf(false) }
-    var followUpMode by rememberSaveable(thread) { mutableStateOf("queue") }
+    val selectedModel by vm.modelId.collectAsState()
+    val permissionSaving by vm.securitySaveBusy.collectAsState()
+    val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val documentOwner by vm.composerContent.documentOwner.collectAsState()
+    val documentBusy = documentOwner == draftOwner
+    var composerMenu by remember(draftOwner) { mutableStateOf("") }
+    fun closeComposerMenu(route: String) { if (composerMenu == route) composerMenu = "" }
+    var referenceQuery by remember(draftOwner) { mutableStateOf<String?>(null) }
+    var sessionAction by remember(draftOwner) { mutableStateOf("") }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
-    var showEngineStatus by remember { mutableStateOf(false) }
-    var showApprovalQuick by remember { mutableStateOf(false) }
     var stopRequestedForTurn by remember { mutableStateOf<String?>(null) }
     val stopping = busy && (("interrupt" in loading) ||
         (stopRequestedForTurn != null && stopRequestedForTurn == activeTurn &&
             errors["interrupt"] == null))
     val imported by vm.attachmentImport.collectAsState()
     val attachmentBusy = imported.inProgress &&
-        imported.threadKey == ThreadComposerDrafts.key(thread)
-    val attachmentError = if (imported.threadKey == ThreadComposerDrafts.key(thread))
+        imported.threadKey == draftOwner
+    val attachmentError = if (imported.threadKey == draftOwner)
         imported.message else ""
 
     // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
     val compactWorkArea = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val selectedMode by vm.selectedMode.collectAsState()
-    val selectedWorkspace by vm.activeWorkspace.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
-    val queuedInputs = thread?.let { records(models["queue:$it"]) }.orEmpty()
-    val changedFiles = remember(latestDiff) { UnifiedDiff.parse(latestDiff) }
+    val queueData = thread?.let { models["queue:$it"] }
+    val queuedInputs = remember(queueData) { records(queueData) }
+    val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
+    val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
+    val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
+    val modelData = models["models"]
+    val availableModels = remember(modelData) { records(modelData) }
+    val diffSummary by rememberDiffSummary(latestDiff)
     LaunchedEffect(thread) {
         if (thread != null) {
             vm.refresh("goal:$thread", "thread/goal/get", JSONObject().put("threadId", thread))
@@ -102,28 +94,21 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
     }
     val planApprovalBusy by vm.planApprovalBusy.collectAsState()
-    var confirmPlan by remember { mutableStateOf(false) }
-    val lastPlanIndex = items.indexOfLast {
-        it.kind == "plan" && it.text.isNotBlank() &&
-            !it.status.contains("stream", ignoreCase = true)
-    }
-    val latestPlan = items.getOrNull(lastPlanIndex)
-    val planHasLaterUserInput = lastPlanIndex >= 0 &&
-        items.drop(lastPlanIndex + 1).any { it.kind == "user" }
-    val offerPlanApproval = latestPlan != null && !planHasLaterUserInput &&
-        selectedMode == "plan" && !busy && !switching && thread != null
-    val workspaceLabel = if (selectedWorkspace == vm.workingDirectory) "本机工作区"
-        else File(selectedWorkspace).name.ifBlank { "本机工作区" }
-    val scroll = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val composerFocus = remember { FocusRequester() }
+    var confirmPlan by remember(thread) { mutableStateOf(false) }
+    val latestPlan = if (selectedMode == "plan" && !busy && !switching && thread != null) {
+        val completedPlan by vm.timeline.collectProjection { timeline ->
+            // Search backwards once when approval is relevant, not on every streaming delta.
+            val index = timeline.indexOfLast {
+                it.kind == "plan" && it.text.isNotBlank() && !it.status.contains("stream", ignoreCase = true)
+            }
+            timeline.getOrNull(index)?.takeIf {
+                (index + 1 until timeline.size).none { next -> timeline[next].kind == "user" }
+            }
+        }
+        completedPlan
+    } else null
+    val offerPlanApproval = latestPlan != null
     val keyboard = LocalSoftwareKeyboardController.current
-    fun startFromSuggestion(prompt: String) {
-        if (draft.isNotBlank()) return
-        vm.editComposerText(thread, prompt)
-        composerFocus.requestFocus()
-        keyboard?.show()
-    }
     // Pickers use the actual remaining quota, so no selected image silently vanishes.
     val oneImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -131,12 +116,24 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val twoImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(2)
     ) { selected -> vm.importPickedImages(selected) }
+    val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        vm.composerContent.finishCamera(success)
+    }
+    val voicePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val words = if (result.resultCode == android.app.Activity.RESULT_OK)
+            result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        else null
+        vm.composerContent.finishVoice(words)
+    }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        vm.composerContent.importDocuments(uris)
+    }
     val threeImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
     ) { selected -> vm.importPickedImages(selected) }
     // Page-owned handoff: old ModalBottomSheet has left composition before next page opens.
-    LaunchedEffect(showContextTools, pendingContextRoute) {
-        if (!showContextTools) {
+    LaunchedEffect(composerMenu, pendingContextRoute) {
+        if (composerMenu != "context-tools") {
             pendingContextRoute?.let { destination ->
                 pendingContextRoute = null
                 navigate(destination)
@@ -155,85 +152,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    var followTail by remember { mutableStateOf(true) }
-    var autoScrolling by remember { mutableStateOf(false) }
-    var lastKnownStepCount by remember { mutableIntStateOf(0) }
-    var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
-    var unreadSteps by remember { mutableIntStateOf(0) }
-    var observedThread by remember { mutableStateOf<String?>(null) }
-    val olderPageVisible = olderTimelineCount > 0 && thread != null
-    val latestIndex = TimelineViewportPolicy.latestIndex(items.size, olderPageVisible)
-
-    // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
-    LaunchedEffect(scroll) {
-        scroll.interactionSource.interactions.collect { interaction ->
-            if (interaction is DragInteraction.Start) followTail = false
-        }
-    }
-    LaunchedEffect(scroll) {
-        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
-            .collect { (scrolling, canForward, automatic) ->
-                if (!scrolling && !canForward) {
-                    followTail = true
-                    unreadSteps = 0
-                } else if (scrolling && canForward && !automatic) {
-                    followTail = false
-                }
-            }
-    }
-    LaunchedEffect(thread, switching, items.size, items.lastOrNull(), olderPageVisible) {
-        if (switching) return@LaunchedEffect
-        val threadChanged = observedThread != thread
-        val change = TimelineViewportPolicy.change(
-            lastKnownStepCount, lastKnownTail, items.size, items.lastOrNull())
-        observedThread = thread
-        lastKnownStepCount = items.size
-        lastKnownTail = items.lastOrNull()
-        if (threadChanged) {
-            followTail = true
-            unreadSteps = 0
-        }
-        if (latestIndex >= 0 && followTail && (threadChanged || change.changed)) {
-            autoScrolling = true
-            try {
-                scroll.scrollToLatest(latestIndex, animate = false)
-            } finally {
-                autoScrolling = false
-            }
-        } else if (!followTail) {
-            unreadSteps += change.newSteps
-        }
-    }
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp,
-            vertical = if (compactWorkArea) 0.dp else 2.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f).heightIn(min = 48.dp)
-                .testTag("chat-workspace-context"),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(workspaceLabel, modifier = Modifier.weight(1f, fill = false),
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            CodexIconAction(onClick = { navigate("files") },
-                modifier = Modifier.testTag("chat-project-files")) {
-                CodexIcon(CodexGlyph.Project, "打开项目文件", tint = Ink.parchment)
-            }
-            CodexIconAction(onClick = { showTerminalSheet = true },
-                modifier = Modifier.testTag("chat-project-terminal")) {
-                CodexIcon(CodexGlyph.Terminal, "展开项目终端", tint = Ink.parchment)
-            }
-            if (thread != null) {
-                CodexIconAction(onClick = { showContextTools = true }, enabled = !switching) {
-                    CodexIcon(CodexGlyph.MoreHoriz, "会话选项", tint = Ink.parchment)
-                }
-            }
-        }
-        HorizontalDivider(color = Ink.border.copy(alpha = .5f))
-        if (goal != null) {
+        if (goal != null && !compactWorkArea) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
                     .testTag("chat-goal-banner").clickable { navigate("goals") },
@@ -254,7 +176,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        if (latestDiff.isNotBlank()) {
+        if (latestDiff.isNotBlank() && !compactWorkArea) {
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
                     .testTag("chat-changes-summary"),
@@ -266,7 +188,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text("代码变更", style = MaterialTheme.typography.titleSmall)
-                        Text("${changedFiles.size} 个文件 · +${changedFiles.sumOf { it.additions }} / −${changedFiles.sumOf { it.deletions }}",
+                        Text(diffSummary?.let { "${it.files} 个文件 · +${it.additions} / −${it.deletions}" }
+                            ?: "正在整理代码变更…",
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
                     CodexTextAction(onClick = { navigate("diff") }) { Text("查看") }
@@ -276,23 +199,18 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        CodexReveal(visible = prompts.isNotEmpty() || busy || switching) {
+        CodexReveal(visible = prompts.isNotEmpty() || (busy && !compactWorkArea) || switching) {
             if (switching) {
                 CodexNotice("正在载入会话及执行记录，请稍候…",
                     NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
             } else if (prompts.isNotEmpty()) {
                 CodexNotice(
-                    "当前任务有 ${prompts.size} 项待审批操作，确认后才能继续。",
+                    "当前任务有 ${prompts.size} 项需要处理，完成后可继续。",
                     NoticeTone.Warning, Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-                    actionLabel = "立即处理", onAction = { showApprovalQuick = true }
+                    actionLabel = "立即处理", onAction = { composerMenu = "approval" }
                 )
-            } else if (busy) {
-                CodexNotice(
-                    if (stopping) "已请求停止任务，正在等待内核确认。"
-                    else "执行中 · ${items.size} 步 · " +
-                        PresentationPolicy.timelineKind(items.lastOrNull()?.kind.orEmpty()),
-                    NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
-                )
+            } else if (busy && !compactWorkArea) {
+                ConversationExecutionNotice(vm, stopping)
             }
         }
         (if (status == EngineStatus.Connected) errors["protocol"] else null)?.let { reason ->
@@ -300,101 +218,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
-            if (switching) {
-                ConversationLoadingSkeleton(Modifier.fillMaxSize())
-            } else if (items.isEmpty()) {
-                val shortViewport = compactWorkArea || maxHeight < 345.dp
-                Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.Center)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = if (shortViewport) 6.dp else 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 12.dp)
-                ) {
-                    if (!compactWorkArea) {
-                        if (!shortViewport) {
-                            CodexStateArtwork(R.drawable.ic_empty_thread,
-                                Modifier.size(width = 112.dp, height = 76.dp))
-                        }
-                        Text("今天想做什么？",
-                            style = if (shortViewport) MaterialTheme.typography.titleLarge
-                                else MaterialTheme.typography.headlineSmall,
-                            color = Ink.parchment, textAlign = TextAlign.Center)
-                        if (setupHint != null && !busy && !firstThreadStarting) {
-                            ChatSetupGuide(setupHint, onNavigate = navigate)
-                        } else if (!shortViewport) {
-                            Text("提出问题，或交给 Codex 一项任务",
-                                color = Ink.muted, style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center)
-                        }
-                    }
-                    if (!busy && !firstThreadStarting && !compactWorkArea && draft.isBlank()) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().testTag("chat-suggestions"),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ChatStarter("浏览文件", CodexGlyph.Project,
-                                    Modifier.weight(1f).testTag("chat-suggestion-files")) { navigate("files") }
-                                ChatStarter("编写脚本", CodexGlyph.Code,
-                                    Modifier.weight(1f).testTag("chat-suggestion-script")) {
-                                    startFromSuggestion("帮我写一个脚本，目标是：")
-                                }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ChatStarter("新建项目", CodexGlyph.CreateNewFolder,
-                                    Modifier.weight(1f).testTag("chat-suggestion-project")) {
-                                    startFromSuggestion("请协助初始化一个新项目，需求是：")
-                                }
-                                ChatStarter("代码审查", CodexGlyph.FactCheck,
-                                    Modifier.weight(1f).testTag("chat-suggestion-review")) { navigate("review") }
-                            }
-                        }
-                    }
-                }
-            } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (olderTimelineCount > 0 && thread != null) item(key = "timeline-older-pages") {
-                    CodexSecondaryButton(
-                        onClick = { vm.loadEarlierTimeline() },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .testTag("timeline-load-older")
-                    ) {
-                        Text("加载更早记录 · 剩余 $olderTimelineCount 条")
-                    }
-                }
-                items(items, key = { it.id }) { item ->
-                    TimelineStepCard(item)
-                }
-            }
-            if (!switching && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                        .padding(bottom = 10.dp).heightIn(min = 48.dp)
-                        .testTag("timeline-return-latest")
-                        .clickable {
-                            scope.launch {
-                                followTail = true
-                                autoScrolling = true
-                                try {
-                                    scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
-                                    unreadSteps = 0
-                                } finally {
-                                    autoScrolling = false
-                                }
-                            }
-                        },
-                    shape = RoundedCornerShape(99.dp),
-                    color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.copper),
-                    shadowElevation = 1.dp
-                ) {
-                    Text(if (unreadSteps > 0) "↓ ${unreadSteps} 条新步骤" else "返回最新进度",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        color = Ink.copper, style = MaterialTheme.typography.labelMedium)
-                }
-            }
+        key(thread) {
+            ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
+                compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
         }
         if (offerPlanApproval) {
             CodexNotice(
@@ -416,19 +242,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 actionLabel = when {
                     status is EngineStatus.Unavailable -> "重新连接"
-                    !busy && !switching &&
-                        (draft.isNotBlank() || attachedImages.isNotEmpty()) -> "重试发送"
+                    !busy && !switching && snapshot.hasInput -> "重试发送"
                     else -> null
                 },
                 onAction = {
                     if (status is EngineStatus.Unavailable) vm.connect()
                     else if (!busy && !switching) {
-                        val originalText = draft
-                        val originalImages = attachedImages.toList()
-                        vm.sendPrompt(originalText, originalImages) { acceptedThread ->
-                            vm.clearComposerAfterAccepted(acceptedThread,
-                                originalText, originalImages)
-                        }
+                        vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = false, expectedOwner = draftOwner)
                     }
                 }
             )
@@ -438,16 +258,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp,
             vertical = if (compactWorkArea) 4.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 7.dp)) {
-            if (status is EngineStatus.Unavailable && !compactWorkArea) {
-                CodexNotice(
-                    "本机运行核心暂未连接，未发送文字已保留。",
-                    NoticeTone.Warning, actionLabel = "重新连接",
-                    onAction = { vm.connect() }
-                )
-            } else if (status == EngineStatus.Starting && !compactWorkArea) {
-                Text("正在连接本机运行核心…",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
             errors["drafts"]?.let {
                 CodexNotice(it, NoticeTone.Error)
             }
@@ -458,126 +268,192 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 AtlasOperationProgress("正在导入图片 ${imported.imported}/${imported.requested}…",
                     progress = if (imported.requested > 0) imported.imported.toFloat() / imported.requested else null)
             }
+            if (documentBusy) AtlasOperationProgress("正在导入本机文件")
+            errors["composerDocuments"]?.let { ErrorText(it) }
             if (attachmentError.isNotBlank()) {
                 ErrorText(attachmentError)
             }
             errors["attachments"]?.let { ErrorText(it) }
             errors["queueWrite"]?.let { ErrorText(it) }
-            if (queuedInputs.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(CodexGlyph.TaskRunning, null, tint = Ink.muted,
-                        modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text("等待执行 ${queuedInputs.size} 条后续指令",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f), color = Ink.muted)
-                    CodexTextAction(onClick = { navigate("queue") },
-                        modifier = Modifier.testTag("chat-queued-followups")) { Text("查看") }
+            if (thread != null && queuedInputs.isNotEmpty()) {
+                ComposerQueuePreview(thread, queuedInputs, busy, queuePaused && !busy,
+                    hasMore = PresentationPolicy.meaningful(queueData?.optString("nextCursor")).isNotBlank(),
+                    compact = compactWorkArea, canStart = !busy && !switching && !firstThreadStarting &&
+                        !queueReadBusy && queueReadError == null && !steering && "queueWrite" !in loading && !transferBusy &&
+                        !permissionSaving && !restarting && status == EngineStatus.Connected,
+                    onManage = { keyboard?.hide(); navigate("queue") },
+                    onStart = { vm.startQueuedComposer(thread) })
+            }
+            val optionsEnabled = !busy && !firstThreadStarting && !switching
+            val tools = buildList {
+                add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
+                    enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
+                add(ComposerShortcut("project", "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace),
+                    "切换手机工作区中的项目与目录", CodexGlyph.Folder, enabled = optionsEnabled,
+                    onOpen = { keyboard?.hide(); composerMenu = "projects" }))
+                add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
+                    enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "terminal" }))
+                add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "models" }))
+                add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); composerMenu = "modes" }))
+                add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); navigate("review") }))
+                add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
+                    enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
+                if (thread != null) {
+                    add(ComposerShortcut("context", "会话选项", "整理上下文、回退历史和查看资料", CodexGlyph.MoreHoriz,
+                        enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "context-tools" }))
+                    add(ComposerShortcut("usage", "上下文容量", "查看当前会话容量", CodexGlyph.Insights,
+                        onOpen = { keyboard?.hide(); composerMenu = "usage" }))
+                    add(ComposerShortcut("goal", "任务目标", "查看和编辑当前会话目标", CodexGlyph.Flag,
+                        enabled = !switching, onOpen = { keyboard?.hide(); navigate("goals") }))
+                    add(ComposerShortcut("queue", "后续指令", "管理当前会话待执行队列", CodexGlyph.ViewList,
+                        enabled = !switching, onOpen = { keyboard?.hide(); navigate("queue") }))
+                    add(ComposerShortcut("compact", "整理上下文", "", CodexGlyph.Compress,
+                        enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "compact" }))
+                }
+                add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
+                    onOpen = { keyboard?.hide(); composerMenu = "engine-status" }))
+            }
+            val sending = firstThreadStarting || steering || "queueWrite" in loading
+            val sendBlockReason = when {
+                permissionSaving -> "正在保存权限，请稍候"
+                transferBusy -> "本机数据正在备份或恢复"
+                restarting -> "运行核心正在重新连接"
+                status != EngineStatus.Connected -> "运行核心尚未连接"
+                switching -> "正在恢复会话"
+                firstThreadStarting -> "正在建立新会话"
+                attachmentBusy || documentBusy -> "正在导入附件"
+                sending -> "正在提交指令，请勿重复发送"
+                stopping -> "正在停止当前任务，请稍候"
+                busy && thread == null -> "正在建立会话"
+                !snapshot.hasInput -> "输入指令或添加附件后即可发送"
+                else -> ""
+            }
+            val stopCurrentTurn: () -> Unit = {
+                if (thread != null && vm.activeThread.value == thread &&
+                    vm.activeTurn.value == activeTurn && !activeTurn.isNullOrBlank() &&
+                    vm.running.value && "interrupt" !in vm.loading.value && !stopping) {
+                    stopRequestedForTurn = activeTurn
+                    vm.interruptThread(thread)
                 }
             }
-            if (busy && attachedImages.isNotEmpty()) {
-                Text("运行中仅支持补充文字；已选图片将在下一轮发送。",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
-            LocalImageAttachmentStrip(attachedImages) { path ->
-                vm.removeComposerImage(thread, path)
+            // Submit and queue are distinct actions, matching native Enter/Tab.
+            // Keep the transient queue shortcut outside ConversationComposer.
+            ComposerQueueAction(
+                visible = busy && thread != null && snapshot.hasInput && !stopping,
+                enabled = sendBlockReason.isBlank(),
+                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) },
+                stopEnabled = !activeTurn.isNullOrBlank() && !switching && status == EngineStatus.Connected && !restarting && !stopping,
+                onStop = stopCurrentTurn)
+            val guideBlockReason = sendBlockReason.ifBlank {
+                if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
             ConversationComposer(
-                draft = draft,
-                focusRequester = composerFocus,
-                shortcuts = buildList {
-                    add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
-                        enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
-                    add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
-                        enabled = !switching, onOpen = { keyboard?.hide(); showTerminalSheet = true }))
-                    add(ComposerShortcut("model", "选择模型", "查看内核返回的可用模型", CodexGlyph.Memory,
-                        onOpen = { keyboard?.hide(); showModels = true }))
-                    add(ComposerShortcut("mode", "任务模式", "选择先计划或执行", CodexGlyph.Tune,
-                        enabled = !busy && !switching && !firstThreadStarting,
-                        onOpen = { keyboard?.hide(); showModes = true }))
-                    add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
-                        enabled = !busy && !switching, onOpen = { keyboard?.hide(); navigate("review") }))
-                    add(ComposerShortcut("diff", "代码差异", "查看当前改动", CodexGlyph.Diff,
-                        enabled = !switching, onOpen = { keyboard?.hide(); navigate("diff") }))
-                    if (thread != null) {
-                        add(ComposerShortcut("goal", "任务目标", "查看和编辑当前会话目标", CodexGlyph.Flag,
-                            enabled = !switching, onOpen = { keyboard?.hide(); navigate("goals") }))
-                        add(ComposerShortcut("queue", "后续指令", "管理当前会话待执行队列", CodexGlyph.ViewList,
-                            enabled = !switching, onOpen = { keyboard?.hide(); navigate("queue") }))
-                    }
-                    add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
-                        onOpen = { keyboard?.hide(); showEngineStatus = true }))
-                },
-                controls = {
-                    if (!compactWorkArea) ConversationControlBar(
-                            modelName = vm.modelId.collectAsState().value,
-                            mode = selectedMode,
-                            connected = status == EngineStatus.Connected,
-                            starting = status == EngineStatus.Starting,
-                            running = busy || firstThreadStarting || switching,
-                            onModel = { showModels = true },
-                            onMode = { showModes = true },
-                            onDiagnostics = { showEngineStatus = true }
-                        )
-                },
-                onDraftChange = { vm.editComposerText(thread, it) },
-                attachedCount = attachedImages.size,
-                connected = status == EngineStatus.Connected,
-                running = busy,
-                stopping = stopping,
+                draft = draft, shortcuts = tools,
+                onDraftChange = { vm.editComposerText(draftOwner, it) },
+                attachedCount = attachedImages.size, connected = status == EngineStatus.Connected,
+                running = busy, stopping = stopping,
                 canStop = busy && !activeTurn.isNullOrBlank(),
-                canSend = status == EngineStatus.Connected && !switching && !firstThreadStarting && !attachmentBusy &&
-                    (if (busy) draft.isNotBlank() && thread != null &&
-                        (followUpMode == "queue" || (!activeTurn.isNullOrBlank() && !steering))
-                     else draft.isNotBlank() || attachedImages.isNotEmpty()),
-                sending = firstThreadStarting || steering || "queueWrite" in loading ||
-                    (busy && activeTurn.isNullOrBlank() && followUpMode == "steer"),
-                followUpMode = followUpMode,
-                onFollowUpModeChange = { followUpMode = it },
-                onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
-                onSend = {
-                    val message = draft.trim()
-                    val submittedDraft = draft
-                    if (busy && followUpMode == "queue" && thread != null) {
-                        val params = JSONObject().put("threadId", thread)
-                            .put("clientUserMessageId", java.util.UUID.randomUUID().toString())
-                            .put("input", JSONArray().put(
-                                JSONObject().put("type", "text").put("text", message)))
-                        vm.rpc("queueWrite", "thread/queue/add", params, after = {
-                            vm.clearComposerAfterAccepted(thread, submittedDraft, emptyList())
-                            vm.refresh("queue:$thread", "thread/queue/list",
-                                JSONObject().put("threadId", thread).put("limit", 100))
-                        })
-                    } else if (busy) {
-                        vm.steerPrompt(message) {
-                            vm.clearComposerAfterAccepted(thread, submittedDraft, emptyList())
-                        }
-                    } else {
-                        val images = attachedImages.toList()
-                        vm.sendPrompt(message, images) { acceptedThread ->
-                            // 切换会话之后，回执仍只清理实际被接收会话的草稿。
-                            vm.clearComposerAfterAccepted(acceptedThread, submittedDraft, images)
+                canSend = guideBlockReason.isBlank(), sending = sending,
+                sendBlockReason = guideBlockReason,
+                onStop = stopCurrentTurn,
+                onSend = { vm.submitComposerDraft(snapshot, "steer", thread, activeTurn, busy, draftOwner) },
+                hasInput = snapshot.hasInput,
+                onVoice = if (vm.composerContent.canRecognizeSpeech()) ({
+                    keyboard?.hide()
+                    vm.composerContent.beginVoice(draftOwner, selectedWorkspace)?.let { intent ->
+                        try { voicePicker.launch(intent) }
+                        catch (failure: Exception) {
+                            vm.composerContent.finishVoice(null)
+                            vm.composerContent.pickerFailure(failure)
                         }
                     }
-                },
-                imageImporting = attachmentBusy,
-                onPickImage = {
-                    if (vm.beginImageSelection(thread)) pendingImagePick = true
-                },
+                }) else null,
+                voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
+                imageImporting = attachmentBusy || documentBusy,
+                onAddContent = { keyboard?.hide(); composerMenu = "add" },
                 compactControls = compactWorkArea,
-                compactCanReconnect = status is EngineStatus.Unavailable,
-                compactModelLabel = vm.modelId.collectAsState().value,
-                compactModeLabel = selectedMode,
-                onModel = { showModels = true },
-                onMode = { showModes = true },
-                onDiagnostics = { showEngineStatus = true },
-                onReconnect = { vm.connect() }
+                modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
+                    ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
+                modeLabel = selectedMode,
+                effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
+                optionsEnabled = optionsEnabled,
+                onModel = { keyboard?.hide(); composerMenu = "models" },
+                onMode = { keyboard?.hide(); composerMenu = "modes" },
+                onTaskOptions = { keyboard?.hide(); composerMenu = "tools" },
+                onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
+                statusContent = {
+                    if (status is EngineStatus.Unavailable) {
+                        CodexNotice("连接异常，草稿已保留", NoticeTone.Warning,
+                            actionLabel = "重连", onAction = { vm.connectionRestarter.reconnect() })
+                    } else if (status == EngineStatus.Starting) {
+                        Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    }
+                },
+                permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !transferBusy) },
+                attachmentContent = {
+                    LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
+                }
             )
+            if (composerMenu == "add") CodexActionSheet(title = "添加内容", onDismiss = { composerMenu = "" },
+                actions = buildList {
+                    add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
+                        if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
+                    }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                        description = "选择本机图片", testTag = "composer-add-photos"))
+                    add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
+                        if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
+                            try { documentPicker.launch(arrayOf("*/*")) }
+                            catch (failure: Exception) {
+                                vm.composerContent.importDocuments(emptyList())
+                                vm.composerContent.pickerFailure(failure)
+                            }
+                        }
+                    }, description = "导入当前项目并引用", testTag = "composer-add-files"))
+                    add(CodexSheetAction("引用项目文件", CodexGlyph.Link,
+                        onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"))
+                    add(CodexSheetAction("技能", CodexGlyph.School,
+                        onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
+                    if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
+                        onClick = {
+                            vm.composerContent.prepareCamera(draftOwner)?.let { uri ->
+                                try { cameraPicker.launch(uri) }
+                                catch (failure: Exception) {
+                                    vm.composerContent.finishCamera(false)
+                                    vm.composerContent.pickerFailure(failure)
+                                }
+                            }
+                        }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                        description = "拍摄并添加图片", testTag = "composer-add-camera"))
+                    if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
+                        onClick = { vm.composerContent.pasteImage(draftOwner) },
+                        enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                        description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
+
+                })
+            if (composerMenu == "tools") CodexActionSheet(title = "任务配置", onDismiss = { composerMenu = "" },
+                actions = tools.filter { it.command !in setOf("model", "mode") }.map {
+                    CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
+                        enabled = it.enabled, testTag = "composer-tool-" + it.command)
+                })
         }
     }
-    if (showTerminalSheet) {
+    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
+        onSelect = { vm.composerContent.addReference(draftOwner, it, referenceQuery); composerMenu = ""; referenceQuery = null },
+        onDismiss = { composerMenu = ""; referenceQuery = null })
+    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
+        onSelect = { vm.composerContent.addReference(draftOwner, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
+    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
+    if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
+    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
+        onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
+        onDismiss = { composerMenu = "" })
+    if (composerMenu == "terminal") {
         CodexSheetFrame(
-            onDismissRequest = { showTerminalSheet = false },
+            onDismissRequest = { closeComposerMenu("terminal") },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Ink.canvas
         ) {
@@ -589,7 +465,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(PresentationPolicy.workspaceName(selectedWorkspace),
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
-                    CodexIconAction(onClick = { showTerminalSheet = false }) {
+                    CodexIconAction(onClick = { closeComposerMenu("terminal") }) {
                         CodexIcon(CodexGlyph.Close, "收起终端")
                     }
                 }
@@ -597,14 +473,28 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    if (showContextTools) {
+    if (composerMenu == "context-tools") {
         ThreadContextTools(
             vm = vm,
             navigate = { destination ->
                 pendingContextRoute = destination
-                showContextTools = false
+                closeComposerMenu("context-tools")
             },
-            onDismiss = { showContextTools = false }
+            onDismiss = { closeComposerMenu("context-tools") },
+            onCompact = { closeComposerMenu("context-tools"); sessionAction = "compact" }
+        )
+    }
+    if (sessionAction.isNotBlank() && thread != null) {
+        val id = thread
+        CodexConfirmDialog(
+            title = "整理上下文",
+            message = "内核将整理较早的上下文，部分细节可能需要重新读取。",
+            confirmLabel = "开始整理",
+            onConfirm = {
+                sessionAction = ""
+                id?.let { vm.conversationActions.compact(it) }
+            },
+            onDismiss = { sessionAction = "" }
         )
     }
     if (confirmPlan && latestPlan != null) {
@@ -620,38 +510,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onDismiss = { confirmPlan = false }
         )
     }
-    if (showApprovalQuick) ApprovalQuickSheet(vm) { showApprovalQuick = false }
-    if (showModels) ModelChoiceSurface(vm) { showModels = false }
-    if (showModes) ModeChoiceSurface(vm) { showModes = false }
-    if (showEngineStatus) EngineStatusSheet(
-        vm, onDismiss = { showEngineStatus = false }, navigate = navigate
+    if (composerMenu == "approval" && thread != null)
+        ApprovalQuickSheet(vm, thread) { closeComposerMenu("approval") }
+    if (composerMenu == "models") ModelChoiceSurface(vm) { closeComposerMenu("models") }
+    if (composerMenu == "modes") ModeChoiceSurface(vm) { closeComposerMenu("modes") }
+    if (composerMenu == "engine-status") EngineStatusSheet(
+        vm, onDismiss = { closeComposerMenu("engine-status") }, navigate = navigate
     )
-}
-
-/** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
-private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
-    if (index < 0) return
-    if (animate) animateScrollToItem(index) else scrollToItem(index)
-    val info = layoutInfo
-    val last = info.visibleItemsInfo.lastOrNull { it.index == index } ?: return
-    val remaining = (last.offset + last.size - info.viewportEndOffset +
-        info.afterContentPadding).coerceAtLeast(0)
-    if (remaining > 0 && canScrollForward) scrollBy(remaining.toFloat())
-}
-
-/** Every tool step retains the source payload for verification while keeping the chat readable. */
-@Composable
-private fun ChatStarter(label: String, icon: CodexGlyph, modifier: Modifier = Modifier,
-    onClick: () -> Unit) {
-    Surface(onClick = onClick, modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(14.dp), color = Ink.canvas,
-        border = BorderStroke(1.dp, Ink.border.copy(alpha = .8f))) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            CodexIcon(icon, null, Modifier.size(20.dp), tint = Ink.muted)
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment,
-                modifier = Modifier.weight(1f))
-        }
-    }
 }

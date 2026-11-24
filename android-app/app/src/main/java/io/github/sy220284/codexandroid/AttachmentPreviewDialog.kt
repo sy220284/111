@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
 /** 本地附件全屏查看：保留真实图片、支持缩放、平移、切换和移除。 */
 @Composable
 internal fun AttachmentPreviewDialog(paths: List<String>, initialPath: String,
-    onDismiss: () -> Unit, onRemove: (String) -> Unit) {
+    onDismiss: () -> Unit, onRemove: ((String) -> Unit)?) {
     if (initialPath !in paths) return
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         // 当前图片的唯一状态由实际 Dialog 内容持有。外层只管理打开/关闭，
@@ -50,7 +50,7 @@ internal fun AttachmentPreviewDialog(paths: List<String>, initialPath: String,
 
 @Composable
 private fun AttachmentPreviewContent(paths: List<String>, path: String,
-    onSelect: (String) -> Unit, onDismiss: () -> Unit, onRemove: (String) -> Unit) {
+    onSelect: (String) -> Unit, onDismiss: () -> Unit, onRemove: ((String) -> Unit)?) {
     val index = paths.indexOf(path)
     var retry by remember(path) { mutableIntStateOf(0) }
     val preview by key(path, retry) {
@@ -83,7 +83,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                 Text("图片 ${index + 1} / ${paths.size}", modifier = Modifier.weight(1f)
                     .testTag("attachment-preview-position"),
                     style = MaterialTheme.typography.titleMedium)
-                CodexIconAction(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
+                if (onRemove != null) CodexIconAction(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.DeleteOutline, "移除当前图片", tint = Ink.red)
                 }
             }

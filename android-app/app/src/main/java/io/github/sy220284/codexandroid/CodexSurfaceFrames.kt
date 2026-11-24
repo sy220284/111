@@ -4,17 +4,31 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+internal val LocalCodexSheetClose = staticCompositionLocalOf<(() -> Unit)?> { null }
+internal val LocalCodexSheetAction = staticCompositionLocalOf<((() -> Unit) -> Unit)?> { null }
 
 /** 所有详情、快捷选择和专业任务面板共享一个原生容器。保留各业务页面的滚动、状态与返回策略。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,9 +42,45 @@ fun CodexSheetFrame(
     dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle(color = Ink.muted) },
     content: @Composable ColumnScope.() -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismissRequest, modifier = modifier, sheetState = sheetState,
+    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val scope = rememberCoroutineScope()
+    val dismiss by rememberUpdatedState(onDismissRequest)
+    var closing by remember(sheetState) { mutableStateOf(false) }
+    var dismissed by remember(sheetState) { mutableStateOf(false) }
+    var pendingAction by remember(sheetState) { mutableStateOf<(() -> Unit)?>(null) }
+    val finish: () -> Unit = {
+        if (!dismissed) {
+            dismissed = true
+            val action = pendingAction
+            pendingAction = null
+            dismiss()
+            action?.invoke()
+        }
+    }
+    val closeWithAction: (() -> Unit) -> Unit = { action ->
+        if (!closing && !dismissed) {
+            pendingAction = action
+            closing = true
+            if (reduceMotion) finish()
+            else scope.launch {
+                try {
+                    sheetState.hide()
+                    if (!sheetState.isVisible) finish()
+                } finally {
+                    closing = false
+                    if (!dismissed) pendingAction = null
+                }
+            }
+        }
+    }
+    val close: () -> Unit = { closeWithAction {} }
+    ModalBottomSheet(onDismissRequest = finish, modifier = modifier, sheetState = sheetState,
         containerColor = containerColor, contentColor = contentColor, dragHandle = dragHandle,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), content = content)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
+        val column = this
+        CompositionLocalProvider(LocalCodexSheetClose provides close,
+            LocalCodexSheetAction provides closeWithAction) { column.content() }
+    }
 }
 
 @Composable
@@ -56,4 +106,11 @@ fun CodexDialogFrame(
         modifier = modifier, dismissButton = dismissButton, icon = icon, title = title, text = text,
         shape = shape, containerColor = containerColor,
         titleContentColor = titleContentColor, textContentColor = textContentColor)
+}
+
+/** 轻量锚定菜单共享原生 Popup 容器，保留系统返回、焦点与主题。 */
+@Composable
+internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest, content = content)
 }

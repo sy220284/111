@@ -100,7 +100,9 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
             refuse(failure.message ?: "未知会话整理操作")
             return@with
         }
-        val targets = ThreadBulkActionPolicy.uniqueIds(ids)
+        val targets = ThreadBulkActionPolicy.uniqueIds(if (offerUndo) ids.flatMap {
+            answerVersions.state.value.members(it).let { group -> if (kind == "delete") group.asReversed() else group }
+        } else ids)
         if (targets.isEmpty()) return@with
         if (!globalWorkSnapshot().canStartNewTask) {
             refuse("本机备份或恢复正在进行，完成后再整理会话")
@@ -130,7 +132,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                     bulkCompletedThreadIds.value = completed.toSet()
                     bulkActionSummary.value = "正在处理 ${completed.size}/${targets.size} 项会话"
                 }
-                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} ${completed.size} 条会话，结果可在这里查看"
+                bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} ${completed.size} 条会话"
                 actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value,
                     undo = if (offerUndo) gate.complete(ticket, completed) else null))
             } catch (failure: Exception) {

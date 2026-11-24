@@ -17,9 +17,11 @@ internal data class ComposerShortcut(
 )
 
 internal object ComposerShortcutPolicy {
+    private val referencePattern = Regex("(?:^|\\s)@([^\\s@]*)$")
     fun query(draft: String): String? =
         draft.takeIf { it.startsWith("/") && it.length <= 40 && it.none(Char::isWhitespace) }
             ?.drop(1)?.takeUnless { '/' in it }
+    fun referenceQuery(draft: String): String? = referencePattern.find(draft)?.groupValues?.get(1)
     fun matches(query: String, command: String, title: String): Boolean =
         command.startsWith(query, ignoreCase = true) || title.contains(query, ignoreCase = true)
 }

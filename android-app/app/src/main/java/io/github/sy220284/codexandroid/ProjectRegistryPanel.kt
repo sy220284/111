@@ -77,7 +77,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                 errors["projectWrite"]?.let { ErrorText("项目操作失败：$it") }
                 if (errorText.isNotEmpty()) ErrorText(errorText)
                 Text("当前目录：" + currentFolder.relativeTo(root).path.takeIf { it != "." }
-                    ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
+                    ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it }.orEmpty().ifBlank { (WorkspaceStorage.DISPLAY_ROOT + "/") },
                     style = MaterialTheme.typography.bodySmall)
                 CodexInputField(name, { name = it }, label = { Text("新项目名称") },
                     singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -107,11 +107,12 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                     val displayName = project.optString("name").ifBlank { "未命名项目" }
                     val rootPath = project.optJSONArray("roots")
                         ?.optJSONObject(0)?.optString("path").orEmpty()
+                        .let { if (it.isBlank()) it else WorkspaceStorage.remap(vm.getApplication(), it) }
                     val location = when {
                         rootPath.isBlank() -> "目录信息缺失"
-                        rootPath == root.path -> "projects/"
+                        rootPath == root.path -> (WorkspaceStorage.DISPLAY_ROOT + "/")
                         rootPath.startsWith(root.path + File.separator) ->
-                            "projects/" + rootPath.removePrefix(root.path + File.separator)
+                            (WorkspaceStorage.DISPLAY_ROOT + "/") + rootPath.removePrefix(root.path + File.separator)
                         else -> "目录不在当前本机工作区"
                     }
                     val canModify = !running && "projectWrite" !in loading

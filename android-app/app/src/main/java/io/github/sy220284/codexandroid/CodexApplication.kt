@@ -14,7 +14,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** The process owns a single Codex core, and releases it after background inactivity. */
 class CodexApplication : Application() {
-    private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) { CodexViewModel(this) }
+    private var workspacePrepared = false
+    @Synchronized internal fun prepareWorkspace() {
+        WorkspaceStorage.root(this)
+        if (!workspacePrepared) {
+            WorkspaceStorage.prepare(this)
+            LocalDataArchive.restoreIfPending(this)
+            workspacePrepared = true
+        }
+    }
+    private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        prepareWorkspace()
+        CodexViewModel(this)
+    }
     val session: CodexViewModel get() = holder.value
     val pendingDeepLink = MutableStateFlow<String?>(null)
 
@@ -32,12 +44,18 @@ class CodexApplication : Application() {
             // Resume a verified install at the process boundary; the Activity only
             // renders UI and never owns the long-running download/patch operation.
             AppUpdateManager.resumeInstall(activity)
-            if (holder.isInitialized()) holder.value.reconnectIfNeeded()
+            if (holder.isInitialized()) {
+                holder.value.reconnectIfNeeded()
+                holder.value.sessions.refreshIfStale()
+                holder.value.accountMetrics.foreground(true)
+                holder.value.extensions.refreshAfterAppAuthorization()
+            }
         }
         override fun onActivityPaused(activity: Activity) {}
         override fun onActivityStopped(activity: Activity) {
             activityCount = (activityCount - 1).coerceAtLeast(0)
             if (activityCount != 0) return
+            if (holder.isInitialized()) holder.value.accountMetrics.foreground(false)
             idleRelease?.cancel()
             idleRelease = maintenance.launch {
                 delay(90_000)
@@ -56,7 +74,6 @@ class CodexApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        LocalDataArchive.restoreIfPending(this)
         LocalCrashReporter.install(this)
         // Run the initial small cache sweep before any screen can initiate a
         // new download. This avoids racing an asynchronous startup cleanup with

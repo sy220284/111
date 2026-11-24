@@ -69,6 +69,16 @@ class DirectionValidationTest(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertEqual({"thread/start"}, used)
 
+    def test_local_paths_are_allowed_but_unknown_rpc_calls_are_rejected(self):
+        errors, _ = verify_sources(MACROS, {"Workspace.kt": (
+            'val folder = "Download/Codex"\nval archive = "files/projects"\n'
+            'bridge.request("typo/start", JSONObject())\n'
+            'vm.rpc(writeKey, "other/start", JSONObject())')})
+        self.assertEqual([
+            "协议未定义：Workspace.kt:3: typo/start",
+            "协议未定义：Workspace.kt:4: other/start",
+        ], errors)
+
     def test_invalid_method_is_rejected(self):
         errors, _ = verify_sources(MACROS, {"Screens.kt": 'val a = "thread/typo"'})
         self.assertTrue(any("协议未定义" in e for e in errors))

@@ -163,7 +163,7 @@
       "flag": "常规/内部"
     },
     "thread/section/move": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "会话/对话",
       "flag": "常规/内部"
     },
@@ -278,22 +278,22 @@
       "flag": "实验"
     },
     "threadSection/list": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
     "threadSection/create": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
     "threadSection/update": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
     "threadSection/delete": {
-      "surface": "上下文操作",
+      "surface": "后台内部",
       "owner": "会话历史",
       "flag": "常规/内部"
     },
@@ -333,7 +333,7 @@
       "flag": "常规/内部"
     },
     "thread/readState/update": {
-      "surface": "后台内部",
+      "surface": "上下文操作",
       "owner": "会话/对话",
       "flag": "实验"
     },
@@ -639,7 +639,7 @@
     },
     "permissionProfile/list": {
       "surface": "直接操作",
-      "owner": "权限与安全",
+      "owner": "任务对话",
       "flag": "常规/内部"
     },
     "experimentalFeature/enablement/set": {
@@ -914,7 +914,7 @@
     },
     "configRequirements/read": {
       "surface": "直接操作",
-      "owner": "权限与安全",
+      "owner": "任务对话",
       "flag": "常规/内部"
     },
     "account/read": {

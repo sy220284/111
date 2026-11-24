@@ -27,7 +27,7 @@ fun EngineStatusSheet(
     vm: CodexViewModel, onDismiss: () -> Unit, navigate: (String) -> Unit
 ) {
     val status by vm.bridge.status.collectAsState()
-    val terminal by vm.terminalSession.collectAsState()
+    val terminalRunning by vm.terminalSession.collectProjection { it.running }
     CodexDetailSheet(title = "运行状态", onDismiss = onDismiss, startExpanded = true) {
         val label = when (status) {
             EngineStatus.Connected -> "本机内核已连接"
@@ -45,7 +45,7 @@ fun EngineStatusSheet(
                 onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
                 enabled = status != EngineStatus.Starting, outlined = false)
         }
-        if (terminal.running) {
+        if (terminalRunning) {
             AtlasSettingsActionRow("查看正在运行的终端", "返回命令执行现场", CodexGlyph.Terminal,
                 onClick = { onDismiss(); navigate("terminal") }, outlined = false)
         }
@@ -56,19 +56,39 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val models by vm.data.collectAsState()
+    val models by vm.data.collectEntries("models")
     val selected by vm.modelId.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val active by vm.activeThread.collectAsState()
+    val drafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(active))
+    val running by vm.running.collectAsState()
+    val creating by vm.firstThreadStarting.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    val effort = drafts[ThreadComposerDrafts.key(active)]?.options?.effort.orEmpty()
+    var selectingEffort by remember { mutableStateOf(false) }
+    val loading by vm.loading.collectProjection { it.intersect(setOf("models")) }
+    val errors by vm.errors.collectEntries("models")
     val engineStatus by vm.bridge.status.collectAsState()
     LaunchedEffect(engineStatus) {
         if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
     }
-    val choices = records(models["models"]).filter { !it.optBoolean("hidden") }
-        .map { item ->
+    val modelData = models["models"]
+    val available = remember(modelData) { records(modelData) }
+    val choices = remember(available) {
+        available.filter { !it.optBoolean("hidden") }.map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
             CodexChoice(id, item.optString("displayName").ifBlank { id })
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
+    }
+    val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
+    val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
+    if (selectingEffort) {
+        CodexChoiceSheet(title = "思考强度", description = "当前模型：" + selected,
+            choices = listOf(CodexChoice("", "遵循默认强度")) + efforts.map { CodexChoice(it, PresentationPolicy.reasoningLabel(it)) },
+            selectedId = effort, enabled = selectable,
+            onSelect = { vm.chooseComposerEffort(it); selectingEffort = false },
+            onDismiss = { selectingEffort = false })
+        return
+    }
     CodexChoiceSheet(
         title = "选择运行模型",
         description = when {
@@ -80,8 +100,9 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         },
         choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
         selectedId = selected,
-        enabled = engineStatus == EngineStatus.Connected && "models" !in loading,
-        recoveryLabel = if (engineStatus == EngineStatus.Connected) "重新读取" else "重新连接",
+        enabled = selectable,
+        recoveryLabel = if (engineStatus != EngineStatus.Connected) "重新连接"
+            else if (errors["models"] != null || choices.isEmpty()) "重新读取" else null,
         onRecovery = {
             if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
             else vm.connect()
@@ -94,7 +115,15 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         },
         searchable = true,
         loading = "models" in loading,
-        onSelect = { id -> vm.modelId.value = id; onDismiss() },
+        extraContent = {
+            AtlasSettingsActionRow("思考强度",
+                if (selected.isBlank()) "先选择具体模型" else if (efforts.isEmpty()) "该模型未提供可选强度"
+                else if (effort.isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(effort),
+                CodexGlyph.Speed, onClick = { selectingEffort = true },
+                enabled = selectable && efforts.isNotEmpty(), outlined = false,
+                modifier = Modifier.testTag("composer-effort"))
+        },
+        onSelect = { id -> vm.chooseComposerModel(id) },
         onDismiss = onDismiss
     )
 }
@@ -102,10 +131,13 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
 @Composable
 fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     val selected by vm.selectedMode.collectAsState()
-    val data by vm.data.collectAsState()
-    val busy by vm.running.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val data by vm.data.collectEntries("modes")
+    val running by vm.running.collectAsState()
+    val creating by vm.firstThreadStarting.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    val busy = running || creating || switching
+    val loading by vm.loading.collectProjection { it.intersect(setOf("modes")) }
+    val errors by vm.errors.collectEntries("modes")
     val status by vm.bridge.status.collectAsState()
     LaunchedEffect(status) {
         if (status == EngineStatus.Connected)
@@ -129,7 +161,7 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         title = "选择协作方式", description = description,
         choices = choices, selectedId = selected,
         enabled = connected && !busy && !refreshing,
-        recoveryLabel = if (connected) "重新检查" else "重新连接",
+        recoveryLabel = if (!connected) "重新连接" else if (errors["modes"] != null || !planSupported) "重新检查" else null,
         onRecovery = {
             if (connected) vm.refresh("modes", "collaborationMode/list") else vm.connect()
         },
@@ -138,7 +170,7 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         loading = refreshing,
         onSelect = { id ->
             if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
-                vm.selectedMode.value = id
+                vm.chooseComposerMode(id)
                 onDismiss()
             }
         }, onDismiss = onDismiss

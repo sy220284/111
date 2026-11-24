@@ -1,32 +1,25 @@
 package io.github.sy220284.codexandroid
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** 原生工作路由与参考图形态一一对应。 */
+/** 单一任务首页：空会话保持顶部留白，只展示实际会话标题。 */
 @Composable
 internal fun ChatWorkTopBar(
-    selected: String,
-    conversationTitle: String = "任务对话",
+    conversationTitle: String?,
     newThreadBlockReason: String?,
+    otherPendingCount: Int,
+    onApprovals: () -> Unit,
     onMenu: () -> Unit,
-    onNavigate: (String) -> Unit,
     onNewThread: () -> Unit
 ) {
     Row(
@@ -34,45 +27,45 @@ internal fun ChatWorkTopBar(
             .windowInsetsPadding(WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .heightIn(min = 56.dp)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp)
+            .testTag("conversation-top-bar"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            CodexIconAction(
-                onClick = onMenu,
-                modifier = Modifier.size(48.dp)
-                    .background(Ink.recessed, CircleShape)
-                    .testTag("drawer-toggle")
-            ) {
-                CodexIcon(CodexGlyph.Sidebar, "打开侧边导航", tint = Ink.parchment)
-            }
-        }
-        Column(
-            Modifier.weight(2f).testTag("conversation-top-title"),
-            horizontalAlignment = Alignment.CenterHorizontally
+        CodexIconAction(
+            onClick = onMenu,
+            modifier = Modifier.size(48.dp)
+                .background(Ink.recessed, CircleShape)
+                .testTag("drawer-toggle")
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            CodexIcon(CodexGlyph.BrandCodex, null, modifier = Modifier.size(18.dp), tint = Ink.parchment)
-            Text(
-                conversationTitle,
-                style = MaterialTheme.typography.titleMedium,
-                color = Ink.parchment,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            CodexIcon(CodexGlyph.Sidebar, "打开侧边导航", tint = Ink.parchment)
+        }
+        Box(Modifier.weight(1f).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+            if (!conversationTitle.isNullOrBlank()) {
+                Row(Modifier.testTag("conversation-top-title"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CodexIcon(CodexGlyph.BrandCodex, null, modifier = Modifier.size(18.dp),
+                        tint = Ink.parchment)
+                    Text(conversationTitle, style = MaterialTheme.typography.titleMedium,
+                        color = Ink.parchment, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            CodexIconAction(
-                onClick = onNewThread, enabled = newThreadBlockReason == null,
-                modifier = Modifier.size(48.dp)
-                    .background(Ink.recessed, CircleShape)
-                    .testTag("top-new-chat")
-                    .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
-            ) {
-                CodexIcon(CodexGlyph.EditNote, "新建聊天",
-                    tint = if (newThreadBlockReason != null) Ink.muted else Ink.parchment)
+        if (otherPendingCount > 0) {
+            CodexIconAction(onClick = onApprovals,
+                modifier = Modifier.size(48.dp).testTag("chat-other-approvals")) {
+                CodexIcon(CodexGlyph.TaskApproval, "其他会话有 $otherPendingCount 项待处理", tint = Ink.warning)
             }
+        }
+        CodexIconAction(
+            onClick = onNewThread, enabled = newThreadBlockReason == null,
+            modifier = Modifier.size(48.dp)
+                .background(Ink.recessed, CircleShape)
+                .testTag("top-new-chat")
+                .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
+        ) {
+            CodexIcon(CodexGlyph.EditNote, "新建任务",
+                tint = if (newThreadBlockReason != null) Ink.muted else Ink.parchment)
         }
     }
 }

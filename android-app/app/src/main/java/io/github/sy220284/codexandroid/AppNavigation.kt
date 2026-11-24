@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -37,7 +36,6 @@ data class Page(
 )
 
 val pages = listOf(
-    Page("home", "总览", "工作台", "任务、连接与待决事项", CodexGlyph.Home),
     Page("chat", "任务对话", "工作台", "会话、流式生成与输入", CodexGlyph.Thread),
     Page("threads", "会话历史", "工作台", "继续、检索和归档任务", CodexGlyph.History, "thread/list"),
     Page("approvals", "待审批操作", "工作台", "待确认命令、修改与权限", CodexGlyph.Security),
@@ -48,20 +46,23 @@ val pages = listOf(
     Page("diff", "代码差异", "项目与代码", "当前任务的改动追踪", CodexGlyph.Code),
     Page("terminal", "终端", "项目与代码", "在设备沙箱中执行命令", CodexGlyph.Terminal),
     Page("review", "代码审查", "项目与代码", "发起 Codex 审查", CodexGlyph.FactCheck, "review/start"),
-    Page("models", "模型目录", "能力与扩展", "可用模型与思考能力", CodexGlyph.AutoAwesome, "model/list"),
+    Page("models", "模型设置", "设置与账户", "默认模型、思考深度和回复详略", CodexGlyph.AutoAwesome, "model/list"),
     Page("modes", "协作模式", "能力与扩展", "计划、编码与协作模式", CodexGlyph.PeopleOutline, "collaborationMode/list"),
     Page("skills", "技能", "能力与扩展", "发现并管理技能", CodexGlyph.School, "skills/list"),
     Page("plugins", "插件", "能力与扩展", "安装状态与能力", CodexGlyph.Extension, "plugin/list"),
     Page("apps", "连接应用", "能力与扩展", "应用连接与权限", CodexGlyph.Apps, "app/list"),
     Page("mcp", "MCP 服务", "能力与扩展", "已连接的可用服务", CodexGlyph.Hub, "mcpServerStatus/list"),
-    Page("environments", "执行环境", "能力与扩展", "设备和远端环境", CodexGlyph.Dns, "environment/status", true),
+    Page("environments", "运行管理", "设置与账户", "执行设备、后台资源和终端等待", CodexGlyph.Dns, "environment/status", true),
     Page("account", "账号登录", "设置与账户", "ChatGPT 登录与会话", CodexGlyph.AccountCircle, "account/read"),
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", CodexGlyph.Tune, "modelProvider/list"),
-    Page("config", "引擎配置", "设置与账户", "逐项读取和写入官方配置", CodexGlyph.Settings, "config/read"),
-    Page("security", "权限与安全", "设置与账户", "审批、沙箱和网络策略", CodexGlyph.Security, "configRequirements/read"),
+    Page("config", "开发者设置", "设置与账户", "高级配置和运行诊断", CodexGlyph.Settings, "config/read"),
+    Page("personalization", "个性化设置", "设置与账户", "全局执行指令与工作偏好", CodexGlyph.AccountCircle, "config/read"),
+    Page("context", "上下文管理", "设置与账户", "历史压缩与工具输出保留", CodexGlyph.Thread, "config/read"),
+    Page("tools", "联网搜索", "能力与扩展", "搜索方式与可用策略", CodexGlyph.Search, "config/read"),
+    Page("security", "执行权限", "任务对话", "对话输入框权限选择", CodexGlyph.Security, "configRequirements/read"),
     Page("usage", "用量与额度", "设置与账户", "调用统计、额度窗口与重置时间", CodexGlyph.Insights, "account/usage/read"),
     Page("limits", "使用限额", "设置与账户", "限额和重置时间", CodexGlyph.Speed, "account/rateLimits/read"),
-    Page("appearance", "外观与交互", "设置与账户", "显示密度、材质和动效", CodexGlyph.Palette),
+    Page("appearance", "外观与显示", "设置与账户", "主题、字号、布局、动效与任务显示", CodexGlyph.Palette),
     Page("diagnostics", "诊断与日志", "设置与账户", "本机连接与运行状态", CodexGlyph.BugReport, "server/diagnostics", true),
     Page("about", "关于项目", "设置与账户", "版本、源码与隐私", CodexGlyph.Info),
     Page("settings", "设置", "通用", "账户、功能、主机与外观", CodexGlyph.Settings)
@@ -70,7 +71,8 @@ val pages = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CodexShell(vm: CodexViewModel) {
-    var selected by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
+    var savedRoute by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
+    val selected = NavigationPolicy.canonicalRoute(savedRoute)
     var backHistory by rememberSaveable { mutableStateOf(listOf(NavigationPolicy.startRoute)) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val sidebarState = rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
@@ -81,11 +83,23 @@ fun CodexShell(vm: CodexViewModel) {
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
-    val libraryData by vm.data.collectAsState()
+    val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
+    val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
+    val answerVersions by vm.answerVersions.state.collectAsState()
+    val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
+        activeThread?.let { id ->
+            val rows = records(libraryResponse)
+            (rows.firstOrNull { it.optString("id") == answerVersions.root(id) }
+                ?: rows.firstOrNull { it.optString("id") == id })
+                ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
+                ?.takeIf { it.isNotBlank() }
+        }
+    }
     val status by vm.bridge.status.collectAsState()
-    val pending by vm.bridge.prompts.collectAsState()
-    val terminalSession by vm.terminalSession.collectAsState()
-    val dataTransfer by AppDataTransfer.state.collectAsState()
+    val pendingCount by vm.bridge.prompts.collectProjection { it.size }
+    val otherPendingCount by vm.bridge.prompts.collectProjection { all ->
+        all.size - all.forThread(activeThread).size
+    }
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     fun openDrawer() {
         focusManager.clearFocus()
@@ -113,93 +127,94 @@ fun CodexShell(vm: CodexViewModel) {
     val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
         firstThreadStarting, switching
     )
-    var showStatus by remember { mutableStateOf(false) }
-    var showReview by remember { mutableStateOf(false) }
-    var showGoal by remember { mutableStateOf(false) }
-    var showMode by remember { mutableStateOf(false) }
-    var showHistory by remember { mutableStateOf(false) }
-    var showAttachments by remember { mutableStateOf(false) }
-    var showThreadLibrary by remember { mutableStateOf(false) }
-    var showApprovals by remember { mutableStateOf(false) }
-    var showQueue by remember { mutableStateOf(false) }
-    var showModels by remember { mutableStateOf(false) }
-    var showAbout by remember { mutableStateOf(false) }
-    var libraryInitialFullText by remember { mutableStateOf(false) }
+    var activeSheet by remember { mutableStateOf<String?>(null) }
+    var requestedSheet by remember { mutableStateOf<String?>(null) }
+    fun openSheet(route: String) {
+        focusManager.clearFocus()
+        keyboard?.hide()
+        if (drawer.isOpen || drawer.targetValue == DrawerValue.Open) {
+            requestedSheet = route
+            closeDrawer()
+        } else {
+            requestedSheet = null
+            activeSheet = route
+        }
+    }
+    fun closeSheet(route: String) {
+        if (activeSheet == route) activeSheet = null
+    }
     // Carry the original action across a successful thread selection.
     var pendingThreadAction by remember { mutableStateOf<String?>(null) }
-    var pendingResumeRoute by remember { mutableStateOf<String?>(null) }
-    val move: (String) -> Unit = move@{ destination ->
-        if (UiFeatureCatalog.requiresThread(destination) && activeThread == null) {
+    val move: (String) -> Unit = move@{ requested ->
+        val destination = NavigationPolicy.canonicalRoute(requested)
+        if (UiFeatureCatalog.requiresThread(destination) && vm.activeThread.value == null) {
             pendingThreadAction = destination
-            libraryInitialFullText = false
-            showThreadLibrary = true
-            closeDrawer()
+            sidebarState.resetFilter()
+            sidebarState.searching = false
+            openDrawer()
             return@move
         }
         when (destination) {
             "threads", "search" -> {
-                // 历史和搜索有独立的整页导航与系统返回路径。
                 pendingThreadAction = null
-                showThreadLibrary = false
-            }
-            "queue" -> {
-                showQueue = true
-                closeDrawer()
+                sidebarState.resetFilter()
+                sidebarState.searching = destination == "search"
+                sidebarState.fullText = destination == "search"
+                openDrawer()
                 return@move
             }
-            "models" -> {
-                showModels = true
-                closeDrawer()
+            "queue" -> {
+                openSheet("queue")
+                return@move
+            }
+            "models" -> if (page.id != "settings") {
+                openSheet("models")
                 return@move
             }
             "about" -> {
-                showAbout = true
-                closeDrawer()
+                openSheet("about")
                 return@move
             }
             "approvals" -> {
-                showApprovals = true
-                closeDrawer()
+                openSheet("approvals")
                 return@move
             }
             "review" -> {
-                showReview = true
-                closeDrawer()
+                openSheet("review")
                 return@move
             }
             "goals" -> {
-                showGoal = true
-                closeDrawer()
+                openSheet("goals")
                 return@move
             }
             "modes" -> {
-                showMode = true
-                closeDrawer()
+                openSheet("modes")
                 return@move
             }
             "history-tools", "thread-attachments" -> {
-                if (activeThread == null) {
+                if (vm.activeThread.value == null) {
                     pendingThreadAction = destination
-                    libraryInitialFullText = false
-                    showThreadLibrary = true
-                } else if (destination == "history-tools") showHistory = true
-                else showAttachments = true
-                closeDrawer()
+                    sidebarState.resetFilter()
+                    sidebarState.searching = false
+                    openDrawer()
+                    return@move
+                } else if (destination == "history-tools") openSheet("history-tools")
+                else openSheet("thread-attachments")
                 return@move
             }
         }
         if (page.id != destination) {
             backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
-            // Only these three pages intentionally delegate an entry refresh to the shell.
+            // Only account and diagnostics delegate an entry refresh to the shell.
             when (destination) {
                 "account" -> vm.refresh("account", "account/read")
-                "config" -> vm.refresh("config", "config/read",
-                    org.json.JSONObject().put("includeLayers", true))
                 "diagnostics" -> vm.refresh("diagnostics", "server/diagnostics")
             }
         }
-        selected = destination
+        activeSheet = null
+        requestedSheet = null
+        savedRoute = destination
         focusManager.clearFocus()
         keyboard?.hide()
         closeDrawer()
@@ -207,31 +222,25 @@ fun CodexShell(vm: CodexViewModel) {
     // An older saved route may still point to a screen now owned by an overlay.
     LaunchedEffect(Unit) {
         val restored = selected
+        savedRoute = restored
         // A previous build could save sheet destinations as full navigation entries.
         // Strip them from the back stack before either restoring or navigating.
         val history = NavigationPolicy.pageHistory(backHistory)
         when {
             UiFeatureCatalog.isSheet(restored) -> {
-                selected = history.lastOrNull() ?: NavigationPolicy.startRoute
+                savedRoute = history.lastOrNull() ?: NavigationPolicy.startRoute
                 backHistory = history.ifEmpty { listOf(NavigationPolicy.startRoute) }
                 move(restored)
             }
             UiFeatureCatalog.byRoute[restored]?.surface !in
                 setOf(FeatureSurface.Page, FeatureSurface.Reader) -> {
-                selected = "settings"
+                savedRoute = "settings"
                 backHistory = (history + "settings").takeLast(18)
             }
             else -> {
                 backHistory = (if (history.lastOrNull() == restored) history
                     else history + restored).takeLast(18)
             }
-        }
-    }
-    LaunchedEffect(pendingResumeRoute, showThreadLibrary, activeThread) {
-        val route = pendingResumeRoute
-        if (route != null && !showThreadLibrary && activeThread != null) {
-            pendingResumeRoute = null
-            move(route)
         }
     }
     LaunchedEffect(pendingDeepLink, status) {
@@ -245,7 +254,7 @@ fun CodexShell(vm: CodexViewModel) {
     val goBack: () -> Unit = {
         if (backHistory.size > 1) {
             backHistory = backHistory.dropLast(1)
-            selected = backHistory.last()
+            savedRoute = backHistory.last()
             focusManager.clearFocus()
             keyboard?.hide()
         } else {
@@ -253,11 +262,28 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
-    val canSwipeOpenDrawer = !drawerOwnsInput &&
-        (selected == "chat" || selected == "home") &&
-        WindowInsets.ime.getBottom(LocalDensity.current) == 0
+    LaunchedEffect(requestedSheet, drawerOwnsInput) {
+        if (!drawerOwnsInput) requestedSheet?.let { route ->
+            activeSheet = route
+            requestedSheet = null
+        }
+    }
+    var drawerWasOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(drawerOwnsInput, status) {
+        if (drawerOwnsInput && status == EngineStatus.Connected) vm.sessions.refreshIfStale()
+        if (!drawerOwnsInput && drawerWasOpen) {
+            pendingThreadAction = null
+            sidebarState.searching = false
+            sidebarState.resetFilter()
+            vm.sessions.search("", false)
+        }
+        drawerWasOpen = drawerOwnsInput
+    }
+    // The homepage may open the drawer from any unclaimed horizontal swipe.
+    // openDrawer clears focus and hides the IME; child controls retain priority.
+    val canSwipeOpenDrawer = !drawerOwnsInput && selected == NavigationPolicy.startRoute
     BackHandler(enabled = drawerOwnsInput || backHistory.size > 1) {
-        if (drawerOwnsInput) closeDrawer() else goBack()
+        if (drawerOwnsInput) { pendingThreadAction = null; closeDrawer() } else goBack()
     }
 
     Box(Modifier.fillMaxSize().background(Ink.canvas)) {
@@ -269,20 +295,13 @@ fun CodexShell(vm: CodexViewModel) {
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { CodexOperationSnackbarHost(operationSnacks) },
                 topBar = {
-                    if (selected == "chat" || selected == "home") {
+                    if (selected == NavigationPolicy.startRoute) {
                         ChatWorkTopBar(
-                            selected = selected,
-                            conversationTitle = if (selected == "chat") {
-                                records(libraryData["sidebarThreads"] ?: libraryData["threads"])
-                                    .firstOrNull { it.optString("id") == activeThread }
-                                    ?.let { PresentationPolicy.threadTitle(
-                                        it.optString("name"), it.optString("preview")) }
-                                    ?.ifBlank { "当前会话" }
-                                    ?: if (activeThread == null) "新任务" else "当前会话"
-                            } else "工作台",
+                            conversationTitle = conversationTitle,
                             newThreadBlockReason = newThreadBlockReason,
+                            otherPendingCount = otherPendingCount,
+                            onApprovals = { move("approvals") },
                             onMenu = { openDrawer() },
-                            onNavigate = move,
                             onNewThread = { vm.newThread(); move("chat") }
                         )
                     } else TopAppBar(
@@ -306,14 +325,6 @@ fun CodexShell(vm: CodexViewModel) {
                             }
                         },
                         actions = {
-                            if (selected == "threads" || selected == "search") {
-                                CodexIconAction(
-                                    onClick = { vm.newThread(); move("chat") },
-                                    enabled = newThreadBlockReason == null,
-                                    modifier = Modifier.size(48.dp).testTag("library-new-thread")
-                                        .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
-                                ) { CodexIcon(CodexGlyph.Add, "新建任务") }
-                            }
                             if (selected == "files" &&
                                 backHistory.dropLast(1).lastOrNull() == "chat") {
                                 CodexIconAction(
@@ -324,15 +335,15 @@ fun CodexShell(vm: CodexViewModel) {
                                         contentDescription = "返回上一页")
                                 }
                             }
-                            if (pending.isNotEmpty()) {
+                            if (pendingCount > 0) {
                                 BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
                                         modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {
-                                        Text(pending.size.toString())
+                                        Text(pendingCount.toString())
                                     } }) {
                                     CodexIconAction(onClick = { move("approvals") }) { CodexIcon(CodexGlyph.Security, "待审批") }
                                 }
                             }
-                            CodexIconAction(onClick = { showStatus = true },
+                            CodexIconAction(onClick = { openSheet("status") },
                                 modifier = Modifier.testTag("engine-status-open")) {
                                 CodexIcon(
                                     if (status == EngineStatus.Connected) CodexGlyph.TaskComplete
@@ -372,61 +383,52 @@ fun CodexShell(vm: CodexViewModel) {
                             else Modifier.clearAndSetSemantics {}),
                     drawerContainerColor = Ink.recessed,
                     drawerContentColor = Ink.parchment
-                ) { Sidebar(Modifier.fillMaxHeight(), selected,
+                ) {
+                    // Retain drawer geometry while closed, but do not run its list or data collectors.
+                    Box(Modifier.fillMaxWidth().fillMaxHeight()) {
+                        if (drawerOwnsInput) Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
-                            showStatus = true
-                            closeDrawer()
+                            openSheet("status")
                         } else move(id)
-                    }, status, pending.size, newThreadBlockReason,
+                    }, status, pendingCount, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,
-                    { id -> vm.chooseThread(id) { move("chat") } },
-                    sidebarState) }
+                    { id -> vm.chooseThread(id) {
+                        val next = pendingThreadAction
+                        pendingThreadAction = null
+                        move("chat")
+                        if (next != null) move(next)
+                    } },
+                    sidebarState, pendingThreadAction?.let { target ->
+                        pages.firstOrNull { it.id == target }?.title ?: "当前操作"
+                    })
+                    }
+                }
             }
         ) { content() }
 
-        if (showStatus) {
-            EngineStatusSheet(vm, onDismiss = { showStatus = false }, navigate = move)
+        if (activeSheet == "status") {
+            EngineStatusSheet(vm, onDismiss = { closeSheet("status") }, navigate = move)
         }
-        if (showReview) pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
-            ReviewScopeSheet(vm, onDismiss = { showReview = false }, navigate = move)
+        if (activeSheet == "review") pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
+            ReviewScopeSheet(vm, onDismiss = { closeSheet("review") }, navigate = move)
         }
-        if (showGoal) pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
-            ThreadGoalSheet(vm, onDismiss = { showGoal = false })
+        if (activeSheet == "goals") pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
+            ThreadGoalSheet(vm, onDismiss = { closeSheet("goals") })
         }
-        if (showMode) ModeChoiceSurface(vm) { showMode = false }
-        if (showHistory) ThreadHistorySheet(vm) { showHistory = false }
-        if (showAttachments) ThreadAttachmentsSheet(vm) { showAttachments = false }
-        if (showThreadLibrary) pageStateHolder.SaveableStateProvider(
-            "sheet:library:${libraryInitialFullText}"
-        ) {
-            ThreadLibraryQuickSheet(vm,
-                initialFullText = libraryInitialFullText,
-                continuationLabel = pendingThreadAction?.let { requested ->
-                    pages.firstOrNull { it.id == requested }?.title ?: "当前操作"
-                },
-                onDismiss = {
-                    showThreadLibrary = false
-                    pendingThreadAction = null
-                    pendingResumeRoute = null
-                },
-                onThreadSelected = { pendingResumeRoute = pendingThreadAction },
-                navigate = { destination ->
-                    showThreadLibrary = false
-                    pendingThreadAction = null
-                    move(destination)
-                })
+        if (activeSheet == "modes") ModeChoiceSurface(vm) { closeSheet("modes") }
+        if (activeSheet == "history-tools") ThreadHistorySheet(vm) { closeSheet("history-tools") }
+        if (activeSheet == "thread-attachments") ThreadAttachmentsSheet(vm) { closeSheet("thread-attachments") }
+        if (activeSheet == "approvals") pageStateHolder.SaveableStateProvider("sheet:approvals") {
+            ApprovalQuickSheet(vm) { closeSheet("approvals") }
         }
-        if (showApprovals) pageStateHolder.SaveableStateProvider("sheet:approvals") {
-            ApprovalQuickSheet(vm) { showApprovals = false }
+        if (activeSheet == "queue") pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
+            ThreadQueueQuickSheet(vm) { closeSheet("queue") }
         }
-        if (showQueue) pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
-            ThreadQueueQuickSheet(vm) { showQueue = false }
-        }
-        if (showModels) ModelChoiceSurface(vm) { showModels = false }
-        if (showAbout) AboutInfoSheet(vm) { showAbout = false }
+        if (activeSheet == "models") ModelChoiceSurface(vm) { closeSheet("models") }
+        if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }
         // Archive transfer must block all foreground pages and sheets.
-        DataTransferBusyOverlay(dataTransfer)
+        ObserveDataTransferBusyOverlay()
     }
 }
 
@@ -436,9 +438,13 @@ private fun Sidebar(
     modifier: Modifier, selected: String, onSelect: (String) -> Unit,
     status: EngineStatus, approvals: Int, newThreadBlockReason: String?, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
-    sidebarState: SidebarUiState
+    sidebarState: SidebarUiState,
+    continuationLabel: String?
 ) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
+    val accountData by vm.data.collectEntries("limits")
+    val accountErrors by vm.errors.collectEntries("limits")
+    val limitsLoading by vm.loading.collectProjection { "limits" in it }
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -449,9 +455,13 @@ private fun Sidebar(
         ) {
             Text("Codex", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
-            CodexIconAction(onClick = { onSelect("search") },
+            CodexIconAction(onClick = {
+                sidebarState.searching = !sidebarState.searching
+                if (!sidebarState.searching) sidebarState.resetFilter()
+            },
                 modifier = Modifier.size(48.dp).testTag("sidebar-global-search")) {
-                CodexIcon(CodexGlyph.Search, "搜索全部会话", tint = Ink.parchment)
+                CodexIcon(if (sidebarState.searching) CodexGlyph.Close else CodexGlyph.Search,
+                    if (sidebarState.searching) "关闭会话搜索" else "搜索全部会话", tint = Ink.parchment)
             }
         }
         CodexPrimaryButton(
@@ -470,9 +480,7 @@ private fun Sidebar(
             Text("新建任务", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium)
         }
-        listOf("chat", "home", "files").forEach { id ->
-            SidebarRoute(id, selected, approvals, onSelect)
-        }
+        SidebarRoute("files", selected, approvals, onSelect)
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)
                 .testTag("sidebar-project-context")
@@ -498,8 +506,9 @@ private fun Sidebar(
             modifier = Modifier.padding(vertical = 7.dp),
             color = Ink.border.copy(alpha = .65f))
         Box(Modifier.fillMaxWidth().weight(1f)) {
-            SidebarSessions(vm, onOpenThread, onViewAll = { onSelect("threads") },
-                modifier = Modifier.fillMaxSize(), uiState = sidebarState)
+            SidebarSessions(vm, onOpenThread,
+                modifier = Modifier.fillMaxSize(), uiState = sidebarState,
+                continuationLabel = continuationLabel)
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))
         Row(
@@ -507,22 +516,20 @@ private fun Sidebar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("账号与设置", style = MaterialTheme.typography.labelMedium,
-                color = Ink.muted, modifier = Modifier.padding(start = 13.dp))
+            SidebarQuotaButton(
+                snapshot = accountData["limits"],
+                stale = status != EngineStatus.Connected || "limits" in accountErrors,
+                loading = limitsLoading,
+                onClick = { onSelect("limits") }
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CodexIconAction(onClick = { onSelect("account") },
-                        modifier = Modifier.size(48.dp).testTag("nav-account")) {
-                        CodexIcon(CodexGlyph.AccountCircle, "账号", tint = Ink.parchment)
-                    }
-                    Text("账号", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                CodexIconAction(onClick = { onSelect("account") },
+                    modifier = Modifier.size(48.dp).testTag("nav-account")) {
+                    CodexIcon(CodexGlyph.AccountCircle, "账号", tint = Ink.parchment)
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CodexIconAction(onClick = { onSelect("settings") },
-                        modifier = Modifier.size(48.dp).testTag("nav-settings")) {
-                        CodexIcon(CodexGlyph.Settings, "设置", tint = Ink.parchment)
-                    }
-                    Text("设置", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                CodexIconAction(onClick = { onSelect("settings") },
+                    modifier = Modifier.size(48.dp).testTag("nav-settings")) {
+                    CodexIcon(CodexGlyph.Settings, "设置", tint = Ink.parchment)
                 }
             }
         }
@@ -561,8 +568,6 @@ private fun SidebarRoute(
         label = {
             Text(
                 when (id) {
-                    "home" -> "工作"
-                    "chat" -> "聊天"
                     "threads" -> "会话历史"
                     "files" -> "项目文件"
                     "approvals" -> "待审批"

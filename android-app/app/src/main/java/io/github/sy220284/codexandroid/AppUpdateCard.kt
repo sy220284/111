@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 /** 版本和进度始终留在设置卡片，具体更新操作在独立底部面板中进行。 */
 @Composable
 internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
-    val status by AppUpdateManager.state.collectAsState()
+    val status by AppUpdateManager.state.collectFrameState()
     val activity = LocalActivity.current
     val work = observeGlobalWorkSnapshot(vm)
     val currentVersion = remember(activity) {

@@ -8,9 +8,9 @@ class UiProtocolMatrixTest {
         assertEquals(195, UiProtocolMatrix.all.size)
         assertEquals(195, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
-        assertEquals(43, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
+        assertEquals(39, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
         assertEquals(51, UiProtocolMatrix.advanced.size)
-        assertEquals(64, UiProtocolMatrix.systemOnly.size)
+        assertEquals(68, UiProtocolMatrix.systemOnly.size)
     }
 
     @Test fun agentTransportProtocolsRemainInternal() {
@@ -25,17 +25,17 @@ class UiProtocolMatrixTest {
     }
 
     @Test fun newSurfacesAreUniqueAndKeepAllExistingRoutes() {
-        assertEquals(29, UiFeatureCatalog.all.size)
-        assertEquals(29, UiFeatureCatalog.byRoute.size)
-        assertEquals(27, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(4, UiFeatureCatalog.settingsGroups.size)
+        assertEquals(31, UiFeatureCatalog.all.size)
+        assertEquals(31, UiFeatureCatalog.byRoute.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(5, UiFeatureCatalog.settingsGroups.size)
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertFalse(UiFeatureCatalog.requiresThread("plugins"))
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("review").surface)
-        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("threads").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("threads").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("approvals").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("queue").surface)
-        assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("search").surface)
+        assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("search").surface)
         assertEquals(FeatureSurface.Inline, UiFeatureCatalog.find("update").surface)
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("modes").surface)
         assertTrue(UiFeatureCatalog.settingsGroups.flatMap { it.routes }.distinct().size ==

@@ -191,10 +191,10 @@ fun ProtocolFeedback(
     keys: List<String>,
     onRetry: (() -> Unit)? = null
 ) {
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectEntries(*keys.toTypedArray())
+    val loading by vm.loading.collectProjection { pending -> pending.intersect(keys.toSet()) }
     val connection by vm.bridge.status.collectAsState()
-    CodexReveal(keys.any { it in loading }) {
+    CodexReveal(loading.isNotEmpty()) {
         AtlasOperationProgress("正在处理本页请求")
     }
     val visible = PresentationPolicy.visibleErrors(errors, keys.filterNot { it in loading })
@@ -314,7 +314,9 @@ fun CodexChoiceSheet(
     onRecovery: (() -> Unit)? = null,
     recoveryMessage: String = "请先恢复运行核心，再选择可用选项。",
     searchable: Boolean = false,
-    loading: Boolean = false
+    loading: Boolean = false,
+    searchPlaceholder: String = "搜索可用模型",
+    extraContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     var query by remember { mutableStateOf("") }
     val visible = choices.filter { choice ->
@@ -347,8 +349,9 @@ fun CodexChoiceSheet(
                 )
             }
             Spacer(Modifier.height(12.dp))
+            extraContent?.invoke(this)
             if (searchable && choices.size > 1) {
-                AtlasSearchField(query, { query = it }, "搜索可用模型",
+                AtlasSearchField(query, { query = it }, searchPlaceholder,
                     modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
                 Spacer(Modifier.height(8.dp))
             }

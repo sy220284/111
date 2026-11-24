@@ -87,14 +87,16 @@ data class TerminalSessionState(
         require(stream == "stdout" || stream == "stderr") { "终端输出类型不支持：$stream" }
         val chunk = Base64.getDecoder().decode(params.getString("deltaBase64"))
         val previous = if (stream == "stdout") stdoutBytes else stderrBytes
-        val combined = previous + chunk
-        val truncated = outputTruncated || combined.size > MAX_STREAM_BYTES ||
+        val total = previous.size.toLong() + chunk.size
+        val truncated = outputTruncated || total > MAX_STREAM_BYTES ||
             params.optBoolean("capReached")
-        // A long-running terminal must keep showing its newest lines. Preserve
-        // the latest bounded bytes rather than freezing after the first 128 KiB.
-        val kept = if (combined.size > MAX_STREAM_BYTES)
-            combined.copyOfRange(combined.size - MAX_STREAM_BYTES, combined.size)
-        else combined
+        // Copy only the retained tail; avoid concatenating and trimming twice.
+        val keptSize = minOf(total, MAX_STREAM_BYTES.toLong()).toInt()
+        val fromChunk = minOf(chunk.size, keptSize)
+        val fromPrevious = keptSize - fromChunk
+        val kept = ByteArray(keptSize)
+        previous.copyInto(kept, 0, previous.size - fromPrevious, previous.size)
+        chunk.copyInto(kept, fromPrevious, chunk.size - fromChunk, chunk.size)
         return if (stream == "stdout") copy(stdoutBytes = kept, outputTruncated = truncated)
         else copy(stderrBytes = kept, outputTruncated = truncated)
     }

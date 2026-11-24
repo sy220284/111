@@ -29,13 +29,12 @@ import java.util.UUID
 @Composable
 fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
     val key = "goal:" + (active ?: "none")
+    val data by vm.data.collectEntries(key)
+    val errors by vm.errors.collectEntries(key, "goalWrite")
+    val loading by vm.loading.collectProjection { it.intersect(setOf(key, "goalWrite")) }
     val goal = data[key]?.optJSONObject("goal")
-    val taskDrafts by vm.taskPanelDrafts.collectAsState()
-    val panelDraft = taskDrafts[active] ?: TaskPanelDraft()
+    val panelDraft by vm.taskPanelDrafts.collectProjection { it[active] ?: TaskPanelDraft() }
     val objective = panelDraft.goalText
     val status = panelDraft.goalStatus
     val budget = panelDraft.goalBudget
@@ -233,18 +232,19 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
 
 @Composable
 fun ThreadQueuePage(vm: CodexViewModel) {
-    val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val active = vm.activeThread.collectAsState().value
     val rootKey = "queue:" + (active ?: "none")
     var pageCount by remember(active) { mutableIntStateOf(0) }
-    val taskDrafts by vm.taskPanelDrafts.collectAsState()
-    val draft = taskDrafts[active]?.queueText.orEmpty()
+    val queueKeys = remember(rootKey, pageCount) { listOf(rootKey) + (1..pageCount).map { rootKey + ":page:" + it } }
+    val data by vm.data.collectEntries(*queueKeys.toTypedArray())
+    val errors by vm.errors.collectEntries(*(queueKeys + "queueWrite").toTypedArray())
+    val loading by vm.loading.collectProjection { it.intersect((queueKeys + "queueWrite").toSet()) }
+    val draft by vm.taskPanelDrafts.collectProjection { it[active]?.queueText.orEmpty() }
     var pendingDelete by remember(active) { mutableStateOf<JSONObject?>(null) }
     var pendingEdit by remember(active) { mutableStateOf<JSONObject?>(null) }
     var editText by rememberSaveable(active) { mutableStateOf("") }
     val result = data[rootKey]
+    LaunchedEffect(result) { pageCount = 0 }
     val all = records(result) + (1..pageCount).flatMap {
         records(data[rootKey + ":page:" + it])
     }
@@ -254,8 +254,21 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     val hasAllPages = readKeys.all { it in data && it !in loading && it !in errors } && nextCursor.isBlank()
     val ids = all.map { it.optString("id") }
     val connection by vm.bridge.status.collectAsState()
-    val canReorder = connection == EngineStatus.Connected && hasAllPages &&
-        "queueWrite" !in loading && QueueReorderPolicy.valid(ids)
+    val running by vm.running.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    val starting by vm.firstThreadStarting.collectAsState()
+    val steering by vm.steerBusy.collectAsState()
+    val permissionSaving by vm.securitySaveBusy.collectAsState()
+    val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val paused by vm.queuePausedThreads.collectProjection { active != null && active in it }
+    val canStart = active != null && !running && !switching && !starting && !steering &&
+        !permissionSaving && !transferBusy && !restarting &&
+        connection == EngineStatus.Connected && "queueWrite" !in loading && rootKey !in loading && rootKey !in errors
+    val canMutate = active != null && !switching && !starting && !steering &&
+        !permissionSaving && !transferBusy && !restarting &&
+        connection == EngineStatus.Connected && "queueWrite" !in loading
+    val canReorder = canMutate && hasAllPages && QueueReorderPolicy.valid(ids)
     val rowCenters = remember(active, ids) { mutableStateMapOf<String, Float>() }
     var dragging by remember(active, ids) { mutableIntStateOf(-1) }
     var destination by remember(active, ids) { mutableIntStateOf(-1) }
@@ -312,11 +325,19 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     }
                     refreshQueue()
                 })
-            }, enabled = draft.isNotBlank() && "queueWrite" !in loading,
+            }, enabled = draft.isNotBlank() && canMutate,
                 modifier = Modifier.fillMaxWidth()) {
                 CodexIcon(CodexGlyph.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("排入后续")
+            }
+        }
+        if (all.isNotEmpty() && !running) {
+            CodexNotice(if (paused) "当前任务已停止，后续指令已保留。"
+                else "当前会话空闲，可启动队首或指定后续指令。", NoticeTone.Info)
+            CodexSecondaryButton(onClick = { active?.let { vm.startQueuedComposer(it) } },
+                enabled = canStart, modifier = Modifier.fillMaxWidth()) {
+                Text(if (paused) "恢复执行队列" else "开始执行队列")
             }
         }
         AtlasListHeading(title = "等待执行", total = all.size, action = {
@@ -329,7 +350,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         if (all.isEmpty() && data[rootKey] != null && rootKey !in loading && rootKey !in errors &&
             (1..pageCount).none { rootKey + ":page:" + it in loading || rootKey + ":page:" + it in errors }) {
-            CodexEmptyState("暂无后续指令", "任务运行时，也可以在输入栏选择「完成后执行」来添加。")
+            CodexEmptyState("暂无后续指令", "任务运行且输入新消息时，可以选择「排队发送」来添加。")
         }
         if (all.size > 1) {
             Text(if (canReorder) "长按顺序编号拖动排序，也可从更多操作中上移或下移。"
@@ -338,8 +359,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         all.forEachIndexed { index, item ->
             val input = item.optJSONArray("input") ?: JSONArray()
-            val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it)?.optString("text") }
-                .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
+            val summary = remember(item) { queuedInputSummary(item) }
             val itemId = item.optString("id")
             val lifted = dragging == index
             val insertion = dragging >= 0 && destination == index && !lifted
@@ -401,6 +421,20 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     onDismiss = { showQueueActions = false },
                     actions = listOf(
                         CodexSheetAction(
+                            label = "立即执行",
+                            description = if (running) "当前任务结束后才能启动此项" else "启动这一项，其他指令保留在队列",
+                            icon = CodexGlyph.PlayArrow,
+                            enabled = canStart && itemId.isNotBlank(),
+                            onClick = { active?.let { vm.startQueuedComposer(it, itemId) } }
+                        ),
+                        CodexSheetAction(
+                            label = "移至队首",
+                            description = "将此项作为下一条执行指令",
+                            icon = CodexGlyph.ArrowUpward,
+                            enabled = canReorder && index > 1,
+                            onClick = { reorder(index, 0) }
+                        ),
+                        CodexSheetAction(
                             label = "上移",
                             description = "优先执行此项",
                             icon = CodexGlyph.ArrowUpward,
@@ -417,8 +451,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "编辑指令",
                             icon = CodexGlyph.Edit,
-                            enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
-                                "queueWrite" !in loading,
+                            enabled = ThreadQueueUpdateContract.canEditAsText(input) && canMutate,
                             onClick = {
                                 pendingEdit = item
                                 editText = input.optJSONObject(0)?.optString("text").orEmpty()
@@ -429,7 +462,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                             description = "删除前会再次确认",
                             icon = CodexGlyph.DeleteOutline,
                             destructive = true,
-                            enabled = "queueWrite" !in loading,
+                            enabled = canMutate,
                             onClick = { pendingDelete = item }
                         )
                     )
@@ -484,7 +517,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         }
                     },
                     enabled = active != null && item.optString("id").isNotBlank() &&
-                        editText.isNotBlank() && "queueWrite" !in loading
+                        editText.isNotBlank() && canMutate
                 ) { Text("保存修改") }
             },
             dismissButton = { CodexTextAction(onClick = { pendingEdit = null }) { Text("取消") } }
@@ -516,8 +549,9 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 @Composable
 fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val count = records(data["queue:" + (active ?: "none")]).size
+    val key = "queue:" + (active ?: "none")
+    val data by vm.data.collectEntries(key)
+    val count = records(data[key]).size
     CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -529,7 +563,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             .testTag("thread-queue-sheet")) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 CodexIconAction(
-                    onClick = onDismiss,
+                    onClick = LocalCodexSheetClose.current ?: onDismiss,
                     modifier = Modifier.size(48.dp).testTag("thread-queue-close")
                 ) {
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭后续指令")
