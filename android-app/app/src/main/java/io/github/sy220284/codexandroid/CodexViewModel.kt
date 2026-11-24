@@ -142,6 +142,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        viewModelScope.launch {
+            AppDataTransfer.state.collect { transfer ->
+                if (!transfer.busy) accountMetrics.refreshPending()
+            }
+        }
+
         connect()
     }
 

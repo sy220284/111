@@ -60,21 +60,23 @@ internal class AccountMetricsSync(
     fun refreshIfStale() {
         val now = clock()
         refresh(keys.filterTo(mutableSetOf()) { key ->
-            key !in jobs && (lastAttempt[key]?.let { now - it >= 120_000 } ?: true)
+            key !in jobs && (key in dirty || (lastAttempt[key]?.let { now - it >= 120_000 } ?: true))
         })
     }
 
+    /** Resume only deferred invalidations after an exclusive data operation. */
+    fun refreshPending() = refresh(dirty.filterTo(mutableSetOf()) { it !in jobs })
+
     /** Concurrent notifications coalesce into at most one follow-up read per in-flight key. */
     fun refresh(requested: Set<String> = keys) {
-        if (!canRead()) return
         for (key in requested) {
             require(key in keys) { "未知账号统计类型：$key" }
             dirty.add(key)
-            if (key in jobs) continue
+            if (!canRead() || key in jobs) continue
             val epoch = generation
             val job = scope.launch(start = CoroutineStart.LAZY) {
                 try {
-                    while (epoch == generation && dirty.remove(key) && canRead()) {
+                    while (epoch == generation && canRead() && dirty.remove(key)) {
                         lastAttempt[key] = clock()
                         loading.value = loading.value + key
                         try {

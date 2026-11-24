@@ -45,6 +45,33 @@ class AccountMetricsSyncTest {
         assertEquals(setOf("usage", "limits"), data.value.keys)
     }
 
+    @Test fun deferredInvalidationSurvivesExclusiveDataOperation() = runBlocking {
+        val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
+        val loading = MutableStateFlow<Set<String>>(emptySet())
+        val errors = MutableStateFlow<Map<String, String>>(emptyMap())
+        var available = true
+        val calls = mutableListOf<String>()
+        val sync = AccountMetricsSync(this, data, loading, errors, { available }, { 0L }) { key ->
+            calls += key
+            JSONObject().put("version", calls.size)
+        }
+        sync.refresh()
+        yield()
+        assertEquals(2, calls.size)
+        available = false
+        repeat(5) { sync.refresh(setOf("limits")) }
+        yield()
+        assertEquals(2, calls.size)
+        available = true
+        sync.refreshPending()
+        yield()
+        assertEquals(listOf("usage", "limits", "limits"), calls)
+        assertEquals(3, data.value["limits"]?.optInt("version"))
+        sync.refreshPending()
+        yield()
+        assertEquals(3, calls.size)
+    }
+
     @Test fun notificationsCoalesceAndAccountChangeDiscardsOldResults() = runBlocking {
         val data = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
         val loading = MutableStateFlow<Set<String>>(emptySet())
