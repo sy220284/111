@@ -103,6 +103,9 @@ fun ProvidersPage(vm: CodexViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val domesticPresets = remember(context) { DomesticModelPresets.load(context) }
     var selectedPreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
+    var selectedProviderId by remember { mutableStateOf<String?>(null) }
+    var customApiKey by remember { mutableStateOf("") }
+    var credentialChanged by remember { mutableStateOf(false) }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -125,14 +128,16 @@ fun ProvidersPage(vm: CodexViewModel) {
             Text("国内模型预置", style = MaterialTheme.typography.titleMedium)
             Text("官方国内接口 · 需单独授权，预置模型仅供选择参考。", color = Ink.muted)
             domesticPresets.forEach { preset ->
-                val configured = entries.any { preset.matchesEndpoint(it.optString("baseUrl")) }
+                val configured = entries.firstOrNull { preset.matchesEndpoint(it.optString("baseUrl")) && it.optBoolean("canEdit") }
                 AtlasSettingsActionRow(
                     title = preset.name,
-                    detail = if (configured) "已配置服务地址 · " + preset.plan else preset.plan + " · 待配置",
+                    detail = if (configured != null) "已配置服务地址 · " + preset.plan else preset.plan + " · 待配置",
                     icon = CodexGlyph.Dns,
                     onClick = {
                         selectedPreset = preset
-                        customName = preset.name
+                        selectedProviderId = configured?.optString("id")
+                        customApiKey = ""
+                        customName = configured?.optString("name")?.takeIf { it.isNotBlank() } ?: preset.name
                         customUrl = preset.baseUrl
                         customEnvKey = preset.envKey
                         showCustomEditor = true
@@ -147,6 +152,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                 icon = CodexGlyph.AddCircleOutline,
                 onClick = {
                     selectedPreset = null
+                    selectedProviderId = null
+                    customApiKey = ""
                     customName = ""; customUrl = ""; customEnvKey = ""
                     showCustomEditor = true
                 }
@@ -155,7 +162,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 CodexDetailSheet(
                     title = "添加自定义服务商", startExpanded = true,
                     subtitle = "仅配置连接地址和密钥变量名称",
-                    onDismiss = { showCustomEditor = false }
+                    onDismiss = { customApiKey = ""; showCustomEditor = false }
                 ) {
                     selectedPreset?.let { preset ->
                         Text("原生 Responses · " + preset.plan, color = Ink.muted)
@@ -168,16 +175,40 @@ fun ProvidersPage(vm: CodexViewModel) {
                         confirmedValid = customUrl.isNotBlank() && ProviderAddressPolicy.valid(customUrl),
                         error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
                             "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
-                    AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
-                        helper = "密钥值由本机环境管理；这里只填写变量名称。")
+                    val preset = selectedPreset
+                    if (preset == null) {
+                        AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
+                            helper = "密钥值由本机环境管理；这里只填写变量名称。")
+                    } else {
+                        CodexInputField(customApiKey, { customApiKey = it.take(4096) },
+                            modifier = Modifier.fillMaxWidth(), label = { Text("API Key") },
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            singleLine = true,
+                            supportingText = { Text(if (DomesticProviderCredentials.has(context, preset)) "已保存本机加密密钥；留空保留" else "密钥仅保存在本机 Android Keystore 加密记录中") })
+                        if (DomesticProviderCredentials.has(context, preset)) {
+                            CodexSecondaryButton(onClick = {
+                                DomesticProviderCredentials.remove(context, preset)
+                                credentialChanged = true
+                                customApiKey = ""
+                                showCustomEditor = false
+                            }) { Text("移除本机密钥") }
+                        }
+                    }
                     CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
                             ProviderAddressPolicy.valid(customUrl) &&
-                            (selectedPreset?.matchesEndpoint(customUrl) != false),
+                            (selectedPreset?.matchesEndpoint(customUrl) != false) &&
+                            (preset == null || DomesticProviderCredentials.valid(customApiKey.trim()) ||
+                                (customApiKey.isBlank() && DomesticProviderCredentials.has(context, preset))),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }
+            }
+            if (credentialChanged) {
+                Text("密钥变更需重启核心生效；先完成当前任务。", color = Ink.muted)
+                CodexSecondaryButton(onClick = { vm.connectionRestarter.restart() }) { Text("重启核心使授权生效") }
             }
             DividerLine()
             AtlasSettingsActionRow(
@@ -239,16 +270,24 @@ fun ProvidersPage(vm: CodexViewModel) {
     }
     if (confirmCustom) CodexConfirmDialog(
         title = "保存自定义模型服务商",
-        message = "会在当前内核中新增自定义网关配置。请核对地址和密钥变量名称。",
-        detail = "名称：$customName\n服务地址：$customUrl\n密钥变量：$customEnvKey",
+        message = "保存自定义服务商配置。国内模型密钥加密保存在本机，重启核心后生效。",
+        detail = "名称：$customName\n服务地址：$customUrl",
         confirmLabel = "确认保存",
         onConfirm = {
             val patch = JSONObject().put("type", "customGateway")
                 .put("name", customName.trim()).put("baseUrl", customUrl.trim())
+            selectedProviderId?.let { patch.put("providerId", it) }
             if (customEnvKey.isNotBlank()) patch.put("envKey", customEnvKey.trim())
+            val preset = selectedPreset
+            val keyToSave = customApiKey.trim()
+            customApiKey = ""
             vm.rpc("providerWrite", "modelProvider/config/write",
                 JSONObject().put("settings", patch),
                 after = {
+                    if (preset != null && keyToSave.isNotBlank()) {
+                        DomesticProviderCredentials.save(context, preset, keyToSave)
+                        credentialChanged = true
+                    }
                     vm.refresh("providers", "modelProvider/list")
                     vm.refresh("models", "model/list")
                     vm.refresh("account", "account/read")

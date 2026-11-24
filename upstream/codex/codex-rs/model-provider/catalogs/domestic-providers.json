@@ -3,7 +3,7 @@
     "id": "deepseek-cn",
     "name": "DeepSeek",
     "baseUrl": "https://api.deepseek.com",
-    "envKey": "DEEPSEEK_API_KEY",
+    "envKey": "CODEX_ANDROID_DOMESTIC_DEEPSEEK_KEY",
     "plan": "开放平台 API",
     "catalog": "openai-list",
     "models": [
@@ -22,7 +22,7 @@
     "id": "glm-cn",
     "name": "GLM 智谱",
     "baseUrl": "https://open.bigmodel.cn/api/v1",
-    "envKey": "ZHIPUAI_API_KEY",
+    "envKey": "CODEX_ANDROID_DOMESTIC_GLM_KEY",
     "plan": "Coding Plan（需确认客户端授权）",
     "catalog": "manual",
     "models": [
@@ -37,7 +37,7 @@
     "id": "minimax-cn",
     "name": "MiniMax",
     "baseUrl": "https://api.minimax.cn/v1",
-    "envKey": "MINIMAX_API_KEY",
+    "envKey": "CODEX_ANDROID_DOMESTIC_MINIMAX_KEY",
     "plan": "国内开放平台 / 已授权 M Plan",
     "catalog": "manual",
     "models": [
@@ -52,7 +52,7 @@
     "id": "kimi-cn",
     "name": "Kimi",
     "baseUrl": "https://api.moonshot.cn/v1",
-    "envKey": "MOONSHOT_API_KEY",
+    "envKey": "CODEX_ANDROID_DOMESTIC_KIMI_KEY",
     "plan": "国内开放平台 API",
     "catalog": "openai-list",
     "models": [
@@ -67,7 +67,7 @@
     "id": "qwen-cn",
     "name": "通义千问",
     "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "envKey": "DASHSCOPE_API_KEY",
+    "envKey": "CODEX_ANDROID_DOMESTIC_QWEN_KEY",
     "plan": "北京地域 · 按量付费",
     "catalog": "manual",
     "models": [

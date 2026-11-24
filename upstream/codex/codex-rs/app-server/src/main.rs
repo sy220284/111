@@ -31,6 +31,9 @@ const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "CODEX_APP_SERVER_DISABLE_MANAGED_C
 #[derive(Debug, Parser)]
 #[command(version)]
 struct AppServerArgs {
+    #[cfg(target_os = "android")]
+    #[arg(long, hide = true)]
+    android_provider_bootstrap: bool,
     /// Load frozen cloud skills from a JSON snapshot instead of a live skill service.
     #[arg(long, value_name = "PATH")]
     cloud_skills_snapshot: Option<PathBuf>,
@@ -87,6 +90,8 @@ fn main() -> anyhow::Result<()> {
     let remote_control_disabled = codex_app_server::take_remote_control_disabled_env();
     arg0_dispatch_or_else(move |arg0_paths: Arg0DispatchPaths| async move {
         let AppServerArgs {
+            #[cfg(target_os = "android")]
+            android_provider_bootstrap,
             cloud_skills_snapshot,
             config_overrides,
             code_mode_host,
@@ -100,6 +105,10 @@ fn main() -> anyhow::Result<()> {
             managed_daemon,
             plugin_mcp_launch,
         } = AppServerArgs::parse();
+        #[cfg(target_os = "android")]
+        if android_provider_bootstrap {
+            read_android_provider_bootstrap()?;
+        }
         let loader_overrides = if disable_managed_config_from_debug_env() {
             LoaderOverrides::without_managed_config_for_tests()
         } else {
@@ -176,3 +185,30 @@ fn managed_config_path_from_debug_env() -> Option<PathBuf> {
 #[cfg(test)]
 #[path = "main_tests.rs"]
 mod tests;
+
+#[cfg(target_os = "android")]
+fn read_android_provider_bootstrap() -> anyhow::Result<()> {
+    use std::collections::HashMap;
+    use std::io::Read;
+    let mut input = std::io::stdin().lock();
+    let mut length = [0u8; 4];
+    input.read_exact(&mut length)?;
+    let length = u32::from_be_bytes(length) as usize;
+    anyhow::ensure!((1..=32768).contains(&length), "invalid Android provider bootstrap length");
+    let mut bytes = vec![0u8; length];
+    input.read_exact(&mut bytes)?;
+    let parsed = serde_json::from_slice::<HashMap<String, String>>(&bytes);
+    bytes.fill(0);
+    let credentials = parsed.map_err(|_| anyhow::anyhow!("invalid Android provider bootstrap"))?;
+    let profiles: Vec<serde_json::Value> = serde_json::from_str(include_str!("../../model-provider/catalogs/domestic-providers.json"))?;
+    let mut bound = HashMap::new();
+    for (name, value) in credentials {
+        anyhow::ensure!(!value.is_empty() && value.len() <= 4096 && value.bytes().all(|b| (33..=126).contains(&b)), "invalid Android provider credential");
+        let profile = profiles.iter().find(|profile| profile["envKey"].as_str() == Some(name.as_str()))
+            .ok_or_else(|| anyhow::anyhow!("unknown Android provider credential reference"))?;
+        let endpoint = profile["baseUrl"].as_str().ok_or_else(|| anyhow::anyhow!("invalid bundled provider profile"))?;
+        bound.insert(name, (endpoint.to_string(), value));
+    }
+    codex_model_provider_info::install_android_provider_credentials(bound)
+        .map_err(|error| anyhow::anyhow!(error))
+}

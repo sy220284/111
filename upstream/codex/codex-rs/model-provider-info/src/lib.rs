@@ -34,6 +34,10 @@ use std::sync::PoisonError;
 use std::sync::RwLock;
 use std::time::Duration;
 
+#[cfg(target_os = "android")]
+mod android_provider_credentials;
+#[cfg(target_os = "android")]
+pub use android_provider_credentials::install_android_provider_credentials;
 mod capabilities;
 mod gateway_oauth;
 mod oauth_session;
@@ -525,6 +529,10 @@ other non-default provider fields are not supported"
     /// (and non-empty) in the environment. If `env_key` is required but
     /// cannot be found, returns an error.
     pub fn api_key(&self) -> CodexResult<Option<String>> {
+        #[cfg(target_os = "android")]
+        if let Some(name) = self.env_key.as_deref().filter(|name| name.starts_with("CODEX_ANDROID_DOMESTIC_")) {
+            return android_provider_credentials::lookup(self, name).map(Some);
+        }
         match &self.env_key {
             Some(env_key) => {
                 let api_key = std::env::var(env_key)

@@ -84,8 +84,20 @@ class CodexConnection(private val appContext: Context) {
             }
             val toolsDir = NativeToolInstaller.prepare(appContext)
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
-            val child = builder.start()
-            process = child
+            val providerBootstrap = DomesticProviderCredentials.bootstrap(appContext)
+            if (providerBootstrap != null) builder.command().add("--android-provider-bootstrap")
+            val child = try {
+                builder.start().also { started ->
+                    process = started
+                    if (providerBootstrap != null) {
+                        java.io.DataOutputStream(started.outputStream).apply {
+                            writeInt(providerBootstrap.size)
+                            write(providerBootstrap)
+                            flush()
+                        }
+                    }
+                }
+            } finally { providerBootstrap?.fill(0) }
             val channel = RpcProcessChannel(child)
             wire = channel
             scope.launch { listen(child, channel) }
