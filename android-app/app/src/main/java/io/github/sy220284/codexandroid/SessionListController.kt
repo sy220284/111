@@ -33,6 +33,9 @@ internal object SessionListPolicy {
             else -> observed
         }
     }
+    fun mergeRows(previous: List<JSONObject>, changed: Set<String>, incoming: List<JSONObject>): List<JSONObject> =
+        (previous.filterNot { id(it) in changed } + incoming).filter { id(it).isNotBlank() }.distinctBy(::id)
+
     fun params(archived: Boolean, cursor: String? = null) =
         JSONObject().put("limit", 100).put("archived", archived)
             .put("sortKey", "recency_at").put("sortDirection", "desc").apply {
@@ -52,6 +55,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var listJob: Job? = null
     private var searchJob: Job? = null
     private var dirty = false
+    private val pendingIds = linkedSetOf<String>()
     private var lastSuccess = -60_000L
     private var activeSearch: Pair<Boolean, String>? = null
     private var searchVersion = 0L
@@ -102,14 +106,30 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     fun refreshIfStale() {
         if (dirty || android.os.SystemClock.elapsedRealtime() - lastSuccess >= 30_000L) refresh()
     }
-    fun refreshPending() { if (dirty) refresh() }
+    fun refreshPending() { if (dirty || pendingIds.isNotEmpty()) drain() }
 
     fun refresh() {
         dirty = true
+        drain()
+    }
+
+    fun refreshChanged(id: String) {
+        if (id.isBlank() || vm.data.value["sidebarThreads"] == null || vm.data.value["archivedThreads"] == null) {
+            refresh()
+            return
+        }
+        pendingIds += id
+        drain()
+    }
+
+    private fun drain() {
         if (!connected()) return
         if (listJob?.isActive == true) return
         listJob = scope.launch {
-            while (dirty && connected()) {
+            while ((dirty || pendingIds.isNotEmpty()) && connected()) {
+                val full = dirty
+                val ids = if (full) pendingIds.toSet() else pendingIds.take(100).toSet()
+                pendingIds.removeAll(ids)
                 dirty = false
                 val started = receiptVersion
                 vm.loading.value = vm.loading.value + "sidebarThreads"
@@ -120,7 +140,9 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                         val cursors = mutableSetOf<String>()
                         var cursor: String? = null
                         do {
-                            val page = vm.bridge.request("thread/list", SessionListPolicy.params(archived, cursor))
+                            val params = SessionListPolicy.params(archived, cursor)
+                            if (!full) params.put("includedThreadIds", JSONArray(ids.toList())).put("useStateDbOnly", true)
+                            val page = vm.bridge.request("thread/list", params)
                             for (row in records(page)) {
                                 val id = SessionListPolicy.id(row)
                                 if (id.isNotBlank()) rows[id] = row
@@ -137,19 +159,30 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                     val archived = readAll(true)
                     if (connected()) {
                         val newer = receipts.value.filterKeys { (receiptEvents[it] ?: 0) > started }
-                        receipts.value = freshReceipts + newer
-                        vm.data.value = vm.data.value + mapOf("sidebarThreads" to active,
-                            "threads" to active, "archivedThreads" to archived)
+                        receipts.value = (if (full) emptyMap() else receipts.value - ids) + freshReceipts + newer
+                        fun merged(key: String, incoming: JSONObject): JSONObject = if (full) incoming else
+                            JSONObject().put("data", JSONArray(SessionListPolicy.mergeRows(records(vm.data.value[key]), ids, records(incoming))))
+                        val current = merged("sidebarThreads", active)
+                        val archivedRows = merged("archivedThreads", archived)
+                        vm.data.value = vm.data.value + mapOf("sidebarThreads" to current,
+                            "threads" to current, "archivedThreads" to archivedRows)
                         vm.errors.value = vm.errors.value - "sidebarThreads"
-                        lastSuccess = android.os.SystemClock.elapsedRealtime()
+                        if (full) lastSuccess = android.os.SystemClock.elapsedRealtime()
                         activeSearch?.let { (archived, query) -> search(query, archived) }
+                    } else {
+                        dirty = dirty || full
+                        pendingIds += ids
                     }
                 } catch (timeout: TimeoutCancellationException) {
                     vm.errors.value = vm.errors.value + ("sidebarThreads" to "会话同步超时")
+                    dirty = true
+                    break
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
                     vm.errors.value = vm.errors.value + ("sidebarThreads" to
                         (failure.message ?: "会话同步失败"))
+                    dirty = true
+                    break
                 } finally { vm.loading.value = vm.loading.value - "sidebarThreads" }
             }
         }

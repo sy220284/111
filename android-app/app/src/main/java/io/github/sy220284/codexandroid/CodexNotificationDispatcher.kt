@@ -77,7 +77,7 @@ internal object CodexNotificationDispatcher {
             params.optJSONObject("readState")?.let { sessions.receipt(threadId, it) }
             return
         }
-        if (method in setOf("thread/name/updated", "thread/section/changed", "thread/closed")) syncRecentThreads()
+        if (method in setOf("thread/name/updated", "thread/section/changed", "thread/closed")) sessions.refreshChanged(threadId)
         if (method == "thread/status/changed" && threadId.isNotBlank()) {
             threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
                 threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
@@ -88,7 +88,7 @@ internal object CodexNotificationDispatcher {
                 activeProjectId.value = params.optString("projectId")
                     .takeIf { it.isNotBlank() }
             }
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
             projectCatalogRevision.value += 1
             return
         }
@@ -108,9 +108,9 @@ internal object CodexNotificationDispatcher {
         }
         if (method in setOf("thread/archived", "thread/unarchived", "thread/deleted")) {
             threadOrganization.observe(method, threadId)
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
         } else if (method == "thread/started") {
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
         }
         if (method == "thread/deleted") { sessions.removePin(threadId); liveTimelines.remove(threadId) }
         // Apply turn lifecycle to every thread before filtering display events to
@@ -126,7 +126,7 @@ internal object CodexNotificationDispatcher {
                 running.value = true
             }
         }
-        if (threadId.isNotBlank() && method == "turn/started") syncRecentThreads()
+        if (threadId.isNotBlank() && method == "turn/started") sessions.refreshChanged(threadId)
         if (threadId.isNotBlank() && method == "turn/completed") {
             val completedId = params.optJSONObject("turn")?.optString("id")
             val execution = threadExecutions.value[threadId]
@@ -149,7 +149,7 @@ internal object CodexNotificationDispatcher {
                 running.value = false
                 activeTurn.value = null
             }
-            syncRecentThreads()
+            sessions.refreshChanged(threadId)
             accountMetrics.refresh()
             val finishedImages = execution?.images.orEmpty()
             if (finishedImages.isNotEmpty()) viewModelScope.launch {

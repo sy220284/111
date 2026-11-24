@@ -26,4 +26,10 @@ class SessionListPolicyTest {
         assertFalse(SessionListPolicy.unread(null))
         assertTrue(SessionListPolicy.unread(JSONObject().put("firstUnread", JSONObject().put("type", "threadStart"))))
     }
+    @Test fun incrementalListRemovesOnlyChangedIds() {
+        val before = listOf(row("a", 1, 10), row("b", 2, 20), row("c", 3, 30))
+        val next = SessionListPolicy.mergeRows(before, setOf("a", "b"), listOf(row("b", 2, 40)))
+        assertEquals(listOf("c", "b"), next.map(SessionListPolicy::id))
+        assertEquals(listOf("b", "c"), SessionListPolicy.ordered(next, emptySet()).map(SessionListPolicy::id))
+    }
 }

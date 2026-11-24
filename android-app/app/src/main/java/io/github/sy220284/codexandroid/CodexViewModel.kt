@@ -234,7 +234,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         extensions.invalidate()
                     }
                     onSuccess?.invoke(response)
-                    if (SessionRefreshPolicy.affectsThreads(method)) syncRecentThreads()
+                    if (SessionRefreshPolicy.affectsThreads(method)) sessions.refreshChanged(params?.optString("threadId").orEmpty())
                     if (userAction) actionFeedback.emit(
                         ActionFeedbackCopy.success(method, response).copy(
                             undo = threadOrganization.complete(organizationTicket,
