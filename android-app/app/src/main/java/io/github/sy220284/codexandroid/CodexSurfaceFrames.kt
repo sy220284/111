@@ -9,12 +9,24 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+internal val LocalCodexSheetClose = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /** 所有详情、快捷选择和专业任务面板共享一个原生容器。保留各业务页面的滚动、状态与返回策略。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,9 +40,30 @@ fun CodexSheetFrame(
     dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle(color = Ink.muted) },
     content: @Composable ColumnScope.() -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismissRequest, modifier = modifier, sheetState = sheetState,
+    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val scope = rememberCoroutineScope()
+    val dismiss by rememberUpdatedState(onDismissRequest)
+    var closing by remember(sheetState) { mutableStateOf(false) }
+    val close: () -> Unit = {
+        if (!closing) {
+            closing = true
+            if (reduceMotion) dismiss()
+            else scope.launch {
+                try {
+                    sheetState.hide()
+                    if (!sheetState.isVisible) dismiss()
+                } finally {
+                    closing = false
+                }
+            }
+        }
+    }
+    ModalBottomSheet(onDismissRequest = { dismiss() }, modifier = modifier, sheetState = sheetState,
         containerColor = containerColor, contentColor = contentColor, dragHandle = dragHandle,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), content = content)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
+        val column = this
+        CompositionLocalProvider(LocalCodexSheetClose provides close) { column.content() }
+    }
 }
 
 @Composable

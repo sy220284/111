@@ -27,7 +27,13 @@ import androidx.compose.ui.unit.dp
 fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val diff by vm.latestDiff.collectAsState()
     val active by vm.activeThread.collectAsState()
-    val files = remember(diff) { UnifiedDiff.parse(diff) }
+    val prepared by rememberPreparedDiff(diff)
+    val ready = prepared
+    if (ready == null) {
+        ScreenColumn { AtlasOperationProgress("正在整理文件与代码行…") }
+        return
+    }
+    val files = ready.files
     val context = LocalContext.current
     var expanded by remember(active, diff) {
         mutableStateOf(DiffExpansionPreferences.load(context, active, diff, files.size))
@@ -41,9 +47,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var wrapLines by remember { mutableStateOf(true) }
     var query by remember(diff) { mutableStateOf("") }
     val visibleFiles = remember(files, query) { files.indices.filter { files[it].path.contains(query.trim(), ignoreCase = true) } }
-    val lineNumbers = remember(files, expanded) { files.mapIndexed { index, file ->
-        if (index in expanded) UnifiedDiff.annotateLines(file.lines) else emptyList()
-    } }
+    val lineNumbers = ready.lineNumbers
     val listState = rememberLazyListState()
     var filePicker by remember { mutableStateOf(false) }
     var pendingJump by remember(diff) { mutableStateOf<Int?>(null) }

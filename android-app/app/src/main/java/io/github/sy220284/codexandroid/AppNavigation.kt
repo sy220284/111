@@ -93,8 +93,7 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val status by vm.bridge.status.collectAsState()
-    val pending by vm.bridge.prompts.collectAsState()
-    val dataTransfer by AppDataTransfer.state.collectAsState()
+    val pendingCount by vm.bridge.prompts.collectProjection { it.size }
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     fun openDrawer() {
         focusManager.clearFocus()
@@ -322,10 +321,10 @@ fun CodexShell(vm: CodexViewModel) {
                                         contentDescription = "返回上一页")
                                 }
                             }
-                            if (pending.isNotEmpty()) {
+                            if (pendingCount > 0) {
                                 BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
                                         modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {
-                                        Text(pending.size.toString())
+                                        Text(pendingCount.toString())
                                     } }) {
                                     CodexIconAction(onClick = { move("approvals") }) { CodexIcon(CodexGlyph.Security, "待审批") }
                                 }
@@ -370,13 +369,16 @@ fun CodexShell(vm: CodexViewModel) {
                             else Modifier.clearAndSetSemantics {}),
                     drawerContainerColor = Ink.recessed,
                     drawerContentColor = Ink.parchment
-                ) { Sidebar(Modifier.fillMaxHeight(), selected,
+                ) {
+                    // Retain drawer geometry while closed, but do not run its list or data collectors.
+                    Box(Modifier.fillMaxWidth().fillMaxHeight()) {
+                        if (drawerOwnsInput) Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
                             showStatus = true
                             closeDrawer()
                         } else move(id)
-                    }, status, pending.size, newThreadBlockReason,
+                    }, status, pendingCount, newThreadBlockReason,
                     { vm.newThread(); move("chat") }, vm,
                     { id -> vm.chooseThread(id) {
                         val next = pendingThreadAction
@@ -386,7 +388,9 @@ fun CodexShell(vm: CodexViewModel) {
                     } },
                     sidebarState, pendingThreadAction?.let { target ->
                         pages.firstOrNull { it.id == target }?.title ?: "当前操作"
-                    }) }
+                    })
+                    }
+                }
             }
         ) { content() }
 
@@ -411,7 +415,7 @@ fun CodexShell(vm: CodexViewModel) {
         if (showModels) ModelChoiceSurface(vm) { showModels = false }
         if (showAbout) AboutInfoSheet(vm) { showAbout = false }
         // Archive transfer must block all foreground pages and sheets.
-        DataTransferBusyOverlay(dataTransfer)
+        ObserveDataTransferBusyOverlay()
     }
 }
 

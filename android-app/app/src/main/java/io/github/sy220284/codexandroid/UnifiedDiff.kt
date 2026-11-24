@@ -7,7 +7,7 @@ data class DiffSection(
     val additions: Int,
     val deletions: Int
 ) {
-    val binary: Boolean get() = lines.any {
+    val binary: Boolean = lines.any {
         it.startsWith("Binary files ") || it.startsWith("GIT binary patch")
     }
 }
@@ -25,9 +25,11 @@ object UnifiedDiff {
         return lines.map { line ->
             val header = hunkHeader.find(line)
             if (header != null) {
-                old = header.groupValues[1].toInt()
-                new = header.groupValues[2].toInt()
-                inHunk = true
+                val oldStart = header.groupValues[1].toIntOrNull()
+                val newStart = header.groupValues[2].toIntOrNull()
+                inHunk = oldStart != null && newStart != null
+                old = oldStart ?: 0
+                new = newStart ?: 0
                 DiffLineNumbers(null, null)
             } else if (!inHunk) {
                 DiffLineNumbers(null, null)

@@ -59,7 +59,7 @@ fun CodexDetailSheet(
                     }
                 }
                 CodexIconAction(
-                    onClick = onDismiss,
+                    onClick = LocalCodexSheetClose.current ?: onDismiss,
                     modifier = Modifier.size(48.dp).testTag("codex-detail-close")
                 ) {
                     CodexIcon(CodexGlyph.Close, contentDescription = closeDescription)

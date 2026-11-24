@@ -59,11 +59,15 @@ internal fun ConversationTimelineViewport(
             }
     }
     val hasOlderPage by rememberUpdatedState(olderPageVisible)
+    var previousViewportHeight by remember { mutableIntStateOf(0) }
     LaunchedEffect(scroll, thread, switching) {
         if (switching) return@LaunchedEffect
         // One collector per conversation; a stream of deltas must not cancel and restart it.
-        snapshotFlow { Triple(items.size, items.lastOrNull(), hasOlderPage) }
-            .collect { (count, tail, older) ->
+        snapshotFlow { TimelineRenderTarget(items.size, items.lastOrNull(), hasOlderPage,
+            scroll.layoutInfo.viewportSize.height) }
+            .collect { (count, tail, older, viewportHeight) ->
+                val viewportChanged = viewportHeight != previousViewportHeight
+                previousViewportHeight = viewportHeight
                 val threadChanged = observedThread != thread
                 val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, count, tail)
                 observedThread = thread
@@ -74,7 +78,7 @@ internal fun ConversationTimelineViewport(
                     unreadSteps = 0
                 }
                 val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed)) {
+                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed || viewportChanged)) {
                     // Let the new list layout settle; a real drag takes precedence.
                     withFrameNanos { }
                     if (followTail && !autoScrolling) {
@@ -83,7 +87,7 @@ internal fun ConversationTimelineViewport(
                             launch {
                                 autoScrolling = true
                                 try {
-                                    scroll.scrollToLatest(target, animate = false)
+                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(items.size, hasOlderPage), animate = false)
                                 } finally {
                                     autoScrolling = false
                                 }
@@ -145,13 +149,17 @@ internal fun ConversationTimelineViewport(
                 modifier = Modifier.align(Alignment.BottomCenter)
                     .padding(bottom = 10.dp).heightIn(min = 48.dp)
                     .testTag("timeline-return-latest")
-                    .clickable {
+                    .clickable(enabled = !autoScrolling) {
+                        if (autoScrolling) return@clickable
                         scope.launch {
                             followTail = true
                             autoScrolling = true
                             try {
                                 scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
-                                unreadSteps = 0
+                                if (followTail) {
+                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(items.size, hasOlderPage), animate = false)
+                                    unreadSteps = 0
+                                }
                             } finally {
                                 autoScrolling = false
                             }
@@ -169,6 +177,10 @@ internal fun ConversationTimelineViewport(
         }
     }
 }
+
+private data class TimelineRenderTarget(
+    val count: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int
+)
 
 /** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
 private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {

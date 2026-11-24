@@ -103,3 +103,10 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
         }
     }
 }
+
+/** Keep changing archive progress in its own overlay rather than invalidating the page shell. */
+@Composable
+internal fun ObserveDataTransferBusyOverlay() {
+    val transfer by AppDataTransfer.state.collectAsState()
+    DataTransferBusyOverlay(transfer)
+}

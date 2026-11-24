@@ -29,10 +29,11 @@ private fun JSONArray.objects(): List<JSONObject> =
 
 @Composable
 fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
-    val data by vm.data.collectAsState()
+    val data by vm.data.collectEntries("skills")
     val engineStatus by vm.bridge.status.collectAsState()
     val skillErrors by vm.errors.collectAsState()
-    val groups = records(data["skills"])
+    val skillsData = data["skills"]
+    val groups = remember(skillsData) { records(skillsData) }
     val skills = groups.flatMap { it.optJSONArray("skills")?.objects().orEmpty() }
     val readErrors = groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 }
     val mutationLoading by vm.loading.collectAsState()

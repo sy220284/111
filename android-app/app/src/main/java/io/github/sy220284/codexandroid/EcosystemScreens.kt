@@ -60,8 +60,9 @@ private fun DetailToggle(value: JSONObject, label: String = "查看服务信息"
 @Composable
 fun ModelsPage(vm: CodexViewModel) {
     val target = remember { SettingsDeepLink.take("models") }
-    val data by vm.data.collectAsState()
-    val items = records(data["models"]).filterNot { it.optBoolean("hidden") }
+    val data by vm.data.collectEntries("models")
+    val modelData = data["models"]
+    val items = remember(modelData) { records(modelData).filterNot { it.optBoolean("hidden") } }
     var showCatalog by rememberSaveable { mutableStateOf(false) }
     ScreenColumn {
         SectionIntro("模型设置", "设置后续任务的默认模型与推理方式；对话中的快速模型选择仍用于任务运行。")
@@ -90,8 +91,9 @@ fun ModelsPage(vm: CodexViewModel) {
 
 @Composable
 fun ProvidersPage(vm: CodexViewModel) {
-    val data by vm.data.collectAsState()
-    val entries = records(data["providers"])
+    val data by vm.data.collectEntries("providers", "providerCapabilities")
+    val providerData = data["providers"]
+    val entries = remember(providerData) { records(providerData) }
     val defaultId = data["providers"]?.optString("defaultProviderId") ?: ""
     var toSelect by remember { mutableStateOf<JSONObject?>(null) }
     var showCustomEditor by remember { mutableStateOf(false) }

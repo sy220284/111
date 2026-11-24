@@ -52,19 +52,21 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val switching by vm.threadSwitching.collectAsState()
     val activeTurn by vm.activeTurn.collectAsState()
     val steering by vm.steerBusy.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val loading by vm.loading.collectProjection { it.intersect(setOf("interrupt", "queueWrite")) }
     val latestDiff by vm.latestDiff.collectAsState()
     val models by vm.data.collectEntries("account", "models", "goal:$thread", "queue:$thread", "tokenUsage:$thread")
     val setupHint = if (thread == null) ChatSetupPolicy.hint(
         status == EngineStatus.Connected, models["account"], models["models"]) else null
-    val errors by vm.errors.collectAsState()
+    val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
     val prompts by vm.bridge.prompts.collectAsState()
     val composerDrafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(thread))
     val snapshot = composerDrafts[ThreadComposerDrafts.key(thread)] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
     val selectedModel by vm.modelId.collectAsState()
-    val globalWork = observeGlobalWorkSnapshot(vm)
+    val permissionSaving by vm.securitySaveBusy.collectAsState()
+    val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
     val documentOwner by vm.composerContent.documentOwner.collectAsState()
     val documentBusy = documentOwner == ThreadComposerDrafts.key(thread)
     var composerMenu by remember(thread) { mutableStateOf("") }
@@ -97,7 +99,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queuedInputs = remember(queueData) { records(queueData) }
     val modelData = models["models"]
     val availableModels = remember(modelData) { records(modelData) }
-    val changedFiles = remember(latestDiff) { UnifiedDiff.parse(latestDiff) }
+    val diffSummary by rememberDiffSummary(latestDiff)
     LaunchedEffect(thread) {
         if (thread != null) {
             vm.refresh("goal:$thread", "thread/goal/get", JSONObject().put("threadId", thread))
@@ -200,7 +202,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text("代码变更", style = MaterialTheme.typography.titleSmall)
-                        Text("${changedFiles.size} 个文件 · +${changedFiles.sumOf { it.additions }} / −${changedFiles.sumOf { it.deletions }}",
+                        Text(diffSummary?.let { "${it.files} 个文件 · +${it.additions} / −${it.deletions}" }
+                            ?: "正在整理代码变更…",
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
                     CodexTextAction(onClick = { navigate("diff") }) { Text("查看") }
@@ -229,8 +232,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
-        ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
-            compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+        key(thread) {
+            ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
+                compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+        }
         if (offerPlanApproval) {
             CodexNotice(
                 "计划已生成。核对计划内容后，可批准并开始执行。",
@@ -328,9 +333,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             val sending = firstThreadStarting || steering || "queueWrite" in loading
             val sendBlockReason = when {
-                globalWork.securitySaveBusy -> "正在保存权限，请稍候"
-                globalWork.dataTransferBusy -> "本机数据正在备份或恢复"
-                globalWork.restarting -> "运行核心正在重新连接"
+                permissionSaving -> "正在保存权限，请稍候"
+                transferBusy -> "本机数据正在备份或恢复"
+                restarting -> "运行核心正在重新连接"
                 status != EngineStatus.Connected -> "运行核心尚未连接"
                 switching -> "正在恢复会话"
                 firstThreadStarting -> "正在建立新会话"
@@ -372,7 +377,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 },
-                permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !globalWork.dataTransferBusy) },
+                permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !transferBusy) },
                 attachmentContent = {
                     LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(thread, it) }
                     ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(thread, it) }
