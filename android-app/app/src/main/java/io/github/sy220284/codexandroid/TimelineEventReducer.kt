@@ -93,9 +93,15 @@ internal object TimelineEventReducer {
         val turnId = params.string("turnId")
         var items = IndexedTimeline.from(current)
         fun put(item: TimelineItem) {
-            val clientId = if (item.kind == "user" && item.evidence.isNotBlank())
-                JSONObject(item.evidence).string("clientId") else ""
-            items = items.put(item, clientId)
+            // All lifecycle paths, including turn/completed backfill, preserve an already known
+            // native phase when a later payload omits that optional field.
+            val prior = items.byId(item.id)
+            val phase = if (item.kind == "agentMessage") item.phase.ifBlank { prior?.phase.orEmpty() } else item.phase
+            val next = if (phase == item.phase) item else item.copy(phase = phase,
+                evidence = JSONObject(item.evidence).put("phase", phase).toString())
+            val clientId = if (next.kind == "user" && next.evidence.isNotBlank())
+                JSONObject(next.evidence).string("clientId") else ""
+            items = items.put(next, clientId)
         }
         if (method == "turn/completed") {
             val turn = params.getJSONObject("turn")
@@ -132,7 +138,8 @@ internal object TimelineEventReducer {
                 // Enrich the same native item without resetting its accumulated text.
                 if (old.kind == "agentMessage" && next.kind == old.kind &&
                     old.phase.isBlank() && next.phase.isNotBlank()) {
-                    val evidence = JSONObject(old.evidence).put("phase", next.phase)
+                    val evidence = JSONObject(if (old.hasEvidence) old.evidence else next.evidence)
+                        .put("phase", next.phase).put("text", old.text)
                     put(old.copy(phase = next.phase, evidence = evidence.toString()))
                     return items
                 }
@@ -146,9 +153,7 @@ internal object TimelineEventReducer {
                     if (evidence.isNull(key) && !prior.isNull(key)) evidence.put(key, prior.get(key))
                 }
             }
-            val phase = next.phase.ifBlank { old?.phase.orEmpty() }
-            if (phase.isNotBlank() && next.phase.isBlank()) evidence.put("phase", phase)
-            put(next.copy(evidence = evidence.toString(), phase = phase))
+            put(next.copy(evidence = evidence.toString()))
             return items
         }
         val id = params.string("itemId")

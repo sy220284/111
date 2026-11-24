@@ -207,6 +207,11 @@ class TimelineReconcilerTest {
         val done = org.json.JSONObject(started.toString()).apply { remove("phase"); put("text", "AB") }
         val completed = TimelineEventReducer.reduce("item/completed", params.put("item", done), continued)
         assertEquals("partial_answer", completed.single().phase)
+        val turn = org.json.JSONObject().put("id", "t").put("status", "completed")
+            .put("items", org.json.JSONArray().put(done))
+        val backfilled = TimelineEventReducer.reduce("turn/completed", org.json.JSONObject().put("turn", turn), continued)
+        assertEquals("partial_answer", backfilled.single().phase)
+        assertEquals("AB", backfilled.single().text)
         val restored = ConversationLiveTimeline.merge(enriched, listOf(continued.single().copy(phase = "")))
         assertEquals("AB", restored.single().text)
         assertEquals("partial_answer", restored.single().phase)
