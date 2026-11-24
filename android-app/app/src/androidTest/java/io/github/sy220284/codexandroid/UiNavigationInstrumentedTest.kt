@@ -394,6 +394,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-model-control").assertIsDisplayed()
         // 模式由真实内核恢复，可能是「执行」或「先计划」；校验实际可交互的按钮。
         rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
+        rule.onNode(hasTestTag("conversation-mode-control") and hasAnyAncestor(hasTestTag("composer-context-footer"))).assertExists()
+        rule.onNode(hasTestTag("conversation-model-control") and hasAnyAncestor(hasTestTag("composer-primary-actions"))).assertExists()
+        rule.onNode(hasTestTag("composer-task-options") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertDoesNotExist()
         rule.onNodeWithContentDescription("查看内核运行诊断").assertDoesNotExist()
         rule.onNodeWithContentDescription("添加内容").assertIsDisplayed()
         rule.onNodeWithTag("composer-task-options").assertIsDisplayed()

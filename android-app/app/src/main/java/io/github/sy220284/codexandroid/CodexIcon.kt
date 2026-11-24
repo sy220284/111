@@ -68,6 +68,7 @@ enum class CodexGlyph(@DrawableRes val resId: Int) {
     TouchApp(R.drawable.ic_ui_touch_app),
     Memory(R.drawable.ic_ui_memory),
     EditNote(R.drawable.ic_ui_edit_note),
+    Microphone(R.drawable.ic_ui_microphone),
     CreateNewFolder(R.drawable.ic_ui_create_new_folder),
     PersonOutline(R.drawable.ic_ui_person_outline),
     FileUpload(R.drawable.ic_ui_file_upload),

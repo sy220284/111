@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -56,46 +57,49 @@ internal fun ConversationComposer(
     statusContent: (@Composable () -> Unit)? = null,
     attachmentContent: (@Composable () -> Unit)? = null,
     permissionContent: (@Composable () -> Unit)? = null,
-    hasInput: Boolean = draft.isNotBlank() || attachedCount > 0
+    hasInput: Boolean = draft.isNotBlank() || attachedCount > 0,
+    onVoice: (() -> Unit)? = null,
+    voiceEnabled: Boolean = true
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var expandedEditor by remember { mutableStateOf(false) }
     var inputFocused by remember { mutableStateOf(false) }
+    val outline by animateColorAsState(
+        targetValue = if (inputFocused) Ink.parchment.copy(alpha = .36f) else Ink.controlBorder,
+        animationSpec = tween(CodexMotion.duration(CodexMotion.selection, reduceMotion)),
+        label = "composer-outline")
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        statusContent?.invoke()
+        AtlasComposerShortcuts(draft, shortcuts) { shortcut ->
+            if (ComposerShortcutPolicy.query(draft) != null) onDraftChange("")
+            shortcut.onOpen()
+        }
+        ComposerShortcutPolicy.referenceQuery(draft)?.let { query ->
+            if (onReference != null) AtlasSettingsActionRow("引用项目文件",
+                query.ifBlank { "搜索并选择本机项目文件" }, CodexGlyph.Link,
+                onClick = { onReference(query) }, outlined = false,
+                modifier = Modifier.testTag("composer-reference-suggestion"))
+        }
     Surface(
         // The IME and multiline field own their layout; animate explicit controls, not the whole composer.
         modifier = Modifier.fillMaxWidth().testTag("conversation-composer"),
-        shape = RoundedCornerShape(23.dp),
+        shape = RoundedCornerShape(22.dp),
         color = Ink.panel,
-        border = BorderStroke(if (inputFocused) 1.5.dp else 1.dp,
-            if (inputFocused) Ink.copper else Ink.controlBorder),
+        border = BorderStroke(1.dp, outline),
         shadowElevation = 0.dp
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(start = 13.dp, end = 10.dp,
-                top = if (compactControls) 6.dp else 10.dp,
-                bottom = if (compactControls) 6.dp else 8.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            statusContent?.invoke()
+        Column(Modifier.fillMaxWidth().padding(horizontal = 6.dp,
+            vertical = if (compactControls) 3.dp else 5.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)) {
             attachmentContent?.invoke()
-            permissionContent?.invoke()
-            AtlasComposerShortcuts(draft, shortcuts) { shortcut ->
-                if (ComposerShortcutPolicy.query(draft) != null) onDraftChange("")
-                shortcut.onOpen()
-            }
-            ComposerShortcutPolicy.referenceQuery(draft)?.let { query ->
-                if (onReference != null) AtlasSettingsActionRow("引用项目文件",
-                    query.ifBlank { "搜索并选择本机项目文件" }, CodexGlyph.Link,
-                    onClick = { onReference(query) }, outlined = false,
-                    modifier = Modifier.testTag("composer-reference-suggestion"))
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(start = 9.dp, end = 5.dp, top = 5.dp),
+                verticalAlignment = Alignment.Top) {
             BasicTextField(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier.weight(1f)
                     .onFocusChanged { inputFocused = it.isFocused }
-                    .heightIn(min = if (compactControls) 32.dp else 40.dp)
+                    .heightIn(min = if (compactControls) 34.dp else 46.dp)
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
                 minLines = 1,
@@ -108,7 +112,7 @@ internal fun ConversationComposer(
                         if (draft.isEmpty()) {
                             Text(
                                 if (running) "补充当前任务要求…"
-                                else "给 Codex 发消息…",
+                                else "让 Codex 完成任务…",
                                 color = Ink.muted,
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -124,18 +128,21 @@ internal fun ConversationComposer(
             }
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("composer-primary-actions"),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 CodexIconAction(onClick = onAddContent, enabled = !imageImporting,
                     modifier = Modifier.size(48.dp).testTag("composer-plus")) {
-                    CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.parchment, modifier = Modifier.size(24.dp))
+                    CodexIcon(CodexGlyph.Add, "添加内容", tint = Ink.muted, modifier = Modifier.size(22.dp))
                 }
                 if (running) Spacer(Modifier.weight(1f))
-                else ConversationControlBar(modelLabel, modeLabel, effortLabel, optionsEnabled, onModel, onMode)
-                CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
-                    CodexIcon(CodexGlyph.Tune, "任务配置")
+                else ConversationControlBar(modelLabel, effortLabel, optionsEnabled, onModel)
+                if (onVoice != null) {
+                    CodexIconAction(onClick = onVoice, enabled = voiceEnabled && !sending && !stopping,
+                        modifier = Modifier.size(48.dp).testTag("composer-voice")) {
+                        CodexIcon(CodexGlyph.Microphone, "语音输入", modifier = Modifier.size(22.dp), tint = Ink.muted)
+                    }
                 }
                 AnimatedVisibility(
                     visible = running,
@@ -162,7 +169,7 @@ internal fun ConversationComposer(
                 CodexPrimaryButton(
                     onClick = onSend,
                     enabled = canSend && !sending && !stopping,
-                    modifier = Modifier.size(50.dp)
+                    modifier = Modifier.size(48.dp)
                         .testTag("composer-send")
                         .explainDisabled(!canSend || sending, when {
                             sendBlockReason.isNotBlank() -> sendBlockReason
@@ -187,9 +194,19 @@ internal fun ConversationComposer(
                         CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
                             color = Ink.muted)
                     } else {
-                        CodexIcon(CodexGlyph.ArrowUpward, null, modifier = Modifier.size(24.dp))
+                        CodexIcon(CodexGlyph.ArrowUpward, null, modifier = Modifier.size(22.dp))
                     }
                 }
+            }
+        }
+    }
+        // Secondary context stays outside the native-style input card.
+        Row(Modifier.fillMaxWidth().testTag("composer-context-footer"),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) { permissionContent?.invoke() }
+            ConversationModeControl(modeLabel, optionsEnabled, onMode)
+            CodexIconAction(onClick = onTaskOptions, modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
+                CodexIcon(CodexGlyph.MoreHoriz, "任务配置", tint = Ink.muted)
             }
         }
     }

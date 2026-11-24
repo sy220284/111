@@ -31,7 +31,7 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         CodexTextAction(onClick = { open = true },
-            modifier = Modifier.testTag("composer-permission-control"),
+            modifier = Modifier.fillMaxWidth().testTag("composer-permission-control"),
             contentPadding = PaddingValues(horizontal = 2.dp)) {
             CodexIcon(CodexGlyph.Security, null, Modifier.size(16.dp),
                 tint = if (selected == ":danger-full-access") Ink.red else Ink.muted)
@@ -42,7 +42,9 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
                 reading -> "读取权限中"
                 selected != null -> PresentationPolicy.permissionProfile(selected)
                 else -> "选择权限"
-            }, style = MaterialTheme.typography.labelMedium)
+            }, modifier = Modifier.weight(1f, fill = false), maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelMedium)
             CodexIcon(CodexGlyph.ExpandMore, null, Modifier.size(14.dp))
         }
     }

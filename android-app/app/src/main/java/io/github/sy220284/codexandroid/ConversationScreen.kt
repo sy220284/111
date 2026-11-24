@@ -358,6 +358,17 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 onSend = { vm.submitComposerDraft(snapshot, "steer", thread, activeTurn, busy, draftOwner) },
                 hasInput = snapshot.hasInput,
+                onVoice = if (vm.composerContent.canRecognizeSpeech()) ({
+                    keyboard?.hide()
+                    vm.composerContent.beginVoice(draftOwner, selectedWorkspace)?.let { intent ->
+                        try { voicePicker.launch(intent) }
+                        catch (failure: Exception) {
+                            vm.composerContent.finishVoice(null)
+                            vm.composerContent.pickerFailure(failure)
+                        }
+                    }
+                }) else null,
+                voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { keyboard?.hide(); composerMenu = "add" },
                 compactControls = compactWorkArea,
@@ -418,16 +429,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         onClick = { vm.composerContent.pasteImage(draftOwner) },
                         enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
                         description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
-                    if (vm.composerContent.canRecognizeSpeech()) add(CodexSheetAction("语音输入", CodexGlyph.EditNote,
-                        onClick = {
-                            vm.composerContent.beginVoice(draftOwner, selectedWorkspace)?.let { intent ->
-                                try { voicePicker.launch(intent) }
-                                catch (failure: Exception) {
-                                    vm.composerContent.finishVoice(null)
-                                    vm.composerContent.pickerFailure(failure)
-                                }
-                            }
-                        }, description = "使用系统语音识别，结果写入草稿，不自动发送", testTag = "composer-add-voice"))
+
                 })
             if (composerMenu == "tools") CodexActionSheet(title = "任务配置", onDismiss = { composerMenu = "" },
                 actions = tools.filter { it.command !in setOf("model", "mode") }.map {
