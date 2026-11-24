@@ -70,7 +70,7 @@ internal fun TimelineStepCard(item: TimelineItem) {
                     if (statusLabel.isNotEmpty()) {
                         Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = tone)
                     }
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)
+                    IconButton(onClick = { menuOpen = true }, enabled = item.text.isNotBlank() || item.evidence.isNotBlank(), modifier = Modifier.size(48.dp)
                         .testTag("timeline-more-" + item.id)) {
                         CodexIcon(CodexGlyph.MoreHoriz, "消息操作")
                     }
@@ -102,13 +102,13 @@ internal fun TimelineStepCard(item: TimelineItem) {
     if (menuOpen) CodexActionSheet(title = title, onDismiss = { menuOpen = false },
         actions = buildList {
             if (item.text.isNotBlank()) {
-                add(CodexSheetAction("复制内容", "复制原始文本", CodexGlyph.ContentCopy,
+                add(CodexSheetAction(label = "复制内容", description = "复制原始文本", icon = CodexGlyph.ContentCopy,
                     onClick = { menuOpen = false; clipboard.setText(AnnotatedString(item.text)) }))
-                add(CodexSheetAction("全文阅读", "检索、定位与复制", CodexGlyph.OpenInFull,
+                add(CodexSheetAction(label = "全文阅读", description = "检索、定位与复制", icon = CodexGlyph.OpenInFull,
                     onClick = { menuOpen = false; readerOpen = true }))
             }
-            if (item.evidence.isNotBlank()) add(CodexSheetAction("查看执行依据", "读取原始执行记录",
-                CodexGlyph.Description, onClick = { menuOpen = false; evidenceOpen = true }))
+            if (item.evidence.isNotBlank()) add(CodexSheetAction(label = "查看执行依据", description = "读取原始执行记录",
+                icon = CodexGlyph.Description, onClick = { menuOpen = false; evidenceOpen = true }))
         })
     if (readerOpen) FullTextReaderDialog(title, item.text) { readerOpen = false }
     if (evidenceOpen) CodexEvidenceSheet(

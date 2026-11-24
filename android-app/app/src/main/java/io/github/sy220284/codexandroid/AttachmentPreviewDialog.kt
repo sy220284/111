@@ -65,7 +65,7 @@ internal fun AttachmentPreviewDialog(paths: List<String>, path: String,
                             "重新读取", { retry++ })
                         else -> Image(bitmap, "当前附件的大图预览",
                             modifier = Modifier.fillMaxSize().testTag("attachment-preview-image")
-                                .pointerInput(path) {
+                                .pointerInput(path, bitmap) {
                                     detectTransformGestures { _, pan, zoom, _ ->
                                         val next = (scale * zoom).coerceIn(1f, 4f)
                                         val fit = minOf(size.width.toFloat() / bitmap.width,

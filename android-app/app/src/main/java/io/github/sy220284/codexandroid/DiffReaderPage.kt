@@ -55,9 +55,9 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         pendingJump = null
     }
-    if (filePicker) CodexChoiceSheet("定位改动文件",
-        visibleFiles.map { index -> CodexChoice(index.toString(), files[index].path) },
-        selected = "", onSelect = { value ->
+    if (filePicker) CodexChoiceSheet(title = "定位改动文件", description = "选择文件后跳转至差异位置",
+        choices = visibleFiles.map { index -> CodexChoice(index.toString(), files[index].path) },
+        selectedId = null, onSelect = { value ->
             val target = value.toInt()
             updateExpanded(expanded + target)
             pendingJump = target
