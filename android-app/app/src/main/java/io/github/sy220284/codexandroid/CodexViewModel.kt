@@ -263,6 +263,24 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         request(key, method, params, if (after == null) null else { _ -> after() }, userAction = true)
     }
 
+    fun runSessionAction(id: String, fork: Boolean) {
+        if (id != activeThread.value || running.value || threadSwitching.value ||
+            firstThreadStarting.value || bridge.status.value != EngineStatus.Connected) {
+            errors.value = errors.value + ("conversation" to "当前会话暂不能执行此操作，请等待任务或连接恢复")
+            return
+        }
+        val key = if (fork) "threadFork:$id" else "threadCompact:$id"
+        if (key in loading.value) return
+        val params = JSONObject().put("threadId", id)
+        if (fork) params.put("excludeTurns", true)
+        request(key, if (fork) "thread/fork" else "thread/compact/start", params, { response ->
+            if (fork && activeThread.value == id) {
+                val newId = response.getJSONObject("thread").getString("id")
+                chooseThread(newId)
+            }
+        }, userAction = true)
+    }
+
     fun bulkThreadAction(kind: String, ids: List<String>, after: () -> Unit) =
         threadOrganization.execute(kind, ids, after = after)
 
