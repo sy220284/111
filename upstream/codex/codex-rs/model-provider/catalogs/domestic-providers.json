@@ -1,0 +1,89 @@
+[
+  {
+    "id": "deepseek-cn",
+    "name": "DeepSeek",
+    "baseUrl": "https://api.deepseek.com",
+    "envKey": "DEEPSEEK_API_KEY",
+    "plan": "开放平台 API",
+    "catalog": "openai-list",
+    "models": [
+      {
+        "id": "deepseek-flash",
+        "context": 1048576
+      },
+      {
+        "id": "deepseek-v4-pro",
+        "context": 1048576
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "glm-cn",
+    "name": "GLM 智谱",
+    "baseUrl": "https://open.bigmodel.cn/api/v1",
+    "envKey": "ZHIPUAI_API_KEY",
+    "plan": "Coding Plan（需确认客户端授权）",
+    "catalog": "manual",
+    "models": [
+      {
+        "id": "glm-5.4",
+        "context": 32768
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "minimax-cn",
+    "name": "MiniMax",
+    "baseUrl": "https://api.minimax.cn/v1",
+    "envKey": "MINIMAX_API_KEY",
+    "plan": "国内开放平台 / 已授权 M Plan",
+    "catalog": "manual",
+    "models": [
+      {
+        "id": "MiniMax-M3.1-Flash",
+        "context": 524288
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "kimi-cn",
+    "name": "Kimi",
+    "baseUrl": "https://api.moonshot.cn/v1",
+    "envKey": "MOONSHOT_API_KEY",
+    "plan": "国内开放平台 API",
+    "catalog": "openai-list",
+    "models": [
+      {
+        "id": "kimi-k3.1-pro",
+        "context": 1048576
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "qwen-cn",
+    "name": "通义千问",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "envKey": "DASHSCOPE_API_KEY",
+    "plan": "北京地域 · 按量付费",
+    "catalog": "manual",
+    "models": [
+      {
+        "id": "qwen4-max",
+        "context": 32768
+      },
+      {
+        "id": "qwen3.8-max",
+        "context": 32768
+      },
+      {
+        "id": "qwen3.8-flash",
+        "context": 32768
+      }
+    ],
+    "protocol": "responses"
+  }
+]

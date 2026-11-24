@@ -91,7 +91,8 @@ impl OpenAiModelsEndpoint {
         {
             *manager = manager.without_interactive_login();
         }
-        let redirect_policy = if provider_info.model_catalog_url.is_some()
+        let redirect_policy = if crate::domestic_catalog::profile(provider_info.base_url.as_deref()).is_some()
+            || provider_info.model_catalog_url.is_some()
             || provider_info
                 .gateway_oauth
                 .as_ref()
@@ -227,14 +228,30 @@ impl OpenAiModelsEndpoint {
         } else {
             None
         };
+        let domestic = crate::domestic_catalog::profile(self.provider_info.base_url.as_deref())
+            .filter(|_| self.provider_info.model_catalog_url.is_none());
         let request_telemetry: Arc<dyn RequestTelemetry> = Arc::new(ModelsRequestTelemetry {
-            include_response_debug: self.provider_info.model_catalog_url.is_none(),
+            include_response_debug: self.provider_info.model_catalog_url.is_none() && domestic.is_none(),
             auth_mode: auth_mode.map(|mode| TelemetryAuthMode::from(mode).to_string()),
             auth_header_attached: auth_telemetry.attached,
             auth_header_name: auth_telemetry.name,
             agent_identity_telemetry,
             auth_env: self.auth_env(),
         });
+        // Only providers with an independently verified public list format are queried.
+        // Other profiles remain explicit candidates in the UI until their account catalog is implemented.
+        if let Some(profile) = domestic {
+            if profile.catalog != "openai-list" {
+                return Err(CodexErr::InvalidRequest("domestic account model discovery is not yet supported for this endpoint".into()));
+            }
+            let transport = self.transport_builder.build(http_client_factory, request_url.clone()).await?;
+            let client = ModelsClient::new(transport, api_provider, api_auth)
+                .with_telemetry(Some(request_telemetry));
+            let (body, etag) = client.list_models_raw(request_url, HeaderMap::new(), Some(1024 * 1024))
+                .await.map_err(|_| CodexErr::InvalidRequest("domestic model list request failed".into()))?;
+            let models = crate::domestic_catalog::decode_public_catalog(profile, &body)?;
+            return Ok(ModelsEndpointResponse { models, etag, identity });
+        }
         let (models, etag) = {
             let transport = self
                 .transport_builder
@@ -316,6 +333,8 @@ impl ModelsEndpointClient for OpenAiModelsEndpoint {
 
     fn supports_api_key_models(&self) -> bool {
         self.provider_info.model_catalog_url.is_some()
+            || crate::domestic_catalog::profile(self.provider_info.base_url.as_deref())
+                .is_some_and(|p| p.catalog == "openai-list")
             || (self.provider_info.is_openai() && self.provider_info.base_url.is_none())
     }
 

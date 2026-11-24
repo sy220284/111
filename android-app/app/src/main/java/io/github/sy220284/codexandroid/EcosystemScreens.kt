@@ -100,6 +100,9 @@ fun ProvidersPage(vm: CodexViewModel) {
     var customName by remember { mutableStateOf("") }
     var customUrl by remember { mutableStateOf("") }
     var customEnvKey by remember { mutableStateOf("") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val domesticPresets = remember(context) { DomesticModelPresets.load(context) }
+    var selectedPreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -119,12 +122,34 @@ fun ProvidersPage(vm: CodexViewModel) {
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
         MaterialPanel(Modifier.fillMaxWidth()) {
+            Text("国内模型预置", style = MaterialTheme.typography.titleMedium)
+            Text("官方国内接口 · 需单独授权，预置模型仅供选择参考。", color = Ink.muted)
+            domesticPresets.forEach { preset ->
+                val configured = entries.any { preset.matchesEndpoint(it.optString("baseUrl")) }
+                AtlasSettingsActionRow(
+                    title = preset.name,
+                    detail = if (configured) "已配置服务地址 · " + preset.plan else preset.plan + " · 待配置",
+                    icon = CodexGlyph.Dns,
+                    onClick = {
+                        selectedPreset = preset
+                        customName = preset.name
+                        customUrl = preset.baseUrl
+                        customEnvKey = preset.envKey
+                        showCustomEditor = true
+                    }
+                )
+            }
+            DividerLine()
             Text("服务商配置", style = MaterialTheme.typography.titleMedium)
             AtlasSettingsActionRow(
                 title = "添加自定义服务商",
                 detail = "配置服务名称、连接地址与密钥变量",
                 icon = CodexGlyph.AddCircleOutline,
-                onClick = { showCustomEditor = true }
+                onClick = {
+                    selectedPreset = null
+                    customName = ""; customUrl = ""; customEnvKey = ""
+                    showCustomEditor = true
+                }
             )
             if (showCustomEditor) {
                 CodexDetailSheet(
@@ -132,9 +157,14 @@ fun ProvidersPage(vm: CodexViewModel) {
                     subtitle = "仅配置连接地址和密钥变量名称",
                     onDismiss = { showCustomEditor = false }
                 ) {
+                    selectedPreset?.let { preset ->
+                        Text("原生 Responses · " + preset.plan, color = Ink.muted)
+                        Text("候选模型：" + preset.models.joinToString("、"), color = Ink.muted)
+                    }
                     AtlasFormField(customName, { customName = it }, "服务商名称")
                     AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
                         placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                        enabled = selectedPreset == null,
                         confirmedValid = customUrl.isNotBlank() && ProviderAddressPolicy.valid(customUrl),
                         error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
                             "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
@@ -143,7 +173,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                     CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
-                            ProviderAddressPolicy.valid(customUrl),
+                            ProviderAddressPolicy.valid(customUrl) &&
+                            (selectedPreset?.matchesEndpoint(customUrl) != false),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }

@@ -1,0 +1,33 @@
+package io.github.sy220284.codexandroid
+
+import android.content.Context
+import org.json.JSONArray
+
+/** One bundled catalog shared with the Rust provider layer. Presets are not authorization. */
+internal data class DomesticModelPreset(
+    val id: String, val name: String, val baseUrl: String, val envKey: String,
+    val plan: String, val protocol: String, val models: List<String>
+) {
+    fun matchesEndpoint(value: String): Boolean = value.trim().trimEnd('/') == baseUrl
+}
+
+internal object DomesticModelPresets {
+    fun load(context: Context): List<DomesticModelPreset> =
+        context.assets.open("domestic-providers.json").bufferedReader().use { parse(it.readText()) }
+
+    fun parse(json: String): List<DomesticModelPreset> {
+        val array = JSONArray(json)
+        return (0 until array.length()).map { index ->
+            val item = array.getJSONObject(index)
+            val models = item.getJSONArray("models")
+            DomesticModelPreset(
+                item.getString("id"), item.getString("name"), item.getString("baseUrl"),
+                item.getString("envKey"), item.getString("plan"), item.getString("protocol"),
+                (0 until models.length()).map { models.getJSONObject(it).getString("id") }
+            )
+        }.also { presets ->
+            require(presets.map { it.id }.distinct().size == presets.size)
+            require(presets.all { it.protocol == "responses" && it.baseUrl.startsWith("https://") })
+        }
+    }
+}
