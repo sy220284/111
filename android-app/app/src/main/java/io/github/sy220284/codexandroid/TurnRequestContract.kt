@@ -22,7 +22,8 @@ object TurnRequestContract {
     }
 
     fun build(threadId: String, text: String, modelId: String, mode: String,
-              catalog: List<JSONObject>, localImages: List<String> = emptyList()): JSONObject {
+              catalog: List<JSONObject>, localImages: List<String> = emptyList(),
+              effectiveConfig: JSONObject? = null): JSONObject {
         require(threadId.isNotBlank()) { "缺少会话标识" }
         require(text.isNotBlank() || localImages.isNotEmpty()) { "任务内容和图片不能同时为空" }
         require(localImages.size <= LocalImageAttachments.MAX_FILES) { "图片数量超过上限" }
@@ -44,13 +45,21 @@ object TurnRequestContract {
             if (modelId.isNotBlank()) args.put("model", modelId)
             return args
         }
+        val configuredModel = effectiveConfig?.optString("model")?.takeIf { it.isNotBlank() && it != "null" }
         val selected = modelId.ifBlank {
-            catalog.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
+            val availableConfigured = catalog.firstOrNull { configuredModel != null &&
+                (it.optString("id") == configuredModel || it.optString("model") == configuredModel) }
+            if (configuredModel != null) require(availableConfigured != null) { "默认模型不在当前可用目录中，请检查模型设置" }
+            availableConfigured?.optString("id") ?: catalog.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
                 ?: catalog.firstOrNull()?.optString("id").orEmpty()
         }
         require(selected.isNotBlank()) { "计划模式需要先读取可用模型目录" }
         val model = catalog.firstOrNull { it.optString("id") == selected }
-        val effort = model?.optString("defaultReasoningEffort")?.takeIf { it.isNotBlank() }
+        val configuredEffort = effectiveConfig?.optString("plan_mode_reasoning_effort")?.takeIf { it.isNotBlank() && it != "null" }
+        val supported = model?.optJSONArray("supportedReasoningEfforts")
+        val effort = configuredEffort?.takeIf { selectedEffort ->
+            supported != null && (0 until supported.length()).any { supported.optJSONObject(it)?.optString("reasoningEffort") == selectedEffort }
+        } ?: model?.optString("defaultReasoningEffort")?.takeIf { it.isNotBlank() }
         val settings = JSONObject()
             .put("model", selected)
             .put("reasoning_effort", effort ?: JSONObject.NULL)

@@ -27,10 +27,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val listScope = rememberCoroutineScope()
-    var showModels by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
-    var showAppearance by rememberSaveable { mutableStateOf(false) }
-    var appearanceTarget by remember { mutableStateOf<String?>(null) }
     val status by vm.bridge.status.collectAsState()
     val data by vm.data.collectAsState()
     val isAccountLoaded = data["account"] != null
@@ -134,18 +131,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "security" -> "执行权限与审批"
                                     "environments" -> "本机或其他设备"
-                                    "models" -> "选择任务模型"
+                                    "models" -> "默认模型与推理偏好"
                                     "appearance" -> if (darkMode) "深色" else "浅色"
                                     "plugins" -> "安装与管理"
                                     else -> ""
                                 }) {
                                     SettingsDeepLink.select(entry.id, spot?.target)
                                     when(entry.id) {
-                                        "models" -> showModels = true
-                                        "appearance" -> {
-                                            appearanceTarget = spot?.target
-                                            showAppearance = true
-                                        }
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
                                     }
@@ -162,15 +154,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    if (showModels) ModelChoiceSurface(vm) { showModels = false }
     if (showAbout) AboutInfoSheet(vm) { showAbout = false }
-    if (showAppearance) CodexDetailSheet(
-        title = "外观与交互",
-        subtitle = "主题、字号、排版与动效可即时预览",
-        onDismiss = { showAppearance = false }
-    ) {
-        AppearanceInlineControls(focusTarget = appearanceTarget)
-    }
 }
 
 @Composable

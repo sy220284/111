@@ -305,12 +305,10 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var advanced by rememberSaveable { mutableStateOf(false) }
-    var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var rawError by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         val target = SettingsDeepLink.take("config")
         if (target == "advanced") advanced = true
-        else if (target != null && EngineSettings.byKey(target) != null) selectedKey = target
     }
     var path by rememberSaveable { mutableStateOf("") }
     var value by rememberSaveable { mutableStateOf("") }
@@ -331,20 +329,15 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     val permissionBusy by vm.securitySaveBusy.collectAsState()
     val enabled = ready && engineStatus == EngineStatus.Connected && "config" !in loading && !saving && !permissionBusy
-    val models = records(data["models"])
-    val requirements = data["securityRequirements"]?.optJSONObject("requirements")
-    val requirementsRead = data["securityRequirements"] != null && "securityRequirements" !in loading && errors["securityRequirements"] == null
     LaunchedEffect(engineStatus) {
         if (engineStatus == EngineStatus.Connected) {
-            vm.ensureCatalog("models", "model/list")
-            vm.refresh("securityRequirements", "configRequirements/read", null)
             if ("config" !in vm.loading.value && !saving) vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
         }
     }
 
     ScreenColumn {
-        SectionIntro("引擎配置",
-            "调整后续任务的思考、回复、上下文与运行方式。每项均显示当前配置，点开即可修改。")
+        SectionIntro("开发者设置",
+            "专业参数编辑与本机运行诊断。日常模型、工作偏好、上下文和工具设置各有独立入口。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(CodexGlyph.Settings, null, tint = Ink.copper)
@@ -393,25 +386,10 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }?.let {
             CodexNotice(it, NoticeTone.Success)
         }
-        EngineSettingRows(config, enabled, models, requirements, requirementsRead) {
-            clearSaveFeedback()
-            selectedKey = it.key
-        }
-        if (engineStatus == EngineStatus.Connected && (errors["models"] != null || errors["securityRequirements"] != null)) {
-            CodexSecondaryButton(onClick = {
-                vm.refresh("models", "model/list")
-                vm.refresh("securityRequirements", "configRequirements/read", null)
-            }) { Text("重新读取可用选项") }
-        }
-        Text("相关设置", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
         MaterialPanel(Modifier.fillMaxWidth()) {
-            CodexDetailTrigger("模型目录", { navigate("models") }, Modifier.fillMaxWidth())
-            HorizontalDivider(color = Ink.border)
-            CodexDetailTrigger("权限与安全", { navigate("security") }, Modifier.fillMaxWidth())
-            HorizontalDivider(color = Ink.border)
-            CodexDetailTrigger("模型服务商", { navigate("providers") }, Modifier.fillMaxWidth())
+            CodexDetailTrigger("诊断与日志", { navigate("diagnostics") }, Modifier.fillMaxWidth())
         }
-        Text("专业工具", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
+        Text("专业配置", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
         CodexDetailTrigger(
             label = "高级自定义配置",
             onClick = { clearSaveFeedback(); advanced = true },
@@ -423,7 +401,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 subtitle = "请核对设置项和值。保存前还需确认更改范围。",
                 onDismiss = { advanced = false }
             ) {
-                Text("仅供需要直接编辑底层参数的用户。常用设置请在上方选择；复杂数据将替换整个指定配置项。",
+                Text("仅供需要直接编辑底层参数的用户。常用设置请返回对应功能页面；复杂数据将替换整个指定配置项。",
                     color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 AtlasFormField(path, { path = it }, "设置项名称", placeholder = "例如 tool_output_token_limit")
                 Text("设置值类型", style = MaterialTheme.typography.titleSmall)
@@ -494,14 +472,6 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
     }
-    EngineSettings.byKey(selectedKey.orEmpty())?.let { setting ->
-        val available = EngineSettings.choices(setting, config, models, requirements, requirementsRead)
-        EngineSettingEditor(setting, EngineSettings.valueAt(config, setting.key), available,
-            enabled && (setting.type !in listOf("choice", "reasoning") || available.isNotEmpty()),
-            saving, onDismiss = { selectedKey = null }, onSave = {
-                vm.saveEngineSetting(setting.key, it, setting.title)
-            }, saveError = saveError, saveMessage = saveMessage)
-    }
     if (showConfirm) CodexConfirmDialog(
         title = "保存本机设置",
         message = "本次操作将更新 Codex 在当前设备中的运行配置。",
@@ -519,53 +489,11 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
 
 @Composable
-fun AppearancePage() {
-    val compact by UiPreferences.compact.collectAsState()
-    val lessMotion by UiPreferences.reducedMotion.collectAsState()
-    val softMaterial by UiPreferences.softMaterial.collectAsState()
+fun AppearancePage(vm: CodexViewModel) {
+    val target = remember { SettingsDeepLink.take("appearance") }
     ScreenColumn {
-        SectionIntro("外观与交互", "全局典雅白底，暖铜文字与边框强调操作，支持轻阴影和精简动效。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("界面材料", style = MaterialTheme.typography.titleMedium)
-            Text("典雅白底 / 柔和细边 / 清晰文字层级", color = Ink.muted)
-            DividerLine()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("紧凑信息密度")
-                    Text("缩小面板间距，让代码和数据占据更多空间", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                WhiteSwitch(compact, onCheckedChange = UiPreferences::setCompact)
-            }
-            DividerLine()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("柔雾层次材质")
-                    Text("开启后增加轻微卡片阴影；关闭后保留白底和细边框",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                WhiteSwitch(softMaterial, onCheckedChange = UiPreferences::setSoftMaterial)
-            }
-            DividerLine()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("减弱页面动效")
-                    Text("缩短或关闭转场动画，保留状态反馈", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
-                WhiteSwitch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
-            }
-        }
-        CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", CodexGlyph.TouchApp,
-            onClick = { UiPreferences.setCompact(!compact) }, modifier = Modifier.fillMaxWidth())
-        CodexNotice(if (lessMotion) "已关闭装饰性位移动画，状态仍会立即更新"
-            else "页面转场与操作反馈已经启用", NoticeTone.Info)
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("颜色职责", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatusPill("主要操作", tone = StatusTone.Info)
-                StatusPill("风险确认", tone = StatusTone.Danger)
-            }
-            Text("页面、卡片、选中态和按钮均使用白色背景；暖铜用于关键文字、图标和边框。", color = Ink.muted)
-        }
+        AppearanceInlineControls(focusTarget = target)
+        EngineSettingsSection(vm, "appearance", target)
     }
 }
 

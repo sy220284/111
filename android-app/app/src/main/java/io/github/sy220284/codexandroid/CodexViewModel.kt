@@ -441,6 +441,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 val catalog = records(data.value["models"])
+                val effectiveConfig = if (chosenMode == "plan") bridge.request("config/read",
+                    JSONObject().put("cwd", chosenWorkspace)).getJSONObject("config") else null
                 if (chosenMode == "plan") {
                     require(chosenModel.isNotBlank() || catalog.any {
                         it.optString("id").isNotBlank()
@@ -459,7 +461,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     turnParams = { id ->
                         TurnRequestContract.build(
                             threadId = id, text = prompt, modelId = chosenModel,
-                            mode = chosenMode, catalog = catalog, localImages = images
+                            mode = chosenMode, catalog = catalog, localImages = images, effectiveConfig = effectiveConfig
                         )
                     },
                     onThreadCreated = { createdId ->

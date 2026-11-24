@@ -6,7 +6,7 @@ import org.json.JSONObject
 /** User-facing settings mapped to the locked upstream ConfigToml contract. */
 internal data class EngineSetting(
     val key: String,
-    val group: String,
+    val owner: String,
     val title: String,
     val description: String,
     val type: String,
@@ -17,7 +17,7 @@ internal data class EngineSetting(
     val scale: Long = 1
 ) {
     fun parse(input: String, selected: Map<String, String> = choices): Any = when (type) {
-        "choice", "reasoning" -> input.also { require(it in selected) { "请选择可用选项" } }
+        "choice", "reasoning", "model" -> input.also { require(it in selected) { "请选择可用选项" } }
         "boolean" -> when (input) {
             "true" -> true
             "false" -> false
@@ -30,19 +30,20 @@ internal data class EngineSetting(
             }
             number * scale
         }
-        else -> input.also { require(it.isNotBlank()) { "请输入内容" } }
+        "text" -> input
+        else -> throw IllegalArgumentException("未知设置类型")
     }
 
     fun input(value: Any?): String = when {
         value == null || value == JSONObject.NULL -> ""
-        type == "number" && value is Number -> (value.toLong() / scale).toString()
+        type == "number" && value is Number -> if (value.toLong() % scale == 0L) (value.toLong() / scale).toString() else ""
         else -> value.toString()
     }
 
     fun label(value: Any?, available: Map<String, String> = choices): String {
         if (value == null || value == JSONObject.NULL) return "由引擎决定"
         return when (type) {
-            "choice", "reasoning" -> available[value.toString()] ?: "自定义选项"
+            "choice", "reasoning", "model" -> available[value.toString()] ?: "自定义选项"
             "boolean" -> if (value == true) "开启" else if (value == false) "关闭" else "自定义"
             "number" -> {
                 val number = value as? Number ?: return "自定义"
@@ -60,32 +61,40 @@ internal object EngineSettings {
     val reasoningLabels = linkedMapOf("none" to "不额外思考", "minimal" to "极简", "low" to "较快",
         "medium" to "均衡", "high" to "深入", "xhigh" to "深度")
     val all = listOf(
-        EngineSetting("model_reasoning_effort", "思考与回复", "默认思考深度",
+        EngineSetting("model", "models", "默认模型", "选择新会话默认使用的模型；对话中的模型选择仅作为任务运行覆盖。", "model"),
+        EngineSetting("model_reasoning_effort", "models", "默认思考深度",
             "复杂任务可选择更深入的思考，通常需要更多时间。选项来自当前默认模型。", "reasoning"),
-        EngineSetting("plan_mode_reasoning_effort", "思考与回复", "计划模式思考深度",
+        EngineSetting("plan_mode_reasoning_effort", "models", "计划模式思考深度",
             "制定任务计划时使用的思考深度，选项来自当前默认模型。", "reasoning"),
-        EngineSetting("model_verbosity", "思考与回复", "回复详细程度",
+        EngineSetting("model_verbosity", "models", "回复详细程度",
             "调整支持此功能的模型输出内容的详略。", "choice", verbosity),
-        EngineSetting("developer_instructions", "思考与回复", "全局执行指令",
-            "为后续任务补充统一的工作要求。保存会替换原有全局执行指令。", "text"),
-        EngineSetting("model_context_window", "上下文与记忆", "上下文容量",
+        EngineSetting("developer_instructions", "personalization", "全局执行指令",
+            "为后续任务补充统一的工作要求。保存会替换原有全局执行指令；清空后保存可移除自定义内容。", "text"),
+        EngineSetting("model_context_window", "context", "上下文容量",
             "模型可使用的上下文长度；应与实际模型能力匹配。", "number", min = 1, unit = "词元"),
-        EngineSetting("model_auto_compact_token_limit", "上下文与记忆", "自动压缩阈值",
+        EngineSetting("model_auto_compact_token_limit", "context", "自动压缩阈值",
             "对话达到此长度后自动压缩历史内容，建议低于上下文容量。", "number", min = 1, unit = "词元"),
-        EngineSetting("model_post_turn_compact_threshold_percent", "上下文与记忆", "回复后压缩比例",
+        EngineSetting("model_post_turn_compact_threshold_percent", "context", "回复后压缩比例",
             "回复结束后达到上下文容量的指定比例即压缩；0 表示关闭此项。", "number", max = 100, unit = "%"),
-        EngineSetting("tool_output_token_limit", "工具与运行", "工具输出保留长度",
+        EngineSetting("tool_output_token_limit", "context", "工具输出保留长度",
             "限制工具输出占用的上下文长度，过小可能丢失细节。", "number", min = 1, unit = "词元"),
-        EngineSetting("web_search", "工具与运行", "联网搜索方式",
+        EngineSetting("web_search", "tools", "联网搜索方式",
             "选择搜索资料的方式；实际可用选项受运行策略限制。", "choice", web),
-        EngineSetting("thread_unload_delay_secs", "工具与运行", "闲置会话释放时间",
+        EngineSetting("thread_unload_delay_secs", "environments", "闲置会话释放时间",
             "会话无活动且无订阅时，等待多久释放运行资源；0 表示立即释放。", "number", unit = "秒"),
-        EngineSetting("background_terminal_max_timeout", "工具与运行", "后台终端单次等待上限",
-            "后台终端等待一次输出的最长时间，不是整个命令的执行时长。", "number", min = 1, unit = "毫秒"),
-        EngineSetting("hide_agent_reasoning", "工具与运行", "隐藏推理摘要事件",
+        EngineSetting("background_terminal_max_timeout", "environments", "后台终端单次等待上限",
+            "后台终端等待一次输出的最长时间，不是整个命令的执行时长。", "number", min = 1, unit = "秒", scale = 1000),
+        EngineSetting("hide_agent_reasoning", "appearance", "隐藏推理摘要",
             "减少引擎输出的推理事件；界面是否展示还取决于任务视图。", "boolean")
     )
     fun byKey(key: String) = all.firstOrNull { it.key == key }
+    fun forOwner(owner: String) = all.filter { it.owner == owner }
+    fun modelChoices(models: List<JSONObject>): Map<String, String> = models.filterNot { it.optBoolean("hidden") }
+        .mapNotNull { item ->
+            val id = item.optString("model").takeIf { it.isNotBlank() && it != "null" }
+                ?: item.optString("id").takeIf { it.isNotBlank() && it != "null" }
+            id?.let { key -> key to item.optString("displayName").ifBlank { key } }
+        }.toMap()
     fun reasoningChoices(config: JSONObject?, models: List<JSONObject>): Map<String, String> {
         val id = config?.optString("model").orEmpty()
         val model = if (id.isBlank() || id == "null") models.firstOrNull { it.optBoolean("isDefault") }
@@ -99,7 +108,8 @@ internal object EngineSettings {
 
     fun choices(setting: EngineSetting, config: JSONObject?, models: List<JSONObject>,
         requirements: JSONObject?, requirementsRead: Boolean): Map<String, String> = when {
-        setting.type == "reasoning" -> reasoningChoices(config, models)
+        setting.type == "model" -> modelChoices(models)
+        setting.type == "reasoning" -> reasoningChoices(config, models.filterNot { it.optBoolean("hidden") })
         setting.key == "web_search" -> {
             if (!requirementsRead) emptyMap() else {
                 val allowed = requirements?.optJSONArray("allowedWebSearchModes")

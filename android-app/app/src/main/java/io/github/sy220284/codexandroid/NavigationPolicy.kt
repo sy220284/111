@@ -38,17 +38,20 @@ object NavigationPolicy {
     val settingsTopics = listOf(
         SettingsTopic("account", "账户登录与切换", listOf("登录", "退出", "账户切换", "绑定", "订阅")),
         SettingsTopic("providers", "API 密钥和模型服务商", listOf("API Key", "密钥", "模型渠道", "接口地址", "Base URL", "自定义服务商")),
-        SettingsTopic("models", "运行模型选择", listOf("模型选择", "模型列表", "思考模型")),
+        SettingsTopic("models", "默认模型与推理", listOf("模型选择", "模型列表", "模型目录", "思考模型", "思考深度", "回复详略")),
         SettingsTopic("usage", "用量与额度", listOf("使用量", "用量", "调用量", "消耗", "调用统计", "限额", "额度", "频率", "速率", "剩余额度")),
         SettingsTopic("skills", "技能启用和配置", listOf("技能开关", "技能管理", "skill")),
         SettingsTopic("plugins", "插件安装和管理", listOf("插件市场", "安装插件", "扩展商店")),
         SettingsTopic("apps", "连接应用与授权", listOf("应用授权", "连接应用", "连接器")),
         SettingsTopic("mcp", "MCP 工具服务", listOf("工具服务", "MCP服务器", "外部工具")),
-        SettingsTopic("environments", "选择执行设备", listOf("远程主机", "执行环境", "工作主机", "远程执行服务", "本机执行", "连接其他设备")),
-        SettingsTopic("config", "运行核心高级配置", listOf("高级设置", "运行参数", "思考深度", "回复详细程度", "上下文", "全局执行指令", "联网搜索", "自动压缩", "终端等待")),
+        SettingsTopic("environments", "选择执行设备", listOf("远程主机", "执行环境", "工作主机", "远程执行服务", "本机执行", "连接其他设备", "后台运行", "终端等待", "会话释放", "运行参数")),
+        SettingsTopic("config", "开发者高级配置", listOf("高级设置", "引擎配置", "配置键值")),
+        SettingsTopic("personalization", "全局执行指令", listOf("自定义指令", "工作偏好", "个性化")),
+        SettingsTopic("context", "上下文管理", listOf("上下文", "历史压缩", "自动压缩", "词元", "工具输出")),
+        SettingsTopic("tools", "联网搜索", listOf("联网", "网络搜索", "搜索方式")),
         SettingsTopic("security", "执行权限与确认", listOf("免审批", "审批模式", "授权", "沙箱", "权限方案", "危险操作")),
         SettingsTopic("diagnostics", "连接诊断和日志", listOf("日志", "内核日志", "故障排查", "连接失败", "无法连接")),
-        SettingsTopic("appearance", "字体主题与动效", listOf("字体", "字号", "主题", "深色", "夜间", "浅色", "动效", "减少动画")),
+        SettingsTopic("appearance", "字体主题与动效", listOf("字体", "字号", "主题", "深色", "夜间", "浅色", "动效", "减少动画", "外观与交互", "推理摘要")),
         SettingsTopic("about", "应用版本信息", listOf("应用版本", "版本号", "关于")),
         SettingsTopic("update", "检查与安装更新", listOf("更新", "升级", "安装包", "新版本"))
     )
@@ -69,7 +72,14 @@ object NavigationPolicy {
         SettingsSpot("usage", "limits", "额度窗口", listOf("额度", "限额", "重置时间", "剩余额度")),
         SettingsSpot("update", "check", "检查应用更新", listOf("检查更新", "应用升级", "安装更新", "下载安装包"))
     ) + EngineSettings.all.map { setting ->
-        SettingsSpot("config", setting.key, setting.title, listOf(setting.title))
+        SettingsSpot(setting.owner, setting.key, setting.title, when (setting.key) {
+            "developer_instructions" -> listOf("全局执行指令", "自定义指令")
+            "model_verbosity" -> listOf("回复详细程度", "回复详略")
+            "web_search" -> listOf("联网搜索方式", "网络搜索方式")
+            "hide_agent_reasoning" -> listOf("隐藏推理摘要", "推理摘要")
+            "background_terminal_max_timeout" -> listOf("后台终端单次等待上限", "终端等待")
+            else -> listOf(setting.title)
+        })
     }
     fun matchedSettingSpot(id: String, query: String): SettingsSpot? {
         val q = query.trim()

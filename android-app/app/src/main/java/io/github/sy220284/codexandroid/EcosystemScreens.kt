@@ -59,70 +59,32 @@ private fun DetailToggle(value: JSONObject, label: String = "查看服务信息"
 
 @Composable
 fun ModelsPage(vm: CodexViewModel) {
+    val target = remember { SettingsDeepLink.take("models") }
     val data by vm.data.collectAsState()
-    val chosen by vm.modelId.collectAsState()
-    val reduced by UiPreferences.reducedMotion.collectAsState()
-    val items = records(data["models"]).filter { !it.optBoolean("hidden") }
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
-    var selectedModelDetail by remember { mutableStateOf<Pair<String, String>?>(null) }
-    LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
+    val items = records(data["models"]).filterNot { it.optBoolean("hidden") }
+    var showCatalog by rememberSaveable { mutableStateOf(false) }
     ScreenColumn {
-        SectionIntro("模型目录", "直接从官方模型目录选择新会话的运行模型。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("新会话使用的模型", style = MaterialTheme.typography.titleMedium)
-            Text(chosen.ifBlank { "遵循 Codex 默认模型" }, color = Ink.copper)
-            Text("更改这里的选择不会中断已经启动的会话。", color = Ink.muted)
-            CodexSecondaryButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
-        }
-        SourceState(vm, "models") { vm.refresh("models", "model/list") }
-        if (items.isEmpty() && data["models"] != null && "models" !in loading && errors["models"] == null) {
-            CodexEmptyState("暂无可显示的模型", "先在账号设置中完成认证，再刷新目录。",
-                actionLabel = "重新加载", onAction = { vm.refresh("models", "model/list") })
-        }
-        items.filter { !it.optBoolean("hidden") }.forEach { item ->
-            val id = item.optString("id")
-            val title = item.optString("displayName").ifBlank { item.optString("model", id) }
-            val chosenNow = chosen == id
-            Surface(
-                modifier = Modifier.fillMaxWidth().clickable { vm.modelId.value = id }
-                    .animateContentSize(animationSpec = tween(CodexMotion.duration(180, reduced))),
-                shape = RoundedCornerShape(18.dp),
-                color = Ink.canvas,
-                border = BorderStroke(1.dp, if (chosenNow) Ink.copper else Ink.border)
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CodexIcon(CodexGlyph.AutoAwesome, null, tint = if (chosenNow) Ink.copper else Ink.muted)
-                        Spacer(Modifier.width(11.dp))
-                        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        val description = PresentationPolicy.meaningful(item.optString("description"))
-                        if (description.isNotEmpty()) {
-                            CodexIconAction(
-                                onClick = { selectedModelDetail = title to description },
-                                modifier = Modifier.testTag("model-detail-" + id)
-                            ) {
-                                CodexIcon(CodexGlyph.Info, contentDescription = "查看" + title + "说明")
-                            }
-                        }
-                        CodexRadio(chosenNow, onClick = { vm.modelId.value = id })
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        if (item.optBoolean("isDefault")) StatusPill("官方默认")
-                        if (chosenNow) StatusPill("已选择")
-                    }
-                    val choices = item.optJSONArray("supportedReasoningEfforts")
-                    if (choices != null && choices.length() > 0) {
-                        Text("思考能力：" + choices.objects().joinToString(" · ") {
-                            PresentationPolicy.reasoningLabel(it.optString("reasoningEffort")) },
-                            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    }
-                }
+        SectionIntro("模型设置", "设置后续任务的默认模型与推理方式；对话中的快速模型选择仍用于任务运行。")
+        EngineSettingsSection(vm, "models", target)
+        CodexDetailTrigger("查看可用模型说明", onClick = { showCatalog = true },
+            modifier = Modifier.fillMaxWidth().testTag("model-catalog-info"))
+    }
+    if (showCatalog) CodexDetailSheet(title = "可用模型说明", onDismiss = { showCatalog = false }) {
+        if (items.isEmpty()) Text("暂无可用模型，请检查账号和服务商设置。", color = Ink.muted)
+        items.forEach { item ->
+            val id = item.optString("id").ifBlank { item.optString("model") }
+            val title = item.optString("displayName").ifBlank { id }
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                if (item.optBoolean("isDefault")) StatusPill("服务默认")
+                val description = PresentationPolicy.meaningful(item.optString("description"))
+                if (description.isNotBlank()) Text(description, color = Ink.muted)
+                val efforts = item.optJSONArray("supportedReasoningEfforts")
+                if (efforts != null && efforts.length() > 0) Text("思考能力：" +
+                    efforts.objects().joinToString(" · ") { PresentationPolicy.reasoningLabel(it.optString("reasoningEffort")) },
+                    color = Ink.muted)
             }
         }
-    }
-    selectedModelDetail?.let { (title, description) ->
-        CodexInfoDialog(title = title, onDismiss = { selectedModelDetail = null }) { Text(description) }
     }
 }
 
