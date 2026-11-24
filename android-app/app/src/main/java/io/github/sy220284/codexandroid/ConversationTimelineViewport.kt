@@ -34,6 +34,7 @@ internal fun ConversationTimelineViewport(
     val olderCursor by vm.olderServerCursor.collectAsState()
     val loadingEarlier by vm.loadingEarlier.collectAsState()
     val groups = remember(items) { TimelineEventReducer.groups(items) }
+    val answerVersions by vm.answerVersions.state.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -159,8 +160,11 @@ internal fun ConversationTimelineViewport(
                 }
             }
             items(groups, key = { it.first().id }) { group ->
+                val message = group.singleOrNull()?.takeIf { it.kind in setOf("agent", "agentMessage") && it.phase != "commentary" }
+                val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
                 TimelineActivityGroup(group, workspaceRoot = vm.workingDirectory,
-                    onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null)
+                    onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
+                    version = version, onVersion = if (canChangeTurn) ({ target -> vm.chooseThread(target) }) else null)
             }
         }
         if (!contextLoading && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
@@ -196,6 +200,9 @@ internal fun ConversationTimelineViewport(
         }
     }
     turnAction?.let { (item, action) ->
+        val clientId = items.firstOrNull { it.turnId == item.turnId && it.kind in setOf("user", "userMessage") }
+            ?.metadata()?.optString("clientId")
+        val baseline = remember(clientId, item.turnId) { vm.answerWorkspaces.hasBaseline(clientId) }
         CodexConfirmDialog(
             title = when (action) {
                 MessageTurnAction.Fork -> "创建会话分支"
@@ -204,7 +211,7 @@ internal fun ConversationTimelineViewport(
             },
             message = when (action) {
                 MessageTurnAction.Fork -> "保留原会话，复制到此回合结束为止。"
-                MessageTurnAction.Retry -> "在独立分支重新提交此回合最初的指令，保留原回答。后续引导不会自动重放；本机文件保持现状，重新执行可能修改文件。"
+                MessageTurnAction.Retry -> if (baseline) "在当前对话生成新回答，使用该回合执行前的文件快照。原回答和文件保留，可在消息下方切换版本。" else "该历史回合没有可核实的执行前文件快照。将复制当前文件到独立目录后重新执行，原回答和原文件保留。后续引导不自动重放。"
                 MessageTurnAction.Revert -> "移除该回合及其之后的会话记录；已经修改的本机文件保持现状。"
             },
             confirmLabel = when (action) {
@@ -218,7 +225,7 @@ internal fun ConversationTimelineViewport(
                 if (canChangeTurn && thread != null && vm.activeThread.value == thread) {
                     when (action) {
                         MessageTurnAction.Fork -> vm.conversationActions.fork(thread, item.turnId)
-                        MessageTurnAction.Retry -> vm.conversationActions.retry(thread, item.turnId)
+                        MessageTurnAction.Retry -> vm.conversationActions.retry(thread, item.turnId, allowCurrentFiles = !baseline)
                         MessageTurnAction.Revert -> vm.conversationActions.revert(thread, item.turnId)
                     }
                 }

@@ -278,6 +278,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     internal val conversationActions by lazy { ConversationActionController(this) }
+    internal val answerVersions by lazy { AnswerVersionStore(getApplication<Application>().getSharedPreferences("answer-versions", 0)) }
+    internal val answerWorkspaces by lazy { AnswerWorkspaceStore(workspaceRoot, File(getApplication<Application>().filesDir, "answer-checkpoints")) }
     fun runSessionAction(id: String, fork: Boolean) =
         if (fork) conversationActions.fork(id) else conversationActions.compact(id)
 
@@ -334,7 +336,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     history.getJSONObject("thread").optString("projectId").takeIf { it.isNotBlank() },
                     id, execution?.turnId, execution != null,
                     IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns))
-                sessions.markRead(id, false, history.optJSONObject("readState"))
+                answerVersions.select(id); sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
@@ -463,7 +465,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
                 val catalog = records(data.value["models"])
                 val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
-                val chosenPermission = ComposerPermissionPolicy.selected(permissionConfig)
+                val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
                 val effectiveConfig = if (chosenMode == "plan") permissionConfig.getJSONObject("config") else null
                 if (chosenMode == "plan") {
                     require(chosenModel.isNotBlank() || catalog.any {
@@ -471,7 +473,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     }) { "计划模式需要先读取可用模型目录" }
                 }
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
-                LocalImageAttachments.preserveForHistory(getApplication(), images)
+                captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread); LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
                     bridge.request(method, params)
                 }.submit(
@@ -487,7 +489,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             threadId = id, text = prompt, modelId = chosenModel,
                             mode = chosenMode, catalog = catalog, localImages = images,
                             effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
-                        ).put("clientUserMessageId", pendingId.removePrefix("pending-")), chosenPermission)
+                        ).put("clientUserMessageId", pendingId.removePrefix("pending-")).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, chosenWorkspace)) put("cwd", chosenWorkspace).put("runtimeWorkspaceRoots", JSONArray().put(chosenWorkspace)) }, chosenPermission)
                     },
                     onThreadCreated = { createdId ->
                         newlyCreatedThreadId = createdId

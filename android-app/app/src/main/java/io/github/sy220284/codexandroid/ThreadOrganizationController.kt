@@ -100,7 +100,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
             refuse(failure.message ?: "未知会话整理操作")
             return@with
         }
-        val targets = ThreadBulkActionPolicy.uniqueIds(ids)
+        val targets = ThreadBulkActionPolicy.uniqueIds(if (offerUndo) ids.flatMap { answerVersions.state.value.members(it) } else ids)
         if (targets.isEmpty()) return@with
         if (!globalWorkSnapshot().canStartNewTask) {
             refuse("本机备份或恢复正在进行，完成后再整理会话")

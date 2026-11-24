@@ -8,7 +8,9 @@ import org.json.JSONObject
 internal class MessageReplayCoordinator(
     private val request: suspend (String, JSONObject) -> JSONObject
 ) {
-    suspend fun readInput(threadId: String, turnId: String): JSONArray {
+    data class Original(val input: JSONArray, val clientId: String?)
+    suspend fun readInput(threadId: String, turnId: String): JSONArray = readOriginal(threadId, turnId).input
+    suspend fun readOriginal(threadId: String, turnId: String): Original {
         require(threadId.isNotBlank() && turnId.isNotBlank()) { "缺少历史回合标识" }
         var cursor: String? = null
         val seen = hashSetOf<String>()
@@ -22,7 +24,8 @@ internal class MessageReplayCoordinator(
                 val entry = rows.getJSONObject(index)
                 require(entry.getString("turnId") == turnId) { "历史条目所属回合不一致" }
                 val item = entry.getJSONObject("item")
-                if (item.getString("type") == "userMessage") return item.getJSONArray("content")
+                if (item.getString("type") == "userMessage") return Original(item.getJSONArray("content"),
+                    item.optString("clientId").takeUnless { it.isBlank() || it == "null" })
             }
             cursor = historyCursor(page)
             if (cursor != null) check(seen.add(cursor)) { "历史分页重复，请重新读取" }
@@ -49,11 +52,20 @@ internal class MessageReplayCoordinator(
     }
 
     /** beforeTurnId is an experimental field of the locked Rust ThreadForkParams. */
-    suspend fun forkBefore(threadId: String, turnId: String): String {
+    suspend fun forkBefore(threadId: String, turnId: String, cwd: String? = null, permission: String? = null): String {
         require(threadId.isNotBlank() && turnId.isNotBlank()) { "缺少历史回合标识" }
         val params = JSONObject().put("threadId", threadId).put("beforeTurnId", turnId)
             .put("excludeTurns", true)
-        val id = request("thread/fork", params).getJSONObject("thread").getString("id")
+        if (cwd != null) params.put("cwd", cwd).put("runtimeWorkspaceRoots", JSONArray().put(cwd))
+        ComposerPermissionPolicy.apply(params, permission)
+        val response = request("thread/fork", params)
+        val thread = response.getJSONObject("thread")
+        val id = thread.getString("id")
+        if (cwd != null) {
+            require(File(thread.getString("cwd")).canonicalPath == File(cwd).canonicalPath) { "内核未确认独立工作目录" }
+            val roots = response.getJSONArray("runtimeWorkspaceRoots")
+            require(roots.length() == 1 && File(roots.getString(0)).canonicalPath == File(cwd).canonicalPath) { "内核未确认独立运行范围" }
+        }
         check(id.isNotBlank() && id != threadId) { "内核未返回独立分支" }
         return id
     }

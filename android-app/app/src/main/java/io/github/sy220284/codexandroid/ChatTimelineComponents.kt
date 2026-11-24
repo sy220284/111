@@ -30,11 +30,12 @@ private fun TimelineItem.failed() = kind == "error" || status in setOf("failed",
 @Composable
 internal fun TimelineActivityGroup(
     group: List<TimelineItem>, workspaceRoot: String? = null,
-    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null
+    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
+    version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null
 ) {
     if (group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
-        TimelineStepCard(group.first(), workspaceRoot, onTurnAction)
+        TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion)
         return
     }
     val active = group.any { it.active() }
@@ -72,7 +73,8 @@ internal fun TimelineActivityGroup(
 @Composable
 internal fun TimelineStepCard(
     item: TimelineItem, workspaceRoot: String? = null,
-    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null
+    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
+    version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null
 ) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
@@ -115,6 +117,7 @@ internal fun TimelineStepCard(
                     }
                 }
                 if (!active && (user || item.phase != "commentary")) {
+                    if (!user && version != null) AnswerVersionSwitcher(version, onVersion, item.id)
                     MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
                 }
             }

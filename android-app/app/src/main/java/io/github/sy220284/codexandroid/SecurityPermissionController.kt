@@ -75,6 +75,10 @@ internal fun CodexViewModel.composerPermissionBlockReason(): String? = when {
 }
 
 internal fun CodexViewModel.chooseComposerPermission(id: String) {
+    if (id == ":danger-full-access" && AnswerWorkspaceStore.isolated(java.io.File(workingDirectory), activeWorkspace.value)) {
+        errors.value = errors.value + ("securitySave" to "回答版本使用独立工作目录，请保留工作区隔离权限")
+        return
+    }
     val reason = composerPermissionBlockReason() ?: if (!ComposerPermissionPolicy.allowed(id,
         records(data.value["permissionProfiles"]), data.value["securityRequirements"])) "所选权限当前不可用" else null
     if (reason != null) {

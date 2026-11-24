@@ -85,13 +85,16 @@ internal fun SidebarSessions(
             .associateWith { ThreadActivity.WaitingAnswer }
     }
     val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
-    val all = remember(response) { records(response) }
+    val rawRows = remember(response) { records(response) }
+    val answerVersions by vm.answerVersions.state.collectAsState()
+    val all = remember(rawRows, answerVersions) { answerVersions.rows(rawRows) }
+    val visiblePins = remember(pins, all, answerVersions) { all.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
     val query = state.search
     val archived = state.archived
     val fullText = state.fullText
-    val rows = remember(all, fullText, archived, query, searchResult) {
+    val rows = remember(all, rawRows, answerVersions, fullText, archived, query, searchResult) {
         if (fullText && query.isNotBlank())
-            searchResult?.takeIf { it.first == (archived to query.trim()) }?.second.orEmpty()
+            answerVersions.rows(rawRows, searchResult?.takeIf { it.first == (archived to query.trim()) }?.second.orEmpty())
         else if (fullText) emptyList() else all.filter { SessionListPolicy.titleMatches(it, query) }
     }
     var selection by remember { mutableStateOf(false) }
@@ -115,7 +118,7 @@ internal fun SidebarSessions(
     fun toggle(id: String) { selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id }
     fun canManage(row: JSONObject): Boolean {
         val id = SessionListPolicy.id(row)
-        return connected && !busy && id !in executions &&
+        return connected && !busy && answerVersions.members(id).none { it in executions } &&
             !ThreadActivityPolicy.isActive(currentActivities[id] ?: ThreadActivityPolicy.fromThread(row))
     }
     Column(modifier.fillMaxSize()) {
@@ -193,7 +196,7 @@ internal fun SidebarSessions(
                 }
             },
             liveActivities = currentActivities, liveExecutions = executions,
-            onStopThread = vm::interruptThread, uiState = state, pinned = pins,
+            onStopThread = vm::interruptThread, uiState = state, pinned = visiblePins,
             readStates = receipts, approvalsByThread = approvals, activeWorkspace = workspace,
             selectedIds = selectedIds, selecting = selection,
             onLongPress = { row -> if (!selection) menu = row else if (canManage(row)) toggle(SessionListPolicy.id(row)) })
@@ -210,8 +213,8 @@ internal fun SidebarSessions(
         val read = receipts[id]
         CodexActionDialog(title = SessionListPolicy.title(row), onDismiss = { menu = null },
             actions = buildList {
-                add(CodexSheetAction(if (id in pins) "取消置顶" else "置顶会话", CodexGlyph.ArrowUpward,
-                    onClick = { vm.sessions.togglePin(id) }, testTag = "session-pin"))
+                add(CodexSheetAction(if (answerVersions.root(id) in pins) "取消置顶" else "置顶会话", CodexGlyph.ArrowUpward,
+                    onClick = { vm.sessions.togglePin(answerVersions.root(id)) }, testTag = "session-pin"))
                 if (read != null) add(CodexSheetAction(
                     if (SessionListPolicy.unread(read)) "标记为已读" else "标记为未读",
                     CodexGlyph.RadioButtonChecked, onClick = { vm.sessions.markRead(id, !SessionListPolicy.unread(read)) },
@@ -236,7 +239,7 @@ internal fun SidebarSessions(
                 singleLine = true, modifier = Modifier.fillMaxWidth()) },
             confirmButton = { CodexSecondaryButton(onClick = {
                 vm.rpc("threadLibraryAction", "thread/name/set", JSONObject()
-                    .put("threadId", SessionListPolicy.id(row)).put("name", name.trim()))
+                    .put("threadId", answerVersions.root(SessionListPolicy.id(row))).put("name", name.trim()))
                 rename = null
             }, enabled = name.isNotBlank() && canManage(row)) { Text("保存名称") } },
             dismissButton = { CodexTextAction(onClick = { rename = null }) { Text("取消") } })
@@ -244,7 +247,7 @@ internal fun SidebarSessions(
     confirm?.let { (kind, ids) ->
         val label = ThreadBulkActionPolicy.display(kind)
         CodexConfirmDialog(title = label + "会话",
-            message = if (kind == "delete") "将永久删除所选会话及历史记录，请核对范围。"
+            message = if (kind == "delete") "将永久删除所选会话及全部回答版本的历史记录，请核对范围。"
                 else "将" + label + "所选会话。",
             detail = "已选择 ${ids.size} 条会话",
             confirmLabel = "确认" + label, destructive = kind == "delete",

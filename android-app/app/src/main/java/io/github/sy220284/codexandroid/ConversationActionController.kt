@@ -37,7 +37,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         })
     }
 
-    fun retry(id: String, turnId: String) = with(vm) {
+    fun retry(id: String, turnId: String, allowCurrentFiles: Boolean = false) = with(vm) {
         if (!available(id) || turnId.isBlank()) return@with
         val key = "threadFork:$id"
         val cwd = activeWorkspace.value
@@ -47,36 +47,44 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             var forkId: String? = null
             try {
                 val replay = MessageReplayCoordinator { method, params -> bridge.request(method, params) }
-                val input = replay.readInput(id, turnId)
+                val original = replay.readOriginal(id, turnId)
                 val app = getApplication<Application>()
+                val prepared = answerWorkspaces.prepare(original.clientId, cwd, allowCurrentFiles)
+                val copy = prepared.directory
+                val input = answerWorkspaces.remap(original.input, prepared.originalWorkspace, copy.absolutePath)
                 val staged = LocalImageAttachments.directory(app).canonicalFile
                 val images = replay.validateInput(input).filter { File(it).canonicalFile.parentFile == staged }
                 LocalImageAttachments.preserveForHistory(app, images)
-                val config = bridge.request("config/read", JSONObject().put("cwd", cwd))
-                val permission = ComposerPermissionPolicy.selected(config)
+                val config = bridge.request("config/read", JSONObject().put("cwd", copy.absolutePath))
+                val permission = AnswerWorkspaceStore.permission(File(workingDirectory), copy.absolutePath, ComposerPermissionPolicy.selected(config))
+                val clientId = UUID.randomUUID().toString()
+                answerWorkspaces.checkpoint(clientId, copy.absolutePath)
                 check(activeThread.value == id && !running.value && !threadSwitching.value &&
                     !securitySaveBusy.value && !connectionRestarter.busy.value &&
                     globalWorkSnapshot().canStartNewTask) { "当前会话或权限状态已变化，请重新选择消息" }
                 // The locked Rust protocol has experimental beforeTurnId; the
                 // connection already negotiates experimentalApi. One native
                 // fork excludes the selected turn without any history mutation.
-                val target = replay.forkBefore(id, turnId)
+                val target = replay.forkBefore(id, turnId, copy.absolutePath, permission)
                 forkId = target
+                answerVersions.add(id, turnId, target)
                 val params = ComposerPermissionPolicy.apply(
                     JSONObject().put("threadId", target).put("input", input)
-                        .put("clientUserMessageId", UUID.randomUUID().toString()), permission)
+                        .put("clientUserMessageId", clientId).put("cwd", copy.absolutePath)
+                        .put("runtimeWorkspaceRoots", org.json.JSONArray().put(copy.absolutePath)), permission)
                 val launched = start(target, "retry:$target", "turn/start", images, foregroundOnly = false,
-                    onAccepted = {
+                    onAccepted = { response ->
+                        answerVersions.bind(target, response.getJSONObject("turn").getString("id"))
                         if (activeThread.value == id && !threadSwitching.value) chooseThread(target)
                     }) { bridge.request("turn/start", params) }
                 if (!launched) {
-                    actionFeedback.emit(ActionFeedbackReceipt("已保留独立分支，重新回答尚未启动，请核对权限和连接后重试", isError = true))
+                    actionFeedback.emit(ActionFeedbackReceipt("已保留原回答和新版本，重新回答尚未启动，请核对权限和连接后重试", isError = true))
                 }
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 throw cancel
             } catch (failure: Exception) {
                 val reason = (failure.message ?: "重新回答未成功") +
-                    if (forkId != null) "；原会话已保留，请在侧栏核对新分支" else "；原会话保持不变"
+                    if (forkId != null) "；原回答已保留，可在消息下方检查回答版本" else "；原会话保持不变"
                 errors.value = errors.value + (key to reason)
                 if (activeThread.value == id) errors.value = errors.value + ("conversation" to reason)
                 actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true))
@@ -110,7 +118,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
     }
 
     private fun start(id: String, key: String, method: String, images: List<String> = emptyList(),
-        foregroundOnly: Boolean = true, onAccepted: () -> Unit = {},
+        foregroundOnly: Boolean = true, onAccepted: (JSONObject) -> Unit = {},
         execute: suspend () -> JSONObject): Boolean = with(vm) {
         if (!available(id, foregroundOnly) || key in loading.value) return@with false
         loading.value = loading.value + key
@@ -138,7 +146,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                     }
                 }
                 data.value = data.value + (key to response)
-                onAccepted()
+                onAccepted(response)
                 actionFeedback.emit(if (method == "turn/start") ActionFeedbackReceipt("已开始重新回答") else ActionFeedbackCopy.success(method, response))
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 throw cancel

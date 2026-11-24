@@ -114,6 +114,7 @@ internal object CodexNotificationDispatcher {
             sessions.refreshChanged(threadId)
         }
         if (method == "thread/deleted") {
+            answerVersions.remove(threadId)
             sessions.removePin(threadId)
             liveTimelines.remove(threadId)
             queuePausedThreads.value = queuePausedThreads.value - threadId
@@ -123,6 +124,7 @@ internal object CodexNotificationDispatcher {
         if (threadId.isNotBlank() && method == "turn/started") {
             queuePausedThreads.value = queuePausedThreads.value - threadId
             val turnId = params.optJSONObject("turn")?.optString("id")
+            if (!turnId.isNullOrBlank()) answerVersions.bind(threadId, turnId)
             threadExecutions.value = ThreadExecutionPolicy.started(
                 threadExecutions.value, threadId, turnId)
             threadActivities.value = ThreadActivityPolicy.updated(
