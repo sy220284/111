@@ -120,14 +120,14 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     else -> "尚未读取"
                 }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
             }
-            if (engineStatus == EngineStatus.Connected && data["apps"] != null && errors["apps"] == null)
+            if (engineStatus == EngineStatus.Connected && data["apps"] != null)
                 CodexTextAction(enabled = "apps" !in loading && "appInstalled" !in loading, onClick = {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
             }, modifier = Modifier.heightIn(min = 48.dp)) {
                 CodexIcon(CodexGlyph.Retry, null)
                 Spacer(Modifier.width(6.dp))
-                Text("刷新")
+                Text(if (errors["apps"] != null || errors["appInstalled"] != null) "重试" else "刷新")
             }
         }
         AtlasCatalogStatus(vm, "apps", "应用", onRefresh = {

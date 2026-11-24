@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -69,5 +72,45 @@ internal fun assertV8ThemeContrast(rule: ComposeContentTestRule) {
         }
     } finally {
         rule.runOnIdle { UiPreferences.setDarkMode(original) }
+    }
+}
+
+/** Freeze the real Compose clock: only the incoming page is present, displacement
+ * converges to its resting position, and reduced motion has no entrance displacement. */
+internal fun assertV8RouteMotion(rule: ComposeContentTestRule) {
+    var route by mutableStateOf("original")
+    var reduced by mutableStateOf(false)
+    rule.setContent {
+        CodexTheme {
+            CodexRouteEntrance(route, reduced) {
+                Box(Modifier.padding(top = 32.dp)) {
+                    Text(route, modifier = Modifier.testTag("route-" + route))
+                }
+            }
+        }
+    }
+    val resting = rule.onNodeWithTag("route-original").fetchSemanticsNode().boundsInRoot.top
+    rule.mainClock.autoAdvance = false
+    try {
+        rule.runOnIdle { route = "incoming" }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        rule.onNodeWithTag("route-original").assertDoesNotExist()
+        val incoming = rule.onNodeWithTag("route-incoming")
+        val start = incoming.fetchSemanticsNode().boundsInRoot.top
+        assertTrue("进入动画应有位移：start=$start resting=$resting", start > resting + 1f)
+        rule.mainClock.advanceTimeBy(100L)
+        val middle = incoming.fetchSemanticsNode().boundsInRoot.top
+        assertTrue("中间帧应趋向静止位置：start=$start middle=$middle resting=$resting",
+            middle < start && middle >= resting - 1f)
+        rule.mainClock.advanceTimeBy(CodexMotion.navigation.toLong() + 32L)
+        assertEquals(resting, incoming.fetchSemanticsNode().boundsInRoot.top, 1f)
+        rule.runOnIdle { reduced = true; route = "reduced" }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        rule.onNodeWithTag("route-incoming").assertDoesNotExist()
+        assertEquals(resting, rule.onNodeWithTag("route-reduced").fetchSemanticsNode().boundsInRoot.top, 1f)
+    } finally {
+        rule.mainClock.autoAdvance = true
     }
 }

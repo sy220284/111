@@ -742,4 +742,8 @@ class CodexInteractionComponentsInstrumentedTest {
     @Test fun v8ControlBordersHaveAccessibleContrastInBothThemes() {
         assertV8ThemeContrast(rule)
     }
+
+    @Test fun v8RouteMotionConvergesAndReducedMotionSnaps() {
+        assertV8RouteMotion(rule)
+    }
 }

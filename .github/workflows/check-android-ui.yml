@@ -154,7 +154,8 @@ jobs:
           python3 android-app/tools/check_design_system_tokens.py \
             --source android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt \
             --spec docs/设计系统.md \
-            --tokens docs/ui-assets/tokens.json
+            --tokens docs/ui-assets/tokens.json \
+            --motion android-app/app/src/main/java/io/github/sy220284/codexandroid/InteractionSystem.kt
           python3 android-app/tools/test_check_design_system_tokens.py
       - name: 逐份核验 UI 素材、Android 原生矢量资源、调用页面与测试声明
         run: |
