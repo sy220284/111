@@ -57,7 +57,8 @@ internal fun ConversationComposer(
     onReference: ((String) -> Unit)? = null,
     shortcuts: List<ComposerShortcut> = emptyList(),
     statusContent: (@Composable () -> Unit)? = null,
-    attachmentContent: (@Composable () -> Unit)? = null
+    attachmentContent: (@Composable () -> Unit)? = null,
+    permissionContent: (@Composable () -> Unit)? = null
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var followUpMenu by remember { mutableStateOf(false) }
@@ -80,6 +81,7 @@ internal fun ConversationComposer(
         ) {
             statusContent?.invoke()
             attachmentContent?.invoke()
+            permissionContent?.invoke()
             AtlasComposerShortcuts(draft, shortcuts) { shortcut ->
                 if (ComposerShortcutPolicy.query(draft) != null) onDraftChange("")
                 shortcut.onOpen()

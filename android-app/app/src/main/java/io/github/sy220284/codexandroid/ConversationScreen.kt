@@ -426,12 +426,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("project", "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace),
                     "选择已登记项目或工作目录", CodexGlyph.Folder, enabled = optionsEnabled,
                     onOpen = { keyboard?.hide(); composerMenu = "projects" }))
-                add(ComposerShortcut("permissions", "权限范围", "查看或调整任务权限", CodexGlyph.Security,
-                    enabled = !switching, onOpen = {
-                        keyboard?.hide()
-                        SettingsDeepLink.select("security", if (thread == null) null else "thread")
-                        navigate("security")
-                    }))
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); showTerminalSheet = true }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
@@ -457,6 +451,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             val sending = firstThreadStarting || steering || "queueWrite" in loading
             val sendBlockReason = when {
+                globalWork.securitySaveBusy -> "正在保存权限，请稍候"
                 globalWork.dataTransferBusy -> "本机数据正在备份或恢复"
                 globalWork.restarting -> "运行核心正在重新连接"
                 status != EngineStatus.Connected -> "运行核心尚未连接"
@@ -500,6 +495,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 },
+                permissionContent = { ComposerPermissionControl(vm, optionsEnabled && !globalWork.dataTransferBusy) },
                 attachmentContent = {
                     LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(thread, it) }
                     ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(thread, it) }

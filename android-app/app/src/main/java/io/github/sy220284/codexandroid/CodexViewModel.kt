@@ -376,6 +376,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(),
                    references: List<ComposerReference> = emptyList(), afterAccepted: (String) -> Unit = {}) {
+        if (securitySaveBusy.value) {
+            errors.value = errors.value + ("conversation" to "正在保存权限，请完成后再发送指令")
+            return
+        }
         if (!globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("conversation" to
                 "本机数据正在备份或恢复，完成后再发送指令")
@@ -427,8 +431,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), workspaceRoot)
                 val catalog = records(data.value["models"])
-                val effectiveConfig = if (chosenMode == "plan") bridge.request("config/read",
-                    JSONObject().put("cwd", chosenWorkspace)).getJSONObject("config") else null
+                val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
+                val chosenPermission = ComposerPermissionPolicy.selected(permissionConfig)
+                val effectiveConfig = if (chosenMode == "plan") permissionConfig.getJSONObject("config") else null
                 if (chosenMode == "plan") {
                     require(chosenModel.isNotBlank() || catalog.any {
                         it.optString("id").isNotBlank()
@@ -441,15 +446,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     createThreadParams = {
                         val cwd = WorkspaceSelectionContract.validate(
                             workspaceRoot, File(chosenWorkspace)).absolutePath
-                        ProjectRequestContract.threadStart(
-                            File(cwd), chosenProject, chosenModel)
+                        ComposerPermissionPolicy.apply(ProjectRequestContract.threadStart(
+                            File(cwd), chosenProject, chosenModel), chosenPermission)
                     },
                     turnParams = { id ->
-                        TurnRequestContract.build(
+                        ComposerPermissionPolicy.apply(TurnRequestContract.build(
                             threadId = id, text = prompt, modelId = chosenModel,
                             mode = chosenMode, catalog = catalog, localImages = images,
                             effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
-                        )
+                        ), chosenPermission)
                     },
                     onThreadCreated = { createdId ->
                         newlyCreatedThreadId = createdId
