@@ -350,12 +350,10 @@ fun CodexChoiceSheet(
         }
         return
     }
-    CodexSheetFrame(
+    CodexOverlayFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed,
         contentColor = Ink.parchment,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
     ) {
         Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
             .navigationBarsPadding().padding(horizontal = 20.dp)) {
@@ -418,12 +416,11 @@ fun CodexEvidenceSheet(
     val copyText = remember(sections) {
         sections.joinToString("\n\n") { (label, value) -> "$label\n$value" }
     }
-    CodexSheetFrame(
+    CodexOverlayFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        fullScreen = true,
         containerColor = Ink.recessed,
         contentColor = Ink.parchment,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
     ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),

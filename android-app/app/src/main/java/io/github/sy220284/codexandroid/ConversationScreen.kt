@@ -468,12 +468,12 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
         onDismiss = { composerMenu = "" })
     if (composerMenu == "terminal") {
-        CodexSheetFrame(
-            onDismissRequest = { closeComposerMenu("terminal") },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        CodexOverlayFrame(
+        onDismissRequest = { closeComposerMenu("terminal") },
+        fullScreen = true,
             containerColor = Ink.canvas
         ) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight(.88f).navigationBarsPadding()) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight().navigationBarsPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {

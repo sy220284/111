@@ -74,10 +74,10 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     .put("sortDirection", "desc"))
         }
     }
-    CodexSheetFrame(onDismissRequest = onDismiss, containerColor = Ink.canvas,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }) {
-        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
+    CodexOverlayFrame(
+        onDismissRequest = onDismiss,
+        fullScreen = true, containerColor = Ink.canvas,) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight()
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             AtlasSheetHeader("回合历史与回退", onDismiss)

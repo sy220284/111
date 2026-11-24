@@ -12,13 +12,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val hasGoal = data["goal:" + (active ?: "none")]?.optJSONObject("goal") != null
-    CodexSheetFrame(onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        CodexOverlayFrame(onDismissRequest = onDismiss,
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
         Column(Modifier.fillMaxWidth()
-            .fillMaxHeight(PhoneSheetLayout.goalFraction(hasGoal))
+            .heightIn(max = atlasSheetHeight())
             .navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {

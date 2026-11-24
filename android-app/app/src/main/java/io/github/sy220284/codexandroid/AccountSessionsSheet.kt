@@ -42,10 +42,11 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         }
     }
 
-    CodexSheetFrame(onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    CodexOverlayFrame(
+        onDismissRequest = onDismiss,
+        fullScreen = true,
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
-        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
+        Column(Modifier.fillMaxWidth().fillMaxHeight()
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp)) {
             AtlasSheetHeader("账号与工作区切换", onDismiss)

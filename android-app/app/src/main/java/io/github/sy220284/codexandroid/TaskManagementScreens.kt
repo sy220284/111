@@ -552,9 +552,9 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val key = "queue:" + (active ?: "none")
     val data by vm.data.collectEntries(key)
     val count = records(data[key]).size
-    CodexSheetFrame(
+    CodexOverlayFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        fullScreen = true,
         containerColor = Ink.canvas,
         contentColor = Ink.parchment
     ) {

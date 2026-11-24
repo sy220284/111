@@ -18,8 +18,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /**
- * 说明与较长操作使用独立底部面板，列表本身保持稳定，不随“查看更多”改变高度。
- * 长内容优先展开；短操作允许半屏停靠。状态来自调用方，关闭后不会清除未提交内容。
+ * 短内容使用居中窗口，复杂任务使用全屏详情。关闭后保留调用方持有的草稿。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,21 +27,20 @@ fun CodexDetailSheet(
     onDismiss: () -> Unit,
     subtitle: String = "",
     footer: (@Composable () -> Unit)? = null,
-    startExpanded: Boolean = true,
+    startExpanded: Boolean = false,
     closeDescription: String = "关闭详情",
     content: @Composable ColumnScope.() -> Unit
 ) {
-    CodexSheetFrame(
+    CodexOverlayFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = startExpanded || footer != null),
+        fullScreen = startExpanded,
         containerColor = Ink.elevated,
         contentColor = Ink.parchment,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) },
         modifier = Modifier.testTag("codex-detail-sheet")
     ) {
         Column(
-            Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight()).imePadding().navigationBarsPadding()
-                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+            Modifier.fillMaxWidth().then(if (startExpanded) Modifier.fillMaxHeight() else Modifier.heightIn(max = atlasSheetHeight()))
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -113,15 +111,12 @@ fun CodexActionSheet(
     actions: List<CodexSheetAction>,
     onDismiss: () -> Unit
 ) {
-    CodexDetailSheet(title = title, onDismiss = onDismiss, startExpanded = actions.size >= 5) {
-        val closeWithAction = LocalCodexSheetAction.current
-        CodexActionRows(actions, onDismiss, closeWithAction)
-    }
+    CodexActionDialog(title, actions, onDismiss)
 }
 
 /**
- * 页面内已经展示底部面板时，操作使用轻量对话框。
- * 保留同一套按钮、禁用态和危险操作语义，避免两层底部面板相互遮挡。
+ * 非锚定操作使用轻量对话框。
+ * 保留同一套按钮、禁用态和危险操作语义，避免重复遮挡。
  */
 @Composable
 fun CodexActionDialog(
