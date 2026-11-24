@@ -102,7 +102,12 @@ internal object TimelineEventReducer {
             val turn = params.getJSONObject("turn")
             val id = turn.getString("id")
             val status = turn.string("status")
-            turn.optJSONArray("items").objects().forEach { put(project(it, id, "completed")) }
+            turn.optJSONArray("items").objects().forEach { raw ->
+                val item = project(raw, id, "completed")
+                if (items.none { it.id == item.id && it.status in setOf("completed", "failed", "declined", "interrupted") }) put(item)
+            }
+            if (status != "completed") put(TimelineItem("turn-error:$id", "error",
+                turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }, status, turnId = id))
             return items.map {
                 if (it.turnId == id && it.status in setOf("streaming", "inProgress", "running"))
                     it.copy(status = if (status == "completed") "completed" else status)

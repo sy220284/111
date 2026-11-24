@@ -112,7 +112,7 @@ internal object CodexNotificationDispatcher {
         } else if (method == "thread/started") {
             syncRecentThreads()
         }
-        if (method == "thread/deleted") sessions.removePin(threadId)
+        if (method == "thread/deleted") { sessions.removePin(threadId); liveTimelines.remove(threadId) }
         // Apply turn lifecycle to every thread before filtering display events to
         // the visible timeline. An offscreen task must still finish and free images.
         if (threadId.isNotBlank() && method == "turn/started") {
@@ -193,8 +193,9 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
-        if (threadId.isNotBlank() && threadId == hydratingThread && method in TimelineEventReducer.methods) {
-            hydrationEvents += method to params
+        if (threadId.isNotBlank() && (threadId == hydratingThread || threadId != activeThread.value) &&
+            method in TimelineEventReducer.methods) {
+            liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
             return
         }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
@@ -202,18 +203,9 @@ internal object CodexNotificationDispatcher {
             in TimelineEventReducer.methods - "turn/completed" ->
                 timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/completed" -> {
-                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
-                val turn = params.optJSONObject("turn")
-                if (turn?.optString("status") != "completed") {
-                    timeline.value = timeline.value + TimelineItem(
-                        "status-" + System.nanoTime(), "error",
-                        turn?.optJSONObject("error")?.optString("message") ?: "任务已中断或失败"
-                    )
-                }
-            }
+            "turn/completed" -> timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
         }
-        if (!threadSwitching.value && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
+        if (!threadSwitching.value && !running.value && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
             try {
                 timeline.value = timelineWindow.compact(activeThread.value, timeline.value)
             } catch (failure: Exception) {

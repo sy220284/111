@@ -65,4 +65,12 @@ class TimelineReconcilerTest {
         org.junit.Assert.assertEquals(listOf(2, 1, 1),
             TimelineEventReducer.groups(listOf(patch, cmd, answer, another)).map { it.size })
     }
+    @org.junit.Test
+    fun liveSnapshotReconcilesWithoutRepeatingPersistedDeltas() {
+        val saved = TimelineItem("answer", "agentMessage", "hello", "inProgress", turnId = "turn")
+        val live = saved.copy(text = "hello world", status = "streaming")
+        org.junit.Assert.assertEquals(listOf(live), ConversationLiveTimeline.merge(listOf(saved), listOf(live)))
+        val completed = live.copy(status = "completed")
+        org.junit.Assert.assertEquals(listOf(completed), ConversationLiveTimeline.merge(listOf(completed), listOf(live)))
+    }
 }

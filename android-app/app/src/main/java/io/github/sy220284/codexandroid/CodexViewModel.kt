@@ -47,7 +47,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val olderServerCursor = MutableStateFlow<String?>(null)
     internal val loadingEarlier = MutableStateFlow(false)
     internal var hydratingThread: String? = null
-    internal val hydrationEvents = mutableListOf<Pair<String, JSONObject>>()
+    internal val liveTimelines = ConversationLiveTimeline()
     private fun readHistoryPage(payload: JSONObject): List<TimelineItem> {
         val rows = payload.getJSONArray("data")
         return (0 until rows.length()).map { TimelineEventReducer.historyEntry(rows.getJSONObject(it)) }.reversed()
@@ -292,8 +292,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (!forceReload && !ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
         threadSwitching.value = true
+        activeThread.value?.let { current ->
+            if (running.value) liveTimelines.capture(current, activeTurn.value, timeline.value)
+        }
+        if (forceReload && !running.value) liveTimelines.remove(id)
         hydratingThread = id
-        hydrationEvents.clear()
         errors.value = errors.value - "conversation"
         viewModelScope.launch {
             try {
@@ -324,16 +327,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 latestDiff.value = ThreadDiffHistory.latest(turns)
                 olderServerCursor.value = historyCursor(page)
-                timeline.value = hydrationEvents.fold(newest) { items, (method, params) ->
-                    TimelineEventReducer.reduce(method, params, items)
-                }
+                timeline.value = liveTimelines.restore(id, newest)
                 sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
             } finally {
                 hydratingThread = null
-                hydrationEvents.clear()
                 threadSwitching.value = false
             }
         }
@@ -360,6 +360,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Preserve unsent text in case New Chat is tapped accidentally.
         // Users can intentionally clear it in the input field.
+        activeThread.value?.let { current ->
+            if (running.value) liveTimelines.capture(current, activeTurn.value, timeline.value)
+        }
         restoreComposerOptions(null)
         activeThread.value = null
         activeTurn.value = null
@@ -405,6 +408,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
         val prompt = text.trim()
+        if (activeThread.value?.let { "threadFork:$it" in loading.value || "threadRevert:$it" in loading.value } == true) {
+            errors.value = errors.value + ("conversation" to "正在整理会话，请完成后再发送指令")
+            return
+        }
         if (threadSwitching.value) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
             return
