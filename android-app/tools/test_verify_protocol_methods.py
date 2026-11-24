@@ -63,6 +63,16 @@ class DirectionValidationTest(unittest.TestCase):
             "ViewModel.kt": 'vm.refresh("events", "thread/started")'})
         self.assertTrue(any("通知不能作为请求" in e for e in errors))
 
+    def test_session_and_capability_requests_are_direction_checked(self):
+        for entry in ("requestForSession", "capabilityRequest"):
+            errors, used = verify_sources(MACROS, {
+                "ViewModel.kt": f'bridge.{entry}("thread/start", JSONObject())\n'
+                                f'bridge.{entry}("item/tool/call", JSONObject())\n'
+                                f'bridge.{entry}("thread/started", JSONObject())'})
+            self.assertIn("thread/start", used)
+            self.assertTrue(any("请求方向错误" in e for e in errors))
+            self.assertTrue(any("通知不能作为请求" in e for e in errors))
+
     def test_valid_request_is_not_rejected(self):
         errors, used = verify_sources(MACROS, {
             "ViewModel.kt": 'bridge.request("thread/start", JSONObject())'})
