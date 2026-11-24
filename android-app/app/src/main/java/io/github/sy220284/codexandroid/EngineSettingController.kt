@@ -14,6 +14,7 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
     saveKey: String = ENGINE_SETTING_SAVE, requireSnapshot: Boolean = true, after: () -> Unit = {}) {
     if (DataTransferMutationGate.refuse(this, saveKey, "config/value/write")) return
     if (configSnapshotBusy(loading.value, securitySaveBusy.value)) {
+        errors.value = errors.value + (saveKey to "已有配置操作正在处理，请完成后再保存")
         viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure("config/value/write", "已有配置操作正在处理，请完成后再保存")) }
         return
     }
@@ -50,6 +51,11 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         }
         if (needsRefresh) refresh("config", "config/read", JSONObject().put("includeLayers", true))
         refreshComposerPermissions()
+        if (saveKey != ENGINE_SETTING_SAVE) {
+            val failure = errors.value[saveKey]
+            actionFeedback.emit(if (failure == null) ActionFeedbackReceipt("$title 已保存并核实")
+                else ActionFeedbackCopy.failure("config/value/write", failure))
+        }
         after()
     }
 }

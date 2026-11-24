@@ -104,18 +104,18 @@ internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, i
 
 @Composable
 internal fun ComposerSkillSheet(vm: CodexViewModel, workspace: String, onSelect: (ComposerReference) -> Unit, onDismiss: () -> Unit) {
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val key = vm.extensions.skillKey(workspace)
+    val data by vm.data.collectEntries(key)
+    val errors by vm.errors.collectEntries(key)
+    val loading by vm.loading.collectProjection { it.intersect(setOf(key, "skillsWrite")) }
     val status by vm.bridge.status.collectAsState()
-    val key = "composerSkills"
-    fun reload() = vm.refresh(key, "skills/list", CatalogRequestContract.workspace(workspace))
+    fun reload() = vm.extensions.refreshSkills(workspace)
     LaunchedEffect(workspace, status) { if (status == EngineStatus.Connected) reload() }
     val skills = records(data[key]).flatMap { group ->
         group.optJSONArray("skills")?.let { array -> (0 until array.length()).mapNotNull { array.optJSONObject(it) } }.orEmpty()
     }.filter { it.optBoolean("enabled") && it.optString("path").isNotBlank() && it.optString("name").isNotBlank() }
         .distinctBy { it.optString("path") }
-    var query by remember { mutableStateOf("") }
+    var query by remember(workspace) { mutableStateOf("") }
     CodexDetailSheet(title = "选择技能", onDismiss = onDismiss, subtitle = "仅显示当前工作区已启用的技能") {
         if (status != EngineStatus.Connected) Text("连接内核后可选择技能", color = Ink.muted)
         else if (key in loading) AtlasOperationProgress("正在读取技能")

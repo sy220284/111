@@ -139,8 +139,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             onConfirm = {
                 vm.rpc("skillsWrite", "skills/config/write",
                     JSONObject().put("path", skill.optString("path")).put("enabled", enabled),
-                    after = { vm.refresh("skills", "skills/list",
-                        CatalogRequestContract.workspace(vm.workingDirectory)) })
+                    after = { vm.extensions.skillConfigurationChanged() })
                 confirmation = null
             },
             onDismiss = { confirmation = null }

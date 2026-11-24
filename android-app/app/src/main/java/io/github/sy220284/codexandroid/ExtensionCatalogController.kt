@@ -63,6 +63,21 @@ internal class ExtensionCatalogController(
         vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("cursor", cursor))
     }
 
+    fun skillKey(workspace: String) = if (workspace == vm.workingDirectory) "skills" else "composerSkills:$workspace"
+
+    fun refreshSkills(workspace: String) {
+        if (vm.bridge.status.value != EngineStatus.Connected) return
+        if (workspace != vm.workingDirectory && workspace != vm.activeWorkspace.value) return
+        val key = skillKey(workspace)
+        vm.refresh(key, "skills/list", CatalogRequestContract.workspace(workspace))
+    }
+
+    fun skillConfigurationChanged() {
+        invalidateKeys { it == "skills" || it.startsWith("composerSkills:") }
+        refreshSkills(vm.workingDirectory)
+        if (vm.activeWorkspace.value != vm.workingDirectory) refreshSkills(vm.activeWorkspace.value)
+    }
+
     fun refreshPluginCatalog(key: String, workspace: String, force: Boolean = false) {
         if (vm.bridge.status.value != EngineStatus.Connected || workspace != vm.activeWorkspace.value) return
         val params = CatalogRequestContract.workspace(workspace)

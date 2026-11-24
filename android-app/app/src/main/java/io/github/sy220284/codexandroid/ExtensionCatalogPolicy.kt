@@ -10,7 +10,7 @@ internal object ExtensionCatalogPolicy {
     fun retainsSnapshot(key: String, method: String) = catalogMethods[key] == method
     fun isScopedKey(key: String, pluginsOnly: Boolean): Boolean =
         key in setOf("plugins", "installedPlugins", "pluginMutation") || key.startsWith("pluginSearch:") ||
-            key.startsWith("pluginDetail:") || key.startsWith("pluginSkill:") ||
+            key.startsWith("pluginDetail:") || key.startsWith("pluginSkill:") || key.startsWith("composerSkills:") ||
             (!pluginsOnly && key in setOf("apps", "appInstalled", "appMutation"))
     fun cursor(response: JSONObject?) = PresentationPolicy.meaningful(response?.optString("nextCursor"))
     fun appendApps(previous: JSONObject?, next: JSONObject): JSONObject {
