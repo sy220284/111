@@ -555,6 +555,36 @@
         "CodexInteractionComponentsInstrumentedTest.contextActionsCloseTheSheetAndRunExactlyOneAction",
         "CodexInteractionComponentsInstrumentedTest.loadingAndValidationFeedbackDescribeRealState"
       ]
+    },
+    {
+      "asset": "v8-component-states.svg",
+      "business": "双主题组件状态、控件对比度、真实反馈与动效时序；可编辑设计参考",
+      "components": [
+        [
+          "VisualSystem",
+          "CodexPrimaryButton"
+        ],
+        [
+          "CodexControlPrimitives",
+          "CodexInputField"
+        ],
+        [
+          "AtlasInteractionComponents",
+          "AtlasCompactChoice"
+        ],
+        [
+          "InteractionSystem",
+          "CodexNotice"
+        ],
+        [
+          "CodexDetailSheet",
+          "CodexPrimaryButton"
+        ]
+      ],
+      "tests": [
+        "CodexInteractionComponentsInstrumentedTest.v8BusyButtonRetainsWidthAndSecretCanBeHidden",
+        "CodexInteractionComponentsInstrumentedTest.v8ControlBordersHaveAccessibleContrastInBothThemes"
+      ]
     }
   ]
 }
