@@ -30,7 +30,7 @@ internal fun ChatWorkTopBar(
     onNewThread: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().height(64.dp).background(Ink.canvas)
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).background(Ink.canvas)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -64,7 +64,7 @@ internal fun ChatWorkTopBar(
                     .testTag("top-new-chat")
                     .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
             ) {
-                CodexIcon(CodexGlyph.Thread, "新建聊天",
+                CodexIcon(CodexGlyph.EditNote, "新建聊天",
                     tint = if (newThreadBlockReason != null) Ink.muted else Ink.parchment)
             }
         }
