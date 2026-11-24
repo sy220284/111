@@ -142,8 +142,10 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
                     running.value = true
                 }
             }
-            queuePausedThreads.value = queuePausedThreads.value - threadId
-            threadFailures.value = threadFailures.value - threadId
+            if (threadExecutions.value[threadId]?.turnId == turnId) {
+                queuePausedThreads.value = queuePausedThreads.value - threadId
+                threadFailures.value = threadFailures.value - threadId
+            }
             actionFeedback.tryEmit(ActionFeedbackReceipt("已开始执行后续指令"))
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
