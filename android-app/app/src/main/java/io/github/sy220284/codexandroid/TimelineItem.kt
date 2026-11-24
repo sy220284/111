@@ -6,5 +6,7 @@ data class TimelineItem(
     val kind: String,
     val text: String,
     val status: String = "",
-    val evidence: String = ""
+    val evidence: String = "",
+    val turnId: String = "",
+    val phase: String = ""
 )

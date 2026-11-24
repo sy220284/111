@@ -44,17 +44,39 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val timeline = MutableStateFlow<List<TimelineItem>>(emptyList())
     internal val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
     val olderTimelineCount get() = timelineWindow.olderCount
+    internal val olderServerCursor = MutableStateFlow<String?>(null)
+    internal val loadingEarlier = MutableStateFlow(false)
+    internal var hydratingThread: String? = null
+    internal val hydrationEvents = mutableListOf<Pair<String, JSONObject>>()
+    private fun readHistoryPage(payload: JSONObject): List<TimelineItem> {
+        val rows = payload.getJSONArray("data")
+        return (0 until rows.length()).map { TimelineEventReducer.historyEntry(rows.getJSONObject(it)) }.reversed()
+    }
+    private fun historyCursor(payload: JSONObject): String? = if (payload.isNull("nextCursor")) null else payload.optString("nextCursor").takeIf(String::isNotBlank)
     fun loadEarlierTimeline() {
         val id = activeThread.value ?: return
+        if (loadingEarlier.value || threadSwitching.value) return
+        loadingEarlier.value = true
         viewModelScope.launch {
             try {
-                val older = timelineWindow.readEarlier(id)
-                if (activeThread.value == id && older.isNotEmpty())
-                    timeline.value = older + timeline.value
+                var older = timelineWindow.readEarlier(id)
+                if (older.isEmpty() && activeThread.value == id) {
+                    val cursor = olderServerCursor.value ?: return@launch
+                    val response = bridge.request("thread/items/list", JSONObject().put("threadId", id)
+                        .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
+                    if (activeThread.value != id || threadSwitching.value) return@launch
+                    older = readHistoryPage(response)
+                    olderServerCursor.value = historyCursor(response)
+                }
+                if (activeThread.value == id && !threadSwitching.value && older.isNotEmpty()) {
+                    val known = timeline.value.mapTo(hashSetOf()) { it.id }
+                    timeline.value = older.filterNot { it.id in known } + timeline.value
+                    errors.value = errors.value - "timeline"
+                }
             } catch (failure: Exception) {
                 errors.value = errors.value + ("timeline" to
                     (failure.message ?: "无法加载更早的记录"))
-            }
+            } finally { loadingEarlier.value = false }
         }
     }
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
@@ -130,7 +152,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             catalogWarmup.connected()
             if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
             // Rebuild visible history after a connection loss, without resending a task.
-            if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread)
+            if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread, forceReload = true)
         } catch (failure: Exception) {
             errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
         }
@@ -248,7 +270,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val sessions by lazy { SessionListController(this, viewModelScope) }
     internal fun syncRecentThreads() = sessions.refresh()
 
-    fun chooseThread(id: String, onOpened: (() -> Unit)? = null) {
+    fun chooseThread(id: String, forceReload: Boolean = false, onOpened: (() -> Unit)? = null) {
         if (!globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再切换会话")
             return
@@ -259,48 +281,28 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "正在建立新会话，请在会话创建后切换")
             return
         }
-        if (id.isNotBlank() && id == activeThread.value) {
+        if (!forceReload && id.isNotBlank() && id == activeThread.value) {
             sessions.markRead(id, false)
             onOpened?.invoke()
             return
         }
-        if (!ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
+        if (!forceReload && !ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
         threadSwitching.value = true
+        hydratingThread = id
+        hydrationEvents.clear()
         errors.value = errors.value - "conversation"
         viewModelScope.launch {
             try {
-                // Read and reconstruct the destination before changing the active core session.
-                val history = bridge.request("thread/read", JSONObject()
-                    .put("threadId", id).put("includeTurns", true))
-                val turns = history.optJSONObject("thread")?.optJSONArray("turns") ?: JSONArray()
-                val restored = mutableListOf<TimelineItem>()
-                for (turnIndex in 0 until turns.length()) {
-                    val turn = turns.optJSONObject(turnIndex) ?: continue
-                    val items = turn.optJSONArray("items") ?: continue
-                    for (itemIndex in 0 until items.length()) {
-                        val item = items.optJSONObject(itemIndex) ?: continue
-                        val kind = item.optString("type", "event")
-                        val text = if (kind == "userMessage") {
-                            val parts = item.optJSONArray("content") ?: JSONArray()
-                            (0 until parts.length()).mapNotNull { parts.optJSONObject(it)?.optString("text") }
-                                .filter { it.isNotBlank() }.joinToString("\n")
-                        } else item.optString("text").ifBlank {
-                            item.optString("command").ifBlank { item.optString("tool") }
-                        }
-                        if (text.isNotBlank()) {
-                            restored += TimelineItem(
-                                item.optString("id", "history-" + turnIndex + "-" + itemIndex),
-                                if (kind == "userMessage") "user" else kind,
-                                text,
-                                item.optString("status"),
-                                if (kind == "userMessage") "" else item.toString(2)
-                            )
-                        }
-                    }
-                }
+                val history = bridge.request("thread/read", JSONObject().put("threadId", id))
                 val threadDirectory = WorkspaceSelectionContract.validate(
                     workspaceRoot, File(history.getJSONObject("thread").getString("cwd")))
                 bridge.request("thread/resume", JSONObject().put("threadId", id))
+                val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
+                    .put("sortDirection", "desc").put("limit", 120))
+                val restored = readHistoryPage(page)
+                val turnsPage = bridge.request("thread/turns/list", JSONObject().put("threadId", id)
+                    .put("sortDirection", "desc").put("limit", 1).put("itemsView", "full"))
+                val turns = turnsPage.getJSONArray("data")
                 activeWorkspace.value = threadDirectory.absolutePath
                 activeProjectId.value = history.getJSONObject("thread")
                     .optString("projectId").takeIf { it.isNotBlank() }
@@ -319,12 +321,17 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     errors.value = errors.value + ("conversation" to reason)
                 }
                 latestDiff.value = ThreadDiffHistory.latest(turns)
-                timeline.value = newest
+                olderServerCursor.value = historyCursor(page)
+                timeline.value = hydrationEvents.fold(newest) { items, (method, params) ->
+                    TimelineEventReducer.reduce(method, params, items)
+                }
                 sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
                 errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
             } finally {
+                hydratingThread = null
+                hydrationEvents.clear()
                 threadSwitching.value = false
             }
         }
@@ -356,6 +363,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         activeTurn.value = null
         errors.value = errors.value - "conversation"
         timeline.value = emptyList()
+        olderServerCursor.value = null
         viewModelScope.launch { timelineWindow.clear() }
         latestDiff.value = ""
         running.value = false

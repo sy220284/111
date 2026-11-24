@@ -193,17 +193,17 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
+        if (threadId.isNotBlank() && threadId == hydratingThread && method in TimelineEventReducer.methods) {
+            hydrationEvents += method to params
+            return
+        }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
-            "item/agentMessage/delta", "item/plan/delta",
-            "item/reasoning/summaryTextDelta", "item/started", "item/completed" ->
+            in TimelineEventReducer.methods - "turn/completed" ->
                 timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
             "turn/completed" -> {
-                timeline.value = timeline.value.map { item ->
-                    if (item.id.startsWith("pending-") && item.status == "sending")
-                        item.copy(status = "") else item
-                }
+                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
                 val turn = params.optJSONObject("turn")
                 if (turn?.optString("status") != "completed") {
                     timeline.value = timeline.value + TimelineItem(

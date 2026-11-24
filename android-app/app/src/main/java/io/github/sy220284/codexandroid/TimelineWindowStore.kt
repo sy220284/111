@@ -44,7 +44,7 @@ internal class TimelineWindowStore(private val cache: File) {
                 val json = JSONObject()
                     .put("id", item.id).put("kind", item.kind)
                     .put("text", item.text).put("status", item.status)
-                    .put("evidence", item.evidence).toString()
+                    .put("evidence", item.evidence).put("turnId", item.turnId).put("phase", item.phase).toString()
                 file.write(json.toByteArray(Charsets.UTF_8))
                 file.write(10)
             }
@@ -102,7 +102,7 @@ internal class TimelineWindowStore(private val cache: File) {
                     previous += TimelineItem(
                         entry.getString("id"), entry.getString("kind"),
                         entry.getString("text"), entry.optString("status"),
-                        entry.optString("evidence"))
+                        entry.optString("evidence"), entry.optString("turnId"), entry.optString("phase"))
                 }
             }
             visibleStart = start

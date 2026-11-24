@@ -237,7 +237,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                             vm.refresh(prefix + "0", "thread/turns/list",
                                 JSONObject().put("threadId", id).put("limit", 40)
                                     .put("sortDirection", "desc"))
-                            vm.chooseThread(id)
+                            vm.chooseThread(id, forceReload = true)
                         })
                 }
                 target = null
