@@ -1123,6 +1123,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         rule.runOnUiThread {
             vm.data.value = vm.data.value + mapOf(
+                "composerPermissionWorkspace" to JSONObject().put("cwd", vm.activeWorkspace.value),
                 "composerPermissionConfig" to JSONObject().put("config", JSONObject()
                     .put("default_permissions", ":read-only")
                     .put("approval_policy", "on-request")
@@ -1143,8 +1144,10 @@ class UiNavigationInstrumentedTest {
         }
         rule.onNodeWithTag("security-profile-workspace").performScrollTo().assertIsDisplayed()
         rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo().assertIsNotEnabled()
-        rule.onNodeWithTag("security-profile-read-only").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("security-profile-read-only").performScrollTo().assertIsDisplayed().assertIsSelected()
         captureOverlay("audit-security-selection-android35.png")
+        pressSystemBack()
+        rule.onNodeWithTag("composer-permission-control").assertExists()
     }
 
     @Test fun permissionApprovalExplainsActualScope() {

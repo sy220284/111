@@ -14,6 +14,10 @@ internal fun CodexViewModel.acceptComposerDraft(threadId: String?, submitted: Co
 /** Snapshot all input once; ordinary send, queue and steer use the same typed payload. */
 internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: String) {
     if (!draft.hasInput) return
+    if (securitySaveBusy.value) {
+        errors.value = errors.value + ("conversation" to "正在保存权限，请完成后再发送指令")
+        return
+    }
     if (running.value) {
         val owner = activeThread.value ?: return
         submitRunningComposer(draft, followUp) { acceptComposerDraft(owner, draft) }
