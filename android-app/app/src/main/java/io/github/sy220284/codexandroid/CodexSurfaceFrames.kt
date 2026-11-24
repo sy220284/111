@@ -44,21 +44,25 @@ fun CodexSheetFrame(
     val scope = rememberCoroutineScope()
     val dismiss by rememberUpdatedState(onDismissRequest)
     var closing by remember(sheetState) { mutableStateOf(false) }
+    var dismissed by remember(sheetState) { mutableStateOf(false) }
+    val finish: () -> Unit = {
+        if (!dismissed) { dismissed = true; dismiss() }
+    }
     val close: () -> Unit = {
-        if (!closing) {
+        if (!closing && !dismissed) {
             closing = true
-            if (reduceMotion) dismiss()
+            if (reduceMotion) finish()
             else scope.launch {
                 try {
                     sheetState.hide()
-                    if (!sheetState.isVisible) dismiss()
+                    if (!sheetState.isVisible) finish()
                 } finally {
                     closing = false
                 }
             }
         }
     }
-    ModalBottomSheet(onDismissRequest = { dismiss() }, modifier = modifier, sheetState = sheetState,
+    ModalBottomSheet(onDismissRequest = finish, modifier = modifier, sheetState = sheetState,
         containerColor = containerColor, contentColor = contentColor, dragHandle = dragHandle,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
         val column = this

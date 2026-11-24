@@ -12,6 +12,7 @@
       "title": "任务对话",
       "sources": [
         "ConversationScreen",
+        "ConversationTimelineViewport",
         "ConversationComposer",
         "ConversationControlBar",
         "ComposerReferenceSurfaces",
@@ -546,7 +547,7 @@
           "ModeChoiceSurface"
         ],
         [
-          "ConversationScreen",
+          "ConversationTimelineViewport",
           "ConversationLoadingSkeleton"
         ],
         [
