@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -9,7 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
@@ -22,32 +23,52 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /** One motion language for a working console. All durations respect the in-app preference. */
 object CodexMotion {
-    const val feedback = 110
-    const val reveal = 210
-    const val navigation = 240
+    const val feedback = 150
+    const val reveal = 200
+    const val navigation = 280
+    const val sheet = 300
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
+}
+
+/** One incoming route only: outgoing pages never remain interactive or visible to accessibility. */
+@Composable
+internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: @Composable () -> Unit) {
+    val progress = remember(route) { Animatable(if (reducedMotion) 1f else 0f) }
+    LaunchedEffect(route, reducedMotion) {
+        if (reducedMotion) progress.snapTo(1f)
+        else progress.animateTo(1f, tween(CodexMotion.navigation))
+    }
+    Box(Modifier.fillMaxSize().clipToBounds()) {
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            val visible = if (reducedMotion) 1f else progress.value
+            alpha = .94f + .06f * visible
+            translationY = 6.dp.toPx() * (1f - visible)
+        }) { content() }
+    }
 }
 
 /** State-driven reveal, never a perpetual decorative animation. */
@@ -109,34 +130,42 @@ fun CodexNotice(
     onAction: () -> Unit = {}
 ) {
     val color = when (tone) {
-        NoticeTone.Info -> Ink.copper
+        NoticeTone.Info -> Ink.muted
         NoticeTone.Success -> Ink.jade
         NoticeTone.Warning -> Ink.warning
         NoticeTone.Error -> Ink.red
     }
     val icon = when (tone) {
-        NoticeTone.Info -> Icons.Outlined.Info
-        NoticeTone.Success -> Icons.Outlined.CheckCircle
-        NoticeTone.Warning -> Icons.Outlined.WarningAmber
-        NoticeTone.Error -> Icons.Outlined.ErrorOutline
+        NoticeTone.Info -> CodexGlyph.Info
+        NoticeTone.Success -> CodexGlyph.TaskComplete
+        NoticeTone.Warning -> CodexGlyph.WarningAmber
+        NoticeTone.Error -> CodexGlyph.TaskError
     }
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = Ink.canvas,
-        border = BorderStroke(1.dp, color.copy(alpha = .35f)),
-        shape = RoundedCornerShape(15.dp)
+        modifier = modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+        color = if (tone == NoticeTone.Info) Ink.recessed else color.copy(alpha = .075f),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            Modifier.padding(start = 13.dp, top = 11.dp, bottom = 11.dp, end = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
-            Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            if (actionLabel != null) TextButton(
-                onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)
-            ) {
-                Text(actionLabel, color = color)
+        BoxWithConstraints(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            val fontScale = LocalDensity.current.fontScale
+            val narrow = maxWidth < 300.dp || fontScale > 1.3f
+            if (actionLabel != null && narrow) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                        Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TextButton(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
+                        Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
+                    }
+                }
+            } else Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                if (actionLabel != null) TextButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)
+                }
             }
         }
     }
@@ -158,7 +187,7 @@ fun ProtocolFeedback(
     CodexReveal(keys.any { it in loading }) {
         AtlasOperationProgress("正在处理本页请求")
     }
-    val visible = PresentationPolicy.visibleErrors(errors, keys)
+    val visible = PresentationPolicy.visibleErrors(errors, keys.filterNot { it in loading })
     if (visible.isNotEmpty() && connection != EngineStatus.Connected) {
         CodexNotice(
             message = if (connection == EngineStatus.Starting)
@@ -180,32 +209,30 @@ fun CodexEmptyState(
     title: String,
     description: String,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Outlined.Inbox,
+    icon: CodexGlyph = CodexGlyph.Inbox,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
-    artworkRes: Int? = null
+    artworkRes: Int? = if (icon == CodexGlyph.Inbox) R.drawable.ic_empty_content else null
 ) {
+    val compact = LocalConfiguration.current.screenHeightDp < 640 || LocalDensity.current.fontScale > 1.3f
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 27.dp),
+        modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (compact) 10.dp else 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (artworkRes != null) {
-            Image(
-                painter = painterResource(artworkRes),
-                contentDescription = null,
-                modifier = Modifier.size(width = 152.dp, height = 116.dp)
-            )
+            CodexStateArtwork(artworkRes, Modifier.size(width = if (compact) 88.dp else 128.dp,
+                height = if (compact) 64.dp else 96.dp))
         } else {
             Surface(
                 color = Ink.border.copy(alpha = .24f),
                 shape = RoundedCornerShape(20.dp)
             ) {
-                Icon(icon, null, tint = Ink.copper,
+                CodexIcon(icon, null, tint = Ink.copper,
                     modifier = Modifier.padding(17.dp).size(27.dp))
             }
         }
-        Text(title, style = MaterialTheme.typography.titleLarge,
+        Text(title, style = MaterialTheme.typography.titleMedium,
             color = Ink.parchment,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         Text(description, style = MaterialTheme.typography.bodyMedium,
@@ -229,12 +256,13 @@ fun CodexRecoveryState(
     actionLabel: String,
     onAction: () -> Unit,
     onDiagnostics: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    artworkRes: Int = R.drawable.ic_empty_request_failed
 ) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         CodexEmptyState(
-            title = title, description = description, icon = Icons.Outlined.SyncProblem,
-            actionLabel = actionLabel, onAction = onAction
+            title = title, description = description, icon = CodexGlyph.SyncProblem,
+            actionLabel = actionLabel, onAction = onAction, artworkRes = artworkRes
         )
         if (onDiagnostics != null) {
             TextButton(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -257,7 +285,7 @@ fun CodexRefreshIcon(
     ) {
         if (busy) CircularProgressIndicator(
             Modifier.size(19.dp), strokeWidth = 2.dp, color = Ink.copper
-        ) else Icon(Icons.Outlined.Refresh, contentDescription = label)
+        ) else CodexIcon(CodexGlyph.Retry, contentDescription = label)
     }
 }
 
@@ -274,21 +302,29 @@ fun CodexChoiceSheet(
     enabled: Boolean = true,
     recoveryLabel: String? = null,
     onRecovery: (() -> Unit)? = null,
-    recoveryMessage: String = "请先恢复运行核心，再选择可用选项。"
+    recoveryMessage: String = "请先恢复运行核心，再选择可用选项。",
+    searchable: Boolean = false,
+    loading: Boolean = false
 ) {
-    ModalBottomSheet(
+    var query by remember { mutableStateOf("") }
+    val visible = choices.filter { choice ->
+        query.isBlank() || choice.title.contains(query.trim(), ignoreCase = true) ||
+            choice.description.contains(query.trim(), ignoreCase = true)
+    }
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed,
         contentColor = Ink.parchment,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) }
     ) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
+        Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
+            .navigationBarsPadding().padding(horizontal = 20.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭选择面板")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
             Spacer(Modifier.height(5.dp))
@@ -300,36 +336,27 @@ fun CodexChoiceSheet(
                     actionLabel = recoveryLabel, onAction = onRecovery
                 )
             }
-            Spacer(Modifier.height(17.dp))
+            Spacer(Modifier.height(12.dp))
+            if (searchable && choices.size > 1) {
+                AtlasSearchField(query, { query = it }, "搜索可用模型",
+                    modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
+                Spacer(Modifier.height(8.dp))
+            }
+            if (loading) AtlasOperationProgress("正在读取可用选项")
             if (choices.isEmpty()) {
-                CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
+                if (!loading) CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
+            } else if (visible.isEmpty()) {
+                CodexEmptyState("没有匹配的选项", "修改搜索词或查看全部。",
+                    actionLabel = "清除搜索", onAction = { query = "" })
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 470.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false).selectableGroup(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(choices, key = { it.id }) { choice ->
-                        val active = choice.id == selectedId
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
-                                .clickable(enabled = enabled, role = Role.RadioButton) { onSelect(choice.id) },
-                            color = Ink.canvas,
-                            border = BorderStroke(1.dp, if (active) Ink.copper else Ink.border),
-                            shape = RoundedCornerShape(15.dp)
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(choice.title, style = MaterialTheme.typography.titleMedium,
-                                        color = if (enabled) Ink.parchment else Ink.muted)
-                                    if (choice.description.isNotBlank())
-                                        Text(choice.description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                                }
-                                RadioButton(selected = active, onClick = null, enabled = enabled)
-                            }
-                        }
+                    items(visible, key = { it.id }) { choice ->
+                        AtlasChoiceRow(choice.title, choice.description, choice.id == selectedId,
+                            onClick = { onSelect(choice.id) }, enabled = enabled,
+                            modifier = Modifier.testTag("choice-option-" + choice.id))
                     }
                 }
             }
@@ -351,7 +378,7 @@ fun CodexEvidenceSheet(
     val copyText = remember(sections) {
         sections.joinToString("\n\n") { (label, value) -> "$label\n$value" }
     }
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.recessed,
@@ -371,7 +398,7 @@ fun CodexEvidenceSheet(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 440.dp)
+                    Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight() * .62f)
                         .verticalScroll(rememberScrollState()).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -397,7 +424,7 @@ fun CodexEvidenceSheet(
                     onClick = { clipboard.setText(AnnotatedString(copyText)) },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                 ) {
-                    Icon(Icons.Outlined.ContentCopy, null, modifier = Modifier.size(18.dp))
+                    CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
                     Text("复制执行详情")
                 }
@@ -419,22 +446,22 @@ fun CodexConfirmDialog(
     destructive: Boolean = false,
     confirmEnabled: Boolean = true
 ) {
-    AlertDialog(
+    CodexDialogFrame(
         onDismissRequest = onDismiss,
         containerColor = Ink.elevated,
         titleContentColor = Ink.parchment,
         textContentColor = Ink.parchment,
         shape = RoundedCornerShape(24.dp),
         icon = {
-            Icon(
-                if (destructive) Icons.Outlined.GppMaybe else Icons.Outlined.FactCheck,
+            CodexIcon(
+                if (destructive) CodexGlyph.TaskApproval else CodexGlyph.FactCheck,
                 null, tint = if (destructive) Ink.red else Ink.copper
             )
         },
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
-                Modifier.heightIn(max = 390.dp).verticalScroll(rememberScrollState()),
+                Modifier.heightIn(max = atlasSheetHeight() * .56f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)
@@ -480,7 +507,7 @@ fun CodexConfirmDialog(
 fun CodexActionTile(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: CodexGlyph,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -502,14 +529,14 @@ fun CodexActionTile(
     ) {
         Row(Modifier.padding(15.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(color = Ink.canvas, shape = RoundedCornerShape(12.dp)) {
-                Icon(icon, null, tint = Ink.copper, modifier = Modifier.padding(10.dp).size(23.dp))
+                CodexIcon(icon, null, tint = Ink.copper, modifier = Modifier.padding(10.dp).size(23.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(subtitle, color = Ink.muted, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+            CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted)
         }
     }
 }

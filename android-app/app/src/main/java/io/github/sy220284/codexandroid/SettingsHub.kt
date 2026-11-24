@@ -9,8 +9,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,7 +73,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         .testTag("settings-account-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.AccountCircle, null, tint = Ink.copper,
+                    CodexIcon(CodexGlyph.AccountCircle, null, tint = Ink.copper,
                         modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -86,7 +84,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             else -> "未登录 · 点此配置"
                         }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
-                    Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+                    CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted)
                 }
                 HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                 Row(
@@ -95,9 +93,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         .testTag("settings-engine-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    CodexIcon(
                         if (status == EngineStatus.Connected)
-                            Icons.Outlined.CheckCircle else Icons.Outlined.SyncProblem,
+                            CodexGlyph.TaskComplete else CodexGlyph.SyncProblem,
                         null, modifier = Modifier.size(24.dp),
                         tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning
                     )
@@ -110,12 +108,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             is EngineStatus.Unavailable -> "连接中断 · 查看处理方法"
                         }, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
-                    Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+                    CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted)
                 }
             }
         }
         if (groups.isEmpty()) {
             item { CodexEmptyState("未找到相关设置", "试试常用名称，例如字体、API Key 或日志。",
+                    artworkRes = R.drawable.ic_empty_no_results,
                 actionLabel = "清除搜索", onAction = { query = "" }) }
         }
         items(groups, key = { it.first.title }) { (group, entries) ->
@@ -183,7 +182,7 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Icon(page.icon, null, modifier = Modifier.size(22.dp), tint = Ink.muted)
+        CodexIcon(page.icon, null, modifier = Modifier.size(22.dp), tint = Ink.muted)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -193,7 +192,7 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
+        CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,
             modifier = Modifier.size(19.dp))
     }
 }
@@ -299,7 +298,7 @@ private fun ThemePreviewCard(
                 Spacer(Modifier.width(6.dp))
                 Text(title, color = foreground, style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.weight(1f))
-                if (selected) Icon(Icons.Outlined.CheckCircle, "已选择", tint = accent,
+                if (selected) CodexIcon(CodexGlyph.TaskComplete, "已选择", tint = accent,
                     modifier = Modifier.size(17.dp))
             }
             Box(Modifier.fillMaxWidth(.82f).height(5.dp)

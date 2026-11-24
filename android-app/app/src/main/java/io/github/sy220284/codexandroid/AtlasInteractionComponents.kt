@@ -12,13 +12,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,7 +50,7 @@ fun AtlasSearchField(
         singleLine = true,
         enabled = enabled,
         shape = RoundedCornerShape(18.dp),
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        leadingIcon = { CodexIcon(CodexGlyph.Search, contentDescription = null) },
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (value.isNotBlank() && onClear != null) {
@@ -59,7 +58,7 @@ fun AtlasSearchField(
                         onClick = onClear,
                         modifier = Modifier.size(48.dp),
                         enabled = enabled
-                    ) { Icon(Icons.Outlined.Close, contentDescription = "清除搜索词") }
+                    ) { CodexIcon(CodexGlyph.Close, contentDescription = "清除搜索词") }
                 }
                 if (onSubmit != null) {
                     IconButton(
@@ -72,7 +71,7 @@ fun AtlasSearchField(
                         if (busy) CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             color = Ink.copper, strokeWidth = 2.dp
-                        ) else Icon(Icons.Outlined.ArrowForward, contentDescription = "开始搜索")
+                        ) else CodexIcon(CodexGlyph.ArrowForward, contentDescription = "开始搜索")
                     }
                 }
             }
@@ -186,7 +185,8 @@ fun AtlasSequenceBadge(
 fun AtlasOperationProgress(
     label: String,
     modifier: Modifier = Modifier,
-    progress: Float? = null
+    progress: Float? = null,
+    indicatorColor: androidx.compose.ui.graphics.Color = Ink.copper
 ) {
     val fraction = progress?.coerceIn(0f, 1f)
     Column(modifier.fillMaxWidth().testTag("atlas-operation-progress"),
@@ -198,11 +198,11 @@ fun AtlasOperationProgress(
                 style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
         }
         if (fraction == null) LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth(), color = Ink.copper,
+            modifier = Modifier.fillMaxWidth(), color = indicatorColor,
             trackColor = Ink.border
         ) else LinearProgressIndicator(
             progress = { fraction },
-            modifier = Modifier.fillMaxWidth(), color = Ink.copper,
+            modifier = Modifier.fillMaxWidth(), color = indicatorColor,
             trackColor = Ink.border
         )
     }
@@ -218,7 +218,7 @@ fun AtlasFieldFeedback(
     Row(modifier.fillMaxWidth().heightIn(min = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        Icon(if (isError) Icons.Outlined.ErrorOutline else Icons.Outlined.Info,
+        CodexIcon(if (isError) CodexGlyph.TaskError else CodexGlyph.Info,
             contentDescription = null,
             tint = if (isError) Ink.red else Ink.muted,
             modifier = Modifier.size(17.dp))
@@ -275,33 +275,127 @@ fun AtlasLoadingResults(
 fun AtlasSettingsActionRow(
     title: String,
     detail: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: CodexGlyph,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    outlined: Boolean = true
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth().clickable(
+        modifier = modifier.fillMaxWidth().codexPressable(
             enabled = enabled, role = Role.Button, onClick = onClick
         ),
-        color = Ink.canvas,
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Ink.border)
+        color = if (outlined) Ink.canvas else androidx.compose.ui.graphics.Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        border = if (outlined) BorderStroke(1.dp, Ink.border) else null
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(icon, contentDescription = null,
-                modifier = Modifier.size(24.dp), tint = Ink.copper)
+            CodexIcon(icon, contentDescription = null,
+                modifier = Modifier.size(22.dp), tint = Ink.muted)
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(detail, style = MaterialTheme.typography.bodySmall,
-                    color = Ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(title, style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) Ink.parchment else Ink.muted)
+                if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall,
+                    color = Ink.muted)
             }
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+            CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
                 tint = Ink.muted, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** 排他业务选择：整行可点、长标题可换行，选中语义统一。 */
+@Composable
+fun AtlasChoiceRow(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+        color = if (selected) Ink.panel else Ink.canvas,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else Ink.border),
+        shape = RoundedCornerShape(15.dp)
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) Ink.parchment else Ink.muted)
+                if (description.isNotBlank()) Text(description,
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/** 紧凑排他操作保留一行，适合键盘展开时的输入栏。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AtlasCompactChoice(
+    selected: String,
+    options: List<Pair<String, String>>,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    tagPrefix: String = ""
+) {
+    SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (id, label) ->
+            SegmentedButton(selected = selected == id, onClick = { onSelect(id) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                enabled = enabled,
+                modifier = Modifier.heightIn(min = 48.dp).let {
+                    if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
+                }) { Text(label, style = MaterialTheme.typography.labelMedium) }
+        }
+    }
+}
+
+/** 独立列表滚动面板统一按当前窗口高度约束。 */
+@Composable
+fun atlasSheetHeight() = LocalConfiguration.current.screenHeightDp.dp * .88f
+
+@Composable
+fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp).testTag("atlas-sheet-close")) {
+            CodexIcon(CodexGlyph.Close, contentDescription = "关闭面板")
+        }
+    }
+}
+
+/** 审批操作按真实可用宽度和字号排列；主操作独占一行，拒绝及辅助操作不挤压。 */
+@Composable
+internal fun AtlasApprovalActions(
+    primary: (@Composable (Modifier) -> Unit)?,
+    secondary: (@Composable (Modifier) -> Unit)? = null,
+    tertiary: (@Composable (Modifier) -> Unit)? = null
+) {
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    BoxWithConstraints(Modifier.fillMaxWidth().testTag("approval-decision-actions")) {
+        val sideBySide = secondary != null && tertiary != null && maxWidth >= (264 * fontScale).dp
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (sideBySide) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    secondary?.invoke(Modifier.weight(1f))
+                    tertiary?.invoke(Modifier.weight(1f))
+                }
+            } else {
+                secondary?.invoke(Modifier.fillMaxWidth())
+                tertiary?.invoke(Modifier.fillMaxWidth())
+            }
+            primary?.invoke(Modifier.fillMaxWidth())
         }
     }
 }

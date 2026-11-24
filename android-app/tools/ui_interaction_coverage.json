@@ -1,0 +1,459 @@
+{
+  "routes": [
+    {
+      "route": "home",
+      "file": "Screens.kt",
+      "owner": "HomePage",
+      "component": "AtlasListHeading"
+    },
+    {
+      "route": "chat",
+      "file": "ConversationComposer.kt",
+      "owner": "ConversationComposer",
+      "component": "AtlasCompactChoice"
+    },
+    {
+      "route": "threads",
+      "file": "ThreadLibraryPage.kt",
+      "owner": "ThreadLibraryPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "approvals",
+      "file": "ControlScreens.kt",
+      "owner": "ApprovalQuickSheetContent",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "search",
+      "file": "ThreadLibraryPage.kt",
+      "owner": "ThreadLibraryPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "goals",
+      "file": "TaskManagementScreens.kt",
+      "owner": "ThreadGoalPage",
+      "component": "AtlasStatusSelector"
+    },
+    {
+      "route": "queue",
+      "file": "TaskManagementScreens.kt",
+      "owner": "ThreadQueuePage",
+      "component": "AtlasQueueDragHandle"
+    },
+    {
+      "route": "files",
+      "file": "DeveloperScreens.kt",
+      "owner": "WorkspacePage",
+      "component": "CodexActionSheet"
+    },
+    {
+      "route": "diff",
+      "file": "DiffReaderPage.kt",
+      "owner": "DiffReaderPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "terminal",
+      "file": "TerminalPage.kt",
+      "owner": "TerminalPage",
+      "component": "FullTextReaderDialog"
+    },
+    {
+      "route": "review",
+      "file": "ReviewSurfaces.kt",
+      "owner": "ReviewScopePanel",
+      "component": "AtlasChoiceRow"
+    },
+    {
+      "route": "models",
+      "file": "UiSharedSurfaces.kt",
+      "owner": "ModelChoiceSurface",
+      "component": "CodexChoiceSheet"
+    },
+    {
+      "route": "modes",
+      "file": "UiSharedSurfaces.kt",
+      "owner": "ModeChoiceSurface",
+      "component": "CodexChoiceSheet"
+    },
+    {
+      "route": "skills",
+      "file": "SkillsPage.kt",
+      "owner": "SkillsPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "plugins",
+      "file": "EcosystemScreens.kt",
+      "owner": "PluginsPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "apps",
+      "file": "IntegrationScreens.kt",
+      "owner": "ConnectedAppsPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "mcp",
+      "file": "IntegrationScreens.kt",
+      "owner": "McpServiceStatusCard",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "environments",
+      "file": "ExecutionEnvironmentPage.kt",
+      "owner": "EnvironmentsPage",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "account",
+      "file": "AccountLoginUi.kt",
+      "owner": "AccountPage",
+      "component": "AtlasOperationProgress"
+    },
+    {
+      "route": "providers",
+      "file": "EcosystemScreens.kt",
+      "owner": "ProvidersPage",
+      "component": "AtlasSettingsActionRow"
+    },
+    {
+      "route": "config",
+      "file": "ControlScreens.kt",
+      "owner": "ConfigPage",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "security",
+      "file": "SecurityPage.kt",
+      "owner": "SecurityPage",
+      "component": "ProtocolFeedback"
+    },
+    {
+      "route": "usage",
+      "file": "AccountMetricsPage.kt",
+      "owner": "AccountMetricsPage",
+      "component": "AtlasOperationProgress"
+    },
+    {
+      "route": "limits",
+      "file": "AccountMetricsPage.kt",
+      "owner": "AccountMetricsPage",
+      "component": "AtlasOperationProgress"
+    },
+    {
+      "route": "appearance",
+      "file": "SettingsHub.kt",
+      "owner": "SettingsHubPage",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "diagnostics",
+      "file": "EcosystemScreens.kt",
+      "owner": "EngineDiagnosticsPage",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "about",
+      "file": "UiSharedSurfaces.kt",
+      "owner": "AboutInfoSheet",
+      "component": "CodexDetailSheet"
+    },
+    {
+      "route": "settings",
+      "file": "SettingsHub.kt",
+      "owner": "SettingsHubPage",
+      "component": "AtlasSearchField"
+    },
+    {
+      "route": "update",
+      "file": "AppUpdateCard.kt",
+      "owner": "AppUpdateCard",
+      "component": "CodexDetailSheet"
+    }
+  ],
+  "subpages": [
+    {
+      "id": "sidebar",
+      "parent": "threads",
+      "file": "SidebarSessions.kt",
+      "owner": "SidebarSessionsContent",
+      "component": "AtlasSearchField",
+      "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
+      "screenshot": "audit-sidebar-filtered"
+    },
+    {
+      "id": "thread-context",
+      "parent": "chat",
+      "file": "ThreadContextTools.kt",
+      "owner": "ThreadContextTools",
+      "component": "CodexDetailSheet",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": "audit-thread-context"
+    },
+    {
+      "id": "thread-history",
+      "parent": "chat",
+      "file": "ThreadHistorySheet.kt",
+      "owner": "ThreadHistorySheet",
+      "component": "CodexInfoDialog",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": "audit-thread-history"
+    },
+    {
+      "id": "advanced-timeline",
+      "parent": "chat",
+      "file": "AdvancedThreadTimelineDialog.kt",
+      "owner": "AdvancedThreadTimelineDialog",
+      "component": "AtlasOperationProgress",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": "audit-advanced-timeline"
+    },
+    {
+      "id": "thread-attachments",
+      "parent": "chat",
+      "file": "ThreadAttachmentsSheet.kt",
+      "owner": "ThreadAttachmentsSheet",
+      "component": "AtlasSheetHeader",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": "audit-thread-attachments"
+    },
+    {
+      "id": "plugin-detail",
+      "parent": "plugins",
+      "file": "PluginDetailSheet.kt",
+      "owner": "PluginDetailSheet",
+      "component": "CodexDetailSheet",
+      "test": "pluginDetailShowsCapabilitiesRatherThanRawMetadata",
+      "screenshot": "audit-plugin-detail"
+    },
+    {
+      "id": "skill-detail",
+      "parent": "skills",
+      "file": "SkillDetailSheet.kt",
+      "owner": "SkillDetailSheet",
+      "component": "CodexDetailSheet",
+      "test": "skillDescriptionAppearsOnlyAfterOpeningDetail",
+      "screenshot": null
+    },
+    {
+      "id": "app-detail",
+      "parent": "apps",
+      "file": "IntegrationScreens.kt",
+      "owner": "ConnectedAppsPage",
+      "component": "CodexDetailSheet",
+      "test": "connectedAppDescriptionAppearsOnlyAfterOpeningDetail",
+      "screenshot": null
+    },
+    {
+      "id": "account-switch",
+      "parent": "account",
+      "file": "AccountSessionsSheet.kt",
+      "owner": "AccountSessionsSheet",
+      "component": "AtlasSheetHeader",
+      "test": "accountPageExposesNarrowScreenDeviceLoginActions",
+      "screenshot": "account-sessions"
+    },
+    {
+      "id": "engine-status",
+      "parent": "chat",
+      "file": "UiSharedSurfaces.kt",
+      "owner": "EngineStatusSheet",
+      "component": "CodexDetailSheet",
+      "test": "statusButtonHasStableMeaningAndSeparatesActions",
+      "screenshot": "engine-status"
+    },
+    {
+      "id": "full-text-reader",
+      "parent": "terminal",
+      "file": "FullTextReaderDialog.kt",
+      "owner": "FullTextReaderDialog",
+      "component": "AtlasSearchField",
+      "test": "fullTextSearchShowsFirstAndPreviousMatchesWithoutChangingOriginalText",
+      "screenshot": "audit-full-text-match"
+    },
+    {
+      "id": "project-registry",
+      "parent": "files",
+      "file": "ProjectRegistryPanel.kt",
+      "owner": "ProjectRegistryPanel",
+      "component": "CodexActionDialog",
+      "test": "actionDialogInsideParentSheetDoesNotDuplicateBottomSheets",
+      "screenshot": null
+    },
+    {
+      "id": "attachment-preview",
+      "parent": "chat",
+      "file": "AttachmentPreviewDialog.kt",
+      "owner": "AttachmentPreviewContent",
+      "component": "AtlasOperationProgress",
+      "test": "attachmentPreviewSupportsZoomSwitchResetAndRemove",
+      "screenshot": "audit-attachment-preview"
+    },
+    {
+      "id": "message-menu",
+      "parent": "chat",
+      "file": "ChatTimelineComponents.kt",
+      "owner": "TimelineStepCard",
+      "component": "CodexActionSheet",
+      "test": "messageHeaderLongPressPreservesReaderAction",
+      "screenshot": "audit-message-menu"
+    },
+    {
+      "id": "file-editor",
+      "parent": "files",
+      "file": "WorkspaceFileEditor.kt",
+      "owner": "FileEditor",
+      "component": "CodexConfirmDialog",
+      "test": "fileEditorProtectsUnsavedChangesAndSavesRealFile",
+      "screenshot": "audit-file-editor"
+    },
+    {
+      "id": "provider-editor",
+      "parent": "providers",
+      "file": "EcosystemScreens.kt",
+      "owner": "ProvidersPage",
+      "component": "AtlasFormField",
+      "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
+      "screenshot": "audit-provider-editor"
+    },
+    {
+      "id": "config-editor",
+      "parent": "config",
+      "file": "ControlScreens.kt",
+      "owner": "ConfigPage",
+      "component": "AtlasFormField",
+      "test": "settingsSearchDirectlyExpandsAdvancedConfig",
+      "screenshot": "audit-config-editor"
+    },
+    {
+      "id": "environment-editor",
+      "parent": "environments",
+      "file": "ExecutionEnvironmentPage.kt",
+      "owner": "EnvironmentsPage",
+      "component": "AtlasFormField",
+      "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
+      "screenshot": "audit-environment-editor"
+    },
+    {
+      "id": "permission-request",
+      "parent": "approvals",
+      "file": "ControlScreens.kt",
+      "owner": "ApprovalRequestCard",
+      "component": "CodexConfirmDialog",
+      "test": "permissionApprovalExplainsActualScope",
+      "screenshot": "audit-permission-request"
+    },
+    {
+      "id": "goal-editor",
+      "parent": "goals",
+      "file": "ThreadGoalSheet.kt",
+      "owner": "ThreadGoalSheet",
+      "component": "CodexSheetFrame",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": "audit-goals-sheet"
+    },
+    {
+      "id": "queue-editor",
+      "parent": "queue",
+      "file": "TaskManagementScreens.kt",
+      "owner": "ThreadQueuePage",
+      "component": "CodexDialogFrame",
+      "test": "queueDraftSurvivesClosingAndReopeningSheet",
+      "screenshot": "audit-queue"
+    },
+    {
+      "id": "backup-restore",
+      "parent": "settings",
+      "file": "LocalDataTransferCard.kt",
+      "owner": "LocalDataTransferCard",
+      "component": "CodexConfirmDialog",
+      "test": "offscreenRunningTaskBlocksLocalDataTransferButtons",
+      "screenshot": "audit-backup-in-progress"
+    },
+    {
+      "id": "update-status",
+      "parent": "update",
+      "file": "AppUpdateCard.kt",
+      "owner": "AtlasUpdateStatus",
+      "component": "AtlasOperationProgress",
+      "test": "updateFeedbackUsesRealPhaseAndPercentage",
+      "screenshot": "audit-update-progress"
+    },
+    {
+      "id": "diff-file-jump",
+      "parent": "diff",
+      "file": "DiffReaderPage.kt",
+      "owner": "DiffReaderPage",
+      "component": "CodexChoiceSheet",
+      "test": "diffReaderShowsFileFirstSummaryAndReviewAction",
+      "screenshot": "diff-reader"
+    },
+    {
+      "id": "queue-reorder",
+      "parent": "queue",
+      "file": "AtlasQueueDragHandle.kt",
+      "owner": "AtlasQueueDragHandle",
+      "component": "AtlasSequenceBadge",
+      "test": "queueDragHandleInvokesDragRatherThanClickAndKeepsAccessibleMenu",
+      "screenshot": null
+    },
+    {
+      "id": "composer-shortcuts",
+      "parent": "chat",
+      "file": "AtlasComposerShortcuts.kt",
+      "owner": "AtlasComposerShortcuts",
+      "component": "AtlasSettingsActionRow",
+      "test": "composerShortcutOpensRealCallbackOnlyWhenSelected",
+      "screenshot": null
+    },
+    {
+      "id": "terminal-history-controls",
+      "parent": "terminal",
+      "file": "AtlasTerminalHistoryControls.kt",
+      "owner": "AtlasTerminalHistoryControls",
+      "component": "IconButton",
+      "test": "terminalTouchHistoryRestoresOriginalDraftWithoutExecuting",
+      "screenshot": null
+    },
+    {
+      "id": "daily-usage-chart",
+      "parent": "usage",
+      "file": "AtlasDailyUsageChart.kt",
+      "owner": "AtlasDailyUsageChart",
+      "component": "AtlasCompactChoice",
+      "test": "dailyUsagePeriodSelectionDoesNotTurnMissingTokensIntoZero",
+      "screenshot": null
+    },
+    {
+      "id": "diagnostic-logs",
+      "parent": "diagnostics",
+      "file": "EcosystemScreens.kt",
+      "owner": "EngineDiagnosticsPage",
+      "component": "FullTextReaderDialog",
+      "test": "secondarySettingsPagesHaveActualDeviceScreenshots",
+      "screenshot": null
+    },
+    {
+      "id": "timeline-filter",
+      "parent": "chat",
+      "file": "AdvancedThreadTimelineDialog.kt",
+      "owner": "AdvancedThreadTimelineDialog",
+      "component": "AtlasSearchField",
+      "test": "taskSpecificSheetsAreReachableAndReadable",
+      "screenshot": null
+    },
+    {
+      "id": "chat-setup-guide",
+      "parent": "chat",
+      "file": "WelcomeComponents.kt",
+      "owner": "ChatSetupGuide",
+      "component": "AtlasSettingsActionRow",
+      "test": "chatSetupGuideOpensOnlyTheConfirmedMissingPrerequisite",
+      "screenshot": null
+    }
+  ]
+}

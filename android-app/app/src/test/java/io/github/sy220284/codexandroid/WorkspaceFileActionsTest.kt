@@ -102,4 +102,23 @@ class WorkspaceFileActionsTest {
         } catch (_: IllegalArgumentException) { }
         assertEquals("private", protected.readText())
     }
+
+    @Test fun editableTextRejectsBinaryAndPreservesConcurrentChanges() {
+        val root = files.newFolder("edit-projects")
+        val text = File(root, "notes.txt").apply { writeText("原始") }
+        val baseline = WorkspaceFileActions.readEditableText(root, text)
+        WorkspaceFileActions.saveEditableText(root, text, baseline, "修改")
+        assertEquals("修改", text.readText())
+        text.writeText("外部写入")
+        try {
+            WorkspaceFileActions.saveEditableText(root, text, "修改", "草稿")
+            fail("外部修改必须保留")
+        } catch (_: IllegalArgumentException) {}
+        assertEquals("外部写入", text.readText())
+        val binary = File(root, "binary.dat").apply { writeBytes(byteArrayOf(0, 1, 2)) }
+        try {
+            WorkspaceFileActions.readEditableText(root, binary)
+            fail("二进制文件不可进入文本编辑器")
+        } catch (_: IllegalArgumentException) {}
+    }
 }

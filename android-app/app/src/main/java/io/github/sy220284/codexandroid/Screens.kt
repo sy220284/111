@@ -22,8 +22,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -101,6 +99,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val prompts by vm.bridge.prompts.collectAsState()
     val data by vm.data.collectAsState()
     val threads = records(data["threads"])
+    val homeLoading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     val connected = status == EngineStatus.Connected
     val connecting = status == EngineStatus.Starting
@@ -119,11 +118,11 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         MaterialPanel(Modifier.fillMaxWidth().testTag("home-task-hero")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
+                CodexIcon(
                     when {
-                        connected -> Icons.Outlined.CheckCircle
-                        connecting -> Icons.Outlined.Sync
-                        else -> Icons.Outlined.SyncProblem
+                        connected -> CodexGlyph.TaskComplete
+                        connecting -> CodexGlyph.Retry
+                        else -> CodexGlyph.SyncProblem
                     }, null,
                     tint = if (connected) Ink.jade else Ink.warning,
                     modifier = Modifier.size(20.dp)
@@ -153,11 +152,11 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     .testTag("home-primary-action"),
                 shape = RoundedCornerShape(17.dp)
             ) {
-                Icon(
+                CodexIcon(
                     when {
-                        !connected -> Icons.Outlined.Refresh
-                        running -> Icons.Outlined.PlayArrow
-                        else -> Icons.Outlined.Add
+                        !connected -> CodexGlyph.Retry
+                        running -> CodexGlyph.PlayArrow
+                        else -> CodexGlyph.Add
                     }, null)
                 Spacer(Modifier.width(9.dp))
                 Text(when {
@@ -184,7 +183,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
         val homeWorkspace by vm.activeWorkspace.collectAsState()
         MaterialPanel(Modifier.fillMaxWidth().testTag("home-project-context")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.FolderOpen, null, tint = Ink.jade,
+                CodexIcon(CodexGlyph.Project, null, tint = Ink.jade,
                     modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -201,7 +200,7 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         .testTag("home-shortcut-files")
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, null, modifier = Modifier.size(18.dp))
+                    CodexIcon(CodexGlyph.Project, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("浏览文件")
                 }
@@ -210,21 +209,26 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         .testTag("home-shortcut-terminal")
                 ) {
-                    Icon(Icons.Outlined.Terminal, null, modifier = Modifier.size(18.dp))
+                    CodexIcon(CodexGlyph.Terminal, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("打开终端")
                 }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("最近会话", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f))
-            TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+        if (data["threads"] != null) {
+            AtlasListHeading("最近会话", threads.size, suffix = "个会话", action = {
+                TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+            })
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("最近会话", style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = { navigate("threads") }) { Text("查看全部") }
+            }
         }
-        if (threads.isEmpty()) {
+        if (threads.isEmpty() && "threads" in homeLoading)
+            AtlasLoadingResults("正在读取最近会话", placeholderRows = 2)
+        else         if (threads.isEmpty()) {
             Text(
                 if (connected && data["threads"] != null)
                     "完成首个任务后，这里会出现最近的会话。"
@@ -243,9 +247,9 @@ private fun HomePage(vm: CodexViewModel, navigate: (String) -> Unit) {
 }
 
 @Composable
-private fun SmallStat(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
+private fun SmallStat(label: String, value: String, icon: CodexGlyph, modifier: Modifier) {
     MaterialPanel(modifier) {
-        Icon(icon, null, tint = Ink.copper)
+        CodexIcon(icon, null, tint = Ink.copper)
         Spacer(Modifier.height(16.dp))
         Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
         Text(label, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
@@ -260,7 +264,7 @@ internal fun ThreadRow(item: JSONObject, enabled: Boolean, onClick: () -> Unit) 
         shape = RoundedCornerShape(18.dp)
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Forum, null, tint = Ink.copper)
+            CodexIcon(CodexGlyph.Thread, null, tint = Ink.copper)
             Spacer(Modifier.width(13.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -273,7 +277,7 @@ internal fun ThreadRow(item: JSONObject, enabled: Boolean, onClick: () -> Unit) 
             if (!enabled) {
                 Text("执行中不可切换", color = Ink.muted,
                     style = MaterialTheme.typography.labelSmall)
-            } else Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted)
+            } else CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted)
         }
     }
 }
@@ -292,16 +296,7 @@ fun records(response: JSONObject?): List<JSONObject> {
 
 @Composable
 fun ErrorText(error: String) {
-    Surface(color = Ink.canvas, shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Ink.red.copy(alpha = .35f)),
-        modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.ErrorOutline, null, tint = Ink.red)
-            Spacer(Modifier.width(8.dp))
-            Text(PresentationPolicy.readableError(error), color = Ink.red,
-                style = MaterialTheme.typography.bodyMedium)
-        }
-    }
+    CodexNotice(PresentationPolicy.readableError(error), NoticeTone.Error)
 }
 
 @Composable
@@ -319,7 +314,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
         if (page.experimental) StatusPill("实验功能", tone = StatusTone.Neutral)
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(page.icon, null, tint = Ink.copper)
+                CodexIcon(page.icon, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
                 Text("当前状态", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
@@ -327,7 +322,7 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
                     onRefresh = { page.rpc?.let { vm.refresh(page.id, it) } },
                     label = "刷新${page.title}")
             }
-            if (page.id in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (page.id in loading) AtlasOperationProgress("正在读取${page.title}")
             errors[page.id]?.let { ErrorText(it) }
         }
         if (entries.isNotEmpty()) {
@@ -367,14 +362,9 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
         }
     }
     selectedDetail?.let { (title, description) ->
-        AlertDialog(
-            onDismissRequest = { selectedDetail = null },
-            title = { Text(title) },
-            text = { Text(description) },
-            confirmButton = {
-                TextButton(onClick = { selectedDetail = null }) { Text("关闭") }
-            }
-        )
+        CodexInfoDialog(title = title, onDismiss = { selectedDetail = null }) {
+            Text(description)
+        }
     }
 }
 
@@ -394,7 +384,7 @@ fun ThreadScopedPage(id: String, vm: CodexViewModel) {
             }
         } else {
             OutlinedButton(onClick = { vm.refresh(id, method, JSONObject().put("threadId", active)) }) {
-                Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text("读取当前会话")
+                CodexIcon(CodexGlyph.Retry, null); Spacer(Modifier.width(8.dp)); Text("读取当前会话")
             }
             errors[id]?.let { ErrorText(it) }
             payload[id]?.let { response ->

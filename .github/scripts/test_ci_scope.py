@@ -28,6 +28,20 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn('- ".github/workflows/build-android.yml"', contents)
         self.assertNotIn('--branch "${{ github.head_ref || github.ref_name }}"', contents)
 
+    def test_android_ui_changes_get_same_commit_full_arm64_candidate(self):
+        native = workflow("build-native-codex.yml")
+        pr_paths = native.split("  pull_request:", 1)[1].split("  workflow_dispatch:", 1)[0]
+        for path in ("android-app/app/**", "android-app/build.gradle.kts",
+                     "android-app/settings.gradle.kts", "android-app/gradle.properties",
+                     ".github/scripts/prepare-android-patcher.sh",
+                     ".github/scripts/create-android-update-fixture.sh",
+                     ".github/scripts/audit_apk_contents.py"):
+            with self.subTest(path=path):
+                self.assertIn(f'- "{path}"', pr_paths)
+        self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", native)
+        self.assertIn("needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success'", native)
+        self.assertIn('-f expected_sha="$PR_HEAD_SHA"', native)
+
     def test_android_build_and_ui_share_unit_test_gate(self):
         build = workflow("build-android.yml")
         ui = workflow("check-android-ui.yml")

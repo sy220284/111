@@ -16,13 +16,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,7 +51,9 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     val activeId by vm.activeThread.collectAsState()
     val bulkCompleted by vm.bulkCompletedThreadIds.collectAsState()
     val bulkSummary by vm.bulkActionSummary.collectAsState()
+    val organizationRevision by vm.threadOrganization.revision.collectAsState()
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
     var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
     var searchHistoryError by remember { mutableStateOf("") }
@@ -114,6 +116,8 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     LaunchedEffect(archived, searchTerm, cursor, selectedSection, fullText) {
         selectedIds = emptyList()
         selectionMode = false
+    }
+    LaunchedEffect(archived, searchTerm, cursor, selectedSection, fullText, organizationRevision) {
         if (!fullText) load(cursor)
     }
 
@@ -256,7 +260,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             showSectionEditor = true
                         }, enabled = "sectionEdit" !in loading
                     ) {
-                        Icon(Icons.Outlined.Add, null, modifier = Modifier.size(17.dp))
+                        CodexIcon(CodexGlyph.Add, null, modifier = Modifier.size(17.dp))
                         Text("新建分组")
                     }
                 }
@@ -338,6 +342,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             } else if (fullResultsReady && fullResults.isEmpty()) {
                 item {
                     CodexEmptyState("没有全文检索结果", "可以尝试仅搜索会话标题。",
+                        artworkRes = R.drawable.ic_empty_no_results,
                         actionLabel = "切换到标题搜索",
                         onAction = {
                             searchTerm = fullSubmitted
@@ -391,6 +396,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     if (searchTerm.isNotBlank()) "调整搜索词后重新查询。"
                     else if (archived) "会话归档后会出现在这里，并可恢复到活跃列表。"
                     else "开始新任务后，可以在这里继续、整理和归档。",
+                    artworkRes = if (searchTerm.isNotBlank()) R.drawable.ic_empty_no_results else R.drawable.ic_empty_content,
                     actionLabel = if (searchTerm.isNotBlank()) "清除搜索" else null,
                     onAction = {
                         searchText = ""; searchTerm = ""; cursor = null; history = emptyList()
@@ -431,12 +437,18 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             MaterialPanel(Modifier.fillMaxWidth()
                 .testTag("thread-library-row-" + id)
                 .combinedClickable(
-                    enabled = !busy && !switching && !firstThreadStarting && id.isNotBlank(),
-                    onClick = { if (selectionMode) toggleSelected(id) },
-                    onLongClick = {
+                    enabled = !busy && !switching && !firstThreadStarting && id.isNotBlank() &&
+                        (!selectionMode || canManage) && (!archived || canManage),
+                    onClick = {
+                        if (selectionMode) toggleSelected(id)
+                        else if (archived) menu = true
+                        else openThread(id)
+                    },
+                    onLongClick = if (canManage) ({
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         selectionMode = true
                         if (id !in selectedIds) selectedIds = selectedIds + id
-                    }
+                    }) else null
                 )) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (selectionMode) {
@@ -450,7 +462,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         color = Ink.canvas,
                         shape = RoundedCornerShape(13.dp)
                     ) {
-                        Icon(if (archived) Icons.Outlined.Inventory2 else Icons.Outlined.Forum,
+                        CodexIcon(if (archived) CodexGlyph.Archive else CodexGlyph.Thread,
                             null, tint = Ink.copper, modifier = Modifier.padding(10.dp))
                     }
                     Spacer(Modifier.width(12.dp))
@@ -463,7 +475,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     }
                     Box {
                         IconButton(onClick = { menu = true }, enabled = canManage && !selectionMode) {
-                            Icon(Icons.Outlined.MoreVert, "管理会话")
+                            CodexIcon(CodexGlyph.MoreVert, "管理会话")
                         }
                         if (menu) CodexActionSheet(
                             title = "管理会话",
@@ -471,7 +483,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             actions = buildList {
                                 add(CodexSheetAction(
                                     label = "修改名称",
-                                    icon = Icons.Outlined.Edit,
+                                    icon = CodexGlyph.Edit,
                                     description = "为当前会话设置便于查找的名称",
                                     onClick = {
                                         rename = thread
@@ -480,20 +492,20 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                                 ))
                                 add(CodexSheetAction(
                                     label = if (archived) "从归档恢复" else "移入归档",
-                                    icon = if (archived) Icons.Outlined.Unarchive
-                                        else Icons.Outlined.Archive,
+                                    icon = if (archived) CodexGlyph.Unarchive
+                                        else CodexGlyph.Archive,
                                     onClick = {
                                         action = (if (archived) "unarchive" else "archive") to thread
                                     }
                                 ))
                                 if (!archived) add(CodexSheetAction(
                                     label = "移至分组",
-                                    icon = Icons.Outlined.Folder,
+                                    icon = CodexGlyph.Folder,
                                     onClick = { threadToMove = thread }
                                 ))
                                 add(CodexSheetAction(
                                     label = "永久删除",
-                                    icon = Icons.Outlined.DeleteOutline,
+                                    icon = CodexGlyph.DeleteOutline,
                                     description = "永久删除前会要求确认",
                                     destructive = true,
                                     onClick = { action = "delete" to thread }
@@ -514,7 +526,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     OutlinedButton(onClick = { action = "unarchive" to thread },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = canManage) {
-                        Icon(Icons.Outlined.Unarchive, null)
+                        CodexIcon(CodexGlyph.Unarchive, null)
                         Spacer(Modifier.width(7.dp))
                         Text("恢复会话")
                     }
@@ -522,7 +534,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     OutlinedButton(onClick = { openThread(id) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = !firstThreadStarting && !switching && id.isNotBlank()) {
-                        Icon(Icons.Outlined.PlayArrow, null)
+                        CodexIcon(CodexGlyph.PlayArrow, null)
                         Spacer(Modifier.width(7.dp))
                         Text("继续会话")
                     }
@@ -545,7 +557,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     }, enabled = nextCursor != null && key !in loading,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Text("下一页")
-                        Icon(Icons.Outlined.ChevronRight, null)
+                        CodexIcon(CodexGlyph.ChevronRight, null)
                     }
                 }
             }
@@ -603,7 +615,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
         )
     }
     if (showSectionEditor) {
-        AlertDialog(
+        CodexDialogFrame(
             onDismissRequest = { showSectionEditor = false },
             title = { Text(if (editingSection) "重命名分组" else "新建会话分组") },
             text = {
@@ -678,7 +690,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
     }
     rename?.let { thread ->
         val id = thread.optString("id")
-        AlertDialog(
+        CodexDialogFrame(
             onDismissRequest = { rename = null },
             containerColor = Ink.elevated,
             title = { Text("重命名会话") },

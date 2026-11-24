@@ -9,12 +9,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,7 +57,7 @@ fun CollaborationModesPage(vm: CodexViewModel) {
             val canSelect = ModeSelectionPolicy.maySelect(id, planSupported, running, refreshing)
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (id == "plan") Icons.Outlined.Assignment else Icons.Outlined.Build,
+                    CodexIcon(if (id == "plan") CodexGlyph.Assignment else CodexGlyph.Build,
                         null, tint = Ink.copper)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -97,6 +96,9 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val context = LocalContext.current
     val data by vm.data.collectAsState()
     val apps = records(data["apps"])
+    var appQuery by remember { mutableStateOf("") }
+    val visibleApps = apps.filter { it.optString("name", it.optString("id"))
+        .contains(appQuery.trim(), ignoreCase = true) }
     val installed = data["appInstalled"]?.optJSONArray("apps")
     var target by remember { mutableStateOf<JSONObject?>(null) }
     var inspecting by remember { mutableStateOf<JSONObject?>(null) }
@@ -122,37 +124,30 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
                 vm.refresh("appInstalled", "app/installed")
             }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Refresh, null)
+                CodexIcon(CodexGlyph.Retry, null)
                 Spacer(Modifier.width(6.dp))
                 Text("刷新")
             }
         }
-        ProtocolFeedback(vm, listOf("apps", "appInstalled"), onRetry = {
-            vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
+        AtlasCatalogStatus(vm, "apps", "应用", onRefresh = {
+            vm.refresh("apps", "app/list", JSONObject().put("limit", 100).put("forceRefetch", true))
+            vm.refresh("appInstalled", "app/installed")
+        }, onDiagnostics = { navigate("diagnostics") })
+        if (data["apps"] != null) ProtocolFeedback(vm, listOf("appInstalled"), onRetry = {
             vm.refresh("appInstalled", "app/installed")
         })
-        if (engineStatus != EngineStatus.Connected && data["apps"] == null) {
-            CodexRecoveryState("连接后可查看应用",
-                "连接运行核心后会显示真实的应用授权与可用状态。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") })
-        } else if (engineStatus == EngineStatus.Connected &&
-            data["apps"] == null && "apps" !in loading && errors["apps"] != null) {
-            CodexRecoveryState("读取应用失败",
-                "当前应用目录未返回有效结果，可重新读取或查看诊断。",
-                "重新读取", {
-                    vm.refresh("apps", "app/list", JSONObject().put("limit", 100))
-                    vm.refresh("appInstalled", "app/installed")
-                }, { navigate("diagnostics") })
+        if (apps.isEmpty() && data["apps"] != null && "apps" !in loading && errors["apps"] == null) {
+            CodexEmptyState("尚未发现可用应用", "检查登录状态，或进入插件管理查看可用的扩展。",
+                actionLabel = "前往插件管理", onAction = { navigate("plugins") })
         }
-        if (apps.isEmpty() && data["apps"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("尚未发现可用应用", style = MaterialTheme.typography.titleMedium)
-            Text("检查登录状态，或进入插件管理查看可用的扩展。",
-                color = Ink.muted)
-            OutlinedButton(onClick = { navigate("plugins") }) {
-                Text("前往插件管理")
-            }
+        if (apps.isNotEmpty()) {
+            AtlasSearchField(appQuery, { appQuery = it }, "搜索应用", onClear = { appQuery = "" },
+                modifier = Modifier.testTag("apps-search"))
+            AtlasListHeading("应用列表", visibleApps.size, suffix = "个匹配项")
+            if (visibleApps.isEmpty()) CodexEmptyState("没有匹配的应用", "修改搜索词查看其他应用。",
+                actionLabel = "清除搜索", onAction = { appQuery = "" })
         }
-        apps.forEach { app ->
+        visibleApps.forEach { app ->
             val id = app.optString("id")
             val active = (0 until (installed?.length() ?: 0)).mapNotNull { installed?.optJSONObject(it) }
                 .firstOrNull { it.optString("id") == id }
@@ -174,7 +169,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 ) {
                     Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
                         border = BorderStroke(1.dp, Ink.copperDim)) {
-                        Icon(Icons.Outlined.Apps, null, tint = Ink.copper,
+                        CodexIcon(CodexGlyph.Apps, null, tint = Ink.copper,
                             modifier = Modifier.padding(12.dp).size(22.dp))
                     }
                     Spacer(Modifier.width(12.dp))
@@ -183,7 +178,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                     StatusPill(appStatus, callable)
                     Spacer(Modifier.width(7.dp))
-                    Icon(Icons.Outlined.ChevronRight, contentDescription = "查看应用详情",
+                    CodexIcon(CodexGlyph.ChevronRight, contentDescription = "查看应用详情",
                         tint = Ink.muted)
                 }
             }
@@ -205,41 +200,29 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             active?.optBoolean("enabled") == true -> "等待工具就绪"
             else -> "尚未连接"
         }
-        ModalBottomSheet(
-            onDismissRequest = { inspecting = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Ink.recessed, contentColor = Ink.parchment
-        ) {
-            Column(
-                Modifier.fillMaxWidth().navigationBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(name, style = MaterialTheme.typography.headlineSmall)
-                StatusPill(appStatus, appStatus == "已连接")
-                Text("应用说明", style = MaterialTheme.typography.titleMedium)
-                Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
-                if (installUrl.startsWith("https://")) {
-                    OutlinedButton(
-                        onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
-                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    ) {
-                        Icon(Icons.Outlined.OpenInNew, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("管理应用授权")
-                    }
+        CodexDetailSheet(title = name, onDismiss = { inspecting = null }) {
+            StatusPill(appStatus, appStatus == "已连接")
+            Text("应用说明", style = MaterialTheme.typography.titleMedium)
+            Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
+            if (installUrl.startsWith("https://")) {
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(installUrl)))
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) {
+                    CodexIcon(CodexGlyph.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("管理应用授权")
                 }
-                if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
-                    OutlinedButton(
-                        onClick = {
-                            desired = !enabled
-                            target = app
-                            inspecting = null
-                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    ) { Text(if (enabled) "停用应用" else "启用应用") }
-                }
+            }
+            if (id.matches(Regex("[A-Za-z0-9_-]+"))) {
+                OutlinedButton(
+                    onClick = {
+                        desired = !enabled
+                        target = app
+                        inspecting = null
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) { Text(if (enabled) "停用应用" else "启用应用") }
             }
         }
     }
@@ -272,6 +255,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val loading by vm.loading.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
     val engineStatus by vm.bridge.status.collectAsState()
+    val errors by vm.errors.collectAsState()
     val usable = McpAvailableServices.visible(records(data["mcp"]))
 
     LaunchedEffect(activeThread, engineStatus) {
@@ -295,18 +279,23 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             if (engineStatus != EngineStatus.Connected) {
                 CodexRecoveryState("连接后可查看 MCP 服务",
                     "由智能体管理服务，连接成功的可用服务才会显示。",
-                    "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                    "重新连接", { vm.connect() }, { navigate("diagnostics") },
+                    artworkRes = R.drawable.ic_empty_connection)
+            } else if (errors["mcp"] != null || errors["mcpReload"] != null) {
+                CodexRecoveryState("MCP 目录读取失败",
+                    "暂未取得有效的服务目录，可以重新读取或查看诊断。",
+                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") })
             } else if (data["mcp"] != null) {
                 CodexEmptyState(
                     "暂无可用 MCP 服务",
                     "在任务对话中要求智能体接入 MCP 服务，连通后会自动显示。",
-                    icon = Icons.Outlined.Hub,
+                    icon = CodexGlyph.Hub,
                     actionLabel = "刷新服务", onAction = { vm.refreshMcpServices() }
                 )
             } else {
                 CodexRecoveryState("MCP 目录尚未读取",
                     "连接成功后可以重新检查服务目录。",
-                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") })
+                    "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_content)
             }
         }
         usable.forEach { McpServiceStatusCard(it) }
@@ -332,7 +321,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
             Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { details = true },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.Hub, null, tint = Ink.copper)
+            CodexIcon(CodexGlyph.Hub, null, tint = Ink.copper)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(McpAvailableServices.displayName(server),
@@ -344,7 +333,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
             }
             StatusPill("可用", true)
             Spacer(Modifier.width(4.dp))
-            Icon(Icons.Outlined.ChevronRight,
+            CodexIcon(CodexGlyph.ChevronRight,
                 contentDescription = "查看服务详情", tint = Ink.muted)
         }
     }

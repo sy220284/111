@@ -981,15 +981,15 @@
   "implementationEquivalents": {
     "fs/readFile": {
       "kind": "local",
-      "source": "DeveloperScreens.kt",
-      "evidence": "file.readText()",
-      "reason": "工作区文件编辑器直接读取本机文件"
+      "source": "WorkspaceFileEditor.kt",
+      "evidence": "WorkspaceFileActions.readEditableText(root, file)",
+      "reason": "全屏编辑器通过工作区路径校验及严格 UTF-8 读取真实本地文件，读取在 IO 线程执行"
     },
     "fs/writeFile": {
       "kind": "local",
-      "source": "WorkspaceFileActions.kt",
-      "evidence": "fun saveText(",
-      "reason": "工作区采用原子保存及路径限制"
+      "source": "WorkspaceFileEditor.kt",
+      "evidence": "WorkspaceFileActions.saveEditableText(root, file, expected, submitted)",
+      "reason": "保存前核对读取基线，沿用路径限制及原子替换；冲突时保留草稿"
     },
     "fs/createDirectory": {
       "kind": "local",

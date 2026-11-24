@@ -15,6 +15,15 @@ on:
       - "android-app/tools/build_android_git.sh"
   pull_request:
     paths:
+      # UI-only PRs must also have a complete ARM64 device candidate before merge.
+      # The reuse job checks binary inputs, so Compose changes do not rebuild Rust.
+      - "android-app/app/**"
+      - "android-app/build.gradle.kts"
+      - "android-app/settings.gradle.kts"
+      - "android-app/gradle.properties"
+      - ".github/scripts/prepare-android-patcher.sh"
+      - ".github/scripts/create-android-update-fixture.sh"
+      - ".github/scripts/audit_apk_contents.py"
       - ".github/workflows/build-native-codex.yml"
       # Packaging workflow changes must also run a real PR ARM64 APK build.
       - ".github/workflows/build-android.yml"
@@ -263,6 +272,7 @@ jobs:
     needs: [reuse, native]
     if: >-
       always() && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       needs.reuse.result == 'success' &&
       (needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success')
     runs-on: ubuntu-latest

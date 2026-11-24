@@ -3,11 +3,9 @@ package io.github.sy220284.codexandroid
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +46,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
 
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+            CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("MCP 服务请求用户操作", style = MaterialTheme.typography.titleMedium)
@@ -72,29 +70,25 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                 }
                 when (type) {
-                    "boolean" -> Row(Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = answers[name] == "true",
+                    "boolean" -> Column(Modifier.selectableGroup(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AtlasChoiceRow("允许", "", selected = answers[name] == "true",
                             onClick = { answers[name] = "true" },
                             modifier = Modifier.testTag("elicitation-allow-" + name))
-                        Text("允许", color = Ink.muted)
-                        Spacer(Modifier.width(16.dp))
-                        RadioButton(selected = answers[name] == "false",
+                        AtlasChoiceRow("不允许", "", selected = answers[name] == "false",
                             onClick = { answers[name] = "false" },
                             modifier = Modifier.testTag("elicitation-deny-" + name))
-                        Text("不允许", color = Ink.muted)
                     }
                     "string" -> {
                         val options = field.optJSONArray("enum")
                         if (options != null) {
-                            for (index in 0 until options.length()) {
-                                val value = options.optString(index)
-                                Row(Modifier.fillMaxWidth().clickable { answers[name] = value },
-                                    verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = answers[name] == value, onClick = {
-                                        answers[name] = value
-                                    })
-                                    Text(value)
+                            Column(Modifier.selectableGroup(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                for (index in 0 until options.length()) {
+                                    val value = options.optString(index)
+                                    AtlasChoiceRow(value, "", selected = answers[name] == value,
+                                        onClick = { answers[name] = value },
+                                        modifier = Modifier.testTag("elicitation-option-" + name + "-" + index))
                                 }
                             }
                         } else {
@@ -167,7 +161,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             Text("请在浏览器完成外部服务验证，返回后再确认。", color = Ink.muted)
             if (link.startsWith("https://") || link.startsWith("http://127.0.0.1:")) {
                 OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }) {
-                    Icon(Icons.Outlined.OpenInBrowser, null); Text("打开授权页面")
+                    CodexIcon(CodexGlyph.OpenInNew, null); Text("打开授权页面")
                 }
             } else ErrorText("服务端提供了不安全的跳转地址")
         } else {
@@ -176,23 +170,25 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             Text("请确认请求来源，或联系服务提供方检查授权方式。",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(
-                onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) },
-                modifier = Modifier.heightIn(min = 48.dp)
-            ) { Text("稍后处理") }
-            CodexSecondaryButton(
-                onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) }
-            ) { Text("拒绝请求") }
-            if (isForm || urlReady) {
-                CodexPrimaryButton(onClick = { confirmation = true },
-                    enabled = canSubmit,
-                    modifier = Modifier.testTag("elicitation-submit")
+        AtlasApprovalActions(
+            primary = if (isForm || urlReady) { modifier ->
+                CodexPrimaryButton(onClick = { confirmation = true }, enabled = canSubmit,
+                    modifier = modifier.testTag("elicitation-submit")
                         .explainDisabled(!canSubmit, "请填写必填项目并检查格式")) {
                     Text("核对并提交")
                 }
+            } else null,
+            secondary = { modifier ->
+                CodexSecondaryButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Decline) },
+                    modifier = modifier.testTag("elicitation-decline")) { Text("拒绝请求") }
+            },
+            tertiary = { modifier ->
+                TextButton(onClick = { vm.answerApproval(prompt, ApprovalAction.Cancel) },
+                    modifier = modifier.heightIn(min = 48.dp).testTag("elicitation-cancel")) {
+                    Text("取消请求")
+                }
             }
-        }
+        )
         if (isForm && !formValid) {
             Text("填写完整并核对格式后，即可提交。",
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)

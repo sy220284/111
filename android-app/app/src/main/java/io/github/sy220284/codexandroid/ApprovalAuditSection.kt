@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -32,8 +30,8 @@ internal fun ApprovalAuditSection(
                 modifier = Modifier.heightIn(min = 48.dp).testTag("approval-audit-toggle")
             ) {
                 Text(if (expanded) "收起" else "查看 ${records.size} 条")
-                Icon(if (expanded) Icons.Outlined.ExpandLess
-                    else Icons.Outlined.ExpandMore, contentDescription = null)
+                CodexIcon(if (expanded) CodexGlyph.ExpandLess
+                    else CodexGlyph.ExpandMore, contentDescription = null)
             }
         }
         if (expanded) {

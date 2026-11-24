@@ -7,14 +7,12 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,7 +22,7 @@ import androidx.compose.ui.unit.dp
 fun WelcomeActionCard(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: CodexGlyph,
     tone: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -49,7 +47,7 @@ fun WelcomeActionCard(
                 color = Ink.canvas,
                 border = BorderStroke(1.dp, tone.copy(alpha = .33f))) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = tone,
+                    CodexIcon(icon, contentDescription = null, tint = tone,
                         modifier = Modifier.size(21.dp))
                 }
             }
@@ -59,4 +57,18 @@ fun WelcomeActionCard(
                 style = MaterialTheme.typography.labelMedium)
         }
     }
+}
+
+/** Contextual first-use action: no wizard, fake login status or inaccessible overlay. */
+@Composable
+internal fun ChatSetupGuide(hint: ChatSetupHint?, onNavigate: (String) -> Unit) {
+    if (hint == null) return
+    AtlasSettingsActionRow(
+        title = if (hint == ChatSetupHint.Authorize) "完成服务商授权" else "查看模型配置",
+        detail = if (hint == ChatSetupHint.Authorize) "登录账号，或选择其他服务商"
+            else "当前未返回可用模型",
+        icon = if (hint == ChatSetupHint.Authorize) CodexGlyph.AccountCircle else CodexGlyph.Memory,
+        onClick = { onNavigate(hint.route) },
+        modifier = Modifier.testTag("chat-setup-" + hint.route)
+    )
 }

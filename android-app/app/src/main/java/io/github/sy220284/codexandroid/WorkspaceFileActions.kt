@@ -131,6 +131,43 @@ object WorkspaceFileActions {
         }
     }
 
+    private const val EDITABLE_BYTES = 1_000_000
+
+    /** Strict UTF-8 decoding avoids accidentally treating binary files as editable text. */
+    fun readEditableText(root: File, file: File): String {
+        val validated = source(root, file)
+        require(validated.isFile) { "目标不是可编辑文件" }
+        require(validated.length() <= EDITABLE_BYTES) { "文件超过 1 MB，请通过专用工具处理" }
+        val bytes = validated.inputStream().use { input ->
+            val output = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                require(output.size() + count <= EDITABLE_BYTES) { "文件超过 1 MB，请通过专用工具处理" }
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray()
+        }
+        val content = try {
+            Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        } catch (_: java.nio.charset.CharacterCodingException) {
+            throw IllegalArgumentException("文件不是有效的 UTF-8 文本，请通过专用工具打开")
+        }
+        require(!content.contains('\u0000')) { "文件包含二进制数据，请通过专用工具打开" }
+        return content
+    }
+
+    /** Keep the user's draft and refuse to overwrite an externally changed file. */
+    fun saveEditableText(root: File, file: File, expected: String, draft: String) {
+        require(draft.toByteArray(Charsets.UTF_8).size <= EDITABLE_BYTES) { "编辑内容超过 1 MB" }
+        require(!draft.contains('\u0000')) { "编辑内容包含无效字符" }
+        require(readEditableText(root, file) == expected) {
+            "文件已被其他操作修改，草稿仍保留。请复制草稿并重新打开文件后合并修改"
+        }
+        saveText(root, file, draft)
+    }
+
     /** A save either replaces the full file or keeps the original byte-for-byte. */
     fun saveText(root: File, file: File, text: String) {
         val validated = source(root, file)

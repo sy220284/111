@@ -10,8 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -115,6 +113,8 @@ fun WorkspacePage(vm: CodexViewModel) {
                 .thenBy { it.name.lowercase() }) ?: emptyList()
     }
 
+    var fileQuery by remember(folder) { mutableStateOf("") }
+    val visibleChildren = children.filter { it.name.contains(fileQuery.trim(), ignoreCase = true) }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -122,7 +122,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     ) {
         item(key = "workspace-path") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.FolderOpen, null, tint = Ink.jade, modifier = Modifier.size(22.dp))
+                CodexIcon(CodexGlyph.Project, null, tint = Ink.jade, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("当前目录", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
@@ -138,11 +138,11 @@ fun WorkspacePage(vm: CodexViewModel) {
                     }
                 }, enabled = folder != root,
                     modifier = Modifier.testTag("workspace-parent")) {
-                    Icon(Icons.Outlined.ArrowBack, "上一级")
+                    CodexIcon(CodexGlyph.ArrowBack, "上一级")
                 }
                 IconButton(onClick = { picker.launch(arrayOf("*/*")) },
                     enabled = !actionBusy, modifier = Modifier.testTag("workspace-import")) {
-                    Icon(Icons.Outlined.FileUpload, "导入")
+                    CodexIcon(CodexGlyph.FileUpload, "导入")
                 }
             }
         }
@@ -165,7 +165,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
                 IconButton(onClick = { showProjectManager = true },
                     modifier = Modifier.testTag("workspace-project-management")) {
-                    Icon(Icons.Outlined.AccountTree, "管理项目")
+                    CodexIcon(CodexGlyph.AccountTree, "管理项目")
                 }
             }
         }
@@ -182,7 +182,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("workspace-create-toggle")
             ) {
-                Icon(Icons.Outlined.Add, null)
+                CodexIcon(CodexGlyph.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("新建文件或文件夹")
             }
@@ -194,11 +194,11 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     FilterChip(selected = createKind == "file",
                         onClick = { createKind = "file" }, label = { Text("文本文件") },
-                        leadingIcon = { Icon(Icons.Outlined.Description, null) })
+                        leadingIcon = { CodexIcon(CodexGlyph.Description, null) })
                     FilterChip(selected = createKind == "folder",
                         onClick = { createKind = "folder" }, label = { Text("文件夹") },
                         modifier = Modifier.testTag("workspace-folder-mode"),
-                        leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) })
+                        leadingIcon = { CodexIcon(CodexGlyph.CreateNewFolder, null) })
                 }
                 OutlinedTextField(createName, { createName = it },
                     label = { Text(if (createKind == "file") "文件名（如 README.md）" else "文件夹名称") },
@@ -220,7 +220,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }, enabled = createName.isNotBlank() && !actionBusy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("workspace-create")) {
-                    Icon(Icons.Outlined.Add, null)
+                    CodexIcon(CodexGlyph.Add, null)
                     Spacer(Modifier.width(7.dp))
                     Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
@@ -230,31 +230,42 @@ fun WorkspacePage(vm: CodexViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("目录内容", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))
-                Text("${children.size} 项", style = MaterialTheme.typography.labelMedium,
+                Text(if (fileQuery.isBlank()) "${children.size} 项" else "${visibleChildren.size} / ${children.size} 项", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
         }
+        if (children.isNotEmpty()) item(key = "workspace-search") {
+            AtlasSearchField(fileQuery, { fileQuery = it }, "搜索当前目录",
+                onClear = { fileQuery = "" }, modifier = Modifier.testTag("workspace-file-search"))
+        }
+        if (children.isNotEmpty() && visibleChildren.isEmpty()) item {
+            CodexEmptyState("没有匹配的文件", "试试其他文件名。",
+                actionLabel = "清除搜索", onAction = { fileQuery = "" })
+        }
         if (children.isEmpty()) item {
             CodexEmptyState("这个目录还没有内容", "可导入 ZIP 工程，也可以新建文件夹开始。",
-                icon = Icons.Outlined.FolderOpen)
+                icon = CodexGlyph.Project)
         }
-        items(children, key = { it.absolutePath }) { file ->
+        items(visibleChildren, key = { it.absolutePath }) { file ->
             var optionsOpen by remember(file.path) { mutableStateOf(false) }
             Surface(
                 color = Ink.panel,
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
-                modifier = Modifier.fillMaxWidth().clickable {
-                    val safe = file.canonicalFile
-                    if (safe.path.startsWith(root.path + File.separator)) {
-                        if (safe.isDirectory) folder = safe else focus = safe
-                    } else notice = "已阻止打开工作区以外的文件链接"
-                }
+                modifier = Modifier.fillMaxWidth().combinedClickable(
+                    onLongClick = { if (!actionBusy) optionsOpen = true },
+                    onClick = {
+                        val safe = file.canonicalFile
+                        if (safe.path.startsWith(root.path + File.separator)) {
+                            if (safe.isDirectory) folder = safe else focus = safe
+                        } else notice = "已阻止打开工作区以外的文件链接"
+                    }
+                )
             ) {
                 Row(Modifier.padding(start = 14.dp, end = 5.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (file.isDirectory) Icons.Outlined.Folder
-                        else Icons.Outlined.Description,
+                    CodexIcon(if (file.isDirectory) CodexGlyph.Folder
+                        else CodexGlyph.Description,
                         contentDescription = null, tint = Ink.copper,
                         modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(11.dp))
@@ -268,7 +279,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         IconButton(onClick = { optionsOpen = true },
                             enabled = !actionBusy,
                             modifier = Modifier.testTag("workspace-menu-" + file.name)) {
-                            Icon(Icons.Outlined.MoreVert, "管理 " + file.name)
+                            CodexIcon(CodexGlyph.MoreVert, "管理 " + file.name)
                         }
                         if (optionsOpen) CodexActionSheet(
                             title = "管理 " + file.name,
@@ -277,7 +288,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                                 CodexSheetAction(
                                     label = "重命名",
                                     description = "更改当前文件或文件夹的名称",
-                                    icon = Icons.Outlined.Edit,
+                                    icon = CodexGlyph.Edit,
                                     onClick = {
                                         renameName = file.name
                                         fileAction = "rename" to file
@@ -286,7 +297,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                                 CodexSheetAction(
                                     label = "复制",
                                     description = "在当前目录建立一份副本",
-                                    icon = Icons.Outlined.ContentCopy,
+                                    icon = CodexGlyph.ContentCopy,
                                     onClick = {
                                         copyName = if (file.isDirectory) file.name + "-副本"
                                             else file.nameWithoutExtension + "-副本" +
@@ -297,7 +308,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                                 CodexSheetAction(
                                     label = "删除",
                                     description = "删除前将再次确认目标",
-                                    icon = Icons.Outlined.DeleteOutline,
+                                    icon = CodexGlyph.DeleteOutline,
                                     onClick = { fileAction = "delete" to file },
                                     destructive = true
                                 )
@@ -336,7 +347,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     fileAction?.let { (kind, target) ->
         if (kind == "rename") {
-            AlertDialog(
+            CodexDialogFrame(
                 onDismissRequest = { fileAction = null },
                 title = { Text("重命名") },
                 containerColor = Ink.elevated,
@@ -374,7 +385,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }
             )
         } else if (kind == "copy") {
-            AlertDialog(
+            CodexDialogFrame(
                 onDismissRequest = { fileAction = null },
                 title = { Text("复制到当前目录") },
                 containerColor = Ink.elevated,
@@ -448,39 +459,6 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
 
-}
-
-@Composable
-private fun FileEditor(file: File, root: File, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
-    val scope = rememberCoroutineScope()
-    var content by remember(file.path) { mutableStateOf(if (file.length() <= 1_000_000L) file.readText() else "") }
-    var message by remember { mutableStateOf("") }
-    val editable = file.length() <= 1_000_000L
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "返回文件列表") }
-            Column(Modifier.weight(1f)) {
-                Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                Text("本地文件编辑", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            }
-            OutlinedButton(onClick = {
-                scope.launch {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            require(file.canonicalPath.startsWith(root.path + File.separator)) { "编辑路径超出工作区" }
-                            WorkspaceFileActions.saveText(root, file, content)
-                        }
-                        message = "已保存到工作区"
-                    } catch (failure: Exception) { message = failure.message ?: "保存失败" }
-                }
-            }, enabled = editable) { Icon(Icons.Outlined.Save, null); Text("保存") }
-        }
-        if (message.isNotEmpty()) Text(message, color = Ink.jade)
-        if (!editable) Text("文件超过 1 MB，请通过专用工具处理。", color = Ink.red)
-        OutlinedTextField(content, { content = it }, modifier = Modifier.fillMaxSize(),
-            enabled = editable, textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
-    }
 }
 
 @Composable

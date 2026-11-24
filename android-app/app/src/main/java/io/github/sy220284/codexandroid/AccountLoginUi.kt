@@ -7,13 +7,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -42,6 +39,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val payload = data["account"]
     val identity = payload?.optJSONObject("account")
     val connected = identity != null
+    val accountSetup = ChatSetupPolicy.accountState(payload)
     val name = identity?.optString("email").orEmpty().ifBlank { "已连接的 Codex 账号" }
     val authMode = identity?.optString("type").orEmpty().ifBlank {
         payload?.optString("authMode").orEmpty()
@@ -66,7 +64,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         SectionIntro("账号与身份")
 
         if (!connected && !pending) {
-            Text("选择登录方式", style = MaterialTheme.typography.titleMedium)
+            Text(if (accountSetup == AccountSetupState.Optional) "可选登录方式" else "选择登录方式",
+                style = MaterialTheme.typography.titleMedium)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val wide = maxWidth >= 600.dp
                 if (wide) {
@@ -74,7 +73,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         AuthMethodTile(
                             "设备码登录",
                             "复制一次性代码，在浏览器确认",
-                            Icons.Outlined.PhoneAndroid,
+                            CodexGlyph.PhoneAndroid,
                             enabled = !loginBusy,
                             emphasized = true,
                             onClick = vm::startDeviceLogin,
@@ -83,7 +82,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         AuthMethodTile(
                             "浏览器登录",
                             "通过浏览器完成 ChatGPT 授权",
-                            Icons.Outlined.OpenInBrowser,
+                            CodexGlyph.OpenInNew,
                             enabled = !loginBusy,
                             emphasized = false,
                             onClick = vm::startLogin,
@@ -95,7 +94,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         AuthMethodTile(
                             "设备码登录",
                             "复制一次性代码，在浏览器确认",
-                            Icons.Outlined.PhoneAndroid,
+                            CodexGlyph.PhoneAndroid,
                             enabled = !loginBusy,
                             emphasized = true,
                             onClick = vm::startDeviceLogin,
@@ -104,7 +103,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         AuthMethodTile(
                             "浏览器登录",
                             "通过浏览器完成 ChatGPT 授权",
-                            Icons.Outlined.OpenInBrowser,
+                            CodexGlyph.OpenInNew,
                             enabled = !loginBusy,
                             emphasized = false,
                             onClick = vm::startLogin,
@@ -129,8 +128,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         border = BorderStroke(1.dp,
                             if (connected) Ink.jade.copy(alpha = .35f) else Ink.border)
                     ) {
-                        Icon(
-                            if (connected) Icons.Outlined.VerifiedUser else Icons.Outlined.AccountCircle,
+                        CodexIcon(
+                            if (connected) CodexGlyph.Security else CodexGlyph.AccountCircle,
                             contentDescription = null,
                             tint = if (connected) Ink.jade else Ink.copper,
                             modifier = Modifier.padding(10.dp).size(21.dp)
@@ -139,8 +138,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text("账号状态", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                         Text(
-                            if (connected) name else if (payload == null) "尚未读取账号"
-                                else "尚未登录",
+                            when (accountSetup) {
+                                AccountSetupState.Authorized -> name
+                                AccountSetupState.Optional -> "当前服务商无需 OpenAI 登录"
+                                AccountSetupState.Required -> "尚未登录"
+                                AccountSetupState.Unknown -> "尚未确认账号状态"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
@@ -152,7 +155,12 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             if (connected) Ink.jade.copy(alpha = .33f) else Ink.border)
                     ) {
                         Text(
-                            if (connected) "已连接" else "未连接",
+                            when (accountSetup) {
+                                AccountSetupState.Authorized -> "已连接"
+                                AccountSetupState.Optional -> "可选登录"
+                                AccountSetupState.Required -> "待授权"
+                                AccountSetupState.Unknown -> "待确认"
+                            },
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelMedium,
                             color = if (connected) Ink.jade else Ink.muted
@@ -174,7 +182,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         enabled = !loading.contains("account"),
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                     ) {
-                        Icon(Icons.Outlined.Refresh, null, modifier = Modifier.size(18.dp))
+                        CodexIcon(CodexGlyph.Retry, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("刷新账号状态", maxLines = 1)
                     }
@@ -195,27 +203,25 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = { showSessions = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.SupervisorAccount, null, modifier = Modifier.size(19.dp))
+                CodexIcon(CodexGlyph.PeopleOutline, null, modifier = Modifier.size(19.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("账号与工作区切换（实验）")
             }
             OutlinedButton(onClick = { navigate("usage") },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("account-usage-limits")) {
-                Icon(Icons.Outlined.Insights, null, modifier = Modifier.size(18.dp))
+                CodexIcon(CodexGlyph.Insights, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("查看用量与额度", modifier = Modifier.weight(1f))
-                Icon(Icons.Outlined.ChevronRight, null, modifier = Modifier.size(18.dp))
+                CodexIcon(CodexGlyph.ChevronRight, null, modifier = Modifier.size(18.dp))
             }
-            TextButton(onClick = { navigate("providers") }) {
-                Text("管理模型服务商")
-                Icon(Icons.Outlined.ChevronRight, null)
-            }
+            AtlasSettingsActionRow("管理模型服务商", "配置可用模型与连接方式",
+                CodexGlyph.Settings, onClick = { navigate("providers") })
         }
         errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
 
         CodexReveal(visible = loginBusy) {
-            CodexNotice(
+            AtlasOperationProgress(
                 if (pending) "正在处理授权操作…" else "正在向 Codex 核心请求授权信息…"
             )
         }
@@ -225,7 +231,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Icon(Icons.Outlined.Security, null, tint = Ink.copper,
+                        CodexIcon(CodexGlyph.Security, null, tint = Ink.copper,
                             modifier = Modifier.size(22.dp))
                         Column(Modifier.weight(1f)) {
                             Text("授权进行中", style = MaterialTheme.typography.titleMedium)
@@ -269,8 +275,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     },
                                     modifier = Modifier.heightIn(min = 48.dp)
                                 ) {
-                                    Icon(
-                                        if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
+                                    CodexIcon(
+                                        if (copied) CodexGlyph.Check else CodexGlyph.ContentCopy,
                                         contentDescription = null,
                                         modifier = Modifier.size(19.dp)
                                     )
@@ -287,7 +293,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             enabled = !loginBusy
                         ) {
-                            Icon(Icons.Outlined.OpenInBrowser, null,
+                            CodexIcon(CodexGlyph.OpenInNew, null,
                                 modifier = Modifier.size(19.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("打开验证码授权页")
@@ -301,7 +307,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                             enabled = !loginBusy
                         ) {
-                            Icon(Icons.Outlined.OpenInBrowser, null,
+                            CodexIcon(CodexGlyph.OpenInNew, null,
                                 modifier = Modifier.size(19.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("在浏览器继续授权")
@@ -330,7 +336,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
         OutlinedButton(onClick = { navigate("security") },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Icon(Icons.Outlined.Security, null)
+            CodexIcon(CodexGlyph.Security, null)
             Spacer(Modifier.width(8.dp))
             Text("查看账号授权与安全设置")
         }
@@ -355,7 +361,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 private fun AuthMethodTile(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: CodexGlyph,
     enabled: Boolean,
     emphasized: Boolean,
     onClick: () -> Unit,
@@ -378,7 +384,7 @@ private fun AuthMethodTile(
             Surface(
                 color = Ink.elevated, shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(icon, null, tint = Ink.copper,
+                CodexIcon(icon, null, tint = Ink.copper,
                     modifier = Modifier.padding(10.dp).size(21.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -388,7 +394,7 @@ private fun AuthMethodTile(
                     style = MaterialTheme.typography.labelMedium, maxLines = 2,
                     overflow = TextOverflow.Ellipsis)
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = Ink.muted,
+            CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,
                 modifier = Modifier.size(19.dp))
         }
     }

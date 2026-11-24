@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +14,7 @@ fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
     val data by vm.data.collectAsState()
     val hasGoal = data["goal:" + (active ?: "none")]?.optJSONObject("goal") != null
-    ModalBottomSheet(onDismissRequest = onDismiss,
+    CodexSheetFrame(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
         Column(Modifier.fillMaxWidth()
@@ -27,7 +25,7 @@ fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 Text("任务目标", style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭任务目标")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭任务目标")
                 }
             }
             Box(Modifier.fillMaxWidth().weight(1f)) {

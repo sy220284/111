@@ -7,15 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
@@ -32,20 +28,20 @@ fun CodexDetailSheet(
     onDismiss: () -> Unit,
     subtitle: String = "",
     footer: (@Composable () -> Unit)? = null,
+    startExpanded: Boolean = false,
+    closeDescription: String = "关闭详情",
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val viewportHeight = LocalConfiguration.current.screenHeightDp.dp
-    val contentLimit = (viewportHeight * .72f).coerceAtLeast(220.dp)
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = startExpanded),
         containerColor = Ink.elevated,
         contentColor = Ink.parchment,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.muted) },
         modifier = Modifier.testTag("codex-detail-sheet")
     ) {
         Column(
-            Modifier.fillMaxWidth().imePadding().navigationBarsPadding()
+            Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight()).imePadding().navigationBarsPadding()
                 .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -66,12 +62,12 @@ fun CodexDetailSheet(
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("codex-detail-close")
                 ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭详情")
+                    CodexIcon(CodexGlyph.Close, contentDescription = closeDescription)
                 }
             }
             HorizontalDivider(color = Ink.border)
             Column(
-                Modifier.fillMaxWidth().heightIn(max = contentLimit)
+                Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 content = content
@@ -94,7 +90,7 @@ fun CodexDetailTrigger(
     TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)) {
         Text(label)
         Spacer(Modifier.width(4.dp))
-        Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+        CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
             modifier = Modifier.size(18.dp))
     }
 }
@@ -102,11 +98,12 @@ fun CodexDetailTrigger(
 /** Action Sheet 对象，业务回调仍由实际页面持有。 */
 data class CodexSheetAction(
     val label: String,
-    val icon: ImageVector,
+    val icon: CodexGlyph,
     val onClick: () -> Unit,
     val description: String = "",
     val destructive: Boolean = false,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val testTag: String? = null
 )
 
 /** 用于会话或文件的上下文操作；选择后先关闭菜单，再交由原页面执行或确认。 */
@@ -145,6 +142,7 @@ private fun ColumnScope.CodexActionRows(
             val tone = if (action.destructive) Ink.red else Ink.parchment
             Surface(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    .let { if (action.testTag != null) it.testTag(action.testTag) else it }
                     .clickable(enabled = action.enabled, role = Role.Button) {
                         onDismiss()
                         action.onClick()
@@ -156,7 +154,7 @@ private fun ColumnScope.CodexActionRows(
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(action.icon, contentDescription = null,
+                    CodexIcon(action.icon, contentDescription = null,
                         tint = if (action.enabled) tone else Ink.muted,
                         modifier = Modifier.size(22.dp))
                     Column(Modifier.weight(1f)) {
@@ -202,7 +200,7 @@ fun CodexInfoDialog(
 ) {
     val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .65f)
         .coerceAtLeast(200.dp)
-    AlertDialog(
+    CodexDialogFrame(
         onDismissRequest = onDismiss,
         containerColor = Ink.elevated,
         titleContentColor = Ink.parchment,
@@ -243,7 +241,7 @@ fun CodexEditDialog(
 ) {
     val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .62f)
         .coerceAtLeast(200.dp)
-    AlertDialog(
+    CodexDialogFrame(
         onDismissRequest = onDismiss,
         modifier = Modifier.imePadding().testTag("codex-edit-dialog"),
         containerColor = Ink.elevated,

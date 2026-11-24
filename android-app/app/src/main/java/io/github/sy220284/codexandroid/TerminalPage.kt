@@ -12,8 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -124,7 +122,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
                         color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                 }
-                Icon(Icons.Outlined.Terminal, contentDescription = null, tint = Ink.muted)
+                CodexIcon(CodexGlyph.Terminal, contentDescription = null, tint = Ink.muted)
             }
         }
         Box(Modifier.fillMaxWidth().weight(1f).testTag("terminal-console")) {
@@ -135,10 +133,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                 if (session.processId.isNotEmpty()) {
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (session.running) Icons.Outlined.Terminal
+                            CodexIcon(
+                                if (session.running) CodexGlyph.Terminal
                                 else if (session.error != null || session.exitCode != 0)
-                                    Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
+                                    CodexGlyph.TaskError else CodexGlyph.TaskComplete,
                                 null, tint = if (session.running || session.exitCode == 0) Ink.jade else Ink.red
                             )
                             Spacer(Modifier.width(10.dp))
@@ -230,7 +228,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 enabled = session.stdoutText.isNotBlank(),
                                 modifier = Modifier.heightIn(min = 48.dp)
                             ) {
-                                Icon(Icons.Outlined.ContentCopy, null,
+                                CodexIcon(CodexGlyph.ContentCopy, null,
                                     modifier = Modifier.size(17.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text("复制")
@@ -268,7 +266,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("terminal-load-older")
                             ) {
-                                Icon(Icons.Outlined.History, null)
+                                CodexIcon(CodexGlyph.History, null)
                                 Spacer(Modifier.width(7.dp))
                                 Text(if (historicalLoading) "正在读取…" else "加载更早输出（每次约 32KiB）")
                             }
@@ -282,7 +280,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("terminal-older-stdout-open")
                             ) {
-                                Icon(Icons.Outlined.OpenInFull, null)
+                                CodexIcon(CodexGlyph.OpenInFull, null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("阅读较早输出 · ${historicalStdout.length} 字符")
                             }
@@ -298,7 +296,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("terminal-export-log")
                             ) {
-                                Icon(Icons.Outlined.SaveAlt, null)
+                                CodexIcon(CodexGlyph.SaveAlt, null)
                                 Spacer(Modifier.width(7.dp))
                                 Text(if (exportBusy) "正在保存…" else "导出本机执行日志（含错误输出）")
                             }
@@ -379,7 +377,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         enabled = !session.terminating,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
-                        Icon(Icons.Outlined.StopCircle, null)
+                        CodexIcon(CodexGlyph.Stop, null)
                         Spacer(Modifier.width(5.dp))
                         Text("停止")
                     }
@@ -424,18 +422,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     enabled = !session.running
                 )
                 if (recentCommands.isNotEmpty()) {
-                    Text("外接键盘可用 ↑ / ↓ 逐条查看历史命令；多行内容保留正常光标移动。",
-                        style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    TextButton(
-                        onClick = { historyVisible = true },
-                        enabled = !session.running,
-                        modifier = Modifier.heightIn(min = 48.dp)
-                            .testTag("terminal-history-toggle")
-                    ) {
-                        Icon(Icons.Outlined.History, null)
-                        Spacer(Modifier.width(7.dp))
-                        Text("使用历史命令")
-                    }
+                    AtlasTerminalHistoryControls(command, recentCommands, historyPosition,
+                        enabled = !session.running && !terminalStarting,
+                        onChoice = { choice -> command = choice.command; historyPosition = choice.position },
+                        onOpenHistory = { historyVisible = true })
                     if (historyVisible) CodexDetailSheet(
                         title = "历史命令",
                         subtitle = "选择后填入输入栏，执行前仍需确认",
@@ -469,7 +459,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                 CodexPrimaryButton(onClick = { confirm = true },
                     enabled = command.isNotBlank() && !session.running && !terminalStarting,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.PlayArrow, null)
+                    CodexIcon(CodexGlyph.PlayArrow, null)
                     Spacer(Modifier.width(8.dp))
                     Text(if (terminalStarting) "正在启动后台保护…" else "执行命令")
                 }

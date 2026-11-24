@@ -3,8 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,7 +52,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (usage) Icons.Outlined.Insights else Icons.Outlined.Speed,
+                CodexIcon(if (usage) CodexGlyph.Insights else CodexGlyph.Speed,
                     null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -67,15 +65,19 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
                     onRefresh = { vm.refresh(selectedTab, method) },
                     label = "刷新账号数据")
             }
-            if (selectedTab in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (selectedTab in loading) AtlasOperationProgress(if (usage) "正在读取用量" else "正在读取额度")
         }
-        errors[selectedTab]?.let { ErrorText(it) }
+        if (result != null && engineStatus != EngineStatus.Connected) {
+            CodexNotice("当前显示上次读取的账号数据，连接后可更新。", NoticeTone.Warning,
+                actionLabel = if (engineStatus is EngineStatus.Unavailable) "重新连接" else null,
+                onAction = { vm.connect() })
+        } else if (result != null && selectedTab !in loading) errors[selectedTab]?.let { ErrorText(it) }
         if (result == null && selectedTab !in loading) {
             when {
                 engineStatus != EngineStatus.Connected -> {
                     CodexRecoveryState("连接后可查看账号数据",
                         "本机运行核心尚未连接，连接后读取用量与额度。",
-                        "重新连接", { vm.connect() }, { navigate("diagnostics") })
+                        "重新连接", { vm.connect() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_connection)
                 }
                 selectedTab in errors -> {
                     CodexRecoveryState("账号数据读取失败",
@@ -121,29 +123,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
             }
             val buckets = result.optJSONArray("dailyUsageBuckets")
             if (buckets != null && buckets.length() > 0) {
-                MaterialPanel(Modifier.fillMaxWidth()) {
-                    Text("最近每日用量", style = MaterialTheme.typography.titleMedium)
-                    val recent = (0 until buckets.length())
-                        .mapNotNull { buckets.optJSONObject(it) }
-                        .takeLast(10)
-                    val maxTokens = recent.maxOfOrNull { it.optLong("tokens") }?.coerceAtLeast(1L) ?: 1L
-                    recent.forEach { bucket ->
-                        val tokens = bucket.optLong("tokens").coerceAtLeast(0L)
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(bucket.optString("startDate").takeLast(5),
-                                modifier = Modifier.width(53.dp), color = Ink.muted,
-                                style = MaterialTheme.typography.labelMedium)
-                            LinearProgressIndicator(
-                                progress = { tokens.toFloat().div(maxTokens).coerceIn(0f, 1f) },
-                                modifier = Modifier.weight(1f).height(8.dp),
-                                color = Ink.copper, trackColor = Ink.border)
-                            Spacer(Modifier.width(9.dp))
-                            Text(formatMetricNumber(tokens), style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                    Text("条形宽度按这组记录中的最大日用量归一化。",
-                        color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-                }
+                AtlasDailyUsageChart((0 until buckets.length()).mapNotNull { buckets.optJSONObject(it) })
             }
         }
         if (!usage && result != null) {
@@ -200,17 +180,10 @@ private fun LimitBucketCard(title: String, snapshot: JSONObject) {
         windows.forEach { (field, label) ->
             val window = snapshot.optJSONObject(field) ?: return@forEach
             shown++
-            val used = window.optInt("usedPercent").coerceIn(0, 100)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f))
-                Text("$used%", style = MaterialTheme.typography.titleMedium,
-                    color = if (used >= 100) Ink.red else Ink.copper)
-            }
-            LinearProgressIndicator(progress = { used / 100f },
-                modifier = Modifier.fillMaxWidth().height(9.dp),
-                color = if (used >= 100) Ink.red else Ink.copper,
-                trackColor = Ink.border)
+            val used = (window.opt("usedPercent") as? Number)?.toFloat()?.coerceIn(0f, 100f)
+            if (used == null) AtlasFieldFeedback("$label：服务端未提供使用比例")
+            else AtlasOperationProgress("$label · 已使用 · 剩余 ${(100f - used).toInt()}%",
+                progress = used / 100f, indicatorColor = if (used >= 100f) Ink.red else Ink.copper)
             val duration = window.optLong("windowDurationMins", -1L)
             val until = window.optLong("resetsAt", -1L)
             if (duration > 0) Text("窗口 " + duration + " 分钟",

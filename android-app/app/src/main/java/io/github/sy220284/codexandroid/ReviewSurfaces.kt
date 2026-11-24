@@ -1,12 +1,11 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,27 +37,16 @@ fun ReviewScopePanel(
             RequiresThreadPanel("代码审查", onSelectThread)
         } else {
             Text("审查范围", style = MaterialTheme.typography.titleMedium)
-            listOf(
-                Triple("uncommittedChanges", "尚未提交的改动", "检查当前变更"),
-                Triple("baseBranch", "相对基线分支", "比较分支与当前修改"),
-                Triple("commit", "指定提交", "检查指定 Commit"),
-                Triple("custom", "自定义范围", "输入具体审查要求")
-            ).forEach { (id, label, description) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        vm.editTaskPanelDraft(active) { it.copy(reviewScope = id) }
-                    }
-                        .heightIn(min = 55.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = selection == id, onClick = {
-                        vm.editTaskPanelDraft(active) { it.copy(reviewScope = id) }
-                    })
-                    Column {
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
-                        Text(description, style = MaterialTheme.typography.labelMedium,
-                            color = Ink.muted)
-                    }
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    Triple("uncommittedChanges", "尚未提交的改动", "检查当前变更"),
+                    Triple("baseBranch", "相对基线分支", "比较分支与当前修改"),
+                    Triple("commit", "指定提交", "检查指定 Commit"),
+                    Triple("custom", "自定义范围", "输入具体审查要求")
+                ).forEach { (id, label, description) ->
+                    AtlasChoiceRow(label, description, selection == id,
+                        onClick = { vm.editTaskPanelDraft(active) { it.copy(reviewScope = id) } },
+                        enabled = !running && "review" !in loading)
                 }
             }
             if (selection != "uncommittedChanges") {
@@ -81,12 +69,12 @@ fun ReviewScopePanel(
                     (selection == "uncommittedChanges" || value.isNotBlank()),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)
             ) {
-                Icon(Icons.Outlined.FactCheck, null)
+                CodexIcon(CodexGlyph.FactCheck, null)
                 Spacer(Modifier.width(8.dp))
                 Text("发起代码审查")
             }
         }
-        if (submitted && "review" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (submitted && "review" in loading) AtlasOperationProgress("正在提交代码审查")
         if (submitted) errors["review"]?.let { ErrorText(it) }
         if (submitted) data["review"]?.let { response ->
             val status = response.optJSONObject("turn")?.optString("status").orEmpty()
@@ -132,33 +120,12 @@ fun ReviewScopePanel(
 fun ReviewScopeSheet(
     vm: CodexViewModel, onDismiss: () -> Unit, navigate: (String) -> Unit
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.canvas,
-        contentColor = Ink.parchment,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Ink.border) }
-    ) {
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = 700.dp)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(15.dp)
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("发起代码审查", style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭代码审查")
-                }
-            }
-            Text("选择审查范围；任务由本机 Codex 处理。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            ReviewScopePanel(vm,
-                onStarted = { onDismiss(); navigate("chat") },
-                onSelectThread = { onDismiss(); navigate("threads") })
-            Spacer(Modifier.height(15.dp))
-        }
+    CodexDetailSheet(title = "发起代码审查", onDismiss = onDismiss,
+        startExpanded = true, closeDescription = "关闭代码审查",
+        subtitle = "选择审查范围；任务由本机 Codex 处理。") {
+        ReviewScopePanel(vm,
+            onStarted = { onDismiss(); navigate("chat") },
+            onSelectThread = { onDismiss(); navigate("threads") })
+        Spacer(Modifier.height(15.dp))
     }
 }

@@ -3,7 +3,9 @@ package io.github.sy220284.codexandroid
 import org.json.JSONObject
 
 /** User-facing outcomes for real write requests. Protocol names never become UI labels. */
-data class ActionFeedbackReceipt(val message: String, val isError: Boolean = false)
+data class ActionFeedbackReceipt(
+    val message: String, val isError: Boolean = false, val undo: ThreadUndoOffer? = null
+)
 
 object ActionFeedbackCopy {
     private data class Copy(val success: String, val attempt: String)

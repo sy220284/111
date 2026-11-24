@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -76,28 +74,28 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-local-option")
         ) {
-            Icon(Icons.Outlined.PhoneAndroid, null)
+            CodexIcon(CodexGlyph.PhoneAndroid, null)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("在这台手机上执行", style = MaterialTheme.typography.titleMedium)
                 Text("使用应用私有工作区", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
-            if (!useRemote) Icon(Icons.Outlined.CheckCircle, "已选择")
+            if (!useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
         }
         OutlinedButton(
             onClick = { useRemote = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-remote-option")
         ) {
-            Icon(Icons.Outlined.Computer, null)
+            CodexIcon(CodexGlyph.Computer, null)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("连接其他设备", style = MaterialTheme.typography.titleMedium)
                 Text("使用兼容的外部执行服务", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
-            if (useRemote) Icon(Icons.Outlined.CheckCircle, "已选择")
+            if (useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
         }
 
         if (useRemote) {
@@ -105,23 +103,15 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 Text("连接外部执行服务", style = MaterialTheme.typography.titleMedium)
                 Text("需要预先在另一台设备部署兼容的执行服务，并获得连接地址。",
                     style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-                OutlinedTextField(
-                    value = remoteName, onValueChange = { remoteName = it },
-                    label = { Text("连接名称") },
-                    placeholder = { Text("例如：工作电脑") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("environment-remote-name")
-                )
-                OutlinedTextField(
-                    value = endpoint, onValueChange = { endpoint = it },
-                    label = { Text("安全连接地址（WebSocket）") },
-                    placeholder = { Text("wss://example.com/exec") },
-                    supportingText = {
-                        Text("使用 wss:// 加密连接；本机回环地址可使用 ws://127.0.0.1")
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("environment-endpoint")
-                )
+                AtlasFormField(remoteName, { remoteName = it }, "连接名称",
+                    placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"))
+                AtlasFormField(endpoint, { endpoint = it }, "安全连接地址（WebSocket）",
+                    placeholder = "wss://example.com/exec",
+                    helper = "使用 wss:// 加密连接；本机回环地址可使用 ws://127.0.0.1",
+                    error = if (endpoint.isNotBlank() && !ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint))
+                        "连接地址格式不正确，或不符合安全连接要求。" else null,
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                    modifier = Modifier.testTag("environment-endpoint"))
                 OutlinedButton(
                     onClick = {
                         val id = remoteName.trim()
@@ -137,14 +127,11 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("environment-connect")
                 ) {
-                    Icon(Icons.Outlined.Link, null)
+                    CodexIcon(CodexGlyph.Link, null)
                     Spacer(Modifier.width(8.dp))
                     Text(if (writeBusy) "正在提交连接" else "添加并检查连接")
                 }
-                if (endpoint.isNotBlank() && !canConnect) {
-                    Text("请填写连接名称和安全的服务地址，才能提交连接请求。",
-                        color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                }
+
                 if (results["environmentAdd"] != null && lastSubmittedRemote == targetId)
                     CodexNotice("连接请求已被受理，正在读取执行服务状态。", NoticeTone.Info)
             }

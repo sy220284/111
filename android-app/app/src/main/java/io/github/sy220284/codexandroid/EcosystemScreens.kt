@@ -11,8 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,7 +62,9 @@ fun ModelsPage(vm: CodexViewModel) {
     val data by vm.data.collectAsState()
     val chosen by vm.modelId.collectAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
-    val items = records(data["models"])
+    val items = records(data["models"]).filter { !it.optBoolean("hidden") }
+    val loading by vm.loading.collectAsState()
+    val errors by vm.errors.collectAsState()
     var selectedModelDetail by remember { mutableStateOf<Pair<String, String>?>(null) }
     LaunchedEffect(Unit) { vm.ensureCatalog("models", "model/list") }
     ScreenColumn {
@@ -76,9 +76,9 @@ fun ModelsPage(vm: CodexViewModel) {
             OutlinedButton(onClick = { vm.modelId.value = "" }) { Text("恢复默认模型") }
         }
         SourceState(vm, "models") { vm.refresh("models", "model/list") }
-        if (items.isEmpty() && data["models"] != null) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("暂无可显示的模型。先在账号设置中完成认证，再刷新目录。", color = Ink.muted)
-            TextButton(onClick = { vm.refresh("models", "model/list") }) { Text("重新加载") }
+        if (items.isEmpty() && data["models"] != null && "models" !in loading && errors["models"] == null) {
+            CodexEmptyState("暂无可显示的模型", "先在账号设置中完成认证，再刷新目录。",
+                actionLabel = "重新加载", onAction = { vm.refresh("models", "model/list") })
         }
         items.filter { !it.optBoolean("hidden") }.forEach { item ->
             val id = item.optString("id")
@@ -93,7 +93,7 @@ fun ModelsPage(vm: CodexViewModel) {
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.AutoAwesome, null, tint = if (chosenNow) Ink.copper else Ink.muted)
+                        CodexIcon(CodexGlyph.AutoAwesome, null, tint = if (chosenNow) Ink.copper else Ink.muted)
                         Spacer(Modifier.width(11.dp))
                         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         val description = PresentationPolicy.meaningful(item.optString("description"))
@@ -102,7 +102,7 @@ fun ModelsPage(vm: CodexViewModel) {
                                 onClick = { selectedModelDetail = title to description },
                                 modifier = Modifier.testTag("model-detail-" + id)
                             ) {
-                                Icon(Icons.Outlined.Info, contentDescription = "查看" + title + "说明")
+                                CodexIcon(CodexGlyph.Info, contentDescription = "查看" + title + "说明")
                             }
                         }
                         RadioButton(chosenNow, onClick = { vm.modelId.value = id })
@@ -122,14 +122,7 @@ fun ModelsPage(vm: CodexViewModel) {
         }
     }
     selectedModelDetail?.let { (title, description) ->
-        AlertDialog(
-            onDismissRequest = { selectedModelDetail = null },
-            title = { Text(title) },
-            text = { Text(description) },
-            confirmButton = {
-                TextButton(onClick = { selectedModelDetail = null }) { Text("关闭") }
-            }
-        )
+        CodexInfoDialog(title = title, onDismiss = { selectedModelDetail = null }) { Text(description) }
     }
 }
 
@@ -166,7 +159,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             AtlasSettingsActionRow(
                 title = "添加自定义服务商",
                 detail = "配置服务名称、连接地址与密钥变量",
-                icon = Icons.Outlined.AddCircleOutline,
+                icon = CodexGlyph.AddCircleOutline,
                 onClick = { showCustomEditor = true }
             )
             if (showCustomEditor) {
@@ -175,22 +168,17 @@ fun ProvidersPage(vm: CodexViewModel) {
                     subtitle = "仅配置连接地址和密钥变量名称",
                     onDismiss = { showCustomEditor = false }
                 ) {
-                    OutlinedTextField(customName, { customName = it },
-                        modifier = Modifier.fillMaxWidth(), label = { Text("服务商名称") },
-                        singleLine = true)
-                    OutlinedTextField(customUrl, { customUrl = it },
-                        modifier = Modifier.fillMaxWidth(), label = { Text("服务地址（HTTP / HTTPS）") },
-                        singleLine = true)
-                    OutlinedTextField(customEnvKey, { customEnvKey = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("密钥环境变量名称（可选）") },
-                        singleLine = true)
-                    Text("密钥值由本机环境管理；这里仅填写变量名称。",
-                        style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    AtlasFormField(customName, { customName = it }, "服务商名称")
+                    AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
+                        placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                        error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
+                            "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
+                    AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
+                        helper = "密钥值由本机环境管理；这里只填写变量名称。")
                     CodexPrimaryButton(
                         onClick = { confirmCustom = true },
                         enabled = customName.isNotBlank() &&
-                            (customUrl.startsWith("https://") || customUrl.startsWith("http://")),
+                            ProviderAddressPolicy.valid(customUrl),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("保存自定义服务商") }
                 }
@@ -199,7 +187,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             AtlasSettingsActionRow(
                 title = "查看服务商能力",
                 detail = "读取实际服务能力与已声明的支持情况",
-                icon = Icons.Outlined.Info,
+                icon = CodexGlyph.Info,
                 onClick = {
                     showCapabilities = true
                     vm.refresh("providerCapabilities", "modelProvider/capabilities/read")
@@ -210,14 +198,24 @@ fun ProvidersPage(vm: CodexViewModel) {
                 onDismiss = { showCapabilities = false }
             ) {
                 val caps = data["providerCapabilities"]
-                if (caps != null) {
+                val loading by vm.loading.collectAsState()
+                val errors by vm.errors.collectAsState()
+                if ("providerCapabilities" in loading) {
+                    AtlasOperationProgress("正在读取服务商能力")
+                } else if (errors["providerCapabilities"] != null) {
+                    CodexRecoveryState("服务商能力读取失败",
+                        errors.getValue("providerCapabilities"), "重新读取",
+                        { vm.refresh("providerCapabilities", "modelProvider/capabilities/read") })
+                } else if (caps != null) {
                     Text("联网搜索：" + if (caps.optBoolean("webSearch")) "支持" else "未声明",
                         color = Ink.muted)
                     Text("图片生成：" + if (caps.optBoolean("imageGeneration")) "支持" else "未声明",
                         color = Ink.muted)
-                } else CodexSkeletonRows(2)
-                val errors by vm.errors.collectAsState()
-                errors["providerCapabilities"]?.let { ErrorText(it) }
+                } else {
+                    CodexRecoveryState("尚未取得服务商能力", "请重新读取实际服务能力。",
+                        "重新读取", { vm.refresh("providerCapabilities", "modelProvider/capabilities/read") },
+                        artworkRes = R.drawable.ic_empty_content)
+                }
             }
             val errors by vm.errors.collectAsState()
             errors["providerWrite"]?.let { ErrorText(it) }
@@ -225,7 +223,7 @@ fun ProvidersPage(vm: CodexViewModel) {
         entries.forEach { item ->
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Dns, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Dns, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Text(PresentationPolicy.providerName(item.optString("name")),
                         style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -257,6 +255,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 after = {
                     vm.refresh("providers", "modelProvider/list")
                     vm.refresh("models", "model/list")
+                    vm.refresh("account", "account/read")
                     showCustomEditor = false
                     customName = ""; customUrl = ""; customEnvKey = ""
                 })
@@ -272,7 +271,11 @@ fun ProvidersPage(vm: CodexViewModel) {
             onConfirm = {
                 vm.rpc("providers", "modelProvider/default/set",
                     JSONObject().put("providerId", item.optString("id")),
-                    after = { vm.refresh("providers", "modelProvider/list"); vm.refresh("models", "model/list") })
+                    after = {
+                        vm.refresh("providers", "modelProvider/list")
+                        vm.refresh("models", "model/list")
+                        vm.refresh("account", "account/read")
+                    })
                 toSelect = null
             },
             onDismiss = { toSelect = null }
@@ -333,8 +336,8 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             )
         }
         if (!installedOnly) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("搜索插件", style = MaterialTheme.typography.titleMedium,
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("搜索插件", style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.testTag("plugins-search-heading"))
                 val performSearch = {
                     val term = searchDraft.trim()
@@ -349,7 +352,6 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     value = searchDraft,
                     onValueChange = { searchDraft = it },
                     placeholder = "插件名称或关键字",
-                    label = "插件名称或关键字",
                     enabled = engineStatus == EngineStatus.Connected &&
                         "pluginMutation" !in busy,
                     busy = "pluginSearch:" + searchSubmitted + ":0" in busy,
@@ -363,7 +365,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 )
             }
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(if (installedOnly) "当前安装来源" else "插件源",
@@ -377,35 +379,16 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                         CatalogRequestContract.workspace(vm.workingDirectory)
                             .put("forceRefetch", true))
                 }) {
-                    Icon(Icons.Outlined.Refresh, "刷新插件列表")
+                    CodexIcon(CodexGlyph.Retry, "刷新插件列表")
                 }
             }
         }
         ProtocolFeedback(vm, listOf("pluginMutation"))
-        if ("pluginMutation" in busy) CodexNotice(
-            "正在修改插件安装状态，完成后自动更新已安装列表。", NoticeTone.Info)
-        SourceState(vm, activeKey) {
+        AtlasCatalogStatus(vm, activeKey, "插件", onRefresh = {
             if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
                 CatalogRequestContract.workspace(vm.workingDirectory))
-            else vm.refresh("plugins", "plugin/list",
-                CatalogRequestContract.workspace(vm.workingDirectory))
-        }
-        if (engineStatus != EngineStatus.Connected && data[activeKey] == null) {
-            CodexRecoveryState("连接后可查看插件",
-                "已安装和可发现的插件由运行核心提供。",
-                "重新连接", { vm.connect() }, { navigate("diagnostics") })
-        } else if (engineStatus == EngineStatus.Connected &&
-            data[activeKey] == null && activeKey !in busy &&
-            errors[activeKey] != null) {
-            CodexRecoveryState("插件目录读取失败",
-                "检查连接或重试读取插件目录。",
-                "重新读取", {
-                    if (installedOnly) vm.refresh("installedPlugins", "plugin/installed",
-                        CatalogRequestContract.workspace(vm.workingDirectory))
-                    else vm.refresh("plugins", "plugin/list",
-                        CatalogRequestContract.workspace(vm.workingDirectory))
-                }, { navigate("diagnostics") })
-        }
+            else vm.refresh("plugins", "plugin/list", CatalogRequestContract.workspace(vm.workingDirectory))
+        }, onDiagnostics = { navigate("diagnostics") })
         if (searchActive) {
             if (!submittedMatchesDraft) CodexNotice(
                 "搜索词已改变，重新搜索后显示对应结果。", NoticeTone.Info)
@@ -424,7 +407,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             if (submittedMatchesDraft && data[searchPrefix + "0"] != null &&
                 searchKey !in busy && found.isEmpty() && searchKey !in errors) {
                 CodexEmptyState("没有搜索结果",
-                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。")
+                    "该实验接口可能未启用，也可能尚无匹配插件；可以清除关键词浏览完整目录。", artworkRes = R.drawable.ic_empty_no_results)
             }
             found.forEach { hit ->
                 val market = hit.marketplace
@@ -433,7 +416,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     .orEmpty().ifBlank { item.optString("name") }
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                        CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
                         Spacer(Modifier.width(9.dp))
                         Text(display, style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.weight(1f))
@@ -475,7 +458,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 val meta = item.optJSONObject("interface") ?: JSONObject()
                 MaterialPanel(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Extension, null, tint = Ink.copper)
+                        CodexIcon(CodexGlyph.Extension, null, tint = Ink.copper)
                         Spacer(Modifier.width(11.dp))
                         Text(meta.optString("displayName").ifBlank { item.optString("name") },
                             style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -498,7 +481,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     TextButton(onClick = { selectedPlugin = market to item },
                         enabled = "pluginMutation" !in busy,
                         modifier = Modifier.heightIn(min = 48.dp)) {
-                        Icon(Icons.Outlined.Info, null)
+                        CodexIcon(CodexGlyph.Info, null)
                         Spacer(Modifier.width(6.dp))
                         Text("查看插件详情")
                     }
@@ -510,6 +493,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 if (installedOnly) "暂未发现已安装插件" else "没有可用插件市场",
                 if (installedOnly) "从插件市场安装后，可在这里集中管理。"
                 else "检查 Codex 核心连接，或刷新市场目录。",
+                artworkRes = R.drawable.ic_empty_content,
                 actionLabel = if (installedOnly) "浏览插件" else "刷新目录",
                 onAction = {
                     if (installedOnly) installedOnly = false
@@ -569,13 +553,15 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val work = observeGlobalWorkSnapshot(vm)
     var showCrashes by remember { mutableStateOf(false) }
+    var showCrashReader by remember { mutableStateOf(false) }
+    var confirmClearCrashes by remember { mutableStateOf(false) }
     var crashRevision by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     ScreenColumn {
         SectionIntro("内核诊断", "查看真实运行状态与官方诊断接口结果。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Memory, null, tint = Ink.copper)
+                CodexIcon(CodexGlyph.Memory, null, tint = Ink.copper)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("本机运行服务", style = MaterialTheme.typography.titleMedium)
@@ -591,16 +577,12 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
             val stderr by vm.bridge.recentStderr.collectAsState()
-            if (stderr.isNotEmpty()) {
-                CodexDetailTrigger("查看启动日志", onClick = { showLogs = true })
-                if (showLogs) CodexDetailSheet(
-                    title = "启动日志",
-                    subtitle = "仅在本机显示，便于排查启动与连接问题",
-                    onDismiss = { showLogs = false }
-                ) {
-                    Text(stderr.joinToString("\n"), color = Ink.muted,
-                        fontFamily = FontFamily.Monospace,
-                        style = MaterialTheme.typography.labelMedium)
+            CodexDetailTrigger("查看启动日志", onClick = { showLogs = true })
+            if (showLogs) {
+                if (stderr.isNotEmpty()) FullTextReaderDialog("启动日志", stderr.joinToString("\n")) {
+                    showLogs = false
+                } else CodexInfoDialog("启动日志", onDismiss = { showLogs = false }) {
+                    CodexEmptyState("暂无启动日志", "内核输出记录后可在这里查看。")
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -613,7 +595,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                             restarting || !ConnectionRestartPolicy.canRestart(work),
                             "有任务或待处理的审批，先完成后再重启内核")
                 ) {
-                    Icon(Icons.Outlined.RestartAlt, null)
+                    CodexIcon(CodexGlyph.Retry, null)
                     Text(if (restarting) "正在重新连接…" else "重启连接")
                 }
                 OutlinedButton(onClick = { vm.refresh("diagnostics", "server/diagnostics") },
@@ -652,14 +634,22 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 if (stored.isBlank()) {
                     Text("尚无本机崩溃记录", color = Ink.muted)
                 } else {
-                    SelectionContainer {
-                        Text(stored, fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    AtlasSettingsActionRow("搜索和复制完整日志", "在独立阅读器中查看", CodexGlyph.Description,
+                        onClick = { showCrashReader = true }, outlined = false)
+                    if (showCrashReader) FullTextReaderDialog("本机崩溃记录", stored) {
+                        showCrashReader = false
                     }
-                    TextButton(onClick = {
-                        LocalCrashReporter.clear(context)
-                        crashRevision++
-                    }) { Text("清除本机崩溃记录", color = Ink.red) }
+                    TextButton(onClick = { confirmClearCrashes = true }) {
+                        Text("清除本机崩溃记录", color = Ink.red)
+                    }
+                    if (confirmClearCrashes) CodexConfirmDialog(
+                        title = "清除本机崩溃记录？", message = "已保存的诊断记录将被删除。",
+                        confirmLabel = "确认清除", destructive = true,
+                        onConfirm = {
+                            LocalCrashReporter.clear(context)
+                            crashRevision++
+                            confirmClearCrashes = false
+                        }, onDismiss = { confirmClearCrashes = false })
                 }
             }
         }

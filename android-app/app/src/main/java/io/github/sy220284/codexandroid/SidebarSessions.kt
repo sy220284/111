@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -180,7 +178,7 @@ internal fun SidebarSessionsContent(
                             ) {
                                 Text(name, modifier = Modifier.weight(1f),
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                                CodexIcon(CodexGlyph.ChevronRight, contentDescription = null)
                             }
                             if (liveExecutions[id]?.turnId != null) {
                                 IconButton(
@@ -189,7 +187,7 @@ internal fun SidebarSessionsContent(
                                     modifier = Modifier.size(48.dp)
                                         .testTag("sidebar-task-stop-" + id)
                                 ) {
-                                    Icon(Icons.Outlined.StopCircle,
+                                    CodexIcon(CodexGlyph.Stop,
                                         contentDescription = "停止会话 " + name)
                                 }
                             }
@@ -221,7 +219,7 @@ internal fun SidebarSessionsContent(
                     },
                     modifier = Modifier.size(48.dp).testTag("sidebar-search-toggle")
                 ) {
-                    Icon(if (searching) Icons.Outlined.Close else Icons.Outlined.Search,
+                    CodexIcon(if (searching) CodexGlyph.Close else CodexGlyph.Search,
                         contentDescription = if (searching) "关闭会话搜索"
                             else "搜索侧栏会话",
                         modifier = Modifier.size(19.dp), tint = Ink.muted)
@@ -233,22 +231,15 @@ internal fun SidebarSessionsContent(
                         .explainDisabled(!connected || loading,
                             if (!connected) "运行核心未连接，暂不能刷新会话" else "会话正在刷新")
                 ) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = "刷新侧栏会话",
+                    CodexIcon(CodexGlyph.Retry, contentDescription = "刷新侧栏会话",
                         modifier = Modifier.size(19.dp), tint = Ink.muted)
                 }
             }
         }
         if (searching) item(key = "session-search") {
-            OutlinedTextField(
-                value = search, onValueChange = { state.search = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-                    .testTag("sidebar-search"),
-                placeholder = { Text("搜索当前会话") },
-                leadingIcon = { Icon(Icons.Outlined.Search, null,
-                    modifier = Modifier.size(17.dp)) },
-                singleLine = true, shape = RoundedCornerShape(14.dp),
-                textStyle = MaterialTheme.typography.bodyMedium
-            )
+            AtlasSearchField(value = search, onValueChange = { state.search = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).testTag("sidebar-search"),
+                placeholder = "搜索当前会话", onClear = { state.search = "" })
         }
         item(key = "session-list-status") {
             when {
@@ -256,9 +247,7 @@ internal fun SidebarSessionsContent(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                 loading && all.isEmpty() -> {
-                    LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 12.dp))
-                    Text("正在同步会话…", modifier = Modifier.padding(horizontal = 12.dp),
-                        style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+                    AtlasLoadingResults("正在同步会话", placeholderRows = 2, modifier = Modifier.padding(horizontal = 12.dp))
                 }
                 hasError -> Text("会话同步失败，点击上方刷新重试",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -286,7 +275,7 @@ internal fun SidebarSessionsContent(
                             start = 12.dp, end = 8.dp, top = 11.dp, bottom = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.FolderOpen, null, tint = Ink.muted,
+                        CodexIcon(CodexGlyph.Project, null, tint = Ink.muted,
                             modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(7.dp))
                         Text(
@@ -319,7 +308,7 @@ internal fun SidebarSessionsContent(
                 modifier = Modifier.fillMaxWidth().testTag("sidebar-view-all")
             ) {
                 Text("查看全部会话", style = MaterialTheme.typography.bodyMedium)
-                Icon(Icons.Outlined.ChevronRight, null,
+                CodexIcon(CodexGlyph.ChevronRight, null,
                     modifier = Modifier.size(17.dp))
             }
         }
@@ -360,7 +349,7 @@ internal fun SidebarSessionRow(
         Row(Modifier.padding(horizontal = 11.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            Icon(if (active) Icons.Outlined.Chat else Icons.Outlined.ChatBubbleOutline,
+            CodexIcon(CodexGlyph.Thread,
                 contentDescription = null, tint = if (active) Ink.coral else Ink.muted,
                 modifier = Modifier.size(19.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -385,7 +374,7 @@ internal fun SidebarSessionRow(
                     },
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (active) Icon(Icons.Outlined.CheckCircle, contentDescription = "当前会话",
+            if (active) CodexIcon(CodexGlyph.TaskComplete, contentDescription = "当前会话",
                 tint = Ink.coral, modifier = Modifier.size(17.dp))
         }
     }

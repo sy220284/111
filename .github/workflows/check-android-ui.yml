@@ -11,7 +11,7 @@ on:
       - "docs/对标应用29项界面交付核对表-20261123.md"
       - "docs/第五版接口与界面组件映射矩阵.md"
       - "docs/第五版全接口组件与功能接入说明.md"
-      - "docs/ui-assets/tokens.json"
+      - "docs/ui-assets/**"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -27,7 +27,7 @@ on:
       - "docs/对标应用29项界面交付核对表-20261123.md"
       - "docs/第五版接口与界面组件映射矩阵.md"
       - "docs/第五版全接口组件与功能接入说明.md"
-      - "docs/ui-assets/tokens.json"
+      - "docs/ui-assets/**"
       - ".github/workflows/check-android-ui.yml"
       - ".github/workflows/build-android.yml"
       - ".github/workflows/build-native-codex.yml"
@@ -63,7 +63,7 @@ jobs:
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
-            /docs/ui-assets/tokens.json
+            /docs/ui-assets/
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs
@@ -129,6 +129,8 @@ jobs:
             --repository . \
             --json-report full-feature-workflows.json \
             --report full-feature-workflows.md
+      - name: 检查全页面及子页面共享交互覆盖
+        run: python3 android-app/tools/check_interaction_coverage.py --repository . --report interaction-coverage.json
       - name: 从唯一协议策略核对 UI 组件映射文档
         run: |
           python3 android-app/tools/sync_ui_protocol_docs.py --check
@@ -154,6 +156,10 @@ jobs:
             --spec docs/设计系统.md \
             --tokens docs/ui-assets/tokens.json
           python3 android-app/tools/test_check_design_system_tokens.py
+      - name: 逐份核验 UI 素材、Android 原生矢量资源、调用页面与测试声明
+        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
+          python3 android-app/tools/check_ui_assets.py --repository . --report ui-assets-audit.json --markdown ui-assets-audit.md
       - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
         run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
       - name: 验证自更新证据判定与安装完成条件
@@ -181,6 +187,8 @@ jobs:
         with:
           name: codex-android-ui-check-reports
           path: |
+            ui-assets-audit.json
+            ui-assets-audit.md
             android-app/app/build/reports/tests/
             android-app/app/build/reports/lint-results-debug.html
             android-app/app/build/test-results/testDebugUnitTest/
@@ -188,6 +196,7 @@ jobs:
             ui-coverage.json
             full-feature-workflows.md
             full-feature-workflows.json
+            interaction-coverage.json
             protocol-contract-audit.json
             wire-fixtures-audit.json
             android-app/app/build/protocol-fixtures/requests.json

@@ -2,10 +2,14 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,18 +58,18 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Flag, null, tint = Ink.copper)
+                CodexIcon(CodexGlyph.Flag, null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
                 Text("当前目标", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 IconButton(onClick = { vm.refresh(key, "thread/goal/get",
                     JSONObject().put("threadId", active)) }) {
-                    Icon(Icons.Outlined.Refresh, "刷新")
+                    CodexIcon(CodexGlyph.Retry, "刷新")
                 }
             }
-            if (key in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (goal == null) {
+            if (key in loading) AtlasOperationProgress("正在读取任务目标")
+            if (goal == null && key !in loading && key !in errors && data[key] != null) {
                 Text("当前会话尚未设定目标", color = Ink.muted)
-            } else {
+            } else if (goal != null) {
                 Text(goal.optString("objective"), style = MaterialTheme.typography.titleLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
@@ -118,7 +122,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     currentBudget.isNotBlank() -> "当前 Token 上限：$currentBudget"
                     else -> "当前未设置 Token 上限"
                 },
-                icon = Icons.Outlined.Tune,
+                icon = CodexGlyph.Tune,
                 onClick = {
                     budgetInput = if (budgetEdited) budget else currentBudget
                     showBudgetEditor = true
@@ -242,14 +246,33 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     }
     val currentKey = if (pageCount == 0) rootKey else rootKey + ":page:" + pageCount
     val nextCursor = data[currentKey]?.optString("nextCursor").orEmpty()
-    val hasAllPages = result != null && currentKey in data && nextCursor.isBlank()
+    val readKeys = listOf(rootKey) + (1..pageCount).map { rootKey + ":page:" + it }
+    val hasAllPages = readKeys.all { it in data && it !in loading && it !in errors } && nextCursor.isBlank()
     val ids = all.map { it.optString("id") }
-    val canReorder = hasAllPages && ids.size == ids.toSet().size && ids.none { it.isBlank() }
+    val connection by vm.bridge.status.collectAsState()
+    val canReorder = connection == EngineStatus.Connected && hasAllPages &&
+        "queueWrite" !in loading && QueueReorderPolicy.valid(ids)
+    val rowCenters = remember(active, ids) { mutableStateMapOf<String, Float>() }
+    var dragging by remember(active, ids) { mutableIntStateOf(-1) }
+    var destination by remember(active, ids) { mutableIntStateOf(-1) }
+    var dragY by remember(active, ids) { mutableFloatStateOf(0f) }
+    val haptics = LocalHapticFeedback.current
+
+    fun resetDrag() { dragging = -1; destination = -1; dragY = 0f }
 
     fun refreshQueue() {
         pageCount = 0
         vm.refresh(rootKey, "thread/queue/list",
             JSONObject().put("threadId", active).put("limit", 100))
+    }
+
+    fun reorder(from: Int, to: Int) {
+        if (!canReorder || active == null) return
+        val order = QueueReorderPolicy.move(ids, from, to) ?: return
+        vm.rpc("queueWrite", "thread/queue/reorder",
+            JSONObject().put("threadId", active)
+                .put("queuedSubmissionIds", JSONArray(order)),
+            after = { refreshQueue() })
     }
 
     LaunchedEffect(active) {
@@ -287,41 +310,76 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 })
             }, enabled = draft.isNotBlank() && "queueWrite" !in loading,
                 modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.Add, null)
+                CodexIcon(CodexGlyph.Add, null)
                 Spacer(Modifier.width(8.dp))
                 Text("排入后续")
             }
         }
         AtlasListHeading(title = "等待执行", total = all.size, action = {
             IconButton(onClick = { refreshQueue() }) {
-                Icon(Icons.Outlined.Refresh, contentDescription = "刷新指令")
+                CodexIcon(CodexGlyph.Retry, contentDescription = "刷新指令")
             }
         })
         if (rootKey in loading || (1..pageCount).any { rootKey + ":page:" + it in loading }) {
             AtlasOperationProgress("正在读取后续指令")
         }
-        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading) MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("暂无后续指令", style = MaterialTheme.typography.titleMedium)
-            Text("任务运行时，也可以在输入栏选择「完成后执行」来添加。", color = Ink.muted)
+        if (all.isEmpty() && data[rootKey] != null && rootKey !in loading && rootKey !in errors &&
+            (1..pageCount).none { rootKey + ":page:" + it in loading || rootKey + ":page:" + it in errors }) {
+            CodexEmptyState("暂无后续指令", "任务运行时，也可以在输入栏选择「完成后执行」来添加。")
+        }
+        if (all.size > 1) {
+            Text(if (canReorder) "长按顺序编号拖动排序，也可从更多操作中上移或下移。"
+                else "完整队列读取并连接后可调整顺序。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         }
         all.forEachIndexed { index, item ->
             val input = item.optJSONArray("input") ?: JSONArray()
             val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it)?.optString("text") }
                 .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                var showQueueActions by remember(item.optString("id")) { mutableStateOf(false) }
+            val itemId = item.optString("id")
+            MaterialPanel(Modifier.fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    rowCenters[itemId] = coordinates.positionInRoot().y + coordinates.size.height / 2f
+                }) {
+                var showQueueActions by remember(itemId) { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    AtlasSequenceBadge(index + 1, all.size)
-                    Spacer(Modifier.width(9.dp))
-                    Text("第 " + (index + 1) + " 项",
-                        color = Ink.copper, style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f))
+                    AtlasQueueDragHandle(index + 1, all.size, canReorder, itemId,
+                        onClick = { showQueueActions = true },
+                        onStart = {
+                            val center = rowCenters[itemId]
+                            if (center != null) {
+                                dragging = index
+                                destination = index
+                                dragY = center
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        },
+                        onMove = { delta ->
+                            if (dragging == index) {
+                                dragY += delta
+                                destination = QueueReorderPolicy.nearest(ids, rowCenters, dragY) ?: index
+                            }
+                        },
+                        onEnd = {
+                            val target = destination
+                            val from = dragging
+                            resetDrag()
+                            if (from == index) reorder(index, target)
+                        },
+                        onCancel = { resetDrag() })
+                    Spacer(Modifier.width(5.dp))
+                    Text(when {
+                        dragging == index && destination >= 0 -> "移至第 ${destination + 1} 项"
+                        dragging >= 0 && destination == index -> "松手移动至此"
+                        else -> "第 " + (index + 1) + " 项"
+                    }, color = if (dragging >= 0 && (dragging == index || destination == index)) Ink.jade else Ink.muted,
+                        style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                     IconButton(
                         onClick = { showQueueActions = true },
                         enabled = "queueWrite" !in loading,
                         modifier = Modifier.testTag("queue-item-more-" + index)
                     ) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = "管理第${index + 1}项指令")
+                        CodexIcon(CodexGlyph.MoreVert, contentDescription = "管理第${index + 1}项指令")
                     }
                 }
                 if (showQueueActions) CodexActionSheet(
@@ -331,38 +389,20 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "上移",
                             description = "优先执行此项",
-                            icon = Icons.Outlined.ArrowUpward,
+                            icon = CodexGlyph.ArrowUpward,
                             enabled = canReorder && index > 0 && "queueWrite" !in loading,
-                            onClick = {
-                                val order = ids.toMutableList()
-                                val swap = order[index - 1]
-                                order[index - 1] = order[index]
-                                order[index] = swap
-                                vm.rpc("queueWrite", "thread/queue/reorder",
-                                    JSONObject().put("threadId", active)
-                                        .put("queuedSubmissionIds", JSONArray(order)),
-                                    after = { refreshQueue() })
-                            }
+                            onClick = { reorder(index, index - 1) }
                         ),
                         CodexSheetAction(
                             label = "下移",
                             description = "延后执行此项",
-                            icon = Icons.Outlined.ArrowDownward,
+                            icon = CodexGlyph.ArrowDownward,
                             enabled = canReorder && index < all.lastIndex && "queueWrite" !in loading,
-                            onClick = {
-                                val order = ids.toMutableList()
-                                val swap = order[index + 1]
-                                order[index + 1] = order[index]
-                                order[index] = swap
-                                vm.rpc("queueWrite", "thread/queue/reorder",
-                                    JSONObject().put("threadId", active)
-                                        .put("queuedSubmissionIds", JSONArray(order)),
-                                    after = { refreshQueue() })
-                            }
+                            onClick = { reorder(index, index + 1) }
                         ),
                         CodexSheetAction(
                             label = "编辑指令",
-                            icon = Icons.Outlined.Edit,
+                            icon = CodexGlyph.Edit,
                             enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
                                 "queueWrite" !in loading,
                             onClick = {
@@ -373,7 +413,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "删除指令",
                             description = "删除前会再次确认",
-                            icon = Icons.Outlined.DeleteOutline,
+                            icon = CodexGlyph.DeleteOutline,
                             destructive = true,
                             enabled = "queueWrite" !in loading,
                             onClick = { pendingDelete = item }
@@ -391,7 +431,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     JSONObject().put("threadId", active)
                         .put("cursor", nextCursor).put("limit", 100))
                 pageCount = page
-            }, modifier = Modifier.fillMaxWidth()) { Text("加载更多指令") }
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                enabled = currentKey !in loading && "queueWrite" !in loading) { Text("加载更多指令") }
         }
         // Compare user-visible errors, not raw RPC strings: different endpoints
         // can resolve to the same actionable message (e.g. an offline engine).
@@ -400,7 +441,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             .forEach { ErrorText(it) }
     }
     pendingEdit?.let { item ->
-        AlertDialog(
+        CodexDialogFrame(
             onDismissRequest = { pendingEdit = null },
             title = { Text("编辑排队任务") },
             text = {
@@ -462,7 +503,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val active by vm.activeThread.collectAsState()
     val data by vm.data.collectAsState()
     val count = records(data["queue:" + (active ?: "none")]).size
-    ModalBottomSheet(
+    CodexSheetFrame(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Ink.canvas,
@@ -476,7 +517,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("thread-queue-close")
                 ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭后续指令")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭后续指令")
                 }
             }
             Box(Modifier.fillMaxWidth().weight(1f)) {

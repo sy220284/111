@@ -42,6 +42,7 @@ internal object CodexNotificationDispatcher {
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
                 if (result.success) {
+                    refresh("models", "model/list")
                     catalogWarmup.accountChanged()
                     refresh("mcp", "mcpServerStatus/list",
                         CatalogRequestContract.mcpStatus(activeThread.value))
@@ -49,6 +50,7 @@ internal object CodexNotificationDispatcher {
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
+            refresh("models", "model/list")
             catalogWarmup.accountChanged()
             refreshMcpServices()
         }
@@ -87,7 +89,10 @@ internal object CodexNotificationDispatcher {
             }
             return
         }
-        if (method == "thread/started" || method == "thread/archived") {
+        if (method in setOf("thread/archived", "thread/unarchived", "thread/deleted")) {
+            threadOrganization.observe(method, threadId)
+            syncRecentThreads()
+        } else if (method == "thread/started") {
             syncRecentThreads()
         }
         // Apply turn lifecycle to every thread before filtering display events to
