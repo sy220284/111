@@ -33,6 +33,7 @@
         "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
         "CodexInteractionComponentsInstrumentedTest.composerShortcutOpensRealCallbackOnlyWhenSelected",
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction",
+        "CodexInteractionComponentsInstrumentedTest.answerVersionSwitcherKeepsNavigationInTheMessage",
         "CodexInteractionComponentsInstrumentedTest.attachmentPreviewSupportsZoomSwitchResetAndRemove",
         "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts",
         "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath",

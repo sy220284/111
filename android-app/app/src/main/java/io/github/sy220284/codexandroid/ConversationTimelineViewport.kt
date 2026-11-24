@@ -48,13 +48,21 @@ internal fun ConversationTimelineViewport(
     val mutatingHistory by vm.loading.collectProjection {
         "threadFork:$thread" in it || "threadRevert:$thread" in it
     }
+    val familyBusy by vm.threadExecutions.collectProjection { executions -> thread?.let { id -> answerVersions.members(id).any { it != id && it in executions } } ?: false }
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
     val savingPermissions by vm.securitySaveBusy.collectAsState()
     val restarting by vm.connectionRestarter.busy.collectAsState()
-    val canChangeTurn = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
+    val canSwitchVersion = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
         !firstThreadStarting && !mutatingHistory && !savingPermissions && !restarting
+    val canChangeTurn = canSwitchVersion && !familyBusy
+    val ownedVersion = thread?.let { answerVersions.ownedChoice(it) }
+    val fallbackVersion = ownedVersion?.takeIf { version ->
+        val turn = version.versions[version.index].turnId
+        items.none { it.turnId == turn && it.kind in setOf("agent", "agentMessage") && it.phase != "commentary" }
+    }
+    val visibleGroups = groups.size + if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
-    val latestIndex = TimelineViewportPolicy.latestIndex(groups.size, olderPageVisible)
+    val latestIndex = TimelineViewportPolicy.latestIndex(visibleGroups, olderPageVisible)
 
     // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
     LaunchedEffect(scroll) {
@@ -74,7 +82,7 @@ internal fun ConversationTimelineViewport(
             }
     }
     val hasOlderPage by rememberUpdatedState(olderPageVisible)
-    val currentGroupCount by rememberUpdatedState(groups.size)
+    val currentGroupCount by rememberUpdatedState(visibleGroups)
     val currentTail by rememberUpdatedState(items.lastOrNull())
     var previousViewportHeight by remember { mutableIntStateOf(0) }
     var previousOlderPage by remember { mutableStateOf(false) }
@@ -130,7 +138,10 @@ internal fun ConversationTimelineViewport(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 12.dp)
             ) {
-                if (!compactWorkArea) {
+                if (fallbackVersion != null) {
+                    Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted)
+                    AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "empty-version")
+                } else if (!compactWorkArea) {
                     if (!shortViewport) {
                         CodexStateArtwork(R.drawable.ic_empty_thread,
                             Modifier.size(width = 112.dp, height = 76.dp))
@@ -164,7 +175,11 @@ internal fun ConversationTimelineViewport(
                 val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
                 TimelineActivityGroup(group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
-                    version = version, onVersion = if (canChangeTurn) ({ target -> vm.chooseThread(target) }) else null)
+                    version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null)
+            }
+            if (fallbackVersion != null) item(key = "answer-version-recovery") {
+                Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "recovery") }
             }
         }
         if (!contextLoading && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {

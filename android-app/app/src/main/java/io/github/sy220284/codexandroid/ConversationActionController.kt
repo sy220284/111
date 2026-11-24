@@ -39,6 +39,10 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
 
     fun retry(id: String, turnId: String, allowCurrentFiles: Boolean = false) = with(vm) {
         if (!available(id) || turnId.isBlank()) return@with
+        if (answerVersions.state.value.members(id).any { it != id && (it in threadExecutions.value || "retry:$it" in loading.value) }) {
+            errors.value = errors.value + ("conversation" to "其他回答版本仍在执行，请完成后再重新回答")
+            return@with
+        }
         val key = "threadFork:$id"
         val cwd = activeWorkspace.value
         loading.value = loading.value + key
@@ -49,7 +53,8 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 val replay = MessageReplayCoordinator { method, params -> bridge.request(method, params) }
                 val original = replay.readOriginal(id, turnId)
                 val app = getApplication<Application>()
-                val prepared = answerWorkspaces.prepare(original.clientId, cwd, allowCurrentFiles)
+                val clientId = UUID.randomUUID().toString()
+                val prepared = answerWorkspaces.prepare(original.clientId, cwd, allowCurrentFiles, clientId)
                 val copy = prepared.directory
                 val input = answerWorkspaces.remap(original.input, prepared.originalWorkspace, copy.absolutePath)
                 val staged = LocalImageAttachments.directory(app).canonicalFile
@@ -57,8 +62,6 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 LocalImageAttachments.preserveForHistory(app, images)
                 val config = bridge.request("config/read", JSONObject().put("cwd", copy.absolutePath))
                 val permission = AnswerWorkspaceStore.permission(File(workingDirectory), copy.absolutePath, ComposerPermissionPolicy.selected(config))
-                val clientId = UUID.randomUUID().toString()
-                answerWorkspaces.checkpoint(clientId, copy.absolutePath)
                 check(activeThread.value == id && !running.value && !threadSwitching.value &&
                     !securitySaveBusy.value && !connectionRestarter.busy.value &&
                     globalWorkSnapshot().canStartNewTask) { "当前会话或权限状态已变化，请重新选择消息" }

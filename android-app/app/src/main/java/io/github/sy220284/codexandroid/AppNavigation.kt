@@ -85,9 +85,12 @@ fun CodexShell(vm: CodexViewModel) {
     val activeThread by vm.activeThread.collectAsState()
     val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
     val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
-    val conversationTitle = remember(activeThread, libraryResponse) {
+    val answerVersions by vm.answerVersions.state.collectAsState()
+    val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
         activeThread?.let { id ->
-            records(libraryResponse).firstOrNull { it.optString("id") == id }
+            val rows = records(libraryResponse)
+            (rows.firstOrNull { it.optString("id") == answerVersions.root(id) }
+                ?: rows.firstOrNull { it.optString("id") == id })
                 ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
                 ?.takeIf { it.isNotBlank() }
         }

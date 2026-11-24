@@ -19,6 +19,11 @@ internal data class AnswerVersionState(
         val index = options.indexOfFirst { it.turnId == turn }
         return if (options.size > 1 && index >= 0) AnswerVersionChoice(index, options) else null
     }
+    fun ownedChoice(thread: String): AnswerVersionChoice? {
+        val match = versions.lastOrNull { it.threadId == thread } ?: return null
+        val options = versions.filter { it.root == match.root && it.slot == match.slot }
+        return if (options.size > 1) AnswerVersionChoice(options.indexOf(match), options) else null
+    }
     fun add(source: String, turn: String, target: String): AnswerVersionState {
         require(source.isNotBlank() && turn.isNotBlank() && target.isNotBlank() && source != target)
         require(versions.none { it.threadId == target }) { "回答版本已存在" }

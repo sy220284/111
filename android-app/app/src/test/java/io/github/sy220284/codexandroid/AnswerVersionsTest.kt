@@ -21,5 +21,8 @@ class AnswerVersionsTest {
         assertEquals(2, state.choice("retry-b", "a2")!!.versions.size)
         assertEquals(2, state.choice("retry-b", "b2")!!.versions.size)
         assertNull(state.choice("unrelated", "a2"))
+        val pending = state.add("retry-b", "b2", "pending")
+        assertEquals(2, pending.ownedChoice("pending")!!.index)
+        assertEquals("retry-b", pending.ownedChoice("pending")!!.versions[1].threadId)
     }
 }

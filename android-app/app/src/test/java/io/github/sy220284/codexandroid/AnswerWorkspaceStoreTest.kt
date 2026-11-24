@@ -16,6 +16,8 @@ class AnswerWorkspaceStoreTest {
             val store = AnswerWorkspaceStore(root, base.resolve("checkpoints"))
             val client = UUID.randomUUID().toString()
             store.checkpoint(client, source.path)
+            store.checkpoint(UUID.randomUUID().toString(), source.path)
+            assertEquals(1, base.resolve("checkpoints/objects").listFiles()!!.size)
             original.writeText("original answer")
             val second = store.prepare(client, source.path, false).directory
             assertEquals("before", second.resolve("main.txt").readText())

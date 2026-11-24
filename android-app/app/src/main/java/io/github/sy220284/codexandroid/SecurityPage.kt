@@ -21,7 +21,9 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     var open by remember(workspace) { mutableStateOf(false) }
     var confirmFull by remember(workspace) { mutableStateOf(false) }
     val currentWorkspace = data["composerPermissionWorkspace"]?.optString("cwd") == workspace
-    val selected = if (currentWorkspace) ComposerPermissionPolicy.selected(data["composerPermissionConfig"]) else null
+    val isolated = AnswerWorkspaceStore.isolated(java.io.File(vm.workingDirectory), workspace)
+    val selected = if (currentWorkspace) AnswerWorkspaceStore.permission(java.io.File(vm.workingDirectory), workspace,
+        ComposerPermissionPolicy.selected(data["composerPermissionConfig"])) else null
     val profileData = data["permissionProfiles"]
     val profiles = remember(profileData) { records(profileData) }
     val reading = !currentWorkspace || loading.any { it in setOf("composerPermissionConfig", "securityRequirements", "permissionProfiles") }
@@ -50,7 +52,7 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
     }
     errors["securitySave"]?.let { CodexNotice(it, NoticeTone.Error) }
     if (open) CodexDetailSheet(title = "执行权限", onDismiss = { open = false },
-        subtitle = "选择后自动保存，后续发送的任务采用此权限。", startExpanded = false) {
+        subtitle = if (isolated) "回答版本使用独立工作目录，仅可选择只读或工作区权限。" else "选择后自动保存，后续发送的任务采用此权限。", startExpanded = false) {
         Text("可用权限方案", modifier = Modifier.testTag("security-profiles-heading"),
             style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         ProtocolFeedback(vm, listOf("composerPermissionConfig", "securityRequirements", "permissionProfiles"),
@@ -59,7 +61,7 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean) {
         val closeWithAction = LocalCodexSheetAction.current
         Column(Modifier.fillMaxWidth().selectableGroup()) {
             ComposerPermissionPolicy.ids.forEach { id ->
-                val allowed = ComposerPermissionPolicy.allowed(id, profiles, data["securityRequirements"])
+                val allowed = ComposerPermissionPolicy.allowed(id, profiles, data["securityRequirements"]) && !(isolated && id == ":danger-full-access")
                 val selectable = enabled && !saving && !reading && allowed && blocked == null
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
                     .testTag("security-profile-" + id.removePrefix(":"))

@@ -757,4 +757,20 @@ class CodexInteractionComponentsInstrumentedTest {
     @Test fun v8RouteMotionConvergesAndReducedMotionSnaps() {
         assertV8RouteMotion(rule)
     }
+    @Test fun answerVersionSwitcherKeepsNavigationInTheMessage() {
+        var chosen = ""
+        val state = AnswerVersionState().add("original", "turn-one", "retry").bind("retry", "turn-two")
+        rule.setContent {
+            CodexTheme {
+                TimelineStepCard(TimelineItem("version-message", "agentMessage", "第二版回答", "completed", turnId = "turn-two"),
+                    version = state.choice("retry", "turn-two"), onVersion = { chosen = it })
+            }
+        }
+        rule.onNodeWithText("2 / 2").assertExists()
+        rule.onNodeWithTag("answer-next-version-message").assertIsNotEnabled()
+        rule.onNodeWithTag("answer-previous-version-message").assertIsEnabled().performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals("original", chosen) }
+        rule.onNodeWithTag("message-copy-version-message").assertExists()
+    }
+
 }

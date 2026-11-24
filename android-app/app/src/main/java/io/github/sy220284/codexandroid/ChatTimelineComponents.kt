@@ -69,7 +69,7 @@ internal fun TimelineActivityGroup(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun TimelineStepCard(
     item: TimelineItem, workspaceRoot: String? = null,
@@ -117,8 +117,10 @@ internal fun TimelineStepCard(
                     }
                 }
                 if (!active && (user || item.phase != "commentary")) {
-                    if (!user && version != null) AnswerVersionSwitcher(version, onVersion, item.id)
-                    MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
+                    if (!user && version != null) FlowRow(Modifier.fillMaxWidth()) {
+                        AnswerVersionSwitcher(version, onVersion, item.id)
+                        MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
+                    } else MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
                 }
             }
         } else {
