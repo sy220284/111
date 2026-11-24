@@ -3,9 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -61,9 +58,9 @@ class CodexInteractionComponentsInstrumentedTest {
                         title = "文件操作",
                         onDismiss = { open = false },
                         actions = listOf(
-                            CodexSheetAction("复制", Icons.Outlined.ContentCopy,
+                            CodexSheetAction("复制", CodexGlyph.ContentCopy,
                                 onClick = { result = "复制已执行" }),
-                            CodexSheetAction("不可用操作", Icons.Outlined.ContentCopy,
+                            CodexSheetAction("不可用操作", CodexGlyph.ContentCopy,
                                 onClick = { result = "错误调用" }, enabled = false)
                         )
                     )
@@ -154,7 +151,7 @@ class CodexInteractionComponentsInstrumentedTest {
                     AtlasSettingsActionRow(
                         title = "查看服务能力",
                         detail = "读取实际可用功能",
-                        icon = Icons.Outlined.Settings,
+                        icon = CodexGlyph.Settings,
                         modifier = androidx.compose.ui.Modifier.testTag("atlas-settings-action"),
                         onClick = { opened = true }
                     )
@@ -188,12 +185,12 @@ class CodexInteractionComponentsInstrumentedTest {
                         actions = listOf(
                             CodexSheetAction(
                                 label = "重命名",
-                                icon = Icons.Outlined.Settings,
+                                icon = CodexGlyph.Settings,
                                 onClick = { performed = "已进入重命名" }
                             ),
                             CodexSheetAction(
                                 label = "不可移动",
-                                icon = Icons.Outlined.Settings,
+                                icon = CodexGlyph.Settings,
                                 enabled = false,
                                 onClick = { performed = "不应执行" }
                             )
@@ -300,4 +297,34 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("codex-edit-confirm").assertIsDisplayed()
         rule.onNodeWithText("取消").assertIsDisplayed()
     }
+    @Test fun everyGlyphAndStateArtworkRendersThroughSharedComponents() {
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.foundation.lazy.LazyColumn {
+                    items(CodexGlyph.entries.size) { index ->
+                        val glyph = CodexGlyph.entries[index]
+                        CodexIcon(glyph, glyph.name,
+                            modifier = androidx.compose.ui.Modifier.testTag("glyph-" + glyph.name))
+                    }
+                    item {
+                        CodexStateArtwork(R.drawable.ic_empty_thread,
+                            androidx.compose.ui.Modifier.testTag("empty-thread-artwork"))
+                        CodexStateArtwork(R.drawable.ic_empty_content,
+                            androidx.compose.ui.Modifier.testTag("empty-content-artwork"))
+                        CodexStateArtwork(R.drawable.ic_empty_no_results,
+                            androidx.compose.ui.Modifier.testTag("no-results-artwork"))
+                        CodexStateArtwork(R.drawable.ic_empty_request_failed,
+                            androidx.compose.ui.Modifier.testTag("request-failed-artwork"))
+                    }
+                }
+            }
+        }
+        rule.onNodeWithTag("glyph-Attachment").assertExists()
+        // Scroll to every glyph to force the native resource to load, including off-screen rows.
+        CodexGlyph.entries.forEachIndexed { index, glyph ->
+            rule.onNode(hasScrollAction()).performScrollToIndex(index)
+            rule.onNodeWithTag("glyph-" + glyph.name).assertExists()
+        }
+    }
+
 }
