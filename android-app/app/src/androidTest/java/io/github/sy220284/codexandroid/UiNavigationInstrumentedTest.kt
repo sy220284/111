@@ -627,6 +627,25 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
+    @Test fun chatTimelineSeparatesMessagesAndExecutionSteps() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread {
+            vm.timeline.value = listOf(
+                TimelineItem("ui-user", "user", "检查项目结构"),
+                TimelineItem("ui-agent", "agentMessage", "已找到项目入口"),
+                TimelineItem("ui-step", "commandExecution", "pwd", "completed")
+            )
+        }
+        try {
+            rule.onNodeWithTag("chat-user-message").assertExists()
+            rule.onNodeWithTag("chat-assistant-message").assertExists()
+            rule.onNodeWithTag("chat-execution-step").assertExists()
+            rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        } finally {
+            rule.runOnUiThread { vm.timeline.value = emptyList() }
+        }
+    }
+
     @Test fun chatSuggestionsStayVisibleWithinThePhoneWidth() {
         openDrawerRoute("chat")
         rule.onNodeWithTag("chat-suggestions").assertExists()

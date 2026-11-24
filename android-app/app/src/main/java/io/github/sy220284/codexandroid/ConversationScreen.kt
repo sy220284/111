@@ -126,11 +126,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val tailIndex = if (items.isEmpty()) 0 else items.lastIndex +
         if (olderTimelineCount > 0 && thread != null) 1 else 0
     suspend fun scrollToLatest() {
-        scroll.scrollToItem(tailIndex)
+        // Do not jump to the start of an already visible streaming response.
+        if (scroll.layoutInfo.visibleItemsInfo.none { it.index == tailIndex }) {
+            scroll.scrollToItem(tailIndex)
+        }
         // A long last message may occupy more than one viewport.
         val lastSize = scroll.layoutInfo.visibleItemsInfo
             .firstOrNull { it.index == tailIndex }?.size ?: 0
-        if (lastSize > 0) scroll.scrollBy(lastSize.toFloat())
+        if (lastSize > 0 && scroll.canScrollForward) scroll.scrollBy(lastSize.toFloat())
     }
     // Pickers use the actual remaining quota, so no selected image silently vanishes.
     val oneImagePicker = rememberLauncherForActivityResult(
@@ -193,7 +196,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else if (scrolling && !autoScrolling) followTail = false
         }
     }
-    LaunchedEffect(items.size, items.lastOrNull()?.text, switching, thread, olderTimelineCount) {
+    LaunchedEffect(items.size, items.lastOrNull()?.id, items.lastOrNull()?.text,
+        switching, thread, olderTimelineCount) {
         if (switching || observedThread != thread) return@LaunchedEffect
         // Reading older pages prepends items but does not create unread steps.
         val tailId = items.lastOrNull()?.id
@@ -492,9 +496,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ConversationComposer(
                 draft = draft,
                 focusRequester = composerFocus,
-                controls = if (compactWorkArea) null else {
-                    {
-                        ConversationControlBar(
+                controls = {
+                    if (!compactWorkArea) ConversationControlBar(
                             modelName = vm.modelId.collectAsState().value,
                             mode = selectedMode,
                             connected = status == EngineStatus.Connected,
@@ -504,7 +507,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             onMode = { showModes = true },
                             onDiagnostics = { showEngineStatus = true }
                         )
-                    }
                 },
                 onDraftChange = { vm.editComposerText(thread, it) },
                 attachedCount = attachedImages.size,
