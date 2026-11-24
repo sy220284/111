@@ -125,9 +125,19 @@ internal object TimelineEventReducer {
             val raw = params.getJSONObject("item")
             val id = raw.getString("id")
             val old = items.byId(id)
-            if (method == "item/started" && old != null && old.status != "sending") return current
             val complete = method == "item/completed"
             val next = project(raw, turnId, if (complete) "completed" else "inProgress")
+            if (!complete && old != null && old.status != "sending") {
+                // A resumed subscription may have received text before its lifecycle metadata.
+                // Enrich the same native item without resetting its accumulated text.
+                if (old.kind == "agentMessage" && next.kind == old.kind &&
+                    old.phase.isBlank() && next.phase.isNotBlank()) {
+                    val evidence = JSONObject(old.evidence).put("phase", next.phase)
+                    put(old.copy(phase = next.phase, evidence = evidence.toString()))
+                    return items
+                }
+                return current
+            }
             // Completed payload is authoritative; retain streamed output only when omitted.
             val evidence = JSONObject(next.evidence)
             if (old != null && old.evidence.isNotBlank()) {
@@ -136,7 +146,9 @@ internal object TimelineEventReducer {
                     if (evidence.isNull(key) && !prior.isNull(key)) evidence.put(key, prior.get(key))
                 }
             }
-            put(next.copy(evidence = evidence.toString()))
+            val phase = next.phase.ifBlank { old?.phase.orEmpty() }
+            if (phase.isNotBlank() && next.phase.isBlank()) evidence.put("phase", phase)
+            put(next.copy(evidence = evidence.toString(), phase = phase))
             return items
         }
         val id = params.string("itemId")

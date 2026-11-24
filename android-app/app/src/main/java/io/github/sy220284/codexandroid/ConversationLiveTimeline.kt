@@ -32,7 +32,7 @@ internal class ConversationLiveTimeline {
             val existing = saved.mapTo(hashSetOf()) { it.id }
             return saved.map { prior ->
                 val next = byId[prior.id] ?: return@map prior
-                if (prior.status in terminal) prior
+                val selected = if (prior.status in terminal) prior
                 else if (next.status in terminal) next
                 else {
                     val field = when (next.kind) {
@@ -51,6 +51,11 @@ internal class ConversationLiveTimeline {
                         else -> next
                     }
                 }
+                // The longest/terminal snapshot owns text. An explicit phase from the other
+                // snapshot still belongs to this same native item and must not be discarded.
+                val phase = selected.phase.ifBlank { if (selected === prior) next.phase else prior.phase }
+                if (phase == selected.phase) selected else selected.copy(phase = phase,
+                    evidence = if (selected.hasEvidence) JSONObject(selected.evidence).put("phase", phase).toString() else "")
             } + live.filterNot { it.id in existing }
         }
     }

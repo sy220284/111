@@ -190,4 +190,25 @@ class TimelineReconcilerTest {
         }
         assertEquals(before, ProgressiveReplyProjection.rows(TimelineEventReducer.groups(saved), false, null, false))
     }
+
+    @Test fun latePhaseAndOffscreenResumeKeepAccumulatedNativeText() {
+        val delta = org.json.JSONObject().put("turnId", "t").put("itemId", "a").put("delta", "A")
+        val streamed = TimelineEventReducer.reduce("item/agentMessage/delta", delta, emptyList())
+        assertEquals("", streamed.single().phase)
+        val started = org.json.JSONObject().put("id", "a").put("type", "agentMessage")
+            .put("phase", "partial_answer").put("text", "")
+        val params = org.json.JSONObject().put("turnId", "t").put("item", started)
+        val enriched = TimelineEventReducer.reduce("item/started", params, streamed)
+        assertEquals("A", enriched.single().text)
+        assertEquals("partial_answer", enriched.single().phase)
+        val continued = TimelineEventReducer.reduce("item/agentMessage/delta", delta.put("delta", "B"), enriched)
+        assertEquals("AB", continued.single().text)
+        assertEquals("partial_answer", continued.single().phase)
+        val done = org.json.JSONObject(started.toString()).apply { remove("phase"); put("text", "AB") }
+        val completed = TimelineEventReducer.reduce("item/completed", params.put("item", done), continued)
+        assertEquals("partial_answer", completed.single().phase)
+        val restored = ConversationLiveTimeline.merge(enriched, listOf(continued.single().copy(phase = "")))
+        assertEquals("AB", restored.single().text)
+        assertEquals("partial_answer", restored.single().phase)
+    }
 }

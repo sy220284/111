@@ -49,9 +49,9 @@ internal object MessageMarkdown {
             }
 
     /** Only commit complete blocks while streaming; blank lines inside code are not boundaries. */
-    fun stablePrefixLength(source: String): Int {
-        var start = 0
-        var stable = 0
+    fun stablePrefixLength(source: String, from: Int = 0): Int {
+        var start = from
+        var stable = from
         var opening: String? = null
         while (start < source.length) {
             val end = source.indexOf('\n', start)
@@ -167,18 +167,37 @@ internal object MessageMarkdown {
     }
 }
 
+/** Keeps the already verified block boundary while an append-only message grows. */
+private class MarkdownBoundary {
+    private var prefix = ""
+    fun target(source: String, streaming: Boolean): String {
+        if (!streaming) return source
+        val from = if (source.startsWith(prefix)) prefix.length else 0
+        prefix = source.take(MessageMarkdown.stablePrefixLength(source, from))
+        return prefix
+    }
+}
+
 @Composable
 internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
     // Keep the already formatted prefix while a long answer is extending. A single conflated
     // collector finishes each background parse; the next delta cannot cancel it repeatedly.
-    val target = remember(source, streaming) {
-        if (streaming) source.take(MessageMarkdown.stablePrefixLength(source)) else source
-    }
+    val boundary = remember { MarkdownBoundary() }
+    val target = remember(source, streaming) { boundary.target(source, streaming) }
     val latest by rememberUpdatedState(target)
     var parsed by remember { mutableStateOf<Pair<String, List<MessageBlock>>?>(null) }
     LaunchedEffect(Unit) {
         snapshotFlow { latest }.conflate().collect { value ->
-            if (value.length >= 4096) parsed = value to withContext(Dispatchers.Default) { MessageMarkdown.blocks(value) }
+            if (value.length >= 4096) {
+                val previous = parsed
+                val blocks = withContext(Dispatchers.Default) {
+                    if (previous != null && value.startsWith(previous.first) &&
+                        MessageMarkdown.stablePrefixLength(previous.first) == previous.first.length) {
+                        previous.second + MessageMarkdown.blocks(value.substring(previous.first.length))
+                    } else MessageMarkdown.blocks(value)
+                }
+                parsed = value to blocks
+            }
         }
     }
     val ready = if (target.length < 4096) target to remember(target) { MessageMarkdown.blocks(target) }
@@ -186,8 +205,10 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
             (target.startsWith(prefix) && MessageMarkdown.stablePrefixLength(prefix) == prefix.length) }
     val prefix = ready?.first.orEmpty()
     val tail = source.substring(prefix.length)
-    val blocks = ready?.second.orEmpty() + if (tail.isEmpty()) emptyList() else
-        listOf(MessageBlock("stream-tail", tail))
+    val unfinished = if (tail.isEmpty()) emptyList() else if (tail.length < 4096) {
+        remember(tail) { MessageMarkdown.blocks(tail) }
+    } else listOf(MessageBlock("stream-tail", tail))
+    val blocks = ready?.second.orEmpty() + unfinished
     SelectionContainer {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             blocks.forEach { block ->
