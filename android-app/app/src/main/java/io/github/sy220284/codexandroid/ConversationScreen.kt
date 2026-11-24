@@ -32,11 +32,11 @@ import org.json.JSONObject
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
-    val thread by vm.activeThread.collectAsState()
-    val busy by vm.running.collectAsState()
+    val thread = vm.activeThread.collectAsState().value
+    val busy = vm.running.collectAsState().value
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val activeTurn by vm.activeTurn.collectAsState()
+    val activeTurn = vm.activeTurn.collectAsState().value
     val steering by vm.steerBusy.collectAsState()
     val loading by vm.loading.collectProjection { it.intersect(setOf("interrupt", "queueWrite")) }
     val latestDiff by vm.latestDiff.collectAsState()
@@ -65,6 +65,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var sessionAction by remember(draftOwner) { mutableStateOf("") }
     var showTerminalSheet by remember { mutableStateOf(false) }
     var followUpMode by remember(draftOwner, busy, snapshot.hasInput) { mutableStateOf("queue") }
+    val renderedFollowUpMode = followUpMode
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
@@ -87,6 +88,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queuedInputs = remember(queueData) { records(queueData) }
     val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
+    val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
     val modelData = models["models"]
     val availableModels = remember(modelData) { records(modelData) }
     val diffSummary by rememberDiffSummary(latestDiff)
@@ -280,13 +282,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             errors["attachments"]?.let { ErrorText(it) }
             errors["queueWrite"]?.let { ErrorText(it) }
             if (thread != null && queuedInputs.isNotEmpty()) {
-                ComposerQueuePreview(thread!!, queuedInputs, busy, queuePaused && !busy,
+                ComposerQueuePreview(thread, queuedInputs, busy, queuePaused && !busy,
                     hasMore = PresentationPolicy.meaningful(queueData?.optString("nextCursor")).isNotBlank(),
                     compact = compactWorkArea, canStart = !busy && !switching && !firstThreadStarting &&
-                        !queueReadBusy && !steering && "queueWrite" !in loading && !transferBusy &&
+                        !queueReadBusy && queueReadError == null && !steering && "queueWrite" !in loading && !transferBusy &&
                         !permissionSaving && !restarting && status == EngineStatus.Connected,
                     onManage = { keyboard?.hide(); navigate("queue") },
-                    onStart = { vm.startQueuedComposer(thread!!) })
+                    onStart = { vm.startQueuedComposer(thread) })
             }
             val optionsEnabled = !busy && !firstThreadStarting && !switching
             val tools = buildList {
@@ -346,9 +348,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 canStop = busy && !activeTurn.isNullOrBlank(),
                 canSend = sendBlockReason.isBlank(), sending = sending,
                 sendBlockReason = sendBlockReason,
-                followUpMode = followUpMode, onFollowUpModeChange = { followUpMode = it },
-                onStop = { stopRequestedForTurn = activeTurn; vm.interrupt() },
-                onSend = { vm.submitComposerDraft(snapshot, followUpMode, thread, activeTurn, busy) },
+                followUpMode = renderedFollowUpMode, onFollowUpModeChange = { followUpMode = it },
+                onStop = {
+                    if (thread != null && vm.activeThread.value == thread && vm.activeTurn.value == activeTurn) {
+                        stopRequestedForTurn = activeTurn
+                        vm.interruptThread(thread)
+                    }
+                },
+                onSend = { vm.submitComposerDraft(snapshot, renderedFollowUpMode, thread, activeTurn, busy) },
                 hasInput = snapshot.hasInput,
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { keyboard?.hide(); composerMenu = "add" },

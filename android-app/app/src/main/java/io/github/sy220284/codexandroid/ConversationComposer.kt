@@ -182,7 +182,7 @@ internal fun ConversationComposer(
                             else -> "输入指令后即可发送"
                         })
                         .semantics { contentDescription = when {
-                            !running -> "发送给 Codex"
+                            !running || !hasInput -> "发送给 Codex"
                             followUpMode == "queue" -> "加入后续执行队列"
                             else -> "立即调整当前任务"
                         } },

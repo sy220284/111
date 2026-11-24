@@ -79,16 +79,16 @@ internal fun ComposerQueuePreview(thread: String, items: List<JSONObject>, runni
                 Text(if (paused) "队列已暂停 · " + count else "待执行 · " + count,
                     modifier = Modifier.weight(1f), color = if (paused) Ink.warning else Ink.parchment,
                     style = MaterialTheme.typography.labelLarge)
-                if (!running) CodexTextAction(onClick = onStart, enabled = canStart,
-                    contentPadding = PaddingValues(horizontal = 4.dp)) {
-                    Text(if (paused) "恢复执行" else "开始执行", maxLines = 2)
-                }
                 CodexIconAction(onClick = { expanded = !expanded },
                     enabled = !compact, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.ExpandMore, if (expanded) "收起后续指令" else "展开后续指令")
                 }
                 CodexTextAction(onClick = onManage, modifier = Modifier.testTag("chat-queued-followups"),
                     contentPadding = PaddingValues(horizontal = 4.dp)) { Text("管理") }
+            }
+            if (!running) CodexSecondaryButton(onClick = onStart, enabled = canStart,
+                modifier = Modifier.fillMaxWidth()) {
+                Text(if (paused) "恢复执行" else "开始执行", maxLines = 2)
             }
             AnimatedVisibility(visible = expanded && !compact,
                 enter = fadeIn(tween(CodexMotion.duration(CodexMotion.reveal, reduced))),

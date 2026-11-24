@@ -232,7 +232,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
 
 @Composable
 fun ThreadQueuePage(vm: CodexViewModel) {
-    val active by vm.activeThread.collectAsState()
+    val active = vm.activeThread.collectAsState().value
     val rootKey = "queue:" + (active ?: "none")
     var pageCount by remember(active) { mutableIntStateOf(0) }
     val queueKeys = remember(rootKey, pageCount) { listOf(rootKey) + (1..pageCount).map { rootKey + ":page:" + it } }
@@ -265,8 +265,10 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     val canStart = active != null && !running && !switching && !starting && !steering &&
         !permissionSaving && !transferBusy && !restarting &&
         connection == EngineStatus.Connected && "queueWrite" !in loading && rootKey !in loading && rootKey !in errors
-    val canReorder = connection == EngineStatus.Connected && hasAllPages &&
-        "queueWrite" !in loading && QueueReorderPolicy.valid(ids)
+    val canMutate = active != null && !switching && !starting && !steering &&
+        !permissionSaving && !transferBusy && !restarting &&
+        connection == EngineStatus.Connected && "queueWrite" !in loading
+    val canReorder = canMutate && hasAllPages && QueueReorderPolicy.valid(ids)
     val rowCenters = remember(active, ids) { mutableStateMapOf<String, Float>() }
     var dragging by remember(active, ids) { mutableIntStateOf(-1) }
     var destination by remember(active, ids) { mutableIntStateOf(-1) }
@@ -323,7 +325,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     }
                     refreshQueue()
                 })
-            }, enabled = draft.isNotBlank() && "queueWrite" !in loading,
+            }, enabled = draft.isNotBlank() && canMutate,
                 modifier = Modifier.fillMaxWidth()) {
                 CodexIcon(CodexGlyph.Add, null)
                 Spacer(Modifier.width(8.dp))
@@ -449,8 +451,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         CodexSheetAction(
                             label = "编辑指令",
                             icon = CodexGlyph.Edit,
-                            enabled = ThreadQueueUpdateContract.canEditAsText(input) &&
-                                "queueWrite" !in loading,
+                            enabled = ThreadQueueUpdateContract.canEditAsText(input) && canMutate,
                             onClick = {
                                 pendingEdit = item
                                 editText = input.optJSONObject(0)?.optString("text").orEmpty()
@@ -461,7 +462,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                             description = "删除前会再次确认",
                             icon = CodexGlyph.DeleteOutline,
                             destructive = true,
-                            enabled = "queueWrite" !in loading,
+                            enabled = canMutate,
                             onClick = { pendingDelete = item }
                         )
                     )
@@ -516,7 +517,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         }
                     },
                     enabled = active != null && item.optString("id").isNotBlank() &&
-                        editText.isNotBlank() && "queueWrite" !in loading
+                        editText.isNotBlank() && canMutate
                 ) { Text("保存修改") }
             },
             dismissButton = { CodexTextAction(onClick = { pendingEdit = null }) { Text("取消") } }
