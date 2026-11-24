@@ -21,8 +21,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -199,15 +197,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             IconButton(onClick = { navigate("files") },
                 modifier = Modifier.testTag("chat-project-files")) {
-                Icon(Icons.Outlined.FolderOpen, "打开项目文件")
+                CodexIcon(CodexGlyph.Project, "打开项目文件")
             }
             IconButton(onClick = { showTerminalSheet = true },
                 modifier = Modifier.testTag("chat-project-terminal")) {
-                Icon(Icons.Outlined.Terminal, "展开项目终端")
+                CodexIcon(CodexGlyph.Terminal, "展开项目终端")
             }
             if (thread != null) {
                 IconButton(onClick = { showContextTools = true }, enabled = !switching) {
-                    Icon(Icons.Outlined.MoreHoriz, "会话选项")
+                    CodexIcon(CodexGlyph.MoreHoriz, "会话选项")
                 }
             }
         }
@@ -221,7 +219,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ) {
                 Row(Modifier.fillMaxWidth().padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Flag, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Flag, null, tint = Ink.copper)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text("任务目标 · " + PresentationPolicy.goalStatus(goal.optString("status")),
@@ -229,7 +227,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(goal.optString("objective"), maxLines = 2,
                             overflow = TextOverflow.Ellipsis)
                     }
-                    Icon(Icons.Outlined.ChevronRight, null)
+                    CodexIcon(CodexGlyph.ChevronRight, null)
                 }
             }
         }
@@ -241,7 +239,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Difference, null, tint = Ink.copper)
+                    CodexIcon(CodexGlyph.Diff, null, tint = Ink.copper)
                     Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text("代码变更", style = MaterialTheme.typography.titleSmall)
@@ -290,6 +288,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (shortViewport) 6.dp else 10.dp)
                 ) {
+                    if (!shortViewport && !busy) {
+                        CodexStateArtwork(R.drawable.ic_empty_thread, Modifier.size(width = 112.dp, height = 76.dp)
+                            .testTag("chat-empty-artwork"))
+                    }
                     Text("今天想做什么？",
                         style = if (shortViewport) MaterialTheme.typography.titleLarge
                             else MaterialTheme.typography.headlineSmall,
@@ -311,14 +313,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                                         .testTag("chat-suggestion-files"),
                                     label = { Text("浏览文件", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp)) }
+                                    leadingIcon = { CodexIcon(CodexGlyph.Project, null, Modifier.size(18.dp)) }
                                 )
                                 AssistChip(
                                     onClick = { vm.editComposerText(thread, "帮我写一个脚本，目标是：") },
                                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                                         .testTag("chat-suggestion-script"),
                                     label = { Text("写个脚本", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.Code, null, Modifier.size(18.dp)) }
+                                    leadingIcon = { CodexIcon(CodexGlyph.Code, null, Modifier.size(18.dp)) }
                                 )
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -327,14 +329,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                                         .testTag("chat-suggestion-project"),
                                     label = { Text("新建项目", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(18.dp)) }
+                                    leadingIcon = { CodexIcon(CodexGlyph.CreateNewFolder, null, Modifier.size(18.dp)) }
                                 )
                                 AssistChip(
                                     onClick = { navigate(if (thread == null) "threads" else "review") },
                                     modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                                         .testTag("chat-suggestion-review"),
                                     label = { Text("代码审查", maxLines = 1) },
-                                    leadingIcon = { Icon(Icons.Outlined.FactCheck, null, Modifier.size(18.dp)) }
+                                    leadingIcon = { CodexIcon(CodexGlyph.FactCheck, null, Modifier.size(18.dp)) }
                                 )
                             }
                         }
@@ -459,7 +461,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             errors["queueWrite"]?.let { ErrorText(it) }
             if (queuedInputs.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Schedule, null, tint = Ink.muted,
+                    CodexIcon(CodexGlyph.TaskRunning, null, tint = Ink.muted,
                         modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(7.dp))
                     Text("等待执行 ${queuedInputs.size} 条后续指令",
@@ -548,7 +550,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
                     IconButton(onClick = { showTerminalSheet = false }) {
-                        Icon(Icons.Outlined.Close, "收起终端")
+                        CodexIcon(CodexGlyph.Close, "收起终端")
                     }
                 }
                 Box(Modifier.weight(1f)) { TerminalPage(vm, embedded = true) }
@@ -602,13 +604,13 @@ private fun TimelineStepCard(item: TimelineItem) {
     }
     val title = PresentationPolicy.timelineKind(item.kind)
     val icon = when (item.kind) {
-        "user" -> Icons.Outlined.PersonOutline
-        "commandExecution" -> Icons.Outlined.Terminal
-        "fileChange" -> Icons.Outlined.Difference
-        "mcpToolCall" -> Icons.Outlined.Hub
-        "plan" -> Icons.Outlined.ListAlt
-        "error" -> Icons.Outlined.ErrorOutline
-        else -> Icons.Outlined.AutoAwesome
+        "user" -> CodexGlyph.PersonOutline
+        "commandExecution" -> CodexGlyph.Terminal
+        "fileChange" -> CodexGlyph.Diff
+        "mcpToolCall" -> CodexGlyph.Hub
+        "plan" -> CodexGlyph.ListAlt
+        "error" -> CodexGlyph.TaskError
+        else -> CodexGlyph.AutoAwesome
     }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     Surface(
@@ -625,7 +627,7 @@ private fun TimelineStepCard(item: TimelineItem) {
                     border = BorderStroke(1.dp, tone.copy(alpha = .32f)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(icon, null, tint = tone, modifier = Modifier.padding(10.dp).size(18.dp))
+                    CodexIcon(icon, null, tint = tone, modifier = Modifier.padding(10.dp).size(18.dp))
                 }
                 if (!user) {
                     Spacer(Modifier.height(7.dp))
@@ -649,7 +651,7 @@ private fun TimelineStepCard(item: TimelineItem) {
                 if (item.evidence.isNotBlank()) {
                     TextButton(onClick = { evidenceOpen = true },
                         modifier = Modifier.heightIn(min = 46.dp)) {
-                        Icon(Icons.Outlined.OpenInNew, null, modifier = Modifier.size(18.dp))
+                        CodexIcon(CodexGlyph.OpenInNew, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("查看执行依据")
                     }

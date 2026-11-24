@@ -13,8 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -136,7 +134,7 @@ internal fun ConversationComposer(
                         .explainDisabled(attachedCount >= LocalImageAttachments.MAX_FILES,
                             "最多可添加 ${LocalImageAttachments.MAX_FILES} 张照片")
                 ) {
-                    Icon(Icons.Outlined.AttachFile,
+                    CodexIcon(CodexGlyph.Attachment,
                         contentDescription = "选择照片",
                         tint = Ink.parchment, modifier = Modifier.size(25.dp))
                 }
@@ -144,7 +142,7 @@ internal fun ConversationComposer(
                     Box {
                         IconButton(onClick = { compactMenuExpanded = true },
                             modifier = Modifier.size(48.dp).testTag("composer-task-options")) {
-                            Icon(Icons.Outlined.Tune, "模型、模式和诊断")
+                            CodexIcon(CodexGlyph.Tune, "模型、模式和诊断")
                         }
                         DropdownMenu(expanded = compactMenuExpanded,
                             onDismissRequest = { compactMenuExpanded = false }) {
@@ -152,18 +150,18 @@ internal fun ConversationComposer(
                                 text = { Text("选择模型 · " +
                                     compactModelLabel.ifBlank { "默认模型" },
                                     maxLines = 1) },
-                                leadingIcon = { Icon(Icons.Outlined.Memory, null) },
+                                leadingIcon = { CodexIcon(CodexGlyph.Memory, null) },
                                 onClick = { compactMenuExpanded = false; onModel() },
                                 modifier = Modifier.testTag("composer-compact-model"))
                             DropdownMenuItem(
                                 text = { Text("任务模式 · " +
                                     (if (compactModeLabel == "plan") "先计划" else "执行")) },
-                                leadingIcon = { Icon(Icons.Outlined.Tune, null) },
+                                leadingIcon = { CodexIcon(CodexGlyph.Tune, null) },
                                 onClick = { compactMenuExpanded = false; onMode() },
                                 modifier = Modifier.testTag("composer-compact-mode"))
                             DropdownMenuItem(
                                 text = { Text("运行诊断与状态") },
-                                leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                                leadingIcon = { CodexIcon(CodexGlyph.Info, null) },
                                 onClick = { compactMenuExpanded = false; onDiagnostics() },
                                 modifier = Modifier.testTag("composer-compact-diagnostics"))
                         }
@@ -202,7 +200,7 @@ internal fun ConversationComposer(
                         if (stopping) {
                             CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp,
                                 color = Ink.red)
-                        } else Icon(Icons.Outlined.StopCircle, null,
+                        } else CodexIcon(CodexGlyph.Stop, null,
                             modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(if (stopping) "停止中" else "停止")
@@ -236,10 +234,10 @@ internal fun ConversationComposer(
                         CircularProgressIndicator(Modifier.size(21.dp), strokeWidth = 2.dp,
                             color = Ink.muted)
                     } else {
-                        Icon(when {
-                            !running -> Icons.Outlined.ArrowUpward
-                            followUpMode == "queue" -> Icons.Outlined.Schedule
-                            else -> Icons.Outlined.EditNote
+                        CodexIcon(when {
+                            !running -> CodexGlyph.ArrowUpward
+                            followUpMode == "queue" -> CodexGlyph.TaskRunning
+                            else -> CodexGlyph.EditNote
                         }, null, modifier = Modifier.size(24.dp))
                     }
                 }

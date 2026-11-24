@@ -3,8 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +37,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "返回回合历史")
+                        CodexIcon(CodexGlyph.ArrowBack, contentDescription = "返回回合历史")
                     }
                     Column(Modifier.weight(1f)) {
                         Text("会话时间线", style = MaterialTheme.typography.titleLarge)
@@ -65,7 +63,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                     itemsIndexed(entries, key = { _, item -> item.optLong("position") }) { index, entry ->
                         MaterialPanel(Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Outlined.History, null, tint = Ink.copper)
+                                CodexIcon(CodexGlyph.History, null, tint = Ink.copper)
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(PresentationPolicy.timelineKind(entry.optString("type")),

@@ -7,15 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
@@ -66,7 +62,7 @@ fun CodexDetailSheet(
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("codex-detail-close")
                 ) {
-                    Icon(Icons.Outlined.Close, contentDescription = "关闭详情")
+                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭详情")
                 }
             }
             HorizontalDivider(color = Ink.border)
@@ -94,7 +90,7 @@ fun CodexDetailTrigger(
     TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)) {
         Text(label)
         Spacer(Modifier.width(4.dp))
-        Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+        CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
             modifier = Modifier.size(18.dp))
     }
 }
@@ -102,7 +98,7 @@ fun CodexDetailTrigger(
 /** Action Sheet 对象，业务回调仍由实际页面持有。 */
 data class CodexSheetAction(
     val label: String,
-    val icon: ImageVector,
+    val icon: CodexGlyph,
     val onClick: () -> Unit,
     val description: String = "",
     val destructive: Boolean = false,
@@ -156,7 +152,7 @@ private fun ColumnScope.CodexActionRows(
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(action.icon, contentDescription = null,
+                    CodexIcon(action.icon, contentDescription = null,
                         tint = if (action.enabled) tone else Ink.muted,
                         modifier = Modifier.size(22.dp))
                     Column(Modifier.weight(1f)) {

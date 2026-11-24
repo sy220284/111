@@ -6,8 +6,6 @@ import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,7 +60,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 enabled = "accountSessions" !in loading
             ) {
-                Icon(Icons.Outlined.Refresh, null)
+                CodexIcon(CodexGlyph.Retry, null)
                 Spacer(Modifier.width(8.dp))
                 Text(if (engine == EngineStatus.Connected) "刷新账号与工作区" else "连接本机内核")
             }
@@ -97,7 +95,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     val workspaces = session.optJSONArray("workspaces") ?: JSONArray()
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.AccountCircle, null, tint = Ink.copper)
+                            CodexIcon(CodexGlyph.AccountCircle, null, tint = Ink.copper)
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(session.optString("displayName").ifBlank {

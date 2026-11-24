@@ -12,8 +12,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -51,7 +49,7 @@ fun AtlasSearchField(
         singleLine = true,
         enabled = enabled,
         shape = RoundedCornerShape(18.dp),
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+        leadingIcon = { CodexIcon(CodexGlyph.Search, contentDescription = null) },
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (value.isNotBlank() && onClear != null) {
@@ -59,7 +57,7 @@ fun AtlasSearchField(
                         onClick = onClear,
                         modifier = Modifier.size(48.dp),
                         enabled = enabled
-                    ) { Icon(Icons.Outlined.Close, contentDescription = "清除搜索词") }
+                    ) { CodexIcon(CodexGlyph.Close, contentDescription = "清除搜索词") }
                 }
                 if (onSubmit != null) {
                     IconButton(
@@ -72,7 +70,7 @@ fun AtlasSearchField(
                         if (busy) CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             color = Ink.copper, strokeWidth = 2.dp
-                        ) else Icon(Icons.Outlined.ArrowForward, contentDescription = "开始搜索")
+                        ) else CodexIcon(CodexGlyph.ArrowForward, contentDescription = "开始搜索")
                     }
                 }
             }
@@ -218,7 +216,7 @@ fun AtlasFieldFeedback(
     Row(modifier.fillMaxWidth().heightIn(min = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        Icon(if (isError) Icons.Outlined.ErrorOutline else Icons.Outlined.Info,
+        CodexIcon(if (isError) CodexGlyph.TaskError else CodexGlyph.Info,
             contentDescription = null,
             tint = if (isError) Ink.red else Ink.muted,
             modifier = Modifier.size(17.dp))
@@ -275,7 +273,7 @@ fun AtlasLoadingResults(
 fun AtlasSettingsActionRow(
     title: String,
     detail: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: CodexGlyph,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
@@ -293,14 +291,14 @@ fun AtlasSettingsActionRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(icon, contentDescription = null,
+            CodexIcon(icon, contentDescription = null,
                 modifier = Modifier.size(24.dp), tint = Ink.copper)
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(detail, style = MaterialTheme.typography.bodySmall,
                     color = Ink.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+            CodexIcon(CodexGlyph.ChevronRight, contentDescription = null,
                 tint = Ink.muted, modifier = Modifier.size(20.dp))
         }
     }

@@ -6,9 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,7 +41,7 @@ internal fun ChatWorkTopBar(
                     .background(Ink.recessed, CircleShape)
                     .testTag("drawer-toggle")
             ) {
-                Icon(Icons.Outlined.Menu, "打开侧边导航", tint = Ink.parchment)
+                CodexIcon(CodexGlyph.Sidebar, "打开侧边导航", tint = Ink.parchment)
             }
         }
         Column(
@@ -67,7 +64,7 @@ internal fun ChatWorkTopBar(
                     .testTag("top-new-chat")
                     .explainDisabled(newThreadBlockReason != null, newThreadBlockReason.orEmpty())
             ) {
-                Icon(Icons.Outlined.ChatBubbleOutline, "新建聊天",
+                CodexIcon(CodexGlyph.Thread, "新建聊天",
                     tint = if (newThreadBlockReason != null) Ink.muted else Ink.parchment)
             }
         }

@@ -7,8 +7,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,7 +75,7 @@ fun ApprovalsPage(vm: CodexViewModel) {
         if (prompts.isEmpty()) {
             CodexEmptyState("目前没有等待授权的操作",
                 "当任务需要执行命令、修改文件或申请权限时，确认请求会显示在这里。",
-                icon = Icons.Outlined.GppGood,
+                icon = CodexGlyph.Security,
                 artworkRes = R.drawable.ic_empty_approval)
         }
         if (prompts.isNotEmpty())
@@ -123,7 +121,7 @@ internal fun ApprovalQuickSheetContent(
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             if (prompts.isEmpty()) {
                 CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
-                    icon = Icons.Outlined.GppGood)
+                    icon = CodexGlyph.Security)
                 OutlinedButton(onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Text("返回当前任务")
@@ -167,7 +165,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     var commandExpanded by remember(prompt.id.toString()) { mutableStateOf(false) }
     MaterialPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.AdminPanelSettings, null, tint = Ink.copper)
+            CodexIcon(CodexGlyph.TaskApproval, null, tint = Ink.copper)
             Spacer(Modifier.width(12.dp))
             Text(
                 when (method) {
@@ -275,7 +273,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                 Box {
                     IconButton(onClick = { morePermissions = true },
                         modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Outlined.MoreHoriz, contentDescription = "更多授权选项")
+                        CodexIcon(CodexGlyph.MoreHoriz, contentDescription = "更多授权选项")
                     }
                     DropdownMenu(expanded = morePermissions, onDismissRequest = {
                         morePermissions = false
@@ -342,7 +340,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             "常用设置可直接在设置页管理；这里只处理需要手动填写的高级参数。")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.SettingsSuggest, null, tint = Ink.copper)
+                CodexIcon(CodexGlyph.Settings, null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("当前配置", style = MaterialTheme.typography.titleMedium)
@@ -357,7 +355,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 IconButton(onClick = {
                     vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
                 }, enabled = "config" !in loading) {
-                    Icon(Icons.Outlined.Refresh, "读取生效配置")
+                    CodexIcon(CodexGlyph.Retry, "读取生效配置")
                 }
             }
             if ("config" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -521,7 +519,7 @@ fun AppearancePage() {
                 WhiteSwitch(lessMotion, onCheckedChange = UiPreferences::setReducedMotion)
             }
         }
-        CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", Icons.Outlined.TouchApp,
+        CodexActionTile("交互预览", "点击可切换紧凑排版，查看触摸反馈", CodexGlyph.TouchApp,
             onClick = { UiPreferences.setCompact(!compact) }, modifier = Modifier.fillMaxWidth())
         CodexNotice(if (lessMotion) "已关闭装饰性位移动画，状态仍会立即更新"
             else "页面转场与操作反馈已经启用", NoticeTone.Info)

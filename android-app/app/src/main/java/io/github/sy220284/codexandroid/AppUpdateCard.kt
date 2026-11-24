@@ -5,8 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,14 +45,14 @@ internal fun AppUpdateCard(vm: CodexViewModel, autoExpand: Boolean = false) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Outlined.SystemUpdate, contentDescription = null,
+                CodexIcon(CodexGlyph.SystemUpdate, contentDescription = null,
                     tint = Ink.copper)
                 Column(Modifier.weight(1f)) {
                     Text("应用更新", style = MaterialTheme.typography.titleMedium)
                     Text("当前版本：${currentVersion.ifBlank { "未知" }}",
                         color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                 }
-                Icon(Icons.Outlined.ChevronRight, contentDescription = "查看更新操作",
+                CodexIcon(CodexGlyph.ChevronRight, contentDescription = "查看更新操作",
                     tint = Ink.muted)
             }
             if (busy || status.phase in setOf(UpdatePhase.READY, UpdatePhase.ERROR,

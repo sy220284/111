@@ -1,8 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,7 +21,7 @@ fun ConversationControlBar(
         ModelControl(modelName, onModel, Modifier.weight(1.12f))
         ModeControl(mode, !running, onMode, Modifier.weight(.88f))
         IconButton(onClick = onDiagnostics, modifier = Modifier.size(48.dp)) {
-            Icon(if (connected) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
+            CodexIcon(if (connected) CodexGlyph.TaskComplete else CodexGlyph.TaskError,
                 contentDescription = "查看内核运行诊断",
                 tint = if (connected) Ink.jade else Ink.red)
         }
@@ -37,7 +35,7 @@ private fun ModelControl(modelName: String,
         contentPadding = PaddingValues(horizontal = 5.dp, vertical = 8.dp)) {
         Text(modelName.ifBlank { "默认模型" }, modifier = Modifier.weight(1f, fill = false),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Icon(Icons.Outlined.ArrowDropDown, null, modifier = Modifier.size(15.dp))
+        CodexIcon(CodexGlyph.ExpandMore, null, modifier = Modifier.size(15.dp))
     }
 }
 
@@ -50,6 +48,6 @@ private fun ModeControl(mode: String, enabled: Boolean,
         Text(if (mode == "plan") "先计划" else "执行",
             modifier = Modifier.weight(1f, fill = false),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Icon(Icons.Outlined.ArrowDropDown, null, modifier = Modifier.size(15.dp))
+        CodexIcon(CodexGlyph.ExpandMore, null, modifier = Modifier.size(15.dp))
     }
 }

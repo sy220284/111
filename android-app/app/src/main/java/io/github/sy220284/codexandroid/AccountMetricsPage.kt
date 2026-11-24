@@ -3,8 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,7 +52,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (usage) Icons.Outlined.Insights else Icons.Outlined.Speed,
+                CodexIcon(if (usage) CodexGlyph.Insights else CodexGlyph.Speed,
                     null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
