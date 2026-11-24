@@ -13,11 +13,13 @@ internal fun CodexViewModel.acceptComposerDraft(threadId: String?, submitted: Co
 
 /** Snapshot all input once; ordinary send, queue and steer use the same typed payload. */
 internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: String,
-    expectedThread: String?, expectedTurn: String?, expectedRunning: Boolean) {
+    expectedThread: String?, expectedTurn: String?, expectedRunning: Boolean, expectedOwner: String) {
     if (!draft.hasInput) return
-    if (activeThread.value != expectedThread || running.value != expectedRunning ||
+    if (composerOwner(activeThread.value) != expectedOwner ||
+        activeThread.value != expectedThread || running.value != expectedRunning ||
         (expectedRunning && activeTurn.value != expectedTurn)) {
-        errors.value = errors.value + ("conversation" to "任务状态已变化，指令仍保留，请确认发送方式后重试")
+        val key = if (!expectedRunning) "conversation" else if (followUp == "queue") "queueWrite" else "steer"
+        errors.value = errors.value + (key to "任务状态已变化，指令仍保留，请确认发送方式后重试")
         return
     }
     if (threadSwitching.value || firstThreadStarting.value || steerBusy.value ||
@@ -47,8 +49,10 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
         return
     }
     if (queue) loading.value = loading.value + key else steerBusy.value = true
+    errors.value = errors.value - key
     pendingComposerImages.value = pendingComposerImages.value + draft.images
     viewModelScope.launch {
+        var dispatched = false
         try {
             ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
             if (queue) {
@@ -56,9 +60,11 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                     "当前任务已变化，请重新确认发送方式；原指令已保留"
                 }
                 // Native queue snapshots local images before acknowledging enqueue.
-                bridge.request("thread/queue/add", JSONObject().put("threadId", thread)
+                val params = JSONObject().put("threadId", thread)
                     .put("clientUserMessageId", UUID.randomUUID().toString())
-                    .put("input", TurnRequestContract.input(draft.text, draft.images, draft.references)))
+                    .put("input", TurnRequestContract.input(draft.text, draft.images, draft.references))
+                dispatched = true
+                bridge.request("thread/queue/add", params)
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("已加入后续指令"))
                 refresh("queue:$thread", "thread/queue/list", JSONObject().put("threadId", thread).put("limit", 100))
@@ -72,8 +78,10 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 }
                 // The native userMessage event owns the visible message. A separate local
                 // steer bubble would duplicate it and could survive history reconciliation.
-                bridge.request("turn/steer", TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references)
-                    .put("clientUserMessageId", UUID.randomUUID().toString()))
+                val params = TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references)
+                    .put("clientUserMessageId", UUID.randomUUID().toString())
+                dispatched = true
+                bridge.request("turn/steer", params)
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("引导指令已发送"))
             }
@@ -81,7 +89,14 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (failure: Exception) {
-            errors.value = errors.value + (key to (failure.message ?: "指令未被接受，输入已保留"))
+            val method = if (queue) "thread/queue/add" else "turn/steer"
+            val reason = failure.message ?: "发送失败"
+            val message = if (dispatched && !(failure is RpcServerRejection && failure.method == method))
+                "$reason；发送结果尚未确认，原输入已保留，请先核对当前消息或队列再重试"
+            else "$reason；原输入已保留"
+            errors.value = errors.value + (key to message)
+            if (queue && dispatched)
+                refresh("queue:$thread", "thread/queue/list", JSONObject().put("threadId", thread).put("limit", 100))
         } finally {
             pendingComposerImages.value = pendingComposerImages.value - draft.images.toSet()
             if (queue) loading.value = loading.value - key else steerBusy.value = false
@@ -91,8 +106,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
 
 /** Native queue start is allowed only when the selected thread is idle.
  * Do not interrupt the running turn to simulate immediate execution. */
-internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: String? = null,
-    after: (() -> Unit)? = null) {
+internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: String? = null) {
     val key = "queueWrite"
     if (activeThread.value != threadId || running.value || threadId in threadExecutions.value ||
         firstThreadStarting.value || threadSwitching.value || steerBusy.value ||
@@ -101,13 +115,59 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
         errors.value = errors.value + (key to "当前会话尚未空闲或连接未就绪，请稍后执行队列")
         return
     }
+    if (DataTransferMutationGate.refuse(this, key, "thread/queue/start")) return
     val params = JSONObject().put("threadId", threadId)
     if (queuedId != null) {
         require(queuedId.isNotBlank()) { "缺少排队消息标识" }
         params.put("queuedSubmissionId", queuedId)
     }
-    rpc("queueWrite", "thread/queue/start", params, after = {
-        refresh("queue:$threadId", "thread/queue/list", JSONObject().put("threadId", threadId).put("limit", 100))
-        after?.invoke()
-    })
+    // Reserve before dispatch, exactly like an ordinary turn. Native queue input
+    // already owns its attachments; no duplicate local image references are needed.
+    threadExecutions.value = ThreadExecutionPolicy.reserve(threadExecutions.value, threadId, emptyList())
+    val reservation = threadExecutions.value.getValue(threadId)
+    loading.value = loading.value + key
+    errors.value = errors.value - key
+    viewModelScope.launch {
+        try {
+            val response = bridge.request("thread/queue/start", params)
+            val turnId = response.optJSONObject("turn")?.optString("id").orEmpty()
+            require(turnId.isNotBlank()) { "核心未返回有效执行回合，请先核对队列" }
+            // The started/completed events may have been processed before the response.
+            // Never overwrite a newer turn or resurrect an already completed one.
+            if (threadExecutions.value[threadId] === reservation) {
+                threadExecutions.value = ThreadExecutionPolicy.started(threadExecutions.value, threadId, turnId)
+                threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value, threadId, ThreadActivity.Running)
+                if (activeThread.value == threadId) {
+                    activeTurn.value = turnId
+                    running.value = true
+                }
+            }
+            queuePausedThreads.value = queuePausedThreads.value - threadId
+            threadFailures.value = threadFailures.value - threadId
+            actionFeedback.tryEmit(ActionFeedbackReceipt("已开始执行后续指令"))
+        } catch (cancel: kotlinx.coroutines.CancellationException) {
+            throw cancel
+        } catch (failure: Exception) {
+            val rejected = failure is RpcServerRejection && failure.method == "thread/queue/start"
+            if (threadExecutions.value[threadId] === reservation) {
+                if (rejected) {
+                    threadExecutions.value = ThreadExecutionPolicy.finish(threadExecutions.value, threadId)
+                    if (activeThread.value == threadId) { running.value = false; activeTurn.value = null }
+                } else {
+                    // An ambiguous response cannot safely authorize another start.
+                    if (activeThread.value == threadId) running.value = true
+                }
+            }
+            val reason = failure.message ?: "无法启动后续指令"
+            val message = if (rejected) reason else "$reason；启动结果尚未确认，请核对队列和运行状态，避免重复执行"
+            errors.value = errors.value + (key to message)
+            actionFeedback.tryEmit(ActionFeedbackCopy.failure("thread/queue/start", message))
+        } finally {
+            loading.value = loading.value - key
+            if (bridge.status.value == EngineStatus.Connected) {
+                refresh("queue:$threadId", "thread/queue/list", JSONObject().put("threadId", threadId).put("limit", 100))
+                sessions.refreshChanged(threadId)
+            }
+        }
+    }
 }

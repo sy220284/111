@@ -254,7 +254,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onAction = {
                     if (status is EngineStatus.Unavailable) vm.connect()
                     else if (!busy && !switching) {
-                        vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = false)
+                        vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = false, expectedOwner = draftOwner)
                     }
                 }
             )
@@ -355,7 +355,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         vm.interruptThread(thread)
                     }
                 },
-                onSend = { vm.submitComposerDraft(snapshot, renderedFollowUpMode, thread, activeTurn, busy) },
+                onSend = { vm.submitComposerDraft(snapshot, renderedFollowUpMode, thread, activeTurn, busy, draftOwner) },
                 hasInput = snapshot.hasInput,
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { keyboard?.hide(); composerMenu = "add" },
