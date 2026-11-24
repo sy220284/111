@@ -61,7 +61,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 CodexIcon(CodexGlyph.Flag, null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
                 Text("当前目标", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = { vm.refresh(key, "thread/goal/get",
+                CodexIconAction(onClick = { vm.refresh(key, "thread/goal/get",
                     JSONObject().put("threadId", active)) }) {
                     CodexIcon(CodexGlyph.Retry, "刷新")
                 }
@@ -77,7 +77,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 }
                 Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
                     goal.optLong("timeUsedSeconds"), color = Ink.muted)
-                OutlinedButton(onClick = {
+                CodexSecondaryButton(onClick = {
                     vm.editTaskPanelDraft(active) {
                         it.copy(
                             goalText = goal.optString("objective"),
@@ -88,12 +88,12 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                         )
                     }
                 }) { Text("编辑当前目标") }
-                TextButton(onClick = { confirmClear = true }) { Text("清除目标") }
+                CodexTextAction(onClick = { confirmClear = true }) { Text("清除目标") }
             }
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text(if (goal == null) "设置新目标" else "更新目标", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(objective, { text ->
+            CodexInputField(objective, { text ->
                 vm.editTaskPanelDraft(active) { it.copy(goalText = text) }
             }, modifier = Modifier.fillMaxWidth(),
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
@@ -130,7 +130,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 modifier = Modifier.testTag("goal-advanced-toggle")
             )
             if (budgetEdited) {
-                TextButton(onClick = {
+                CodexTextAction(onClick = {
                     vm.editTaskPanelDraft(active) {
                         it.copy(goalBudget = "", goalBudgetEdited = false)
                     }
@@ -192,7 +192,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
             },
             canConfirm = safeBudgetInput
         ) {
-            OutlinedTextField(
+            CodexInputField(
                 value = budgetInput,
                 onValueChange = { budgetInput = it.filter(Char::isDigit) },
                 label = { Text("Token 上限（可留空）") },
@@ -290,13 +290,13 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("添加后续指令", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(draft, { text ->
+            CodexInputField(draft, { text ->
                 vm.editTaskPanelDraft(active) { it.copy(queueText = text) }
             }, modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
                 minLines = 2, maxLines = 6,
                 label = { Text("完成当前任务后做什么") },
                 placeholder = { Text("描述明确任务及完成条件") })
-            OutlinedButton(onClick = {
+            CodexSecondaryButton(onClick = {
                 val originalDraft = draft
                 val args = JSONObject().put("threadId", active)
                     .put("clientUserMessageId", UUID.randomUUID().toString())
@@ -316,7 +316,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             }
         }
         AtlasListHeading(title = "等待执行", total = all.size, action = {
-            IconButton(onClick = { refreshQueue() }) {
+            CodexIconAction(onClick = { refreshQueue() }) {
                 CodexIcon(CodexGlyph.Retry, contentDescription = "刷新指令")
             }
         })
@@ -374,7 +374,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         else -> "第 " + (index + 1) + " 项"
                     }, color = if (dragging >= 0 && (dragging == index || destination == index)) Ink.jade else Ink.muted,
                         style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                    IconButton(
+                    CodexIconAction(
                         onClick = { showQueueActions = true },
                         enabled = "queueWrite" !in loading,
                         modifier = Modifier.testTag("queue-item-more-" + index)
@@ -425,7 +425,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             }
         }
         if (nextCursor.isNotBlank()) {
-            OutlinedButton(onClick = {
+            CodexSecondaryButton(onClick = {
                 val page = pageCount + 1
                 vm.refresh(rootKey + ":page:" + page, "thread/queue/list",
                     JSONObject().put("threadId", active)
@@ -446,7 +446,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             title = { Text("编辑排队任务") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    CodexInputField(
                         value = editText, onValueChange = { editText = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("任务内容") }, minLines = 2, maxLines = 6
@@ -457,7 +457,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 }
             },
             confirmButton = {
-                OutlinedButton(
+                CodexSecondaryButton(
                     onClick = {
                         active?.let { id ->
                             vm.rpc("queueWrite", "thread/queue/update",
@@ -472,7 +472,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         editText.isNotBlank() && "queueWrite" !in loading
                 ) { Text("保存修改") }
             },
-            dismissButton = { TextButton(onClick = { pendingEdit = null }) { Text("取消") } }
+            dismissButton = { CodexTextAction(onClick = { pendingEdit = null }) { Text("取消") } }
         )
     }
 
@@ -513,7 +513,7 @@ fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             .fillMaxHeight(PhoneSheetLayout.queueFraction(count))
             .testTag("thread-queue-sheet")) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                IconButton(
+                CodexIconAction(
                     onClick = onDismiss,
                     modifier = Modifier.size(48.dp).testTag("thread-queue-close")
                 ) {

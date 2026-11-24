@@ -83,13 +83,13 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             AtlasSheetHeader("回合历史与回退", onDismiss)
             Text("历史来自实际会话。回退仅修改保存的会话记录，已写入的本地文件不会自动恢复。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            OutlinedButton(onClick = { showAdvanced = true }, enabled = thread != null,
+            CodexSecondaryButton(onClick = { showAdvanced = true }, enabled = thread != null,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 CodexIcon(CodexGlyph.Timeline, null)
                 Spacer(Modifier.width(8.dp))
                 Text("查看完整时间线（实验）")
             }
-            OutlinedButton(
+            CodexSecondaryButton(
                 onClick = {
                     val target = thread
                     if (!target.isNullOrBlank()) {
@@ -148,13 +148,13 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                 if (status.isNotEmpty()) StatusPill(status, good = status != "失败")
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = {
+                                CodexSecondaryButton(onClick = {
                                     inspected = id
                                     vm.refresh("turnItems:" + id, "thread/items/list",
                                         JSONObject().put("threadId", thread)
                                             .put("turnId", id).put("limit", 100))
                                 }, modifier = Modifier.weight(1f)) { Text("查看条目") }
-                                OutlinedButton(onClick = { target = id },
+                                CodexSecondaryButton(onClick = { target = id },
                                     enabled = !busy && "threadRevert" !in loading,
                                     modifier = Modifier.weight(1f),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)
@@ -165,7 +165,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }
                     if (next.isNotBlank()) {
                         item {
-                            OutlinedButton(onClick = {
+                            CodexSecondaryButton(onClick = {
                                 val nextPage = page + 1
                                 page = nextPage
                                 vm.refresh(prefix + nextPage, "thread/turns/list",
@@ -189,7 +189,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         data[entryKey]?.let { payload ->
             Text("已读取 ${records(payload).size} 条历史记录",
                 color = Ink.muted)
-            OutlinedButton(onClick = { fullReader = readableTurnItems(payload) }) {
+            CodexSecondaryButton(onClick = { fullReader = readableTurnItems(payload) }) {
                 Text("阅读任务执行记录")
             }
             records(payload).filter { it.optBoolean("outputDeferred") }
@@ -198,7 +198,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                         ?.optString("id").orEmpty()
                     if (itemId.isNotBlank()) {
                         val detailKey = "turnItemRead:" + id + ":" + itemId
-                        OutlinedButton(
+                        CodexSecondaryButton(
                             onClick = {
                                 vm.refresh(detailKey, "thread/items/read",
                                     JSONObject().put("threadId", thread)
@@ -211,7 +211,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                             AtlasOperationProgress("正在读取完整执行内容")
                         errors[detailKey]?.let { ErrorText(it) }
                         data[detailKey]?.let { detail ->
-                            OutlinedButton(
+                            CodexSecondaryButton(
                                 onClick = { fullReader = readableTurnItems(detail) }
                             ) { Text("打开完整输出") }
                         }

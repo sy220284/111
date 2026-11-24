@@ -31,7 +31,7 @@ fun ThreadLibraryQuickSheet(
                 verticalAlignment = Alignment.CenterVertically) {
                 Text("选择会话", style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭会话选择")
                 }
             }

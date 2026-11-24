@@ -218,7 +218,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("最近搜索", modifier = Modifier.weight(1f),
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        TextButton(onClick = {
+                        CodexTextAction(onClick = {
                             try {
                                 val cleared = RecentThreadSearches.clear(context, fullText)
                                 if (fullText) recentFull = cleared else recentTitle = cleared
@@ -237,7 +237,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         horizontalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
                         recent.forEach { term ->
-                            FilterChip(
+                            CodexFilterChip(
                                 selected = searchText == term,
                                 onClick = { submitSearch(term) },
                                 enabled = !busy,
@@ -253,7 +253,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("会话分组", style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f))
-                    TextButton(
+                    CodexTextAction(
                         onClick = {
                             sectionDraft = ""
                             editingSection = false
@@ -269,10 +269,10 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilterChip(selected = selectedSection.isEmpty(), onClick = {
+                    CodexFilterChip(selected = selectedSection.isEmpty(), onClick = {
                         selectedSection = ""; cursor = null; history = emptyList()
                     }, label = { Text("全部") })
-                    FilterChip(
+                    CodexFilterChip(
                         selected = selectedSection == ThreadSectionContract.UNGROUPED,
                         onClick = {
                             selectedSection = ThreadSectionContract.UNGROUPED
@@ -282,7 +282,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     )
                     sections.forEach { section ->
                         val id = section.optString("id")
-                        FilterChip(selected = selectedSection == id, onClick = {
+                        CodexFilterChip(selected = selectedSection == id, onClick = {
                             selectedSection = id; cursor = null; history = emptyList()
                         }, label = { Text(section.optString("name")) })
                     }
@@ -291,7 +291,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("当前分组：" + section.optString("name"), modifier = Modifier.weight(1f),
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        TextButton(
+                        CodexTextAction(
                             enabled = !firstThreadStarting && !switching && !busy,
                             onClick = {
                                 sectionDraft = section.optString("name")
@@ -299,7 +299,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                                 showSectionEditor = true
                             }
                         ) { Text("重命名") }
-                        TextButton(
+                        CodexTextAction(
                             enabled = !firstThreadStarting && !switching && !busy,
                             onClick = { deleteSection = section }
                         ) {
@@ -378,7 +378,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 title = if (archived) "归档记录" else "最近会话",
                 total = entries.size, suffix = "本页会话",
                 action = {
-                    TextButton(
+                    CodexTextAction(
                         onClick = {
                             selectionMode = !selectionMode
                             selectedIds = emptyList()
@@ -413,7 +413,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(bulkSummary, modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
-                    TextButton(onClick = { vm.bulkActionSummary.value = "" },
+                    CodexTextAction(onClick = { vm.bulkActionSummary.value = "" },
                         modifier = Modifier.heightIn(min = 48.dp)) { Text("关闭") }
                 }
             }
@@ -452,7 +452,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 )) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (selectionMode) {
-                        Checkbox(
+                        CodexCheckBox(
                             checked = id in selectedIds,
                             onCheckedChange = { toggleSelected(id) },
                             enabled = canManage,
@@ -474,7 +474,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                             maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
                     }
                     Box {
-                        IconButton(onClick = { menu = true }, enabled = canManage && !selectionMode) {
+                        CodexIconAction(onClick = { menu = true }, enabled = canManage && !selectionMode) {
                             CodexIcon(CodexGlyph.MoreVert, "管理会话")
                         }
                         if (menu) CodexActionSheet(
@@ -523,7 +523,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 if (id in executions)
                     CodexNotice("该会话仍在执行，可切到其他会话，完成后再整理。")
                 if (archived && !selectionMode) {
-                    OutlinedButton(onClick = { action = "unarchive" to thread },
+                    CodexSecondaryButton(onClick = { action = "unarchive" to thread },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = canManage) {
                         CodexIcon(CodexGlyph.Unarchive, null)
@@ -531,7 +531,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                         Text("恢复会话")
                     }
                 } else if (!selectionMode) {
-                    OutlinedButton(onClick = { openThread(id) },
+                    CodexSecondaryButton(onClick = { openThread(id) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         enabled = !firstThreadStarting && !switching && id.isNotBlank()) {
                         CodexIcon(CodexGlyph.PlayArrow, null)
@@ -544,14 +544,14 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
         if (response != null && (nextCursor != null || history.isNotEmpty())) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = {
+                    CodexSecondaryButton(onClick = {
                         cursor = history.last()
                         history = history.dropLast(1)
                     }, enabled = history.isNotEmpty() && key !in loading,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Text("上一页")
                     }
-                    OutlinedButton(onClick = {
+                    CodexSecondaryButton(onClick = {
                         history = history + cursor
                         cursor = nextCursor
                     }, enabled = nextCursor != null && key !in loading,
@@ -619,12 +619,12 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             onDismissRequest = { showSectionEditor = false },
             title = { Text(if (editingSection) "重命名分组" else "新建会话分组") },
             text = {
-                OutlinedTextField(sectionDraft, { sectionDraft = it },
+                CodexInputField(sectionDraft, { sectionDraft = it },
                     label = { Text("分组名称") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
             },
             confirmButton = {
-                OutlinedButton(
+                CodexSecondaryButton(
                     enabled = !firstThreadStarting && !switching && !busy &&
                         sectionDraft.trim().isNotEmpty() &&
                         sectionDraft.trim().length <= 120 && "sectionEdit" !in loading,
@@ -643,7 +643,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                     }
                 ) { Text("保存分组") }
             },
-            dismissButton = { TextButton(onClick = { showSectionEditor = false }) {
+            dismissButton = { CodexTextAction(onClick = { showSectionEditor = false }) {
                 Text("取消")
             } }
         )
@@ -697,13 +697,13 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("新名称将同步到 Codex 本地会话记录。", color = Ink.muted)
-                    OutlinedTextField(newName, { newName = it },
+                    CodexInputField(newName, { newName = it },
                         label = { Text("会话名称") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
-                OutlinedButton(onClick = {
+                CodexSecondaryButton(onClick = {
                     vm.rpc("threadLibraryAction", "thread/name/set",
                         JSONObject().put("threadId", id).put("name", newName.trim()),
                         after = {
@@ -716,7 +716,7 @@ fun ThreadLibraryPage(vm: CodexViewModel, navigate: (String) -> Unit,
                 }
             },
             dismissButton = {
-                TextButton(onClick = { rename = null }) { Text("取消") }
+                CodexTextAction(onClick = { rename = null }) { Text("取消") }
             }
         )
     }

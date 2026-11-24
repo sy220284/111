@@ -119,14 +119,14 @@ fun ThreadContextTools(
             }
             Text("保留当前会话记录，生成新的独立分支，适合尝试另一种解决路线。",
                 color = Ink.muted)
-            OutlinedButton(onClick = { action = "fork" },
+            CodexSecondaryButton(onClick = { action = "fork" },
                 enabled = !running && !busy && !threadId.isNullOrBlank(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text("创建分支")
             }
             forkId?.let { fork ->
                 CodexNotice("服务端已建立新的会话分支。", NoticeTone.Success)
-                OutlinedButton(onClick = {
+                CodexSecondaryButton(onClick = {
                     vm.chooseThread(fork) { openSubpage("chat") }
                 }, enabled = !switching && !firstThreadStarting) {
                     Text("打开新建分支")
@@ -141,7 +141,7 @@ fun ThreadContextTools(
             }
             Text("整理较早的对话内容后，部分细节可能无法继续直接引用。",
                 color = Ink.muted)
-            OutlinedButton(onClick = { action = "compact" },
+            CodexSecondaryButton(onClick = { action = "compact" },
                 enabled = !running && !busy && !threadId.isNullOrBlank(),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text("整理上下文")
@@ -153,7 +153,7 @@ fun ThreadContextTools(
         listOf("threadFork", "threadCompact", "threadContext").forEach { key ->
             errors[key]?.let { ErrorText(it) }
         }
-        TextButton(onClick = { openSubpage("threads") }, modifier = Modifier.fillMaxWidth()) {
+        CodexTextAction(onClick = { openSubpage("threads") }, modifier = Modifier.fillMaxWidth()) {
             Text("前往会话资料库，管理名称与归档")
         }
         Spacer(Modifier.height(12.dp))

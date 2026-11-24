@@ -173,13 +173,13 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 ) {
                                     Row(Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedTextField(ttyRows, {
+                                        CodexInputField(ttyRows, {
                                             ttyRows = it.filter(Char::isDigit).take(3)
                                         }, label = { Text("行数") }, singleLine = true,
                                             modifier = Modifier.weight(1f)
                                                 .testTag("terminal-resize-rows"),
                                             enabled = !session.terminating)
-                                        OutlinedTextField(ttyCols, {
+                                        CodexInputField(ttyCols, {
                                             ttyCols = it.filter(Char::isDigit).take(3)
                                         }, label = { Text("列数") }, singleLine = true,
                                             modifier = Modifier.weight(1f)
@@ -220,7 +220,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         ) {
                             Text("标准输出", modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.titleMedium)
-                            TextButton(
+                            CodexTextAction(
                                 onClick = {
                                     clipboard.setText(AnnotatedString(session.stdoutText))
                                     vm.actionFeedback.tryEmit(ActionFeedbackReceipt("终端输出已复制"))
@@ -233,7 +233,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                 Spacer(Modifier.width(4.dp))
                                 Text("复制")
                             }
-                            TextButton(
+                            CodexTextAction(
                                 onClick = { showFullOutput = true },
                                 enabled = session.stdoutText.length > 16_000,
                                 modifier = Modifier.heightIn(min = 48.dp)
@@ -241,7 +241,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             ) { Text("查看完整输出") }
                         }
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
-                            OutlinedButton(
+                            CodexSecondaryButton(
                                 onClick = {
                                     val targetId = session.processId
                                     historicalLoading = true
@@ -275,7 +275,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         if (historicalStdout.isNotBlank()) {
                             Text("较早的标准输出（本机分页读取）",
                                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                            TextButton(
+                            CodexTextAction(
                                 onClick = { showOlderOutput = true },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag("terminal-older-stdout-open")
@@ -286,7 +286,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                             }
                         }
                         if (transcriptAvailable) {
-                            OutlinedButton(
+                            CodexSecondaryButton(
                                 onClick = {
                                     exportTarget = session.processId to session.command
                                     exportStatus = ""
@@ -356,7 +356,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         style = MaterialTheme.typography.titleSmall)
                     if (session.tty) StatusPill("交互式终端", false, StatusTone.Info)
                 }
-                OutlinedTextField(
+                CodexInputField(
                     value = input, onValueChange = { input = it },
                     label = { Text("向运行中的命令输入一行") },
                     modifier = Modifier.fillMaxWidth(), maxLines = 3,
@@ -364,7 +364,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                 )
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = {
+                    CodexSecondaryButton(onClick = {
                         val submitted = input
                         vm.sendTerminalInput(submitted) {
                             input = ThreadDisplayPolicy.afterAcceptedDraft(input, submitted)
@@ -373,7 +373,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Text("发送输入")
                     }
-                    OutlinedButton(onClick = { vm.stopTerminalCommand() },
+                    CodexSecondaryButton(onClick = { vm.stopTerminalCommand() },
                         enabled = !session.terminating,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink.red)) {
@@ -387,7 +387,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
             }
         } else {
             MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-composer-panel")) {
-                OutlinedTextField(
+                CodexInputField(
                     command,
                     onValueChange = {
                         command = it
@@ -432,7 +432,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         onDismiss = { historyVisible = false }
                     ) {
                         recentCommands.forEachIndexed { index, previous ->
-                            OutlinedButton(
+                            CodexSecondaryButton(
                                 onClick = {
                                     command = previous
                                     historyPosition = TerminalHistoryPosition()
@@ -453,7 +453,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         Text("需要持续输入或运行交互程序时开启",
                             color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
-                    Switch(checked = interactive, onCheckedChange = { interactive = it },
+                    WhiteSwitch(checked = interactive, onCheckedChange = { interactive = it },
                         enabled = !session.running && !terminalStarting)
                 }
                 CodexPrimaryButton(onClick = { confirm = true },

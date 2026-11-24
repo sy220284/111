@@ -176,7 +176,7 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             Text(PresentationPolicy.permissionProfile(draftProfile.orEmpty()),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Ink.parchment)
-                            TextButton(onClick = { draftProfile = null }) {
+                            CodexTextAction(onClick = { draftProfile = null }) {
                                 Text("撤销修改")
                             }
                         }
@@ -300,7 +300,7 @@ private fun SecurityScopeOption(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = null, enabled = enabled,
+            CodexRadio(selected = selected, onClick = null, enabled = enabled,
                 modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(4.dp))
             Text(label,
@@ -331,7 +331,7 @@ private fun SecurityProfileOption(
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected, onClick = null, enabled = allowed,
+        CodexRadio(selected = selected, onClick = null, enabled = allowed,
             modifier = Modifier.size(32.dp))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f),
