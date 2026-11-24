@@ -25,10 +25,10 @@ class UiProtocolMatrixTest {
     }
 
     @Test fun newSurfacesAreUniqueAndKeepAllExistingRoutes() {
-        assertEquals(28, UiFeatureCatalog.all.size)
-        assertEquals(28, UiFeatureCatalog.byRoute.size)
-        assertEquals(26, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(4, UiFeatureCatalog.settingsGroups.size)
+        assertEquals(31, UiFeatureCatalog.all.size)
+        assertEquals(31, UiFeatureCatalog.byRoute.size)
+        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(5, UiFeatureCatalog.settingsGroups.size)
         assertTrue(UiFeatureCatalog.requiresThread("queue"))
         assertFalse(UiFeatureCatalog.requiresThread("plugins"))
         assertEquals(FeatureSurface.Sheet, UiFeatureCatalog.find("review").surface)

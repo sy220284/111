@@ -27,7 +27,7 @@ internal class WorkspaceTaskOperations(
 
     /** Switching project starts a new task context; old conversation remains in history. */
     fun selectWorkspace(folder: File) {
-        require(!threadSwitching.value && !running.value && !terminalSession.value.running) {
+        require(vm.globalWorkSnapshot().canStartNewTask && !vm.firstThreadStarting.value && !threadSwitching.value && !running.value && !terminalSession.value.running) {
             "当前有任务或命令正在执行，请先结束后再切换项目"
         }
         val selected = WorkspaceSelectionContract.validate(workspaceRoot, folder)

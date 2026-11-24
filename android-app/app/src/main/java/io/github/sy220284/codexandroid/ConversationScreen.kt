@@ -126,6 +126,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val twoImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(2)
     ) { selected -> vm.importPickedImages(selected) }
+    val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        vm.composerContent.finishCamera(success)
+    }
+    val voicePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val words = if (result.resultCode == android.app.Activity.RESULT_OK)
+            result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        else null
+        vm.composerContent.finishVoice(words)
+    }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         vm.composerContent.importDocuments(uris)
     }
@@ -497,19 +506,50 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             )
             if (composerMenu == "add") CodexActionSheet(title = "添加内容", onDismiss = { composerMenu = "" },
-                actions = listOf(
-                    CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
+                actions = buildList {
+                    add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
                         if (vm.beginImageSelection(thread)) pendingImagePick = true
                     }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                        description = "选择本机图片", testTag = "composer-add-photos"),
-                    CodexSheetAction("文件", CodexGlyph.Description, onClick = {
-                        if (vm.composerContent.beginDocument(thread, selectedWorkspace)) documentPicker.launch(arrayOf("*/*"))
-                    }, description = "导入当前项目并引用", testTag = "composer-add-files"),
-                    CodexSheetAction("引用项目文件", CodexGlyph.Link,
-                        onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"),
-                    CodexSheetAction("技能", CodexGlyph.School,
-                        onClick = { composerMenu = "skills" }, testTag = "composer-add-skill")
-                ))
+                        description = "选择本机图片", testTag = "composer-add-photos"))
+                    add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
+                        if (vm.composerContent.beginDocument(thread, selectedWorkspace)) {
+                            try { documentPicker.launch(arrayOf("*/*")) }
+                            catch (failure: Exception) {
+                                vm.composerContent.importDocuments(emptyList())
+                                vm.composerContent.pickerFailure(failure)
+                            }
+                        }
+                    }, description = "导入当前项目并引用", testTag = "composer-add-files"))
+                    add(CodexSheetAction("引用项目文件", CodexGlyph.Link,
+                        onClick = { referenceQuery = null; composerMenu = "reference" }, testTag = "composer-add-reference"))
+                    add(CodexSheetAction("技能", CodexGlyph.School,
+                        onClick = { composerMenu = "skills" }, testTag = "composer-add-skill"))
+                    if (vm.composerContent.canTakePhoto()) add(CodexSheetAction("拍照", CodexGlyph.Photo,
+                        onClick = {
+                            vm.composerContent.prepareCamera(thread)?.let { uri ->
+                                try { cameraPicker.launch(uri) }
+                                catch (failure: Exception) {
+                                    vm.composerContent.finishCamera(false)
+                                    vm.composerContent.pickerFailure(failure)
+                                }
+                            }
+                        }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                        description = "拍摄并添加图片", testTag = "composer-add-camera"))
+                    if (vm.composerContent.hasClipboardImage()) add(CodexSheetAction("粘贴图片", CodexGlyph.ContentCopy,
+                        onClick = { vm.composerContent.pasteImage(thread) },
+                        enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                        description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
+                    if (vm.composerContent.canRecognizeSpeech()) add(CodexSheetAction("语音输入", CodexGlyph.EditNote,
+                        onClick = {
+                            vm.composerContent.beginVoice(thread, selectedWorkspace)?.let { intent ->
+                                try { voicePicker.launch(intent) }
+                                catch (failure: Exception) {
+                                    vm.composerContent.finishVoice(null)
+                                    vm.composerContent.pickerFailure(failure)
+                                }
+                            }
+                        }, description = "使用系统语音识别，结果写入草稿，不自动发送", testTag = "composer-add-voice"))
+                })
             if (composerMenu == "tools") CodexActionSheet(title = "任务配置", onDismiss = { composerMenu = "" },
                 actions = tools.filter { it.command !in setOf("model", "mode") }.map {
                     CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
@@ -522,7 +562,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         onDismiss = { composerMenu = ""; referenceQuery = null })
     if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
         onSelect = { vm.composerContent.addReference(thread, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
-    if (composerMenu == "projects") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
+    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
+    if (composerMenu == "project-registry") ProjectRegistryPanel(vm, java.io.File(selectedWorkspace), onDismiss = { composerMenu = "" })
     if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
         onCompact = if (!busy && thread != null) ({ composerMenu = ""; showContextTools = true }) else null,
         onDismiss = { composerMenu = "" })

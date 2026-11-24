@@ -139,3 +139,43 @@ internal fun ComposerContextUsageSheet(usage: org.json.JSONObject?, onCompact: (
         if (onCompact != null) CodexSecondaryButton(onClick = onCompact) { Text("打开上下文整理") }
     }
 }
+
+/** Work directories are browsed locally; changing one preserves the prior conversation. */
+@Composable
+internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onRegistry: () -> Unit, onDismiss: () -> Unit) {
+    val root = remember { File(vm.workingDirectory).canonicalFile }
+    var directory by remember { mutableStateOf(File(workspace)) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val result by produceState<Result<List<File>>?>(null, directory) {
+        value = null
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val base = WorkspaceSelectionContract.validate(root, directory)
+                val children = base.listFiles() ?: error("无法读取目录")
+                children.filter { it.isDirectory && !it.name.startsWith(".") && !Files.isSymbolicLink(it.toPath()) }
+                    .map { WorkspaceSelectionContract.validate(root, it) }
+                    .distinct().sortedBy { it.name.lowercase() }
+            }
+        }
+    }
+    CodexDetailSheet(title = "选择工作区", onDismiss = onDismiss,
+        subtitle = "切换工作区会新建任务，原会话与草稿保留。") {
+        Text(if (directory == root) "本机工作区" else directory.relativeTo(root).path, style = MaterialTheme.typography.titleSmall)
+        error?.let { ErrorText(it) }
+        CodexPrimaryButton(onClick = {
+            try { vm.selectWorkspace(directory); onDismiss() }
+            catch (failure: Exception) { error = failure.message ?: "无法切换工作区" }
+        }, modifier = Modifier.fillMaxWidth()) { Text("使用当前目录") }
+        AtlasSettingsActionRow("已登记项目", "打开项目清单", CodexGlyph.Project, onClick = onRegistry, outlined = false)
+        if (directory != root) AtlasSettingsActionRow("上一级目录", "", CodexGlyph.ArrowBack,
+            onClick = { directory = directory.parentFile ?: root }, outlined = false)
+        val current = result
+        if (current == null) AtlasOperationProgress("正在读取目录")
+        else current.fold(onSuccess = { dirs ->
+            if (dirs.isEmpty()) Text("没有子目录", color = Ink.muted)
+            dirs.forEach { child ->
+                AtlasSettingsActionRow(child.name, "", CodexGlyph.Folder, onClick = { directory = child }, outlined = false)
+            }
+        }, onFailure = { ErrorText(it.message ?: "无法读取目录") })
+    }
+}
