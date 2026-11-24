@@ -267,7 +267,7 @@ fun CodexShell(vm: CodexViewModel) {
                     .sidebarOpenSwipe(canSwipeOpenDrawer, ::openDrawer),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
-                snackbarHost = { SnackbarHost(operationSnacks) },
+                snackbarHost = { CodexOperationSnackbarHost(operationSnacks) },
                 topBar = {
                     if (selected == "chat" || selected == "home") {
                         ChatWorkTopBar(

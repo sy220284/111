@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -64,11 +65,13 @@ internal fun ConversationComposer(
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var compactMenuExpanded by remember { mutableStateOf(false) }
+    var inputFocused by remember { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("conversation-composer"),
         shape = RoundedCornerShape(23.dp),
         color = Ink.panel,
-        border = BorderStroke(1.dp, Ink.border.copy(alpha = .55f)),
+        border = BorderStroke(if (inputFocused) 1.5.dp else 1.dp,
+            if (inputFocused) Ink.copper else Ink.controlBorder),
         shadowElevation = 0.dp
     ) {
         Column(
@@ -87,6 +90,7 @@ internal fun ConversationComposer(
                 onValueChange = onDraftChange,
                 modifier = Modifier.fillMaxWidth()
                     .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                    .onFocusChanged { inputFocused = it.isFocused }
                     .heightIn(min = if (compactControls) 32.dp else 40.dp)
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
@@ -150,9 +154,9 @@ internal fun ConversationComposer(
                 Spacer(Modifier.weight(1f))
                 AnimatedVisibility(
                     visible = running,
-                    enter = expandHorizontally(tween(CodexMotion.duration(160, reduceMotion))) +
+                    enter = expandHorizontally(tween(CodexMotion.duration(CodexMotion.selection, reduceMotion))) +
                         fadeIn(tween(CodexMotion.duration(160, reduceMotion))),
-                    exit = shrinkHorizontally(tween(CodexMotion.duration(110, reduceMotion))) +
+                    exit = shrinkHorizontally(tween(CodexMotion.duration(CodexMotion.press, reduceMotion))) +
                         fadeOut(tween(CodexMotion.duration(110, reduceMotion)))
                 ) {
                     CodexIconAction(

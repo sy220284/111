@@ -133,6 +133,12 @@ fun CodexNotice(
         NoticeTone.Warning -> Ink.warning
         NoticeTone.Error -> Ink.red
     }
+    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val confirmation = remember(message, tone) { Animatable(if (tone == NoticeTone.Success && !reduced) .85f else 1f) }
+    LaunchedEffect(message, tone, reduced) {
+        if (reduced || tone != NoticeTone.Success) confirmation.snapTo(1f)
+        else confirmation.animateTo(1f, tween(CodexMotion.success))
+    }
     val icon = when (tone) {
         NoticeTone.Info -> CodexGlyph.Info
         NoticeTone.Success -> CodexGlyph.TaskComplete
@@ -150,7 +156,10 @@ fun CodexNotice(
             if (actionLabel != null && narrow) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                        CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp).graphicsLayer {
+                            val scale = if (reduced) 1f else confirmation.value
+                            scaleX = scale; scaleY = scale
+                        })
                         Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
                     CodexTextAction(onClick = onAction, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {
@@ -159,7 +168,10 @@ fun CodexNotice(
                 }
             } else Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                CodexIcon(icon, null, tint = color, modifier = Modifier.size(20.dp).graphicsLayer {
+                            val scale = if (reduced) 1f else confirmation.value
+                            scaleX = scale; scaleY = scale
+                        })
                 Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 if (actionLabel != null) CodexTextAction(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(actionLabel, color = if (tone == NoticeTone.Info) Ink.parchment else color)

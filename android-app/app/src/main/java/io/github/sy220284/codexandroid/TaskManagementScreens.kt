@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.input.pointer.pointerInput
@@ -337,10 +341,20 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             val summary = (0 until input.length()).mapNotNull { input.optJSONObject(it)?.optString("text") }
                 .filter { it.isNotBlank() }.joinToString("\n").ifBlank { "非文本任务输入" }
             val itemId = item.optString("id")
-            MaterialPanel(Modifier.fillMaxWidth()
+            val lifted = dragging == index
+            val insertion = dragging >= 0 && destination == index && !lifted
+            Box(Modifier.fillMaxWidth().zIndex(if (lifted) 1f else 0f)
                 .onGloballyPositioned { coordinates ->
                     rowCenters[itemId] = coordinates.positionInRoot().y + coordinates.size.height / 2f
                 }) {
+                if (lifted) Box(Modifier.matchParentSize()
+                    .background(Ink.recessed, RoundedCornerShape(16.dp))
+                    .border(1.dp, Ink.controlBorder, RoundedCornerShape(16.dp)))
+                MaterialPanel(Modifier.fillMaxWidth().graphicsLayer {
+                    translationY = if (lifted) dragY - (rowCenters[itemId] ?: dragY) else 0f
+                    shadowElevation = if (lifted) 8.dp.toPx() else 0f
+                    shape = RoundedCornerShape(16.dp)
+                }.then(if (insertion) Modifier.border(2.dp, Ink.jade, RoundedCornerShape(16.dp)) else Modifier)) {
                 var showQueueActions by remember(itemId) { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AtlasQueueDragHandle(index + 1, all.size, canReorder, itemId,
@@ -422,6 +436,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 )
                 Text(summary, style = MaterialTheme.typography.bodyLarge, maxLines = 8,
                     overflow = TextOverflow.Ellipsis)
+                }
             }
         }
         if (nextCursor.isNotBlank()) {

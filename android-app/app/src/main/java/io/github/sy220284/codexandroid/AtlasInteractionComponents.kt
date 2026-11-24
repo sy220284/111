@@ -19,6 +19,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -362,6 +364,7 @@ fun AtlasCompactChoice(
 ) {
     SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (id, label) ->
+            val interaction = remember(id) { MutableInteractionSource() }
             SegmentedButton(selected = selected == id, onClick = { onSelect(id) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 enabled = enabled,
@@ -369,7 +372,8 @@ fun AtlasCompactChoice(
                     activeContainerColor = Ink.copper.copy(alpha = .12f), activeContentColor = Ink.parchment,
                     activeBorderColor = Ink.copper, inactiveContainerColor = Ink.canvas,
                     inactiveContentColor = Ink.muted, inactiveBorderColor = Ink.controlBorder),
-                modifier = Modifier.heightIn(min = 48.dp).let {
+                interactionSource = interaction,
+                modifier = Modifier.heightIn(min = 48.dp).codexActionPress(interaction, enabled).let {
                     if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
                 }) { Text(label, style = labelStyle) }
         }

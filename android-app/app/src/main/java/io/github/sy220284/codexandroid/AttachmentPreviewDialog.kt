@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import android.graphics.BitmapFactory
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -64,6 +68,12 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
     }
     var scale by remember(path) { mutableFloatStateOf(1f) }
     var offset by remember(path) { mutableStateOf(Offset.Zero) }
+    var animateZoom by remember(path) { mutableStateOf(false) }
+    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val renderedScale by animateFloatAsState(scale,
+        animationSpec = if (animateZoom && !reduced) tween(CodexMotion.imageZoom) else snap(), label = "attachment-scale")
+    val renderedOffset by animateOffsetAsState(offset,
+        animationSpec = if (animateZoom && !reduced) tween(CodexMotion.imageZoom) else snap(), label = "attachment-offset")
     Surface(color = Ink.canvas, modifier = Modifier.fillMaxSize().testTag("attachment-preview")) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -104,6 +114,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                             .semantics { stateDescription = "缩放 ${(scale * 100).toInt()}%" }
                             .pointerInput(path, bitmap) {
                                 detectTransformGestures { _, pan, zoom, _ ->
+                                    animateZoom = false
                                     val next = (scale * zoom).coerceIn(1f, 4f)
                                     val fit = minOf(size.width.toFloat() / bitmap.width,
                                         size.height.toFloat() / bitmap.height)
@@ -115,23 +126,25 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                                 }
                             }.pointerInput(path) {
                                 detectTapGestures(onDoubleTap = {
+                                    animateZoom = true
                                     scale = if (scale > 1f) 1f else 2f
                                     offset = Offset.Zero
                                 })
                             }.graphicsLayer {
-                                scaleX = scale; scaleY = scale
-                                translationX = offset.x; translationY = offset.y
+                                scaleX = renderedScale; scaleY = renderedScale
+                                translationX = renderedOffset.x; translationY = renderedOffset.y
                             },
                         contentScale = ContentScale.Fit)
                 }
             }
             if (preview.second != null) {
-                CodexTextAction(onClick = { scale = 1f; offset = Offset.Zero },
+                CodexTextAction(onClick = { animateZoom = true; scale = 1f; offset = Offset.Zero },
                     enabled = scale > 1f, modifier = Modifier.align(Alignment.CenterHorizontally)
                         .heightIn(min = 48.dp).testTag("attachment-preview-reset")) { Text("恢复原始大小") }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center) {
                     CodexTextAction(onClick = {
+                        animateZoom = true
                         scale = (scale / 1.5f).coerceAtLeast(1f)
                         offset = Offset.Zero
                     }, enabled = scale > 1f, modifier = Modifier.heightIn(min = 48.dp)
@@ -139,6 +152,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                     Text("${(scale * 100).toInt()}%", style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 12.dp).testTag("attachment-zoom-level"))
                     CodexTextAction(onClick = {
+                        animateZoom = true
                         scale = (scale * 1.5f).coerceAtMost(4f)
                         offset = Offset.Zero
                     }, enabled = scale < 4f, modifier = Modifier.heightIn(min = 48.dp)

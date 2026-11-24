@@ -88,10 +88,11 @@ internal fun CodexInputField(value: String, onValueChange: (String) -> Unit,
     shape: Shape = RoundedCornerShape(13.dp), confirmedValid: Boolean = false) {
     val protected = visualTransformation is PasswordVisualTransformation
     var revealSecret by remember(protected, enabled, readOnly) { mutableStateOf(false) }
+    val secretToggle = protected && enabled && !readOnly && trailingIcon == null
     OutlinedTextField(value = value, onValueChange = onValueChange, modifier = modifier,
         enabled = enabled, readOnly = readOnly, textStyle = textStyle, label = label,
         placeholder = placeholder, leadingIcon = leadingIcon,
-        trailingIcon = if (protected && enabled && !readOnly && trailingIcon == null) {{
+        trailingIcon = if (secretToggle) {{
             CodexTextAction(onClick = { revealSecret = !revealSecret }) {
                 Text(if (revealSecret) "隐藏" else "显示", style = MaterialTheme.typography.labelMedium)
             }

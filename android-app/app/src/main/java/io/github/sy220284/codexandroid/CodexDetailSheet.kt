@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * 说明与较长操作使用独立底部面板，列表本身保持稳定，不随“查看更多”改变高度。
- * 默认允许半屏与全屏两级停靠；状态来自调用方，关闭后不会清除未提交的编辑内容。
+ * 长内容优先展开；短操作允许半屏停靠。状态来自调用方，关闭后不会清除未提交内容。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +28,7 @@ fun CodexDetailSheet(
     onDismiss: () -> Unit,
     subtitle: String = "",
     footer: (@Composable () -> Unit)? = null,
-    startExpanded: Boolean = false,
+    startExpanded: Boolean = true,
     closeDescription: String = "关闭详情",
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -113,7 +113,7 @@ fun CodexActionSheet(
     actions: List<CodexSheetAction>,
     onDismiss: () -> Unit
 ) {
-    CodexDetailSheet(title = title, onDismiss = onDismiss) {
+    CodexDetailSheet(title = title, onDismiss = onDismiss, startExpanded = actions.size >= 5) {
         CodexActionRows(actions, onDismiss)
     }
 }
