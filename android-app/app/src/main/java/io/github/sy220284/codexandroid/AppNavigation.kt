@@ -423,6 +423,9 @@ private fun Sidebar(
     continuationLabel: String?
 ) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
+    val accountData by vm.data.collectAsState()
+    val accountErrors by vm.errors.collectAsState()
+    val accountLoading by vm.loading.collectAsState()
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -494,22 +497,20 @@ private fun Sidebar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("账号与设置", style = MaterialTheme.typography.labelMedium,
-                color = Ink.muted, modifier = Modifier.padding(start = 13.dp))
+            SidebarQuotaButton(
+                snapshot = accountData["limits"],
+                stale = status != EngineStatus.Connected || "limits" in accountErrors,
+                loading = "limits" in accountLoading,
+                onClick = { onSelect("limits") }
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CodexIconAction(onClick = { onSelect("account") },
-                        modifier = Modifier.size(48.dp).testTag("nav-account")) {
-                        CodexIcon(CodexGlyph.AccountCircle, "账号", tint = Ink.parchment)
-                    }
-                    Text("账号", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                CodexIconAction(onClick = { onSelect("account") },
+                    modifier = Modifier.size(48.dp).testTag("nav-account")) {
+                    CodexIcon(CodexGlyph.AccountCircle, "账号", tint = Ink.parchment)
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CodexIconAction(onClick = { onSelect("settings") },
-                        modifier = Modifier.size(48.dp).testTag("nav-settings")) {
-                        CodexIcon(CodexGlyph.Settings, "设置", tint = Ink.parchment)
-                    }
-                    Text("设置", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                CodexIconAction(onClick = { onSelect("settings") },
+                    modifier = Modifier.size(48.dp).testTag("nav-settings")) {
+                    CodexIcon(CodexGlyph.Settings, "设置", tint = Ink.parchment)
                 }
             }
         }
