@@ -102,26 +102,11 @@ internal fun ConversationComposer(
             )
             // Running follow-ups belong in the composer: queue or steer the active turn.
             if (running) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().testTag("composer-follow-up-mode"),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = followUpMode == "queue",
-                        onClick = { onFollowUpModeChange("queue") },
-                        label = { Text("完成后执行") },
-                        enabled = !sending,
-                        modifier = Modifier.testTag("composer-mode-queue")
-                    )
-                    FilterChip(
-                        selected = followUpMode == "steer",
-                        onClick = { onFollowUpModeChange("steer") },
-                        label = { Text("立即纠偏") },
-                        enabled = !sending,
-                        modifier = Modifier.testTag("composer-mode-steer")
-                    )
-                }
+                AtlasCompactChoice(followUpMode,
+                    listOf("queue" to "完成后执行", "steer" to "立即纠偏"),
+                    onFollowUpModeChange, enabled = !sending,
+                    modifier = Modifier.testTag("composer-follow-up-mode"),
+                    tagPrefix = "composer-mode-")
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),

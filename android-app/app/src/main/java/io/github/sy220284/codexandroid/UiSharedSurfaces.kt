@@ -30,49 +30,43 @@ fun EngineStatusSheet(
 ) {
     val status by vm.bridge.status.collectAsState()
     val terminal by vm.terminalSession.collectAsState()
-    ModalBottomSheet(onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.canvas, contentColor = Ink.parchment) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
-            .navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Text("运行状态", style = MaterialTheme.typography.headlineSmall)
-            val label = when (status) {
-                EngineStatus.Connected -> "本机内核已连接"
-                EngineStatus.Starting -> "内核正在启动"
-                is EngineStatus.Unavailable -> "内核连接异常"
-            }
-            val tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning
-            StatusPill(label, tone = tone)
-            if (status is EngineStatus.Unavailable) {
-                Text((status as EngineStatus.Unavailable).reason,
-                    color = Ink.red, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text("状态只显示实际进程和会话信息；连接、诊断、终端分别执行独立动作。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            if (status != EngineStatus.Connected) {
-                OutlinedButton(onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Refresh, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("重新连接本机内核")
-                }
-            }
-            if (terminal.running) {
-                OutlinedButton(onClick = { onDismiss(); navigate("terminal") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Terminal, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("查看正在运行的终端")
-                }
-            }
-            OutlinedButton(onClick = { onDismiss(); navigate("diagnostics") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Icon(Icons.Outlined.Troubleshoot, null)
-                Spacer(Modifier.width(8.dp))
-                Text("查看诊断和日志")
-            }
-            Spacer(Modifier.height(12.dp))
+    CodexDetailSheet(title = "运行状态", onDismiss = onDismiss) {
+        val label = when (status) {
+            EngineStatus.Connected -> "本机内核已连接"
+            EngineStatus.Starting -> "内核正在启动"
+            is EngineStatus.Unavailable -> "内核连接异常"
         }
+        val tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning
+        StatusPill(label, tone = tone)
+        if (status is EngineStatus.Unavailable) {
+            Text((status as EngineStatus.Unavailable).reason,
+                color = Ink.red, style = MaterialTheme.typography.bodyMedium)
+        }
+        Text("状态只显示实际进程和会话信息；连接、诊断、终端分别执行独立动作。",
+            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        if (status != EngineStatus.Connected) {
+            OutlinedButton(onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(8.dp))
+                Text("重新连接本机内核")
+            }
+        }
+        if (terminal.running) {
+            OutlinedButton(onClick = { onDismiss(); navigate("terminal") },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Icon(Icons.Outlined.Terminal, null)
+                Spacer(Modifier.width(8.dp))
+                Text("查看正在运行的终端")
+            }
+        }
+        OutlinedButton(onClick = { onDismiss(); navigate("diagnostics") },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Outlined.Troubleshoot, null)
+            Spacer(Modifier.width(8.dp))
+            Text("查看诊断和日志")
+        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -93,6 +87,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     CodexChoiceSheet(
         title = "选择运行模型",
+        searchable = true,
+        loading = "models" in loading,
         description = when {
             engineStatus != EngineStatus.Connected ->
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
@@ -147,6 +143,7 @@ fun ModeChoiceSurface(vm: CodexViewModel, onDismiss: () -> Unit) {
     }
     CodexChoiceSheet(
         title = "选择协作方式", description = description,
+        loading = refreshing,
         choices = choices, selectedId = selected,
         enabled = connected && !busy && !refreshing,
         recoveryLabel = if (connected) "重新检查" else "重新连接",
@@ -186,33 +183,27 @@ fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val version = remember(context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Ink.canvas,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp)
-            .navigationBarsPadding().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("关于应用", style = MaterialTheme.typography.headlineSmall)
-            Text("版本 v$version · Android 29+", style = MaterialTheme.typography.titleMedium)
-            StatusPill(if (status == EngineStatus.Connected) "本机内核已连接" else "内核需要检查",
-                good = status == EngineStatus.Connected)
-            DividerLine()
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("项目来源：sy220284/111", color = Ink.muted,
-                    modifier = Modifier.weight(1f))
-                TextButton(onClick = {
-                    clipboard.setText(AnnotatedString(
-                        "111 Android v$version · sy220284/111 · Codex app-server"))
-                    copied = true
-                }, modifier = Modifier.testTag("about-copy-version")) {
-                    Text(if (copied) "已复制" else "复制版本信息")
-                }
+    CodexDetailSheet(title = "关于应用", onDismiss = onDismiss) {
+        Text("版本 v$version · Android 29+", style = MaterialTheme.typography.titleMedium)
+        StatusPill(if (status == EngineStatus.Connected) "本机内核已连接" else "内核需要检查",
+            good = status == EngineStatus.Connected)
+        DividerLine()
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("项目来源：sy220284/111", color = Ink.muted,
+                modifier = Modifier.weight(1f))
+            TextButton(onClick = {
+                clipboard.setText(AnnotatedString(
+                    "111 Android v$version · sy220284/111 · Codex app-server"))
+                copied = true
+            }, modifier = Modifier.testTag("about-copy-version")) {
+                Text(if (copied) "已复制" else "复制版本信息")
             }
-            Text("运行核心：Codex app-server（本地进程）", color = Ink.muted)
-            Text("工程文件和配置保存在 Android 应用私有目录；登录信息由运行核心管理。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            Text("上游 Codex：Apache-2.0；增量更新组件：HDiffPatch（MIT）。",
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.height(18.dp))
         }
+        Text("运行核心：Codex app-server（本地进程）", color = Ink.muted)
+        Text("工程文件和配置保存在 Android 应用私有目录；登录信息由运行核心管理。",
+            color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        Text("上游 Codex：Apache-2.0；增量更新组件：HDiffPatch（MIT）。",
+            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(18.dp))
     }
 }

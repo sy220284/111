@@ -239,16 +239,9 @@ internal fun SidebarSessionsContent(
             }
         }
         if (searching) item(key = "session-search") {
-            OutlinedTextField(
-                value = search, onValueChange = { state.search = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-                    .testTag("sidebar-search"),
-                placeholder = { Text("搜索当前会话") },
-                leadingIcon = { Icon(Icons.Outlined.Search, null,
-                    modifier = Modifier.size(17.dp)) },
-                singleLine = true, shape = RoundedCornerShape(14.dp),
-                textStyle = MaterialTheme.typography.bodyMedium
-            )
+            AtlasSearchField(value = search, onValueChange = { state.search = it },
+                placeholder = "搜索当前会话", onClear = { state.search = "" },
+                modifier = Modifier.padding(horizontal = 4.dp).testTag("sidebar-search"))
         }
         item(key = "session-list-status") {
             when {
@@ -256,9 +249,8 @@ internal fun SidebarSessionsContent(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                 loading && all.isEmpty() -> {
-                    LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 12.dp))
-                    Text("正在同步会话…", modifier = Modifier.padding(horizontal = 12.dp),
-                        style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+                    AtlasLoadingResults("正在同步会话…",
+                        modifier = Modifier.padding(horizontal = 4.dp), placeholderRows = 2)
                 }
                 hasError -> Text("会话同步失败，点击上方刷新重试",
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

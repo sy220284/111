@@ -448,9 +448,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(it, NoticeTone.Warning)
             }
             if (attachmentBusy) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text("正在导入图片 ${imported.imported}/${imported.requested}…",
-                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                AtlasOperationProgress("正在导入图片 ${imported.imported}/${imported.requested}…",
+                    progress = imported.requested.takeIf { it > 0 }?.let { imported.imported.toFloat() / it })
             }
             if (attachmentError.isNotBlank()) {
                 ErrorText(attachmentError)
