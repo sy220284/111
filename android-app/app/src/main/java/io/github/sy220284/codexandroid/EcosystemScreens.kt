@@ -121,14 +121,14 @@ fun ProvidersPage(vm: CodexViewModel) {
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("服务商配置", style = MaterialTheme.typography.titleMedium)
             AtlasSettingsActionRow(
-                title = "添加自定义服务商", startExpanded = true,
+                title = "添加自定义服务商",
                 detail = "配置服务名称、连接地址与密钥变量",
                 icon = CodexGlyph.AddCircleOutline,
                 onClick = { showCustomEditor = true }
             )
             if (showCustomEditor) {
                 CodexDetailSheet(
-                    title = "添加自定义服务商",
+                    title = "添加自定义服务商", startExpanded = true,
                     subtitle = "仅配置连接地址和密钥变量名称",
                     onDismiss = { showCustomEditor = false }
                 ) {
