@@ -11,17 +11,15 @@ internal class StatusResponseOrder {
 
 /** Audio collected before a mute/unmute boundary must never enter a new request. */
 internal class VoiceUploadGate {
-    var revision = 0L
-        private set
-    var muted = false
-        private set
-    fun setMuted(value: Boolean) {
-        if (value != muted) {
-            muted = value
-            revision++
-        }
+    private data class Permission(val revision: Long, val muted: Boolean)
+    @Volatile private var permission = Permission(0L, false)
+    val revision: Long get() = permission.revision
+    val muted: Boolean get() = permission.muted
+    @Synchronized fun setMuted(value: Boolean) {
+        if (permission.muted != value) permission = Permission(permission.revision + 1, value)
     }
-    fun accepts(packetRevision: Long): Boolean = !muted && packetRevision == revision
+    @Synchronized fun invalidate() { permission = permission.copy(revision = permission.revision + 1) }
+    fun accepts(packetRevision: Long): Boolean = permission.let { !it.muted && packetRevision == it.revision }
 }
 
 /** A partially successful move is a transaction with one immutable destination.

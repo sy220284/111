@@ -8,11 +8,12 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 internal suspend fun CodexViewModel.capabilityRequest(
-    method: String, params: JSONObject? = JSONObject(), timeout: Long = 45_000
+    method: String, params: JSONObject? = JSONObject(), timeout: Long = 45_000,
+    sendPermit: (() -> Boolean)? = null
 ): JSONObject {
     check(bridge.status.value == EngineStatus.Connected) { "请先连接运行引擎" }
     check(!AppDataTransfer.state.value.busy) { "请等待应用数据传输完成" }
-    return bridge.request(method, params, timeout)
+    return bridge.request(method, params, timeout, sendPermit)
 }
 
 internal fun JSONObject.value(key: String): String =

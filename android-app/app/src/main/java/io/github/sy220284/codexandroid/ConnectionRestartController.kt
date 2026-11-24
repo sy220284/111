@@ -51,6 +51,11 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
             return
         }
         if (!busy.compareAndSet(false, true)) return
+        if (!vm.bridge.reserveRestart()) {
+            busy.value = false
+            vm.errors.value = vm.errors.value + ("diagnostics" to "内核仍有请求或审批待处理，请稍后重试")
+            return
+        }
         vm.viewModelScope.launch {
             try {
                 val current = vm.globalWorkSnapshot()
@@ -68,6 +73,7 @@ internal class ConnectionRestartController(private val vm: CodexViewModel) {
                 vm.errors.value = vm.errors.value + ("diagnostics" to
                     (failure.message ?: "重启内核连接失败"))
             } finally {
+                vm.bridge.releaseRestart()
                 busy.value = false
             }
         }

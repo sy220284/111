@@ -705,7 +705,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun receive(message: JSONObject) {
-        CodexNotificationDispatcher.dispatch(this, message)
+        if (bridge.isCurrentEvent(message)) CodexNotificationDispatcher.dispatch(this, message)
     }
 
     override fun onCleared() {

@@ -135,6 +135,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         if (state == State.Idle || state == State.Stopping) return
         lease.clearFailure(this)
         state = State.Stopping
+        uploadGate.invalidate()
         inputLevel = 0f
         startup?.complete(Unit)
         startup = null
@@ -262,8 +263,13 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 // A request already sent to the service cannot be recalled.
                 withContext(Dispatchers.Main.immediate) {
                     if (state == State.Live && uploadGate.accepts(packet.revision)) {
-                        vm.capabilityRequest("thread/realtime/appendAudio",
-                            thread().put("audio", packet.audio), 4_000)
+                        try {
+                            vm.capabilityRequest("thread/realtime/appendAudio",
+                                thread().put("audio", packet.audio), 4_000,
+                                sendPermit = { uploadGate.accepts(packet.revision) })
+                        } catch (_: RpcWriteRevoked) {
+                            // Mute or stop revoked this queued packet at the actual writer.
+                        }
                     }
                 }
             }
