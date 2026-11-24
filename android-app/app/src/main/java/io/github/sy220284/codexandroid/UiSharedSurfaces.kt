@@ -168,7 +168,7 @@ fun ModeChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: 
         else -> "仅显示当前内核支持的选项，更改从下一轮生效。"
     }
     val content: @Composable ColumnScope.() -> Unit = {
-        AtlasCompactChoice(selected, choices.map { it.id to it.label },
+        AtlasCompactChoice(selected, choices.map { it.id to it.title },
             enabled = connected && !busy && !refreshing,
             onSelect = { id ->
                 if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {

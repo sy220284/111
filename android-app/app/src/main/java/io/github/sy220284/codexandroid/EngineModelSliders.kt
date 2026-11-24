@@ -133,7 +133,7 @@ private fun EngineDefaultModelPicker(setting: EngineSetting, current: Any?,
                     .testTag("engine-slider-value-" + setting.key))
                 CodexIcon(CodexGlyph.ExpandMore, null, modifier = Modifier.size(20.dp))
             }
-            if (open) CodexChoiceSheet(title = "选择默认模型", anchored = true,
+            if (open) CodexChoiceSheet(title = "选择默认模型", description = "使用服务目录中的可用模型；保存后用于新任务。", anchored = true,
                 choices = options.map { (key, name) -> CodexChoice(key.orEmpty(), name) },
                 selectedId = id.orEmpty(), searchable = true, enabled = enabled,
                 onSelect = { key ->
