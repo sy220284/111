@@ -19,28 +19,16 @@ internal fun SkillDetailSheet(skill: JSONObject, onDismiss: () -> Unit) {
         .ifEmpty { PresentationPolicy.skillName(skill.optString("name")) }
     val description = PresentationPolicy.meaningful(skill.optString("description"))
         .ifEmpty { PresentationPolicy.meaningful(meta.optString("shortDescription")) }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.recessed, contentColor = Ink.parchment
-    ) {
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = 680.dp).navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(name, style = MaterialTheme.typography.headlineSmall)
-            StatusPill(if (skill.optBoolean("enabled")) "已启用" else "已停用",
-                skill.optBoolean("enabled"))
-            Text("技能说明", style = MaterialTheme.typography.titleMedium)
-            SelectionContainer {
-                Text(description.ifBlank { "该技能暂未提供说明。" },
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text("在任务对话中使用已启用的技能。可返回列表调整启用状态。",
-                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+    CodexDetailSheet(title = name, onDismiss = onDismiss) {
+        StatusPill(if (skill.optBoolean("enabled")) "已启用" else "已停用",
+            skill.optBoolean("enabled"))
+        Text("技能说明", style = MaterialTheme.typography.titleMedium)
+        SelectionContainer {
+            Text(description.ifBlank { "该技能暂未提供说明。" },
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }
+        Text("在任务对话中使用已启用的技能。可返回列表调整启用状态。",
+            color = Ink.muted, style = MaterialTheme.typography.labelMedium)
     }
 }
 

@@ -107,40 +107,26 @@ internal fun ApprovalQuickSheetContent(
 ) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.canvas, contentColor = Ink.parchment
-    ) {
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = 580.dp)
-                .verticalScroll(rememberScrollState()).navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text("待处理审批", style = MaterialTheme.typography.headlineSmall)
-            Text("请根据具体命令、文件和权限范围作出决定。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            if (prompts.isEmpty()) {
-                CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
-                    icon = Icons.Outlined.GppGood)
-                OutlinedButton(onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("返回当前任务")
-                }
-            } else {
-                Text("待处理 ${prompts.size} 项", color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
-                prompts.forEachIndexed { index, prompt ->
-                    StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
-                    key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
-                }
+    CodexDetailSheet(title = "待处理审批", onDismiss = onDismiss,
+        subtitle = "请根据具体命令、文件和权限范围作出决定。") {
+        if (prompts.isEmpty()) {
+            CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
+                icon = Icons.Outlined.GppGood)
+            OutlinedButton(onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("返回当前任务")
             }
-            if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
-                ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
+        } else {
+            AtlasListHeading("待处理审批", prompts.size)
+            prompts.forEachIndexed { index, prompt ->
+                StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
+                key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
             }
-            Spacer(Modifier.height(12.dp))
         }
+        if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
+            ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
+        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -360,7 +346,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Icon(Icons.Outlined.Refresh, "读取生效配置")
                 }
             }
-            if ("config" in loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if ("config" in loading) AtlasOperationProgress("正在读取引擎配置")
             Text("配置保存在当前设备，修改成功后影响后续任务。",
                 color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         }

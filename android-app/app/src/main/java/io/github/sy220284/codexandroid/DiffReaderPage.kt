@@ -40,6 +40,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val clipboard = LocalClipboardManager.current
     var copied by remember(diff) { mutableStateOf(false) }
     var wrapLines by remember { mutableStateOf(true) }
+    var query by remember(diff) { mutableStateOf("") }
+    val visibleFiles = files.indices.filter { files[it].path.contains(query.trim(), ignoreCase = true) }
     val lineNumbers = remember(files) { files.map { UnifiedDiff.annotateLines(it.lines) } }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -58,16 +60,18 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             else "${files.size} 个文件 · +${files.sumOf { it.additions }} / −${files.sumOf { it.deletions }}",
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
-                    if (files.isNotEmpty()) {
+                    if (visibleFiles.isNotEmpty()) {
                         TextButton(onClick = {
-                            updateExpanded(if (expanded.size == files.size) emptySet()
-                            else files.indices.toSet())
+                            updateExpanded(if (visibleFiles.all { it in expanded }) expanded - visibleFiles.toSet()
+                            else expanded + visibleFiles.toSet())
                         }) {
-                            Text(if (expanded.size == files.size) "全部收起" else "全部展开",
+                            Text(if (visibleFiles.all { it in expanded }) "全部收起" else "全部展开",
                                 maxLines = 1)
                         }
                     }
                 }
+                if (files.isNotEmpty()) AtlasSearchField(query, { query = it }, "按文件名筛选差异",
+                    onClear = { query = "" }, modifier = Modifier.testTag("diff-file-search"))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     CodexPrimaryButton(onClick = { navigate("review") },
                         enabled = active != null && files.isNotEmpty(),
@@ -107,7 +111,12 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         } else {
-            files.forEachIndexed { index, file ->
+            if (visibleFiles.isEmpty()) item {
+                CodexEmptyState("没有匹配的文件", "更换文件名或清除筛选。",
+                    actionLabel = "清除筛选", onAction = { query = "" })
+            }
+            visibleFiles.forEach { index ->
+                val file = files[index]
                 item(key = "diff-heading-$index") {
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
