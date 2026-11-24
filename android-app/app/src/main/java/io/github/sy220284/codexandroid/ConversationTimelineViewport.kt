@@ -43,7 +43,10 @@ internal fun ConversationTimelineViewport(
     var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
-    var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, Boolean>?>(null) }
+    var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, MessageTurnAction>?>(null) }
+    val loading by vm.loading.collectAsState()
+    val canChangeTurn = !busy && !contextLoading && thread != null && !loadingEarlier &&
+        "threadFork:$thread" !in loading && "threadRevert:$thread" !in loading
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
     val latestIndex = TimelineViewportPolicy.latestIndex(groups.size, olderPageVisible)
 
@@ -151,7 +154,7 @@ internal fun ConversationTimelineViewport(
                 }
             }
             items(groups, key = { it.first().id }) { group ->
-                TimelineActivityGroup(group, if (!busy && thread != null && !contextLoading) ({ item, fork -> turnAction = item to fork }) else null)
+                TimelineActivityGroup(group, if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null)
             }
         }
         if (!contextLoading && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
@@ -186,17 +189,33 @@ internal fun ConversationTimelineViewport(
             }
         }
     }
-    turnAction?.let { (item, fork) ->
+    turnAction?.let { (item, action) ->
         CodexConfirmDialog(
-            title = if (fork) "从此回合创建分支" else "回退会话历史",
-            message = if (fork) "保留原会话，复制到此回合结束为止。"
-                else "移除该回合及其之后的会话记录；已经修改的本机文件保持现状。",
-            confirmLabel = if (fork) "创建分支" else "确认回退",
-            destructive = !fork,
+            title = when (action) {
+                MessageTurnAction.Fork -> "创建会话分支"
+                MessageTurnAction.Retry -> "重新回答"
+                MessageTurnAction.Revert -> "回退会话历史"
+            },
+            message = when (action) {
+                MessageTurnAction.Fork -> "保留原会话，复制到此回合结束为止。"
+                MessageTurnAction.Retry -> "在独立分支重新提交此回合最初的指令，保留原回答。后续引导不会自动重放；本机文件保持现状，重新执行可能修改文件。"
+                MessageTurnAction.Revert -> "移除该回合及其之后的会话记录；已经修改的本机文件保持现状。"
+            },
+            confirmLabel = when (action) {
+                MessageTurnAction.Fork -> "创建分支"
+                MessageTurnAction.Retry -> "重新执行"
+                MessageTurnAction.Revert -> "确认回退"
+            },
+            destructive = action == MessageTurnAction.Revert,
             onConfirm = {
                 turnAction = null
-                thread?.let { if (fork) vm.conversationActions.fork(it, item.turnId)
-                    else vm.conversationActions.revert(it, item.turnId) }
+                if (canChangeTurn && thread != null && vm.activeThread.value == thread) {
+                    when (action) {
+                        MessageTurnAction.Fork -> vm.conversationActions.fork(thread, item.turnId)
+                        MessageTurnAction.Retry -> vm.conversationActions.retry(thread, item.turnId)
+                        MessageTurnAction.Revert -> vm.conversationActions.revert(thread, item.turnId)
+                    }
+                }
             },
             onDismiss = { turnAction = null })
     }

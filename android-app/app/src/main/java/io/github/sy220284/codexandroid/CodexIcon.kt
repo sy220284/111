@@ -62,6 +62,8 @@ enum class CodexGlyph(@DrawableRes val resId: Int) {
     OpenInNew(R.drawable.ic_ui_open_in_new),
     Check(R.drawable.ic_ui_check),
     ContentCopy(R.drawable.ic_ui_content_copy),
+    Share(R.drawable.ic_ui_share),
+    MessageBranch(R.drawable.ic_ui_message_branch),
     SystemUpdate(R.drawable.ic_ui_system_update),
     MoreHoriz(R.drawable.ic_ui_more_horiz),
     MoreVert(R.drawable.ic_ui_more_vert),

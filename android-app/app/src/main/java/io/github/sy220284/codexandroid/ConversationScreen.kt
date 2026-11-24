@@ -310,8 +310,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         enabled = !switching, onOpen = { keyboard?.hide(); navigate("goals") }))
                     add(ComposerShortcut("queue", "后续指令", "管理当前会话待执行队列", CodexGlyph.ViewList,
                         enabled = !switching, onOpen = { keyboard?.hide(); navigate("queue") }))
-                    add(ComposerShortcut("fork", "创建会话分支", "", CodexGlyph.CallSplit,
-                        enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "fork" }))
                     add(ComposerShortcut("compact", "整理上下文", "", CodexGlyph.Compress,
                         enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "compact" }))
                 }
@@ -483,21 +481,18 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 closeComposerMenu("context-tools")
             },
             onDismiss = { closeComposerMenu("context-tools") },
-            onFork = { closeComposerMenu("context-tools"); sessionAction = "fork" },
             onCompact = { closeComposerMenu("context-tools"); sessionAction = "compact" }
         )
     }
     if (sessionAction.isNotBlank() && thread != null) {
         val id = thread
-        val fork = sessionAction == "fork"
         CodexConfirmDialog(
-            title = if (fork) "创建会话分支" else "整理上下文",
-            message = if (fork) "保留当前会话，从其历史创建独立会话。"
-                else "内核将整理较早的上下文，部分细节可能需要重新读取。",
-            confirmLabel = if (fork) "创建并打开" else "开始整理",
+            title = "整理上下文",
+            message = "内核将整理较早的上下文，部分细节可能需要重新读取。",
+            confirmLabel = "开始整理",
             onConfirm = {
                 sessionAction = ""
-                id?.let { vm.runSessionAction(it, fork) }
+                vm.conversationActions.compact(id)
             },
             onDismiss = { sessionAction = "" }
         )

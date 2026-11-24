@@ -1,5 +1,7 @@
 package io.github.sy220284.codexandroid
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,17 +12,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming")
+internal enum class MessageTurnAction { Fork, Retry, Revert }
+
+private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming", "sending")
 private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "declined", "interrupted", "cancelled")
 
 @Composable
-internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((TimelineItem, Boolean) -> Unit)? = null) {
+internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null) {
     if (group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
         TimelineStepCard(group.first(), onTurnAction)
@@ -59,7 +64,7 @@ internal fun TimelineActivityGroup(group: List<TimelineItem>, onTurnAction: ((Ti
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, Boolean) -> Unit)? = null) {
+internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
     val active = item.active()
@@ -67,7 +72,6 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
     val tone = if (failure) Ink.red else Ink.muted
     val title = PresentationPolicy.timelineKind(item.kind)
     val clipboard = LocalClipboardManager.current
-    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
@@ -83,6 +87,7 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
         if (user || assistant) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
             Surface(Modifier.fillMaxWidth(if (user) .88f else 1f)
                 .testTag(if (user) "chat-user-message" else "chat-assistant-message"),
                 color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
@@ -98,22 +103,11 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
                         SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
                     }
                     if (user) NativeTimelineMedia(item, raw)
-                    if (!active && (user || item.phase != "commentary")) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CodexIconAction(onClick = { clipboard.setText(AnnotatedString(item.text)) },
-                                modifier = Modifier.size(48.dp)) {
-                                CodexIcon(CodexGlyph.ContentCopy, "复制消息", tint = Ink.muted, modifier = Modifier.size(18.dp))
-                            }
-                            Box(Modifier.size(48.dp).testTag("timeline-header-" + item.id)
-                                .combinedClickable(onClick = { menuOpen = true }, onLongClick = {
-                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                                    menuOpen = true
-                                }), contentAlignment = Alignment.Center) {
-                                CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = Ink.muted)
-                            }
-                        }
-                    }
                 }
+            }
+            if (!active && (user || item.phase != "commentary")) {
+                MessageActionRow(item, user, onTurnAction, onRead = { readerOpen = true })
+            }
             }
         } else {
             val icon = when (item.kind) {
@@ -160,19 +154,11 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
             }
         }
     }
-    if (menuOpen) CodexActionSheet(title = title, onDismiss = { menuOpen = false }, actions = buildList {
+    if (menuOpen && !user && !assistant) CodexActionSheet(title = title, onDismiss = { menuOpen = false }, actions = buildList {
         if (item.text.isNotBlank()) {
             add(CodexSheetAction("复制内容", CodexGlyph.ContentCopy,
                 { clipboard.setText(AnnotatedString(item.text)) }))
             add(CodexSheetAction("全文阅读", CodexGlyph.OpenInFull, { readerOpen = true }))
-        }
-        if (user && item.turnId.isNotBlank() && onTurnAction != null) {
-            add(CodexSheetAction("从此回合回退", CodexGlyph.History,
-                { onTurnAction(item, false) }, destructive = true))
-        }
-        if (assistant && item.turnId.isNotBlank() && onTurnAction != null && !active && item.phase != "commentary") {
-            add(CodexSheetAction("从此回合创建分支", CodexGlyph.CallSplit,
-                { onTurnAction(item, true) }))
         }
         if (detail) {
             add(CodexSheetAction("执行详情", CodexGlyph.Description, { evidenceOpen = true }))
@@ -184,4 +170,66 @@ internal fun TimelineStepCard(item: TimelineItem, onTurnAction: ((TimelineItem, 
     if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
         onDismiss = { evidenceOpen = false })
     if (rawOpen) FullTextReaderDialog("原始执行记录", TimelineEvidenceText.render(item)) { rawOpen = false }
+}
+
+/** Only the selected visible message is copied/shared; actions never include tool evidence. */
+@Composable
+private fun MessageActionRow(item: TimelineItem, user: Boolean,
+    onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)?, onRead: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    var menu by remember(item.id) { mutableStateOf(false) }
+    val hasText = item.text.isNotBlank()
+    val hasTurn = item.turnId.isNotBlank()
+    val canMutate = hasTurn && onTurnAction != null
+    Row(Modifier.testTag("message-actions-" + item.id), verticalAlignment = Alignment.CenterVertically) {
+        if (hasText) {
+            CodexIconAction(onClick = {
+                clipboard.setText(AnnotatedString(item.text))
+                Toast.makeText(context, "已复制消息", Toast.LENGTH_SHORT).show()
+            }, modifier = Modifier.size(48.dp).testTag("message-copy-" + item.id)) {
+                CodexIcon(CodexGlyph.ContentCopy, "复制消息", tint = Ink.muted, modifier = Modifier.size(19.dp))
+            }
+        }
+        if (!user && hasTurn) {
+            CodexIconAction(onClick = { onTurnAction?.invoke(item, MessageTurnAction.Retry) },
+                enabled = canMutate, modifier = Modifier.size(48.dp).testTag("message-retry-" + item.id)) {
+                CodexIcon(CodexGlyph.Retry, "重新回答", tint = Ink.muted.copy(alpha = if (canMutate) 1f else .38f),
+                    modifier = Modifier.size(19.dp))
+            }
+        }
+        if (hasText) {
+            CodexIconAction(onClick = {
+                val intent = Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, item.text)
+                try {
+                    context.startActivity(Intent.createChooser(intent, "分享消息"))
+                } catch (_: android.content.ActivityNotFoundException) {
+                    Toast.makeText(context, "没有可用的分享应用，请复制消息", Toast.LENGTH_LONG).show()
+                }
+            }, modifier = Modifier.size(48.dp).testTag("message-share-" + item.id)) {
+                CodexIcon(CodexGlyph.Share, "分享消息", tint = Ink.muted, modifier = Modifier.size(19.dp))
+            }
+        }
+        Box {
+            CodexIconAction(onClick = { menu = true },
+                modifier = Modifier.size(48.dp).testTag("timeline-header-" + item.id)) {
+                CodexIcon(CodexGlyph.MoreHoriz, "消息操作", tint = Ink.muted, modifier = Modifier.size(19.dp))
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                if (hasText) DropdownMenuItem(text = { Text("全文阅读") },
+                    leadingIcon = { CodexIcon(CodexGlyph.OpenInFull, null) },
+                    onClick = { menu = false; onRead() })
+                if (hasTurn && !user) DropdownMenuItem(text = { Text("创建会话分支") },
+                    leadingIcon = { CodexIcon(CodexGlyph.MessageBranch, null) },
+                    enabled = canMutate,
+                    onClick = { menu = false; onTurnAction?.invoke(item, MessageTurnAction.Fork) },
+                    modifier = Modifier.testTag("message-fork-" + item.id))
+                if (hasTurn && user) DropdownMenuItem(text = { Text("从此回合回退") },
+                    leadingIcon = { CodexIcon(CodexGlyph.History, null, tint = Ink.red) },
+                    enabled = canMutate,
+                    onClick = { menu = false; onTurnAction?.invoke(item, MessageTurnAction.Revert) })
+            }
+        }
+    }
 }

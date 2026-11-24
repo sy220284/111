@@ -834,13 +834,20 @@ class UiNavigationInstrumentedTest {
         rule.runOnUiThread {
             vm.timeline.value = listOf(
                 TimelineItem("ui-user", "user", "检查项目结构"),
-                TimelineItem("ui-agent", "agentMessage", "已找到项目入口"),
+                TimelineItem("ui-agent", "agentMessage", "已找到项目入口", "completed", turnId = "ui-turn"),
                 TimelineItem("ui-step", "commandExecution", "pwd", "completed")
             )
         }
         try {
             rule.onNodeWithTag("chat-user-message").assertExists()
             rule.onNodeWithTag("chat-assistant-message").assertExists()
+            rule.onNodeWithTag("message-copy-ui-agent").assertExists()
+            rule.onNodeWithTag("message-retry-ui-agent").assertExists()
+            rule.onNodeWithTag("message-share-ui-agent").assertExists()
+            rule.onNodeWithTag("timeline-header-ui-agent").performClick()
+            rule.onNodeWithTag("message-fork-ui-agent").assertExists()
+            rule.activity.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+            rule.waitForIdle()
             rule.onNodeWithTag("chat-activity-group").assertExists()
             rule.onNodeWithTag("chat-activity-group").performClick()
             rule.onNodeWithText("pwd").assertExists()
@@ -1183,7 +1190,8 @@ class UiNavigationInstrumentedTest {
         }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("context")
-        rule.onNodeWithText("创建会话分支").assertExists()
+        rule.onNodeWithText("创建会话分支").assertDoesNotExist()
+        rule.onNodeWithText("整理上下文").assertExists()
         captureOverlay("audit-thread-context-android35.png")
         rule.onNodeWithText("历史回退").performScrollTo().performClick()
         rule.waitForIdle()
