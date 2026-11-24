@@ -373,7 +373,7 @@ fun AtlasCompactChoice(
                     activeBorderColor = Ink.copper, inactiveContainerColor = Ink.canvas,
                     inactiveContentColor = Ink.muted, inactiveBorderColor = Ink.controlBorder),
                 interactionSource = interaction,
-                modifier = Modifier.heightIn(min = 48.dp).codexActionPress(interaction, enabled).let {
+                modifier = Modifier.heightIn(min = 48.dp).codexActionPress(interaction, enabled, SegmentedButtonDefaults.itemShape(index, options.size)).let {
                     if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
                 }) { Text(label, style = labelStyle) }
         }

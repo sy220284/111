@@ -33,7 +33,8 @@ import androidx.compose.ui.unit.dp
 
 /** Shared press response; native ripple, click semantics and cancellation remain on the control. */
 @Composable
-internal fun Modifier.codexActionPress(interaction: MutableInteractionSource, enabled: Boolean): Modifier {
+internal fun Modifier.codexActionPress(interaction: MutableInteractionSource, enabled: Boolean,
+    shape: Shape = RoundedCornerShape(13.dp)): Modifier {
     val pressed by interaction.collectIsPressedAsState()
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val focused by interaction.collectIsFocusedAsState()
@@ -46,7 +47,7 @@ internal fun Modifier.codexActionPress(interaction: MutableInteractionSource, en
     return graphicsLayer { scaleX = scale; scaleY = scale }
         .then(if (enabled && (focused || hovered)) Modifier.border(
             if (focused) 2.dp else 1.dp, if (focused) Ink.copper else Ink.controlBorder,
-            RoundedCornerShape(13.dp)) else Modifier)
+            shape) else Modifier)
 }
 
 /** Quiet tertiary action; callers retain destructive colors and constrained layouts. */
@@ -68,7 +69,7 @@ internal fun CodexIconAction(onClick: () -> Unit, modifier: Modifier = Modifier,
     enabled: Boolean = true, content: @Composable () -> Unit) {
     val press = remember { MutableInteractionSource() }
     IconButton(onClick = onClick, enabled = enabled,
-        modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).codexActionPress(press, enabled),
+        modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).codexActionPress(press, enabled, androidx.compose.foundation.shape.CircleShape),
         interactionSource = press, content = content)
 }
 

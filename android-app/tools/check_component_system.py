@@ -19,6 +19,8 @@ RAW_OWNERS = {
     "Switch": {"VisualSystem"},
     "CircularProgressIndicator": {"CodexControlPrimitives"},
     "LinearProgressIndicator": {"AtlasInteractionComponents"},
+    "SegmentedButton": {"AtlasInteractionComponents"},
+    "SingleChoiceSegmentedButtonRow": {"AtlasInteractionComponents"},
 }
 SHARED = {
     "CodexPrimaryButton": "VisualSystem", "CodexSecondaryButton": "VisualSystem",

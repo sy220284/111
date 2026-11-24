@@ -249,7 +249,7 @@ fun CodexPrimaryButton(onClick: () -> Unit, modifier: Modifier = Modifier,
     val press = remember { MutableInteractionSource() }
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled && !busy)
+        modifier = modifier.heightIn(min = 48.dp).codexActionPress(press, enabled && !busy, shape)
             .semantics { if (busy) stateDescription = "正在处理" },
         enabled = enabled && !busy, shape = shape, interactionSource = press,
         colors = colors, contentPadding = contentPadding

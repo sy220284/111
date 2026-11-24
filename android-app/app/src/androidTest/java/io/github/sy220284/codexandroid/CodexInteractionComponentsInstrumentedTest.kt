@@ -735,4 +735,11 @@ class CodexInteractionComponentsInstrumentedTest {
     @Test fun unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction() {
         assertControlSystemInteraction(rule)
     }
+    @Test fun v8BusyButtonRetainsWidthAndSecretCanBeHidden() {
+        assertV8ComponentStates(rule)
+    }
+
+    @Test fun v8ControlBordersHaveAccessibleContrastInBothThemes() {
+        assertV8ThemeContrast(rule)
+    }
 }

@@ -19,6 +19,13 @@ class ComponentSystemTest(unittest.TestCase):
         self.assertTrue(any("OutlinedTextField" in error for error in errors))
         self.assertTrue(any("TextButton" in error for error in errors))
 
+    def test_segmented_controls_are_centralized(self):
+        sources = fixture()
+        sources["BusinessPage"] += "\nSegmentedButton()\nSingleChoiceSegmentedButtonRow()"
+        errors = audit(sources)["errors"]
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(any("SingleChoiceSegmentedButtonRow" in error for error in errors))
+
     def test_declaration_and_test_only_do_not_count(self):
         sources = fixture()
         sources["BusinessPage"] = sources["BusinessPage"].replace("CodexInputField()", "")
