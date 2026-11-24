@@ -962,8 +962,7 @@ class UiNavigationInstrumentedTest {
         rule.runOnUiThread { vm.activeThread.value = "ci-current-queue" }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         assertNoWorkspaceBar()
-        openComposerShortcut("context")
-        rule.onNodeWithText("后续指令").performScrollTo().performClick()
+        openComposerShortcut("queue")
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isNotEmpty()
         }
@@ -975,8 +974,7 @@ class UiNavigationInstrumentedTest {
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-draft" }
         rule.waitForIdle()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        openComposerShortcut("context")
-        rule.onNodeWithText("后续指令").performScrollTo().performClick()
+        openComposerShortcut("queue")
         rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -989,8 +987,7 @@ class UiNavigationInstrumentedTest {
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-sheet").fetchSemanticsNodes().isEmpty()
         }
-        openComposerShortcut("context")
-        rule.onNodeWithText("后续指令").performScrollTo().performClick()
+        openComposerShortcut("queue")
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
     }
 
@@ -1007,8 +1004,7 @@ class UiNavigationInstrumentedTest {
 
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
-        openComposerShortcut("context")
-        rule.onNodeWithText("后续指令").performScrollTo().performClick()
+        openComposerShortcut("queue")
         rule.onNodeWithTag("thread-queue-sheet").assertExists()
         rule.onNodeWithText("后续指令").assertExists()
         assertTrue("同一队列请求错误只显示一次",

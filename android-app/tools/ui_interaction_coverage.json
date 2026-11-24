@@ -2,9 +2,9 @@
   "routes": [
     {
       "route": "chat",
-      "file": "ConversationComposer.kt",
-      "owner": "ConversationComposer",
-      "component": "ComposerFollowUpChoices"
+      "file": "ConversationScreen.kt",
+      "owner": "ConversationPage",
+      "component": "ComposerQueueAction"
     },
     {
       "route": "threads",

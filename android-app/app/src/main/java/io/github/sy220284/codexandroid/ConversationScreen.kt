@@ -64,8 +64,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var showContextTools by remember(thread) { mutableStateOf(false) }
     var sessionAction by remember(draftOwner) { mutableStateOf("") }
     var showTerminalSheet by remember { mutableStateOf(false) }
-    var followUpMode by remember(draftOwner, busy, snapshot.hasInput) { mutableStateOf("queue") }
-    val renderedFollowUpMode = followUpMode
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
     var pendingImagePick by remember { mutableStateOf(false) }
     var showEngineStatus by remember { mutableStateOf(false) }
@@ -336,9 +334,17 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 sending -> "正在提交指令，请勿重复发送"
                 stopping -> "正在停止当前任务，请稍候"
                 busy && thread == null -> "正在建立会话"
-                busy && followUpMode == "steer" && activeTurn.isNullOrBlank() -> "正在等待执行回合"
                 !snapshot.hasInput -> "输入指令或添加附件后即可发送"
                 else -> ""
+            }
+            // Submit and queue are distinct actions, matching native Enter/Tab.
+            // Keep the transient queue shortcut outside ConversationComposer.
+            ComposerQueueAction(
+                visible = busy && thread != null && snapshot.hasInput,
+                enabled = sendBlockReason.isBlank(),
+                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) })
+            val guideBlockReason = sendBlockReason.ifBlank {
+                if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
             ConversationComposer(
                 draft = draft, shortcuts = tools,
@@ -346,16 +352,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 attachedCount = attachedImages.size, connected = status == EngineStatus.Connected,
                 running = busy, stopping = stopping,
                 canStop = busy && !activeTurn.isNullOrBlank(),
-                canSend = sendBlockReason.isBlank(), sending = sending,
-                sendBlockReason = sendBlockReason,
-                followUpMode = renderedFollowUpMode, onFollowUpModeChange = { followUpMode = it },
+                canSend = guideBlockReason.isBlank(), sending = sending,
+                sendBlockReason = guideBlockReason,
                 onStop = {
                     if (thread != null && vm.activeThread.value == thread && vm.activeTurn.value == activeTurn) {
                         stopRequestedForTurn = activeTurn
                         vm.interruptThread(thread)
                     }
                 },
-                onSend = { vm.submitComposerDraft(snapshot, renderedFollowUpMode, thread, activeTurn, busy, draftOwner) },
+                onSend = { vm.submitComposerDraft(snapshot, "steer", thread, activeTurn, busy, draftOwner) },
                 hasInput = snapshot.hasInput,
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { keyboard?.hide(); composerMenu = "add" },

@@ -379,7 +379,6 @@ class UiPopulatedSubpagesInstrumentedTest {
                     attachedCount = 0, connected = true, running = false,
                     stopping = false, canStop = false,
                     canSend = text.isNotBlank(), sending = false,
-                    followUpMode = "queue", onFollowUpModeChange = {},
                     onStop = {}, onSend = { submitted = text }
                 )
             }
@@ -502,40 +501,43 @@ class UiPopulatedSubpagesInstrumentedTest {
 
     @Test fun composerKeepsStopAndSteerReachableDuringActiveTurn() {
         var sent = false
+        var queued = false
         var stopped = false
         var runningDraft by mutableStateOf("")
         rule.setContent {
-            var mode by remember { mutableStateOf("queue") }
             CodexTheme {
-                ConversationComposer(
-                    draft = runningDraft, onDraftChange = { runningDraft = it },
-                    attachedCount = 0, connected = true,
-                    running = true, stopping = false,
-                    canStop = true, canSend = runningDraft.isNotBlank(), sending = false,
-                    followUpMode = mode, onFollowUpModeChange = { mode = it },
-                    onStop = { stopped = true }, onSend = { sent = true }
-                )
+                androidx.compose.foundation.layout.Column {
+                    ComposerQueueAction(visible = runningDraft.isNotBlank(), enabled = true,
+                        onQueue = { queued = true; runningDraft = "" })
+                    ConversationComposer(
+                        draft = runningDraft, onDraftChange = { runningDraft = it },
+                        attachedCount = 0, connected = true,
+                        running = true, stopping = false,
+                        canStop = true, canSend = runningDraft.isNotBlank(), sending = false,
+                        onStop = { stopped = true }, onSend = { sent = true; runningDraft = "" }
+                    )
+                }
             }
         }
         rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
-        rule.onNodeWithTag("composer-follow-up-mode").assertDoesNotExist()
+        rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
         rule.onNodeWithTag("composer-input").performTextInput("检查这一轮修改")
-        rule.onNodeWithContentDescription("加入后续执行队列").assertExists()
-        rule.onNodeWithTag("composer-mode-queue").assertIsDisplayed().assertIsSelected()
-        rule.onNodeWithTag("composer-mode-steer").assertIsDisplayed()
-        rule.onNodeWithTag("composer-mode-steer").performClick()
-        rule.onNodeWithTag("composer-mode-steer").assertIsSelected()
-        rule.onNodeWithContentDescription("立即调整当前任务").assertExists()
+        rule.onNodeWithTag("composer-send-queue").assertIsDisplayed()
+        rule.onNode(hasTestTag("composer-send-queue") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertDoesNotExist()
+        rule.onNodeWithContentDescription("引导当前任务").assertExists()
         capture("audit-composer-running-android35.png")
-        rule.onNodeWithTag("composer-stop").performClick()
+        rule.onNodeWithTag("composer-send-queue").performClick()
+        rule.runOnIdle { assertEquals(true, queued) }
+        rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
+        rule.onNodeWithTag("composer-input").performTextInput("补充当前任务")
         rule.onNodeWithTag("composer-send").performClick()
+        rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
+        rule.onNodeWithTag("composer-stop").performClick()
         rule.runOnIdle {
             assertEquals(true, stopped)
             assertEquals(true, sent)
-            runningDraft = ""
         }
-        rule.onNodeWithTag("composer-follow-up-mode").assertDoesNotExist()
     }
 
     @Test fun conversationApprovalSheetRendersActualCommandAndDecision() {

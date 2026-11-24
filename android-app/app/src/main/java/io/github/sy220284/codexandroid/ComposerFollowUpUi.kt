@@ -1,12 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.background
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.core.tween
@@ -14,7 +11,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,42 +24,27 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Temporary icon-only choice. Each native radio target remains 48dp, while
- * the visible circle is smaller so it aligns with the existing toolbar. */
+/** Native Codex distinguishes submit (Enter) from queue (Tab).
+ * On touch screens this independent queue action lives outside the input surface.
+ * It submits directly; no sticky send mode or additional action is required. */
 @Composable
-internal fun ComposerFollowUpChoices(selected: String, onSelect: (String) -> Unit,
-    visible: Boolean, enabled: Boolean, canGuide: Boolean, reducedMotion: Boolean) {
+internal fun ComposerQueueAction(visible: Boolean, enabled: Boolean, onQueue: () -> Unit) {
+    val reduced by UiPreferences.reducedMotion.collectAsState()
     AnimatedVisibility(visible = visible,
-        enter = expandHorizontally(tween(CodexMotion.duration(CodexMotion.selection, reducedMotion))) +
-            fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reducedMotion))),
-        exit = shrinkHorizontally(tween(CodexMotion.duration(CodexMotion.release, reducedMotion))) +
-            fadeOut(tween(CodexMotion.duration(CodexMotion.release, reducedMotion)))) {
-        Row(Modifier.testTag("composer-follow-up-mode").selectableGroup(),
-            verticalAlignment = Alignment.CenterVertically) {
-            ComposerFollowUpIcon("steer", CodexGlyph.EditNote, "引导任务，立即追加到当前回合",
-                selected == "steer", visible && enabled && canGuide, reducedMotion, onSelect)
-            ComposerFollowUpIcon("queue", CodexGlyph.ViewList, "排队发送，当前任务完成后执行",
-                selected == "queue", visible && enabled, reducedMotion, onSelect)
-        }
-    }
-}
-
-@Composable
-private fun ComposerFollowUpIcon(mode: String, glyph: CodexGlyph, description: String,
-    selected: Boolean, enabled: Boolean, reducedMotion: Boolean, onSelect: (String) -> Unit) {
-    val fill by animateColorAsState(
-        targetValue = if (selected) Ink.copper.copy(alpha = if (enabled) .16f else .07f) else Color.Transparent,
-        animationSpec = tween(CodexMotion.duration(CodexMotion.selection, reducedMotion)),
-        label = "follow-up-selection")
-    Box(Modifier.size(48.dp).testTag("composer-mode-" + mode)
-        .codexSelectable(selected, enabled) { onSelect(mode) }
-        .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center) {
-        Box(Modifier.size(36.dp).background(fill, CircleShape),
-            contentAlignment = Alignment.Center) {
-            CodexIcon(glyph, null, Modifier.size(22.dp),
-                tint = if (!enabled) Ink.muted.copy(alpha = .5f)
-                    else if (selected) Ink.copper else Ink.muted)
+        enter = expandVertically(tween(CodexMotion.duration(CodexMotion.selection, reduced))) +
+            fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduced))),
+        exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.release, reduced))) +
+            fadeOut(tween(CodexMotion.duration(CodexMotion.release, reduced)))) {
+        Row(Modifier.fillMaxWidth().testTag("composer-queue-action"),
+            horizontalArrangement = Arrangement.End) {
+            Surface(shape = CircleShape, color = Ink.panel,
+                border = BorderStroke(1.dp, Ink.controlBorder)) {
+                CodexIconAction(onClick = onQueue, enabled = visible && enabled,
+                    modifier = Modifier.size(48.dp).testTag("composer-send-queue")) {
+                    CodexIcon(CodexGlyph.ViewList, "排队发送，当前任务结束后执行",
+                        Modifier.size(22.dp), tint = if (enabled) Ink.parchment else Ink.muted)
+                }
+            }
         }
     }
 }
