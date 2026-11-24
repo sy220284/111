@@ -25,6 +25,8 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     var error by mutableStateOf("")
         private set
     var muted by mutableStateOf(false)
+    var inputLevel by mutableFloatStateOf(0f)
+        private set
     var sending by mutableStateOf(false)
         private set
     var userTranscript by mutableStateOf("")
@@ -95,6 +97,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         if (reason.isNotBlank()) error = reason
         if (state == State.Idle || state == State.Stopping) return
         state = State.Stopping
+        inputLevel = 0f
         startup?.complete(Unit)
         startup = null
         eventJob?.cancel()
@@ -231,6 +234,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 check(size >= 0) { "麦克风录音已中断" }
                 if (size > 0) {
                     withContext(Dispatchers.Main.immediate) {
+                        inputLevel = if (!muted && state == State.Live) pcm16Level(buffer, size) else 0f
                         if (!muted && state == State.Live) {
                             val chunk = JSONObject()
                                 .put("data", Base64.encodeToString(buffer, 0, size, Base64.NO_WRAP))
@@ -288,4 +292,16 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             track?.release()
         }
     }
+}
+
+/** Normalized RMS from the actual signed little-endian PCM samples. */
+internal fun pcm16Level(bytes: ByteArray, size: Int): Float {
+    val count = size.coerceIn(0, bytes.size) / 2
+    if (count == 0) return 0f
+    var squares = 0.0
+    for (i in 0 until count) {
+        val sample = ((bytes[i * 2].toInt() and 0xff) or (bytes[i * 2 + 1].toInt() shl 8)).toShort().toDouble() / 32768.0
+        squares += sample * sample
+    }
+    return (kotlin.math.sqrt(squares / count) * 3.0).coerceIn(0.0, 1.0).toFloat()
 }

@@ -14,7 +14,7 @@ fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     CodexOverlayFrame(onDismissRequest = onDismiss,
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
         Column(Modifier.fillMaxWidth()
-            .heightIn(max = atlasSheetHeight())
+            .heightIn(max = atlasSheetHeight() * .80f)
             .navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {

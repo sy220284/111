@@ -20,7 +20,7 @@ internal fun MemoryManagementSheet(vm: CodexViewModel, threadId: String?, onDism
     }
     LaunchedEffect(vm, threadId) { operation.launch { refresh() } }
     CodexDetailSheet(if (threadId == null) "全局记忆管理" else "会话记忆",
-        onDismiss = { if (!operation.busy) onDismiss() },
+        onDismiss = { if (!operation.busy) onDismiss() }, startExpanded = true,
         subtitle = if (threadId == null) "查看内核记忆就绪情况及重置入口。" else "查看这条会话当前可读取的记忆摘要。") {
         CapabilityFeedback(operation, "正在同步记忆")
         if (threadId == null) {

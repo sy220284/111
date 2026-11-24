@@ -447,10 +447,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 description = "添加剪贴板中的图片", testTag = "composer-add-paste"))
 
                         })
-    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
+                    if (composerMenu == "reference") ComposerFileReferenceSheet(vm, selectedWorkspace, referenceQuery.orEmpty(),
         onSelect = { vm.composerContent.addReference(draftOwner, it, referenceQuery); composerMenu = ""; referenceQuery = null },
         onDismiss = { composerMenu = ""; referenceQuery = null })
-    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
+                    if (composerMenu == "skills") ComposerSkillSheet(vm, selectedWorkspace,
         onSelect = { vm.composerContent.addReference(draftOwner, it); composerMenu = "" }, onDismiss = { composerMenu = "" })
 
                 },
@@ -466,11 +466,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
                                 enabled = it.enabled, testTag = "composer-tool-" + it.command)
                         })
-    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
-    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
+                    if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
+                    if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
         onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,
         onDismiss = { composerMenu = "" })
-    if (composerMenu == "context-tools") {
+                    if (composerMenu == "context-tools") {
         ThreadContextTools(
             vm = vm,
             navigate = { destination ->

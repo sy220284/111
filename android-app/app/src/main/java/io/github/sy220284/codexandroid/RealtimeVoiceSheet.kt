@@ -5,6 +5,13 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -91,14 +98,36 @@ internal fun RealtimeVoiceSheet(
     }
     val live = controller.state == RealtimeVoiceController.State.Live
     val idle = controller.state == RealtimeVoiceController.State.Idle
-    CodexDetailSheet("实时语音", onDismiss = onDismiss,
-        subtitle = "使用麦克风与当前会话实时交流。离开面板或切到后台会结束语音。") {
-        Text(when (controller.state) {
+    var expanded by remember { mutableStateOf(false) }
+    MaterialPanel(Modifier.fillMaxWidth().testTag("realtime-voice-controls")) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            CodexIcon(CodexGlyph.Microphone, null, tint = if (live) Ink.jade else Ink.copper)
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text("实时语音", style = MaterialTheme.typography.titleMedium)
+                Text(when (controller.state) {
             RealtimeVoiceController.State.Idle -> "语音未开启"
             RealtimeVoiceController.State.Starting -> "正在连接实时语音"
             RealtimeVoiceController.State.Live -> if (controller.muted) "麦克风已静音" else "麦克风正在工作"
             RealtimeVoiceController.State.Stopping -> "正在结束语音"
-        }, style = MaterialTheme.typography.titleMedium)
+        }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            }
+            CodexIconAction(onClick = { expanded = !expanded }) {
+                CodexIcon(if (expanded) CodexGlyph.ExpandLess else CodexGlyph.ExpandMore, "语音详情")
+            }
+            CodexIconAction(onClick = { controller.stop(); onDismiss() }) { CodexIcon(CodexGlyph.Close, "关闭实时语音") }
+        }
+        if (live) {
+            val level = if (controller.muted) 0f else controller.inputLevel
+            Row(Modifier.fillMaxWidth().height(28.dp), horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                repeat(18) { index ->
+                    val threshold = (index + 1) / 18f
+                    Box(Modifier.weight(1f).height((5 + 20 * threshold).dp)
+                        .background(if (level >= threshold) Ink.jade else Ink.border, RoundedCornerShape(3.dp)))
+                }
+            }
+        }
         if (permissionError) CodexNotice("需要麦克风权限。也可以在系统设置中为 Codex 开启。", NoticeTone.Warning)
         if (controller.error.isNotBlank()) CodexNotice(controller.error, NoticeTone.Error)
         CapabilityFeedback(operation)
@@ -128,6 +157,8 @@ internal fun RealtimeVoiceSheet(
                 }
             }
         }
+        if (expanded) Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight() * .36f)
+            .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (live) {
             CodexInputField(input, { input = it.take(4_000) }, label = { Text("也可以输入文字") },
                 modifier = Modifier.fillMaxWidth())
@@ -154,6 +185,7 @@ internal fun RealtimeVoiceSheet(
             historyLines.forEach { line -> Text(line) }
             if (cursor.isNotBlank()) CodexTextAction(onClick = { loadHistory(true) },
                 enabled = !operation.busy) { Text("读取更多") }
+        }
         }
     }
 }

@@ -163,24 +163,12 @@ fun CodexShell(vm: CodexViewModel) {
                 openDrawer()
                 return@move
             }
-            "queue" -> {
-                openSheet("queue")
-                return@move
-            }
             "models" -> if (page.id != "settings") {
                 openSheet("models")
                 return@move
             }
             "about" -> {
                 openSheet("about")
-                return@move
-            }
-            "approvals" -> {
-                openSheet("approvals")
-                return@move
-            }
-            "review" -> {
-                openSheet("review")
                 return@move
             }
             "goals" -> {
@@ -410,21 +398,12 @@ fun CodexShell(vm: CodexViewModel) {
         if (activeSheet == "status") {
             EngineStatusSheet(vm, onDismiss = { closeSheet("status") }, navigate = move)
         }
-        if (activeSheet == "review") pageStateHolder.SaveableStateProvider("sheet:review:${activeThread}") {
-            ReviewScopeSheet(vm, onDismiss = { closeSheet("review") }, navigate = move)
-        }
         if (activeSheet == "goals") pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
             ThreadGoalSheet(vm, onDismiss = { closeSheet("goals") })
         }
         if (activeSheet == "modes") ModeChoiceSurface(vm) { closeSheet("modes") }
         if (activeSheet == "history-tools") ThreadHistorySheet(vm) { closeSheet("history-tools") }
         if (activeSheet == "thread-attachments") ThreadAttachmentsSheet(vm) { closeSheet("thread-attachments") }
-        if (activeSheet == "approvals") pageStateHolder.SaveableStateProvider("sheet:approvals") {
-            ApprovalQuickSheet(vm) { closeSheet("approvals") }
-        }
-        if (activeSheet == "queue") pageStateHolder.SaveableStateProvider("sheet:queue:${activeThread}") {
-            ThreadQueueQuickSheet(vm) { closeSheet("queue") }
-        }
         if (activeSheet == "models") ModelChoiceSurface(vm) { closeSheet("models") }
         if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }
         // Archive transfer must block all foreground pages and sheets.

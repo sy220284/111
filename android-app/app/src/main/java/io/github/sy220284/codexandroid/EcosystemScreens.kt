@@ -584,13 +584,14 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }
         }
         if (status is EngineStatus.Unavailable) {
-            CodexDetailTrigger("查看排查步骤", onClick = { showRecoverySteps = true })
-            if (showRecoverySteps) CodexDetailSheet(
-                title = "连接排查",
-                onDismiss = { showRecoverySteps = false }
-            ) {
-                Text("先重新连接运行服务；再核实账号登录状态和失败的功能。若仍无法使用，可查看启动日志。",
-                    color = Ink.parchment)
+            MaterialPanel(Modifier.fillMaxWidth()) {
+                Text("连接排查", style = MaterialTheme.typography.titleMedium)
+                listOf("重新连接运行服务", "核实账号登录与失败功能", "查看启动日志").forEachIndexed { index, step ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text((index + 1).toString(), color = Ink.copper, style = MaterialTheme.typography.titleMedium)
+                        Text(step, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
         }
     }

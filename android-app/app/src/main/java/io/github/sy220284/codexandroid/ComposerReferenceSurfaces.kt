@@ -162,6 +162,7 @@ internal fun ComposerContextUsageSheet(usage: org.json.JSONObject?, onCompact: (
 internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onRegistry: () -> Unit, onDismiss: () -> Unit) {
     val root = remember { File(vm.workingDirectory).canonicalFile }
     var directory by remember { mutableStateOf(File(workspace)) }
+    var directoryQuery by remember(directory) { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val result by produceState<Result<List<File>>?>(null, directory) {
         value = null
@@ -189,8 +190,10 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
         val current = result
         if (current == null) AtlasOperationProgress("正在读取目录")
         else current.fold(onSuccess = { dirs ->
-            if (dirs.isEmpty()) Text("没有子目录", color = Ink.muted)
-            dirs.forEach { child ->
+            AtlasSearchField(directoryQuery, { directoryQuery = it }, "搜索子目录", onClear = { directoryQuery = "" })
+            val matching = dirs.filter { it.name.contains(directoryQuery.trim(), ignoreCase = true) }
+            if (matching.isEmpty()) Text(if (dirs.isEmpty()) "没有子目录" else "没有匹配的目录", color = Ink.muted)
+            matching.forEach { child ->
                 AtlasSettingsActionRow(child.name, "", CodexGlyph.Folder, onClick = { directory = child }, outlined = false)
             }
         }, onFailure = { ErrorText(it.message ?: "无法读取目录") })

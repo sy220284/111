@@ -58,7 +58,7 @@ internal fun PluginSharingSheet(
     }
     LaunchedEffect(vm) { operation.launch { refresh() } }
 
-    CodexDetailSheet("插件共享", onDismiss = { if (!operation.busy) onDismiss() },
+    CodexDetailSheet("插件共享", onDismiss = { if (!operation.busy) onDismiss() }, startExpanded = true,
         subtitle = "发布本地插件、管理访问权限，或下载别人共享的插件源。") {
         CapabilityFeedback(operation, "正在同步插件共享")
         if (link.isNotBlank() || sharedId.isNotBlank()) {

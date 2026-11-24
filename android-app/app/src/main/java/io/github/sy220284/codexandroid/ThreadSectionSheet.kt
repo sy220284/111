@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 
 internal data class AndroidThreadSection(val id: String, val name: String)
@@ -21,6 +22,7 @@ internal fun ThreadSectionSheet(
     var sections by remember { mutableStateOf<List<AndroidThreadSection>?>(null) }
     var editing by remember { mutableStateOf<AndroidThreadSection?>(null) }
     var name by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AndroidThreadSection?>(null) }
     var remaining by remember(moving) { mutableStateOf(moving.orEmpty()) }
     suspend fun load() {
@@ -76,7 +78,8 @@ internal fun ThreadSectionSheet(
         }, enabled = !operation.busy && (moving == null || remaining.isNotEmpty())) {
             Text(if (moving == null) "未分组" else "移出分组")
         }
-        sections.orEmpty().forEach { section ->
+        AtlasSearchField(query, { query = it }, "搜索分组", onClear = { query = "" })
+        sections.orEmpty().filter { it.name.contains(query.trim(), ignoreCase = true) }.forEach { section ->
             Row(Modifier.fillMaxWidth()) {
                 CodexSecondaryButton(onClick = {
                     if (moving == null) onFilter(section) else move(section.id)
@@ -93,23 +96,25 @@ internal fun ThreadSectionSheet(
         }
         CodexTextAction(onClick = { editing = AndroidThreadSection("", ""); name = "" },
             enabled = !operation.busy) { Text("新建分组") }
-        editing?.let { section ->
+
+    }
+    editing?.let { section ->
+        CodexEditDialog(if (section.id.isEmpty()) "新建分组" else "重命名分组",
+            "为会话分组设置清晰名称。", "保存分组",
+            onDismiss = { if (!operation.busy) editing = null },
+            onConfirm = {
+                operation.launch {
+                    if (section.id.isEmpty()) {
+                        vm.capabilityRequest("threadSection/create", ThreadSectionContract.create(name))
+                    } else {
+                        vm.capabilityRequest("threadSection/update", ThreadSectionContract.rename(section.id, name))
+                    }
+                    editing = null
+                    load()
+                }
+            }, canConfirm = !operation.busy && name.trim().length in 1..120) {
             CodexInputField(name, { name = it }, label = { Text("分组名称") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
-            Row {
-                CodexSecondaryButton(onClick = {
-                    operation.launch {
-                        if (section.id.isEmpty()) {
-                            vm.capabilityRequest("threadSection/create", ThreadSectionContract.create(name))
-                        } else {
-                            vm.capabilityRequest("threadSection/update", ThreadSectionContract.rename(section.id, name))
-                        }
-                        editing = null
-                        load()
-                    }
-                }, enabled = !operation.busy && name.trim().length in 1..120) { Text("保存分组") }
-                CodexTextAction(onClick = { editing = null }, enabled = !operation.busy) { Text("取消") }
-            }
         }
     }
     deleting?.let { section ->

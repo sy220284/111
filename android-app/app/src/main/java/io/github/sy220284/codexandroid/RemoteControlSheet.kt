@@ -105,7 +105,7 @@ internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         }
     }
 
-    CodexDetailSheet("远程控制与配对", onDismiss = { if (!operation.busy) onDismiss() },
+    CodexDetailSheet("远程控制与配对", onDismiss = { if (!operation.busy) onDismiss() }, startExpanded = true,
         subtitle = "授权其他设备连接这台手机上的 Codex。") {
         Text(when (remoteStatus) {
             "disabled" -> "远程控制已关闭"

@@ -46,7 +46,7 @@ fun CodexOverlayFrame(
             action()
         }
     }
-    val close: () -> Unit = { closeWithAction {} }
+    val close: () -> Unit = { dismiss() }
     val screen = LocalConfiguration.current
     Dialog(onDismissRequest = close, properties = DialogProperties(
         usePlatformDefaultWidth = false, dismissOnClickOutside = !fullScreen)) {
