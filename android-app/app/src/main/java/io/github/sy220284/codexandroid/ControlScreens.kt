@@ -321,6 +321,14 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val config = data["config"]?.optJSONObject("config")
     val ready = config != null
     val saving = ENGINE_SETTING_SAVE in loading
+    val saveError = errors[ENGINE_SETTING_SAVE]
+    val saveMessage = data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }
+    fun clearSaveFeedback() {
+        if (!saving) {
+            vm.errors.value = vm.errors.value - ENGINE_SETTING_SAVE
+            vm.data.value = vm.data.value - ENGINE_SETTING_SAVE
+        }
+    }
     val permissionBusy by vm.securitySaveBusy.collectAsState()
     val enabled = ready && engineStatus == EngineStatus.Connected && "config" !in loading && !saving && !permissionBusy
     val models = records(data["models"])
@@ -383,9 +391,12 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (saving) AtlasOperationProgress("正在保存并核实配置")
         errors[ENGINE_SETTING_SAVE]?.let { ErrorText(it) }
         data[ENGINE_SETTING_SAVE]?.optString("message")?.takeIf { it.isNotBlank() }?.let {
-            CodexNotice(it, NoticeTone.Info)
+            CodexNotice(it, NoticeTone.Success)
         }
-        EngineSettingRows(config, enabled, models, requirements, requirementsRead) { selectedKey = it.key }
+        EngineSettingRows(config, enabled, models, requirements, requirementsRead) {
+            clearSaveFeedback()
+            selectedKey = it.key
+        }
         if (engineStatus == EngineStatus.Connected && (errors["models"] != null || errors["securityRequirements"] != null)) {
             CodexSecondaryButton(onClick = {
                 vm.refresh("models", "model/list")
@@ -403,7 +414,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         Text("专业工具", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
         CodexDetailTrigger(
             label = "高级自定义配置",
-            onClick = { advanced = true },
+            onClick = { clearSaveFeedback(); advanced = true },
             modifier = Modifier.fillMaxWidth().testTag("config-advanced-toggle")
         )
         if (advanced) {
@@ -458,7 +469,10 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     )
                 }
                 rawError?.let { ErrorText(it) }
-                if (!enabled) Text("连接并读取当前配置后才能保存。", color = Ink.muted)
+                saveError?.let { ErrorText(it) }
+                saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
+                if (saving) AtlasOperationProgress("正在保存并核实配置")
+                if (!enabled && !saving) Text("连接并读取当前配置后才能保存。", color = Ink.muted)
                 CodexPrimaryButton(
                     onClick = {
                         try {
@@ -486,8 +500,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             enabled && (setting.type !in listOf("choice", "reasoning") || available.isNotEmpty()),
             saving, onDismiss = { selectedKey = null }, onSave = {
                 vm.saveEngineSetting(setting.key, it, setting.title)
-                selectedKey = null
-            })
+            }, saveError = saveError, saveMessage = saveMessage)
     }
     if (showConfirm) CodexConfirmDialog(
         title = "保存本机设置",
@@ -498,7 +511,6 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         confirmEnabled = enabled,
         onConfirm = {
             parsed?.let { vm.saveEngineSetting(path.trim(), it, "高级配置") }
-            advanced = false
             showConfirm = false
         },
         onDismiss = { showConfirm = false }

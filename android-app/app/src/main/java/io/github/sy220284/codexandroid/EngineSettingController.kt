@@ -9,7 +9,10 @@ import org.json.JSONObject
 internal const val ENGINE_SETTING_SAVE = "engineSettingSave"
 internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: String) {
     if (DataTransferMutationGate.refuse(this, ENGINE_SETTING_SAVE, "config/value/write")) return
-    if (ENGINE_SETTING_SAVE in loading.value || "config" in loading.value || securitySaveBusy.value) return
+    if (ENGINE_SETTING_SAVE in loading.value || "config" in loading.value || securitySaveBusy.value) {
+        errors.value = errors.value + (ENGINE_SETTING_SAVE to "已有配置操作正在处理，请完成后再保存")
+        return
+    }
     if (bridge.status.value != EngineStatus.Connected || data.value["config"]?.optJSONObject("config") == null) {
         errors.value = errors.value + (ENGINE_SETTING_SAVE to "请先连接并读取当前配置")
         return

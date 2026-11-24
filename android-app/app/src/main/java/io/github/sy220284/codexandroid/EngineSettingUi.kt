@@ -34,11 +34,13 @@ internal fun EngineSettingRows(config: JSONObject?, enabled: Boolean,
                         Text(setting.title, style = MaterialTheme.typography.titleSmall)
                         Text(when {
                             config == null -> "尚未读取"
-                            setting.type in listOf("choice", "reasoning") && available.isEmpty() ->
-                                if (setting.type == "reasoning") "等待模型可用选项" else "等待搜索权限或策略限制"
                             else -> setting.label(EngineSettings.valueAt(config, setting.key),
                                 if (setting.type == "reasoning") EngineSettings.reasoningLabels + available else setting.choices)
                         }, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                        if (config != null && setting.type in listOf("choice", "reasoning") && available.isEmpty()) {
+                            Text(if (setting.type == "reasoning") "暂无模型可用选项" else "暂无策略允许的选项",
+                                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                     if (editable) CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,
                         modifier = Modifier.size(18.dp))
@@ -52,8 +54,11 @@ internal fun EngineSettingRows(config: JSONObject?, enabled: Boolean,
 @Composable
 internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
     available: Map<String, String>, enabled: Boolean, busy: Boolean,
-    onDismiss: () -> Unit, onSave: (Any) -> Unit) {
+    onDismiss: () -> Unit, onSave: (Any) -> Unit,
+    saveError: String? = null, saveMessage: String? = null) {
     var draft by rememberSaveable(setting.key) { mutableStateOf(setting.input(current)) }
+    var edited by rememberSaveable(setting.key) { mutableStateOf(false) }
+    LaunchedEffect(current) { if (!edited) draft = setting.input(current) }
     val parsed = runCatching { setting.parse(draft, available) }
     val value = parsed.getOrNull()
     val changed = value != null && !EngineSettings.sameValue(current, value)
@@ -73,18 +78,20 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
                 val choices = if (setting.type == "boolean") linkedMapOf("true" to "开启", "false" to "关闭") else available
                 Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     choices.forEach { (id, label) ->
-                        AtlasExclusiveChip(selected = draft == id, onClick = { if (!busy) draft = id },
+                        AtlasExclusiveChip(selected = draft == id, onClick = { edited = true; draft = id }, enabled = !busy,
                             label = { Text(label) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                 .testTag("engine-option-" + id))
                     }
                 }
             }
-            "number" -> AtlasFormField(draft, { draft = it }, "数值（" + setting.unit + "）",
+            "number" -> AtlasFormField(draft, { edited = true; draft = it }, "数值（" + setting.unit + "）",
                 keyboardType = KeyboardType.Number, enabled = !busy,
                 error = if (draft.isNotBlank() && parsed.isFailure) parsed.exceptionOrNull()?.message else null)
-            else -> AtlasFormField(draft, { draft = it }, "执行指令", singleLine = false, enabled = !busy)
+            else -> AtlasFormField(draft, { edited = true; draft = it }, "执行指令", singleLine = false, enabled = !busy)
         }
+        saveError?.let { ErrorText(it) }
+        saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
         if (!enabled && !busy) Text("当前无法保存，请检查引擎连接或重新读取配置。", color = Ink.muted)
     }
 }

@@ -213,7 +213,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexPrimaryButton(
                     onClick = { confirm = true },
                     enabled = (scope == "thread" || draftProfile != defaultProfile) &&
-                        !saving && !defaultSaveBusy && "securityThreadSave" !in loading,
+                        !saving && !defaultSaveBusy && "securityThreadSave" !in loading &&
+                        (scope == "thread" || ENGINE_SETTING_SAVE !in loading),
                     busy = saving || defaultSaveBusy || "securityThreadSave" in loading,
                     modifier = Modifier.fillMaxWidth().testTag("security-save")
                 ) {
@@ -244,8 +245,8 @@ fun SecurityPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 } else {
                     val snapshot = vm.globalWorkSnapshot()
-                    if (defaultSaveBusy) {
-                        saveMessage = "已有默认权限修改正在保存与回读，请完成后重试"
+                    if (defaultSaveBusy || ENGINE_SETTING_SAVE in vm.loading.value) {
+                        saveMessage = "已有配置修改正在保存与回读，请完成后重试"
                         saveError = true
                     } else if (!snapshot.canStartNewTask) {
                         saveMessage = snapshot.blockReason

@@ -22,7 +22,10 @@ class EngineSettingInstrumentedTest {
         rule.onNodeWithText("当前配置：适中").assertExists()
         rule.onNodeWithTag("engine-setting-save").assertIsNotEnabled()
         rule.onNodeWithTag("engine-option-high").performClick()
-        rule.onNodeWithTag("engine-setting-save").assertIsEnabled().performClick()
+        rule.onNodeWithTag("engine-setting-save").assertIsEnabled()
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot("engine-settings-editor-android35.png")
+        rule.onNodeWithTag("engine-setting-save").performClick()
         rule.runOnIdle { assertEquals("high", submitted) }
     }
 }
