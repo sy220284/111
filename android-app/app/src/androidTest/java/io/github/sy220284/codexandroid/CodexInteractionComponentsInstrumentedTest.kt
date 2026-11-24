@@ -297,6 +297,55 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("codex-edit-confirm").assertIsDisplayed()
         rule.onNodeWithText("取消").assertIsDisplayed()
     }
+
+    @Test fun searchableModelChoicesKeepSelectionAndClearFilter() {
+        rule.setContent {
+            var selected by remember { mutableStateOf("alpha") }
+            CodexTheme {
+                CodexChoiceSheet(title = "选择模型", description = "选择实际可用模型",
+                    choices = listOf(CodexChoice("alpha", "Alpha"), CodexChoice("beta", "Beta")),
+                    selectedId = selected, onSelect = { selected = it }, onDismiss = {},
+                    searchable = true)
+            }
+        }
+        rule.onNodeWithTag("choice-option-alpha").assertIsSelected()
+        rule.onNodeWithTag("choice-search").performTextInput("Beta")
+        rule.onNodeWithTag("choice-option-alpha").assertDoesNotExist()
+        rule.onNodeWithTag("choice-option-beta").performClick()
+        rule.onNodeWithTag("choice-option-beta").assertIsSelected()
+        rule.onNodeWithContentDescription("清除搜索词").performClick()
+        rule.onNodeWithTag("choice-option-alpha").assertIsNotSelected()
+        rule.onNodeWithTag("choice-option-beta").assertIsSelected()
+    }
+
+    @Test fun compactComposerChoiceUsesExclusiveSelectionAndPreservesCallbacks() {
+        rule.setContent {
+            var selected by remember { mutableStateOf("queue") }
+            CodexTheme {
+                AtlasCompactChoice(selected,
+                    listOf("queue" to "完成后执行", "steer" to "立即纠偏"),
+                    { selected = it }, tagPrefix = "choice-")
+            }
+        }
+        rule.onNodeWithTag("choice-queue").assertIsSelected()
+        rule.onNodeWithTag("choice-steer").performClick().assertIsSelected()
+        rule.onNodeWithTag("choice-queue").assertIsNotSelected()
+    }
+
+    @Test fun fullTextSearchShowsFirstAndPreviousMatchesWithoutChangingOriginalText() {
+        rule.setContent {
+            CodexTheme { FullTextReaderDialog("阅读记录", "alpha beta alpha", onDismiss = {}) }
+        }
+        rule.onNodeWithTag("full-text-search").performTextInput("alpha")
+        rule.onNodeWithText("第 1 / 2 处").assertExists()
+        rule.onNodeWithContentDescription("上一个匹配").performClick()
+        rule.onNodeWithText("第 2 / 2 处").assertExists()
+        rule.onNodeWithContentDescription("下一个匹配").performClick()
+        rule.onNodeWithText("第 1 / 2 处").assertExists()
+        rule.onNodeWithContentDescription("清除搜索词").performClick()
+        rule.onNodeWithText("alpha beta alpha").assertExists()
+    }
+
     @Test fun everyGlyphAndStateArtworkRendersThroughSharedComponents() {
         val artwork = listOf(R.drawable.ic_empty_thread, R.drawable.ic_empty_content,
             R.drawable.ic_empty_no_results, R.drawable.ic_empty_request_failed,

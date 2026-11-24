@@ -77,7 +77,9 @@ class UiNavigationInstrumentedTest {
         // 从侧栏进入设置，子页返回后等待搜索框出现；不依赖重复的底栏入口。
         if (rule.onAllNodesWithContentDescription("返回上一页").fetchSemanticsNodes().isNotEmpty()) {
             rule.onNodeWithContentDescription("返回上一页").performClick()
-        } else {
+            rule.waitForIdle()
+        }
+        if (rule.onAllNodesWithTag("settings-search").fetchSemanticsNodes().isEmpty()) {
             openDrawerRoute("settings")
         }
         // 等待真实目标页面出现在语义树中，避免 Compose 重组尚未生效时断言旧标题。
@@ -94,9 +96,14 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun drawerOpensAndNavigatesToConversation() {
-        rule.onNodeWithText("从一项任务开始").assertIsDisplayed()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("home-task-hero").assertDoesNotExist()
+        rule.onNodeWithText("今天想做什么？").assertIsDisplayed()
         assertEquals(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
             rule.activity.requestedOrientation)
+        capture("chat-android35.png")
+        openDrawerRoute("home")
+        rule.onNodeWithTag("home-task-hero").assertIsDisplayed()
         capture("home-android35.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-chat").assertExists()
@@ -110,7 +117,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-chat").performClick()
         rule.onNodeWithTag("conversation-top-title").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
-        capture("chat-android35.png")
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
     @Test fun offscreenRunningTaskBlocksLocalDataTransferButtons() {
@@ -295,12 +302,14 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun androidBackReturnsToPreviousScreen() {
-        openDrawerRoute("chat")
         rule.onNodeWithTag("conversation-top-title").assertExists()
+        openDrawerRoute("home")
+        rule.onNodeWithTag("home-task-hero").assertExists()
         rule.waitForIdle()
         rule.activity.onBackPressedDispatcher.onBackPressed()
         rule.waitForIdle()
-        rule.onNodeWithText("从一项任务开始").assertExists()
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("home-task-hero").assertDoesNotExist()
     }
 
     @Test fun modeSheetRespectsRealEngineCapability() {
@@ -324,6 +333,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts() {
+        openDrawerRoute("home")
         rule.onNodeWithTag("home-task-hero").assertExists()
         rule.onNodeWithTag("home-primary-action").assertExists()
         rule.onNodeWithText("当前项目").assertExists()
@@ -382,6 +392,7 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
+        openDrawerRoute("home")
         rule.onNodeWithTag("home-shortcut-terminal").performClick()
         rule.onNodeWithTag("terminal-console").assertExists()
         rule.onNodeWithTag("terminal-console-empty").assertExists()
@@ -607,6 +618,34 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-route-providers").assertExists()
         rule.onNodeWithText("配置模型服务商").assertExists()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
+    }
+
+    @Test fun coldStartOpensChatAndKeepsDraftSafe() {
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        rule.onNodeWithTag("home-primary-action").assertDoesNotExist()
+        rule.onNodeWithTag("chat-suggestion-script").performClick()
+        rule.onNodeWithTag("composer-input").assertTextContains("帮我写一个脚本，目标是：")
+        rule.onNodeWithTag("chat-suggestions").assertDoesNotExist()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
+    }
+
+    @Test fun chatTimelineSeparatesMessagesAndExecutionSteps() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread {
+            vm.timeline.value = listOf(
+                TimelineItem("ui-user", "user", "检查项目结构"),
+                TimelineItem("ui-agent", "agentMessage", "已找到项目入口"),
+                TimelineItem("ui-step", "commandExecution", "pwd", "completed")
+            )
+        }
+        try {
+            rule.onNodeWithTag("chat-user-message").assertExists()
+            rule.onNodeWithTag("chat-assistant-message").assertExists()
+            rule.onNodeWithTag("chat-execution-step").assertExists()
+            rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        } finally {
+            rule.runOnUiThread { vm.timeline.value = emptyList() }
+        }
     }
 
     @Test fun chatSuggestionsStayVisibleWithinThePhoneWidth() {

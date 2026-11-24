@@ -105,40 +105,26 @@ internal fun ApprovalQuickSheetContent(
 ) {
     val auditRecords by vm.approvalAudit.records.collectAsState()
     val auditError by vm.approvalAudit.error.collectAsState()
-    CodexSheetFrame(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Ink.canvas, contentColor = Ink.parchment
-    ) {
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit())
-                .verticalScroll(rememberScrollState()).navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text("待处理审批", style = MaterialTheme.typography.headlineSmall)
-            Text("请根据具体命令、文件和权限范围作出决定。",
-                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            if (prompts.isEmpty()) {
-                CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
-                    icon = CodexGlyph.Security)
-                OutlinedButton(onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("返回当前任务")
-                }
-            } else {
-                Text("待处理 ${prompts.size} 项", color = Ink.muted,
-                    style = MaterialTheme.typography.labelMedium)
-                prompts.forEachIndexed { index, prompt ->
-                    StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
-                    key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
-                }
+    CodexDetailSheet(title = "待处理审批", onDismiss = onDismiss, startExpanded = true,
+        subtitle = "请根据具体命令、文件和权限范围作出决定。") {
+        if (prompts.isEmpty()) {
+            CodexEmptyState("当前审批已处理", "返回任务即可继续查看执行进展。",
+                icon = CodexGlyph.Security)
+            OutlinedButton(onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("返回当前任务")
             }
-            if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
-                ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
+        } else {
+            AtlasListHeading("待处理操作", prompts.size)
+            prompts.forEachIndexed { index, prompt ->
+                StatusPill("第 ${index + 1}/${prompts.size} 项", false, StatusTone.Warning)
+                key(prompt.id.toString()) { ApprovalRequestCard(vm, prompt) }
             }
-            Spacer(Modifier.height(12.dp))
         }
+        if (auditRecords.isNotEmpty() || !auditError.isNullOrBlank()) {
+            ApprovalAuditSection(auditRecords, auditError) { vm.approvalAudit.clear() }
+        }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
