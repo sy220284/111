@@ -1184,6 +1184,31 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun engineDiagnosticsLogPreviewAndFullReaderUseSameSnapshot() {
+        openSettingRoute("diagnostics")
+        val vm = (rule.activity.application as CodexApplication).session
+        val previous = vm.bridge.recentStderr.value
+        try {
+            rule.runOnUiThread { vm.bridge.recentStderr.value = emptyList() }
+            rule.onNodeWithTag("diagnostics-log-copy").assertIsNotEnabled()
+            rule.onNodeWithTag("diagnostics-log-share").assertIsNotEnabled()
+            rule.runOnUiThread {
+                vm.bridge.recentStderr.value = (1..8).map { "诊断测试行 " + it }
+            }
+            rule.onNodeWithTag("diagnostics-log-preview").performScrollTo()
+                .assertTextContains("诊断测试行 8", substring = true)
+            rule.onNodeWithTag("diagnostics-log-copy").assertIsEnabled()
+            rule.onNodeWithTag("diagnostics-log-share").assertIsEnabled()
+            rule.onNodeWithText("查看启动日志").performScrollTo().performClick()
+            rule.onNodeWithTag("full-text-reader").assertExists()
+            rule.onNodeWithTag("full-text-chunk-0").assertTextContains("诊断测试行 1", substring = true)
+            pressSystemBack()
+            rule.onNodeWithTag("full-text-reader").assertDoesNotExist()
+        } finally {
+            rule.runOnUiThread { vm.bridge.recentStderr.value = previous }
+        }
+    }
+
     @Test fun approvalsAndChildEditorsHaveReadableStates() {
         val vm = (rule.activity.application as CodexApplication).session
         openDrawerRoute("files")

@@ -82,6 +82,8 @@ class CodexConnection internal constructor(private val appContext: Context,
     internal fun releaseRestart() = ownership.releaseRestart()
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
     val recentStderr = MutableStateFlow<List<String>>(emptyList())
+    private val runtimeUserAgentState = MutableStateFlow<String?>(null)
+    internal val runtimeUserAgent = runtimeUserAgentState.asStateFlow()
     internal val domesticCredentials = MutableStateFlow(DomesticCredentialStatus())
 
     suspend fun connect() = lifecycleMutex.withLock {
@@ -95,6 +97,7 @@ class CodexConnection internal constructor(private val appContext: Context,
             status.value = EngineStatus.Starting
             prompts.value = emptyList()
             recentStderr.value = emptyList()
+            runtimeUserAgentState.value = null
             token
         }
         try {
@@ -206,12 +209,14 @@ class CodexConnection internal constructor(private val appContext: Context,
             val info = JSONObject().put("name", "codex_android")
                 .put("title", "Codex Android").put("version", "0.1.0")
             val capabilities = JSONObject().put("experimentalApi", true).put("requiredHumanApproval", true)
-            requestForSession("initialize", JSONObject().put("clientInfo", info)
+            val initialization = requestForSession("initialize", JSONObject().put("clientInfo", info)
                 .put("capabilities", capabilities), 45_000, epoch, null)
             write(epoch, JSONObject().put("method", "initialized").put("params", JSONObject()), priority = RpcPriority.Control)
             synchronized(ownership) {
                 check(child.isAlive && ownership.markReady(epoch)) { "Codex 核心在初始化后已退出" }
                 domesticCredentials.value = credentialBootstrap.status
+                runtimeUserAgentState.value = initialization.optString("userAgent")
+                    .takeIf { it.isNotBlank() }
                 connectedSessionState.value = epoch
                 status.value = EngineStatus.Connected
             }
@@ -471,7 +476,9 @@ class CodexConnection internal constructor(private val appContext: Context,
             wire = null
             failWaiting(reason)
             prompts.value = emptyList()
-            recentStderr.value = emptyList()
+            // Keep the bounded, sanitized output of the last attempt available for diagnosis
+            // until the next actual startup clears it. Late events still fail the epoch gate.
+            runtimeUserAgentState.value = null
             // Immediately show fault, but keep the old epoch until exit is proven.
             status.value = EngineStatus.Unavailable(reason, recoverable)
             Triple(token, child, channel)

@@ -604,6 +604,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
     var showLogs by rememberSaveable { mutableStateOf(false) }
     var showDiagnosticResult by rememberSaveable { mutableStateOf(false) }
     val stderr by vm.bridge.recentStderr.collectAsState()
+    val coreIdentity by vm.bridge.runtimeUserAgent.collectAsState()
     val protection by CodexForegroundService.protectionState.collectAsState()
     val checking by vm.loading.collectProjection { "diagnostics" in it }
     LaunchedEffect(Unit) {
@@ -727,6 +728,8 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
         Text("运行环境", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
         MaterialPanel(Modifier.fillMaxWidth().testTag("diagnostics-environment")) {
             RuntimeInfoRow("应用版本", appVersion.ifBlank { "未读取" })
+            DividerLine()
+            RuntimeInfoRow("内核标识", coreIdentity?.takeIf { connected } ?: "等待内核握手回执")
             DividerLine()
             RuntimeInfoRow("进程架构", processArch.ifBlank { "未读取" })
             DividerLine()
