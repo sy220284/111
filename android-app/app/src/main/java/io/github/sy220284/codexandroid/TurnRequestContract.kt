@@ -20,7 +20,7 @@ object TurnRequestContract {
             .filter { it.isNotBlank() }.joinToString("\n\n")
         val result = JSONArray()
         if (prompt.isNotBlank()) result.put(JSONObject().put("type", "text").put("text", prompt))
-        localImages.forEach { result.put(JSONObject().put("type", "localImage").put("path", it)) }
+        localImages.forEach { LocalMediaAttachmentPolicy.append(result, it) }
         references.filter { it.kind == "skill" }.forEach {
             result.put(JSONObject().put("type", "skill").put("name", it.name).put("path", it.path))
         }

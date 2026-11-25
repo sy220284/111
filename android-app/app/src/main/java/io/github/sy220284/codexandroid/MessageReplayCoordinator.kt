@@ -43,7 +43,7 @@ internal class MessageReplayCoordinator(
                 "localImage", "localAudio", "skill" -> {
                     val path = part.getString("path")
                     require(File(path).isAbsolute && File(path).isFile) { "原始附件或引用已失效，请重新添加后发送" }
-                    if (part.getString("type") == "localImage") images += path
+                    if (part.getString("type") in setOf("localImage", "localAudio")) images += path
                 }
                 else -> error("原始指令包含当前版本无法重放的内容")
             }

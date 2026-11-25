@@ -46,7 +46,7 @@ internal class AttachmentImportController(
 
     fun beginImageSelection(threadId: String?): Boolean {
         if (pickerInFlight || state.value.inProgress) {
-            state.value = state.value.copy(message = "请先完成当前选图或等待导入结束")
+            state.value = state.value.copy(message = "请先完成当前媒体选择或等待导入结束")
             return false
         }
         pickerInFlight = true
@@ -62,7 +62,7 @@ internal class AttachmentImportController(
         if (selected.isEmpty()) return
         val key = ThreadComposerDrafts.key(owner)
         if (state.value.inProgress) {
-            state.value = state.value.copy(message = "还有图片正在导入，请等本次完成后重新选择")
+            state.value = state.value.copy(message = "还有媒体正在导入，请等本次完成后重新选择")
             return
         }
         val remaining = (LocalImageAttachments.MAX_FILES -
@@ -70,7 +70,7 @@ internal class AttachmentImportController(
         val accepted = selected.take(remaining)
         if (accepted.isEmpty()) {
             state.value = AttachmentImportState(
-                threadKey = key, message = "每条会话最多添加 3 张图片，请先移除一张")
+                threadKey = key, message = "每条消息最多添加 3 个媒体附件，请先移除一个")
             return
         }
         state.value = AttachmentImportState(
@@ -102,25 +102,25 @@ internal class AttachmentImportController(
                             else LocalImageAttachments.release(context, path)
                         } catch (cancel: CancellationException) { throw cancel }
                         catch (failure: Exception) {
-                            failures += (failure.message ?: "无法导入所选图片")
+                            failures += (failure.message ?: "无法导入所选媒体")
                         }
                         state.value = state.value.copy(imported = imported)
                     }
                 } }
             } catch (cancel: CancellationException) {
                 state.value = AttachmentImportState(threadKey = key, requested = accepted.size, imported = imported,
-                    message = "图片导入中断，已保留成功导入的图片")
+                    message = "媒体导入中断，已保留成功导入的附件")
                 throw cancel
             } catch (failure: Exception) {
-                failures += (failure.message ?: "图片导入失败")
+                failures += (failure.message ?: "媒体导入失败")
             }
             val skipped = selected.size - accepted.size
             state.value = AttachmentImportState(
                 threadKey = key, requested = accepted.size, imported = imported,
                 message = when {
-                    failures.isNotEmpty() -> "已导入 ${imported} 张；" +
+                    failures.isNotEmpty() -> "已导入 ${imported} 个；" +
                         failures.distinct().joinToString("；")
-                    skipped > 0 -> "已导入 ${imported} 张，另有 ${skipped} 张超出剩余名额"
+                    skipped > 0 -> "已导入 ${imported} 个，另有 ${skipped} 个超出剩余名额"
                     else -> ""
                 }
             )
@@ -150,7 +150,7 @@ internal class AttachmentImportController(
     fun reportFullAttachmentSelection(threadId: String?) {
         state.value = AttachmentImportState(
             threadKey = ThreadComposerDrafts.key(threadId),
-            message = "每条会话最多添加 3 张图片，请先移除一张"
+            message = "每条消息最多添加 3 个媒体附件，请先移除一个"
         )
     }
 }

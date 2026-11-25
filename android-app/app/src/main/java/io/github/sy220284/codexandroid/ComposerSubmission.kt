@@ -63,6 +63,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 ensureRemoteThread(thread, it, running = true, expectedSession = epoch)
             }
             ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
+            LocalImageAttachments.preserveForHistory(getApplication(), draft.images)
             if (queue) {
                 check(threadExecutions.value[thread]?.turnId == turn && thread in threadExecutions.value) {
                     "当前任务已变化，请重新确认发送方式；原指令已保留"
@@ -88,7 +89,6 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 // steer bubble would duplicate it and could survive history reconciliation.
                 val params = TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references)
                     .put("clientUserMessageId", UUID.randomUUID().toString())
-                LocalImageAttachments.preserveForHistory(getApplication(), draft.images)
                 check(threadExecutions.value[thread]?.turnId == turn) { "当前运行回合已变化，原指令已保留" }
                 dispatched = true
                 bridge.request("turn/steer", params, expectedSession = epoch, sendPermit = permit)

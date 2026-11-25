@@ -155,6 +155,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val twoImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(2)
     ) { selected -> vm.importPickedImages(selected) }
+    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        vm.importPickedImages(uris)
+    }
     val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         vm.composerContent.finishCamera(success)
     }
@@ -326,7 +329,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(it, NoticeTone.Warning)
             }
             if (attachmentBusy) {
-                AtlasOperationProgress("正在导入图片 ${imported.imported}/${imported.requested}…",
+                AtlasOperationProgress("正在导入媒体 ${imported.imported}/${imported.requested}…",
                     progress = if (imported.requested > 0) imported.imported.toFloat() / imported.requested else null)
             }
             if (documentBusy) AtlasOperationProgress("正在导入本机文件")
@@ -499,6 +502,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
                             }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
                                 description = "选择本机图片", testTag = "composer-add-photos"))
+                            add(CodexSheetAction("音频 / 视频", CodexGlyph.Description, onClick = {
+                                if (vm.beginImageSelection(draftOwner)) {
+                                    try { mediaPicker.launch(arrayOf("audio/*", "video/mp4", "application/ogg")) }
+                                    catch (failure: Exception) {
+                                        vm.importPickedImages(emptyList())
+                                        vm.composerContent.pickerFailure(failure)
+                                    }
+                                }
+                            }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
+                                description = "音频直接发送；MP4 视频抽帧并提取音轨", testTag = "composer-add-media"))
                             add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
                                 if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
                                     try { documentPicker.launch(arrayOf("*/*")) }

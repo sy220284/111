@@ -32,6 +32,8 @@ import java.util.UUID
 object LocalImageAttachments {
     const val MAX_FILES = 3
     private const val MAX_BYTES = 12L * 1024 * 1024
+    private const val MAX_AUDIO_BYTES = 50L * 1024 * 1024
+    private const val MAX_VIDEO_BYTES = 100L * 1024 * 1024
     private const val FOLDER = "codex-turn-images"
 
     fun directory(context: Context): File = File(context.filesDir, FOLDER)
@@ -42,10 +44,18 @@ object LocalImageAttachments {
             "image/jpeg" -> "jpg"
             "image/png" -> "png"
             "image/webp" -> "webp"
-            else -> throw IllegalArgumentException("仅支持 JPEG、PNG、WebP 图片")
+            "audio/wav", "audio/x-wav", "audio/wave" -> "wav"
+            "audio/mpeg", "audio/mp3" -> "mp3"
+            "audio/mp4", "audio/x-m4a", "audio/m4a" -> "m4a"
+            "audio/webm" -> "webm"
+            "audio/ogg", "application/ogg" -> "ogg"
+            "video/mp4" -> "mp4"
+            else -> throw IllegalArgumentException("请选择 JPEG、PNG、WebP、WAV、MP3、M4A、OGG、WebM 音频或 MP4 视频")
         }
         val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立图片缓存目录" } }
         val output = File(folder, UUID.randomUUID().toString() + "." + ext)
+        val kind = LocalMediaAttachmentPolicy.kind(output.path)
+        val limit = when (kind) { "audio" -> MAX_AUDIO_BYTES; "video" -> MAX_VIDEO_BYTES; else -> MAX_BYTES }
         try {
             val source = context.contentResolver.openInputStream(uri)
                 ?: throw IllegalStateException("无法打开所选图片")
@@ -57,7 +67,7 @@ object LocalImageAttachments {
                         val count = input.read(buffer)
                         if (count < 0) break
                         total += count
-                        require(total <= MAX_BYTES) { "单张图片上限 12 MB" }
+                        require(total <= limit) { "单个附件上限 ${limit / 1024 / 1024} MB" }
                         destination.write(buffer, 0, count)
                     }
                     require(total > 0L) { "图片内容为空" }
@@ -65,10 +75,25 @@ object LocalImageAttachments {
             }
             // Validate the actual file signature after copying, not just
             // the provider's MIME label. Unsupported/corrupt files stay local.
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(output.absolutePath, bounds)
-            require(bounds.outWidth > 0 && bounds.outHeight > 0) { "图片文件无法解码" }
-            output.canonicalPath
+            when (kind) {
+                "video" -> VideoAttachmentPreparation.prepare(output).canonicalPath
+                "audio" -> {
+                    val extractor = android.media.MediaExtractor()
+                    try {
+                        extractor.setDataSource(output.absolutePath)
+                        require((0 until extractor.trackCount).any {
+                            extractor.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+                        }) { "音频文件无法解码" }
+                    } finally { extractor.release() }
+                    output.canonicalPath
+                }
+                else -> {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(output.absolutePath, bounds)
+                    require(bounds.outWidth > 0 && bounds.outHeight > 0) { "图片文件无法解码" }
+                    output.canonicalPath
+                }
+            }
         } catch (failure: Exception) {
             output.delete()
             throw failure
@@ -92,8 +117,12 @@ object LocalImageAttachments {
         val folder = directory(context).canonicalFile
         val target = File(path).canonicalFile
         require(target.parentFile == folder) { "图片路径不属于本应用的私有附件目录" }
-        if (target.exists() && !AttachmentRetentionPolicy.isHistorical(folder, target))
-            check(target.delete()) { "无法清理图片附件" }
+        for (owned in LocalMediaAttachmentPolicy.ownedPaths(target.path)) {
+            val file = File(owned).canonicalFile
+            require(file.parentFile == folder) { "附件路径不属于私有目录" }
+            if (file.exists() && !AttachmentRetentionPolicy.isHistorical(folder, file))
+                check(file.delete()) { "无法清理媒体附件" }
+        }
     }
 }
 
@@ -105,22 +134,26 @@ fun LocalImageAttachmentStrip(
     if (paths.isEmpty()) return
     var previewPath by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("待发送图片 · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
+        Text("待发送媒体 · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
             style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             paths.forEachIndexed { idx, path ->
                 key(path) {
-                    val image by rememberAttachmentImage(path, 160)
-                    val thumbnail = image.bitmap
+                    val kind = LocalMediaAttachmentPolicy.kind(path)
+                    val preview = if (kind == "video") LocalMediaAttachmentPolicy.frames(path) else path
+                    val thumbnail = if (kind == "audio") null else {
+                        val image by rememberAttachmentImage(preview, 160)
+                        image.bitmap
+                    }
                     Surface(shape = RoundedCornerShape(13.dp),
                         color = Ink.panel,
                         border = BorderStroke(1.dp, Ink.border)) {
                         Row(Modifier.padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
-                                    .clickable { previewPath = path }
-                                    .semantics { contentDescription = "预览附件图片 ${idx + 1}" },
+                                    .clickable(enabled = kind != "audio") { previewPath = preview }
+                                    .semantics { contentDescription = if (kind == "image") "预览附件图片 ${idx + 1}" else "媒体附件 ${idx + 1}" },
                                 contentAlignment = Alignment.Center
                             ) {
                                 thumbnail?.let { image ->
@@ -131,12 +164,12 @@ fun LocalImageAttachmentStrip(
                             }
                             Spacer(Modifier.width(7.dp))
                             Column {
-                                Text("图片 ${idx + 1}", style = MaterialTheme.typography.labelMedium)
+                                Text("${LocalMediaAttachmentPolicy.label(path)} ${idx + 1}", style = MaterialTheme.typography.labelMedium)
                                 Text("${File(path).length() / 1024} KB",
                                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                             }
                             CodexIconAction(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
-                                CodexIcon(CodexGlyph.Close, contentDescription = "移除图片 ${idx + 1}",
+                                CodexIcon(CodexGlyph.Close, contentDescription = if (kind == "image") "移除图片 ${idx + 1}" else "移除媒体附件 ${idx + 1}",
                                     tint = Ink.red)
                             }
                         }
@@ -144,10 +177,12 @@ fun LocalImageAttachmentStrip(
                 }
             }
         }
-        previewPath?.takeIf { it in paths }?.let { path ->
-            AttachmentPreviewDialog(paths, path,
+        val previews = paths.filter { LocalMediaAttachmentPolicy.kind(it) != "audio" }
+            .associateBy { if (LocalMediaAttachmentPolicy.kind(it) == "video") LocalMediaAttachmentPolicy.frames(it) else it }
+        previewPath?.takeIf { it in previews }?.let { path ->
+            AttachmentPreviewDialog(previews.keys.toList(), path,
                 onDismiss = { previewPath = null }, onRemove = {
-                    onRemove(it)
+                    previews[it]?.let(onRemove)
                     previewPath = null
                 })
         }

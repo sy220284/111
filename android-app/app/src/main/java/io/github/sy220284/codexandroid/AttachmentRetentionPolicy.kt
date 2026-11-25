@@ -14,7 +14,7 @@ internal object AttachmentRetentionPolicy {
 
     fun preserveForHistory(root: File, paths: List<String>) {
         val directory = root.canonicalFile
-        paths.forEach { path ->
+        paths.flatMap(LocalMediaAttachmentPolicy::ownedPaths).distinct().forEach { path ->
             val image = File(path).canonicalFile
             require(image.parentFile == directory && image.isFile) { "图片附件已失效，请重新添加" }
             val marker = historyMarker(directory, image)
@@ -30,7 +30,9 @@ internal object AttachmentRetentionPolicy {
         if (!root.exists()) return 0
         require(root.isDirectory) { "私有附件路径不是文件夹" }
         val dir = root.canonicalFile
-        val protected = referenced.map { File(it).canonicalPath }.toSet()
+        val protected = referenced.flatMap { path ->
+            if (File(path).extension == "mp4") LocalMediaAttachmentPolicy.ownedPaths(path) else listOf(path)
+        }.map { File(it).canonicalPath }.toSet()
         val entries = root.listFiles() ?: throw IllegalStateException("无法读取私有附件目录")
         var deleted = 0
         for (entry in entries) {
