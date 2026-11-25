@@ -44,6 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s .github/scripts -p 'test_ci_policy.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_ci_gate.py'
           python3 -m unittest discover -s .github/scripts -p 'test_retain_check_artifacts.py'
           python3 -m unittest discover -s .github/scripts -p 'test_repository_steward.py'
           python3 .github/scripts/ci_policy.py
@@ -694,28 +695,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - name: 汇总并强制核对所有适用验收
         env:
           RESULTS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          python3 - <<'PY'
-          import json, os
-          jobs = json.loads(os.environ["RESULTS"])
-          assert jobs["plan"]["result"] == "success", jobs
-          full = jobs["plan"]["outputs"]["full"] == "true"
-          runtime = jobs["plan"]["outputs"]["runtime"] == "true"
-          required = {"native", "verify-ui", "ui-emulator", "build", "verify-apk", "preflight", "compatibility"} if full else set()
-          if full and (os.environ["EVENT"] == "pull_request" or (os.environ["EVENT"] == "workflow_dispatch" and os.environ["REF"] != "refs/heads/main")): required.add("release-signing-smoke")
-          if runtime: required.add("runtime-test")
-          for name, result in jobs.items():
-              if name == "plan": continue
-              expected = "success" if name in required else "skipped"
-              assert result["result"] == expected, (name, expected, result["result"])
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
-              print("## 111 统一验收", file=out)
-              print("源码 SHA: " + os.environ["SOURCE"], file=out)
-              for name, result in jobs.items(): print(f"- {name}: {result['result']}", file=out)
-          PY
+        run: python3 .github/scripts/ci_gate.py

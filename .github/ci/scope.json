@@ -45,5 +45,28 @@
     "prefixes": [
       "docs/ui-assets/"
     ]
+  },
+  "runtime": {
+    "files": [
+      "android-app/tools/prepare_android_mxc.py",
+      "android-app/tools/prepare_android_code_mode.py",
+      "android-app/tools/prepare_android_v8.sh",
+      "android-app/tools/adapt_android_v8_build.py",
+      "android-app/tools/build_android_git.sh",
+      "android-app/tools/package_native_runtime.sh",
+      "android-app/tools/prepare_prebuilt_developer_runtime.py",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexForegroundService.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/DeveloperRuntime.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RuntimePayloadIntegrity.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalTaskOperations.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteExecutionBinding.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteEnvironmentProtocol.kt",
+      "android-app/app/src/main/AndroidManifest.xml"
+    ],
+    "prefixes": [
+      "upstream/codex/codex-rs/",
+      "upstream/codex/.cargo/"
+    ]
   }
 }

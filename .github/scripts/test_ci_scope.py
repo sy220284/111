@@ -9,7 +9,7 @@ class UnifiedScopeTests(unittest.TestCase):
         for key in ("plan:", "native:", "verify-ui:", "ui-emulator:", "build:", "runtime-test:", "verify-apk:", "preflight:", "release-signing-smoke:", "compatibility:", "quality:"):
             self.assertIn("  " + key, ci)
         self.assertIn("name: 111 合并验收", ci)
-        self.assertIn("assert result[\"result\"] == expected", ci)
+        self.assertIn("python3 .github/scripts/ci_gate.py", ci)
         for old in ("build-android.yml", "check-android-ui.yml", "rehearse-android-upgrade.yml", "cleanup-old-releases.yml"):
             self.assertFalse((W / old).exists())
     def test_release_consumes_only_unified_main_gate(self):

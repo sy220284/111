@@ -18,6 +18,7 @@ def maintenance_only(paths):
 
 def plan(paths, force=False, runtime=False):
     paths = list(paths)
+    runtime = runtime or any(matches(path, "runtime") for path in paths)
     full = force or runtime or not maintenance_only(paths)
     return {"full": full, "runtime": runtime, "maintenance": not full, "changed": paths}
 

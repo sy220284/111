@@ -15,6 +15,11 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(matches("android-app/tools/prepare_prebuilt_developer_runtime.py", "release"))
         self.assertTrue(matches(".github/release-version", "release"))
         self.assertFalse(matches("android-app/app/src/test/Test.kt", "release"))
+    def test_native_and_runtime_changes_enable_real_core(self):
+        for path in ["upstream/codex/codex-rs/core/src/lib.rs", "android-app/tools/prepare_android_mxc.py", "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt"]:
+            self.assertTrue(plan([path])["runtime"])
+        self.assertFalse(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
+
     def test_runtime_forces_full(self):
         self.assertTrue(plan([], runtime=True)["full"])
         self.assertTrue(plan([], runtime=True)["runtime"])
