@@ -20,7 +20,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 
 <div align="center">
 
-![111 架构功能图](docs/ui-assets/架构功能图.svg)
+![111 架构功能图](docs/架构功能图.svg)
 
 </div>
 
