@@ -109,7 +109,7 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
 
     /** Only setup is optional. The primary RPC is dispatched exactly once and its errors propagate. */
     suspend fun request(method: String, params: JSONObject, effective: JSONObject? = null,
-        expectedSession: Long? = vm.bridge.connectedSession.value): JSONObject {
+        expectedSession: Long? = vm.bridge.connectedSession.value, sendPermit: (() -> Boolean)? = null): JSONObject {
         require(method in setOf("thread/start", "thread/resume", "thread/fork"))
         val epoch = requireNotNull(expectedSession) { "运行核心尚未连接" }
         val revision = vm.catalogWarmup.accountRevision.value
@@ -123,7 +123,7 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
                 vm.bridge.request("config/read", JSONObject().put("cwd", directory.absolutePath), expectedSession = epoch)
             }
             configure(params, configuration)
-        }, dispatch = { vm.bridge.request(method, it, expectedSession = epoch) }, unavailable = { receipt, failure ->
+        }, dispatch = { vm.bridge.request(method, it, sendPermit = sendPermit, expectedSession = epoch) }, unavailable = { receipt, failure ->
             // Log only the error category: configuration and transport exceptions can contain credentials.
             android.util.Log.w("ModelPreview", "预览服务准备失败：" + failure.javaClass.simpleName)
             val thread = receipt.optJSONObject("thread")?.optString("id").orEmpty()

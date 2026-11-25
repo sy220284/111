@@ -146,7 +146,7 @@
     },
     {
       "route": "diagnostics",
-      "file": "EcosystemScreens.kt",
+      "file": "EngineDiagnosticsPage.kt",
       "owner": "EngineDiagnosticsPage",
       "component": "CodexDetailSheet"
     },
@@ -449,7 +449,7 @@
     {
       "id": "diagnostic-logs",
       "parent": "diagnostics",
-      "file": "EcosystemScreens.kt",
+      "file": "EngineDiagnosticsPage.kt",
       "owner": "EngineDiagnosticsPage",
       "component": "FullTextReaderDialog",
       "test": "secondarySettingsPagesHaveActualDeviceScreenshots",

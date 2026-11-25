@@ -36,6 +36,9 @@ class UiNavigationInstrumentedTest {
             vm.composerDrafts.value = emptyMap()
             vm.errors.value = emptyMap()
         }
+        rule.waitUntil(15_000L) {
+            rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1
+        }
         rule.waitForIdle()
     }
 

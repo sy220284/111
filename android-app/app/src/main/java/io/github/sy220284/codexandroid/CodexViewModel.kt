@@ -377,6 +377,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
             return
         }
+        val epoch = bridge.connectedSession.value
+        if (epoch == null) {
+            errors.value = errors.value + ("conversation" to "运行核心尚未连接，草稿已保留")
+            return
+        }
+        val accountRevision = catalogWarmup.accountRevision.value
+        val permit = { catalogWarmup.accountRevision.value == accountRevision }
         val submittedThread = activeThread.value
         if ((prompt.isEmpty() && localImages.isEmpty() && references.isEmpty()) || running.value ||
             (submittedThread == null && firstThreadStarting.value) ||
@@ -419,30 +426,31 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     "未知协作方式：" + chosenMode
                 }
                 chosenRemote?.requireTextOnly(images, references)
-                val epoch = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" }
+                check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，草稿已保留" }
                 if (chosenRemote != null) {
                     if (submittedThread == null) remoteBindings.ready(chosenRemote) { method, params ->
                         bridge.request(method, params, expectedSession = epoch)
-                    } else ensureRemoteThread(submittedThread, chosenRemote)
+                    } else ensureRemoteThread(submittedThread, chosenRemote, expectedSession = epoch)
                 }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
-                val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
+                val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace), expectedSession = epoch)
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
                 val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
                     permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
-                    chosenOptions) { method, params -> bridge.request(method, params) }
-                if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject)
+                    chosenOptions) { method, params -> bridge.request(method, params, expectedSession = epoch) }
+                if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, epoch)
                 if (chosenRemote == null) captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread)
                 LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
+                    check(permit()) { "账号已变化，未继续提交任务" }
                     if (method == "thread/start" && chosenRemote != null) {
-                        val response = bridge.request(method, chosenRemote.apply(params), expectedSession = epoch)
+                        val response = bridge.request(method, chosenRemote.apply(params), sendPermit = permit, expectedSession = epoch)
                         val created = response.getJSONObject("thread")
                         remoteBindings.bind(created.getString("id"), chosenRemote)
                         check(chosenRemote.matches(created)) { "内核没有确认远端会话，未发送任务" }
                         response
-                    } else if (method == "thread/start") modelPreviews.request(method, params, permissionConfig)
-                    else bridge.request(method, if (chosenRemote != null && method == "turn/start") chosenRemote.apply(params) else params, expectedSession = epoch)
+                    } else if (method == "thread/start") modelPreviews.request(method, params, permissionConfig, expectedSession = epoch, sendPermit = permit)
+                    else bridge.request(method, if (chosenRemote != null && method == "turn/start") chosenRemote.apply(params) else params, sendPermit = permit, expectedSession = epoch)
                 }.submit(
                     existingThreadId = submittedThread,
                     createThreadParams = {
