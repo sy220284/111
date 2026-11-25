@@ -244,7 +244,7 @@ jobs:
       matrix:
         width_dp: [360, 393, 411]
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 65
     steps:
       - name: 检出截图采集器
         uses: actions/checkout@v4
@@ -298,7 +298,7 @@ jobs:
             # One runner preserves raw JUnit logs, screenshot evidence and classified
             # failure details; it must fail the job even when adb returns success.
             python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode baseline
-            # Additional short/tall windows and system font scale exercise the same APK.
+            # All pages and component tests repeat at short/tall windows and large text.
             python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode adaptive
             file ui-screenshots/*.png
             # Only the 393dp emulator replaces the running app, then presses the

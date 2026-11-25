@@ -4,6 +4,7 @@
 The emulator runner invokes script lines independently, so all iteration and
 gallery generation must be in this single Python process.
 """
+import argparse
 from html import escape
 from pathlib import Path
 import subprocess
@@ -39,8 +40,22 @@ def discover_device_screens() -> list[str]:
 
 
 
+def valid_png(path):
+    if not path.is_file() or path.stat().st_size < 24:
+        return False
+    with path.open("rb") as stream:
+        header = stream.read(24)
+    return header[:8] == b"\x89PNG\r\n\x1a\n" and header[12:16] == b"IHDR" and int.from_bytes(header[16:20], "big") > 0 and int.from_bytes(header[20:24], "big") > 0
+
+
 def main():
-    DESTINATION.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--destination", type=Path, default=DESTINATION)
+    destination = parser.parse_args().destination
+    destination.mkdir(parents=True, exist_ok=True)
+    # Evidence directories belong to one run/configuration only.
+    for old in destination.glob("*.png"):
+        old.unlink()
     present = []
     missing = []
     discovered = discover_device_screens()
@@ -49,25 +64,25 @@ def main():
     for screen in sorted(set(REQUIRED_SCREENS + OPTIONAL_SCREENS + discovered)):
         name = f"{screen}-android35.png"
         result = subprocess.run(
-            ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(DESTINATION / name)],
+            ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(destination / name)],
             capture_output=True, text=True, check=False,
         )
-        output = DESTINATION / name
-        if result.returncode == 0 and output.is_file() and output.stat().st_size > 0:
+        output = destination / name
+        if result.returncode == 0 and valid_png(output):
             present.append(screen)
             print(f"SCREENSHOT_OK {screen}", flush=True)
         elif screen in REQUIRED_SCREENS:
             missing.append(screen)
             print(f"SCREENSHOT_MISSING {screen}: {result.stderr.strip()}", flush=True)
-    (DESTINATION / "missing.txt").write_text(
+    (destination / "missing.txt").write_text(
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
-    (DESTINATION / "manifest.json").write_text(
+    (destination / "manifest.json").write_text(
         json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
                     "present": present, "missing": missing},
                    ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    pngs = sorted(DESTINATION.glob("*.png"))
+    pngs = sorted(destination.glob("*.png"))
     cells = "".join(
         '<a class="card" href="' + escape(f.name) + '"><img loading="lazy" src="' +
         escape(f.name) + '" alt="' + escape(f.stem) + '"><span>' +
@@ -89,10 +104,10 @@ def main():
         ' 张，必检 ' + str(len(REQUIRED_SCREENS)) + ' 张，缺少 ' +
         str(len(missing)) + ' 张。</small><div class="grid">' + cells + '</div></html>'
     )
-    (DESTINATION / "index.html").write_text(html, encoding="utf-8")
+    (destination / "index.html").write_text(html, encoding="utf-8")
     print(f"UI_CAPTURE_COUNTS present={len(present)} missing={len(missing)}", flush=True)
-    # Caller checks ui-instrument-result.log and missing.txt after evidence was collected.
-    return 0
+    # Caller retains the manifest even when evidence is missing.
+    return int(bool(missing))
 
 
 if __name__ == "__main__":

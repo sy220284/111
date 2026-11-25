@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import subprocess
+from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
 
 PACKAGE = "io.github.sy220284.codexandroid"
@@ -11,12 +12,6 @@ RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
 SUITE = ["UiNavigationInstrumentedTest", "UiPopulatedSubpagesInstrumentedTest",
          "CodexInteractionComponentsInstrumentedTest", "CodexOverlayInstrumentedTest",
          "EngineSettingInstrumentedTest", "SelfUpdateInstallerIntentInstrumentedTest"]
-ADAPTIVE_TESTS = [
-    "UiNavigationInstrumentedTest#chatKeyboardKeepsComposerActionsAccessible",
-    "UiNavigationInstrumentedTest#narrowConversationToolbarKeepsPrimaryActionsVisible",
-    "CodexInteractionComponentsInstrumentedTest#attachmentPreviewSupportsZoomSwitchResetAndRemove",
-]
-ADAPTIVE_SCREENS = ["chat-keyboard-open", "chat-toolbar", "attachment-sheet", "audit-attachment-preview"]
 VARIANTS = {360: (720, "1.3"), 393: (720, "1.3"), 411: (915, "1.5")}
 DEVICE_ROOT = "/sdcard/Android/data/" + PACKAGE + "/files"
 
@@ -66,35 +61,26 @@ def execute_instrumentation(classes, log_path):
     return parse_instrumentation(Path(log_path).read_text(encoding="utf-8"), code)
 
 
-def pull_adaptive_screens():
-    destination = Path("ui-screenshots-adaptive")
-    destination.mkdir(exist_ok=True)
-    missing = []
-    for screen in ADAPTIVE_SCREENS:
-        name = screen + "-android35.png"
-        local = destination / name
-        pulled = subprocess.run(["adb", "pull", DEVICE_ROOT + "/" + name, str(local)], check=False)
-        if pulled.returncode or not local.is_file() or local.stat().st_size < 8:
-            missing.append(screen)
-        else:
-            with local.open("rb") as image:
-                if image.read(8) != b"\x89PNG\r\n\x1a\n":
-                    missing.append(screen)
-    return missing
+def clear_device_screens():
+    # Delete only screenshot files owned by the acceptance suite.
+    for screen in parse_discovered_screens(adb("shell", "ls", "-1", DEVICE_ROOT)):
+        adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android35.png")
+
+
+def collect_screens(destination):
+    collected = subprocess.run(["python3", "android-app/tools/collect_ui_screenshots.py",
+                                "--destination", destination], check=False)
+    manifest = Path(destination) / "manifest.json"
+    missing = json.loads(manifest.read_text(encoding="utf-8"))["missing"] if manifest.is_file() else ["screenshot_manifest"]
+    return missing, collected.returncode
 
 
 def baseline(width):
     result = execute_instrumentation(SUITE, "ui-instrument-result.log")
-    collected = subprocess.run(["python3", "android-app/tools/collect_ui_screenshots.py"], check=False)
-    manifest = Path("ui-screenshots/manifest.json")
-    if manifest.is_file():
-        screens = json.loads(manifest.read_text(encoding="utf-8"))
-        missing = screens["missing"]
-    else:
-        missing = ["screenshot_manifest"]
+    missing, collection_code = collect_screens("ui-screenshots")
     result.update(width_dp=width, height_dp=800, missing_screens=missing,
-                  screenshot_collection_exit=collected.returncode)
-    if missing or collected.returncode:
+                  screenshot_collection_exit=collection_code)
+    if missing or collection_code:
         result["status"] = "failed"
         result["evidence_category"] = "screenshot_missing_or_collection_error"
     return result
@@ -106,18 +92,19 @@ def adaptive(width):
     try:
         adb("shell", "wm", "size", f"{width}x{height}")
         adb("shell", "settings", "put", "system", "font_scale", font)
-        # Capture only new evidence from this configuration, never baseline files.
-        for screen in ADAPTIVE_SCREENS:
-            adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android35.png")
+        # Run the complete suite at every adaptive configuration, with fresh evidence.
+        clear_device_screens()
         actual_size = adb("shell", "wm", "size")
         actual_font = adb("shell", "settings", "get", "system", "font_scale")
         if f"Override size: {width}x{height}" not in actual_size or float(actual_font) != float(font):
             raise RuntimeError("Adaptive device configuration not applied")
         adb("shell", "am", "force-stop", PACKAGE)
-        result = execute_instrumentation(ADAPTIVE_TESTS, "ui-adaptive-result.log")
-        missing = pull_adaptive_screens()
-        result.update(width_dp=width, height_dp=height, font_scale=float(font), missing_screens=missing)
-        if result["tests"] != len(ADAPTIVE_TESTS) or missing:
+        result = execute_instrumentation(SUITE, "ui-adaptive-result.log")
+        missing, collection_code = collect_screens("ui-screenshots-adaptive")
+        baseline_result = json.loads(Path("ui-baseline-diagnosis.json").read_text(encoding="utf-8"))
+        result.update(width_dp=width, height_dp=height, font_scale=float(font), missing_screens=missing,
+                      expected_tests=baseline_result["tests"], screenshot_collection_exit=collection_code)
+        if result["tests"] != baseline_result["tests"] or missing or collection_code:
             result["status"] = "failed"
             result["evidence_category"] = "adaptive_test_count_or_screenshot_missing"
         return result
