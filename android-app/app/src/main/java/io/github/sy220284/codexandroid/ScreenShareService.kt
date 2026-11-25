@@ -25,9 +25,18 @@ import android.os.SystemClock
 import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
-/** Local live capture, no automatic network/model requests. Only explicitly attached frames leave memory. */
+/** Local capture; separately consented analysis publishes its real network state here. */
 class ScreenShareService : Service() {
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val main = Handler(Looper.getMainLooper())
     private var worker: HandlerThread? = null
     private var projection: MediaProjection? = null
@@ -50,6 +59,11 @@ class ScreenShareService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) { terminate(); return START_NOT_STICKY }
+        if (intent?.action == STOP_ANALYSIS) {
+            intent.getStringExtra(TOKEN)?.let { screenShareSession.analyzing(it, false) }
+            if (token == null) stopSelf()
+            return START_NOT_STICKY
+        }
         val requested = intent?.getStringExtra(TOKEN)
         if (requested == null || screenShareSession.state.value.token != requested || screenShareSession.state.value.stopping) {
             stopSelf(); return START_NOT_STICKY
@@ -58,6 +72,11 @@ class ScreenShareService : Service() {
         token = requested
         try {
             promote()
+            serviceScope.launch {
+                screenShareSession.state.map { it.token to it.analyzing }.distinctUntilChanged().collect { (owner, _) ->
+                    if (owner == token && !ending) getSystemService(NotificationManager::class.java).notify(ID, notification())
+                }
+            }
             val request = checkNotNull(intent)
             @Suppress("DEPRECATION")
             val consent = if (Build.VERSION.SDK_INT >= 33)
@@ -87,15 +106,28 @@ class ScreenShareService : Service() {
     private fun promote() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CHANNEL, "Codex 屏幕共享", NotificationManager.IMPORTANCE_LOW))
+        startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+    }
+
+    private fun notification(): Notification {
+        val state = screenShareSession.state.value
         val stop = PendingIntent.getService(this, ID, Intent(this, ScreenShareService::class.java).setAction(STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val open = PendingIntent.getActivity(this, ID, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val note = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_codex_status)
-            .setContentTitle("正在共享屏幕").setContentText("画面仅在本机采集，手动添加后随消息发送")
+            .setContentTitle(if (state.analyzing) "正在分析共享屏幕" else "正在共享屏幕")
+            .setContentText(state.notificationText)
+            .setStyle(Notification.BigTextStyle().bigText(state.notificationText))
+            .setOnlyAlertOnce(true)
             .setOngoing(true).setContentIntent(open)
-            .addAction(Notification.Action.Builder(R.drawable.ic_codex_stop, "停止共享", stop).build()).build()
-        startForeground(ID, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        if (state.analyzing) {
+            val stopAnalysis = PendingIntent.getService(this, ID + 1,
+                Intent(this, ScreenShareService::class.java).setAction(STOP_ANALYSIS).putExtra(TOKEN, state.token),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            note.addAction(Notification.Action.Builder(R.drawable.ic_codex_stop, "停止分析", stopAnalysis).build())
+        }
+        return note.addAction(Notification.Action.Builder(R.drawable.ic_codex_stop, "停止共享", stop).build()).build()
     }
 
     private fun bounded(width: Int, height: Int): Pair<Int, Int> {
@@ -175,6 +207,7 @@ class ScreenShareService : Service() {
 
     override fun onDestroy() {
         ending = true
+        serviceScope.cancel()
         token?.let { screenShareSession.stopping(it) }
         try { display?.release() } finally {
             try { reader?.close() } finally {
@@ -192,6 +225,7 @@ class ScreenShareService : Service() {
         private const val CHANNEL = "codex-screen-share"
         private const val ID = 1102
         private const val STOP = "io.github.sy220284.codexandroid.STOP_SCREEN_SHARE"
+        private const val STOP_ANALYSIS = "io.github.sy220284.codexandroid.STOP_SCREEN_ANALYSIS"
         private const val TOKEN = "screen_token"
         private const val CONSENT = "screen_consent"
 
@@ -209,3 +243,4 @@ class ScreenShareService : Service() {
         }
     }
 }
+

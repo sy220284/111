@@ -160,7 +160,20 @@ impl MediaInputEvidence {
     }
 }
 
-/// Only explicit model-wide image rejection counts. Invalid images, tool-specific
+/// English exclusions match complete terms: `format` must not match `information`.
+fn contains_rejection_term(message: &str, term: &str) -> bool {
+    if !term.is_ascii() {
+        return message.contains(term);
+    }
+    let word = |ch: char| ch.is_ascii_alphanumeric() || ch == '_';
+    message.match_indices(term).any(|(start, matched)| {
+        let end = start + matched.len();
+        !message[..start].chars().next_back().is_some_and(word)
+            && !message[end..].chars().next().is_some_and(word)
+    })
+}
+
+/// Only explicit model-wide media rejection counts. Invalid images, tool-specific
 /// schemas, detail, media size, auth, policy, network and quota do not.
 pub fn is_definite_media_rejection(error: &CodexErr, kind: MediaInputKind) -> bool {
     let body = match error.details() {
@@ -176,10 +189,10 @@ pub fn is_definite_media_rejection(error: &CodexErr, kind: MediaInputKind) -> bo
         .unwrap_or("").to_ascii_lowercase();
     let message = envelope.and_then(|value| value.get("message")).and_then(serde_json::Value::as_str)
         .unwrap_or(body).to_ascii_lowercase();
-    if ["tool", "function", "format", "size", "resolution", "detail", "base64", "mime",
+    if ["tool", "tools", "function", "functions", "format", "formats", "size", "sizes", "resolution", "resolutions", "detail", "details", "base64", "mime",
         "decode", "corrupt", "invalid image", "invalid audio", "duration", "codec", "sample rate", "bitrate", "时长", "编码", "content policy", "safety", "quota", "rate limit",
         "authentication", "permission", "too large", "image_url", "url scheme",
-        "格式", "大小", "尺寸", "分辨率", "权限", "限流", "余额", "安全", "工具"].iter().any(|term| message.contains(term)) {
+        "格式", "大小", "尺寸", "分辨率", "权限", "限流", "余额", "安全", "工具"].iter().any(|term| contains_rejection_term(&message, term)) {
         return false;
     }
     if kind == MediaInputKind::Audio {
@@ -263,6 +276,27 @@ mod tests {
             assert!(!is_definite_media_rejection(&CodexErr::InvalidRequest(message.into()), MediaInputKind::Image), "{message}");
         }
     }
+
+    #[test]
+    fn explanatory_words_do_not_override_explicit_model_rejections() {
+        for (kind, message) in [
+            (MediaInputKind::Image, "This model does not support image inputs. For more information, see the documentation."),
+            (MediaInputKind::Audio, "This model does not support audio input. For more information, contact support."),
+            (MediaInputKind::Image, r#"{"error":{"code":"unsupported_image_input","message":"Unsupported input. More information is available."}}"#),
+        ] {
+            assert!(is_definite_media_rejection(&CodexErr::InvalidRequest(message.into()), kind), "{message}");
+        }
+        for message in [
+            "This model does not support image inputs with these formats",
+            "Model does not support image input at these sizes",
+            "Model does not support image input from tools",
+            "Model does not support image input with these resolutions",
+        ] {
+            assert!(!is_definite_media_rejection(&CodexErr::InvalidRequest(message.into()), MediaInputKind::Image), "{message}");
+        }
+        assert!(!contains_rejection_term("information", "format"));
+        assert!(contains_rejection_term("unsupported image format: png", "format"));
+    }
 }
 
 #[cfg(test)]
@@ -282,3 +316,4 @@ mod audio_tests {
         assert_eq!(row.kind, MediaInputKind::Image);
     }
 }
+

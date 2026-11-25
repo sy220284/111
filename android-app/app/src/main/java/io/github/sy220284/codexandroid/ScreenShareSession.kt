@@ -8,7 +8,12 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class ScreenShareSession {
     data class State(val token: String? = null, val owner: String? = null, val revision: Long = 0,
                      val capturing: Boolean = false, val hasFrame: Boolean = false, val message: String = "",
-                     val sequence: Long = 0, val stopping: Boolean = false)
+                     val sequence: Long = 0, val stopping: Boolean = false,
+                     val analyzing: Boolean = false) {
+        val notificationText: String get() = if (analyzing)
+            "正在向百炼发送屏幕采样进行分析，可能产生费用"
+            else "画面仅在本机采集，手动添加后随消息发送"
+    }
     data class Frame(val sequence: Long, val timeMs: Long, val bytes: ByteArray)
     private val mutableState = MutableStateFlow(State())
     val state = mutableState.asStateFlow()
@@ -25,6 +30,14 @@ internal class ScreenShareSession {
         val current = mutableState.value
         if (current.token != token || current.capturing || current.stopping) return false
         mutableState.value = current.copy(capturing = true)
+        return true
+    }
+
+    /** The consented analysis and its notification follow the same capture token. */
+    @Synchronized fun analyzing(token: String, active: Boolean): Boolean {
+        val current = mutableState.value
+        if (current.token != token || (active && (!current.capturing || current.stopping))) return false
+        mutableState.value = current.copy(analyzing = active)
         return true
     }
 
@@ -69,7 +82,8 @@ internal class ScreenShareSession {
         val current = mutableState.value
         if (current.token != token) return
         clearFrames()
-        mutableState.value = current.copy(capturing = false, hasFrame = false, stopping = true, message = message.ifBlank { current.message })
+        mutableState.value = current.copy(capturing = false, hasFrame = false, stopping = true, analyzing = false,
+            message = message.ifBlank { current.message })
     }
 
     @Synchronized fun finish(token: String, message: String = "") {
@@ -81,3 +95,4 @@ internal class ScreenShareSession {
     }
 }
 internal val screenShareSession = ScreenShareSession()
+

@@ -15,7 +15,7 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
     val controller = vm.composerContent.liveScreenAnalysis
     val live by controller.state.collectAsState()
     var confirm by remember(owner) { mutableStateOf(false) }
-    var review by remember(owner) { mutableStateOf(false) }
+    var review by remember(owner, revision) { mutableStateOf<ScreenAnalysisResults?>(null) }
     val mine = live.owner == owner && live.revision == revision
     if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !live.running && live.observations.isEmpty()) {
         CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }
@@ -24,7 +24,9 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(if (live.running) "持续分析 · ${live.requests}/12" else live.message,
                 Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
-            if (live.observations.isNotEmpty()) CodexTextAction(onClick = { review = true }) { Text("查看") }
+            if (live.observations.isNotEmpty()) CodexTextAction(onClick = { review = live.results }) {
+                Text(if (live.pendingObservations.isEmpty()) "查看" else "查看 · ${live.pendingObservations.size}条新增")
+            }
             if (live.running) CodexTextAction(onClick = { controller.stop() }) { Text("停止分析") }
             else CodexTextAction(onClick = { controller.dismiss(owner) }) { Text("清除") }
         }
@@ -38,9 +40,18 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
         confirmLabel = "同意并开始",
         onConfirm = { confirm = false; controller.start(owner, provider, question) },
         onDismiss = { confirm = false })
-    if (review && mine && live.observations.isNotEmpty()) CodexConfirmDialog(
-        title = "屏幕分析结果", message = "按共享时间顺序核对已完成的分析。模型描述可能存在遗漏。",
-        detail = live.observations.joinToString("\n\n") { "[${it.startMs}–${it.endMs}ms]\n${it.text}" },
-        confirmLabel = "加入当前草稿", onConfirm = { review = false; controller.apply(owner) },
-        onDismiss = { review = false })
+    review?.takeIf { mine }?.let { snapshot ->
+        val pending = (snapshot.observations.size - live.results.appliedCount).coerceAtLeast(0)
+        CodexConfirmDialog(
+            title = "屏幕分析结果",
+            message = "已保留${snapshot.observations.size}条完整结果。此次加入${pending}条新增内容；继续分析产生的结果可稍后查看。模型描述可能存在遗漏。",
+            detail = snapshot.observations.mapIndexed { index, observation ->
+                "${if (index < live.results.appliedCount) "已加入" else "待加入"} · [${observation.startMs}–${observation.endMs}ms]\n${observation.text}"
+            }.joinToString("\n\n"),
+            confirmLabel = if (pending == 0) "已加入草稿" else "加入${pending}条新增结果",
+            confirmEnabled = pending > 0 && vm.globalWorkSnapshot().canStartNewTask,
+            onConfirm = { controller.apply(owner, snapshot.observations.size); review = null },
+            onDismiss = { review = null })
+    }
 }
+

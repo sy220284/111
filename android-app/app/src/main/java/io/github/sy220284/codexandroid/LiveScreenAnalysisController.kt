@@ -18,10 +18,12 @@ import org.json.JSONObject
 
 /** A deliberately activated live session, not an unattended task. No requests after stop or consent loss. */
 internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
-    data class Observation(val startMs: Long, val endMs: Long, val text: String)
     data class State(val owner: String? = null, val token: String? = null, val revision: Long = 0,
                      val running: Boolean = false, val requests: Int = 0,
-                     val observations: List<Observation> = emptyList(), val message: String = "")
+                     val results: ScreenAnalysisResults = ScreenAnalysisResults(), val message: String = "") {
+        val observations get() = results.observations
+        val pendingObservations get() = results.pending
+    }
     val state = MutableStateFlow(State())
     private var job: Job? = null
     @Volatile private var client: QwenMediaAnalysis? = null
@@ -33,10 +35,11 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
         val revision = vm.catalogWarmup.accountRevision.value
         val epoch = vm.bridge.connectedSession.value ?: return
         if (!share.capturing || share.owner != owner || share.revision != revision) return
+        if (!screenShareSession.analyzing(token, true)) return
         state.value = State(owner, token, revision, running = true)
         job = vm.viewModelScope.launch {
             val guard = launch {
-                screenShareSession.state.first { it.token != token || !it.capturing }
+                screenShareSession.state.first { it.token != token || !it.capturing || !it.analyzing }
                 stop()
             }
             try {
@@ -50,16 +53,16 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
                 val deadline = SystemClock.elapsedRealtime() + 5 * 60_000L
                 val identityValid = {
                     val current = screenShareSession.state.value
-                    current.capturing && current.token == token && current.owner == owner && current.revision == revision &&
+                    current.capturing && current.analyzing && current.token == token && current.owner == owner && current.revision == revision &&
                         vm.catalogWarmup.accountRevision.value == revision && vm.bridge.connectedSession.value == epoch
                 }
                 var sequence = 0L
                 var count = 0
-                while (count < 12 && SystemClock.elapsedRealtime() < deadline) {
+                while (count < ScreenAnalysisResults.MAX_REQUESTS && SystemClock.elapsedRealtime() < deadline) {
                     if (!identityValid()) break
                     val remaining = (deadline - SystemClock.elapsedRealtime()).coerceAtLeast(1)
                     val next = withTimeoutOrNull(remaining) {
-                        screenShareSession.state.first { it.token != token || !it.capturing || (it.hasFrame && it.sequence > sequence) }
+                        screenShareSession.state.first { it.token != token || !it.capturing || !it.analyzing || (it.hasFrame && it.sequence > sequence) }
                     } ?: break
                     if (!next.capturing || !identityValid()) break
                     val frames = screenShareSession.framesAfter(token, owner, revision, sequence)
@@ -80,11 +83,11 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
                         }
                         if (!identityValid()) break
                         count++
-                        val observation = Observation(frames.first().timeMs, frames.last().timeMs, text)
-                        state.update { it.copy(requests = count, observations = (it.observations + observation).takeLast(6)) }
+                        val observation = ScreenAnalysisResults.Observation(frames.first().timeMs, frames.last().timeMs, text)
+                        state.update { it.copy(requests = count, results = it.results.append(observation)) }
                     } finally { frames.forEach { it.bytes.fill(0) } }
                     // At most one request at a time; active UI session only, no catch-up or background schedule.
-                    if (count < 12) delay(10_000)
+                    if (count < ScreenAnalysisResults.MAX_REQUESTS) delay(10_000)
                 }
                 state.update { it.copy(running = false, message = "持续分析已结束；可查看最近结果") }
             } catch (cancel: CancellationException) {
@@ -92,21 +95,33 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
                 throw cancel
             } catch (_: Exception) {
                 state.update { it.copy(running = false, message = "持续分析中断；已保留完整返回的结果，未自动重试") }
-            } finally { guard.cancel(); client = null }
+            } finally {
+                guard.cancel()
+                client = null
+                screenShareSession.analyzing(token, false)
+            }
         }
     }
 
-    fun stop() { job?.cancel(); client?.cancel() }
+    fun stop() {
+        state.value.token?.let { screenShareSession.analyzing(it, false) }
+        job?.cancel()
+        client?.cancel()
+    }
     fun dismiss(owner: String) { if (!state.value.running && state.value.owner == owner) state.value = State() }
-    fun apply(owner: String) {
+    fun apply(owner: String, reviewedCount: Int) {
         val current = state.value
-        if (current.owner != owner || current.revision != vm.catalogWarmup.accountRevision.value || current.observations.isEmpty()) return
-        val result = current.observations.joinToString("\n\n") { "[${it.startMs}–${it.endMs}ms]\n${it.text}" }
+        if (!vm.globalWorkSnapshot().canStartNewTask || current.owner != owner ||
+            current.revision != vm.catalogWarmup.accountRevision.value ||
+            reviewedCount !in (current.results.appliedCount + 1)..current.observations.size) return
+        val result = current.observations.take(reviewedCount).drop(current.results.appliedCount)
+            .joinToString("\n\n") { "[${it.startMs}–${it.endMs}ms]\n${it.text}" }
         vm.composerDrafts.update { drafts ->
             val old = drafts[owner]?.text.orEmpty()
             ThreadComposerDrafts.text(drafts, owner, listOf(old, "【屏幕分析资料：Qwen-Omni，仅供核对】\n$result\n【资料结束】")
                 .filter { it.isNotBlank() }.joinToString("\n\n"))
         }
-        if (!current.running) state.value = State()
+        state.value = current.copy(results = current.results.appliedThrough(reviewedCount))
     }
 }
+
