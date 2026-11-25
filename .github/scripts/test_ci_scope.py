@@ -65,10 +65,16 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn(":app:assembleDebugAndroidTest", build)
         self.assertIn("test_native_reuse.py", ui)
 
-    def test_runtime_is_a_required_predecessor_of_phone_verification(self):
+    def test_arm64_does_not_require_x86_unless_explicitly_requested(self):
+        native = workflow("build-native-codex.yml")
         build = workflow("build-android.yml")
+        self.assertIn("include_x86:", native)
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.include_x86", native)
+        self.assertIn("[ \"$ABI\" = 'x86_64' ] && [ \"$INCLUDE_X86\" != 'true' ]", native)
+        self.assertIn("runtime_x86:", build)
         self.assertIn("needs: [build, runtime-test]", build)
         self.assertIn("needs.runtime-test.result == 'success'", build)
+        self.assertIn("needs.runtime-test.result == 'skipped' && !(github.event_name == 'workflow_dispatch' && inputs.runtime_x86)", build)
         self.assertIn("--abis x86_64", build)
         self.assertIn("run-android-runtime-tests.sh", build)
 

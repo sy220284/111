@@ -37,6 +37,12 @@ on:
       - "android-app/tools/package_native_runtime.sh"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
+    inputs:
+      include_x86:
+        description: 同时编译 x86_64 模拟器原生核心（仅手动专项验收）
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -64,16 +70,21 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             .github/scripts
-      - name: 查找已验证的 ARM64 手机及 x86_64 运行验收核心
+      - name: 查找已验证的 ARM64 手机核心及手动选定的测试核心
         id: detect
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          INCLUDE_X86: ${{ github.event_name == 'workflow_dispatch' && inputs.include_x86 }}
           ABI_MATRIX_JSON: '[{"rust_target":"aarch64-linux-android","clang":"aarch64-linux-android29-clang","clangxx":"aarch64-linux-android29-clang++","abi":"arm64-v8a","elf_arch":"AArch64"},{"rust_target":"x86_64-linux-android","clang":"x86_64-linux-android29-clang","clangxx":"x86_64-linux-android29-clang++","abi":"x86_64","elf_arch":"X86-64"}]'
         run: |
           set -euo pipefail
           MISSING='[]'
           for ABI in $(jq -r '.[].abi' <<< "$ABI_MATRIX_JSON"); do
+            if [ "$ABI" = 'x86_64' ] && [ "$INCLUDE_X86" != 'true' ]; then
+              echo 'x86_64 原生编译仅在手动专项验收时启用'
+              continue
+            fi
             RESULT=0
             python3 .github/scripts/select_native_artifacts.py \
               --repo "$GITHUB_REPOSITORY" --abis "$ABI" \

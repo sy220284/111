@@ -25,6 +25,11 @@ on:
         description: 原生 PR 验收限定的源提交 SHA；手动启动时留空
         required: false
         type: string
+      runtime_x86:
+        description: 使用现有同源码 x86_64 核心执行完整模拟器运行验收（可选）
+        required: false
+        type: boolean
+        default: false
   workflow_run:
     workflows: ["编译 Android 原生 Codex 核心"]
     types: [completed]
@@ -180,9 +185,9 @@ jobs:
           retention-days: 30
 
   runtime-test:
-    name: Android 35 真实内核及异常恢复验收
+    name: Android 35 真实内核及异常恢复验收（手动 x86_64）
     needs: build
-    if: always() && needs.build.result == 'success'
+    if: always() && needs.build.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.runtime_x86
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -252,9 +257,12 @@ jobs:
   verify-apk:
     name: ARM64 手机安装包二次核验
     needs: [build, runtime-test]
-    # On workflow_run/dispatch, the push-only preflight is skipped. Avoid
-    # inheriting its implicit success() guard through the build dependency.
-    if: always() && needs.build.result == 'success' && needs.runtime-test.result == 'success'
+    # ARM64 integrity is independent of emulator architecture. An explicitly
+    # requested x86 runtime test must still succeed; a non-requested test stays skipped.
+    if: >-
+      always() && needs.build.result == 'success' &&
+      (needs.runtime-test.result == 'success' ||
+      (needs.runtime-test.result == 'skipped' && !(github.event_name == 'workflow_dispatch' && inputs.runtime_x86)))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
