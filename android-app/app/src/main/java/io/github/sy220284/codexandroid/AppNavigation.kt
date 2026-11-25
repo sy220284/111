@@ -354,7 +354,8 @@ fun CodexShell(vm: CodexViewModel) {
                         // interactive during rapid settings / feature navigation.
                         CodexRouteEntrance(selected, reduceMotion) {
                             pageStateHolder.SaveableStateProvider(selected) {
-                                CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
+                                CompositionLocalProvider(LocalWorkPageTitle provides page.title,
+                                    LocalCodexProtectedTop provides inset.calculateTopPadding()) {
                                     PageContent(selected, vm, move)
                                 }
                             }

@@ -382,7 +382,7 @@ fun AtlasCompactChoice(
 
 /** 独立列表滚动面板统一按当前窗口高度约束。 */
 @Composable
-fun atlasSheetHeight() = LocalConfiguration.current.screenHeightDp.dp * .88f
+fun atlasSheetHeight() = codexSheetContentLimit(.88f)
 
 @Composable
 fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {

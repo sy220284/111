@@ -28,7 +28,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -55,13 +54,18 @@ fun CodexOverlayFrame(
             action()
         }
     }
-    val close: () -> Unit = { dismiss() }
-    val screen = LocalConfiguration.current
+    val close: () -> Unit = {
+        if (!dismissed) {
+            dismissed = true
+            dismiss()
+        }
+    }
+    val viewport = rememberCodexViewport()
     Dialog(onDismissRequest = close, properties = DialogProperties(
         usePlatformDefaultWidth = false, dismissOnClickOutside = !fullScreen)) {
         val bounds = if (fullScreen) Modifier.fillMaxSize()
             else Modifier.widthIn(max = 360.dp).fillMaxWidth()
-                .padding(horizontal = 16.dp).heightIn(max = screen.screenHeightDp.dp * .86f)
+                .padding(horizontal = 16.dp).heightIn(max = CodexViewportPolicy.sheetHeight(viewport.height.value, .86f).dp)
         Box((if (fullScreen) Modifier.fillMaxSize() else Modifier.wrapContentSize())
             .imePadding(), contentAlignment = Alignment.Center) {
             Surface(modifier = bounds.then(modifier),
@@ -81,7 +85,7 @@ fun CodexOverlayFrame(
 
 @Composable
 fun codexSheetContentLimit(fraction: Float = .86f): Dp =
-    LocalConfiguration.current.screenHeightDp.dp * fraction
+    CodexViewportPolicy.sheetHeight(rememberCodexViewport().height.value, fraction).dp
 
 /** 普通编辑、说明与危险确认统一主题与形态；操作回调由真实业务持有。 */
 @Composable

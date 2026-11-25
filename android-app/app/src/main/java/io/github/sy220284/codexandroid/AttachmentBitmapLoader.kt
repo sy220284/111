@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import android.graphics.BitmapFactory
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
@@ -22,4 +26,19 @@ internal suspend fun decodeAttachmentInfo(path: String, maxSide: Int): Attachmen
         BitmapFactory.decodeFile(path, BitmapFactory.Options().apply {
             inSampleSize = sample
         })?.asImageBitmap()?.let { AttachmentBitmapInfo(it, bounds.outWidth, bounds.outHeight, bounds.outMimeType) }
+    }
+
+/** One lifecycle and publication policy for thumbnail and full-size previews.
+ * A new path/retry gets a fresh state; the canceled request cannot publish to it.
+ */
+internal data class AttachmentImageState(val loaded: Boolean, val bitmap: ImageBitmap?)
+
+@Composable
+internal fun rememberAttachmentImage(path: String, maxSide: Int, retry: Int = 0): State<AttachmentImageState> =
+    key(path, maxSide, retry) {
+        produceState(AttachmentImageState(false, null)) {
+            withContext(Dispatchers.Main.immediate) {
+                value = AttachmentImageState(true, decodeAttachmentBitmap(path, maxSide))
+            }
+        }
     }
