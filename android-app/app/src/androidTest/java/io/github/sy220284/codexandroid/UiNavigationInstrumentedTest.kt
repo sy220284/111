@@ -22,11 +22,39 @@ import org.junit.Test
 /** 参考布局验收：侧栏只出现常用入口，所有原有功能归入设置或快捷菜单。 */
 class UiNavigationInstrumentedTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val testName = org.junit.rules.TestName()
 
-    /** Tests share one application-owned Codex session, so each test owns a clean UI fixture. */
+    /** Reset process-owned state only after this Activity's navigation shell is ready. */
     @Before fun resetSessionFixture() {
-        val vm = (rule.activity.application as CodexApplication).session
-        rule.runOnUiThread {
+        val deadline = android.os.SystemClock.elapsedRealtime() + 15_000L
+        fun remaining() = (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(1L)
+        // Activity creation alone does not establish that workspace preparation
+        // and the Compose navigation effects have completed.
+        try {
+            rule.waitUntil(remaining()) {
+                rule.onAllNodesWithTag("work-shell").fetchSemanticsNodes().size == 1
+            }
+        } catch (timeout: androidx.compose.ui.test.ComposeTimeoutException) {
+            var diagnostic = ""
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val activity = rule.activity
+                diagnostic = "startup=${activity.workspaceStartupPhase}, lifecycle=${activity.lifecycle.currentState}, " +
+                    "focus=${activity.hasWindowFocus()}, authorized=${WorkspaceStorage.authorized(activity)}"
+            }
+            throw AssertionError("导航壳未就绪：$diagnostic", timeout)
+        }
+        val app = rule.activity.application as CodexApplication
+        val vm = app.session
+        val coldStart = testName.methodName == "coldStartOpensChatAndKeepsDraftSafe"
+        // Cold-start coverage must observe the actual initial route, without a
+        // synthetic navigation request that could hide a startup regression.
+        if (coldStart) {
+            rule.waitUntil(remaining()) {
+                rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1
+            }
+            rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+        }
+        rule.runOnIdle {
             vm.activeThread.value = null
             vm.activeTurn.value = null
             vm.running.value = false
@@ -35,14 +63,14 @@ class UiNavigationInstrumentedTest {
             vm.bridge.prompts.value = emptyList()
             vm.composerDrafts.value = emptyMap()
             vm.errors.value = emptyMap()
+            app.pendingDeepLink.value = null
+            if (!coldStart) vm.agentActionNavigation.value += 1L
         }
-        rule.runOnUiThread {
-            (rule.activity.application as CodexApplication).pendingDeepLink.value = null
-            vm.agentActionNavigation.value = 1L
+        rule.waitUntil(remaining()) {
+            vm.agentActionNavigation.value == 0L &&
+                rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1
         }
-        rule.waitUntil(15_000L) {
-            rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1
-        }
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.waitForIdle()
     }
 
@@ -1134,6 +1162,12 @@ class UiNavigationInstrumentedTest {
         }
         openComposerShortcut("queue")
         rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
+        // Finish the real navigation lifecycle before the next Activity is launched.
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("thread-queue-draft").fetchSemanticsNodes().isEmpty()
+        }
+        rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
     @Test fun queueAndFullSearchOpenAsTaskSheets() {

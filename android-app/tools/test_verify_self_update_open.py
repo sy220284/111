@@ -1,11 +1,45 @@
 """Contract checks for the Android 35 package-replacement evidence gate."""
 import unittest
+import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
 import verify_self_update_open as check
 
 
 class SelfUpdateEvidenceTests(unittest.TestCase):
+    def test_installer_button_rejects_launcher_label_and_empty_bounds(self):
+        root = ET.fromstring("""<hierarchy>
+          <node text="Open" package="com.android.launcher3" enabled="true" bounds="[0,0][40,40]"/>
+          <node text="Open" package="com.android.packageinstaller" enabled="true" bounds="[0,0][0,0]"/>
+        </hierarchy>""")
+        self.assertIsNone(check.clickable_center(root, {"open"}))
+
+    def test_installer_button_accepts_real_system_confirmation(self):
+        root = ET.fromstring("""<hierarchy>
+          <node text="Open" package="com.android.packageinstaller" enabled="true" bounds="[10,20][30,40]"/>
+        </hierarchy>""")
+        self.assertEqual((20, 30), check.clickable_center(root, {"open"}))
+
+    def test_normal_process_handoff_waits_for_foreground_and_requires_broadcast_result(self):
+        calls = []
+        def fake_adb(*args, **kwargs):
+            calls.append(args)
+            if args[1:3] == ("am", "broadcast"):
+                return "Broadcast completed: result=-1"
+            return ""
+        with (patch.object(check, "adb", side_effect=fake_adb),
+              patch.object(check, "wait_until_launched", return_value=("123", "foreground")) as wait):
+            self.assertEqual("123", check.launch_install_ui())
+        wait.assert_called_once_with(timeout=25)
+        self.assertEqual(("shell", "am", "force-stop", check.PACKAGE), calls[0])
+        self.assertIn("broadcast", calls[-1])
+
+    def test_failed_broadcast_cannot_be_accepted(self):
+        with (patch.object(check, "adb", return_value="Broadcast completed: result=0"),
+              patch.object(check, "wait_until_launched", return_value=("123", "foreground"))):
+            with self.assertRaisesRegex(RuntimeError, "rejected installer handoff"):
+                check.launch_install_ui()
+
     def test_reads_real_package_manager_update_timestamp(self):
         package = """
         Package [io.github.sy220284.codexandroid] (123):

@@ -2,8 +2,9 @@
 """Verify an in-app APK replacement followed by the system installer's Open action.
 
 Run on an Android emulator with the debug APK and instrumentation APK installed.
-The replacement is triggered from MainActivity via the same intent builder
-used by the release updater, not by adb install -r.
+The replacement is triggered by the normal, foreground app process via the
+release updater's intent builder, not by adb install -r. Instrumentation only
+stages the fixture and finishes before the installer is launched.
 """
 from __future__ import annotations
 
@@ -20,6 +21,8 @@ from pathlib import Path
 PACKAGE = "io.github.sy220284.codexandroid"
 TEST = PACKAGE + ".SelfUpdateInstallFlowInstrumentedTest"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
+INSTALLER_PACKAGES = {"com.android.packageinstaller", "com.google.android.packageinstaller"}
+CI_INSTALL_ACTION = PACKAGE + ".ci.SELF_UPDATE"
 
 
 def adb(*args: str, check: bool = True, input_file=None) -> str:
@@ -55,14 +58,30 @@ def copy_fixture(apk: Path) -> None:
     print(f"APK fixture: {actual} bytes, same signed application package", flush=True)
 
 
-def launch_install_ui() -> None:
+def stage_fixture() -> None:
     output = adb(
         "shell", "am", "instrument", "-w", "-r",
         "-e", "class", TEST, RUNNER,
     )
     print(output, flush=True)
     if "OK (1 test)" not in output:
-        raise RuntimeError("The application failed to open the system installer")
+        raise RuntimeError("The application failed to stage the verified APK")
+
+
+def launch_install_ui() -> str:
+    # Instrumentation has finished; run the source Activity as a normal app.
+    # Its replacement must not depend on AndroidJUnitRunner/ActivityScenario.
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
+    pid, _ = wait_until_launched(timeout=25)
+    output = adb(
+        "shell", "am", "broadcast", "-a", CI_INSTALL_ACTION,
+        "-n", PACKAGE + "/.CiSelfUpdateReceiver",
+    )
+    print(output, flush=True)
+    if not re.search(r"Broadcast completed: result=-1(?:\s|,|$)", output):
+        raise RuntimeError("Foreground app rejected installer handoff: " + output)
+    return pid
 
 
 def hierarchy() -> ET.Element | None:
@@ -87,12 +106,17 @@ def clickable_center(root: ET.Element, texts: set[str]) -> tuple[int, int] | Non
         }
         if not (labels & texts):
             continue
+        # Only the actual PackageInstaller may supply either confirmation.
+        # A matching label in Launcher or in the app is not installer evidence.
+        if node.get("package") not in INSTALLER_PACKAGES:
+            continue
         if node.get("enabled") == "false":
             continue
         match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
         if match:
             x1, y1, x2, y2 = map(int, match.groups())
-            return ((x1 + x2) // 2, (y1 + y2) // 2)
+            if x2 > x1 and y2 > y1:
+                return ((x1 + x2) // 2, (y1 + y2) // 2)
     return None
 
 
@@ -163,8 +187,9 @@ def wait_until_launched(timeout: float) -> tuple[str, str]:
         ]
         last_activity = " | ".join(resumed + focused_window)
         pid = adb("shell", "pidof", PACKAGE, check=False).strip()
-        if pid and any(PACKAGE in line and "MainActivity" in line for line in resumed):
-            print(f"PASS: system Open resumed {PACKAGE}/.MainActivity (PID {pid})", flush=True)
+        if (pid and any(PACKAGE in line and "MainActivity" in line for line in resumed)
+                and any(PACKAGE in line and "MainActivity" in line for line in focused_window)):
+            print(f"Foreground MainActivity confirmed (PID {pid})", flush=True)
             return pid, last_activity
         time.sleep(1)
     raise RuntimeError(
@@ -180,8 +205,8 @@ def failure_diagnostics() -> None:
     for title, args in (
         ("top activities", ("shell", "dumpsys", "activity", "activities")),
         ("window focus", ("shell", "dumpsys", "window")),
-        ("recent installer events", ("shell", "logcat", "-d", "-t", "220",
-                                     "-s", "ActivityTaskManager:I", "PackageInstaller:I", "*:S")),
+        ("recent installer events", ("shell", "logcat", "-b", "all", "-d", "-t", "3500",
+                                     "-v", "threadtime")),
     ):
         result = adb(*args, check=False)
         lines = result.splitlines()
@@ -192,6 +217,10 @@ def failure_diagnostics() -> None:
         elif title == "window focus":
             lines = [line for line in lines if any(word in line for word in
                 ("mCurrentFocus", "mFocusedApp", "packageinstaller", "PackageInstaller"))][-20:]
+        if title == "recent installer events":
+            lines = [line for line in lines if any(word in line for word in
+                ("PackageInstaller", "PackageManager", "ActivityTaskManager", "ActivityManager",
+                 "AndroidRuntime", "InstallSuccess", "InstallInstalling", PACKAGE))]
         print(title + ":\n" + "\n".join(lines[-90:]), file=sys.stderr, flush=True)
     screenshot = Path("ui-screenshots/self-update-failure-android35.png")
     try:
@@ -235,8 +264,8 @@ def main() -> int:
         report["last_update_time_before"] = before
         print(f"PackageManager before installer: lastUpdateTime={before}", flush=True)
 
-        launch_install_ui()
-        previous_pid = adb("shell", "pidof", PACKAGE, check=False).strip()
+        stage_fixture()
+        previous_pid = launch_install_ui()
         report["pid_before_install"] = previous_pid
 
         click_system_button({"install", "update", "安装", "更新"}, timeout=35)
@@ -259,6 +288,16 @@ def main() -> int:
     except Exception as error:
         report["status"] = "failed"
         report["error"] = str(error)
+        # Distinguish an aborted installation from a successful replacement
+        # whose system completion window disappeared. Neither counts as passing.
+        try:
+            observed = installed_update_time()
+            report["last_update_time_at_failure"] = observed
+            before = report.get("last_update_time_before")
+            report["replacement_observed_at_failure"] = bool(before and observed != before)
+            print(f"PackageManager at failure: lastUpdateTime={observed}", flush=True)
+        except Exception as diagnosis_error:
+            report["package_manager_diagnostic_error"] = str(diagnosis_error)
         raise
     finally:
         # Keep a screenshot even on failure, so green CI status is never the only
