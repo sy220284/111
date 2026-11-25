@@ -37,6 +37,7 @@ jobs:
       arm_run_id: ${{ steps.detect.outputs.arm_run_id }}
       x86_run_id: ${{ steps.detect.outputs.x86_run_id }}
       reuse: ${{ steps.detect.outputs.reuse }}
+      provider_reuse: ${{ steps.detect.outputs.provider_reuse }}
       matrix: ${{ steps.detect.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
@@ -64,7 +65,7 @@ jobs:
             fi
             RESULT=0
             python3 .github/scripts/select_native_artifacts.py \
-              --repo "$GITHUB_REPOSITORY" --abis "$ABI" \
+              --repo "$GITHUB_REPOSITORY" --abis "$ABI" --compiler-only \
               > "$RUNNER_TEMP/reused-native-$ABI" || RESULT=$?
             KEY=arm_run_id
             if [ "$ABI" = x86_64 ]; then KEY=x86_run_id; fi
@@ -79,6 +80,13 @@ jobs:
               *) exit "$RESULT" ;;
             esac
           done
+          PROVIDER_STATUS=0
+          python3 .github/scripts/select_native_artifacts.py --repo "$GITHUB_REPOSITORY" --provider-only > "$RUNNER_TEMP/provider-run" || PROVIDER_STATUS=$?
+          case "$PROVIDER_STATUS" in
+            0) echo "provider_reuse=true" >> "$GITHUB_OUTPUT"; echo "复用 Rust 回归凭证 $(cat "$RUNNER_TEMP/provider-run")" ;;
+            3) echo "provider_reuse=false" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$PROVIDER_STATUS" ;;
+          esac
           echo "matrix=$MISSING" >> "$GITHUB_OUTPUT"
           if [ "$MISSING" = '[]' ]; then
             echo "reuse=true" >> "$GITHUB_OUTPUT"
@@ -301,7 +309,7 @@ jobs:
   provider-contract:
     name: 国内服务商目录与模型能力 Rust 回归测试
     needs: reuse
-    if: needs.reuse.outputs.reuse != 'true'
+    if: needs.reuse.outputs.provider_reuse != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -313,7 +321,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           sparse-checkout: |
+            .github/scripts
+            .github/ci
             upstream/codex
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -330,6 +341,15 @@ jobs:
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting
+      - name: 生成 Rust 回归凭证
+        id: provider-index
+        run: python3 .github/scripts/native_index.py provider --out "$RUNNER_TEMP/provider-index.json" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provider-index-${{ steps.provider-index.outputs.fingerprint }}
+          path: ${{ runner.temp }}/provider-index.json
+          if-no-files-found: error
+          retention-days: 90
 
   verified:
     name: 原生核心统一验收
@@ -346,9 +366,11 @@ jobs:
           REUSED: ${{ needs.reuse.outputs.reuse }}
           NATIVE: ${{ needs.native.result }}
           TEST: ${{ needs.provider-contract.result }}
+          PROVIDER_REUSED: ${{ needs.reuse.outputs.provider_reuse }}
           ARM: ${{ needs.reuse.outputs.arm_run_id }}
         run: |
           set -euo pipefail
           test "$REUSE" = success
           test -n "$ARM"
-          if [ "$REUSED" != true ]; then test "$NATIVE" = success; test "$TEST" = success; fi
+          if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; else test "$NATIVE" = success; fi
+          if [ "$PROVIDER_REUSED" = true ]; then test "$TEST" = skipped; else test "$TEST" = success; fi

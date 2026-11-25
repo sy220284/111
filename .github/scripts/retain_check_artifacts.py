@@ -18,7 +18,7 @@ CHECK_WORKFLOWS = {
     ".github/workflows/rehearse-android-upgrade.yml",
     ".github/workflows/import-codex.yml",
 }
-NATIVE = re.compile(r"^(?:codex-android-native-(?:arm64-v8a|x86_64)|native-index-(?:arm64-v8a|x86_64)-[0-9a-f]{64})$")
+NATIVE = re.compile(r"^(?:codex-android-native-(?:arm64-v8a|x86_64)|native-index-(?:arm64-v8a|x86_64)-[0-9a-f]{64}|provider-index-[0-9a-f]{64})$")
 DSH = re.compile(r"^(dsh-go-)v[0-9.]+(-android-reference|-ui-evidence)$")
 CONSUMERS = CHECK_WORKFLOWS | {".github/workflows/release.yml"}
 
@@ -162,6 +162,10 @@ def main():
                 if not selected.get("arm64-v8a"):
                     break
                 native_keep.update(int(run_id) for run_id in selected.values() if run_id)
+                provider = selector.find_provider(repo, sha)
+                if not provider:
+                    break
+                native_keep.add(int(provider))
             else:
                 native_safe = True
     if not native_safe:

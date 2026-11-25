@@ -59,6 +59,7 @@ class FakeRunner:
         self.git_queries = []
         self.called_api = 0
         self.last_workflow_query = []
+        self.index_queries = []
         self.branch = "main"
 
     def __call__(self, args):
@@ -105,9 +106,10 @@ class FakeRunner:
         if args[:2] == ["gh", "api"]:
             if "/actions/artifacts?name=" in args[2]:
                 self.last_workflow_query = list(args)
+                self.index_queries.append(args[-1])
                 return json.dumps({"artifacts": [{"expired": False, "workflow_run": {"id": 21}}, {"expired": False, "workflow_run": {"id": 20}}]})
             if args[2].endswith("/actions/runs/21") or args[2].endswith("/actions/runs/20"):
-                return json.dumps({"head_repository": {"full_name": "owner/repo"}, "head_sha": "old" if args[2].endswith("/21") else "older", "head_branch": self.branch, "conclusion": self.run_conclusion})
+                return json.dumps({"head_repository": {"full_name": "owner/repo"}, "path": ".github/workflows/ci.yml", "head_sha": "old" if args[2].endswith("/21") else "older", "head_branch": self.branch, "conclusion": self.run_conclusion})
             if args[2].endswith("/jobs?per_page=100"):
                 return json.dumps({"jobs": [
                     {"name": f"编译 {abi} 核心",
@@ -212,7 +214,7 @@ jobs:
         runner = FakeRunner(missing_abi=True, run_conclusion="cancelled")
         self.assertEqual(ArtifactSelector(runner).find(
             "owner/repo", "HEAD", ["arm64-v8a"], branch="main"), "21")
-        self.assertIn("native-index-arm64-v8a-", runner.last_workflow_query[-1])
+        self.assertTrue(any("native-index-arm64-v8a-" in query for query in runner.index_queries))
 
     def test_fallback_to_older_unexpired_artifacts(self):
         runner = FakeRunner(expired_first=True)
@@ -238,6 +240,7 @@ jobs:
         runner = FakeRunner(missing_abi=True)
         runner.failed_provider = True
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"]))
+        self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"], require_provider=False), "21")
 
     def test_failed_native_job_cannot_reuse_artifact(self):
         runner = FakeRunner(missing_abi=True, failed_job=True)
