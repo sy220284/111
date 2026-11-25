@@ -36,6 +36,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val deviceCode by vm.deviceLoginCode.collectAsState()
     val deviceUrl by vm.deviceLoginUrl.collectAsState()
     val loginId by vm.activeLoginId.collectAsState()
+    val voiceEpoch by vm.bridge.connectedSession.collectAsState()
+    val voiceAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
     val payload = data["account"]
     val identity = payload?.optJSONObject("account")
     val connected = identity != null
@@ -170,6 +172,14 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 if (connected && authMode.isNotBlank()) {
                     Text("登录方式 · " + PresentationPolicy.accountAuthMethod(authMode), color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
+                }
+                val epoch = voiceEpoch
+                if (identity != null && authMode == "chatgpt" && epoch != null && !loginBusy &&
+                    !pending && "account" !in loading) {
+                    DividerLine()
+                    key(identity.toString(), epoch, voiceAccountRevision) {
+                        AccountVoiceSettings(vm, identity.toString(), epoch, voiceAccountRevision)
+                    }
                 }
                 DividerLine()
                 Row(

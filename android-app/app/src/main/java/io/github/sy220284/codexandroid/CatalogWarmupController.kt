@@ -2,6 +2,8 @@ package io.github.sy220284.codexandroid
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -11,6 +13,9 @@ internal class CatalogWarmupController(
     private val scope: CoroutineScope,
     private val requests: LatestRequestGate
 ) {
+    private val accountRevisionState = MutableStateFlow(0L)
+    val accountRevision = accountRevisionState.asStateFlow()
+
     fun connected() {
         // After reconnect, cached listings from the old core session are stale.
         invalidateModels(includeDefault = false)
@@ -42,6 +47,7 @@ internal class CatalogWarmupController(
     }
 
     fun accountChanged() {
+        accountRevisionState.value += 1
         invalidateModels()
         vm.refresh("models", "model/list")
         if (vm.composerCatalogKey() != "models") vm.refreshComposerCatalog()

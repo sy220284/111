@@ -196,6 +196,8 @@ object UiProtocolMatrix {
         ProtocolSurface("config/batchWrite", ApiExposure.Direct, "引擎配置/安全", false),
         ProtocolSurface("configRequirements/read", ApiExposure.Direct, "任务对话", false),
         ProtocolSurface("account/read", ApiExposure.Direct, "账号/额度", false),
+        ProtocolSurface("account/voiceSettings/read", ApiExposure.Advanced, "账号/额度", true),
+        ProtocolSurface("account/voiceSettings/write", ApiExposure.Advanced, "账号/额度", true),
         ProtocolSurface("fuzzyFileSearch/sessionStart", ApiExposure.Internal, "检索后台", true),
         ProtocolSurface("fuzzyFileSearch/sessionUpdate", ApiExposure.Internal, "检索后台", true),
         ProtocolSurface("fuzzyFileSearch/sessionStop", ApiExposure.Internal, "检索后台", true),

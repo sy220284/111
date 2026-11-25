@@ -927,6 +927,16 @@
       "owner": "账号/额度",
       "flag": "常规/内部"
     },
+    "account/voiceSettings/read": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "实验"
+    },
+    "account/voiceSettings/write": {
+      "surface": "高级按需",
+      "owner": "账号/额度",
+      "flag": "实验"
+    },
     "fuzzyFileSearch/sessionStart": {
       "surface": "后台内部",
       "owner": "检索后台",

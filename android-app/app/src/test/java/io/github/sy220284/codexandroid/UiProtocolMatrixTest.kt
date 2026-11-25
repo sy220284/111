@@ -5,11 +5,11 @@ import org.junit.Test
 
 class UiProtocolMatrixTest {
     @Test fun everyProtocolMethodHasExactlyOneUiExposure() {
-        assertEquals(196, UiProtocolMatrix.all.size)
-        assertEquals(196, UiProtocolMatrix.byMethod.size)
+        assertEquals(198, UiProtocolMatrix.all.size)
+        assertEquals(198, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
         assertEquals(47, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
-        assertEquals(51, UiProtocolMatrix.advanced.size)
+        assertEquals(53, UiProtocolMatrix.advanced.size)
         assertEquals(61, UiProtocolMatrix.systemOnly.size)
     }
 
@@ -18,6 +18,15 @@ class UiProtocolMatrixTest {
             "threadSection/update", "threadSection/delete",
             "thread/realtime/appendText", "thread/realtime/appendSpeech").forEach { method ->
             assertEquals(method, ApiExposure.Contextual, UiProtocolMatrix.byMethod[method]?.exposure)
+        }
+    }
+
+    @Test fun accountVoiceSettingsAreAccountScopedAdvancedActions() {
+        listOf("account/voiceSettings/read", "account/voiceSettings/write").forEach { method ->
+            val entry = UiProtocolMatrix.byMethod.getValue(method)
+            assertEquals(ApiExposure.Advanced, entry.exposure)
+            assertEquals("账号/额度", entry.owner)
+            assertTrue(entry.experimental)
         }
     }
 

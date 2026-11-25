@@ -14,13 +14,19 @@ class PinnedProtocolContractTest(unittest.TestCase):
         cls.source = UPSTREAM.read_text(encoding="utf-8")
         cls.methods = parse_contracts(cls.source)
 
-    def test_all_196_methods_have_a_single_direction(self):
+    def test_all_198_methods_have_a_single_direction(self):
         client, host = request_method_names(self.source)
-        self.assertEqual(188, len(client))
+        self.assertEqual(190, len(client))
         self.assertEqual(8, len(host))
-        self.assertEqual(196, len(self.methods))
+        self.assertEqual(198, len(self.methods))
         self.assertFalse(client & host)
         self.assertIn("modelProvider/model/verify", client)
+        for name in ("account/voiceSettings/read", "account/voiceSettings/write"):
+            self.assertIn(name, client)
+            self.assertTrue(self.methods[name].experimental)
+        self.assertIn("Option<()>", self.methods["account/voiceSettings/read"].params)
+        self.assertEqual("v2::AccountVoiceSettingsWriteParams", self.methods["account/voiceSettings/write"].params)
+        self.assertEqual("v2::AccountVoiceSettingsReadResponse", self.methods["account/voiceSettings/read"].response)
 
     def test_host_methods_match_supported_and_gated_capabilities(self):
         _client, host = request_method_names(self.source)
@@ -46,7 +52,7 @@ class PinnedProtocolContractTest(unittest.TestCase):
                          self.methods["thread/start"].params)
         self.assertEqual("v2::ThreadStartResponse",
                          self.methods["thread/start"].response)
-        self.assertEqual("v2::DynamicToolCallResponse",
+        self.assertEqual("v2::DynamicToolCallResult",
                          self.methods["item/tool/call"].response)
         for method in self.methods.values():
             self.assertTrue(method.params, method.name)
