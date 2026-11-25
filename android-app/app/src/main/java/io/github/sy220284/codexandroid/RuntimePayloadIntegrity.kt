@@ -4,6 +4,8 @@ import java.io.File
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
@@ -55,11 +57,47 @@ internal object RuntimePayloadIntegrity {
         }
     }
 
-    fun removeTree(root: File) {
-        val path = root.toPath()
-        if (!Files.exists(path, NOFOLLOW_LINKS)) return
-        Files.walk(path).use { paths ->
-            paths.sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
+    private val writePermissions = setOf(
+        PosixFilePermission.OWNER_WRITE, PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE
+    )
+
+    /** Prevent accidental edits; the app and native core share a UID, so mode bits
+     * alone are not a sandbox. The signed asset remains the integrity authority. */
+    fun sealReadOnly(root: File) {
+        val base = root.toPath()
+        require(Files.isDirectory(base, NOFOLLOW_LINKS)) { "开发运行时目录无效" }
+        Files.walk(base).use { paths ->
+            paths.sorted(Comparator.reverseOrder()).forEach { path ->
+                check(Files.isDirectory(path, NOFOLLOW_LINKS) || Files.isRegularFile(path, NOFOLLOW_LINKS)) {
+                    "开发运行时包含非普通文件"
+                }
+                val permissions = Files.getPosixFilePermissions(path, NOFOLLOW_LINKS)
+                if (permissions.any { it in writePermissions }) {
+                    Files.setPosixFilePermissions(path, permissions - writePermissions)
+                }
+                check(Files.getPosixFilePermissions(path, NOFOLLOW_LINKS).none { it in writePermissions }) {
+                    "开发运行时无法设置只读权限"
+                }
+            }
         }
+    }
+
+    /** Rebuild can remove a sealed tree, including a damaged directory. Never
+     * traverse or change the permissions of a symbolic-link target. */
+    fun removeTree(root: File) {
+        fun remove(path: Path) {
+            if (!Files.exists(path, NOFOLLOW_LINKS)) return
+            if (Files.isDirectory(path, NOFOLLOW_LINKS)) {
+                val permissions = Files.getPosixFilePermissions(path, NOFOLLOW_LINKS)
+                val ownerAccess = setOf(PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE)
+                if (!permissions.containsAll(ownerAccess)) {
+                    Files.setPosixFilePermissions(path, permissions + ownerAccess)
+                }
+                Files.newDirectoryStream(path).use { children -> children.forEach { remove(it) } }
+            }
+            Files.delete(path)
+        }
+        remove(root.toPath())
     }
 }

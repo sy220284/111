@@ -59,7 +59,10 @@ internal object DeveloperRuntime {
             File(dir, "lib/python3.13/site-packages/pip/__init__.py").isFile &&
             File(dir, "npm/bin/npm-cli.js").isFile
         if (target.isDirectory && valid(target) &&
-            context.assets.open("$ASSET.zip").use { RuntimePayloadIntegrity.matches(target, it) }) return target
+            context.assets.open("$ASSET.zip").use { RuntimePayloadIntegrity.matches(target, it) }) {
+            RuntimePayloadIntegrity.sealReadOnly(target)
+            return target
+        }
         RuntimePayloadIntegrity.removeTree(target)
         val staging = File(parent, "$digest.partial")
         RuntimePayloadIntegrity.removeTree(staging)
@@ -106,6 +109,7 @@ internal object DeveloperRuntime {
             }
             check(valid(staging) &&
                 archive.inputStream().use { RuntimePayloadIntegrity.matches(staging, it) }) { "开发环境数据不完整" }
+            RuntimePayloadIntegrity.sealReadOnly(staging)
             check(staging.renameTo(target)) { "无法安装开发环境数据" }
             return target
         } finally {
