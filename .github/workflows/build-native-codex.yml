@@ -115,6 +115,7 @@ jobs:
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
             android-app/tools/resolve_codex_catalog_version.py
+            android-app/tools/test_resolve_codex_catalog_version.py
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
@@ -127,6 +128,7 @@ jobs:
           python3 android-app/tools/resolve_codex_catalog_version.py --marker CODEX_UPSTREAM_COMMIT \
             --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
           grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
+          python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
       - name: 配置 Android SDK/NDK
         shell: bash
         run: |

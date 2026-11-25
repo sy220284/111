@@ -561,7 +561,15 @@ impl ModelsManager for OpenAiModelsManager {
             if self.api_key_discovery_disabled() || !self.should_refresh_models().await {
                 return Err(CodexErr::InvalidRequest("account model discovery is disabled or unavailable".into()));
             }
-            self.refresh_available_models(RefreshStrategy::Online, &http_client_factory).await
+            let before = self.refreshed_model_catalog();
+            self.refresh_available_models(RefreshStrategy::Online, &http_client_factory).await?;
+            let after = self.refreshed_model_catalog().ok_or_else(|| {
+                CodexErr::InvalidRequest("account model catalog changed during refresh".into())
+            })?;
+            if before.as_ref().is_some_and(|previous| Arc::ptr_eq(previous, &after)) {
+                return Err(CodexErr::InvalidRequest("no new account model catalog receipt".into()));
+            }
+            Ok(())
         })
     }
 

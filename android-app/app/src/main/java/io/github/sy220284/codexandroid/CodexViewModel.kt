@@ -99,7 +99,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         WorkspaceTaskOperations(this, workspaceRoot, workspacePreferences, viewModelScope)
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
-    internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
+    internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope, latestRequests) }
     private val mcpCatalog by lazy { McpCatalogController(this) }
     internal val accountMetrics by lazy {
         AccountMetricsSync(viewModelScope, data, loading, errors,
@@ -148,15 +148,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * 每次请求立即撤销旧的成功/错误状态；UI 只显示本轮实际返回的结果。
      */
     private val latestRequests = LatestRequestGate()
-    internal fun invalidateModelCatalogs(includeDefault: Boolean = true) {
-        val keys = (data.value.keys + loading.value + errors.value.keys).filter {
-            it.startsWith("composerModels:") || (includeDefault && it == "models")
-        }.toSet()
-        keys.forEach { latestRequests.cancel(it) }
-        data.value = data.value - keys
-        errors.value = errors.value - keys
-        loading.value = loading.value - keys
-    }
     internal val configTransactionBusy = MutableStateFlow(false)
     internal var configGeneration = 0L
         private set

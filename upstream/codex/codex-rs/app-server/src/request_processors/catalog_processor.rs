@@ -350,7 +350,8 @@ impl CatalogRequestProcessor {
         let domestic = model_provider.is_some() && include_hidden == Some(true)
             && config.model_provider.model_catalog_url.is_none()
             && codex_model_provider::is_domestic_live_catalog(config.model_provider.base_url.as_deref());
-        let refresh_strategy = if force_refresh == Some(true) || domestic {
+        let strict = force_refresh == Some(true) || domestic;
+        let refresh_strategy = if strict {
             self.config_manager.check_thread_model_provider(&config).await
                 .map_err(|err| config_load_error(&err))?;
             models_manager.refresh_catalog_checked(config.http_client_factory()).await
@@ -362,15 +363,35 @@ impl CatalogRequestProcessor {
         } else {
             codex_models_manager::manager::RefreshStrategy::OnlineIfUncached
         };
-        let presets = self
+        let fresh = if strict {
+            Some(models_manager.refreshed_model_catalog().ok_or_else(|| {
+                invalid_request("账号模型目录已变化，请重新刷新")
+            })?)
+        } else {
+            None
+        };
+        let mut presets = self
             .model_catalog
             .list_models_from_snapshot(
                 config,
-                models_manager,
+                Arc::clone(&models_manager),
                 refresh_strategy,
             )
             .await
             .map_err(|err| config_load_error(&err))?;
+        if let Some(fresh) = fresh {
+            let current = models_manager.refreshed_model_catalog().ok_or_else(|| {
+                invalid_request("账号模型目录已变化，请重新刷新")
+            })?;
+            if !Arc::ptr_eq(&fresh, &current) {
+                return Err(invalid_request("账号模型目录已变化，请重新刷新"));
+            }
+            // The upstream fallback may merge bundled entries when the remote
+            // response is empty or hidden-only. Explicit refresh must report
+            // only the actual account catalog, while retaining refined metadata.
+            presets.retain(|preset| fresh.iter().any(|model| model.slug == preset.model));
+            codex_protocol::openai_models::ModelPreset::mark_default_by_picker_visibility(&mut presets);
+        }
         let models = supported_models(presets, include_hidden.unwrap_or(false));
         let total = models.len();
 
