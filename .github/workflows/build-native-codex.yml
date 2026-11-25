@@ -260,9 +260,15 @@ jobs:
             --target "$TARGET" --root "$RUNNER_TEMP/ripgrep-install" --jobs 2
           test -s "$RUNNER_TEMP/ripgrep-install/bin/rg"
           cp "$RUNNER_TEMP/ripgrep-install/bin/rg" "target/$TARGET/release/rg"
-          bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
-            "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
-          for NAME in codex-app-server codex-code-mode-host rg git; do
+          COMPONENTS=(codex-app-server codex-code-mode-host rg)
+          # ARM64 shipping Git comes from the precompiled release at APK assembly.
+          # Retain the established optional x86 emulator-only local Git.
+          if [ "$TARGET" = "x86_64-linux-android" ]; then
+            bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
+              "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
+            COMPONENTS+=(git)
+          fi
+          for NAME in "${COMPONENTS[@]}"; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
             file "$CORE"

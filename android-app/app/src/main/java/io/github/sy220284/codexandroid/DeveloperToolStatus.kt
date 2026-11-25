@@ -21,6 +21,7 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
         for name in git rg curl python3 node npm; do
           if command -v "${'$'}name" >/dev/null 2>&1; then
             output=${'$'}("${'$'}name" --version 2>&1); code=$?
+            output=${'$'}(printf '%s\n' "${'$'}output" | head -n 1)
             printf '%s\t%s\t%s\n' "${'$'}name" "${'$'}code" "${'$'}output"
           else
             printf '%s\t127\t命令未找到\n' "${'$'}name"

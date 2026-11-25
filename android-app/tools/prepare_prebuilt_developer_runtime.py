@@ -127,6 +127,8 @@ def git_payload(apk, abi, native, data):
                     *relative(name[len("assets/usr/share/doc/"):]).parts))
     if not (data / "git/templates").is_dir():
         raise ValueError("Git templates missing")
+    if not any((data / "licenses/git-distribution/git").glob("*")):
+        raise ValueError("Git upstream notice missing")
 
 def prepare(abi, native, assets, work):
     data = work / "data"

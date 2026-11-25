@@ -15,7 +15,9 @@ test -x "$STRIP"
 TARGET="android-app/app/src/main/jniLibs/$ABI"
 mkdir -p "$TARGET"
 NEEDS_CPP_RUNTIME=0
-for ENTRY in "codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so" "rg:libcodex_rg.so" "git:libcodex_git.so"; do
+ENTRIES=("codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so" "rg:libcodex_rg.so")
+if [ "$ABI" = "x86_64" ]; then ENTRIES+=("git:libcodex_git.so"); fi
+for ENTRY in "${ENTRIES[@]}"; do
   NAME="${ENTRY%%:*}"; LIB="${ENTRY#*:}"
   mapfile -t MATCHES < <(find "$SRC_DIR" -type f -name "$NAME")
   if [ "${#MATCHES[@]}" -ne 1 ]; then
