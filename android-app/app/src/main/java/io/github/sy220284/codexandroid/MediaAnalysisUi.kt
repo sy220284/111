@@ -3,7 +3,10 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -51,8 +54,20 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
 
 @Composable
 internal fun MediaAnalysisReview(state: MediaAnalysisController.State, onDismiss: () -> Unit, onApply: (Boolean) -> Unit) {
-    // Shared confirmation surface; keep the original media attached by default.
-    CodexConfirmDialog(title = state.mode?.label.orEmpty(), message = "模型分析资料可能有误，核对后再加入草稿。",
-        detail = state.result.orEmpty(), confirmLabel = "保留附件并加入草稿", onConfirm = { onApply(false) },
-        onDismiss = onDismiss)
+    var textOnly by androidx.compose.runtime.remember(state.source) { androidx.compose.runtime.mutableStateOf(false) }
+    if (textOnly) CodexConfirmDialog(title = "仅使用分析文字",
+        message = "从本次草稿移除该媒体附件，但原始文件与派生资料将保留。适合不支持图片或音频的模型。",
+        detail = state.result.orEmpty(), confirmLabel = "保留原文件并加入文字",
+        onConfirm = { onApply(true) }, onDismiss = { textOnly = false })
+    else CodexDialogFrame(onDismissRequest = onDismiss,
+        title = { Text(state.mode?.label.orEmpty()) },
+        text = {
+            Column(Modifier.heightIn(max = atlasSheetHeight() * .56f)
+                .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("核对模型分析资料后选择发送形式。")
+                SelectionContainer { Text(state.result.orEmpty()) }
+            }
+        },
+        confirmButton = { CodexPrimaryButton(onClick = { onApply(false) }) { Text("保留附件") } },
+        dismissButton = { CodexTextAction(onClick = { textOnly = true }) { Text("仅使用文字") } })
 }

@@ -152,7 +152,7 @@ class ScreenShareService : Service() {
                         }
                         try {
                             // Recheck source identity after encoding as a resize may have occurred.
-                            if (reader === source && !ending) screenShareSession.publish(sessionToken, bytes)
+                            if (reader === source && !ending) screenShareSession.publish(sessionToken, bytes, now)
                         } finally { bytes.fill(0) }
                     } finally { bitmap.recycle(); row.fill(0); pixels.array().fill(0) }
                 }
@@ -169,19 +169,20 @@ class ScreenShareService : Service() {
     private fun terminate(message: String = "") {
         if (ending) return
         ending = true
-        token?.let { screenShareSession.finish(it, message) }
+        token?.let { screenShareSession.stopping(it, message) }
         stopSelf()
     }
 
     override fun onDestroy() {
         ending = true
-        token?.let { screenShareSession.finish(it) }
+        token?.let { screenShareSession.stopping(it) }
         try { display?.release() } finally {
             try { reader?.close() } finally {
                 projection?.unregisterCallback(callback)
                 projection?.stop()
                 worker?.quitSafely()
                 stopForeground(STOP_FOREGROUND_REMOVE)
+                token?.let { screenShareSession.finish(it) }
                 super.onDestroy()
             }
         }
@@ -200,8 +201,11 @@ class ScreenShareService : Service() {
                 .putExtra(TOKEN, token).putExtra(CONSENT, consent))
         }
         internal fun stop(context: Context) {
-            screenShareSession.state.value.token?.let { screenShareSession.finish(it) }
-            context.stopService(Intent(context, ScreenShareService::class.java))
+            val active = screenShareSession.state.value
+            val token = active.token ?: return
+            screenShareSession.stopping(token)
+            if (!context.stopService(Intent(context, ScreenShareService::class.java)))
+                screenShareSession.finish(token)
         }
     }
 }

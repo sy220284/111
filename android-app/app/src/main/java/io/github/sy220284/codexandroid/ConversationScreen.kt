@@ -358,6 +358,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             } else if (sharing.message.isNotBlank()) {
                 CodexNotice(sharing.message, NoticeTone.Warning)
             }
+            LiveScreenAnalysisPanel(vm, draftOwner, qwenProvider?.optString("id"), draft,
+                sharing, previewAccountRevision, enabled = !busy && !attachmentBusy && !mediaAnalysis.busy && remote == null)
             if (documentBusy) AtlasOperationProgress("正在导入本机文件")
             errors["composerDocuments"]?.let { ErrorText(it) }
             if (attachmentError.isNotBlank()) {

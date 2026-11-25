@@ -1,0 +1,46 @@
+package io.github.sy220284.codexandroid
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+@Composable
+internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider: String?,
+                                     question: String, share: ScreenShareSession.State, revision: Long,
+                                     enabled: Boolean) {
+    val controller = vm.composerContent.liveScreenAnalysis
+    val live by controller.state.collectAsState()
+    var confirm by remember(owner) { mutableStateOf(false) }
+    var review by remember(owner) { mutableStateOf(false) }
+    val mine = live.owner == owner && live.revision == revision
+    if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !live.running) {
+        CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }
+    }
+    if (mine && (live.running || live.observations.isNotEmpty() || live.message.isNotBlank())) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(if (live.running) "持续分析 · ${live.requests}/12" else live.message,
+                Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+            if (live.observations.isNotEmpty()) CodexTextAction(onClick = { review = true }) { Text("查看") }
+            if (live.running) CodexTextAction(onClick = { controller.stop() }) { Text("停止分析") }
+            else CodexTextAction(onClick = { controller.dismiss(owner) }) { Text("清除") }
+        }
+    } else if (live.running) {
+        CodexTextAction(onClick = { controller.stop() }) { Text("停止其他会话的持续分析") }
+    }
+    if (confirm && provider != null) CodexConfirmDialog(
+        title = "开启持续屏幕分析",
+        message = "持续共享期间，百炼 qwen3.8-omni-flash 将接收发生变化的屏幕采样画面及当前问题，可能产生费用。请避免显示敏感内容。",
+        detail = "最多5分钟、12次请求；每次最多3幅画面，串行分析，至少间隔10秒。停止共享或停止分析立即结束，不自动执行任何任务。",
+        confirmLabel = "同意并开始",
+        onConfirm = { confirm = false; controller.start(owner, provider, question) },
+        onDismiss = { confirm = false })
+    if (review && mine && live.observations.isNotEmpty()) CodexConfirmDialog(
+        title = "屏幕分析结果", message = "按共享时间顺序核对已完成的分析。模型描述可能存在遗漏。",
+        detail = live.observations.joinToString("\n\n") { "[${it.startMs}–${it.endMs}ms]\n${it.text}" },
+        confirmLabel = "加入当前草稿", onConfirm = { review = false; controller.apply(owner) },
+        onDismiss = { review = false })
+}

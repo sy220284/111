@@ -20,6 +20,7 @@ import java.util.UUID
 /** Capture the owner before launching an external picker; results never follow the visible page. */
 internal class ComposerContentController(private val vm: CodexViewModel) {
     internal val mediaAnalysis = MediaAnalysisController(vm)
+    internal val liveScreenAnalysis = LiveScreenAnalysisController(vm)
     private data class Target(val thread: String?, val workspace: String)
     private var pendingDocument: Target? = null
     private var cameraFile: File? = null
@@ -126,6 +127,7 @@ internal class ComposerContentController(private val vm: CodexViewModel) {
 
     fun stopScreenShare() {
         pendingShareToken = null
+        liveScreenAnalysis.stop()
         ScreenShareService.stop(context)
     }
 

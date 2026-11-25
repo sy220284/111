@@ -20,9 +20,10 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
                      val busy: Boolean = false, val result: String? = null, val error: String? = null)
     val state = MutableStateFlow(State())
     private var job: Job? = null
+    @Volatile private var activeClient: QwenMediaAnalysis? = null
 
     fun start(owner: String, provider: String, source: String, mode: QwenMediaWire.Mode, question: String) {
-        if (job?.isActive == true || !vm.globalWorkSnapshot().canStartNewTask) return
+        if (job?.isActive == true || vm.composerContent.liveScreenAnalysis.state.value.running || !vm.globalWorkSnapshot().canStartNewTask) return
         val revision = vm.catalogWarmup.accountRevision.value
         val epoch = vm.bridge.connectedSession.value ?: return
         if (source !in vm.composerDrafts.value[owner]?.images.orEmpty()) return
@@ -50,12 +51,16 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
                         if (mode != QwenMediaWire.Mode.NativeVideo)
                             require(LocalMediaAttachmentPolicy.ownedPaths(file.path).all { File(it).isFile && File(it).length() > 0 }) { "解析附件缺失" }
                         DomesticProviderCredentials.withBoundCredential(app, preset, endpoint) { key ->
-                            QwenMediaAnalysis(endpoint, key) {
+                            val client = QwenMediaAnalysis(endpoint, key) {
                                 cancellation.ensureActive()
                                 check(identityValid()) { "账号或运行核心已变化，停止媒体分析" }
-                            }.analyze(mode, file, question.ifBlank { "按时间顺序描述关键画面、声音及其关联。" }) { done, total ->
-                                state.update { it.copy(completed = done, total = total) }
                             }
+                            activeClient = client
+                            try {
+                                client.analyze(mode, file, question.ifBlank { "按时间顺序描述关键画面、声音及其关联。" }) { done, total ->
+                                    state.update { it.copy(completed = done, total = total) }
+                                }
+                            } finally { activeClient = null }
                         }
                     }
                 }
@@ -72,7 +77,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
         }
     }
 
-    fun cancel() { job?.cancel() }
+    fun cancel() { job?.cancel(); activeClient?.cancel() }
     fun dismiss(owner: String) {
         if (state.value.owner == owner && !state.value.busy) state.value = State()
     }
