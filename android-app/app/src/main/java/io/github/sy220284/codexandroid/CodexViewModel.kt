@@ -437,7 +437,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
                 val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
                     permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
-                    chosenOptions, hasImages = images.isNotEmpty()) { method, params -> bridge.request(method, params, expectedSession = epoch) }
+                    chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images)) { method, params -> bridge.request(method, params, expectedSession = epoch) }
                 if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, epoch)
                 if (chosenRemote == null) captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread)
                 LocalImageAttachments.preserveForHistory(getApplication(), images)

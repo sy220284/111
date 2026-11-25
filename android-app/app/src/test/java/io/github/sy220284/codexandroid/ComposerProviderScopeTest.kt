@@ -97,4 +97,30 @@ class ComposerProviderScopeTest {
         assertEquals(listOf("text", "image"), ComposerModelPolicy.inputKinds(model))
         assertTrue(ComposerModelPolicy.inputKinds(JSONObject()).isEmpty())
     }
+
+    @Test fun audioAndVideoUseRealNativeInputsWithoutInventingVideoProtocol() {
+        val audio = TurnRequestContract.input("听录音", listOf("/sample.m4a"))
+        assertEquals("localAudio", audio.getJSONObject(1).getString("type"))
+        assertEquals(setOf("audio"), LocalMediaAttachmentPolicy.modalities(listOf("/sample.wav")))
+        val dir = java.nio.file.Files.createTempDirectory("video-attachment-test").toFile()
+        try {
+            val video = java.io.File(dir, "sample.av.mp4").path
+            LocalMediaAttachmentPolicy.ownedPaths(video).forEach { java.io.File(it).writeText("test") }
+            val input = TurnRequestContract.input("", listOf(video))
+            assertEquals("text", input.getJSONObject(0).getString("type"))
+            assertEquals("localImage", input.getJSONObject(1).getString("type"))
+            assertEquals("localAudio", input.getJSONObject(2).getString("type"))
+            assertEquals(setOf("image", "audio"), LocalMediaAttachmentPolicy.modalities(listOf(video)))
+            val onlyImage = JSONObject().put("id", "vision").put("inputModalities", org.json.JSONArray().put("text").put("image"))
+            assertThrows(IllegalArgumentException::class.java) {
+                TurnRequestContract.build("t", "分析", "vision", "default", listOf(onlyImage), listOf(video))
+            }
+            java.io.File(LocalMediaAttachmentPolicy.sound(video)).delete()
+            assertThrows(IllegalArgumentException::class.java) { TurnRequestContract.input("", listOf(video)) }
+            val silent = java.io.File(dir, "sample.silent.mp4").path
+            LocalMediaAttachmentPolicy.ownedPaths(silent).forEach { java.io.File(it).writeText("test") }
+            assertEquals(setOf("image"), LocalMediaAttachmentPolicy.modalities(listOf(silent)))
+            assertEquals(2, TurnRequestContract.input("", listOf(silent)).length())
+        } finally { dir.deleteRecursively() }
+    }
 }

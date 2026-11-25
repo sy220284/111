@@ -41,7 +41,7 @@ object TurnRequestContract {
         require(threadId.isNotBlank()) { "缺少会话标识" }
         require(mode == "default" || mode == "plan") { "未知工作方式：$mode" }
         ComposerModelPolicy.requireEffort(catalog, modelId, effort)
-        ComposerModelPolicy.requireImageInput(catalog, modelId, localImages.isNotEmpty())
+        ComposerModelPolicy.requireMediaInput(catalog, modelId, LocalMediaAttachmentPolicy.modalities(localImages))
         val args = JSONObject().put("threadId", threadId).put("input", input(text, localImages, references))
         // Default execution inherits the live thread's model and current effort.
         // Only an explicit picker change should override its model.
@@ -60,7 +60,7 @@ object TurnRequestContract {
         }
         require(selected.isNotBlank()) { "计划模式需要先读取可用模型目录" }
         val model = requireNotNull(ComposerModelPolicy.model(visibleCatalog, selected)) { "计划模式所选模型已不可用，请重新选择" }
-        ComposerModelPolicy.requireImageInput(visibleCatalog, selected, localImages.isNotEmpty())
+        ComposerModelPolicy.requireMediaInput(visibleCatalog, selected, LocalMediaAttachmentPolicy.modalities(localImages))
         val configuredEffort = effectiveConfig?.optString("plan_mode_reasoning_effort")?.takeIf { it.isNotBlank() && it != "null" }
         val matchingEffort = configuredEffort?.takeIf { it in ComposerModelPolicy.efforts(visibleCatalog, selected) }
         require(effort.isNotBlank() || configuredEffort == null || matchingEffort != null || modelId.isNotBlank()) {

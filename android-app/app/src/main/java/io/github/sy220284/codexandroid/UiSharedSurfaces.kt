@@ -138,8 +138,10 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 "最近使用".takeIf { ComposerModelPolicy.recentRank(options, provider, id) != Int.MAX_VALUE },
                 "服务商默认".takeIf { item.optBoolean("isDefault") },
                 when {
-                    "image" in kinds -> if (provider == "openai") "支持图片" else "可发送图片 · 实际能力以请求为准"
-                    kinds == listOf("text") && draft.images.isNotEmpty() -> "仅文本 · 当前草稿含图片"
+                    "image" in kinds && "audio" in kinds -> if (provider == "openai") "图片 · 音频 · 视频抽帧+音轨" else "可尝试图片、音频与视频采样"
+                    "image" in kinds -> "图片 · 无声视频抽帧"
+                    "audio" in kinds -> "音频"
+                    kinds == listOf("text") && draft.images.isNotEmpty() -> "仅文本 · 当前草稿含媒体"
                     kinds == listOf("text") -> "仅文本"
                     else -> null
                 },
@@ -147,7 +149,9 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 id.takeIf { it != name }).joinToString(" · ")
             val group = when {
                 ComposerModelPolicy.recentRank(options, provider, id) != Int.MAX_VALUE -> "最近使用"
-                "image" in kinds -> if (provider == "openai") "支持图片" else "可发送图片"
+                "image" in kinds && "audio" in kinds -> "图片和音频"
+                "image" in kinds -> "可发送图片"
+                "audio" in kinds -> "可发送音频"
                 "text" in kinds -> "文字"
                 else -> "其他能力"
             }

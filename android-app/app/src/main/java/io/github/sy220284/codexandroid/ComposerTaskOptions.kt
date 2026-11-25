@@ -60,14 +60,19 @@ internal object ComposerModelPolicy {
             (0 until array.length()).map { array.optString(it) }.filter { it.isNotBlank() }.distinct()
         }.orEmpty()
 
-    fun requireImageInput(catalog: List<JSONObject>, modelId: String, hasImages: Boolean) {
-        if (!hasImages || modelId.isBlank()) return
+    fun requireMediaInput(catalog: List<JSONObject>, modelId: String, required: Set<String>) {
+        if (required.isEmpty() || modelId.isBlank()) return
         val kinds = model(catalog, modelId)?.let(::inputKinds).orEmpty()
-        // Unknown metadata is optimistic. A current explicit text-only result is a real constraint.
-        require(kinds.isEmpty() || "image" in kinds) {
-            "当前模型不接收图片，草稿附件已保留。请选择可处理图片的模型或移除附件后继续。"
+        if (kinds.isEmpty()) return
+        val missing = required - kinds.toSet()
+        require(missing.isEmpty()) {
+            "当前模型不接收" + missing.joinToString("、") { if (it == "audio") "音频" else "图片" } +
+                "，草稿附件已保留。请选择支持所需能力的模型或移除附件。"
         }
     }
+
+    fun requireImageInput(catalog: List<JSONObject>, modelId: String, hasImages: Boolean) =
+        requireMediaInput(catalog, modelId, if (hasImages) setOf("image") else emptySet())
 
     fun withEffort(options: ComposerTaskOptions, effort: String): ComposerTaskOptions {
         val key = "${options.modelProvider}/${options.model}"

@@ -158,7 +158,7 @@ internal object CodexNotificationDispatcher {
                 threadFailures.value = ThreadExecutionPolicy.failureUpdated(
                     threadFailures.value, threadId, reason)
                 if (threadId == activeThread.value &&
-                    (execution?.images?.isNotEmpty() == true || reason.contains("模型已明确拒绝图片输入"))) {
+                    (execution?.images?.isNotEmpty() == true || reason.contains("模型已明确拒绝图片输入") || reason.contains("模型已明确拒绝音频输入"))) {
                     refreshComposerCatalog()
                 }
             } else threadFailures.value = threadFailures.value - threadId
