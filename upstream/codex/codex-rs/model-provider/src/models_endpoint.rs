@@ -348,6 +348,21 @@ impl OpenAiModelsEndpoint {
 }
 
 impl ModelsEndpointClient for OpenAiModelsEndpoint {
+    fn image_input_scope(&self) -> Option<String> {
+        // Direct Responses providers have a stable credential/endpoint digest. Do not
+        // learn against an unrelated first-party login or an opaque runtime routing owner.
+        if self.provider_info.is_openai() || self.provider_info.requires_openai_auth
+            || self.provider_info.gateway_oauth.is_some() || self.runtime_auth.is_some()
+            || self.provider_info.has_command_auth() {
+            return None;
+        }
+        if self.has_provider_api_key() {
+            crate::domestic_probe::probe_identity(&self.provider_info).ok()
+        } else {
+            self.identity()
+        }
+    }
+
     fn refine_catalog<'a>(&self, models: &'a [codex_protocol::openai_models::ModelInfo]) -> std::borrow::Cow<'a, [codex_protocol::openai_models::ModelInfo]> {
         if crate::is_domestic_live_catalog(self.provider_info.base_url.as_deref()) {
             return crate::domestic_probe::refine_catalog(

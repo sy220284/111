@@ -9,6 +9,7 @@ use crate::catalog::SelectedCatalog;
 use crate::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use crate::config::ModelsManagerConfig;
 use crate::model_info;
+use crate::image_input::ImageInputEvidence;
 use chrono::DateTime;
 use chrono::Utc;
 use codex_http_client::HttpClientFactory;
@@ -68,6 +69,10 @@ pub trait ModelsEndpointClient: fmt::Debug + Send + Sync {
     /// manager and cache's caller-established scope.
     /// Return `None` when identity is unavailable; cached catalog reuse is then disabled.
     fn identity(&self) -> Option<String>;
+
+    /// Stable credential and endpoint scope for optimistic Responses image input.
+    /// Authoritative first-party and non-Responses providers retain their normal metadata.
+    fn image_input_scope(&self) -> Option<String> { None }
 
     /// Apply process-local, account-scoped evidence without modifying the stored catalog.
     fn refine_catalog<'a>(&self, models: &'a [ModelInfo]) -> Cow<'a, [ModelInfo]> {
@@ -174,6 +179,10 @@ pub struct RefreshedModelCatalog {
 
 /// Coordinates model discovery plus cached metadata on disk.
 pub trait ModelsManager: fmt::Debug + Send + Sync {
+    fn image_input_scope(&self) -> Option<String> { None }
+    fn image_input_rejected(&self, _scope: &str, _model: &str) -> bool { false }
+    fn record_image_input_rejection(&self, _scope: &str, _model: &str) -> std::io::Result<()> { Ok(()) }
+
     /// Whether to schedule initialization, without waiting on the catalog lock or auth.
     /// Return true when readiness is unknown or credentials must be resolved first.
     fn needs_initialization(&self) -> bool {
@@ -404,6 +413,7 @@ impl CatalogSource {
 #[derive(Clone, Debug, Default)]
 pub struct ModelCatalogSettings {
     cache: Option<Arc<dyn ModelsCache>>,
+    image_input: Arc<ImageInputEvidence>,
     pub api_key_model_discovery_default: bool,
     pub skip_bundled_seed: bool,
     // Before the host publishes a live change, each thread uses its configured default.
@@ -412,10 +422,17 @@ pub struct ModelCatalogSettings {
 
 impl ModelCatalogSettings {
     pub fn disk(codex_home: PathBuf) -> Self {
-        Self::with_cache(Arc::new(FileModelsCache::new(
+        let mut settings = Self::with_cache(Arc::new(FileModelsCache::new(
             codex_home.join(MODEL_CACHE_FILE),
             DEFAULT_MODEL_CACHE_TTL,
-        )))
+        )));
+        settings.image_input = Arc::new(ImageInputEvidence::disk(codex_home));
+        settings
+    }
+
+    /// Temporary provider catalogs share capability evidence, not the active model-list cache.
+    pub fn image_evidence_only(codex_home: PathBuf) -> Self {
+        Self { image_input: Arc::new(ImageInputEvidence::disk(codex_home)), ..Self::default() }
     }
 
     pub fn with_cache(cache: Arc<dyn ModelsCache>) -> Self {
@@ -458,6 +475,7 @@ pub struct StaticModelsManager {
     remote_models: Vec<ModelInfo>,
     auth_manager: Option<Arc<AuthManager>>,
     origin: ModelOrigin,
+    image_policy: Option<(ModelCatalogSettings, Arc<dyn ModelsEndpointClient>)>,
 }
 
 impl OpenAiModelsManager {
@@ -548,11 +566,37 @@ impl StaticModelsManager {
             remote_models: model_catalog.models,
             auth_manager,
             origin,
+            image_policy: None,
         }
+    }
+
+    pub fn with_image_input_policy(mut self, settings: ModelCatalogSettings, endpoint: Arc<dyn ModelsEndpointClient>) -> Self {
+        self.image_policy = Some((settings, endpoint));
+        self
+    }
+
+    fn effective_models(&self) -> Vec<ModelInfo> {
+        let mut models = self.remote_models.clone();
+        if let Some((settings, endpoint)) = &self.image_policy
+            && let Some(scope) = endpoint.image_input_scope() {
+            settings.image_input.apply(&scope, &mut models);
+        }
+        models
     }
 }
 
 impl ModelsManager for OpenAiModelsManager {
+    fn image_input_scope(&self) -> Option<String> { self.endpoint_client.image_input_scope() }
+    fn image_input_rejected(&self, scope: &str, model: &str) -> bool {
+        self.image_input_scope().as_deref() == Some(scope) && self.settings.image_input.rejected(scope, model)
+    }
+    fn record_image_input_rejection(&self, scope: &str, model: &str) -> std::io::Result<()> {
+        if self.image_input_scope().as_deref() != Some(scope) {
+            return Err(std::io::Error::other("model credential changed before image evidence could be recorded"));
+        }
+        self.settings.image_input.record(scope, model)
+    }
+
     fn refresh_catalog_checked(
         &self,
         http_client_factory: HttpClientFactory,
@@ -765,7 +809,11 @@ impl ModelsManager for OpenAiModelsManager {
                     model: model.into(),
                 })
             };
-            construct_model_info(model, remote, config)
+            let mut resolved = construct_model_info(model, remote, config);
+            if let Some(scope) = self.image_input_scope() {
+                self.settings.image_input.apply(&scope, std::slice::from_mut(Arc::make_mut(&mut resolved.model)));
+            }
+            resolved
         })
     }
 
@@ -799,11 +847,17 @@ impl OpenAiModelsManager {
             && entry.identity.is_some()
             && entry.identity == self.endpoint_client.identity()
         {
-            SelectedCatalog::CurrentSnapshot(self.endpoint_client.refine_catalog(&entry.models))
+            let mut models = self.endpoint_client.refine_catalog(&entry.models);
+            if let Some(scope) = self.image_input_scope() {
+                self.settings.image_input.apply(&scope, models.to_mut());
+            }
+            SelectedCatalog::CurrentSnapshot(models)
         } else {
-            SelectedCatalog::Fallback(Cow::Borrowed(
-                self.catalog_source.fallback_models().unwrap_or_default(),
-            ))
+            let mut models = Cow::Borrowed(self.catalog_source.fallback_models().unwrap_or_default());
+            if let Some(scope) = self.image_input_scope() {
+                self.settings.image_input.apply(&scope, models.to_mut());
+            }
+            SelectedCatalog::Fallback(models)
         }
     }
 
@@ -1148,6 +1202,20 @@ impl OpenAiModelsManager {
 }
 
 impl ModelsManager for StaticModelsManager {
+    fn image_input_scope(&self) -> Option<String> {
+        self.image_policy.as_ref().and_then(|(_, endpoint)| endpoint.image_input_scope())
+    }
+    fn image_input_rejected(&self, scope: &str, model: &str) -> bool {
+        self.image_input_scope().as_deref() == Some(scope)
+            && self.image_policy.as_ref().is_some_and(|(settings, _)| settings.image_input.rejected(scope, model))
+    }
+    fn record_image_input_rejection(&self, scope: &str, model: &str) -> std::io::Result<()> {
+        if self.image_input_scope().as_deref() != Some(scope) {
+            return Err(std::io::Error::other("model credential changed before image evidence could be recorded"));
+        }
+        self.image_policy.as_ref().ok_or_else(|| std::io::Error::other("image policy unavailable"))?.0.image_input.record(scope, model)
+    }
+
     fn needs_initialization(&self) -> bool {
         false
     }
@@ -1165,9 +1233,8 @@ impl ModelsManager for StaticModelsManager {
         _http_client_factory: HttpClientFactory,
     ) -> ModelsManagerFuture<'_, Vec<CatalogModel>> {
         Box::pin(async move {
-            self.remote_models
-                .iter()
-                .cloned()
+            self.effective_models()
+                .into_iter()
                 .map(|model| CatalogModel {
                     model: model.into(),
                     origin: self.origin,
@@ -1182,7 +1249,12 @@ impl ModelsManager for StaticModelsManager {
         config: &'a ModelsManagerConfig,
     ) -> ModelsManagerFuture<'a, CatalogModel> {
         Box::pin(async move {
-            construct_model_info_from_candidates(model, &self.remote_models, self.origin, config)
+            let mut resolved = construct_model_info_from_candidates(model, &self.remote_models, self.origin, config);
+            if let Some((settings, _)) = &self.image_policy
+                && let Some(scope) = self.image_input_scope() {
+                settings.image_input.apply(&scope, std::slice::from_mut(Arc::make_mut(&mut resolved.model)));
+            }
+            resolved
         })
     }
 
@@ -1223,11 +1295,11 @@ impl ModelsManager for StaticModelsManager {
     }
 
     fn get_remote_models(&self) -> ModelsManagerFuture<'_, Vec<ModelInfo>> {
-        Box::pin(async { self.remote_models.clone() })
+        Box::pin(async { self.effective_models() })
     }
 
     fn try_get_remote_models(&self) -> Result<Vec<ModelInfo>, TryLockError> {
-        Ok(self.remote_models.clone())
+        Ok(self.effective_models())
     }
 
     fn auth_manager(&self) -> Option<&AuthManager> {

@@ -47,7 +47,7 @@ internal object ComposerProviderScope {
 
     suspend fun submission(
         config: JSONObject, submittedThread: String?, chosenModel: String, chosenMode: String,
-        chosenOptions: ComposerTaskOptions, rpc: suspend (String, JSONObject) -> JSONObject
+        chosenOptions: ComposerTaskOptions, hasImages: Boolean = false, rpc: suspend (String, JSONObject) -> JSONObject
     ): Submission {
         val configuredProvider = ComposerProviderScope.provider(config.optString("model_provider")) ?: "openai"
         val existing = submittedThread?.let {
@@ -58,7 +58,7 @@ internal object ComposerProviderScope {
         }
         val provider = ComposerProviderScope.resolve(existingProvider,
             ComposerProviderScope.provider(chosenOptions.modelProvider), configuredProvider)
-        val requiresCatalog = chosenModel.isNotBlank() || chosenMode == "plan" ||
+        val requiresCatalog = hasImages || chosenModel.isNotBlank() || chosenMode == "plan" ||
             (submittedThread == null && provider != "openai")
         val catalog = if (requiresCatalog)
             records(rpc("model/list", ComposerProviderScope.request(provider)))
@@ -69,6 +69,12 @@ internal object ComposerProviderScope {
             ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel, provider != "openai")
             else chosenModel
         ComposerProviderScope.requireModel(catalog, requestModel, chosenOptions.effort)
+        val imageModel = requestModel.ifBlank {
+            ComposerProviderScope.provider(existing?.optString("model"))
+                ?: configuredModel ?: catalog.firstOrNull { !it.optBoolean("hidden") && it.optBoolean("isDefault") }
+                    ?.let { it.optString("id").ifBlank { it.optString("model") } }.orEmpty()
+        }
+        ComposerModelPolicy.requireImageInput(catalog, imageModel, hasImages)
         val effectiveConfig = if (chosenMode == "plan") JSONObject(config.toString()).apply {
             if (existing != null) {
                 put("model", ComposerProviderScope.provider(existing.optString("model")) ?: JSONObject.NULL)

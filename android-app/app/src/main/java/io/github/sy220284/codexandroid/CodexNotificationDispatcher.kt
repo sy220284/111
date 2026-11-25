@@ -157,6 +157,10 @@ internal object CodexNotificationDispatcher {
                     ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }
                 threadFailures.value = ThreadExecutionPolicy.failureUpdated(
                     threadFailures.value, threadId, reason)
+                if (threadId == activeThread.value &&
+                    (execution?.images?.isNotEmpty() == true || reason.contains("模型已明确拒绝图片输入"))) {
+                    refreshComposerCatalog()
+                }
             } else threadFailures.value = threadFailures.value - threadId
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId,

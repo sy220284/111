@@ -36,6 +36,24 @@ class ComposerProviderScopeTest {
         assertEquals("deepseek", ComposerTaskOptions.decode(ComposerTaskOptions("deepseek-flash", modelProvider = "deepseek").encode()).modelProvider)
     }
 
+    @Test fun imageAdmissionAllowsUnknownAndBlocksConfirmedTextOnlyWithoutDeletingDraft() {
+        val unknown = JSONObject().put("id", "unknown")
+        val image = JSONObject().put("id", "vision").put("inputModalities", org.json.JSONArray().put("text").put("image"))
+        val text = JSONObject().put("id", "text").put("inputModalities", org.json.JSONArray().put("text"))
+        val models = listOf(unknown, image, text)
+        ComposerModelPolicy.requireImageInput(models, "unknown", true)
+        ComposerModelPolicy.requireImageInput(models, "vision", true)
+        ComposerModelPolicy.requireImageInput(models, "text", false)
+        assertThrows(IllegalArgumentException::class.java) {
+            ComposerModelPolicy.requireImageInput(models, "text", true)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TurnRequestContract.build("thread", "读图", "text", "default", models, listOf("/image.png"))
+        }
+        val request = TurnRequestContract.build("thread", "读图", "vision", "default", models, listOf("/image.png"))
+        assertEquals("localImage", request.getJSONArray("input").getJSONObject(1).getString("type"))
+    }
+
     @Test fun neverSendsAnotherProvidersModel() {
         ComposerProviderScope.requireModel(catalog, "deepseek-flash", "")
         assertThrows(IllegalArgumentException::class.java) {

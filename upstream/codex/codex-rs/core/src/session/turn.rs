@@ -109,6 +109,7 @@ use codex_protocol::items::TurnItem;
 use codex_protocol::items::build_hook_prompt_message;
 use codex_protocol::models::BaseInstructions;
 use codex_protocol::models::ContentItem;
+use codex_protocol::models::FunctionCallOutputContentItem;
 use codex_protocol::models::MessagePhase;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::openai_models::InputModality;
@@ -1334,6 +1335,17 @@ fn turn_input_has_uploaded_audio_file(input: &TurnInput) -> bool {
     matches!(input, TurnInput::UserInput { content, .. } if content.iter().any(ResolvedUserInput::is_uploaded_audio_file))
 }
 
+const IMAGE_REJECTED_MESSAGE: &str = "当前模型已明确拒绝图片输入，原始附件已保留。请选择可处理图片的模型，或新建纯文本会话继续。";
+
+fn response_item_has_image(item: &ResponseItem) -> bool {
+    match item {
+        ResponseItem::Message { content, .. } => content.iter().any(|part| matches!(part, ContentItem::InputImage { .. })),
+        ResponseItem::FunctionCallOutput { output, .. } | ResponseItem::CustomToolCallOutput { output, .. } =>
+            output.content_items().is_some_and(|parts| parts.iter().any(|part| matches!(part, FunctionCallOutputContentItem::InputImage { .. }))),
+        _ => false,
+    }
+}
+
 fn unsupported_uploaded_audio_error() -> CodexErr {
     CodexErr::UnsupportedOperation(
         "The selected model does not support uploaded audio. Choose an audio-capable model or remove the attachment.".to_string(),
@@ -2148,6 +2160,15 @@ async fn run_sampling_request(
         } else {
             sess.clone_history().await
         };
+        let image_scope = sess.services.models_manager.image_input_scope();
+        let model_slug = &step_context.settings.model_info.slug;
+        // A previously rejected image-bearing context must not become an apparently
+        // successful text-only task. Keep history intact and surface recovery guidance.
+        if image_scope.as_deref().is_some_and(|scope|
+            sess.services.models_manager.image_input_rejected(scope, model_slug))
+            && history.raw_items().any(response_item_has_image) {
+            return Err(CodexErr::UnsupportedOperation(IMAGE_REJECTED_MESSAGE.into()));
+        }
         let input_item_count = history.raw_items().len();
         let sampling_step_context = Arc::new(StepContext {
             sampled_through_sequence: Some(history.input_sequence()),
@@ -2207,6 +2228,7 @@ async fn run_sampling_request(
             );
             (submitted, pending)
         };
+        let submitted_image = prompt.input.iter().any(response_item_has_image);
         let mut draining_for_mailbox = false;
         let tool_cancellation = cancellation_token.child_token();
         let result = try_run_sampling_request(
@@ -2232,6 +2254,14 @@ async fn run_sampling_request(
         let err = match result {
             Ok(output) => {
                 return Ok((output, notify_messages));
+            }
+            Err(err) if submitted_image && image_scope.is_some()
+                && codex_models_manager::is_definite_image_rejection(&err) => {
+                let scope = image_scope.as_deref().expect("checked image scope");
+                if let Err(error) = sess.services.models_manager.record_image_input_rejection(scope, model_slug) {
+                    tracing::warn!(%error, "image capability rejection could not be persisted");
+                }
+                return Err(CodexErr::UnsupportedOperation(IMAGE_REJECTED_MESSAGE.into()));
             }
             Err(err) => match err.details() {
                 CodexErrorDetails::ContextWindowExceeded => {

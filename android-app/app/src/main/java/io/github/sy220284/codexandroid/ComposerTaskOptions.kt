@@ -60,6 +60,15 @@ internal object ComposerModelPolicy {
             (0 until array.length()).map { array.optString(it) }.filter { it.isNotBlank() }.distinct()
         }.orEmpty()
 
+    fun requireImageInput(catalog: List<JSONObject>, modelId: String, hasImages: Boolean) {
+        if (!hasImages || modelId.isBlank()) return
+        val kinds = model(catalog, modelId)?.let(::inputKinds).orEmpty()
+        // Unknown metadata is optimistic. A current explicit text-only result is a real constraint.
+        require(kinds.isEmpty() || "image" in kinds) {
+            "当前模型不接收图片，草稿附件已保留。请选择可处理图片的模型或移除附件后继续。"
+        }
+    }
+
     fun withEffort(options: ComposerTaskOptions, effort: String): ComposerTaskOptions {
         val key = "${options.modelProvider}/${options.model}"
         return options.copy(effort = effort,

@@ -3,6 +3,8 @@ mod catalog;
 pub mod collaboration_mode_presets;
 pub(crate) mod config;
 pub mod manager;
+mod image_input;
+pub use image_input::is_definite_image_rejection;
 pub mod model_info;
 pub mod model_presets;
 mod originator;
