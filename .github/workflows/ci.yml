@@ -285,8 +285,7 @@ jobs:
             adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
             # The three phone-width checks share the same Android 35 APK, and never run 320dp.
-            adb shell wm size ${{ matrix.width_dp }}x800
-            adb shell wm density 160
+            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode prepare
             # The emulator has a hardware keyboard. Explicitly allow the software IME,
             # otherwise performTextInput succeeds while keyboard screenshots are false positives.
             adb shell settings put secure show_ime_with_hard_keyboard 1
@@ -707,3 +706,4 @@ jobs:
           REF: ${{ github.ref }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ci_gate.py
+

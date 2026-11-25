@@ -1,10 +1,26 @@
 #!/usr/bin/env python3
 import unittest
 from unittest.mock import patch
-from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens
+from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens, prepare_display_change
 
 
 class DeviceEvidenceTest(unittest.TestCase):
+    def test_display_preparation_foregrounds_app_and_stops_only_the_known_home_process(self):
+        with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Status: ok\nComplete", "", "USER PID NAME\nu0_a10 123 other.app"]) as adb:
+            prepare_display_change()
+            self.assertEqual(("shell", "am", "start", "-W", "-n", "io.github.sy220284.codexandroid/.MainActivity"), adb.call_args_list[1].args)
+            self.assertEqual(("shell", "am", "force-stop", "com.android.launcher3"), adb.call_args_list[2].args)
+        with patch("run_ui_device_checks.adb", return_value="android/.ResolverActivity") as adb:
+            with self.assertRaises(RuntimeError):
+                prepare_display_change()
+            self.assertEqual(1, adb.call_count)
+        with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Error: denied"]):
+            with self.assertRaises(RuntimeError):
+                prepare_display_change()
+        with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Status: ok", "", "u0_a10 123 com.android.launcher3"]):
+            with self.assertRaises(RuntimeError):
+                prepare_display_change()
+
     def test_success_requires_positive_count_and_successful_process(self):
         self.assertEqual("passed", parse_instrumentation("OK (142 tests)\n", 0)["status"])
         self.assertEqual("failed", parse_instrumentation("OK (0 tests)\n", 0)["status"])
@@ -45,3 +61,4 @@ class DeviceEvidenceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

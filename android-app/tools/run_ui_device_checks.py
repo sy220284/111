@@ -51,6 +51,23 @@ def adb(*args):
     return subprocess.check_output(["adb", *args], text=True).strip()
 
 
+def prepare_display_change():
+    """Keep AVD Launcher out of display reconfiguration; retain all app assertions."""
+    home = adb("shell", "cmd", "package", "resolve-activity", "--brief",
+               "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME")
+    package = home.splitlines()[-1].split("/", 1)[0] if home else ""
+    if package not in {"com.android.launcher3", "com.google.android.apps.nexuslauncher"}:
+        raise RuntimeError("Unexpected HOME package in dedicated UI emulator: " + home)
+    launch = adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
+    if not re.search(r"(?m)^Status: ok\s*$", launch):
+        raise RuntimeError("App could not own the display before reconfiguration: " + launch)
+    adb("shell", "am", "force-stop", package)
+    processes = adb("shell", "ps", "-A")
+    if any(line.split() and line.split()[-1].split(":", 1)[0] == package for line in processes.splitlines()):
+        raise RuntimeError("Background HOME process still running before display change")
+    print("DISPLAY_PREPARATION " + json.dumps({"foreground": PACKAGE, "stopped_home": package}), flush=True)
+
+
 def execute_instrumentation(classes, log_path):
     command = ["adb", "shell", "am", "instrument", "-w", "-r", "-e", "class",
                ",".join(PACKAGE + "." + c for c in classes), RUNNER]
@@ -125,6 +142,7 @@ def adaptive(width):
     original_font = adb("shell", "settings", "get", "system", "font_scale")
     original_size = re.search(r"Override size: (\d+x\d+)", adb("shell", "wm", "size"))
     try:
+        prepare_display_change()
         adb("shell", "wm", "size", f"{width}x{height}")
         adb("shell", "settings", "put", "system", "font_scale", font)
         result = run_fresh_suite(width, height, float(font), "ui-adaptive-result.log", "ui-screenshots-adaptive")
@@ -134,6 +152,7 @@ def adaptive(width):
             result.update(status="failed", evidence_category="adaptive_test_count_mismatch")
         return result
     finally:
+        prepare_display_change()
         adb("shell", "wm", "size", original_size.group(1) if original_size else "reset")
         if original_font == "null":
             adb("shell", "settings", "delete", "system", "font_scale")
@@ -144,8 +163,13 @@ def adaptive(width):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--width", type=int, choices=sorted(VARIANTS), required=True)
-    parser.add_argument("--mode", choices=["baseline", "adaptive"], required=True)
+    parser.add_argument("--mode", choices=["prepare", "baseline", "adaptive"], required=True)
     args = parser.parse_args()
+    if args.mode == "prepare":
+        prepare_display_change()
+        adb("shell", "wm", "size", f"{args.width}x800")
+        adb("shell", "wm", "density", "160")
+        return 0
     report = Path("ui-" + args.mode + "-diagnosis.json")
     try:
         result = baseline(args.width) if args.mode == "baseline" else adaptive(args.width)
@@ -158,3 +182,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
