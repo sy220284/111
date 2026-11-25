@@ -9,7 +9,7 @@ use crate::catalog::SelectedCatalog;
 use crate::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use crate::config::ModelsManagerConfig;
 use crate::model_info;
-use crate::image_input::ImageInputEvidence;
+use crate::image_input::{MediaInputEvidence, MediaInputKind};
 use chrono::DateTime;
 use chrono::Utc;
 use codex_http_client::HttpClientFactory;
@@ -72,7 +72,7 @@ pub trait ModelsEndpointClient: fmt::Debug + Send + Sync {
 
     /// Stable credential and endpoint scope for optimistic Responses image input.
     /// Authoritative first-party and non-Responses providers retain their normal metadata.
-    fn image_input_scope(&self) -> Option<String> { None }
+    fn media_input_scope(&self) -> Option<String> { None }
 
     /// Apply process-local, account-scoped evidence without modifying the stored catalog.
     fn refine_catalog<'a>(&self, models: &'a [ModelInfo]) -> Cow<'a, [ModelInfo]> {
@@ -179,9 +179,9 @@ pub struct RefreshedModelCatalog {
 
 /// Coordinates model discovery plus cached metadata on disk.
 pub trait ModelsManager: fmt::Debug + Send + Sync {
-    fn image_input_scope(&self) -> Option<String> { None }
-    fn image_input_rejected(&self, _scope: &str, _model: &str) -> bool { false }
-    fn record_image_input_rejection(&self, _scope: &str, _model: &str) -> std::io::Result<()> { Ok(()) }
+    fn media_input_scope(&self) -> Option<String> { None }
+    fn media_input_rejected(&self, _scope: &str, _model: &str, _kind: MediaInputKind) -> bool { false }
+    fn record_media_input_rejection(&self, _scope: &str, _model: &str, _kind: MediaInputKind) -> std::io::Result<()> { Ok(()) }
 
     /// Whether to schedule initialization, without waiting on the catalog lock or auth.
     /// Return true when readiness is unknown or credentials must be resolved first.
@@ -413,7 +413,7 @@ impl CatalogSource {
 #[derive(Clone, Debug, Default)]
 pub struct ModelCatalogSettings {
     cache: Option<Arc<dyn ModelsCache>>,
-    image_input: Arc<ImageInputEvidence>,
+    image_input: Arc<MediaInputEvidence>,
     pub api_key_model_discovery_default: bool,
     pub skip_bundled_seed: bool,
     // Before the host publishes a live change, each thread uses its configured default.
@@ -426,13 +426,13 @@ impl ModelCatalogSettings {
             codex_home.join(MODEL_CACHE_FILE),
             DEFAULT_MODEL_CACHE_TTL,
         )));
-        settings.image_input = Arc::new(ImageInputEvidence::disk(codex_home));
+        settings.image_input = Arc::new(MediaInputEvidence::disk(codex_home));
         settings
     }
 
     /// Temporary provider catalogs share capability evidence, not the active model-list cache.
-    pub fn image_evidence_only(codex_home: PathBuf) -> Self {
-        Self { image_input: Arc::new(ImageInputEvidence::disk(codex_home)), ..Self::default() }
+    pub fn media_evidence_only(codex_home: PathBuf) -> Self {
+        Self { image_input: Arc::new(MediaInputEvidence::disk(codex_home)), ..Self::default() }
     }
 
     pub fn with_cache(cache: Arc<dyn ModelsCache>) -> Self {
@@ -570,7 +570,7 @@ impl StaticModelsManager {
         }
     }
 
-    pub fn with_image_input_policy(mut self, settings: ModelCatalogSettings, endpoint: Arc<dyn ModelsEndpointClient>) -> Self {
+    pub fn with_media_input_policy(mut self, settings: ModelCatalogSettings, endpoint: Arc<dyn ModelsEndpointClient>) -> Self {
         self.image_policy = Some((settings, endpoint));
         self
     }
@@ -578,7 +578,7 @@ impl StaticModelsManager {
     fn effective_models(&self) -> Vec<ModelInfo> {
         let mut models = self.remote_models.clone();
         if let Some((settings, endpoint)) = &self.image_policy
-            && let Some(scope) = endpoint.image_input_scope() {
+            && let Some(scope) = endpoint.media_input_scope() {
             settings.image_input.apply(&scope, &mut models);
         }
         models
@@ -586,15 +586,15 @@ impl StaticModelsManager {
 }
 
 impl ModelsManager for OpenAiModelsManager {
-    fn image_input_scope(&self) -> Option<String> { self.endpoint_client.image_input_scope() }
-    fn image_input_rejected(&self, scope: &str, model: &str) -> bool {
-        self.image_input_scope().as_deref() == Some(scope) && self.settings.image_input.rejected(scope, model)
+    fn media_input_scope(&self) -> Option<String> { self.endpoint_client.media_input_scope() }
+    fn media_input_rejected(&self, scope: &str, model: &str, kind: MediaInputKind) -> bool {
+        self.media_input_scope().as_deref() == Some(scope) && self.settings.image_input.rejected(scope, model, kind)
     }
-    fn record_image_input_rejection(&self, scope: &str, model: &str) -> std::io::Result<()> {
-        if self.image_input_scope().as_deref() != Some(scope) {
+    fn record_media_input_rejection(&self, scope: &str, model: &str, kind: MediaInputKind) -> std::io::Result<()> {
+        if self.media_input_scope().as_deref() != Some(scope) {
             return Err(std::io::Error::other("model credential changed before image evidence could be recorded"));
         }
-        self.settings.image_input.record(scope, model)
+        self.settings.image_input.record(scope, model, kind)
     }
 
     fn refresh_catalog_checked(
@@ -810,7 +810,7 @@ impl ModelsManager for OpenAiModelsManager {
                 })
             };
             let mut resolved = construct_model_info(model, remote, config);
-            if let Some(scope) = self.image_input_scope() {
+            if let Some(scope) = self.media_input_scope() {
                 self.settings.image_input.apply(&scope, std::slice::from_mut(Arc::make_mut(&mut resolved.model)));
             }
             resolved
@@ -848,13 +848,13 @@ impl OpenAiModelsManager {
             && entry.identity == self.endpoint_client.identity()
         {
             let mut models = self.endpoint_client.refine_catalog(&entry.models);
-            if let Some(scope) = self.image_input_scope() {
+            if let Some(scope) = self.media_input_scope() {
                 self.settings.image_input.apply(&scope, models.to_mut());
             }
             SelectedCatalog::CurrentSnapshot(models)
         } else {
             let mut models = Cow::Borrowed(self.catalog_source.fallback_models().unwrap_or_default());
-            if let Some(scope) = self.image_input_scope() {
+            if let Some(scope) = self.media_input_scope() {
                 self.settings.image_input.apply(&scope, models.to_mut());
             }
             SelectedCatalog::Fallback(models)
@@ -1202,18 +1202,18 @@ impl OpenAiModelsManager {
 }
 
 impl ModelsManager for StaticModelsManager {
-    fn image_input_scope(&self) -> Option<String> {
-        self.image_policy.as_ref().and_then(|(_, endpoint)| endpoint.image_input_scope())
+    fn media_input_scope(&self) -> Option<String> {
+        self.image_policy.as_ref().and_then(|(_, endpoint)| endpoint.media_input_scope())
     }
-    fn image_input_rejected(&self, scope: &str, model: &str) -> bool {
-        self.image_input_scope().as_deref() == Some(scope)
-            && self.image_policy.as_ref().is_some_and(|(settings, _)| settings.image_input.rejected(scope, model))
+    fn media_input_rejected(&self, scope: &str, model: &str, kind: MediaInputKind) -> bool {
+        self.media_input_scope().as_deref() == Some(scope)
+            && self.image_policy.as_ref().is_some_and(|(settings, _)| settings.image_input.rejected(scope, model, kind))
     }
-    fn record_image_input_rejection(&self, scope: &str, model: &str) -> std::io::Result<()> {
-        if self.image_input_scope().as_deref() != Some(scope) {
+    fn record_media_input_rejection(&self, scope: &str, model: &str, kind: MediaInputKind) -> std::io::Result<()> {
+        if self.media_input_scope().as_deref() != Some(scope) {
             return Err(std::io::Error::other("model credential changed before image evidence could be recorded"));
         }
-        self.image_policy.as_ref().ok_or_else(|| std::io::Error::other("image policy unavailable"))?.0.image_input.record(scope, model)
+        self.image_policy.as_ref().ok_or_else(|| std::io::Error::other("image policy unavailable"))?.0.image_input.record(scope, model, kind)
     }
 
     fn needs_initialization(&self) -> bool {
@@ -1251,7 +1251,7 @@ impl ModelsManager for StaticModelsManager {
         Box::pin(async move {
             let mut resolved = construct_model_info_from_candidates(model, &self.remote_models, self.origin, config);
             if let Some((settings, _)) = &self.image_policy
-                && let Some(scope) = self.image_input_scope() {
+                && let Some(scope) = self.media_input_scope() {
                 settings.image_input.apply(&scope, std::slice::from_mut(Arc::make_mut(&mut resolved.model)));
             }
             resolved

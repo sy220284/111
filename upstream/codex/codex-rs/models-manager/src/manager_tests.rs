@@ -284,7 +284,7 @@ impl ExternalAuth for TestUnresolvedExternalApiKeyAuth {
 }
 
 impl ModelsEndpointClient for TestModelsEndpoint {
-    fn image_input_scope(&self) -> Option<String> {
+    fn media_input_scope(&self) -> Option<String> {
         self.image_scope.clone()
     }
 
@@ -1985,7 +1985,7 @@ async fn image_input_policy_reaches_catalog_cache_static_and_runtime_model() {
     manager.refresh_available_models(RefreshStrategy::OnlineIfUncached, &DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
     assert!(manager.get_remote_models().await.iter().any(|m| m.slug == slug && m.input_modalities.contains(&InputModality::Image)));
     assert!(manager.get_model_info(&slug, &config).await.input_modalities.contains(&InputModality::Image));
-    manager.record_image_input_rejection("credential-a", &slug).unwrap();
+    manager.record_media_input_rejection("credential-a", &slug, crate::MediaInputKind::Image).unwrap();
 
     let reopened = Arc::new(TestModelsEndpoint {
         image_scope: Some("credential-a".into()),
@@ -1995,15 +1995,15 @@ async fn image_input_policy_reaches_catalog_cache_static_and_runtime_model() {
     let cached = openai_manager_for_tests(home.path().to_path_buf(), reopened.clone());
     cached.refresh_available_models(RefreshStrategy::OnlineIfUncached, &DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
     assert_eq!(reopened.fetch_count(), 0);
-    assert_eq!(cached.get_model_info(&slug, &config).await.input_modalities, vec![InputModality::Text]);
+    assert_eq!(cached.get_model_info(&slug, &config).await.input_modalities, vec![InputModality::Text, InputModality::Audio]);
 
     let static_catalog = static_manager_for_tests(ModelsResponse { models: vec![model.clone()] })
-        .with_image_input_policy(ModelCatalogSettings::image_evidence_only(home.path().to_path_buf()), reopened);
-    assert_eq!(static_catalog.get_model_info(&slug, &config).await.input_modalities, vec![InputModality::Text]);
+        .with_media_input_policy(ModelCatalogSettings::media_evidence_only(home.path().to_path_buf()), reopened);
+    assert_eq!(static_catalog.get_model_info(&slug, &config).await.input_modalities, vec![InputModality::Text, InputModality::Audio]);
 
     let other = Arc::new(TestModelsEndpoint { image_scope: Some("credential-b".into()), ..Default::default() });
     let other_catalog = static_manager_for_tests(ModelsResponse { models: vec![model] })
-        .with_image_input_policy(ModelCatalogSettings::image_evidence_only(home.path().to_path_buf()), other);
+        .with_media_input_policy(ModelCatalogSettings::media_evidence_only(home.path().to_path_buf()), other);
     assert!(other_catalog.get_model_info(&slug, &config).await.input_modalities.contains(&InputModality::Image));
-    assert!(other_catalog.record_image_input_rejection("credential-a", &slug).is_err());
+    assert!(other_catalog.record_media_input_rejection("credential-a", &slug, crate::MediaInputKind::Image).is_err());
 }

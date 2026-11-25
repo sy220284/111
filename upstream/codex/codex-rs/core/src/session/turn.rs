@@ -98,6 +98,7 @@ use codex_history::ResponseItemEnvelope;
 use codex_hooks::SamplingKind;
 use codex_login::CodexAuth;
 use codex_model_provider::RemoteCompactionSupport;
+use codex_models_manager::MediaInputKind;
 use codex_protocol::config_types::AutoCompactTokenLimitScope;
 use codex_protocol::config_types::ModeKind;
 use codex_protocol::config_types::ServiceTier;
@@ -234,7 +235,8 @@ pub(crate) async fn run_turn(
     cancellation_token: CancellationToken,
 ) -> CodexResult<Option<String>> {
     let model_info = turn_context.capture_current_model_info();
-    if !model_info.input_modalities.contains(&InputModality::Audio)
+    if sess.services.models_manager.media_input_scope().is_none()
+        && !model_info.input_modalities.contains(&InputModality::Audio)
         && input.iter().any(turn_input_has_uploaded_audio_file)
     {
         let result = run_hooks_and_record_input_entries(
@@ -251,23 +253,17 @@ pub(crate) async fn run_turn(
             Ok(_) => Err(unsupported_uploaded_audio_error()),
         };
     }
-    // Reject known unsupported attachments before compaction can remove them.
-    if let Some(scope) = sess.services.models_manager.image_input_scope()
-        && sess.services.models_manager.image_input_rejected(&scope, &model_info.slug)
-        && (input.iter().any(|item| matches!(item, TurnInput::UserInput { content, .. }
-            if content.iter().any(ResolvedUserInput::is_image)))
-            || sess.clone_history().await.raw_items().any(response_item_has_image))
-    {
-        run_hooks_and_record_input_entries(
-            &sess,
-            &turn_context,
-            &model_info,
-            Some(&input),
-            /*pending_input*/ &[],
-            PersistContext::TurnStart,
-        )
-        .await?;
-        return Err(CodexErr::UnsupportedOperation(IMAGE_REJECTED_MESSAGE.into()));
+    if let Some(scope) = sess.services.models_manager.media_input_scope() {
+        let history = sess.clone_history().await;
+        for kind in [MediaInputKind::Image, MediaInputKind::Audio] {
+            if sess.services.models_manager.media_input_rejected(&scope, &model_info.slug, kind)
+                && (input.iter().any(|item| turn_input_has_media(item, kind))
+                    || history.raw_items().any(|item| response_item_has_media(item, kind)))
+            {
+                run_hooks_and_record_input_entries(&sess, &turn_context, &model_info, Some(&input), &[], PersistContext::TurnStart).await?;
+                return Err(CodexErr::UnsupportedOperation(media_rejected_message(kind).into()));
+            }
+        }
     }
     let auto_compaction_enabled = sess
         .services
@@ -1316,7 +1312,8 @@ pub(crate) fn recordable_inputs<'a>(
         .enumerate()
         .map(move |(index, item)| (item, initial_context.filter(|_| index == 0)))
         .chain(pending_input.iter().map(InputQueueEntry::input_and_context));
-    let rejected_audio = !model_info.input_modalities.contains(&InputModality::Audio)
+    let rejected_audio = sess.services.models_manager.media_input_scope().is_none()
+        && !model_info.input_modalities.contains(&InputModality::Audio)
         && input
             .clone()
             .any(|(item, _)| turn_input_has_uploaded_audio_file(item));
@@ -1353,13 +1350,29 @@ fn turn_input_has_uploaded_audio_file(input: &TurnInput) -> bool {
     matches!(input, TurnInput::UserInput { content, .. } if content.iter().any(ResolvedUserInput::is_uploaded_audio_file))
 }
 
-const IMAGE_REJECTED_MESSAGE: &str = "当前模型已明确拒绝图片输入，原始附件已保留。请选择可处理图片的模型，或新建纯文本会话继续。";
-
-fn response_item_has_image(item: &ResponseItem) -> bool {
+fn media_rejected_message(kind: MediaInputKind) -> &'static str {
+    match kind {
+        MediaInputKind::Image => "当前模型已明确拒绝图片输入，原始附件已保留。请选择支持图片的模型。",
+        MediaInputKind::Audio => "当前模型已明确拒绝音频输入，原始附件已保留。请选择支持音频的模型。",
+    }
+}
+fn turn_input_has_media(item: &TurnInput, kind: MediaInputKind) -> bool {
+    matches!(item, TurnInput::UserInput { content, .. } if content.iter().any(|part| match kind {
+        MediaInputKind::Image => part.is_image(),
+        MediaInputKind::Audio => matches!(part, ResolvedUserInput::Audio { .. } | ResolvedUserInput::LocalAudio { .. }),
+    }))
+}
+fn response_item_has_media(item: &ResponseItem, kind: MediaInputKind) -> bool {
     match item {
-        ResponseItem::Message { content, .. } => content.iter().any(|part| matches!(part, ContentItem::InputImage { .. })),
+        ResponseItem::Message { content, .. } => content.iter().any(|part| match kind {
+            MediaInputKind::Image => matches!(part, ContentItem::InputImage { .. }),
+            MediaInputKind::Audio => matches!(part, ContentItem::InputAudio { .. }),
+        }),
         ResponseItem::FunctionCallOutput { output, .. } | ResponseItem::CustomToolCallOutput { output, .. } =>
-            output.content_items().is_some_and(|parts| parts.iter().any(|part| matches!(part, FunctionCallOutputContentItem::InputImage { .. }))),
+            output.content_items().is_some_and(|parts| parts.iter().any(|part| match kind {
+                MediaInputKind::Image => matches!(part, FunctionCallOutputContentItem::InputImage { .. }),
+                MediaInputKind::Audio => matches!(part, FunctionCallOutputContentItem::InputAudio { .. }),
+            })),
         _ => false,
     }
 }
@@ -2178,14 +2191,19 @@ async fn run_sampling_request(
         } else {
             sess.clone_history().await
         };
-        let image_scope = sess.services.models_manager.image_input_scope();
+        let media_scope = sess.services.models_manager.media_input_scope();
         let model_slug = &step_context.settings.model_info.slug;
-        // A previously rejected image-bearing context must not become an apparently
-        // successful text-only task. Keep history intact and surface recovery guidance.
-        if image_scope.as_deref().is_some_and(|scope|
-            sess.services.models_manager.image_input_rejected(scope, model_slug))
-            && history.raw_items().any(response_item_has_image) {
-            return Err(CodexErr::UnsupportedOperation(IMAGE_REJECTED_MESSAGE.into()));
+        let mut input_modalities = step_context.settings.model_info.input_modalities.clone();
+        if let Some(scope) = media_scope.as_deref() {
+            for kind in [MediaInputKind::Image, MediaInputKind::Audio] {
+                if sess.services.models_manager.media_input_rejected(scope, model_slug, kind) {
+                    if history.raw_items().any(|item| response_item_has_media(item, kind)) {
+                        return Err(CodexErr::UnsupportedOperation(media_rejected_message(kind).into()));
+                    }
+                } else if input_modalities.contains(&InputModality::Text) && !input_modalities.contains(&kind.modality()) {
+                    input_modalities.push(kind.modality());
+                }
+            }
         }
         let input_item_count = history.raw_items().len();
         let sampling_step_context = Arc::new(StepContext {
@@ -2194,7 +2212,7 @@ async fn run_sampling_request(
         });
         let mut prompt_input = history
             .for_prompt(
-                &step_context.settings.model_info.input_modalities,
+                &input_modalities,
                 sess.services.image_store.as_ref(),
             )
             .await;
@@ -2246,7 +2264,7 @@ async fn run_sampling_request(
             );
             (submitted, pending)
         };
-        let submitted_image = prompt.input.iter().any(response_item_has_image);
+        let submitted_media: Vec<_> = [MediaInputKind::Image, MediaInputKind::Audio].into_iter().filter(|kind| prompt.input.iter().any(|item| response_item_has_media(item, *kind))).collect();
         let mut draining_for_mailbox = false;
         let tool_cancellation = cancellation_token.child_token();
         let result = try_run_sampling_request(
@@ -2273,13 +2291,15 @@ async fn run_sampling_request(
             Ok(output) => {
                 return Ok((output, notify_messages));
             }
-            Err(err) if submitted_image && image_scope.is_some()
-                && codex_models_manager::is_definite_image_rejection(&err) => {
-                let scope = image_scope.as_deref().expect("checked image scope");
-                if let Err(error) = sess.services.models_manager.record_image_input_rejection(scope, model_slug) {
-                    tracing::warn!(%error, "image capability rejection could not be persisted");
+            Err(err) if media_scope.is_some() && submitted_media.iter().any(|kind| codex_models_manager::is_definite_media_rejection(&err, *kind)) => {
+                let scope = media_scope.as_deref().expect("checked media scope");
+                let rejected: Vec<_> = submitted_media.into_iter().filter(|kind| codex_models_manager::is_definite_media_rejection(&err, *kind)).collect();
+                for kind in &rejected {
+                    if let Err(error) = sess.services.models_manager.record_media_input_rejection(scope, model_slug, *kind) {
+                        tracing::warn!(%error, "media capability rejection could not be persisted");
+                    }
                 }
-                return Err(CodexErr::UnsupportedOperation(IMAGE_REJECTED_MESSAGE.into()));
+                return Err(CodexErr::UnsupportedOperation(rejected.into_iter().map(media_rejected_message).collect::<Vec<_>>().join(" ")));
             }
             Err(err) => match err.details() {
                 CodexErrorDetails::ContextWindowExceeded => {

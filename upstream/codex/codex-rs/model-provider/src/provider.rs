@@ -737,7 +737,7 @@ impl ModelProvider for ConfiguredModelProvider {
                 self.auth_manager.clone(),
                 model_catalog,
                 codex_models_manager::ModelOrigin::ExplicitConfig,
-            ).with_image_input_policy(settings, endpoint));
+            ).with_media_input_policy(settings, endpoint));
         }
         if let Some(profile) = crate::domestic_catalog::profile(self.info.base_url.as_deref())
             .filter(|profile| profile.catalog == "manual" && self.info.model_catalog_url.is_none()
@@ -754,7 +754,7 @@ impl ModelProvider for ConfiguredModelProvider {
                 self.auth_manager.clone(),
                 ModelsResponse { models },
                 codex_models_manager::ModelOrigin::Bundled,
-            ).with_image_input_policy(settings, endpoint));
+            ).with_media_input_policy(settings, endpoint));
         }
         let auth_manager = self.auth_manager.clone();
         let manager = OpenAiModelsManager::with_settings(settings, endpoint, auth_manager);

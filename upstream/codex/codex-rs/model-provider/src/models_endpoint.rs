@@ -348,7 +348,7 @@ impl OpenAiModelsEndpoint {
 }
 
 impl ModelsEndpointClient for OpenAiModelsEndpoint {
-    fn image_input_scope(&self) -> Option<String> {
+    fn media_input_scope(&self) -> Option<String> {
         // Direct Responses providers have a stable credential/endpoint digest. Do not
         // learn against an unrelated first-party login or an opaque runtime routing owner.
         if self.provider_info.is_openai() || self.provider_info.requires_openai_auth
