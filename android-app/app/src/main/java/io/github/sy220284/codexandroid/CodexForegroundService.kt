@@ -184,6 +184,8 @@ class CodexForegroundService : Service() {
         private const val CHANNEL = "codex-active-turn"
         private const val ACTION_STOP = "io.github.sy220284.codexandroid.STOP_ACTIVE_TURN"
         private val readiness = ForegroundServiceReadiness()
+        internal val protectionState: kotlinx.coroutines.flow.StateFlow<ForegroundStartState>
+            get() = readiness.state
 
         @Synchronized fun start(context: Context) {
             if (readiness.state.value == ForegroundStartState.Ready ||

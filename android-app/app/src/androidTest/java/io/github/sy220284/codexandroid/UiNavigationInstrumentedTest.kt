@@ -1171,8 +1171,15 @@ class UiNavigationInstrumentedTest {
             if (route == "diagnostics") {
                 // 搜索完整页面名称应停留在概览，不能误开日志对话框。
                 rule.onAllNodes(isRoot()).assertCountEquals(1)
+                rule.onNodeWithTag("diagnostics-overview").assertIsDisplayed()
+                rule.onNodeWithTag("diagnostics-connect").assertHasClickAction()
+                rule.onNodeWithTag("diagnostics-restart").assertHasClickAction()
+                rule.onNodeWithTag("diagnostics-runtime-policy").assertExists()
+                rule.onNodeWithTag("diagnostics-log-panel").assertExists()
                 rule.onNodeWithText("查看启动日志").assertHasClickAction()
                 captureVerifiedDisplayScreenshot("audit-diagnostics-android35.png")
+                rule.onNodeWithTag("diagnostics-environment").performScrollTo().assertIsDisplayed()
+                rule.onNodeWithTag("diagnostics-crash-history").performScrollTo().assertIsDisplayed()
             } else capture("audit-" + route + "-android35.png")
         }
     }
