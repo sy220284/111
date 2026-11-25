@@ -14,12 +14,13 @@ class PinnedProtocolContractTest(unittest.TestCase):
         cls.source = UPSTREAM.read_text(encoding="utf-8")
         cls.methods = parse_contracts(cls.source)
 
-    def test_all_195_methods_have_a_single_direction(self):
+    def test_all_196_methods_have_a_single_direction(self):
         client, host = request_method_names(self.source)
-        self.assertEqual(187, len(client))
+        self.assertEqual(188, len(client))
         self.assertEqual(8, len(host))
-        self.assertEqual(195, len(self.methods))
+        self.assertEqual(196, len(self.methods))
         self.assertFalse(client & host)
+        self.assertIn("modelProvider/model/verify", client)
 
     def test_host_methods_match_supported_and_gated_capabilities(self):
         _client, host = request_method_names(self.source)

@@ -24,7 +24,7 @@ class SchemaAlignmentTest(unittest.TestCase):
         errors, stats = verify(self.protocol, self.schemas, self.thread,
                                self.project, self.connection, self.turn, self.turn_contract)
         self.assertEqual([], errors)
-        self.assertEqual(195, stats["methods"])
+        self.assertEqual(196, stats["methods"])
         self.assertEqual(204, stats["stableClientDtoSchemas"])
         self.assertEqual(8, stats["hostRequestMethods"])
 
