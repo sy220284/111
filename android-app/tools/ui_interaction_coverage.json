@@ -478,7 +478,7 @@
       "parent": "files",
       "file": "DeveloperScreens.kt",
       "owner": "WorkspacePage",
-      "component": "AtlasExclusiveChip",
+      "component": "AtlasCompactChoice",
       "test": "unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction",
       "screenshot": null
     },

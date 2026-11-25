@@ -479,7 +479,7 @@
         "FeatureSwitchController",
         "Screens"
       ],
-      "business": "从内核读取真实功能开关目录，状态和阶段筛选生效状态，独立确认写入并回读，管理策略及不适用项只读",
+      "business": "从内核读取真实功能开关目录，按用途及状态筛选；显示偏好直接操作，其他变更经确认后写入并回读；管理策略及不适用项只读",
       "tests": [
         "UiNavigationInstrumentedTest.featureCatalogKeepsUserFacingRoutesOnly"
       ],
@@ -650,7 +650,7 @@
         ],
         [
           "DeveloperScreens",
-          "AtlasExclusiveChip"
+          "AtlasCompactChoice"
         ],
         [
           "CodexControlPrimitives",
