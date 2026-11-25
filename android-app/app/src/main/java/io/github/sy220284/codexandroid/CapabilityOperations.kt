@@ -28,13 +28,15 @@ internal suspend fun capabilityPages(
     fetch: suspend (String?) -> JSONObject
 ): List<JSONObject> {
     var cursor: String? = null
-    val seen = mutableSetOf<String>()
+    val budget = CatalogPageBudget()
     val rows = mutableListOf<JSONObject>()
     do {
+        budget.beforeRequest()
         val page = fetch(cursor)
-        rows.addAll(page.objects())
+        val items = page.objects()
         cursor = page.value("nextCursor").takeIf(String::isNotBlank)
-        check(cursor == null || seen.add(cursor)) { "运行引擎返回了重复的列表游标" }
+        budget.accept(items.size, cursor)
+        rows.addAll(items)
     } while (cursor != null)
     return rows
 }

@@ -4,6 +4,9 @@ import argparse
 import json
 import re
 import subprocess
+import os
+import time
+import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
 
@@ -62,9 +65,47 @@ def execute_instrumentation(classes, log_path):
 
 
 def clear_device_screens():
-    # Delete only screenshot files owned by the acceptance suite.
-    for screen in parse_discovered_screens(adb("shell", "ls", "-1", DEVICE_ROOT)):
+    command = f'if [ -d "{DEVICE_ROOT}" ]; then ls -1 "{DEVICE_ROOT}"; fi'
+    for screen in parse_discovered_screens(adb("shell", command)):
         adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android35.png")
+    if parse_discovered_screens(adb("shell", command)):
+        raise RuntimeError("Previous device screenshots were not cleared")
+
+
+def assert_device(width, height, font=None):
+    size = adb("shell", "wm", "size")
+    density = adb("shell", "wm", "density")
+    actual_size = re.findall(r"(?:Override|Physical) size: (\d+x\d+)", size)
+    actual_density = re.findall(r"(?:Override|Physical) density: (\d+)", density)
+    if not actual_size or actual_size[-1] != f"{width}x{height}" or not actual_density or actual_density[-1] != "160":
+        raise RuntimeError("Device configuration does not match evidence label")
+    actual_font = adb("shell", "settings", "get", "system", "font_scale")
+    measured_font = float(actual_font) if actual_font != "null" else 1.0
+    if font is not None and measured_font != float(font):
+        raise RuntimeError("Device font scale does not match evidence label")
+    return measured_font
+
+
+def run_fresh_suite(width, height, font, log, destination):
+    font = assert_device(width, height, font)
+    adb("shell", "am", "force-stop", PACKAGE)
+    clear_device_screens()
+    run_id = uuid.uuid4().hex
+    started = time.time()
+    result = execute_instrumentation(SUITE, log)
+    missing, code = collect_screens(destination)
+    manifest = Path(destination) / "manifest.json"
+    if manifest.is_file():
+        evidence = json.loads(manifest.read_text(encoding="utf-8"))
+        evidence.update(run_id=run_id, started_at_epoch=started,
+                        commit=os.environ.get("GITHUB_SHA"), width_dp=width,
+                        height_dp=height, font_scale=font)
+        manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    result.update(run_id=run_id, width_dp=width, height_dp=height,
+                  font_scale=font, missing_screens=missing, screenshot_collection_exit=code)
+    if missing or code:
+        result.update(status="failed", evidence_category="screenshot_missing_or_collection_error")
+    return result
 
 
 def collect_screens(destination):
@@ -76,40 +117,24 @@ def collect_screens(destination):
 
 
 def baseline(width):
-    result = execute_instrumentation(SUITE, "ui-instrument-result.log")
-    missing, collection_code = collect_screens("ui-screenshots")
-    result.update(width_dp=width, height_dp=800, missing_screens=missing,
-                  screenshot_collection_exit=collection_code)
-    if missing or collection_code:
-        result["status"] = "failed"
-        result["evidence_category"] = "screenshot_missing_or_collection_error"
-    return result
+    return run_fresh_suite(width, 800, 1.0, "ui-instrument-result.log", "ui-screenshots")
 
 
 def adaptive(width):
     height, font = VARIANTS[width]
     original_font = adb("shell", "settings", "get", "system", "font_scale")
+    original_size = re.search(r"Override size: (\d+x\d+)", adb("shell", "wm", "size"))
     try:
         adb("shell", "wm", "size", f"{width}x{height}")
         adb("shell", "settings", "put", "system", "font_scale", font)
-        # Run the complete suite at every adaptive configuration, with fresh evidence.
-        clear_device_screens()
-        actual_size = adb("shell", "wm", "size")
-        actual_font = adb("shell", "settings", "get", "system", "font_scale")
-        if f"Override size: {width}x{height}" not in actual_size or float(actual_font) != float(font):
-            raise RuntimeError("Adaptive device configuration not applied")
-        adb("shell", "am", "force-stop", PACKAGE)
-        result = execute_instrumentation(SUITE, "ui-adaptive-result.log")
-        missing, collection_code = collect_screens("ui-screenshots-adaptive")
+        result = run_fresh_suite(width, height, float(font), "ui-adaptive-result.log", "ui-screenshots-adaptive")
         baseline_result = json.loads(Path("ui-baseline-diagnosis.json").read_text(encoding="utf-8"))
-        result.update(width_dp=width, height_dp=height, font_scale=float(font), missing_screens=missing,
-                      expected_tests=baseline_result["tests"], screenshot_collection_exit=collection_code)
-        if result["tests"] != baseline_result["tests"] or missing or collection_code:
-            result["status"] = "failed"
-            result["evidence_category"] = "adaptive_test_count_or_screenshot_missing"
+        result["expected_tests"] = baseline_result["tests"]
+        if result["tests"] != baseline_result["tests"]:
+            result.update(status="failed", evidence_category="adaptive_test_count_mismatch")
         return result
     finally:
-        adb("shell", "wm", "size", f"{width}x800")
+        adb("shell", "wm", "size", original_size.group(1) if original_size else "reset")
         if original_font == "null":
             adb("shell", "settings", "delete", "system", "font_scale")
         else:

@@ -200,10 +200,15 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         if (question) {
             val items = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
             val index = questionIndex.coerceIn(0, (items.length() - 1).coerceAtLeast(0))
-            val answered = (0 until items.length()).count { n ->
-                answers[items.optJSONObject(n)?.optString("id").orEmpty()]?.isNotBlank() == true
+            val unanswered = (0 until items.length()).filter { n ->
+                answers[items.optJSONObject(n)?.optString("id").orEmpty()]?.isNotBlank() != true
             }
-            Text("问题 ${index + 1} / ${items.length()} · 已回答 $answered 项", color = Ink.muted)
+            Text("问题 ${index + 1} / ${items.length()} · 已回答 ${items.length() - unanswered.size} 项 · 未答 ${unanswered.size} 项", color = Ink.muted)
+            if (unanswered.isNotEmpty() && index !in unanswered) {
+                CodexTextAction(onClick = {
+                    questionIndex = unanswered.firstOrNull { it > index } ?: unanswered.first()
+                }, modifier = Modifier.testTag("approval-next-unanswered")) { Text("定位未回答问题") }
+            }
             items.optJSONObject(index)?.let { q ->
                 val id = q.optString("id")
                 val options = q.optJSONArray("options")

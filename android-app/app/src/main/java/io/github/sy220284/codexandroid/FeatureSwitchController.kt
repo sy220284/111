@@ -11,6 +11,7 @@ import org.json.JSONObject
 
 internal data class FeatureSwitchSnapshot(
     val session: Long,
+    val account: Long,
     val rows: List<CoreFeatureSwitch>,
     val managed: Set<String>,
     val userVersion: String?,
@@ -19,7 +20,8 @@ internal data class FeatureSwitchSnapshot(
 
 /** Complete paginated authoritative list. Optional thread scope is read-only. */
 internal suspend fun readCoreFeatureSwitches(
-    vm: CodexViewModel, session: Long, threadId: String? = null
+    vm: CodexViewModel, session: Long, threadId: String? = null,
+    account: Long = vm.catalogWarmup.accountRevision.value
 ): List<CoreFeatureSwitch> {
     val rows = mutableListOf<CoreFeatureSwitch>()
     val keys = mutableSetOf<String>()
@@ -29,7 +31,7 @@ internal suspend fun readCoreFeatureSwitches(
         budget.beforeRequest()
         val page = vm.capabilityRequest("experimentalFeature/list",
             capabilityPageParams(cursor).apply { threadId?.let { put("threadId", it) } },
-            expectedSession = session)
+            sendPermit = { vm.catalogWarmup.accountRevision.value == account }, expectedSession = session)
         val data = page.getJSONArray("data")
         cursor = page.value("nextCursor").takeIf { it.isNotBlank() }
         budget.accept(data.length(), cursor)
@@ -50,6 +52,8 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         private set
     var attemptedSession by mutableStateOf<Long?>(null)
         private set
+    var attemptedAccount by mutableStateOf<Long?>(null)
+        private set
     var busy by mutableStateOf(false)
         private set
     var error by mutableStateOf("")
@@ -63,19 +67,19 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
 
     private suspend fun read(session: Long, account: Long): FeatureSwitchSnapshot {
         check(current(session, account)) { "配置所属账号或核心已变化，请重新读取" }
-        val rows = readCoreFeatureSwitches(vm, session)
-        val requirements = vm.capabilityRequest("configRequirements/read", expectedSession = session)
+        val rows = readCoreFeatureSwitches(vm, session, account = account)
+        val requirements = vm.capabilityRequest("configRequirements/read", sendPermit = { current(session, account) }, expectedSession = session)
             .optJSONObject("requirements")?.optJSONObject("featureRequirements")
         val managed = requirements?.keys()?.asSequence()?.toSet().orEmpty()
         val config = vm.capabilityRequest("config/read", JSONObject().put("includeLayers", true),
-            expectedSession = session)
+            sendPermit = { current(session, account) }, expectedSession = session)
         val user = config.objects("layers").firstOrNull {
             it.optJSONObject("name")?.let { name ->
                 name.optString("type") == "user" && name.value("profile").isBlank()
             } == true
         }
         check(current(session, account)) { "配置所属账号或核心已变化，请重新读取" }
-        return FeatureSwitchSnapshot(session, rows, managed, user?.value("version")?.takeIf { it.isNotBlank() },
+        return FeatureSwitchSnapshot(session, account, rows, managed, user?.value("version")?.takeIf { it.isNotBlank() },
             user?.optJSONObject("config")?.optJSONObject("features"))
     }
 
@@ -84,6 +88,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         if (busy) return
         val account = vm.catalogWarmup.accountRevision.value
         attemptedSession = session
+        attemptedAccount = account
         busy = true
         error = ""
         receipt = ""
@@ -105,11 +110,13 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         }
     }
 
-    fun change(row: CoreFeatureSwitch, enabled: Boolean, expectedSession: Long) {
+    fun change(row: CoreFeatureSwitch, enabled: Boolean, expectedSession: Long, expectedAccount: Long) {
         val session = vm.bridge.connectedSession.value ?: return
-        if (busy || expectedSession != session || snapshot?.session != session) return
         val account = vm.catalogWarmup.accountRevision.value
+        if (busy || expectedSession != session || expectedAccount != account ||
+            snapshot?.session != session || snapshot?.account != account) return
         attemptedSession = session
+        attemptedAccount = account
         error = ""
         receipt = ""
         if (vm.configBusy()) { error = "已有配置操作正在处理，请稍后重试"; return }
@@ -134,7 +141,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
                 ConfigWriteTransaction.executeSnapshot(
                     write = { vm.capabilityRequest("config/batchWrite",
                         FeatureSwitchPolicy.writeParams(row.name, enabled, before.userVersion),
-                        expectedSession = session) },
+                        sendPermit = { current(session, account) }, expectedSession = session) },
                     read = { read(session, account) },
                     isCurrent = { current(session, account) },
                     publish = { snapshot = it },

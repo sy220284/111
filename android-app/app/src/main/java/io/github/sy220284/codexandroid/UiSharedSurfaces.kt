@@ -145,7 +145,13 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 },
                 "可调思考强度".takeIf { ComposerModelPolicy.efforts(available, id).isNotEmpty() },
                 id.takeIf { it != name }).joinToString(" · ")
-            CodexChoice(id, name, detail.ifBlank { item.optString("description") })
+            val group = when {
+                ComposerModelPolicy.recentRank(options, provider, id) != Int.MAX_VALUE -> "最近使用"
+                "image" in kinds -> "支持图片"
+                "text" in kinds -> "文字"
+                else -> "其他能力"
+            }
+            CodexChoice(id, name, detail.ifBlank { item.optString("description") }, group)
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
             .sortedBy { ComposerModelPolicy.recentRank(options, provider, it.id) }
     }

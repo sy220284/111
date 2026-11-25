@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import unittest
-from run_ui_device_checks import parse_instrumentation
+from unittest.mock import patch
+from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens
 
 
 class DeviceEvidenceTest(unittest.TestCase):
@@ -28,6 +29,18 @@ class DeviceEvidenceTest(unittest.TestCase):
     def test_success_text_inside_test_log_is_not_a_complete_pass(self):
         self.assertEqual("failed", parse_instrumentation("test message OK (1 test)\n", 0)["status"])
         self.assertEqual("failed", parse_instrumentation("OK (1 test)\nOK (1 test)\n", 0)["status"])
+
+    def test_actual_device_parameters_are_required(self):
+        with patch("run_ui_device_checks.adb", side_effect=["Physical size: 1080x1920\nOverride size: 393x800", "Physical density: 160", "1.0"]):
+            self.assertEqual(1.0, assert_device(393, 800, 1.0))
+        with patch("run_ui_device_checks.adb", side_effect=["Physical size: 360x800", "Physical density: 160"]):
+            with self.assertRaises(RuntimeError):
+                assert_device(393, 800)
+
+    def test_stale_screens_must_be_removed(self):
+        with patch("run_ui_device_checks.adb", side_effect=["home-android35.png", "", "home-android35.png"]):
+            with self.assertRaises(RuntimeError):
+                clear_device_screens()
 
 
 if __name__ == "__main__":

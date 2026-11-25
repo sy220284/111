@@ -109,7 +109,8 @@ fun Modifier.codexPressable(
 data class CodexChoice(
     val id: String,
     val title: String,
-    val description: String = ""
+    val description: String = "",
+    val group: String? = null
 )
 
 enum class NoticeTone { Info, Success, Warning, Error }
@@ -314,7 +315,18 @@ fun CodexChoiceSheet(
     anchored: Boolean = false,
     extraContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
-    val visible = choices
+    val groups = remember(choices) { CatalogNavigationPolicy.groups(choices) }
+    var selectedGroup by remember(title, groups) { mutableStateOf<String?>(null) }
+    var choosingGroup by remember(title, groups) { mutableStateOf(false) }
+    val visible = if (choosingGroup) emptyList() else
+        selectedGroup?.let { groups[it] } ?: choices
+    val navigation: @Composable () -> Unit = {
+        if (groups.isNotEmpty()) CodexTextAction(onClick = { choosingGroup = !choosingGroup },
+            modifier = Modifier.testTag("choice-group-picker")) {
+            Text(if (choosingGroup) "返回选项" else "定位分类 · " + (selectedGroup ?: "全部"))
+        }
+    }
+    val selectGroup: (String?) -> Unit = { group -> selectedGroup = group; choosingGroup = false }
     if (anchored) {
         CodexFloatingMenu(title, onDismiss, description, wide = wide) {
             if (recoveryLabel != null && onRecovery != null) {
@@ -322,12 +334,21 @@ fun CodexChoiceSheet(
                     actionLabel = recoveryLabel, onAction = onRecovery)
             }
             extraContent?.invoke(this)
+            navigation()
             if (loading) AtlasOperationProgress("正在读取可用选项")
-            if (visible.isEmpty() && !loading) {
+            if (visible.isEmpty() && !loading && !choosingGroup) {
                 Text("暂无可用选项",
                     color = Ink.muted, modifier = Modifier.padding(12.dp))
             }
             Column(Modifier.fillMaxWidth().selectableGroup()) {
+                if (choosingGroup) {
+                    CodexFloatingMenuRow("全部 · ${choices.size} 项", onClick = { selectGroup(null) },
+                        selected = selectedGroup == null)
+                    groups.forEach { (group, entries) ->
+                        CodexFloatingMenuRow("$group · ${entries.size} 项", onClick = { selectGroup(group) },
+                            selected = selectedGroup == group)
+                    }
+                }
                 visible.forEach { choice ->
                     CodexFloatingMenuRow(choice.title, onClick = { onSelect(choice.id) },
                         description = choice.description, selected = choice.id == selectedId,
@@ -351,9 +372,11 @@ fun CodexChoiceSheet(
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
-            // The description, recovery action, optional controls and choices share
-            // one scrolling body. Only the close control is pinned.
-            LazyColumn(
+            // Keep the existing title and large-directory navigator accessible.
+            navigation()
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LaunchedEffect(selectedGroup, choosingGroup) { listState.scrollToItem(0) }
+            LazyColumn(state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     .selectableGroup().testTag("choice-scroll-body"),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -370,6 +393,15 @@ fun CodexChoiceSheet(
                         if (loading) AtlasOperationProgress("正在读取可用选项")
                         if (choices.isEmpty() && !loading)
                             CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
+                    }
+                }
+                if (choosingGroup) {
+                    item(key = "choice-group-all") {
+                        AtlasChoiceRow("全部 · ${choices.size} 项", "", selectedGroup == null, onClick = { selectGroup(null) })
+                    }
+                    items(groups.entries.toList(), key = { "choice-group-" + it.key }) { (group, entries) ->
+                        AtlasChoiceRow("$group · ${entries.size} 项", "", selectedGroup == group,
+                            onClick = { selectGroup(group) })
                     }
                 }
                 items(visible, key = { "choice-item-" + it.id }, contentType = { "choice" }) { choice ->

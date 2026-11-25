@@ -120,16 +120,20 @@ internal object DeveloperRuntime {
         val roots = store.aliases().toList().filter { it.startsWith("system:") }.sorted()
         require(roots.isNotEmpty()) { "系统根证书不可用" }
         val file = File(context.filesDir, "developer-system-ca.pem")
+        val expected = roots.joinToString("") { alias ->
+            val cert = checkNotNull(store.getCertificate(alias))
+            val encoded = Base64.encodeToString(cert.encoded, Base64.NO_WRAP)
+            "-----BEGIN CERTIFICATE-----\n" + encoded.chunked(64).joinToString("\n") +
+                "\n-----END CERTIFICATE-----\n"
+        }.toByteArray(Charsets.US_ASCII)
+        check(!java.nio.file.Files.isSymbolicLink(file.toPath())) { "系统证书文件不能是符号链接" }
+        // Reuse only the exact current system trust set.
+        if (file.isFile && file.length() == expected.size.toLong() &&
+            MessageDigest.isEqual(file.readBytes(), expected)) return file
         val atomic = AtomicFile(file)
         val output = atomic.startWrite()
         try {
-            roots.forEach { alias ->
-                val cert = checkNotNull(store.getCertificate(alias))
-                val encoded = Base64.encodeToString(cert.encoded, Base64.NO_WRAP)
-                val pem = "-----BEGIN CERTIFICATE-----\n" + encoded.chunked(64).joinToString("\n") +
-                    "\n-----END CERTIFICATE-----\n"
-                output.write(pem.toByteArray(Charsets.US_ASCII))
-            }
+            output.write(expected)
             atomic.finishWrite(output)
         } catch (failure: Exception) {
             atomic.failWrite(output)

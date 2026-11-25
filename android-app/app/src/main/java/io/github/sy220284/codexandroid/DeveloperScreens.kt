@@ -161,7 +161,11 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
     val children = directoryResult?.getOrNull().orEmpty()
-    val visibleChildren = children
+    var directoryFilter by remember(folder) { mutableStateOf("all") }
+    val visibleChildren = if (children.size < 30) children else children.filter {
+        directoryFilter == "all" || (directoryFilter == "folders" && it.directory) ||
+            (directoryFilter == "files" && !it.directory)
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -307,6 +311,11 @@ fun WorkspacePage(vm: CodexViewModel) {
                     else -> "${children.size} 项"
                 }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
+        }
+        if (children.size >= 30) item(key = "workspace-directory-filter") {
+            AtlasCompactChoice(directoryFilter, listOf("all" to "全部", "folders" to "文件夹", "files" to "文件"),
+                onSelect = { directoryFilter = it }, tagPrefix = "workspace-directory-filter-")
+            if (visibleChildren.isEmpty()) Text("此类别暂无内容", color = Ink.muted)
         }
         when {
             directoryResult == null -> item(key = "workspace-directory-loading") {

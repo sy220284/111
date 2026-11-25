@@ -115,10 +115,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         ?.optString("name")?.takeIf { it.isNotBlank() }?.let { PresentationPolicy.providerName(it) }.orEmpty()
     val availableModels = remember(scopedCatalog[providerKey]) { records(scopedCatalog[providerKey]) }
     val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
-    val inheritedModel = ComposerProviderScope.provider(configured?.optString("model"))
+    val inheritedModel = configured?.value("model")?.takeIf { it.isNotBlank() && it != "null" }
     val shownModel = selectedModel.ifBlank { inheritedModel.orEmpty() }
     val shownEffort = snapshot.options.effort.ifBlank {
-        if (selectedModel.isBlank()) ComposerProviderScope.provider(configured?.optString("reasoningEffort")).orEmpty() else ""
+        if (selectedModel.isBlank()) configured?.value("reasoningEffort")?.takeIf { it.isNotBlank() && it != "null" }.orEmpty() else ""
     }
     LaunchedEffect(thread, busy, status, switching) {
         if (thread != null && !busy && !switching && status == EngineStatus.Connected)

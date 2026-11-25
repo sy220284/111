@@ -93,6 +93,8 @@ internal fun ActionReplyRow(
                     placeholder = placeholder ?: { Text("输入内容…") },
                     enabled = enabled && open, keyboardOptions = keyboardOptions, singleLine = singleLine,
                     maxLines = maxLines, minLines = minLines, isError = draftError != null,
+                    confirmedValid = draft.isNotBlank() && draftError == null &&
+                        (if (validate != null) true else confirmedValid && draft == value),
                     supportingText = if (draftError != null) {{ Text(draftError, color = Ink.red) }} else null)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     CodexTextAction(onClick = {
@@ -208,15 +210,18 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
     val result by produceCodexUiState<Result<List<java.io.File>>?>(null, directory) {
         value = null
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                val base = directory ?: return@runCatching canonicalRoots
-                require(canonicalRoots.any { base.toPath().startsWith(it.toPath()) })
-                requireNotNull(base.listFiles()) { "无法读取此目录" }
-                    .filter { it.isDirectory && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
-                    .map { it.canonicalFile }
-                    .filter { child -> canonicalRoots.any { child.toPath().startsWith(it.toPath()) } }
-                    .sortedBy { it.name.lowercase() }
-            }
+            try {
+                val base = directory
+                Result.success(if (base == null) canonicalRoots else {
+                    require(canonicalRoots.any { base.toPath().startsWith(it.toPath()) })
+                    requireNotNull(base.listFiles()) { "无法读取此目录" }
+                        .filter { it.isDirectory && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
+                        .map { it.canonicalFile }
+                        .filter { child -> canonicalRoots.any { child.toPath().startsWith(it.toPath()) } }
+                        .sortedBy { it.name.lowercase() }
+                })
+            } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
+            catch (failure: Exception) { Result.failure(failure) }
         }
     }
     val selected = directory

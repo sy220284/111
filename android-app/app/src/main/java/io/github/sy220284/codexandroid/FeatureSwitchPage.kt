@@ -19,21 +19,23 @@ import androidx.compose.ui.unit.dp
 internal fun FeatureSwitchPage(vm: CodexViewModel) {
     val controller = vm.featureSwitches
     val session by vm.bridge.connectedSession.collectAsState()
+    val account by vm.catalogWarmup.accountRevision.collectAsState()
     val loading by vm.loading.collectAsState()
     val transaction by vm.configTransactionBusy.collectAsState()
     val securityBusy by vm.securitySaveBusy.collectAsState()
     val transfer by AppDataTransfer.state.collectAsState()
-    val snapshot = controller.snapshot?.takeIf { it.session == session }
+    val snapshot = controller.snapshot?.takeIf { it.session == session && it.account == account }
     var filter by rememberSaveable { mutableStateOf("preferred") }
     var category by rememberSaveable { mutableStateOf("all") }
-    var picker by remember(session) { mutableStateOf("") }
-    var confirm by remember(session) { mutableStateOf<Pair<CoreFeatureSwitch, Boolean>?>(null) }
-    var detail by remember(session) { mutableStateOf<String?>(null) }
-    var lastReadSession by remember { mutableStateOf<Long?>(null) }
+    var picker by remember(session, account) { mutableStateOf("") }
+    var confirm by remember(session, account) { mutableStateOf<Pair<CoreFeatureSwitch, Boolean>?>(null) }
+    var detail by remember(session, account) { mutableStateOf<String?>(null) }
+    var lastReadIdentity by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     val listState = rememberLazyListState()
-    LaunchedEffect(session, controller.busy) {
-        if (session != null && session != lastReadSession && !controller.busy) {
-            lastReadSession = session
+    LaunchedEffect(session, account, controller.busy) {
+        val identity = session?.let { it to account }
+        if (identity != null && identity != lastReadIdentity && !controller.busy) {
+            lastReadIdentity = identity
             controller.refresh()
         }
     }
@@ -52,7 +54,7 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
             .groupBy { FeatureSwitchPolicy.group(it.name) }
     }
     val blocked = controller.busy || configSnapshotBusy(loading, transaction || securityBusy) || transfer.busy
-    val feedbackCurrent = session != null && controller.attemptedSession == session
+    val feedbackCurrent = session != null && controller.attemptedSession == session && controller.attemptedAccount == account
     LazyColumn(Modifier.fillMaxSize().testTag("feature-switch-list"), state = listState,
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)) {
         item(key = "controls") {
@@ -118,7 +120,7 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
                     }
                     WhiteSwitch(row.enabled, { enabled ->
                         if (FeatureSwitchPolicy.needsConfirmation(row)) confirm = row to enabled
-                        else snapshot?.let { controller.change(row, enabled, it.session) }
+                        else snapshot?.let { controller.change(row, enabled, it.session, it.account) }
                     }, modifier = Modifier.testTag("feature-switch-${row.name}")
                         .semantics { contentDescription = row.title + "开关" },
                         enabled = !blocked && restriction == null)
@@ -145,7 +147,7 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
             FeatureSwitchPolicy.confirmation(row, enabled),
             confirmLabel = if (enabled) "开启" else "关闭",
             confirmEnabled = confirmedSession != null && !blocked,
-            onConfirm = { confirm = null; confirmedSession?.let { controller.change(row, enabled, it) } },
+            onConfirm = { confirm = null; confirmedSession?.let { controller.change(row, enabled, it, account) } },
             onDismiss = { confirm = null }
         )
     }
