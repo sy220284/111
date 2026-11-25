@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProduceStateScope
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.key
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,7 +15,9 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun <T> produceCodexUiState(
     initialValue: T, vararg keys: Any?, producer: suspend ProduceStateScope<T>.() -> Unit
-): State<T> = produceState(initialValue, *keys) {
-    val destination = this
-    withContext(Dispatchers.Main.immediate) { destination.producer() }
+): State<T> = key(*keys) {
+    produceState(initialValue) {
+        val destination = this
+        withContext(Dispatchers.Main.immediate) { destination.producer() }
+    }
 }

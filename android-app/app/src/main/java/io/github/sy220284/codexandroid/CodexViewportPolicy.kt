@@ -1,5 +1,7 @@
 package io.github.sy220284.codexandroid
 
+internal data class CodexPageSpacing(val horizontal: Float, val vertical: Float, val gap: Float)
+
 internal data class CodexMenuBudget(val width: Float, val height: Float, val top: Float)
 
 /** All budgets are in dp. Never demand more space than the actual window has. */
@@ -12,6 +14,27 @@ internal object CodexViewportPolicy {
         val usableWidth = (width - 32f).coerceAtLeast(minOf(width, 48f))
         return CodexMenuBudget(minOf(preferredWidth, usableWidth),
             minOf(420f, height - top - margin), top)
+    }
+
+    /** Estimate space required by controls using combined system and app text scale. */
+    fun fitsActions(width: Float, fontScale: Float, count: Int, nominalItemWidth: Float,
+                    gap: Float = 8f): Boolean {
+        require(width >= 0 && fontScale > 0 && count > 0 && nominalItemWidth > 0 && gap >= 0)
+        val itemWidth = maxOf(48f, nominalItemWidth * maxOf(1f, fontScale))
+        return width >= count * itemWidth + (count - 1) * gap
+    }
+
+    fun pageSpacing(width: Float, height: Float, compact: Boolean): CodexPageSpacing {
+        require(width > 0 && height > 0)
+        val horizontal = minOf(if (compact || width < 350f) 12f else 18f, width / 8f)
+        val short = height < 480f
+        return CodexPageSpacing(horizontal, if (compact || short) 12f else 20f,
+            if (compact || short) 11f else 16f)
+    }
+
+    fun compactWorkArea(height: Float, imeVisible: Boolean, fontScale: Float): Boolean {
+        require(height > 0 && fontScale > 0)
+        return imeVisible || height < 480f || height < 560f && fontScale >= 1.5f
     }
 
     fun sheetHeight(height: Float, fraction: Float): Float {

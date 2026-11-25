@@ -200,7 +200,7 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
     val fontScale by UiPreferences.fontScale.collectAsState()
     val darkMode by UiPreferences.darkMode.collectAsState()
-    val largeTypography = androidx.compose.ui.platform.LocalDensity.current.fontScale * fontScale >= 1.55f
+    val largeTypography = codexEffectiveFontScale() >= 1.55f
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("界面配色", style = MaterialTheme.typography.titleMedium,

@@ -32,7 +32,7 @@ internal fun rememberDiffSummary(raw: String): State<DiffSummary?> = rememberDif
 @Composable
 internal fun rememberPreparedDiff(raw: String, owner: String?): State<PreparedDiff?> = key(owner) {
     // Keep a coherent previous snapshot during parsing, but never across conversations.
-    val initial = remember { if (raw.length <= INLINE_DIFF_LIMIT) prepareDiff(raw) else null }
+    val initial = remember(raw) { if (raw.length <= INLINE_DIFF_LIMIT) prepareDiff(raw) else null }
     produceCodexUiState(initial, raw) {
         if (value?.raw != raw) value = if (raw.length <= INLINE_DIFF_LIMIT) prepareDiff(raw)
             else withContext(Dispatchers.Default) { prepareDiff(raw) }

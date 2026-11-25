@@ -39,6 +39,23 @@ class CodexViewportPolicyTest {
                     }
     }
 
+    @Test fun controlsReflowBeforeCombinedFontScaleCrowdsThem() {
+        assertTrue(CodexViewportPolicy.fitsActions(320f, 1f, 2, 132f))
+        assertFalse(CodexViewportPolicy.fitsActions(320f, 1.5f, 2, 132f))
+        assertTrue(CodexViewportPolicy.fitsActions(620f, 2f, 2, 132f))
+        assertFalse(CodexViewportPolicy.fitsActions(240f, 1f, 2, 132f))
+    }
+
+    @Test fun pageSpacingAndWorkAreaFollowActualHeight() {
+        assertEquals(12f, CodexViewportPolicy.pageSpacing(320f, 720f, false).horizontal, 0f)
+        assertEquals(20f, CodexViewportPolicy.pageSpacing(411f, 915f, false).vertical, 0f)
+        assertEquals(12f, CodexViewportPolicy.pageSpacing(411f, 300f, false).vertical, 0f)
+        assertTrue(CodexViewportPolicy.compactWorkArea(300f, false, 1f))
+        assertTrue(CodexViewportPolicy.compactWorkArea(530f, false, 1.5f))
+        assertTrue(CodexViewportPolicy.compactWorkArea(800f, true, 1f))
+        assertFalse(CodexViewportPolicy.compactWorkArea(800f, false, 1.5f))
+    }
+
     @Test fun sheetsUseVisibleHeightRatherThanNominalScreenHeight() {
         assertEquals(275.2f, CodexViewportPolicy.sheetHeight(320f, .86f), .01f)
         assertEquals(352f, CodexViewportPolicy.sheetHeight(400f, .88f), .01f)

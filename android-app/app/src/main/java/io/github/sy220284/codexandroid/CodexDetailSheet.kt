@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
@@ -195,8 +194,6 @@ fun CodexInfoDialog(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .65f)
-        .coerceAtLeast(200.dp)
     CodexDialogFrame(
         onDismissRequest = onDismiss,
         containerColor = Ink.elevated,
@@ -206,7 +203,7 @@ fun CodexInfoDialog(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = contentLimit)
+                modifier = Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit(.65f))
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 content = content
@@ -236,8 +233,6 @@ fun CodexEditDialog(
     canConfirm: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val contentLimit = (LocalConfiguration.current.screenHeightDp.dp * .62f)
-        .coerceAtLeast(200.dp)
     CodexDialogFrame(
         onDismissRequest = onDismiss,
         modifier = Modifier.imePadding().testTag("codex-edit-dialog"),
@@ -248,7 +243,7 @@ fun CodexEditDialog(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(
-                Modifier.fillMaxWidth().heightIn(max = contentLimit)
+                Modifier.fillMaxWidth().heightIn(max = codexSheetContentLimit(.62f))
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

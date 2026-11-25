@@ -7,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
@@ -41,7 +40,7 @@ internal fun ThreadBulkToolbar(
         }
     }
     val allowAction = enabled && selectedCount > 0
-    val largeText = LocalDensity.current.fontScale >= 1.5f
+    val fontScale = codexEffectiveFontScale()
     val archiveLabel = if (archived) "批量恢复" else "批量归档"
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("thread-bulk-toolbar"),
@@ -49,6 +48,8 @@ internal fun ThreadBulkToolbar(
         border = BorderStroke(1.dp, Ink.border),
         shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
     ) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val largeText = fontScale >= 1.5f || maxWidth.value < 28f + 5 * 48f + 5 * 2f + 60f * fontScale
         if (largeText) {
             Column(
                 Modifier.fillMaxWidth().navigationBarsPadding()
@@ -103,11 +104,11 @@ internal fun ThreadBulkToolbar(
                 Text("已选 $selectedCount 条", modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
                 CodexIconAction(onClick = onSelectAll, enabled = enabled,
-                    modifier = Modifier.size(48.dp)) {
+                    modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
                     CodexIcon(CodexGlyph.SelectAll, contentDescription = "全选当前结果")
                 }
                 extras()
-                CodexIconAction(onClick = onFinish, modifier = Modifier.size(48.dp)) {
+                CodexIconAction(onClick = onFinish, modifier = Modifier.size(48.dp).testTag("thread-bulk-finish")) {
                     CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                 }
                 CodexIconAction(
@@ -130,6 +131,7 @@ internal fun ThreadBulkToolbar(
                         tint = if (allowAction) Ink.red else Ink.muted)
                 }
             }
+        }
         }
     }
 }

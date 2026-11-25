@@ -62,3 +62,10 @@ private fun observeCodexViewport(view: View): CodexViewport {
         )
     }
 }
+
+/** Layout uses the same combined system and app typography scale as the theme. */
+@Composable
+internal fun codexEffectiveFontScale(): Float {
+    val appScale by UiPreferences.fontScale.collectAsState()
+    return LocalDensity.current.fontScale * appScale
+}

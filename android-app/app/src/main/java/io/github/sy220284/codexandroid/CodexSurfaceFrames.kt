@@ -60,14 +60,15 @@ fun CodexOverlayFrame(
             dismiss()
         }
     }
-    val viewport = rememberCodexViewport()
     Dialog(onDismissRequest = close, properties = DialogProperties(
         usePlatformDefaultWidth = false, dismissOnClickOutside = !fullScreen)) {
-        val bounds = if (fullScreen) Modifier.fillMaxSize()
-            else Modifier.widthIn(max = 360.dp).fillMaxWidth()
-                .padding(horizontal = 16.dp).heightIn(max = CodexViewportPolicy.sheetHeight(viewport.height.value, .86f).dp)
-        Box((if (fullScreen) Modifier.fillMaxSize() else Modifier.wrapContentSize())
-            .imePadding(), contentAlignment = Alignment.Center) {
+        ProvideCodexViewport {
+        BoxWithConstraints((if (fullScreen) Modifier.fillMaxSize() else Modifier.wrapContentSize())
+            .safeDrawingPadding().imePadding(), contentAlignment = Alignment.Center) {
+            val bounds = if (fullScreen) Modifier.fillMaxSize()
+                else Modifier.widthIn(max = 360.dp).fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .heightIn(max = CodexViewportPolicy.sheetHeight(maxHeight.value.coerceAtLeast(1f), .86f).dp)
             Surface(modifier = bounds.then(modifier),
                 shape = RoundedCornerShape(if (fullScreen) 0.dp else 24.dp),
                 color = containerColor, contentColor = contentColor,
@@ -79,6 +80,7 @@ fun CodexOverlayFrame(
                         content = content)
                 }
             }
+        }
         }
     }
 }
