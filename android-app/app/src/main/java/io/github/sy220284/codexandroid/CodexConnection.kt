@@ -5,7 +5,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +48,10 @@ class CodexConnection(private val appContext: Context) {
     private val waiting = ConcurrentHashMap<Long, CompletableDeferred<JSONObject>>()
     /** Live wire requests, including direct calls from settings, session recovery and terminal. */
     internal val activeRpcRequests = MutableStateFlow<Set<Long>>(emptySet())
+    private val userRequestState = MutableStateFlow(0)
+    internal val userRpcRequests = userRequestState.asStateFlow()
+    private val writingState = MutableStateFlow(false)
+    internal val writing = writingState.asStateFlow()
     private val retirementState = MutableStateFlow(false)
     internal val retirementBusy = retirementState.asStateFlow()
     @Volatile private var process: Process? = null
@@ -68,7 +71,7 @@ class CodexConnection(private val appContext: Context) {
         ownership.owns(message.optLong(CORE_SESSION_FIELD, -1L))
 
     internal fun reserveRestart(): Boolean = synchronized(ownership) {
-        ownership.reserveRestart(activeRpcRequests.value.size, prompts.value.size)
+        ownership.reserveRestart(activeRpcRequests.value.size + if (writingState.value) 1 else 0, prompts.value.size)
     }
     internal fun releaseRestart() = ownership.releaseRestart()
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
@@ -339,11 +342,13 @@ class CodexConnection(private val appContext: Context) {
             "同类运行请求过多，请等待已有操作完成"
         }
         requestPriorities[id] = priority
+        userRequestState.value = requestPriorities.values.count { it != RpcPriority.Background }
         activeRpcRequests.update { it + id }
     }
 
     private fun unregisterRequest(id: Long) {
         requestPriorities.remove(id)
+        userRequestState.value = requestPriorities.values.count { it != RpcPriority.Background }
         activeRpcRequests.update { it - id }
     }
 
@@ -357,7 +362,7 @@ class CodexConnection(private val appContext: Context) {
                     check(ownership.owns(epoch) && (!requireReady || ownership.acceptsUserRequest())) {
                         "运行核心已切换或正在重启"
                     }
-                    wire ?: error("Codex 内核尚未连接")
+                    (wire ?: error("Codex 内核尚未连接")).also { writingState.value = true }
                 }
                 val finished = AtomicBoolean(false)
                 val watchdog = scope.launch {
@@ -377,6 +382,7 @@ class CodexConnection(private val appContext: Context) {
                 } finally {
                     finished.set(true)
                     watchdog.cancel()
+                    synchronized(ownership) { writingState.value = false }
                 }
             }
         }
@@ -408,7 +414,7 @@ class CodexConnection(private val appContext: Context) {
         canClose: (() -> Boolean)? = null): Boolean {
         val retired = synchronized(ownership) {
             if (canClose?.invoke() == false) return false
-            if (reservedRestart && !ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) return false
+            if (reservedRestart && !ownership.canRetireReserved(activeRpcRequests.value.size + if (writingState.value) 1 else 0, prompts.value.size)) return false
             val token = ownership.retire(epoch) ?: return false
             retirementState.value = true
             retirementCompletion = CompletableDeferred()
@@ -447,7 +453,7 @@ class CodexConnection(private val appContext: Context) {
 
     internal fun closeForRestart(canClose: () -> Boolean) {
         val epoch = synchronized(ownership) {
-            check(ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) {
+            check(ownership.canRetireReserved(activeRpcRequests.value.size + if (writingState.value) 1 else 0, prompts.value.size)) {
                 "重启前出现了新请求或审批，已取消重启"
             }
             ownership.current()
@@ -459,7 +465,7 @@ class CodexConnection(private val appContext: Context) {
 
     /** Check and claim a local data operation before any new RPC can register. */
     internal fun runIfIdle(allowed: () -> Boolean, action: () -> Unit): Boolean = synchronized(ownership) {
-        if (!ownership.canStartMaintenance() || activeRpcRequests.value.isNotEmpty() || !allowed()) false
+        if (!ownership.canStartMaintenance() || activeRpcRequests.value.isNotEmpty() || writingState.value || !allowed()) false
         else { action(); true }
     }
 
@@ -468,7 +474,7 @@ class CodexConnection(private val appContext: Context) {
         val epoch = synchronized(ownership) {
             if (!canClose()) return false
             val token = ownership.current() ?: return false
-            if (!ownership.reserveRestart(activeRpcRequests.value.size, prompts.value.size)) return false
+            if (!ownership.reserveRestart(activeRpcRequests.value.size + if (writingState.value) 1 else 0, prompts.value.size)) return false
             token
         }
         try {

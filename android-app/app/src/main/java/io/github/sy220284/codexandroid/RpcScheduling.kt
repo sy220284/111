@@ -9,7 +9,7 @@ internal object RpcScheduling {
     fun priority(method: String): RpcPriority = when (method) {
         "turn/interrupt", "command/exec/terminate", "command/exec/write", "command/exec/resize",
         "thread/realtime/stop", "account/login/cancel", "initialized", "initialize" -> RpcPriority.Control
-        "model/list", "skills/list", "app/list", "app/installed", "plugin/list", "plugin/installed",
+        "account/read", "model/list", "skills/list", "app/list", "app/installed", "plugin/list", "plugin/installed",
         "account/usage/read", "account/rateLimits/read", "thread/list", "mcpServerStatus/list" -> RpcPriority.Background
         else -> RpcPriority.Interactive
     }

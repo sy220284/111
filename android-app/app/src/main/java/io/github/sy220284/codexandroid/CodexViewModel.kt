@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -113,11 +116,18 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private var firstTurnImages: List<String> = emptyList()
 
-    fun connect() = viewModelScope.launch {
+    private var connectJob: Job? = null
+    private var synchronizedEpoch: Long? = null
+
+    @Synchronized fun connect(): Job {
+        connectJob?.takeIf { it.isActive }?.let { return it }
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
         try {
-            val previousThread = activeThread.value
-            val alreadyConnected = bridge.status.value == EngineStatus.Connected
             bridge.connect()
+            val epoch = bridge.connectedSession.value ?: return@launch
+            if (synchronizedEpoch == epoch) return@launch
+            synchronizedEpoch = epoch
+            val previousThread = activeThread.value
             threadOrganization.invalidate()
             mcpCatalog.reset()
             // A new native process invalidates ephemeral status from the old session.
@@ -126,19 +136,26 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             refresh("account", "account/read", JSONObject())
             refresh("models", "model/list", JSONObject())
             syncRecentThreads()
-            if (!alreadyConnected) extensions.invalidate(preserveAuthorization = true)
+            extensions.invalidate(preserveAuthorization = true)
             extensions.refreshAfterAppAuthorization()
             catalogWarmup.connected()
-            if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
+            accountMetrics.accountChanged()
             // Rebuild visible history after a connection loss, without resending a task.
             if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread, forceReload = true)
+        } catch (cancel: CancellationException) {
+            throw cancel
         } catch (failure: Exception) {
             errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
         }
+        }
+        connectJob = job
+        job.start()
+        return job
     }
 
     fun reconnectIfNeeded() {
-        if (bridge.status.value is EngineStatus.Unavailable) connect()
+        if (bridge.status.value is EngineStatus.Unavailable && !bridge.retirementBusy.value &&
+            !AppDataTransfer.state.value.busy && !connectionRestarter.busy.value) connect()
     }
 
     /**

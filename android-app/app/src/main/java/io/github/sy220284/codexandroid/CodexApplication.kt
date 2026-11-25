@@ -6,11 +6,11 @@ import android.os.Bundle
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.cancel
 
 /** The process owns a single Codex core, and releases it after background inactivity. */
 class CodexApplication : Application() {
@@ -25,20 +25,20 @@ class CodexApplication : Application() {
     }
     private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         prepareWorkspace()
-        CodexViewModel(this)
+        CodexViewModel(this).also { RuntimeSupervisor(this, it, foreground, runtimeScope) }
     }
     val session: CodexViewModel get() = holder.value
     val pendingDeepLink = MutableStateFlow<String?>(null)
 
     private val maintenance = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     @Volatile private var activityCount = 0
-    private var idleRelease: Job? = null
+    private val foreground = MutableStateFlow(false)
+    private val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val activities = object : ActivityLifecycleCallbacks {
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
         override fun onActivityStarted(activity: Activity) {
             activityCount++
-            idleRelease?.cancel()
-            idleRelease = null
+            foreground.value = true
         }
         override fun onActivityResumed(activity: Activity) {
             // Resume a verified install at the process boundary; the Activity only
@@ -56,20 +56,7 @@ class CodexApplication : Application() {
             activityCount = (activityCount - 1).coerceAtLeast(0)
             if (activityCount != 0) return
             if (holder.isInitialized()) holder.value.accountMetrics.foreground(false)
-            idleRelease?.cancel()
-            idleRelease = maintenance.launch {
-                delay(90_000)
-                // A running turn, live terminal or pending approval retains the foreground
-                // core. Idle background sessions release native child resources.
-                if (activityCount == 0 && holder.isInitialized()) {
-                    val current = holder.value
-                    val closed = current.bridge.closeIfIdle {
-                        activityCount == 0 && current.globalWorkSnapshot().canDisruptCoreOrData
-                    }
-                    // Foreground can return while the old process is being reaped.
-                    if (closed && activityCount > 0) current.reconnectIfNeeded()
-                }
-            }
+            foreground.value = false
         }
         override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
         override fun onActivityDestroyed(activity: Activity) {}
@@ -109,7 +96,8 @@ class CodexApplication : Application() {
     }
 
     override fun onTerminate() {
-        idleRelease?.cancel()
+        runtimeScope.cancel()
+        maintenance.cancel()
         unregisterActivityLifecycleCallbacks(activities)
         if (holder.isInitialized()) holder.value.bridge.close()
         super.onTerminate()
