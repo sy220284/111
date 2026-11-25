@@ -375,6 +375,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var sharingPath by remember { mutableStateOf<String?>(null) }
+    var choosingDiscovery by remember(epoch) { mutableStateOf(false) }
     var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
     var searchDraft by rememberSaveable { mutableStateOf("") }
     var searchSubmitted by rememberSaveable { mutableStateOf("") }
@@ -461,6 +462,24 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             refreshing = activeKey in busy, enabled = connected && !mutating,
             onRefresh = { refreshCatalog(true) })
         if (!installedOnly) {
+            CodexSecondaryButton(onClick = { choosingDiscovery = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("plugins-purpose-discovery")) {
+                CodexIcon(CodexGlyph.Search, null)
+                Spacer(Modifier.width(8.dp))
+                Text("按用途发现插件")
+            }
+            if (choosingDiscovery) CodexDetailSheet("发现插件", onDismiss = { choosingDiscovery = false }) {
+                Text("选择要查询的用途，结果来自实际插件目录。", color = Ink.muted)
+                listOf("代码与仓库" to "github", "设计与原型" to "figma",
+                    "文档协作" to "document", "数据分析" to "data", "自动化" to "automation").forEach { (label, query) ->
+                    CodexSecondaryButton(onClick = {
+                        searchDraft = query
+                        submitSearch(query)
+                        choosingDiscovery = false
+                    }, enabled = canOperate && searchKey !in busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(label) }
+                }
+            }
             ClipboardQueryAction("使用剪贴板发现插件", searchDraft,
                 onQuery = { searchDraft = it; submitSearch(it) },
                 onClear = { searchDraft = ""; searchSubmitted = ""; searchPage = 0 },

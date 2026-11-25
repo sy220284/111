@@ -68,6 +68,8 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createName by remember { mutableStateOf("") }
     var createKind by remember { mutableStateOf("file") }
     var showCreate by rememberSaveable { mutableStateOf(false) }
+    var editingCreateName by rememberSaveable { mutableStateOf(false) }
+    var createError by remember { mutableStateOf("") }
     var showProjectManager by rememberSaveable { mutableStateOf(false) }
     var selectedEntry by remember(folder) { mutableStateOf<WorkspaceDirectoryEntry?>(null) }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
@@ -230,6 +232,8 @@ fun WorkspacePage(vm: CodexViewModel) {
             CodexSecondaryButton(
                 onClick = {
                     createName = defaultWorkspaceContentName(createKind, children.map { it.file.name }.toSet())
+                    editingCreateName = false
+                    createError = ""
                     showCreate = true
                 },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
@@ -241,41 +245,53 @@ fun WorkspacePage(vm: CodexViewModel) {
             }
             if (showCreate) CodexDetailSheet(
                 title = "新建项目内容",
-                subtitle = "在当前目录创建文件或文件夹",
-                onDismiss = { showCreate = false }
+                subtitle = "选择类型，确认名称后创建",
+                onDismiss = { if (!actionBusy) { showCreate = false; editingCreateName = false } }
             ) {
-                Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    AtlasExclusiveChip(selected = createKind == "file",
-                        onClick = { if (createKind != "file") { createKind = "file"; createName = defaultWorkspaceContentName("file", children.map { it.file.name }.toSet()) } }, label = { Text("文本文件") },
-                        leadingIcon = { CodexIcon(CodexGlyph.Description, null) })
-                    AtlasExclusiveChip(selected = createKind == "folder",
-                        onClick = { if (createKind != "folder") { createKind = "folder"; createName = defaultWorkspaceContentName("folder", children.map { it.file.name }.toSet()) } }, label = { Text("文件夹") },
-                        modifier = Modifier.testTag("workspace-folder-mode"),
-                        leadingIcon = { CodexIcon(CodexGlyph.CreateNewFolder, null) })
-                }
-                ActionQuestionRow(createName, { createName = it },
+                AtlasCompactChoice(createKind, listOf("file" to "文本文件", "folder" to "文件夹"),
+                    onSelect = {
+                        if (createKind != it) {
+                            createKind = it
+                            createName = defaultWorkspaceContentName(it, children.map { entry -> entry.file.name }.toSet())
+                            createError = ""
+                        }
+                    }, enabled = !editingCreateName && !actionBusy, tagPrefix = "workspace-create-kind-")
+                ActionQuestionRow(createName, { createName = it; createError = "" },
                     label = if (createKind == "file") "文件名（如 README.md）" else "文件夹名称",
+                    enabled = !actionBusy, validate = WorkspaceFileActions::nameError,
+                    expanded = editingCreateName, onExpandedChange = { editingCreateName = it },
                     modifier = Modifier.testTag("workspace-new-name"))
-                CodexSecondaryButton(onClick = {
-                    try {
-                        val created = if (createKind == "file")
-                            WorkspaceFileActions.createTextFile(root, folder, createName)
-                        else WorkspaceFileActions.createFolder(root, folder, createName)
-                        notice = "已创建：" + created.name
-                        createName = ""
-                        showCreate = false
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        refresh++
-                    } catch (failure: Exception) {
-                        notice = "创建失败：" + (failure.message ?: "未知错误")
+                if (createError.isNotBlank()) CodexNotice(createError, NoticeTone.Error)
+                CodexPrimaryButton(onClick = {
+                    val requestedFolder = folder
+                    val requestedName = createName
+                    val requestedKind = createKind
+                    actionBusy = true
+                    createError = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    scope.launch {
+                        try {
+                            val created = withContext(Dispatchers.IO) {
+                                if (requestedKind == "file")
+                                    WorkspaceFileActions.createTextFile(root, requestedFolder, requestedName)
+                                else WorkspaceFileActions.createFolder(root, requestedFolder, requestedName)
+                            }
+                            notice = "已创建：" + created.name
+                            createName = ""
+                            showCreate = false
+                            editingCreateName = false
+                            refresh++
+                        } catch (cancel: kotlinx.coroutines.CancellationException) {
+                            throw cancel
+                        } catch (failure: Exception) {
+                            createError = "创建失败：" + (failure.message ?: "未知错误")
+                        } finally { actionBusy = false }
                     }
-                }, enabled = createName.isNotBlank() && !actionBusy,
+                }, enabled = !editingCreateName && !actionBusy && WorkspaceFileActions.nameError(createName) == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("workspace-create")) {
-                    CodexIcon(CodexGlyph.Add, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
+                    Text(if (actionBusy) "正在创建" else if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
             }
         }

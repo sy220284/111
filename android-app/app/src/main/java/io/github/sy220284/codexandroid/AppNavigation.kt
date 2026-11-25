@@ -437,12 +437,16 @@ private fun Sidebar(
     val accountData by vm.data.collectEntries("limits")
     val accountErrors by vm.errors.collectEntries("limits")
     val limitsLoading by vm.loading.collectProjection { "limits" in it }
+    val retiring by vm.bridge.retirementBusy.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val retry by vm.bridge.recoveryDelayMs.collectAsState()
+    val canReconnect = RuntimeStatusPresentation.canReconnect(status, retiring, restarting)
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(
-            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Codex", modifier = Modifier.weight(1f),
@@ -526,9 +530,9 @@ private fun Sidebar(
             }
         }
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 36.dp)
+            Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 .clickable {
-                    if (status is EngineStatus.Unavailable) vm.connect()
+                    if (canReconnect) vm.connectionRestarter.reconnect()
                     else onSelect("status")
                 }.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -537,11 +541,8 @@ private fun Sidebar(
                 tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning,
                 modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(10.dp))
-            Text(when (status) {
-                EngineStatus.Connected -> "内核已连接"
-                EngineStatus.Starting -> "正在连接本机内核"
-                is EngineStatus.Unavailable -> "连接已断开 · 点击重连"
-            },
+            Text(RuntimeStatusPresentation.label(status, retiring, restarting, retry) +
+                if (canReconnect) " · 重连" else "",
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,

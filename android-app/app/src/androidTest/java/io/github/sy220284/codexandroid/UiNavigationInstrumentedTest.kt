@@ -812,12 +812,16 @@ class UiNavigationInstrumentedTest {
             hasTestTag("workspace-create-toggle"))
         rule.onNodeWithTag("workspace-create-toggle").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        rule.onNodeWithTag("workspace-folder-mode").performClick()
-        rule.onNodeWithTag("workspace-new-name").performClick()
-        rule.onNodeWithTag("action-reply-input").performTextReplacement(name)
-        rule.onNodeWithTag("action-reply-send").performClick()
-        rule.onNodeWithTag("workspace-create").performClick()
-        rule.onNodeWithTag("workspace-new-name").assertDoesNotExist()
+        rule.onNodeWithTag("workspace-create-kind-folder").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("workspace-new-name").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("workspace-create").assertIsNotEnabled()
+        rule.onNodeWithTag("action-reply-input").performScrollTo().assertIsDisplayed().performTextReplacement(name)
+        rule.onNodeWithTag("action-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("workspace-new-name").assertTextContains(name)
+        rule.onNodeWithTag("workspace-create").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.waitUntil(10000) {
+            rule.onAllNodesWithTag("workspace-new-name").fetchSemanticsNodes().isEmpty()
+        }
         rule.waitUntil(10000) {
             rule.onAllNodesWithTag("workspace-directory-loading").fetchSemanticsNodes().isEmpty()
         }

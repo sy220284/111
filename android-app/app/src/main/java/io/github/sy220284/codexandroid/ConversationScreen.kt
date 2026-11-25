@@ -468,10 +468,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                     if (status is EngineStatus.Unavailable) {
                         CodexNotice(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay) + "，草稿已保留", NoticeTone.Warning,
-                            actionLabel = if (!retirement && !restarting) "重连" else null,
+                            actionLabel = if (RuntimeStatusPresentation.canReconnect(status, retirement, restarting)) "重连" else null,
                             onAction = { vm.connectionRestarter.reconnect() })
                     } else if (status == EngineStatus.Starting) {
-                        Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        Text(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 },
                 addMenu = {

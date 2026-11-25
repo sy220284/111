@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 internal object RuntimeStatusPresentation {
+    fun canReconnect(status: EngineStatus, retiring: Boolean, restarting: Boolean): Boolean =
+        status is EngineStatus.Unavailable && !retiring && !restarting
+
     fun label(status: EngineStatus, retiring: Boolean, restarting: Boolean, retry: Long?): String = when {
         retiring -> "正在回收旧内核"
         restarting -> "正在重新连接"

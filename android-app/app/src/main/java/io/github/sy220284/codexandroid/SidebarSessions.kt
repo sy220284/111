@@ -200,7 +200,7 @@ internal fun SidebarSessions(
         moving = ids.associateWith { answerVersions.members(it).toSet() }
     }
     Column(modifier.fillMaxSize()) {
-        if (!state.fullText && !selection) Row(Modifier.fillMaxWidth(),
+        if (!state.searching && !state.fullText && !selection) Row(Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
             Text(section?.name ?: "全部会话", modifier = Modifier.weight(1f).padding(start = 12.dp),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -209,7 +209,7 @@ internal fun SidebarSessions(
                 CodexIcon(CodexGlyph.MoreHoriz, "会话管理")
             }
         }
-        if (!selection) SessionTaskControls(state, activeCount, Modifier.fillMaxWidth(), onActiveTasks = {
+        if (!selection && !state.searching) SessionTaskControls(state, activeCount, Modifier.fillMaxWidth(), onActiveTasks = {
             val alreadyActive = state.taskFilter == SessionTaskFilter.Active && !state.archived &&
                 section == null && !state.searching
             section = null
@@ -247,7 +247,7 @@ internal fun SidebarSessions(
                 listOf("active" to "会话", "archived" to "已归档"),
                 onSelect = { state.archived = it == "archived" })
             val recent = if (state.fullText) recentFull else recentTitle
-            if (state.search.isBlank() && recent.isNotEmpty()) {
+            if (recent.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("最近搜索", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
                     CodexTextAction(onClick = {
@@ -261,7 +261,7 @@ internal fun SidebarSessions(
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     recent.forEach { term ->
-                        CodexFilterChip(selected = false, onClick = { state.search = term },
+                        CodexFilterChip(selected = state.search == term, onClick = { state.search = term },
                             label = { Text(term, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                     }
                 }
