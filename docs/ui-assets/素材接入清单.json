@@ -673,6 +673,27 @@
         "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction"
       ]
+    },
+    {
+      "asset": "model-switch-experience.svg",
+      "business": "跨服务商模型选择、同屏思考强度、执行中下轮模型与历史会话交接确认；原型仅作设计参考，生产操作依赖真实模型目录及用户确认",
+      "components": [
+        [
+          "UiSharedSurfaces",
+          "ModelChoiceSurface"
+        ],
+        [
+          "ConversationControlBar",
+          "ConversationControlBar"
+        ],
+        [
+          "ConversationComposer",
+          "ConversationComposer"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet"
+      ]
     }
   ]
 }
