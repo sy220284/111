@@ -53,26 +53,16 @@ class UiPopulatedSubpagesInstrumentedTest {
         val root = File(app.cacheDir, "model-preview-" + UUID.randomUUID()).apply { mkdirs() }
         val file = File(root, "demo.txt").apply { writeText("first line\nsecond line\nthird line") }
         val preview = ModelPreviewRequest("fixture", "thread", 1, 1, root.absolutePath, file.name, 2)
-        val sidebar = SidebarUiState()
         try {
             rule.setContent {
                 CodexTheme {
                     Column(Modifier.fillMaxSize()) {
-                        SessionTaskControls(sidebar, 2)
                         var opened by remember { mutableStateOf(false) }
                         ModelPreviewTray(listOf(preview), onOpen = { opened = true }, onDismiss = {})
                         if (opened) ModelDocumentDialog(preview, root) { opened = false }
                     }
                 }
             }
-            rule.onNodeWithTag("sidebar-sort-filter").performClick()
-            rule.onNodeWithText("会话排序与筛选").assertExists()
-            rule.onNodeWithText("更新时间").assertExists()
-            rule.onNodeWithText("创建时间").assertExists()
-            capture("audit-session-sort-filter-android35.png")
-            rule.onNodeWithTag("codex-detail-close").performClick()
-            rule.onNodeWithTag("sidebar-active-tasks").performClick()
-            rule.runOnIdle { assertEquals(SessionTaskFilter.Active, sidebar.taskFilter) }
             rule.onNodeWithTag("model-document-pane").assertDoesNotExist()
             rule.onNodeWithTag("model-preview-tray").performClick()
             rule.onNodeWithText("打开预览").performClick()
