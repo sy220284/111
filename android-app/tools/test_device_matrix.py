@@ -28,7 +28,7 @@ class DeviceMatrixTests(unittest.TestCase):
         self.assertEqual("37.2", CONFIG["system_image_api"])
         self.assertEqual("35", CONFIG["sdk_platform"])
         self.assertIn(CONFIG["runtime_profile"], PROFILES)
-        self.assertGreaterEqual(CONFIG["minimum_ui_tests"], 145)
+        self.assertGreaterEqual(CONFIG["minimum_ui_tests"], 150)
         self.assertGreaterEqual(int(CONFIG["ram"].removesuffix("M")), 4096)
 
     def test_avd_boot_geometry_is_unique_and_unrelated_settings_preserved(self):

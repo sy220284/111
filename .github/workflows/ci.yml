@@ -196,6 +196,9 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
+          python3 -m venv .ui-visual-test-venv
+          .ui-visual-test-venv/bin/pip install --only-binary=:all: -r android-app/tools/requirements-ui-visual.txt
+          .ui-visual-test-venv/bin/python -m unittest discover -s android-app/tools -p 'test_ui_visual_audit.py'
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 验证 Compose、协议测试与静态检查
@@ -266,6 +269,9 @@ jobs:
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/ui_evidence_manifest.py
             /android-app/tools/run_ui_device_checks.py
+            /android-app/tools/run_ui_motion_checks.py
+            /android-app/tools/ui_visual_audit.py
+            /android-app/tools/requirements-ui-visual.txt
             /android-app/tools/device_matrix.py
             /android-app/tools/device-matrix.json
             /android-app/tools/verify_self_update_open.py
@@ -276,6 +282,10 @@ jobs:
         with:
           name: codex-android-ui-apks
           path: apks
+      - name: 安装独立视觉审计依赖
+        run: |
+          python3 -m venv .ui-visual-venv
+          .ui-visual-venv/bin/pip install --only-binary=:all: -r android-app/tools/requirements-ui-visual.txt
       - name: 允许模拟器硬件加速
         run: |
           sudo adduser "$USER" kvm || true
@@ -323,11 +333,26 @@ jobs:
             python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode baseline
             # All pages and component tests repeat at short/tall windows and large text.
             python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode adaptive
+            python3 android-app/tools/run_ui_motion_checks.py --profile ${{ matrix.profile }}
             file ui-screenshots/*.png
             # Only the designated mainstream emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
             if [ "${{ matrix.self_update }}" = "true" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
+      - name: 截图内容及历史视觉变化审计
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: .ui-visual-venv/bin/python android-app/tools/ui_visual_audit.py --profile ${{ matrix.profile }} --repo "$GITHUB_REPOSITORY"
+      - name: 保存视觉审计基线与差异
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-ui-visual-api${{ matrix.api }}-${{ matrix.profile }}
+          path: ui-visual-evidence/
+          if-no-files-found: error
+          retention-days: 90
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
         uses: actions/upload-artifact@v4
@@ -338,6 +363,9 @@ jobs:
             ui-baseline-diagnosis.json
             ui-adaptive-result.log
             ui-adaptive-diagnosis.json
+            ui-motion.log
+            ui-motion-diagnosis.json
+            ui-motion-performance.json
             ui-screenshots-adaptive/
             self-update-open.log
             self-update-open.json

@@ -1468,6 +1468,63 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
+    @Test fun experienceComposerTargetsAreUnclippedAndAligned() {
+        val quality = UiExperienceAssertions(rule)
+        quality.bounds("composer-send", 48f, 48f)
+        quality.bounds("composer-plus", 48f, 48f)
+        quality.bounds("composer-task-options", 48f, 48f)
+        quality.bounds("composer-input", 120f)
+        quality.nonOverlap("composer-plus", "composer-send", "composer-input")
+        quality.alignedCenters("composer-plus", "composer-send")
+    }
+
+    @Test fun experienceTopBarTargetsAreIndependent() {
+        val quality = UiExperienceAssertions(rule)
+        quality.bounds("drawer-toggle", 48f, 48f)
+        quality.bounds("top-new-chat", 48f, 48f)
+        quality.nonOverlap("drawer-toggle", "top-new-chat")
+        quality.alignedCenters("drawer-toggle", "top-new-chat")
+        rule.onNodeWithTag("drawer-toggle").performClick()
+        quality.bounds("sidebar-global-search", 48f, 48f)
+        quality.bounds("nav-settings", 48f, 48f)
+        quality.bounds("nav-account", 48f, 48f)
+        quality.nonOverlap("nav-settings", "nav-account")
+        quality.alignedCenters("nav-settings", "nav-account")
+    }
+
+    @Test fun experienceKeyboardDoesNotCoverActualActionBounds() {
+        rule.onNodeWithTag("composer-input").performClick()
+        rule.onNodeWithTag("composer-input").performTextInput("检查真实键盘遮挡")
+        assertRealSoftKeyboardOpen()
+        val quality = UiExperienceAssertions(rule)
+        quality.visibleAboveIme("composer-input", "composer-plus", "composer-send", "composer-task-options")
+        quality.nonOverlap("composer-input", "composer-plus", "composer-send")
+        quality.bounds("composer-send", 48f, 48f)
+    }
+
+    @Test fun experiencePageTitleTypographyRemainsReadable() {
+        val quality = UiExperienceAssertions(rule)
+        openSettingRoute("providers")
+        quality.untruncatedText("screen-title", "模型服务商")
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.onNodeWithTag("settings-list").assertIsDisplayed()
+        quality.untruncatedText("screen-title", "设置")
+    }
+
+    @Test fun experienceDraftSurvivesRepeatedWorkspaceRoundTrips() {
+        val draft = "需要保留的实际任务草稿"
+        rule.onNodeWithTag("composer-input").performTextReplacement(draft)
+        pressSystemBack()
+        repeat(2) {
+            openDrawerRoute("files")
+            rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+            pressSystemBack()
+            rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+            rule.onNodeWithTag("composer-input").assertTextContains(draft)
+            rule.onNodeWithTag("composer-send").assertIsEnabled()
+        }
+    }
+
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(fileName)
