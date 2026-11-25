@@ -338,6 +338,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-models-manager --lib image_input::tests
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting

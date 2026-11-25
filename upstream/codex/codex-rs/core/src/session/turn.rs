@@ -251,6 +251,24 @@ pub(crate) async fn run_turn(
             Ok(_) => Err(unsupported_uploaded_audio_error()),
         };
     }
+    // Reject known unsupported attachments before compaction can remove them.
+    if let Some(scope) = sess.services.models_manager.image_input_scope()
+        && sess.services.models_manager.image_input_rejected(&scope, &model_info.slug)
+        && (input.iter().any(|item| matches!(item, TurnInput::UserInput { content, .. }
+            if content.iter().any(ResolvedUserInput::is_image)))
+            || sess.clone_history().await.raw_items().any(response_item_has_image))
+    {
+        run_hooks_and_record_input_entries(
+            &sess,
+            &turn_context,
+            &model_info,
+            Some(&input),
+            /*pending_input*/ &[],
+            PersistContext::TurnStart,
+        )
+        .await?;
+        return Err(CodexErr::UnsupportedOperation(IMAGE_REJECTED_MESSAGE.into()));
+    }
     let auto_compaction_enabled = sess
         .services
         .thread_extension_data

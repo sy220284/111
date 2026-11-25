@@ -161,7 +161,8 @@ pub fn is_definite_image_rejection(error: &CodexErr) -> bool {
         .unwrap_or(body).to_ascii_lowercase();
     if ["tool", "function", "format", "size", "resolution", "detail", "base64", "mime",
         "decode", "corrupt", "invalid image", "content policy", "safety", "quota", "rate limit",
-        "authentication", "permission", "too large"].iter().any(|term| message.contains(term)) {
+        "authentication", "permission", "too large", "image_url", "url scheme",
+        "格式", "大小", "尺寸", "分辨率", "权限", "限流", "余额", "安全", "工具"].iter().any(|term| message.contains(term)) {
         return false;
     }
     if matches!(code.as_str(), "unsupported_image_input" | "image_input_not_supported" | "model_does_not_support_images") {
@@ -229,7 +230,8 @@ mod tests {
         for message in ["image too large", "invalid image", "unsupported image format",
             "unsupported image detail", "tool does not support image inputs",
             "model does not support image input: quota exceeded", "invalid API key", "rate limit",
-            "model does not support image input with this resolution", "invalid request"] {
+            "model does not support image input with this resolution", "invalid request",
+            "该模型不支持图片输入格式", "model does not support image input via image_url"] {
             assert!(!is_definite_image_rejection(&CodexErr::InvalidRequest(message.into())), "{message}");
         }
     }

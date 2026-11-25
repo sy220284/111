@@ -70,9 +70,12 @@ internal object ComposerProviderScope {
             else chosenModel
         ComposerProviderScope.requireModel(catalog, requestModel, chosenOptions.effort)
         val imageModel = requestModel.ifBlank {
-            ComposerProviderScope.provider(existing?.optString("model"))
-                ?: configuredModel ?: catalog.firstOrNull { !it.optBoolean("hidden") && it.optBoolean("isDefault") }
+            if (existing != null) {
+                ComposerProviderScope.provider(existing.optString("model")).orEmpty()
+            } else {
+                configuredModel ?: catalog.firstOrNull { !it.optBoolean("hidden") && it.optBoolean("isDefault") }
                     ?.let { it.optString("id").ifBlank { it.optString("model") } }.orEmpty()
+            }
         }
         ComposerModelPolicy.requireImageInput(catalog, imageModel, hasImages)
         val effectiveConfig = if (chosenMode == "plan") JSONObject(config.toString()).apply {
