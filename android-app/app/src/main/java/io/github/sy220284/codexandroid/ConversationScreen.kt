@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -53,6 +54,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
     val prompts by vm.bridge.prompts.collectProjection { it.forThread(thread) }
     val selectedWorkspace = conversation.workspace
+    val previewRequests by vm.modelPreviews.requests.collectAsState()
+    val previewEpoch by vm.bridge.connectedSession.collectAsState()
+    val previewAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val threadPreviews = remember(previewRequests, thread, previewEpoch, previewAccountRevision) {
+        previewRequests.filter { it.threadId == thread && it.epoch == previewEpoch && it.accountRevision == previewAccountRevision }
+    }
+    var selectedPreview by remember(thread, previewEpoch, previewAccountRevision) { mutableStateOf<ModelPreviewRequest?>(null) }
     val draftOwner = vm.composerOwner(thread, selectedWorkspace)
     val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
@@ -234,9 +242,24 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
-        key(thread) {
-            ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
-                compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+        if (threadPreviews.isNotEmpty() && !switching) ModelPreviewTray(threadPreviews,
+            onOpen = { selectedPreview = it }, onDismiss = { vm.modelPreviews.dismiss(it) })
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val wide = maxWidth >= 720.dp
+            val preview = selectedPreview?.takeIf { !switching && it.workspace == selectedWorkspace && !transferBusy }
+            Row(Modifier.fillMaxSize()) {
+                key(thread) {
+                    ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
+                        compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+                }
+                if (wide && preview != null) ModelDocumentPane(preview, File(vm.workingDirectory),
+                    onDismiss = { vm.modelPreviews.dismiss(preview); selectedPreview = null },
+                    modifier = Modifier.weight(1f).fillMaxHeight())
+            }
+            if (!wide && preview != null) ModelDocumentDialog(preview, File(vm.workingDirectory)) {
+                vm.modelPreviews.dismiss(preview)
+                selectedPreview = null
+            }
         }
         if (offerPlanApproval) {
             CodexNotice(

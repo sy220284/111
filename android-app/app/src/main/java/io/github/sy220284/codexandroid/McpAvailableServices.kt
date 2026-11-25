@@ -19,7 +19,8 @@ internal object McpAvailableServices {
     }
 
     fun isUsable(server: JSONObject): Boolean {
-        if (server.isNull("name") || server.optString("name").isBlank()) return false
+        if (server.isNull("name") || server.optString("name").isBlank() ||
+            server.optString("name") == ModelPreviewMcpServer.NAME) return false
         if (server.optString("runtimeStatus") != "connected") return false
         if (server.optString("authStatus") == "notLoggedIn") return false
 

@@ -23,6 +23,7 @@ internal class RuntimeConnectionController(private val vm: CodexViewModel) {
                 val previousThread = vm.activeThread.value
                 vm.threadOrganization.invalidate()
                 vm.mcpCatalog.reset()
+                vm.modelPreviews.clear()
                 vm.threadActivities.value = emptyMap()
                 vm.errors.value = vm.errors.value - "engine" - "protocol"
                 vm.refresh("account", "account/read", JSONObject())

@@ -53,6 +53,7 @@ internal object CodexNotificationDispatcher {
                 refresh("account", "account/read")
                 if (result.success) {
                     catalogWarmup.accountChanged()
+                    modelPreviews.clear()
                     accountMetrics.accountChanged()
                     extensions.invalidate()
                     refresh("mcp", "mcpServerStatus/list",
@@ -63,6 +64,7 @@ internal object CodexNotificationDispatcher {
             refresh("account", "account/read")
             catalogWarmup.accountChanged()
             mcpCatalog.clearStartup()
+            modelPreviews.clear()
             accountMetrics.accountChanged()
             extensions.invalidate()
             refreshMcpServices()
@@ -114,6 +116,7 @@ internal object CodexNotificationDispatcher {
             sessions.refreshChanged(threadId)
         }
         if (method == "thread/deleted") {
+            modelPreviews.removeThread(threadId)
             answerVersions.remove(threadId)
             sessions.removePin(threadId)
             liveTimelines.remove(threadId)

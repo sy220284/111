@@ -50,7 +50,9 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         viewModelScope.launch {
             var forkId: String? = null
             try {
-                val replay = MessageReplayCoordinator { method, params -> bridge.request(method, params) }
+                val replay = MessageReplayCoordinator { method, params ->
+                    bridge.request(method, if (method == "thread/fork") modelPreviews.configureFork(params) else params)
+                }
                 val original = replay.readOriginal(id, turnId)
                 val app = getApplication<Application>()
                 val clientId = UUID.randomUUID().toString()

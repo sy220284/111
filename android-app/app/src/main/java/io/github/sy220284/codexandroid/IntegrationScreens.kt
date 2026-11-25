@@ -254,7 +254,7 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val startup by vm.mcpCatalog.startup.collectAsState()
     val epoch by vm.bridge.connectedSession.collectAsState()
     val receipts = remember(startup, epoch, activeThread) {
-        startup.filter { it.epoch == epoch && (it.thread == null || it.thread == activeThread) }
+        startup.filter { it.epoch == epoch && it.name != ModelPreviewMcpServer.NAME && (it.thread == null || it.thread == activeThread) }
     }
 
     LaunchedEffect(activeThread, engineStatus) {

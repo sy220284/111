@@ -22,6 +22,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
     private val workspaceRoot = WorkspaceStorage.root(application)
     val workingDirectory = workspaceRoot.absolutePath
+    internal val modelPreviews = ModelPreviewController(this, workspaceRoot)
     private val workspacePreferences = application.getSharedPreferences("codex-workspace", 0)
     private val restoredWorkspace = WorkspaceSelectionContract.restore(
         workspaceRoot, workspacePreferences.getString("activeDirectory", null)?.let { WorkspaceStorage.remap(application, it) })
@@ -205,7 +206,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
-                val response = bridge.request(method, params)
+                val outgoing = if (method == "thread/fork" && params != null) modelPreviews.configureFork(params) else params
+                val response = bridge.request(method, outgoing)
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -459,7 +461,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
                 captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread); LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
-                    bridge.request(method, params)
+                    val outgoing = if (method == "thread/start") modelPreviews.configure(params, permissionConfig) else params
+                    bridge.request(method, outgoing)
                 }.submit(
                     existingThreadId = submittedThread,
                     createThreadParams = {
@@ -693,6 +696,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        modelPreviews.close()
         bridge.close()
         super.onCleared()
     }
