@@ -63,8 +63,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             it.accountRevision == previewAccountRevision && it.workspace == selectedWorkspace }
     }
     var selectedPreview by remember(thread, previewEpoch, previewAccountRevision) { mutableStateOf<ModelPreviewRequest?>(null) }
-    val draftOwner = vm.composerOwner(thread, selectedWorkspace)
-    val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
+    val agentWorkspace by vm.agentDraftWorkspace.collectAsState()
+    val agentOwner = ThreadComposerDrafts.agentKey(selectedWorkspace)
+    val agentDraft = thread == null && agentWorkspace == selectedWorkspace
+    val draftOwner = if (agentDraft) agentOwner else ThreadComposerDrafts.key(thread, selectedWorkspace)
+    val composerDrafts by vm.composerDrafts.collectEntries(draftOwner, agentOwner)
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
@@ -323,6 +326,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     onStart = { vm.startQueuedComposer(thread) })
             }
             val optionsEnabled = !busy && !firstThreadStarting && !switching
+            val modelOptionsEnabled = !firstThreadStarting && !switching && status == EngineStatus.Connected && !transferBusy
             val tools = buildList {
                 add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
@@ -332,7 +336,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
-                    enabled = optionsEnabled, onOpen = { composerMenu = "models" }))
+                    enabled = modelOptionsEnabled, onOpen = { composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
                     enabled = optionsEnabled, onOpen = { composerMenu = "modes" }))
                 add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
@@ -419,11 +423,25 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 modeLabel = selectedMode,
                 effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
                 optionsEnabled = optionsEnabled,
+                modelOptionsEnabled = modelOptionsEnabled,
                 onModel = { composerMenu = "models" },
                 onMode = { composerMenu = "modes" },
                 onTaskOptions = { composerMenu = "tools" },
                 onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
                 statusContent = {
+                    if (thread == null && (agentDraft || composerDrafts[agentOwner]?.hasInput == true)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (agentDraft) "配置任务草稿" else "另有配置任务草稿",
+                                modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                            CodexTextAction(onClick = {
+                                if (agentDraft) vm.resetConversation(selectedWorkspace, vm.activeProjectId.value)
+                                else vm.openExistingAgentDraft()
+                            }, enabled = !busy && !firstThreadStarting && !switching && !transferBusy,
+                                modifier = Modifier.testTag(if (agentDraft) "agent-draft-standard" else "agent-draft-reopen")) {
+                                Text(if (agentDraft) "返回普通草稿" else "查看")
+                            }
+                        }
+                    }
                     if (status is EngineStatus.Unavailable) {
                         CodexNotice(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay) + "，草稿已保留", NoticeTone.Warning,
                             actionLabel = if (!retirement && !restarting) "重连" else null,

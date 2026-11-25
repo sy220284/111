@@ -59,16 +59,19 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val active by vm.activeThread.collectAsState()
     val workspace by vm.activeWorkspace.collectAsState()
     val threadProvider by vm.activeModelProvider.collectAsState()
-    val drafts by vm.composerDrafts.collectEntries(vm.composerOwner(active, workspace))
+    val agentWorkspace by vm.agentDraftWorkspace.collectAsState()
+    val owner = if (active == null && agentWorkspace == workspace) ThreadComposerDrafts.agentKey(workspace)
+        else ThreadComposerDrafts.key(active, workspace)
+    val drafts by vm.composerDrafts.collectEntries(owner)
     val providerData by vm.data.collectEntries("providers")
-    val draftProvider = ComposerProviderScope.provider(drafts[vm.composerOwner(active, workspace)]?.options?.modelProvider)
+    val draftProvider = ComposerProviderScope.provider(drafts[owner]?.options?.modelProvider)
     val scopedProvider = if (active != null) ComposerProviderScope.provider(threadProvider) else draftProvider
     val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
     val models by vm.data.collectEntries(catalogKey)
     val running by vm.running.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val effort = drafts[vm.composerOwner(active, workspace)]?.options?.effort.orEmpty()
+    val effort = drafts[owner]?.options?.effort.orEmpty()
     var selectingProvider by remember { mutableStateOf(false) }
     val loading by vm.loading.collectProjection { it.intersect(setOf(catalogKey)) }
     val errors by vm.errors.collectEntries(catalogKey)
@@ -88,7 +91,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 PresentationPolicy.meaningful(item.optString("description")))
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     }
-    val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !running && !creating && !switching &&
+    val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !creating && !switching &&
         (active == null || scopedProvider != null)
     val providerChoices = records(providerData["providers"]).map {
         CodexChoice(it.optString("id"), PresentationPolicy.providerName(it.optString("name")))
@@ -103,6 +106,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
             catalogKey in loading -> "正在读取内核可用模型…"
             errors[catalogKey] != null -> "读取模型目录失败：${errors[catalogKey]}。可手动重新加载。"
+            running -> "当前任务保持原模型。选择仅用于手动开启的后续轮次；补充与已排队指令保持原任务设置。"
             else -> "当前可用 ${choices.size} 个模型；更改只影响后续任务。"
         },
         choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,

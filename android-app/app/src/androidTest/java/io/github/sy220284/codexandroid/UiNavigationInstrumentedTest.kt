@@ -1090,17 +1090,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("config-agent-action").performClick()
         rule.onNodeWithText("交给 Codex 处理").assertExists()
         rule.onNodeWithTag("confirm-dialog-accept").performClick()
-        rule.onNodeWithTag("composer-input").assertExists()
-        rule.onNodeWithTag("composer-input").assertTextContains("原有草稿", substring = true)
+        rule.onNodeWithTag("composer-input").assertTextContains("请帮我调整本机 Codex", substring = true)
         rule.runOnIdle {
             org.junit.Assert.assertFalse(vm.running.value)
-            org.junit.Assert.assertEquals("原有草稿", vm.composerDrafts.value[vm.composerOwner(null)]?.text)
+            org.junit.Assert.assertEquals("原有草稿", vm.composerDrafts.value[ThreadComposerDrafts.key(null, vm.activeWorkspace.value)]?.text)
         }
-        rule.onNodeWithTag("composer-input").performTextClearance()
-        openSettingRoute("config")
-        rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
-        rule.onNodeWithTag("config-agent-action").performClick()
-        rule.onNodeWithTag("confirm-dialog-accept").performClick()
+        rule.onNodeWithTag("agent-draft-standard").performClick()
+        rule.onNodeWithTag("composer-input").assertTextContains("原有草稿", substring = true)
+        rule.onNodeWithTag("agent-draft-reopen").performClick()
         rule.onNodeWithTag("composer-input").assertTextContains("请帮我调整本机 Codex", substring = true)
         rule.runOnIdle { org.junit.Assert.assertFalse(vm.running.value) }
     }

@@ -44,6 +44,7 @@ internal fun ConversationComposer(
     modeLabel: String = "default",
     effortLabel: String = "",
     optionsEnabled: Boolean = true,
+    modelOptionsEnabled: Boolean = optionsEnabled,
     onModel: () -> Unit = {},
     onMode: () -> Unit = {},
     onTaskOptions: () -> Unit = {},
@@ -139,10 +140,10 @@ internal fun ConversationComposer(
                     }
                     addMenu?.invoke()
                 }
-                if (running) Spacer(Modifier.weight(1f))
-                else Box(Modifier.weight(1f)) {
+                Box(Modifier.weight(1f)) {
                     Row(Modifier.fillMaxWidth()) {
-                        ConversationControlBar(modelLabel, effortLabel, optionsEnabled, onModel)
+                        ConversationControlBar(if (running) "下轮 · " + modelLabel.ifBlank { "默认模型" } else modelLabel,
+                            if (running) "" else effortLabel, modelOptionsEnabled, onModel)
                     }
                     modelMenu?.invoke()
                 }
@@ -181,9 +182,9 @@ internal fun ConversationComposer(
                             .explainDisabled(!primaryEnabled, when {
                                 stopping -> "已发出停止请求，等待运行核心响应"
                                 !showStop && sending -> "正在发送指令，请勿重复提交"
+                                !connected -> "运行核心尚未连接"
                                 showStop && !canStop -> "当前任务尚无可停止的执行回合"
                                 sendBlockReason.isNotBlank() -> sendBlockReason
-                                !connected -> "运行核心尚未连接"
                                 else -> "输入指令后即可发送"
                             })
                             .semantics { contentDescription = description },

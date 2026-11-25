@@ -84,7 +84,7 @@ internal fun ActionReplyRow(
                     placeholder = placeholder ?: { Text("输入内容…") },
                     enabled = enabled && open, keyboardOptions = keyboardOptions, singleLine = singleLine,
                     maxLines = maxLines, minLines = minLines, isError = draftError != null,
-                    supportingText = draftError?.let { reason -> { Text(reason, color = Ink.red) } })
+                    supportingText = if (draftError != null) {{ Text(draftError, color = Ink.red) }} else null)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     CodexTextAction(onClick = {
                         val pasted = clipboard.getText()?.text
@@ -165,8 +165,9 @@ internal fun AgentActionRow(vm: CodexViewModel, title: String, detail: String, r
     val switching by vm.threadSwitching.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val workspace by vm.activeWorkspace.collectAsState()
-    val drafts by vm.composerDrafts.collectEntries(vm.composerOwner(null, workspace))
-    val target = drafts[vm.composerOwner(null, workspace)]
+    val agentOwner = ThreadComposerDrafts.agentKey(workspace)
+    val drafts by vm.composerDrafts.collectEntries(agentOwner)
+    val target = drafts[agentOwner]
     val canPrepare = AgentActionDraftPolicy.canPrepare(target, request)
     var preview by rememberSaveable { mutableStateOf(false) }
     var failure by remember { mutableStateOf("") }
@@ -175,10 +176,10 @@ internal fun AgentActionRow(vm: CodexViewModel, title: String, detail: String, r
         modifier = modifier, outlined = false)
     if (preview) CodexConfirmDialog(
         title = "交给 Codex 处理",
-        message = failure.ifBlank { if (!canPrepare) "此工作区有未发送的新会话草稿。请先处理该草稿，避免混入配置任务。"
-            else "将打开独立的新任务草稿，当前会话与任务继续保留；发送前可检查和修改内容。" },
+        message = failure.ifBlank { if (!canPrepare) "此工作区已有一份未发送的配置任务草稿。打开查看，原普通任务草稿继续保留。"
+            else "将打开独立的配置任务草稿，普通草稿、当前会话与运行任务继续保留；发送前可检查和修改内容。" },
         detail = "工作区：" + PresentationPolicy.workspaceName(workspace) + "\n\n" + request,
-        confirmLabel = if (canPrepare) "打开任务草稿" else "查看已有草稿",
+        confirmLabel = if (canPrepare) "打开任务草稿" else "查看配置草稿",
         confirmEnabled = enabled && !transferring.busy && !switching && !creating,
         onConfirm = {
             val opened = if (canPrepare) vm.prepareAgentAction(request) else vm.openExistingAgentDraft()
@@ -234,8 +235,9 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
 }
 
 internal fun CodexViewModel.openExistingAgentDraft(): Boolean {
-    if (AppDataTransfer.state.value.busy || threadSwitching.value || firstThreadStarting.value) return false
-    if (activeThread.value != null && !resetConversation(activeWorkspace.value, activeProjectId.value)) return false
+    val workspace = activeWorkspace.value
+    if (composerDrafts.value[ThreadComposerDrafts.agentKey(workspace)]?.hasInput != true) return false
+    if (!resetConversation(workspace, activeProjectId.value, agentDraft = true)) return false
     agentActionNavigation.value += 1
     return true
 }
@@ -243,10 +245,10 @@ internal fun CodexViewModel.openExistingAgentDraft(): Boolean {
 internal fun CodexViewModel.prepareAgentAction(request: String): Boolean {
     if (request.isBlank() || AppDataTransfer.state.value.busy ||
         threadSwitching.value || firstThreadStarting.value) return false
-    val owner = composerOwner(null)
+    val workspace = activeWorkspace.value
+    val owner = ThreadComposerDrafts.agentKey(workspace)
     if (!AgentActionDraftPolicy.canPrepare(composerDrafts.value[owner], request)) return false
-    if (activeThread.value != null && !resetConversation(activeWorkspace.value, activeProjectId.value)) return false
-    // The UI thread owns navigation and input updates; never append into existing user text.
+    if (!resetConversation(workspace, activeProjectId.value, agentDraft = true)) return false
     composerDrafts.update { drafts -> ThreadComposerDrafts.text(drafts, owner, request) }
     agentActionNavigation.value += 1
     return true

@@ -40,9 +40,9 @@ internal fun CodexViewModel.restoreComposerOptions(threadId: String?) {
     modelId.value = options.model
     selectedMode.value = options.mode
 }
-internal fun CodexViewModel.changeComposerOptions(transform: (ComposerTaskOptions) -> ComposerTaskOptions) {
+internal fun CodexViewModel.changeComposerOptions(allowWhileRunning: Boolean = false, transform: (ComposerTaskOptions) -> ComposerTaskOptions) {
     val thread = activeThread.value
-    if (threadSwitching.value || firstThreadStarting.value || running.value) return
+    if (threadSwitching.value || firstThreadStarting.value || (running.value && (!allowWhileRunning || thread == null))) return
     composerDrafts.update { drafts ->
         val original = drafts[composerOwner(thread)]?.options ?: ComposerTaskOptions()
         ThreadComposerDrafts.options(drafts, composerOwner(thread), transform(original))
@@ -50,7 +50,7 @@ internal fun CodexViewModel.changeComposerOptions(transform: (ComposerTaskOption
     restoreComposerOptions(thread)
 }
 internal fun CodexViewModel.chooseComposerModel(id: String) =
-    changeComposerOptions {
+    changeComposerOptions(allowWhileRunning = true) {
         val provider = if (id.isBlank()) it.modelProvider else currentComposerProvider().orEmpty()
         it.copy(model = id, modelProvider = provider,
             effort = if (it.model == id && it.modelProvider == provider) it.effort else "")
@@ -62,7 +62,7 @@ internal fun CodexViewModel.chooseComposerProvider(id: String) {
 internal fun CodexViewModel.chooseComposerMode(id: String) =
     changeComposerOptions { it.copy(mode = id) }
 internal fun CodexViewModel.chooseComposerEffort(id: String) =
-    changeComposerOptions {
+    changeComposerOptions(allowWhileRunning = true) {
         ComposerModelPolicy.requireEffort(records(data.value[composerCatalogKey()]), it.model, id)
         it.copy(effort = id)
     }
