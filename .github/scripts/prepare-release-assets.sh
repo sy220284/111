@@ -19,10 +19,9 @@ printf '[]\n' > "$APKS_JSON"
 for ABI in arm64-v8a; do
   INPUT="$APK_DIR/app-$ABI-release.apk"
   test -s "$INPUT"
-  if unzip -p "$INPUT" assets/development-runtime/development-runtime.provenance.json | jq -e '.gitHttps == true and .gitCorrespondingSourceVerified != true' >/dev/null; then
-    echo "::error::预编译 Git 对应源码尚未核验，禁止正式发布" >&2
-    exit 1
-  fi
+  python3 "$(dirname "${BASH_SOURCE[0]}")/verify_git_corresponding_source.py" \
+    "$INPUT" "$RUNNER_TEMP/git-corresponding-source.tar.xz"
+  cp "$RUNNER_TEMP/git-corresponding-source.tar.xz" "$OUT/git-corresponding-source.tar.xz"
   ASSET="codex-android-$ABI-$RELEASE_VERSION.apk"
   cp "$INPUT" "$OUT/$ASSET"
   SIZE="$(stat -c '%s' "$OUT/$ASSET")"
@@ -31,15 +30,6 @@ for ABI in arm64-v8a; do
     '. += [{abi:$abi,name:$asset,size:$size,sha256:$sha}]' "$APKS_JSON" > "$APKS_JSON.tmp"
   mv "$APKS_JSON.tmp" "$APKS_JSON"
 done
-
-# Git is GPL-2.0. Accompany every signed APK with the exact corresponding
-# upstream Git source; our build recipe is preserved in this repository.
-GIT_SOURCE="$RUNNER_TEMP/git-android-release-source"
-git clone --depth 1 --branch v2.52.0 --single-branch \
-  https://github.com/git/git.git "$GIT_SOURCE"
-test "$(git -C "$GIT_SOURCE" rev-parse HEAD)" = "9a2fb147f2c61d0cab52c883e7e26f5b7948e3ed"
-tar -cJf "$OUT/git-2.52.0-corresponding-source.tar.xz" \
-  --exclude=.git -C "$RUNNER_TEMP" git-android-release-source
 
 if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
   HDIFF_VERSION=5.1.3

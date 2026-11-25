@@ -22,6 +22,13 @@ GIT = ("https://github.com/rmyndharis/VSCodroid/releases/download/v1.11.0/app-re
        "4f83ff6fd8a70f19ee04ad93861d68522a2936c203f6ec941e9c12c4527051a3")
 GIT_MANIFEST = ("https://github.com/rmyndharis/VSCodroid/releases/download/v1.11.0/build-manifest.txt",
                 "b5209f3349833aba6bb4824a37cddc8f29b5c9e5709b68e7a26536dbfa75dd3e")
+GIT_VERSION = "2.56.1"
+GIT_DEB = ("https://packages.termux.dev/apt/termux-main/pool/main/g/git/git_2.56.1_aarch64.deb",
+           "3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95")
+GIT_SOURCE = ("https://mirrors.kernel.org/pub/software/scm/git/git-2.56.1.tar.xz",
+              "f0b0bf89264b9bd2e1c640363e7529643989da76281600473c50745cd34a607f")
+TERMUX_RECIPE_COMMIT = "8a9e362e0083070452d9d1b1ed84651a57607a1c"
+VSCODROID_COMMIT = "a8bee507535845a3a6ab89265b455b24cab7e878"
 PIP = "26.3"
 # PyPI publishes a different digest for the source tarball. Pin the exact wheel.
 PIP_WHEEL = ("https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl",
@@ -94,9 +101,81 @@ def needed(path, abi, executable=False):
         raise ValueError(f"Not an Android executable: {path}")
     return set(re.findall(r"Shared library: \[([^]]+)\]", read("-Wd")))
 
+def verified_git_manifest(manifest):
+    lines = manifest.read_text(encoding="utf-8").splitlines()
+    if [line for line in lines if line.startswith("termux\tgit\t")] != [
+            f"termux\tgit\t{GIT_VERSION}\t{GIT_DEB[1]}"]:
+        raise ValueError("Git package differs from pinned distributor manifest")
+    if [line for line in lines if line.startswith("app-commit\t")] != [
+            f"app-commit\t{VSCODROID_COMMIT}"]:
+        raise ValueError("Distributor commit differs from pinned provenance")
+    if any(line.startswith("# NOTE git was resolved twice") for line in lines):
+        raise ValueError("Ambiguous Git resolution in distributor manifest")
+
+
+def patch_git_shell(binary):
+    original = b"/data/data/com.termux/files/usr/bin/sh\0"
+    replacement = b"/system/bin/sh".ljust(len(original), b"\0")
+    if binary.count(original) != 1:
+        raise ValueError("Unexpected compiled Git shell path")
+    return binary.replace(original, replacement)
+
+
+def git_binaries(native, work, manifest):
+    verified_git_manifest(manifest)
+    deb = fetch(*GIT_DEB, work)
+    extracted = work / "git-deb"
+    subprocess.run(["dpkg-deb", "--extract", str(deb), str(extracted)], check=True)
+    prefix = extracted / "data/data/com.termux/files/usr"
+    sources = {"libcodex_git.so": "bin/git",
+               "libcodex_git_remote_http.so": "libexec/git-core/git-remote-https"}
+    result = {}
+    for name, relative_path in sources.items():
+        # The package may contain an absolute Termux symlink. Resolve it
+        # against the extracted package, never against the CI host.
+        source = prefix / relative_path
+        if source.is_symlink():
+            link = source.readlink()
+            if link.is_absolute():
+                source = extracted / str(link).lstrip("/")
+        source = source.resolve(strict=True)
+        if not source.is_relative_to(prefix.resolve()) or not source.is_file():
+            raise ValueError(f"Git package executable escaped package: {source}")
+        target = native / name
+        target.write_bytes(patch_git_shell(source.read_bytes()))
+        result[name] = digest(target)
+    return result
+
+
+def git_corresponding_source(work, manifest, output):
+    source = fetch(*GIT_SOURCE, work)
+    recipe = work / "termux-recipes"
+    subprocess.run(["git", "init", "-q", str(recipe)], check=True)
+    subprocess.run(["git", "-C", str(recipe), "fetch", "--depth=1", "--no-tags",
+                    "https://github.com/termux/termux-packages.git", TERMUX_RECIPE_COMMIT], check=True)
+    commit = subprocess.check_output(["git", "-C", str(recipe), "rev-parse", "FETCH_HEAD"], text=True).strip()
+    if commit != TERMUX_RECIPE_COMMIT:
+        raise ValueError("Termux corresponding source commit mismatch")
+    recipe_text = subprocess.check_output(
+        ["git", "-C", str(recipe), "show", f"{commit}:packages/git/build.sh"], text=True)
+    if f'TERMUX_PKG_VERSION="{GIT_VERSION}"' not in recipe_text.splitlines() or (
+            f"TERMUX_PKG_SHA256={GIT_SOURCE[1]}" not in recipe_text.splitlines()):
+        raise ValueError("Termux source recipe does not match locked Git source")
+    recipe_archive = work / "termux-packages.tar.gz"
+    subprocess.run(["git", "-C", str(recipe), "archive", "--format=tar.gz",
+                    "--prefix=termux-packages/", "-o", str(recipe_archive), commit], check=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_suffix(".partial")
+    with tarfile.open(temporary, "w:xz") as archive:
+        archive.add(source, arcname=source.name)
+        archive.add(recipe_archive, arcname=recipe_archive.name)
+        archive.add(manifest, arcname="VSCodroid-build-manifest.txt")
+        archive.add(pathlib.Path(__file__).resolve(), arcname="prepare_prebuilt_developer_runtime.py")
+    temporary.replace(output)
+    return digest(output)
+
+
 def git_payload(apk, abi, native, data):
-    copy_zip(apk, f"lib/{abi}/libgit.so", native / "libcodex_git.so")
-    copy_zip(apk, f"lib/{abi}/libgit-remote-curl.so", native / "libcodex_git_remote_http.so")
     names = set(apk.namelist())
     libroot = data / "git/lib"
     libroot.mkdir(parents=True, exist_ok=True)
@@ -132,7 +211,7 @@ def git_payload(apk, abi, native, data):
     if not any((data / "licenses/git-distribution/git").glob("*")):
         raise ValueError("Git upstream notice missing")
 
-def prepare(abi, native, assets, work):
+def prepare(abi, native, assets, work, git_source_output=None):
     data = work / "data"
     data.mkdir()
     assets.mkdir(parents=True, exist_ok=True)
@@ -165,11 +244,21 @@ def prepare(abi, native, assets, work):
                   "pip": {"version": PIP, "url": PIP_WHEEL[0], "sha256": PIP_WHEEL[1]},
                   "gitHttps": abi == "arm64-v8a"}
     if abi == "arm64-v8a":
+        if git_source_output is None:
+            raise ValueError("ARM64 Git corresponding source output is required")
+        manifest = fetch(*GIT_MANIFEST, work)
+        binaries = git_binaries(native, work, manifest)
         with zipfile.ZipFile(fetch(*GIT, work)) as apk:
             git_payload(apk, abi, native, data)
-        shutil.copyfile(fetch(*GIT_MANIFEST, work), data / "git-distributor-manifest.txt")
-        provenance["git"] = {"url": GIT[0], "sha256": GIT[1], "manifest": GIT_MANIFEST[1]}
-        provenance["gitCorrespondingSourceVerified"] = False
+        shutil.copyfile(manifest, data / "git-distributor-manifest.txt")
+        source_archive_sha = git_corresponding_source(work, manifest, git_source_output)
+        provenance["git"] = {
+            "version": GIT_VERSION, "packageUrl": GIT_DEB[0], "packageSha256": GIT_DEB[1],
+            "url": GIT[0], "sha256": GIT[1], "manifest": GIT_MANIFEST[1],
+            "termuxRecipeCommit": TERMUX_RECIPE_COMMIT, "upstreamSourceSha256": GIT_SOURCE[1],
+            "sourceArchiveSha256": source_archive_sha, "binaries": binaries,
+        }
+        provenance["gitCorrespondingSourceVerified"] = True
     for path in [native / x for x in ("libnode.so", "libnpm.so", "libpython3.so", "libcodex_curl.so")]:
         for dep in needed(path, abi, True) - SYSTEM:
             if not (native / dep).is_file():
@@ -198,6 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("abi", choices=sorted(DSH))
     parser.add_argument("native", type=pathlib.Path)
     parser.add_argument("assets", type=pathlib.Path)
+    parser.add_argument("--git-source-output", type=pathlib.Path)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="prebuilt-developer-") as tmp:
-        prepare(args.abi, args.native, args.assets, pathlib.Path(tmp))
+        prepare(args.abi, args.native, args.assets, pathlib.Path(tmp), args.git_source_output)

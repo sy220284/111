@@ -77,5 +77,6 @@ fi
 
 
 # Assemble published tools without compiling CPython, Node, curl or Git HTTPS.
+SOURCE_OUTPUT="${CODEX_GIT_SOURCE_OUTPUT:-${RUNNER_TEMP:-android-app/build}/git-corresponding-source.tar.xz}"
 python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" "$TARGET" \
-  android-app/app/src/main/assets/development-runtime
+  android-app/app/src/main/assets/development-runtime --git-source-output "$SOURCE_OUTPUT"
