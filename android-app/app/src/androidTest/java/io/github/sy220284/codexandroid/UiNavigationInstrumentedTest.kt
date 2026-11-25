@@ -1247,12 +1247,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
-        rule.onNodeWithTag("environment-endpoint").performClick()
+        rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
         rule.onNodeWithTag("action-reply-input").performTextInput("wss://example.com/exec")
         rule.onNodeWithTag("action-reply-send").performClick()
-        rule.onNodeWithText("连接：example.com").assertExists()
-        rule.onNodeWithTag("environment-rename").performClick()
-        rule.onNodeWithTag("environment-remote-name").performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com")
+        rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("action-reply-input").fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithTag("action-reply-input").performTextReplacement("工作电脑")
         rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
@@ -1260,7 +1262,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-local-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-endpoint").assertDoesNotExist()
         rule.onNodeWithTag("environment-local-option").assertExists()
-        rule.onNodeWithTag("environment-remote-option").performClick()
+        rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
     }

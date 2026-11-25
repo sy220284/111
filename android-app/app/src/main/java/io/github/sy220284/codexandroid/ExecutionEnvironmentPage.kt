@@ -49,7 +49,6 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     LaunchedEffect(target) {
         if (target == "remote") useRemote = true
     }
-    var editConnectionName by rememberSaveable { mutableStateOf(false) }
     var remoteName by rememberSaveable { mutableStateOf("") }
     var endpoint by rememberSaveable { mutableStateOf("") }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
@@ -128,12 +127,8 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                         "连接地址格式不正确，或不符合安全连接要求。" else null,
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                     modifier = Modifier.testTag("environment-endpoint"))
-                if (remoteName.isNotBlank()) Text("连接：$remoteName", color = Ink.muted)
-                CodexTextAction(onClick = { editConnectionName = !editConnectionName },
-                    modifier = Modifier.testTag("environment-rename")) {
-                    Text(if (editConnectionName) "收起名称设置" else "自定义连接名称")
-                }
-                if (editConnectionName) ActionQuestionRow(remoteName, { remoteName = it }, "连接名称",
+                if (remoteName.isNotBlank()) ActionQuestionRow(remoteName, { remoteName = it.trim().ifBlank { ExecutionEnvironmentConnectionPolicy.defaultName(endpoint) } },
+                    "连接名称", helper = "根据地址自动生成，可按需修改",
                     placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"))
                 CodexSecondaryButton(
                     onClick = {
