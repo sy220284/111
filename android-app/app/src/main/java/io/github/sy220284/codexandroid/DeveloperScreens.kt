@@ -38,14 +38,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-internal fun defaultWorkspaceContentName(kind: String, occupied: Set<String>): String {
-    val prefix = if (kind == "file") "新建文件" else "新建文件夹"
-    val suffix = if (kind == "file") ".txt" else ""
-    return generateSequence(1) { it + 1 }.map { n ->
-        prefix + (if (n == 1) "" else " $n") + suffix
-    }.first { it !in occupied }
-}
-
 private data class WorkspaceDirectoryEntry(val file: File, val directory: Boolean, val bytes: Long)
 
 @Composable
@@ -285,6 +277,10 @@ fun WorkspacePage(vm: CodexViewModel) {
                             refresh++
                         } catch (cancel: kotlinx.coroutines.CancellationException) {
                             throw cancel
+                        } catch (conflict: WorkspaceNameConflict) {
+                            // Never silently create under a different name than the user confirmed.
+                            createError = "同名内容已存在，建议使用“" + conflict.suggestedName + "”，修改名称后再次确认。"
+                            refresh++
                         } catch (failure: Exception) {
                             createError = "创建失败：" + (failure.message ?: "未知错误")
                         } finally { actionBusy = false }
