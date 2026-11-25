@@ -848,14 +848,7 @@ class CodexInteractionComponentsInstrumentedTest {
 
     private fun captureComponentEvidence(name: String) {
         rule.waitForIdle()
-        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-        val directory = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
-        val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
-        try {
-            java.io.File(directory, name).outputStream().use { output ->
-                check(screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output))
-            }
-        } finally { screenshot.recycle() }
+        captureVerifiedDisplayScreenshot(name)
     }
 
 

@@ -3,15 +3,12 @@ package io.github.sy220284.codexandroid
 import android.content.Context
 import org.json.JSONObject
 import org.json.JSONArray
-import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import android.view.KeyEvent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -1489,28 +1486,8 @@ class UiNavigationInstrumentedTest {
         captureVerifiedDisplayScreenshot(fileName)
     }
 
-    private fun saveScreenshot(fileName: String, screenshot: Bitmap) {
-        val app = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = requireNotNull(app.getExternalFilesDir(null)) {
-            "Android instrumentation external files directory unavailable"
-        }
-        File(directory, fileName).outputStream().use { output ->
-            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                "Failed to encode screen capture: $fileName"
-            }
-        }
-    }
-
     private fun capture(fileName: String) {
-        val app = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = requireNotNull(app.getExternalFilesDir(null)) {
-            "Android instrumentation external files directory unavailable"
-        }
-        val screenshot = rule.onRoot().captureToImage().asAndroidBitmap()
-        File(directory, fileName).outputStream().use { output ->
-            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                "Failed to encode Compose screenshot: $fileName"
-            }
-        }
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot(fileName)
     }
 }

@@ -3,6 +3,7 @@
 import sys
 import tempfile
 import unittest
+import re
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -10,6 +11,19 @@ from collect_ui_screenshots import parse_discovered_screens, REQUIRED_SCREENS, v
 
 
 class ScreenshotDiscoveryTest(unittest.TestCase):
+    def test_full_display_evidence_cannot_bypass_shared_capture(self):
+        source = Path(__file__).resolve().parents[1] / "app/src/androidTest/java"
+        files = list(source.rglob("*.kt"))
+        self.assertTrue(files, "必须检查实际设备测试源码")
+        bypasses = []
+        for path in files:
+            code = path.read_text(encoding="utf-8")
+            if path.name != "VerifiedScreenshotCapture.kt" and re.search(r"\.takeScreenshot\s*\(", code):
+                bypasses.append(str(path.relative_to(source)))
+            if re.search(r"\.onRoot\s*\([^)]*\)\s*\.captureToImage\s*\(", code):
+                bypasses.append(str(path.relative_to(source)))
+        self.assertEqual([], bypasses, "整屏证据统一校验窗口归属与系统浮层；图片像素断言仍可使用组件采样")
+
     def test_every_route_must_register_distinct_device_evidence(self):
         manifest = {"routes": [{"route": "chat", "screens": ["chat"]}],
                     "requiredStateScreens": ["keyboard"], "optionalStateScreens": []}

@@ -72,13 +72,15 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
     val image = requireNotNull(automation.takeScreenshot()) {
         "Android 全屏截图失败：$fileName"
     }
-    check(!hasClipboardOverlayWindow(checkOwner())) { "截图期间出现系统剪贴板浮层：$fileName" }
-    val directory = requireNotNull(target.getExternalFilesDir(null)) {
-        "设备未提供测试截图目录"
-    }
-    File(directory, fileName).outputStream().use { output ->
-        check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-            "无法写入 UI 截图：$fileName"
+    try {
+        check(!hasClipboardOverlayWindow(checkOwner())) { "截图期间出现系统剪贴板浮层：$fileName" }
+        val directory = requireNotNull(target.getExternalFilesDir(null)) {
+            "设备未提供测试截图目录"
         }
-    }
+        File(directory, fileName).outputStream().use { output ->
+            check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                "无法写入 UI 截图：$fileName"
+            }
+        }
+    } finally { image.recycle() }
 }
