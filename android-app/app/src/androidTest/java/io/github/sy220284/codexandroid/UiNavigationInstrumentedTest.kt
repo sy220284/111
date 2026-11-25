@@ -181,6 +181,15 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun duplicatePageIntroUsesTopBarExplanation() {
+        openSettingRoute("skills")
+        rule.onNodeWithTag("screen-title").assertTextEquals("技能")
+        rule.onNodeWithContentDescription("查看技能说明").assertIsDisplayed().performClick()
+        rule.onNodeWithText("从 Codex 原生目录读取技能，按技能路径单独启用或停用。").assertIsDisplayed()
+        rule.onNodeWithTag("codex-info-close").performClick()
+        rule.onNodeWithContentDescription("查看技能说明").assertIsDisplayed()
+    }
+
     @Test fun drawerOpensAndNavigatesToConversation() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("home-task-hero").assertDoesNotExist()
@@ -963,10 +972,10 @@ class UiNavigationInstrumentedTest {
 
     @Test fun installedPluginManagementAndCatalogStayReachable() {
         openSettingRoute("plugins")
-        rule.onNodeWithTag("plugins-tab-installed").assertExists()
+        rule.onNodeWithTag("plugins-tab-installed").performClick().assertIsSelected()
+        capture("plugins-android35.png")
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
         rule.onNodeWithText("插件源", substring = false).assertExists()
-        capture("plugins-android35.png")
     }
 
 
@@ -1421,8 +1430,6 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("整理上下文").assertExists()
         captureOverlay("audit-thread-context-android35.png")
         rule.onNodeWithText("历史回退").performScrollTo().performClick()
-        rule.waitForIdle()
-        captureOverlay("audit-thread-history-transition-android35.png")
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithText("查看完整时间线（实验）").fetchSemanticsNodes().isNotEmpty()
         }
@@ -1454,10 +1461,11 @@ class UiNavigationInstrumentedTest {
         captureOverlay("audit-goals-sheet-android35.png")
         rule.onNodeWithTag("goal-advanced-toggle").performScrollTo().performClick()
         rule.onNodeWithTag("codex-edit-dialog").assertExists()
+        captureOverlay("audit-goal-budget-editor-android35.png")
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithTag("codex-edit-dialog").assertDoesNotExist()
-        rule.onNodeWithTag("goal-sticky-save").assertExists()
-        rule.onNodeWithTag("goal-advanced-toggle").assertExists()
+        rule.onNodeWithTag("goal-sticky-save").assertIsDisplayed()
+        rule.onNodeWithTag("goal-advanced-toggle").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun sidebarProjectContextOpensFilesWithoutHistoryPicker() {

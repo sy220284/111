@@ -389,7 +389,7 @@ internal fun SidebarSessionRow(
     val id = SessionListPolicy.id(item)
     val actual = SessionListPolicy.activity(item, activity, running, pendingApprovals)
     val reduced by UiPreferences.reducedMotion.collectAsState()
-    val color by animateColorAsState(if (active || checked) Ink.elevated else Ink.canvas,
+    val color by animateColorAsState(if (active || checked) Ink.copper.copy(alpha = .10f) else Ink.canvas,
         tween(CodexMotion.duration(CodexMotion.selection, reduced)), label = "session-selection")
     Surface(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
         .testTag("sidebar-thread-" + id).semantics { selected = active || checked }
@@ -399,8 +399,9 @@ internal fun SidebarSessionRow(
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             if (selecting) CodexCheckBox(checked = checked, enabled = enabled, onCheckedChange = { onClick() })
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(SessionListPolicy.title(item), style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(SessionListPolicy.title(item),
+                    style = if (active || unread) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                    maxLines = if (codexEffectiveFontScale() > 1.3f) 2 else 1, overflow = TextOverflow.Ellipsis)
                 val stateLabel = when (actual) {
                     ThreadActivity.WaitingApproval -> if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项" else "等待审批"
                     ThreadActivity.WaitingAnswer -> "等待回答"

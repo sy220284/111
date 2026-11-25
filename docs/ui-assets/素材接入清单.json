@@ -892,6 +892,6 @@
     "engine-settings-editor"
   ],
   "optionalStateScreens": [
-    "audit-thread-history-transition"
+    "audit-goal-budget-editor"
   ]
 }

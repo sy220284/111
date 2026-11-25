@@ -40,8 +40,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
         state = listState,
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
@@ -91,15 +91,16 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
         }
         items(groups, key = { it.first.title }) { (group, entries) ->
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 9.dp),
                     color = Ink.muted, style = MaterialTheme.typography.titleMedium)
                 if (entries.isNotEmpty()) {
-                    Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
-                        border = BorderStroke(1.dp, Ink.border),
+                    Surface(shape = RoundedCornerShape(12.dp), color = Ink.canvas,
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
-                            entries.forEach { entry ->
+                            entries.forEachIndexed { index, entry ->
+                                if (index > 0) HorizontalDivider(
+                                    modifier = Modifier.padding(start = 48.dp), color = Ink.border.copy(alpha = .55f))
                                 SettingRouteRow(page = entry, showDetail = entry.id in setOf("environments", "features", "plugins", "mcp", "config"), detail = when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
@@ -137,7 +138,7 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
     Row(
         modifier = Modifier.fillMaxWidth().testTag("settings-route-${page.id}")
             .codexPressable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 7.dp),
+            .heightIn(min = 52.dp).padding(horizontal = 8.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {

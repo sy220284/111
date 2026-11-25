@@ -5,6 +5,7 @@ The emulator runner invokes script lines independently, so all iteration and
 gallery generation must be in this single Python process.
 """
 import argparse
+import hashlib
 from html import escape
 from pathlib import Path
 import subprocess
@@ -77,6 +78,14 @@ def valid_png(path):
     return False
 
 
+def duplicate_content_groups(paths):
+    groups = {}
+    for path in paths:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        groups.setdefault(digest, []).append(path.name)
+    return [sorted(names) for names in groups.values() if len(names) > 1]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", type=Path, default=DESTINATION)
@@ -105,9 +114,14 @@ def main():
             print(f"SCREENSHOT_MISSING {screen}: {result.stderr.strip()}", flush=True)
     (destination / "missing.txt").write_text(
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
+    duplicates = duplicate_content_groups(
+        destination / f"{screen}-android35.png" for screen in present
+    )
+    for group in duplicates:
+        print("SCREENSHOT_DUPLICATE " + ", ".join(group), flush=True)
     (destination / "manifest.json").write_text(
         json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
-                    "present": present, "missing": missing},
+                    "present": present, "missing": missing, "duplicate_content": duplicates},
                    ensure_ascii=False, indent=2),
         encoding="utf-8",
     )

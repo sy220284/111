@@ -11,11 +11,9 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    CodexOverlayFrame(onDismissRequest = onDismiss,
+    CodexOverlayFrame(onDismissRequest = onDismiss, fullScreen = true,
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
-        Column(Modifier.fillMaxWidth()
-            .heightIn(max = atlasSheetHeight() * .80f)
-            .navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Text("任务目标", style = MaterialTheme.typography.titleLarge,

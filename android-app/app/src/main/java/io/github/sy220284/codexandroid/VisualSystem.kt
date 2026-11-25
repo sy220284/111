@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -185,8 +186,7 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(if (compact) 16.dp else 22.dp),
-        border = BorderStroke(if (softMaterial) .8.dp else 1.dp,
-            Ink.border.copy(alpha = if (softMaterial) .5f else .72f)),
+        border = BorderStroke(1.dp, Ink.border.copy(alpha = if (softMaterial) .38f else .48f)),
         color = Ink.panel,
         shadowElevation = if (softMaterial) 1.dp else 0.dp,
         tonalElevation = 0.dp
@@ -200,12 +200,21 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 }
 
 val LocalWorkPageTitle = compositionLocalOf { "" }
+internal val LocalWorkPageExplanation = compositionLocalOf<((String?) -> Unit)?> { null }
 
 /** 页面导语只保留标题；操作说明按需进入二级弹层。不再保留无效英文分类参数。 */
 @Composable
 fun SectionIntro(title: String, subtitle: String = "") {
     val showTitle = title != LocalWorkPageTitle.current
     var showExplanation by remember(title, subtitle) { mutableStateOf(false) }
+    val registerExplanation = LocalWorkPageExplanation.current
+    if (!showTitle && registerExplanation != null) {
+        DisposableEffect(registerExplanation, subtitle) {
+            registerExplanation(subtitle.takeIf { it.isNotBlank() })
+            onDispose { registerExplanation(null) }
+        }
+        return
+    }
     if (showTitle || subtitle.isNotBlank()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (showTitle) {
@@ -237,9 +246,13 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
         StatusTone.Warning -> Ink.warning
         StatusTone.Danger -> Ink.red
     }
-    Surface(color = Ink.canvas, border = BorderStroke(1.dp, color.copy(alpha = .46f)),
-        shape = RoundedCornerShape(99.dp)) {
-        Text(text, color = color, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
+    Surface(color = color.copy(alpha = .10f), shape = RoundedCornerShape(8.dp)) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).background(color, RoundedCornerShape(99.dp)))
+            Text(text, color = color, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 

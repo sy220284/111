@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect_ui_screenshots import parse_discovered_screens, REQUIRED_SCREENS, valid_png, required_screens
+from collect_ui_screenshots import parse_discovered_screens, REQUIRED_SCREENS, valid_png, required_screens, duplicate_content_groups
 
 
 class ScreenshotDiscoveryTest(unittest.TestCase):
@@ -39,6 +39,13 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
             self.assertFalse(valid_png(path))
             path.write_bytes(valid[:35] + bytes([valid[35] ^ 1]) + valid[36:])
             self.assertFalse(valid_png(path))
+
+    def test_duplicate_content_is_reported_across_distinct_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            files = [Path(folder) / name for name in ("a.png", "b.png", "c.png")]
+            for path, content in zip(files, (b"same", b"other", b"same")):
+                path.write_bytes(content)
+            self.assertEqual([["a.png", "c.png"]], duplicate_content_groups(files))
 
     def test_discovers_current_and_future_ui_screenshots(self):
         output = "home-android35.png\r\naudit-rtl-200font-bulk-android35.png\nnew-component-android35.png\n"
