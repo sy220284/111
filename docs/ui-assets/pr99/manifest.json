@@ -193,7 +193,66 @@
           "y": 617,
           "w": 128,
           "h": 48,
-          "target": "model-loading",
+          "target": "model-loading-new",
+          "label": "刷新目录"
+        },
+        {
+          "x": 233,
+          "y": 617,
+          "w": 136,
+          "h": 48,
+          "target": "model-provider",
+          "label": "服务商"
+        }
+      ]
+    },
+    {
+      "id": "model-domestic-menu",
+      "module": "模型",
+      "title": "国内服务商可用目录",
+      "desc": "仅展示已准入的服务商独立目录",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default-domestic",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 109,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-domestic",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 109,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b-domestic",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 105,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading-domestic",
           "label": "刷新目录"
         },
         {
@@ -613,6 +672,290 @@
       "prototypeOnly": true
     },
     {
+      "id": "model-default-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 遵循默认模型",
+      "desc": "保持所选服务商及本会话模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-domestic-menu",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-selected-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 示例模型 A",
+      "desc": "保持所选服务商及本会话模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-domestic-menu",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-selected-b-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 示例模型 B",
+      "desc": "保持所选服务商及本会话模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-domestic-menu",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-loading-new",
+      "module": "模型",
+      "title": "新会话 · 刷新中",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-error-new",
+      "module": "模型",
+      "title": "新会话 · 读取失败",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-new",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-empty-new",
+      "module": "模型",
+      "title": "新会话 · 有效空目录",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-new",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-loading-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 刷新中",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-error-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 读取失败",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-domestic",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-empty-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 有效空目录",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-domestic",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
       "id": "model-provider",
       "module": "模型",
       "title": "服务商选择",
@@ -650,8 +993,16 @@
           "y": 374,
           "w": 361,
           "h": 66,
+          "target": "model-domestic-menu",
+          "label": "示例国内服务商"
+        },
+        {
+          "x": 16,
+          "y": 444,
+          "w": 361,
+          "h": 66,
           "target": "provider-list",
-          "label": "国内模型"
+          "label": "管理国内模型"
         },
         {
           "x": 16,
@@ -668,6 +1019,97 @@
       "module": "国内模型",
       "title": "服务商列表",
       "desc": "按授权与配置状态区分",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 268,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form",
+          "label": "DeepSeek"
+        },
+        {
+          "x": 16,
+          "y": 326,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-glm",
+          "label": "GLM 智谱"
+        },
+        {
+          "x": 16,
+          "y": 384,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-minimax",
+          "label": "MiniMax"
+        },
+        {
+          "x": 16,
+          "y": 442,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi",
+          "label": "Kimi 开放平台"
+        },
+        {
+          "x": 16,
+          "y": 500,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi-code",
+          "label": "Kimi Code 国内订阅"
+        },
+        {
+          "x": 16,
+          "y": 558,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-qwen",
+          "label": "通义千问"
+        },
+        {
+          "x": 16,
+          "y": 651,
+          "w": 361,
+          "h": 58,
+          "target": "provider-custom",
+          "label": "添加自定义服务商"
+        },
+        {
+          "x": 16,
+          "y": 714,
+          "w": 361,
+          "h": 62,
+          "target": "provider-configured",
+          "label": "已配置服务商"
+        }
+      ]
+    },
+    {
+      "id": "provider-default-saved",
+      "module": "国内模型",
+      "title": "默认服务商回读成功",
+      "desc": "真实配置回读后显示新默认服务商",
       "mode": "light",
       "width": 393,
       "height": 852,
@@ -7594,6 +8036,34 @@
         "runtime-failed"
       ]
     ],
+    "model-loading-new": [
+      [
+        "目录读取成功",
+        "model-new-session"
+      ],
+      [
+        "目录返回空列表",
+        "model-empty-new"
+      ],
+      [
+        "目录读取失败",
+        "model-error-new"
+      ]
+    ],
+    "model-loading-domestic": [
+      [
+        "目录读取成功",
+        "model-domestic-menu"
+      ],
+      [
+        "目录返回空列表",
+        "model-empty-domestic"
+      ],
+      [
+        "目录读取失败",
+        "model-error-domestic"
+      ]
+    ],
     "provider-saving-glm": [
       [
         "写入并重新连接成功",
@@ -7707,7 +8177,7 @@
     "provider-default-busy": [
       [
         "默认配置回读成功",
-        "provider-list"
+        "provider-default-saved"
       ],
       [
         "切换失败",

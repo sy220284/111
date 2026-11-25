@@ -119,22 +119,23 @@ def new_session(c):
  c.text(c.w/2,357,'选择模型与服务商后开始',14,'muted',anchor='middle')
  c.composer(to='model-new-session')
 screen('new-session','入口','新建任务',new_session,'新任务可使用独立服务商')
-def model(c,state='ready',new=False):
+def model(c,state='ready',new=False,domestic=False):
+ suffix='-domestic' if domestic else '-new' if new else ''
  (new_session(c) if new else chat(c));c.hot.clear();c.add('<g class="motion-menu">');x=c.w-296;y=278 if state=='ready' else 360
  c.rect(x,y,280,412 if state=='ready' else 330,24,'elevated','border')
  c.text(x+16,y+30,'选择运行模型',17,weight=700);c.icon('close',x+250,y+12,size=18);c.target(x+232,y,48,48,'new-session' if new else 'home','关闭模型菜单')
- c.text(x+16,y+54,'当前服务商 · ChatGPT',12,'muted')
+ c.text(x+16,y+54,'当前服务商 · 示例国内服务商' if domestic else '当前服务商 · ChatGPT',12,'muted')
  if state=='ready':
   c.rect(x+12,y+70,256,48,13,'panel','border');c.icon('search',x+24,y+82,size=20);c.text(x+53,y+100,'搜索可用模型',13,'muted')
   c.text(x+16,y+142,'当前可用 · 示例目录',11,'muted',600)
-  for i,(name,sub,selected) in enumerate([('遵循默认模型','由当前服务决定',False),('示例模型 A','思考强度可选',True),('示例模型 B','以实际目录为准',False)]):
+  for i,(name,sub,selected) in enumerate([('遵循默认模型','由当前服务决定',True),('示例模型 A','已验证 · 思考强度可选' if domestic else '思考强度可选',False),('示例模型 B','以实际目录为准',False)]):
    yy=y+154+i*58
    if selected:c.rect(x+12,yy,256,56,13,'recessed','border')
    c.text(x+25,yy+22,name,14,weight=600);c.text(x+25,yy+42,sub,11,'muted')
    if selected:c.icon('check',x+234,yy+18,'jade',20)
-   c.target(x+12,yy,256,56,(['model-default-new','model-selected-new','model-selected-b-new'] if new else ['model-default','model-selected','model-selected-b'])[i],name)
+   c.target(x+12,yy,256,56,(['model-default'+suffix,'model-selected'+suffix,'model-selected-b'+suffix])[i],name)
   c.line(x+16,y+335,x+264,y+335)
-  c.icon('refresh',x+20,y+350,size=20);c.text(x+49,y+365,'刷新目录',13,weight=600);c.target(x+8,y+339,128,48,'model-loading','刷新目录')
+  c.icon('refresh',x+20,y+350,size=20);c.text(x+49,y+365,'刷新目录',13,weight=600);c.target(x+8,y+339,128,48,'model-loading'+suffix,'刷新目录')
   c.text(x+145,y+365,'服务商  ›' if new else '服务商已固定',13,'parchment' if new else 'muted',600);c.target(x+136,y+339,136,48,'model-provider' if new else None,'服务商')
   c.text(x+16,y+397,'新会话可以更换服务商' if new else '历史会话保留所属服务商',11,'muted')
  else:
@@ -142,15 +143,16 @@ def model(c,state='ready',new=False):
   c.text(x+50,y+105,'正在读取模型目录' if state=='loading' else '暂无可用模型' if state=='empty' else '模型目录读取失败',14,weight=600)
   c.lines(x+22,y+132,['保留原选择，等待真实目录。'] if state=='loading' else ['连接恢复后可重新读取。','原有草稿和选择保持不变。'],11,'muted',18)
   c.text(x+18,y+201,'已保存的选择',12,'muted');c.text(x+18,y+225,'遵循默认模型',15,weight=600)
-  c.rect(x+12,y+250,256,48,13,'parchment');c.text(x+140,y+280,'正在读取…' if state=='loading' else '重新读取',14,'canvas',600,'middle');c.target(x+12,y+250,256,48,None if state=='loading' else 'model-loading','重新读取')
+  c.rect(x+12,y+250,256,48,13,'parchment');c.text(x+140,y+280,'正在读取…' if state=='loading' else '重新读取',14,'canvas',600,'middle');c.target(x+12,y+250,256,48,None if state=='loading' else 'model-loading'+suffix,'重新读取')
  c.add('</g>')
 screen('model','模型','模型选择 · 可用目录',lambda c:model(c),'按钮锚定菜单；目录只列真实可选项')
 screen('model-new-session','模型','新会话模型菜单',lambda c:model(c,new=True),'服务商可切换；当前目录隔离')
+screen('model-domestic-menu','模型','国内服务商可用目录',lambda c:model(c,new=True,domestic=True),'仅展示已准入的服务商独立目录')
 screen('model-loading','模型','刷新中',lambda c:model(c,'loading'),'等待真实回执，选择锁定')
 screen('model-error','模型','刷新失败',lambda c:model(c,'error'),'保持旧选择，提供恢复')
 screen('model-empty','模型','有效空目录',lambda c:model(c,'empty'),'连接正常但没有真实可选模型')
-def model_selected(c,label='示例模型 A',new=False):
- (new_session(c) if new else chat(c));c.rect(16,644,c.w-32,42,12,'recessed','border');c.icon('check',28,655,'jade',20);c.text(54,670,label+' · 后续任务生效',12,'jade',600);c.composer(label,to='model-new-session' if new else 'model')
+def model_selected(c,label='示例模型 A',new=False,domestic=False):
+ (new_session(c) if new else chat(c));c.rect(16,644,c.w-32,42,12,'recessed','border');c.icon('check',28,655,'jade',20);c.text(54,670,label+' · 后续任务生效',12,'jade',600);c.composer(label,to='model-domestic-menu' if domestic else 'model-new-session' if new else 'model')
 screen('model-selected','模型','选择反馈',model_selected,'即时更新本会话草稿，运行中锁定')
 screen('model-selected-b','模型','切换另一模型',lambda c:model_selected(c,'示例模型 B'),'即时更新当前选择；后续任务生效')
 screen('model-default','模型','恢复默认模型',lambda c:model_selected(c,'遵循默认模型'),'清除显式选择，遵循内核默认')
@@ -158,13 +160,23 @@ for sid,label in [('model-default-new','遵循默认模型'),('model-selected-ne
  screen(sid,'模型','新会话 · '+label,lambda c,label=label:model_selected(c,label,True),'新会话草稿保持模型与服务商的独立归属')
  SCREENS[sid]['prototypeOnly']=True
 
+for sid,label in [('model-default-domestic','遵循默认模型'),('model-selected-domestic','示例模型 A'),('model-selected-b-domestic','示例模型 B')]:
+ screen(sid,'模型','国内服务商 · '+label,lambda c,label=label:model_selected(c,label,True,True),'保持所选服务商及本会话模型')
+ SCREENS[sid]['prototypeOnly']=True
+for suffix,domestic in [('-new',False),('-domestic',True)]:
+ for st,title in [('loading','刷新中'),('error','读取失败'),('empty','有效空目录')]:
+  sid='model-'+st+suffix
+  screen(sid,'模型',('国内服务商' if domestic else '新会话')+' · '+title,lambda c,st=st,d=domestic:model(c,st,True,d),'目录刷新始终保持当前服务商')
+  SCREENS[sid]['prototypeOnly']=True
+
 def model_provider(c):
  c.header('选择新会话服务商','模型目录独立授权','model-new-session')
  c.notice(118,'仅适用于新会话',['历史会话会继续使用原服务商。'],'muted','info')
  c.section(220,'服务商')
  c.row(234,'遵循默认服务商','使用全局设置','globe','check',selected=True,target='model-new-session')
  c.row(304,'ChatGPT','当前账号目录','globe',target='model-new-session')
- c.row(374,'国内模型','查看已配置服务商','settings',target='provider-list')
+ c.row(374,'示例国内服务商','独立目录 · 已完成连接','globe',target='model-domestic-menu')
+ c.row(444,'管理国内模型','配置与独立授权','settings',target='provider-list')
  c.btn(746,'管理服务商','provider-list','secondary')
 screen('model-provider','模型','服务商选择',model_provider,'新会话可切换；历史会话只读所属服务商')
 PRESET_UI={
@@ -176,15 +188,16 @@ PRESET_UI={
  '-qwen':('通义千问','北京业务空间'),
 }
 def provider_target(base,key=''):return base+key
-def providers(c):
+def providers(c,switched=False):
  c.header('模型服务商','设置 · 模型','home',('refresh','provider-list','刷新'))
- c.rect(16,118,c.w-32,102,16,'recessed','border');c.text(30,145,'默认服务商',12,'muted');c.text(30,175,'ChatGPT',22,weight=700);c.pill(c.w-114,153,'已选择','jade');c.text(30,199,'后续新会话使用此服务商',12,'muted')
+ c.rect(16,118,c.w-32,102,16,'recessed','border');c.text(30,145,'默认服务商',12,'muted');c.text(30,175,'示例已配置服务商' if switched else 'ChatGPT',22,weight=700);c.pill(c.w-114,153,'已选择','jade');c.text(30,199,'后续新会话使用此服务商',12,'muted')
  c.section(258,'国内模型预置')
  for i,(key,(name,plan)) in enumerate(PRESET_UI.items()):c.row(268+i*58,name,plan+' · 待配置','globe',target=provider_target('provider-form',key),h=58)
  c.section(641,'服务商管理')
  c.row(651,'添加自定义服务商','连接地址与环境变量引用','plus',target='provider-custom',h=58)
  c.row(714,'已配置服务商','查看能力、默认设置与本机凭据','settings',target='provider-configured',h=62)
 screen('provider-list','国内模型','服务商列表',providers,'按授权与配置状态区分')
+screen('provider-default-saved','国内模型','默认服务商回读成功',lambda c:providers(c,True),'真实配置回读后显示新默认服务商')
 def provider_form(c,state='form',key=''):
  name,plan=PRESET_UI[key]
  c.header('配置国内模型',name+' · '+plan,'provider-list',('close','provider-list','关闭'))
@@ -216,10 +229,10 @@ screen('provider-save-confirm','国内模型','保存确认',provider_save_confi
 def catalog(c,state='ready',key=''):
  name,_=PRESET_UI[key]
  c.header('模型目录',name+' · 账号目录','provider-list',('refresh',provider_target('provider-catalog',key),'刷新目录'))
- c.rect(16,118,c.w-32,116,16,'recessed','border');c.text(30,148,'连接 / 授权状态',12,'muted');c.text(30,177,'已配置 · 能力待验证',19,weight=700)
- c.lines(30,200,['目录来源以当前服务商返回为准。','候选模型尚未准入当前会话。'],12,'muted',18)
- c.section(270,'候选模型 · 示例')
- c.row(282,'示例模型 A','候选 · 授权与能力待核验','globe',None)
+ c.rect(16,118,c.w-32,116,16,'recessed','border');c.text(30,148,'连接 / 授权状态',12,'muted');c.text(30,177,{'ready':'已配置 · 能力待验证','verified':'模型验证通过','failed':'配置有效 · 验证未通过'}[state],19,weight=700)
+ c.lines(30,200,['目录来源以当前服务商返回为准。','本次验证已完成，仍按当前端点与凭据准入。' if state=='verified' else '候选模型尚未准入当前会话。'],12,'muted',18)
+ c.section(270,'已验证模型 · 示例' if state=='verified' else '候选模型 · 示例')
+ c.row(282,'示例模型 A','已验证 · 当前端点准入' if state=='verified' else '验证未通过 · 未准入' if state=='failed' else '候选 · 授权与能力待核验','globe',None)
  c.btn(351,'验证模型工具调用',provider_target('provider-confirm',key),'secondary')
  if state=='verified':
   c.notice(426,'双轮验证通过',['实际模型身份已确认；以真实回执为准。'],'jade','check')
@@ -673,12 +686,14 @@ EVENTS={
  'runtime-retiring':[('旧进程已退出','runtime-starting'),('旧进程退出异常','runtime-failed')],
  'runtime-starting':[('握手成功','runtime-connected'),('握手失败','runtime-failed')],
 }
+for suffix,target in [('-new','model-new-session'),('-domestic','model-domestic-menu')]:
+ EVENTS['model-loading'+suffix]=[('目录读取成功',target),('目录返回空列表','model-empty'+suffix),('目录读取失败','model-error'+suffix)]
 for key in PRESET_UI:
  if key:
   EVENTS['provider-saving'+key]=[('写入并重新连接成功','provider-catalog'+key),('保存未成功','provider-form'+key)]
   EVENTS['provider-running'+key]=[('身份与双轮回传验证成功','provider-verified'+key),('真实验证失败','provider-failed'+key)]
 EVENTS['provider-custom-busy']=[('配置回读成功','provider-configured'),('配置保存失败','provider-custom')]
-EVENTS['provider-default-busy']=[('默认配置回读成功','provider-list'),('切换失败','provider-configured')]
+EVENTS['provider-default-busy']=[('默认配置回读成功','provider-default-saved'),('切换失败','provider-configured')]
 EVENTS['provider-revoke-busy']=[('凭据移除并回读成功','provider-missing'),('未能移除','provider-configured')]
 manifest={'baseline':'b6134d7eef99fe49b85689d8d46fc8d112cc9edc','tokensVersion':T['version'],'screens':[{k:v for k,v in s.items() if k!='svg'} for s in SCREENS.values()],'flows':[{'module':f[0],'steps':f[1],'notes':f[2],'screens':f[3]} for f in FLOWS],'events':EVENTS}
 (OUT/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
