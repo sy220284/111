@@ -34,6 +34,7 @@ internal object ForegroundTaskPolicy {
 class CodexForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var watch: Job? = null
+    private var foregroundPromoted = false
 
     private data class TaskNotificationState(
         val running: Boolean,
@@ -58,6 +59,7 @@ class CodexForegroundService : Service() {
         // A foreground notification must exist immediately, before collecting flows.
         try {
             showNotification(TaskNotificationState(true, 1, false, 0, true, 0, false), foreground = true)
+            foregroundPromoted = true
             readiness.ready()
         } catch (failure: Exception) {
             val reason = failure.message ?: "系统拒绝前台服务启动"
@@ -97,7 +99,7 @@ class CodexForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // A new start can arrive during the previous idle stop handoff.
-        if (readiness.state.value == ForegroundStartState.Starting) readiness.ready()
+        if (foregroundPromoted && readiness.state.value == ForegroundStartState.Starting) readiness.ready()
         if (intent?.action == ACTION_STOP) {
             // A notification action is an explicit user request; use the same
             // thread/turn validation and RPC as the in-app stop control.
@@ -170,6 +172,7 @@ class CodexForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        foregroundPromoted = false
         readiness.stopped()
         watch?.cancel()
         scope.cancel()

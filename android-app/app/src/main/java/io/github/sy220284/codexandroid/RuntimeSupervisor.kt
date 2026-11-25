@@ -63,15 +63,7 @@ internal class RuntimeSupervisor(
                 visible && snapshot.requiresForegroundProtection
             }.distinctUntilChanged().collectLatest { protect ->
                 if (!protect) return@collectLatest
-                try {
-                    CodexForegroundService.startAndAwaitReady(context)
-                    vm.errors.value = vm.errors.value - "foregroundProtection"
-                } catch (failure: Exception) {
-                    if (failure is kotlinx.coroutines.CancellationException &&
-                        failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
-                    vm.errors.value = vm.errors.value + ("foregroundProtection" to
-                        "系统未允许后台保护，请保持应用在前台：" + (failure.message ?: "启动超时"))
-                }
+                ensureForegroundProtection(context, vm)
             }
         }
     }
@@ -81,4 +73,21 @@ internal object RuntimeRecoveryPolicy {
     fun shouldRecover(visible: Boolean, snapshot: GlobalWorkSnapshot, unavailable: Boolean): Boolean =
         unavailable && (visible || snapshot.requiresForegroundProtection) &&
             !snapshot.dataTransferBusy && !snapshot.coreStarting && !snapshot.restarting
+}
+
+/** Shared by automatic supervision and the explicit, foreground-only retry. */
+internal suspend fun ensureForegroundProtection(context: Context, vm: CodexViewModel) {
+    if (!vm.globalWorkSnapshot().requiresForegroundProtection) {
+        vm.errors.value = vm.errors.value - "foregroundProtection"
+        return
+    }
+    try {
+        CodexForegroundService.startAndAwaitReady(context)
+        vm.errors.value = vm.errors.value - "foregroundProtection"
+    } catch (failure: Exception) {
+        if (failure is kotlinx.coroutines.CancellationException &&
+            failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
+        vm.errors.value = vm.errors.value + ("foregroundProtection" to
+            "系统未允许后台保护，请保持应用在前台：" + (failure.message ?: "启动超时"))
+    }
 }

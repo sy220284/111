@@ -45,6 +45,7 @@ class CodexConnection internal constructor(private val appContext: Context,
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val writeScheduler = RpcWriteScheduler()
     private val requestPriorities = mutableMapOf<Long, RpcPriority>()
+    private val userRequestIds = mutableSetOf<Long>()
     private var retirementCompletion: CompletableDeferred<Unit>? = null
     private val lifecycleMutex = Mutex()
     private val ownership = CoreSessionOwnership()
@@ -288,7 +289,7 @@ class CodexConnection internal constructor(private val appContext: Context,
             }
             check(startupEpoch != null || !AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
             val priority = RpcScheduling.priority(method)
-            registerRequest(id, priority)
+            registerRequest(id, priority, userOwned = startupEpoch == null && priority != RpcPriority.Background)
             waiting[id] = deferred
             token
         }
@@ -332,7 +333,7 @@ class CodexConnection internal constructor(private val appContext: Context,
                     "审批已过期，请刷新当前状态"
                 }
             }
-            registerRequest(id, RpcPriority.Control)
+            registerRequest(id, RpcPriority.Control, userOwned = true)
             token
         }
         try {
@@ -349,18 +350,20 @@ class CodexConnection internal constructor(private val appContext: Context,
     }
 
     // All callers hold ownership, including one-way approvals.
-    private fun registerRequest(id: Long, priority: RpcPriority) {
+    private fun registerRequest(id: Long, priority: RpcPriority, userOwned: Boolean) {
         check(requestPriorities.values.count { it == priority } < RpcScheduling.limit(priority)) {
             "同类运行请求过多，请等待已有操作完成"
         }
         requestPriorities[id] = priority
-        userRequestState.value = requestPriorities.values.count { it != RpcPriority.Background }
+        if (userOwned) userRequestIds.add(id)
+        userRequestState.value = userRequestIds.size
         activeRpcRequests.update { it + id }
     }
 
     private fun unregisterRequest(id: Long) {
         requestPriorities.remove(id)
-        userRequestState.value = requestPriorities.values.count { it != RpcPriority.Background }
+        userRequestIds.remove(id)
+        userRequestState.value = userRequestIds.size
         activeRpcRequests.update { it - id }
     }
 

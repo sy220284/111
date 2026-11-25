@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -105,4 +107,20 @@ internal fun RealtimeVoiceRecoveryNotice(vm: CodexViewModel) {
             confirm = false
             vm.connectionRestarter.restartAfterVoiceFailure()
         }, onDismiss = { confirm = false })
+}
+
+/** A failed Android foreground promotion remains visible across all pages. */
+@Composable
+internal fun RuntimeProtectionNotice(vm: CodexViewModel) {
+    val errors by vm.errors.collectAsState()
+    val failure = errors["foregroundProtection"] ?: return
+    val work = observeGlobalWorkSnapshot(vm)
+    if (!work.requiresForegroundProtection) return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)) {
+        CodexNotice(failure, NoticeTone.Error, actionLabel = "重试后台保护", onAction = {
+            scope.launch { ensureForegroundProtection(context, vm) }
+        })
+    }
 }
