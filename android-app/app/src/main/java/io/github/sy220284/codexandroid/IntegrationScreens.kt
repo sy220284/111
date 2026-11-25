@@ -298,10 +298,10 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             }
         }
         usable.forEach { server ->
-            val receipt = receipts.lastOrNull { it.name == server.optString("name") &&
-                it.environment == McpStartupReceipt.optional(server, "environmentId") &&
-                it.status == "ready" }
-            McpServiceStatusCard(server, receipt)
+            val matching = receipts.filter { it.name == server.optString("name") &&
+                it.environment == McpStartupReceipt.optional(server, "environmentId") }
+            val receipt = matching.lastOrNull { it.thread == activeThread } ?: matching.lastOrNull { it.thread == null }
+            McpServiceStatusCard(server, receipt?.takeIf { it.status == "ready" })
         }
         val failures = receipts.filter { it.status != "ready" }
         if (failures.isNotEmpty() && engineStatus == EngineStatus.Connected) {
@@ -312,6 +312,9 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 failures.forEach { receipt ->
                     MaterialPanel(Modifier.fillMaxWidth()) {
                         Text(receipt.name, style = MaterialTheme.typography.titleSmall)
+                        Text((if (receipt.thread == null) "全局服务" else "当前会话") +
+                            (receipt.environment?.let { " · 环境 " + it.take(12) } ?: ""),
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                         Text(receipt.summary(), color = Ink.muted)
                         receipt.reason?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     }

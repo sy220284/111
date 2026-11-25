@@ -34,6 +34,8 @@ import org.json.JSONObject
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
+    val retirement by vm.bridge.retirementBusy.collectAsState()
+    val recoveryDelay by vm.recoveryDelayMs.collectAsState()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
     val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
@@ -403,8 +405,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
                 statusContent = {
                     if (status is EngineStatus.Unavailable) {
-                        CodexNotice("连接异常，草稿已保留", NoticeTone.Warning,
-                            actionLabel = "重连", onAction = { vm.connectionRestarter.reconnect() })
+                        CodexNotice(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay) + "，草稿已保留", NoticeTone.Warning,
+                            actionLabel = if (!retirement && !restarting) "重连" else null,
+                            onAction = { vm.connectionRestarter.reconnect() })
                     } else if (status == EngineStatus.Starting) {
                         Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }

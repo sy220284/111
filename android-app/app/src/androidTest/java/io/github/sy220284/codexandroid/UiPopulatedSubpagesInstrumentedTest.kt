@@ -55,7 +55,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             .put("authStatus", "oAuth")
             .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
             .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
-        rule.setContent { CodexTheme { McpServiceStatusCard(server) } }
+        val receipt = McpStartupReceipt.parse(1, JSONObject("""{"name":"演示扩展服务","status":"ready","durationMs":240}"""))
+        rule.setContent { CodexTheme { McpServiceStatusCard(server, receipt) } }
         rule.onNodeWithText("演示扩展服务").assertExists()
         rule.onNodeWithText("可用").assertExists()
         rule.onNodeWithText("授权登录").assertDoesNotExist()
@@ -67,6 +68,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("演示扩展服务").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithText("工具 1 项 · 资源 1 项").assertExists()
+        rule.onNodeWithText("已连接 · 启动耗时 240 毫秒").assertExists()
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
         capture("audit-mcp-detail-sheet-android35.png")

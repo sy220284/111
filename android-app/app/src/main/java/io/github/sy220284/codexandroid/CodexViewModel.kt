@@ -130,7 +130,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         private set
     internal fun invalidateConfigScope() {
         configGeneration += 1
-        val keys = setOf("config", "composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
+        val keys = setOf("config", "composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements", "hookRequirements")
         keys.forEach { latestRequests.cancel(it) }
         data.value = data.value - keys
         loading.value = loading.value - keys

@@ -46,7 +46,7 @@ internal object HookPolicyCatalog {
         val layers = read?.optJSONArray("layers") ?: return emptyList()
         val layer = (0 until layers.length()).mapNotNull(layers::optJSONObject).singleOrNull {
             val name = it.optJSONObject("name")
-            name?.optString("type") == "user" && name.isNull("profile") && it.isNull("disabledReason")
+            name != null && name.optString("type") == "user" && name.isNull("profile") && it.isNull("disabledReason")
         } ?: return emptyList()
         return rows(layer.optJSONObject("config")?.optJSONObject("hooks"),
             (layer.opt("version") as? String)?.takeIf { it.isNotBlank() }, false)
@@ -67,6 +67,7 @@ internal fun HookPolicySettings(vm: CodexViewModel, config: JSONObject?, enabled
     CodexDetailTrigger("执行检查失败策略", {
         open = true
         vm.refresh("hookRequirements", "configRequirements/read", null)
+        vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
     }, Modifier.fillMaxWidth().testTag("hook-policy-settings"))
     if (open) CodexDetailSheet("执行检查失败策略", { open = false }, startExpanded = true) {
         Text("管理用户配置中已有的同步或异步检查。修改可能需要重新信任规则；企业强制规则仅供查看。其他项目和插件检查由其来源管理。", color = Ink.muted)
@@ -74,13 +75,17 @@ internal fun HookPolicySettings(vm: CodexViewModel, config: JSONObject?, enabled
             vm.refresh("hookRequirements", "configRequirements/read", null)
             vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
         })
-        if (local.isEmpty() && managed.isEmpty() && ready)
+        if (local.isEmpty() && managed.isEmpty() && ready && config != null && "config" !in loading)
             Text("当前用户配置与企业要求中没有可显示的检查策略。", color = Ink.muted)
         for (row in local + managed) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text(PresentationPolicy.hookEvent(row.event.replaceFirstChar { it.lowercase() }) +
                     " · 检查 ${row.group + 1}.${row.index + 1}", style = MaterialTheme.typography.titleSmall)
                 Text(if (row.managed) "企业规则 · 只读" else "用户配置", color = Ink.muted)
+                val handlerLabel = (row.handler.opt("statusMessage") as? String)?.takeIf { it.isNotBlank() }
+                    ?: if (row.handler.optString("type") == "command") "命令检查"
+                    else "MCP 工具检查"
+                Text(handlerLabel.take(160), style = MaterialTheme.typography.bodySmall, color = Ink.muted)
                 Text(when (row.policy) { "block" -> "失败时阻断"; "continue" -> "失败时继续"; else -> "未知策略" })
                 if (!row.managed) {
                     val editable = ready && enabled && row.version != null &&
@@ -99,7 +104,7 @@ internal fun HookPolicySettings(vm: CodexViewModel, config: JSONObject?, enabled
     target?.let { (row, next) ->
         CodexConfirmDialog("修改检查失败策略",
             "仅修改所选用户检查的失败处理方式，其他规则保留。生效情况以核心回读为准。",
-            confirmLabel = "确认保存", confirmEnabled = enabled && ready && local.any {
+            confirmLabel = "确认保存", confirmEnabled = enabled && ready && requirements?.optBoolean("allowManagedHooksOnly") != true && local.any {
                 it.event == row.event && it.group == row.group && it.index == row.index && it.version == row.version
             }, onConfirm = {
                 vm.saveEngineSetting("hooks." + row.event, row.change(next), "检查失败策略",

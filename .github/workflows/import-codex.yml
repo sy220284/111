@@ -38,6 +38,7 @@ jobs:
           python3 -B .github/scripts/merge_codex_upstream.py --target "$TARGET"
           bash .github/scripts/refresh_codex_catalog_lock.sh
           cat CODEX_UPSTREAM_COMMIT
+          python3 -B android-app/tools/review_upstream_protocol.py --candidate "$(git write-tree)" --report-only
           if find upstream/codex -type f -size +95M -print -quit | grep -q .; then
             echo "::error::存在超过 95 MB 的文件，需要 LFS 或分包"
             exit 1
