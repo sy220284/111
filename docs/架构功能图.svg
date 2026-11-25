@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1040" viewBox="0 0 1280 1040" role="img" aria-label="111 架构功能图：Compose 界面层、状态与策略层、协议层、原生内核层四层结构，底部横贯 CI 验收与发布门禁">
+  <rect width="1280" height="1040" fill="#FCFBFA"/>
+  <g font-family="Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">
+
+    <!-- 标题 -->
+    <text x="640" y="44" text-anchor="middle" font-size="24" font-weight="700" fill="#263139">111 架构功能图</text>
+    <text x="640" y="70" text-anchor="middle" font-size="13" fill="#56646D">官方 Codex 内核 × Compose 原生界面 · 全链走官方 app-server 协议 · ARM64 原生构建</text>
+
+    <!-- ═══ L1 界面层 ═══ -->
+    <rect x="56" y="92" width="1168" height="268" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+    <rect x="56" y="92" width="1168" height="34" rx="10" fill="#F6F7F8"/>
+    <text x="76" y="115" font-size="15" font-weight="700" fill="#805A3F">界面层 · Jetpack Compose（31 项已登记功能入口，手机竖屏，典雅白视觉系统）</text>
+
+    <!-- L1 组1 -->
+    <rect x="76" y="140" width="262" height="204" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="92" y="164" font-size="14" font-weight="700" fill="#263139">会话与任务</text>
+    <text x="92" y="190" font-size="13" fill="#263139">聊天首页 · 流式对话</text>
+    <text x="92" y="213" font-size="13" fill="#263139">多会话并行 · 任务中心</text>
+    <text x="92" y="236" font-size="13" fill="#263139">会话版本与历史恢复</text>
+    <text x="92" y="259" font-size="13" fill="#263139">任务队列与目标管理</text>
+    <text x="92" y="282" font-size="13" fill="#263139">渐进式回复 · 对话复制</text>
+    <text x="92" y="305" font-size="13" fill="#263139">草稿与附件保护</text>
+    <text x="92" y="328" font-size="13" fill="#263139">统一侧栏 · 排序 · 权限</text>
+
+    <!-- L1 组2 -->
+    <rect x="358" y="140" width="262" height="204" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="374" y="164" font-size="14" font-weight="700" fill="#263139">开发工具</text>
+    <text x="374" y="190" font-size="13" fill="#263139">项目文件管理</text>
+    <text x="374" y="213" font-size="13" fill="#263139">文件编辑 · 差异对比</text>
+    <text x="374" y="236" font-size="13" fill="#263139">终端持续执行</text>
+    <text x="374" y="259" font-size="13" fill="#263139">代码审查</text>
+    <text x="374" y="282" font-size="13" fill="#263139">执行环境配置验证</text>
+    <text x="374" y="305" font-size="13" fill="#263139">附件预览与入口分离</text>
+    <text x="374" y="328" font-size="13" fill="#263139">全文检索 · 二级详情</text>
+
+    <!-- L1 组3 -->
+    <rect x="640" y="140" width="262" height="204" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="656" y="164" font-size="14" font-weight="700" fill="#263139">模型与生态</text>
+    <text x="656" y="190" font-size="13" fill="#263139">ChatGPT 账号登录</text>
+    <text x="656" y="213" font-size="13" fill="#263139">国内模型预设与凭证</text>
+    <text x="656" y="236" font-size="13" fill="#263139">模型选择 · 引擎参数</text>
+    <text x="656" y="259" font-size="13" fill="#263139">技能 · 插件 · 应用</text>
+    <text x="656" y="282" font-size="13" fill="#263139">Hooks 管理</text>
+    <text x="656" y="305" font-size="13" fill="#263139">MCP 智能体管理</text>
+    <text x="656" y="328" font-size="11" fill="#56646D">页面只读可用目录，配置走对话</text>
+
+    <!-- L1 组4 -->
+    <rect x="922" y="140" width="282" height="204" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="938" y="164" font-size="14" font-weight="700" fill="#C8483E">安全与维护</text>
+    <text x="938" y="190" font-size="13" fill="#263139">审批中心 · 安全选项</text>
+    <text x="938" y="213" font-size="13" fill="#263139">使用量 · 限额</text>
+    <text x="938" y="236" font-size="13" fill="#263139">外观（深浅色 · 大字号）</text>
+    <text x="938" y="259" font-size="13" fill="#263139">备份 / 恢复（独占保护）</text>
+    <text x="938" y="282" font-size="13" fill="#263139">应用内自更新 · 增量包</text>
+    <text x="938" y="305" font-size="13" fill="#263139">专业诊断 · 真实执行依据</text>
+    <text x="938" y="328" font-size="11" fill="#56646D">高风险操作逐项官方审批</text>
+
+    <!-- 箭头 L1→L2 -->
+    <line x1="640" y1="360" x2="640" y2="384" stroke="#805A3F" stroke-width="2"/>
+    <polygon points="640,390 635,382 645,382" fill="#805A3F"/>
+    <text x="656" y="380" font-size="11" fill="#56646D">用户动作 / 状态回流</text>
+
+    <!-- ═══ L2 状态与策略层 ═══ -->
+    <rect x="56" y="392" width="1168" height="140" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+    <rect x="56" y="392" width="1168" height="34" rx="10" fill="#F6F7F8"/>
+    <text x="76" y="415" font-size="15" font-weight="700" fill="#805A3F">状态与策略层 · ViewModel + 纯函数策略类（核心策略可单测，UI 负责呈现）</text>
+
+    <rect x="76" y="440" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="92" y="464" font-size="13" font-weight="700" fill="#263139">线程执行所有权</text>
+    <text x="92" y="484" font-size="12" fill="#56646D">ThreadExecutionPolicy</text>
+    <text x="92" y="502" font-size="12" fill="#56646D">并行预留 · 失败回执有界</text>
+
+    <rect x="358" y="440" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="374" y="464" font-size="13" font-weight="700" fill="#263139">审批决策策略</text>
+    <text x="374" y="484" font-size="12" fill="#56646D">ApprovalDecisionPolicy</text>
+    <text x="374" y="502" font-size="12" fill="#56646D">决策归口 · UI 不拼协议串</text>
+
+    <rect x="640" y="440" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="656" y="464" font-size="13" font-weight="700" fill="#263139">请求门闩与状态机</text>
+    <text x="656" y="484" font-size="12" fill="#56646D">LatestRequestGate · 双阶段发送</text>
+    <text x="656" y="502" font-size="12" fill="#56646D">旧响应不覆盖 · 失败可重试</text>
+
+    <rect x="922" y="440" width="282" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="938" y="464" font-size="13" font-weight="700" fill="#263139">全局操作快照</text>
+    <text x="938" y="484" font-size="12" fill="#56646D">GlobalWorkSnapshot</text>
+    <text x="938" y="502" font-size="12" fill="#56646D">备份/升级/重启独占保护</text>
+
+    <!-- 箭头 L2→L3 -->
+    <line x1="640" y1="532" x2="640" y2="556" stroke="#805A3F" stroke-width="2"/>
+    <polygon points="640,562 635,554 645,554" fill="#805A3F"/>
+    <text x="656" y="552" font-size="11" fill="#56646D">JSON-RPC 调用 / 事件回推</text>
+
+    <!-- ═══ L3 协议层 ═══ -->
+    <rect x="56" y="564" width="1168" height="140" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+    <rect x="56" y="564" width="1168" height="34" rx="10" fill="#F6F7F8"/>
+    <text x="76" y="587" font-size="15" font-weight="700" fill="#805A3F">协议层 · 官方 app-server JSON-RPC 直连（不建自有云端）</text>
+
+    <rect x="76" y="612" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="92" y="636" font-size="13" font-weight="700" fill="#263139">协议动作台账</text>
+    <text x="92" y="656" font-size="12" fill="#56646D">195 项逐项登记 · 五档归类</text>
+    <text x="92" y="674" font-size="12" fill="#56646D">用户/后台/Host 职责分界</text>
+
+    <rect x="358" y="612" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="374" y="636" font-size="13" font-weight="700" fill="#263139">字段级持续校验</text>
+    <text x="374" y="656" font-size="12" fill="#56646D">Kotlin 请求 ↔ Rust Schema</text>
+    <text x="374" y="674" font-size="12" fill="#56646D">负向检查进 CI · 上游漂移即红</text>
+
+    <rect x="640" y="612" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="656" y="636" font-size="13" font-weight="700" fill="#263139">响应完整性核验</text>
+    <text x="656" y="656" font-size="12" fill="#56646D">空值/错型/冲突集中阻断</text>
+    <text x="656" y="674" font-size="12" fill="#56646D">错误 ID 立即唤醒待决请求</text>
+
+    <rect x="922" y="612" width="282" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="938" y="636" font-size="13" font-weight="700" fill="#263139">事件流背压</text>
+    <text x="938" y="656" font-size="12" fill="#56646D">512 容量阻塞背压 · 有序送达</text>
+    <text x="938" y="674" font-size="12" fill="#56646D">事件按活跃会话分流</text>
+
+    <!-- 箭头 L3→L4 -->
+    <line x1="640" y1="704" x2="640" y2="728" stroke="#805A3F" stroke-width="2"/>
+    <polygon points="640,734 635,726 645,726" fill="#805A3F"/>
+    <text x="656" y="724" font-size="11" fill="#56646D">进程内 ELF 调用</text>
+
+    <!-- ═══ L4 原生内核层 ═══ -->
+    <rect x="56" y="736" width="1168" height="140" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
+    <rect x="56" y="736" width="1168" height="34" rx="10" fill="#F6F7F8"/>
+    <text x="76" y="759" font-size="15" font-weight="700" fill="#805A3F">原生内核层 · NDK/Bionic 交叉编译（aarch64 静态 ELF，官方源码快照锁定）</text>
+
+    <rect x="76" y="784" width="352" height="76" rx="8" fill="#FCFBFA" stroke="#AC363A" stroke-width="1.5"/>
+    <text x="92" y="808" font-size="13" font-weight="700" fill="#263139">Codex Rust 内核</text>
+    <text x="92" y="828" font-size="12" fill="#56646D">上游快照锁定 · Rust 1.99.1 · NDK 27.2</text>
+    <text x="92" y="846" font-size="12" fill="#56646D">ELF 16KB 页对齐 · strip 后核验</text>
+
+    <rect x="448" y="784" width="182" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="464" y="808" font-size="13" font-weight="700" fill="#263139">App Server</text>
+    <text x="464" y="828" font-size="12" fill="#56646D">协议服务主入口</text>
+    <text x="464" y="846" font-size="12" fill="#56646D">initialize 握手验证</text>
+
+    <rect x="650" y="784" width="182" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="666" y="808" font-size="13" font-weight="700" fill="#263139">Code Mode Host</text>
+    <text x="666" y="828" font-size="12" fill="#56646D">代码执行宿主</text>
+    <text x="666" y="846" font-size="12" fill="#56646D">Host 反向请求拦截</text>
+
+    <rect x="852" y="784" width="160" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="868" y="808" font-size="13" font-weight="700" fill="#263139">Git</text>
+    <text x="868" y="828" font-size="12" fill="#56646D">版本控制工具</text>
+    <text x="868" y="846" font-size="12" fill="#56646D">命令运行另行验收</text>
+
+    <rect x="1032" y="784" width="172" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
+    <text x="1048" y="808" font-size="13" font-weight="700" fill="#263139">ripgrep</text>
+    <text x="1048" y="828" font-size="12" fill="#56646D">全文检索引擎</text>
+    <text x="1048" y="846" font-size="12" fill="#56646D">随原生运行时装配</text>
+
+    <!-- ═══ 底部 CI 条 ═══ -->
+    <rect x="56" y="908" width="1168" height="76" rx="10" fill="#F6F7F8" stroke="#D8DEE1"/>
+    <text x="76" y="936" font-size="15" font-weight="700" fill="#246F54">CI 验收与发布门禁（横贯全部层级）</text>
+    <text x="76" y="962" font-size="13" fill="#263139">编译核验 · Kotlin 单测 · 协议校验 · Lint · 360/393/411dp 三屏宽逐页交互与截图 · 200% 字号与深色回归 · 仅打包输入变化时发版 · 版本号单调递增</text>
+
+    <!-- 图例 -->
+    <text x="56" y="1020" font-size="11" fill="#56646D">实线箭头 = 调用/数据方向 · 暖铜标题 = 层级 · 红铜边框 = 安全关键件 · 图源：docs/架构功能图.svg</text>
+  </g>
+</svg>

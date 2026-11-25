@@ -1,0 +1,8198 @@
+{
+  "baseline": "b6134d7eef99fe49b85689d8d46fc8d112cc9edc",
+  "tokensVersion": "111-visual-v8",
+  "screens": [
+    {
+      "id": "home",
+      "module": "入口",
+      "title": "会话工作台",
+      "desc": "唯一常驻工作区",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 16,
+          "y": 378,
+          "w": 361,
+          "h": 66,
+          "target": "hook-run",
+          "label": "执行检查"
+        },
+        {
+          "x": 16,
+          "y": 446,
+          "w": 361,
+          "h": 66,
+          "target": "doc",
+          "label": "设计说明.md"
+        },
+        {
+          "x": 16,
+          "y": 514,
+          "w": 361,
+          "h": 66,
+          "target": "image-result",
+          "label": "生成图片"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        }
+      ]
+    },
+    {
+      "id": "new-session",
+      "module": "入口",
+      "title": "新建任务",
+      "desc": "新任务可使用独立服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "module": "模型",
+      "title": "模型选择 · 可用目录",
+      "desc": "按钮锚定菜单；目录只列真实可选项",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 109,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 109,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 105,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading",
+          "label": "刷新目录"
+        }
+      ]
+    },
+    {
+      "id": "model-new-session",
+      "module": "模型",
+      "title": "新会话模型菜单",
+      "desc": "服务商可切换；当前目录隔离",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default-new",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 109,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-new",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 109,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b-new",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 105,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading-new",
+          "label": "刷新目录"
+        },
+        {
+          "x": 233,
+          "y": 617,
+          "w": 136,
+          "h": 48,
+          "target": "model-provider",
+          "label": "服务商"
+        }
+      ]
+    },
+    {
+      "id": "model-domestic-menu",
+      "module": "模型",
+      "title": "国内服务商可用目录",
+      "desc": "仅展示已准入的服务商独立目录",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default-domestic",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 109,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-domestic",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 109,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b-domestic",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 105,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading-domestic",
+          "label": "刷新目录"
+        },
+        {
+          "x": 233,
+          "y": 617,
+          "w": 136,
+          "h": 48,
+          "target": "model-provider",
+          "label": "服务商"
+        }
+      ]
+    },
+    {
+      "id": "model-loading",
+      "module": "模型",
+      "title": "刷新中",
+      "desc": "等待真实回执，选择锁定",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        }
+      ]
+    },
+    {
+      "id": "model-error",
+      "module": "模型",
+      "title": "刷新失败",
+      "desc": "保持旧选择，提供恢复",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading",
+          "label": "重新读取"
+        }
+      ]
+    },
+    {
+      "id": "model-empty",
+      "module": "模型",
+      "title": "有效空目录",
+      "desc": "连接正常但没有真实可选模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading",
+          "label": "重新读取"
+        }
+      ]
+    },
+    {
+      "id": "model-selected",
+      "module": "模型",
+      "title": "选择反馈",
+      "desc": "即时更新本会话草稿，运行中锁定",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 16,
+          "y": 378,
+          "w": 361,
+          "h": 66,
+          "target": "hook-run",
+          "label": "执行检查"
+        },
+        {
+          "x": 16,
+          "y": 446,
+          "w": 361,
+          "h": 66,
+          "target": "doc",
+          "label": "设计说明.md"
+        },
+        {
+          "x": 16,
+          "y": 514,
+          "w": 361,
+          "h": 66,
+          "target": "image-result",
+          "label": "生成图片"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        }
+      ]
+    },
+    {
+      "id": "model-selected-b",
+      "module": "模型",
+      "title": "切换另一模型",
+      "desc": "即时更新当前选择；后续任务生效",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 16,
+          "y": 378,
+          "w": 361,
+          "h": 66,
+          "target": "hook-run",
+          "label": "执行检查"
+        },
+        {
+          "x": 16,
+          "y": 446,
+          "w": 361,
+          "h": 66,
+          "target": "doc",
+          "label": "设计说明.md"
+        },
+        {
+          "x": 16,
+          "y": 514,
+          "w": 361,
+          "h": 66,
+          "target": "image-result",
+          "label": "生成图片"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        }
+      ]
+    },
+    {
+      "id": "model-default",
+      "module": "模型",
+      "title": "恢复默认模型",
+      "desc": "清除显式选择，遵循内核默认",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 16,
+          "y": 378,
+          "w": 361,
+          "h": 66,
+          "target": "hook-run",
+          "label": "执行检查"
+        },
+        {
+          "x": 16,
+          "y": 446,
+          "w": 361,
+          "h": 66,
+          "target": "doc",
+          "label": "设计说明.md"
+        },
+        {
+          "x": 16,
+          "y": 514,
+          "w": 361,
+          "h": 66,
+          "target": "image-result",
+          "label": "生成图片"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model",
+          "label": "选择模型"
+        }
+      ]
+    },
+    {
+      "id": "model-default-new",
+      "module": "模型",
+      "title": "新会话 · 遵循默认模型",
+      "desc": "新会话草稿保持模型与服务商的独立归属",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-selected-new",
+      "module": "模型",
+      "title": "新会话 · 示例模型 A",
+      "desc": "新会话草稿保持模型与服务商的独立归属",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-selected-b-new",
+      "module": "模型",
+      "title": "新会话 · 示例模型 B",
+      "desc": "新会话草稿保持模型与服务商的独立归属",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-default-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 遵循默认模型",
+      "desc": "保持所选服务商及本会话模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-domestic-menu",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-selected-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 示例模型 A",
+      "desc": "保持所选服务商及本会话模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-domestic-menu",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-selected-b-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 示例模型 B",
+      "desc": "保持所选服务商及本会话模型",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "打开侧栏"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "选择模型"
+        },
+        {
+          "x": 60,
+          "y": 735,
+          "w": 158,
+          "h": 48,
+          "target": "model-domestic-menu",
+          "label": "选择模型"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-loading-new",
+      "module": "模型",
+      "title": "新会话 · 刷新中",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-error-new",
+      "module": "模型",
+      "title": "新会话 · 读取失败",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-new",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-empty-new",
+      "module": "模型",
+      "title": "新会话 · 有效空目录",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-new",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-loading-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 刷新中",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-error-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 读取失败",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-domestic",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-empty-domestic",
+      "module": "模型",
+      "title": "国内服务商 · 有效空目录",
+      "desc": "目录刷新始终保持当前服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 360,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 610,
+          "w": 256,
+          "h": 48,
+          "target": "model-loading-domestic",
+          "label": "重新读取"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "model-provider",
+      "module": "模型",
+      "title": "服务商选择",
+      "desc": "新会话可切换；历史会话只读所属服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "model-new-session",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 234,
+          "w": 361,
+          "h": 66,
+          "target": "model-new-session",
+          "label": "遵循默认服务商"
+        },
+        {
+          "x": 16,
+          "y": 304,
+          "w": 361,
+          "h": 66,
+          "target": "model-new-session",
+          "label": "ChatGPT"
+        },
+        {
+          "x": 16,
+          "y": 374,
+          "w": 361,
+          "h": 66,
+          "target": "model-domestic-menu",
+          "label": "示例国内服务商"
+        },
+        {
+          "x": 16,
+          "y": 444,
+          "w": 361,
+          "h": 66,
+          "target": "provider-list",
+          "label": "管理国内模型"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "管理服务商"
+        }
+      ]
+    },
+    {
+      "id": "provider-list",
+      "module": "国内模型",
+      "title": "服务商列表",
+      "desc": "按授权与配置状态区分",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 268,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form",
+          "label": "DeepSeek"
+        },
+        {
+          "x": 16,
+          "y": 326,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-glm",
+          "label": "GLM 智谱"
+        },
+        {
+          "x": 16,
+          "y": 384,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-minimax",
+          "label": "MiniMax"
+        },
+        {
+          "x": 16,
+          "y": 442,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi",
+          "label": "Kimi 开放平台"
+        },
+        {
+          "x": 16,
+          "y": 500,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi-code",
+          "label": "Kimi Code 国内订阅"
+        },
+        {
+          "x": 16,
+          "y": 558,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-qwen",
+          "label": "通义千问"
+        },
+        {
+          "x": 16,
+          "y": 651,
+          "w": 361,
+          "h": 58,
+          "target": "provider-custom",
+          "label": "添加自定义服务商"
+        },
+        {
+          "x": 16,
+          "y": 714,
+          "w": 361,
+          "h": 62,
+          "target": "provider-configured",
+          "label": "已配置服务商"
+        }
+      ]
+    },
+    {
+      "id": "provider-default-saved",
+      "module": "国内模型",
+      "title": "默认服务商回读成功",
+      "desc": "真实配置回读后显示新默认服务商",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 268,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form",
+          "label": "DeepSeek"
+        },
+        {
+          "x": 16,
+          "y": 326,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-glm",
+          "label": "GLM 智谱"
+        },
+        {
+          "x": 16,
+          "y": 384,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-minimax",
+          "label": "MiniMax"
+        },
+        {
+          "x": 16,
+          "y": 442,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi",
+          "label": "Kimi 开放平台"
+        },
+        {
+          "x": 16,
+          "y": 500,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi-code",
+          "label": "Kimi Code 国内订阅"
+        },
+        {
+          "x": 16,
+          "y": 558,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-qwen",
+          "label": "通义千问"
+        },
+        {
+          "x": 16,
+          "y": 651,
+          "w": 361,
+          "h": 58,
+          "target": "provider-custom",
+          "label": "添加自定义服务商"
+        },
+        {
+          "x": 16,
+          "y": 714,
+          "w": 361,
+          "h": 62,
+          "target": "provider-configured",
+          "label": "已配置服务商"
+        }
+      ]
+    },
+    {
+      "id": "provider-form",
+      "module": "国内模型",
+      "title": "授权表单",
+      "desc": "密钥受保护；提交前说明变更范围",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-saving",
+      "module": "国内模型",
+      "title": "保存与连接",
+      "desc": "锁定重复提交，等待内核重新连接",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm",
+      "module": "国内模型",
+      "title": "保存确认",
+      "desc": "全局占用检查后允许保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-catalog",
+      "module": "国内模型",
+      "title": "目录与验证",
+      "desc": "区分目录授权、候选与任务准入",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ]
+    },
+    {
+      "id": "provider-confirm",
+      "module": "国内模型",
+      "title": "验证确认",
+      "desc": "在产生费用前确认",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-running",
+      "module": "国内模型",
+      "title": "双轮验证过程",
+      "desc": "阶段按回执推进，无伪造百分比",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog",
+          "label": "返回"
+        }
+      ]
+    },
+    {
+      "id": "provider-verified",
+      "module": "国内模型",
+      "title": "真实验证回执",
+      "desc": "身份和工具回传均核实后准入",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ]
+    },
+    {
+      "id": "provider-failed",
+      "module": "国内模型",
+      "title": "验证失败",
+      "desc": "保留候选，明确重试",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm",
+          "label": "重新验证"
+        }
+      ]
+    },
+    {
+      "id": "provider-form-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-glm",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-glm",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-glm",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-glm",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-minimax",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-minimax",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-minimax",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-minimax",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-kimi",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-kimi",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-kimi",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-kimi",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-kimi-code",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-kimi-code",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-kimi-code",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-kimi-code",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-qwen",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-qwen",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-qwen",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-qwen",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-custom",
+      "module": "国内模型",
+      "title": "自定义服务商",
+      "desc": "地址与密钥环境变量引用",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-custom-confirm",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-custom-confirm",
+      "module": "国内模型",
+      "title": "自定义保存确认",
+      "desc": "写入前核对名称与地址",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "provider-custom-busy",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "provider-custom",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-custom-busy",
+      "module": "国内模型",
+      "title": "自定义保存中",
+      "desc": "等待有效配置回执",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": []
+    },
+    {
+      "id": "provider-configured",
+      "module": "国内模型",
+      "title": "已配置服务商管理",
+      "desc": "独立连接状态、能力、默认与凭据",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 264,
+          "w": 361,
+          "h": 66,
+          "target": "provider-catalog",
+          "label": "实时模型目录 / 授权检查"
+        },
+        {
+          "x": 16,
+          "y": 338,
+          "w": 361,
+          "h": 66,
+          "target": "provider-capabilities",
+          "label": "服务商能力"
+        },
+        {
+          "x": 16,
+          "y": 412,
+          "w": 361,
+          "h": 66,
+          "target": "provider-default-confirm",
+          "label": "设为默认服务商"
+        },
+        {
+          "x": 16,
+          "y": 486,
+          "w": 361,
+          "h": 66,
+          "target": "provider-revoke-confirm",
+          "label": "移除本机密钥"
+        }
+      ]
+    },
+    {
+      "id": "provider-capabilities",
+      "module": "国内模型",
+      "title": "服务商能力详情",
+      "desc": "声明能力与模型验证准入分开",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-capabilities",
+          "label": "重新读取"
+        }
+      ]
+    },
+    {
+      "id": "provider-default-confirm",
+      "module": "国内模型",
+      "title": "默认服务商切换确认",
+      "desc": "按实际 canChangeDefault 与有效回读控制",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "provider-default-busy",
+          "label": "确认切换"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-default-busy",
+      "module": "国内模型",
+      "title": "默认服务商切换中",
+      "desc": "收到有效回读后更新",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": []
+    },
+    {
+      "id": "provider-revoke-confirm",
+      "module": "国内模型",
+      "title": "密钥移除确认",
+      "desc": "最终危险确认使用红色主按钮",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "provider-revoke-busy",
+          "label": "移除本机密钥"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-revoke-busy",
+      "module": "国内模型",
+      "title": "密钥移除中",
+      "desc": "不提前更新授权状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": []
+    },
+    {
+      "id": "provider-missing",
+      "module": "国内模型",
+      "title": "待重新授权",
+      "desc": "凭据失效与可用目录分离",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 238,
+          "w": 361,
+          "h": 48,
+          "target": "provider-form",
+          "label": "重新授权"
+        },
+        {
+          "x": 16,
+          "y": 294,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ]
+    },
+    {
+      "id": "voice",
+      "module": "声音",
+      "title": "账号默认声音",
+      "desc": "只陈列当前账号实际返回的选项",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "voice",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 280,
+          "w": 361,
+          "h": 66,
+          "target": "voice",
+          "label": "示例声音 A"
+        },
+        {
+          "x": 16,
+          "y": 350,
+          "w": 361,
+          "h": 66,
+          "target": "voice-saving",
+          "label": "示例声音 B"
+        },
+        {
+          "x": 16,
+          "y": 420,
+          "w": 361,
+          "h": 66,
+          "target": "voice-saving",
+          "label": "示例声音 C"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "realtime",
+          "label": "打开实时语音"
+        }
+      ]
+    },
+    {
+      "id": "voice-saving",
+      "module": "声音",
+      "title": "写入与回读",
+      "desc": "保存中不提前勾选",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "voice",
+          "label": "刷新"
+        }
+      ]
+    },
+    {
+      "id": "voice-saved",
+      "module": "声音",
+      "title": "账号保存回执",
+      "desc": "成功以账号回读为准",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "voice",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 280,
+          "w": 361,
+          "h": 66,
+          "target": "voice",
+          "label": "示例声音 A"
+        },
+        {
+          "x": 16,
+          "y": 350,
+          "w": 361,
+          "h": 66,
+          "target": "voice-saving",
+          "label": "示例声音 B"
+        },
+        {
+          "x": 16,
+          "y": 420,
+          "w": 361,
+          "h": 66,
+          "target": "voice-saving",
+          "label": "示例声音 C"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "realtime",
+          "label": "打开实时语音"
+        }
+      ]
+    },
+    {
+      "id": "realtime",
+      "module": "声音",
+      "title": "实时语音入口",
+      "desc": "仅链接账号默认声音设置，无会话声音覆盖",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 405,
+          "w": 361,
+          "h": 66,
+          "target": "voice",
+          "label": "账号默认声音"
+        }
+      ]
+    },
+    {
+      "id": "mcp-list",
+      "module": "MCP",
+      "title": "只读可用目录",
+      "desc": "只有已连接且确实可用的服务进入列表",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "mcp-list",
+          "label": "刷新可用服务"
+        },
+        {
+          "x": 16,
+          "y": 162,
+          "w": 361,
+          "h": 74,
+          "target": "mcp-detail",
+          "label": "查看服务"
+        },
+        {
+          "x": 16,
+          "y": 248,
+          "w": 361,
+          "h": 74,
+          "target": "mcp-detail",
+          "label": "查看服务"
+        },
+        {
+          "x": 16,
+          "y": 460,
+          "w": 361,
+          "h": 66,
+          "target": "mcp-diagnostic",
+          "label": "最近连接诊断"
+        }
+      ]
+    },
+    {
+      "id": "mcp-detail",
+      "module": "MCP",
+      "title": "服务详情与耗时",
+      "desc": "耗时仅在真实 durationMs 存在时显示",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "mcp-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "mcp-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 392,
+          "w": 361,
+          "h": 66,
+          "target": "mcp-diagnostic",
+          "label": "最近连接诊断"
+        }
+      ]
+    },
+    {
+      "id": "mcp-diagnostic",
+      "module": "MCP",
+      "title": "连接诊断",
+      "desc": "真实启动记录留在诊断，失败服务不进可用目录",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "mcp-list",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "hook-settings",
+      "module": "Hook",
+      "title": "用户检查策略",
+      "desc": "展示既有用户规则；异步检查不提供阻断选择",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 24,
+          "y": 322,
+          "w": 345,
+          "h": 48,
+          "target": "hook-confirm",
+          "label": "继续执行"
+        },
+        {
+          "x": 24,
+          "y": 370,
+          "w": 345,
+          "h": 48,
+          "target": "hook-confirm",
+          "label": "阻断操作"
+        },
+        {
+          "x": 16,
+          "y": 562,
+          "w": 361,
+          "h": 66,
+          "target": "hook-run",
+          "label": "查看本次执行检查"
+        }
+      ]
+    },
+    {
+      "id": "hook-confirm",
+      "module": "Hook",
+      "title": "策略保存确认",
+      "desc": "规则变更后重新读取配置",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "hook-settings",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "hook-settings",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "hook-run",
+      "module": "Hook",
+      "title": "执行中",
+      "desc": "真实 hook status 决定状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "hook-completed",
+      "module": "Hook",
+      "title": "检查完成",
+      "desc": "真实 hook status 决定状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "hook-failed",
+      "module": "Hook",
+      "title": "检查失败",
+      "desc": "真实 hook status 决定状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "hook-blocked",
+      "module": "Hook",
+      "title": "操作被阻断",
+      "desc": "真实 hook status 决定状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "hook-stopped",
+      "module": "Hook",
+      "title": "检查停止",
+      "desc": "真实 hook status 决定状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "runtime-waiting",
+      "module": "内核恢复",
+      "title": "等待恢复",
+      "desc": "真实阶段，避免伪造进度和自动重发",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 594,
+          "w": 361,
+          "h": 66,
+          "target": "runtime-failed",
+          "label": "查看诊断与日志"
+        }
+      ]
+    },
+    {
+      "id": "runtime-retiring",
+      "module": "内核恢复",
+      "title": "回收旧内核",
+      "desc": "真实阶段，避免伪造进度和自动重发",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 594,
+          "w": 361,
+          "h": 66,
+          "target": "runtime-failed",
+          "label": "查看诊断与日志"
+        }
+      ]
+    },
+    {
+      "id": "runtime-starting",
+      "module": "内核恢复",
+      "title": "初始化连接",
+      "desc": "真实阶段，避免伪造进度和自动重发",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 594,
+          "w": 361,
+          "h": 66,
+          "target": "runtime-failed",
+          "label": "查看诊断与日志"
+        }
+      ]
+    },
+    {
+      "id": "runtime-connected",
+      "module": "内核恢复",
+      "title": "恢复完成",
+      "desc": "真实阶段，避免伪造进度和自动重发",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 594,
+          "w": 361,
+          "h": 66,
+          "target": "runtime-failed",
+          "label": "查看诊断与日志"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "继续任务"
+        }
+      ]
+    },
+    {
+      "id": "runtime-failed",
+      "module": "内核恢复",
+      "title": "恢复失败",
+      "desc": "真实阶段，避免伪造进度和自动重发",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 594,
+          "w": 361,
+          "h": 66,
+          "target": "runtime-failed",
+          "label": "查看诊断与日志"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "runtime-waiting",
+          "label": "重新连接"
+        }
+      ]
+    },
+    {
+      "id": "tasks",
+      "module": "多任务",
+      "title": "侧栏进行中任务",
+      "desc": "抽屉内统一管理，待审批与停止可直接定位",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "tasks-waiting",
+      "module": "多任务",
+      "title": "待处理任务",
+      "desc": "筛选仅改变列表，不改变任务状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-waiting",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "tasks-all",
+      "module": "多任务",
+      "title": "全部会话",
+      "desc": "切换筛选不修改原始会话状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-all",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 573,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 573,
+          "w": 48,
+          "h": 73,
+          "target": "home",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-all",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "tasks-running",
+      "module": "多任务",
+      "title": "执行中任务",
+      "desc": "切换筛选不修改原始会话状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-running",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-running",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "tasks-failed",
+      "module": "多任务",
+      "title": "异常任务",
+      "desc": "切换筛选不修改原始会话状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-failed",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "home",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "sort",
+      "module": "会话排序",
+      "title": "排序与状态筛选",
+      "desc": "即时应用排他选择，完成关闭后保持滚动位置",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "sort-updated",
+      "module": "会话排序",
+      "title": "更新时间 · 进行中",
+      "desc": "单选保留在弹层，完成后返回侧栏",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-updated",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-updated",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "sort-created",
+      "module": "会话排序",
+      "title": "创建时间 · 进行中",
+      "desc": "单选保留在弹层，完成后返回侧栏",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-created",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-created",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "sort-all",
+      "module": "会话排序",
+      "title": "最近活动 · 全部",
+      "desc": "单选保留在弹层，完成后返回侧栏",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-all",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-all",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "sort-running",
+      "module": "会话排序",
+      "title": "最近活动 · 执行中",
+      "desc": "单选保留在弹层，完成后返回侧栏",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-running",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-running",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "sort-waiting",
+      "module": "会话排序",
+      "title": "最近活动 · 待处理",
+      "desc": "单选保留在弹层，完成后返回侧栏",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-waiting",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-waiting",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "sort-failed",
+      "module": "会话排序",
+      "title": "最近活动 · 异常",
+      "desc": "单选保留在弹层，完成后返回侧栏",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-failed",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-failed",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "approval",
+      "module": "多任务",
+      "title": "审批定位",
+      "desc": "复用现有审批卡；此示意不模拟实际授权",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 432,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回当前任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 361,
+          "h": 48,
+          "target": "tasks",
+          "label": "返回任务列表"
+        }
+      ]
+    },
+    {
+      "id": "stop-confirm",
+      "module": "多任务",
+      "title": "停止确认",
+      "desc": "停止按会话/回合执行，独立于其他任务",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 450,
+          "w": 317,
+          "h": 48,
+          "target": "tasks-waiting",
+          "label": "停止任务"
+        },
+        {
+          "x": 38,
+          "y": 504,
+          "w": 317,
+          "h": 48,
+          "target": "tasks",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "doc",
+      "module": "文件预览",
+      "title": "文档全屏阅读",
+      "desc": "回到任务保留阅读位置；文件仅本机读取",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        },
+        {
+          "x": 248,
+          "y": 118,
+          "w": 129,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        }
+      ]
+    },
+    {
+      "id": "doc-search",
+      "module": "文件预览",
+      "title": "全文搜索定位",
+      "desc": "匹配项、结果计数、关闭后保留定位",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        },
+        {
+          "x": 248,
+          "y": 118,
+          "w": 129,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "doc",
+          "label": "完成搜索"
+        }
+      ]
+    },
+    {
+      "id": "preview",
+      "module": "文件预览",
+      "title": "图片全屏查看",
+      "desc": "缩放、拖动、翻页与按钮辅助",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "image-result",
+          "label": "返回"
+        },
+        {
+          "x": 257,
+          "y": 120,
+          "w": 120,
+          "h": 48,
+          "target": "preview-next",
+          "label": "下一张"
+        },
+        {
+          "x": 16,
+          "y": 680,
+          "w": 361,
+          "h": 48,
+          "target": "preview",
+          "label": "恢复原始大小"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 104,
+          "h": 48,
+          "target": "preview",
+          "label": "缩小"
+        },
+        {
+          "x": 273,
+          "y": 746,
+          "w": 104,
+          "h": 48,
+          "target": "preview-zoom",
+          "label": "放大"
+        }
+      ]
+    },
+    {
+      "id": "preview-zoom",
+      "module": "文件预览",
+      "title": "图片缩放状态",
+      "desc": "220ms 缩放；减少动效直接更新",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "image-result",
+          "label": "返回"
+        },
+        {
+          "x": 257,
+          "y": 120,
+          "w": 120,
+          "h": 48,
+          "target": "preview-next",
+          "label": "下一张"
+        },
+        {
+          "x": 16,
+          "y": 680,
+          "w": 361,
+          "h": 48,
+          "target": "preview",
+          "label": "恢复原始大小"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 104,
+          "h": 48,
+          "target": "preview",
+          "label": "缩小"
+        },
+        {
+          "x": 273,
+          "y": 746,
+          "w": 104,
+          "h": 48,
+          "target": "preview-zoom",
+          "label": "放大"
+        }
+      ]
+    },
+    {
+      "id": "preview-next",
+      "module": "文件预览",
+      "title": "下一张图片",
+      "desc": "换图后复位；不改变原始文件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "image-result",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 120,
+          "w": 120,
+          "h": 48,
+          "target": "preview",
+          "label": "上一张"
+        },
+        {
+          "x": 16,
+          "y": 680,
+          "w": 361,
+          "h": 48,
+          "target": "preview",
+          "label": "恢复原始大小"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 104,
+          "h": 48,
+          "target": "preview",
+          "label": "缩小"
+        },
+        {
+          "x": 273,
+          "y": 746,
+          "w": 104,
+          "h": 48,
+          "target": "preview-zoom",
+          "label": "放大"
+        }
+      ]
+    },
+    {
+      "id": "preview-error",
+      "module": "文件预览",
+      "title": "读取失败",
+      "desc": "明确重试，保留来源任务",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "image-result",
+          "label": "返回"
+        },
+        {
+          "x": 257,
+          "y": 120,
+          "w": 120,
+          "h": 48,
+          "target": "preview-next",
+          "label": "下一张"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "preview",
+          "label": "重新读取"
+        }
+      ]
+    },
+    {
+      "id": "image-result",
+      "module": "图片生成",
+      "title": "图片产物卡片",
+      "desc": "元数据由真实字段驱动，减少正文噪声",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "image-meta",
+          "label": "查看执行详情"
+        },
+        {
+          "x": 16,
+          "y": 165,
+          "w": 361,
+          "h": 345,
+          "target": "preview",
+          "label": "打开图片"
+        },
+        {
+          "x": 16,
+          "y": 556,
+          "w": 361,
+          "h": 66,
+          "target": "image-meta",
+          "label": "执行详情"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "preview",
+          "label": "打开原图"
+        }
+      ]
+    },
+    {
+      "id": "image-meta",
+      "module": "图片生成",
+      "title": "生成元数据详情",
+      "desc": "透明状态和元数据按实际回执呈现",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 458,
+          "w": 48,
+          "h": 48,
+          "target": "image-result",
+          "label": "关闭"
+        },
+        {
+          "x": 26,
+          "y": 766,
+          "w": 341,
+          "h": 48,
+          "target": "preview",
+          "label": "查看原图"
+        }
+      ]
+    },
+    {
+      "id": "dark-model",
+      "module": "适配",
+      "title": "深色 · 模型选择",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 329,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 109,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 109,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 109,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 105,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading",
+          "label": "刷新目录"
+        }
+      ]
+    },
+    {
+      "id": "dark-tasks",
+      "module": "适配",
+      "title": "深色 · 任务侧栏",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "dark-runtime",
+      "module": "适配",
+      "title": "深色 · 内核恢复",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 594,
+          "w": 361,
+          "h": 66,
+          "target": "runtime-failed",
+          "label": "查看诊断与日志"
+        }
+      ]
+    },
+    {
+      "id": "dark-doc",
+      "module": "适配",
+      "title": "深色 · 文档阅读",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        },
+        {
+          "x": 248,
+          "y": 118,
+          "w": 129,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        }
+      ]
+    },
+    {
+      "id": "dark-provider",
+      "module": "适配",
+      "title": "深色 · 服务商",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 268,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form",
+          "label": "DeepSeek"
+        },
+        {
+          "x": 16,
+          "y": 326,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-glm",
+          "label": "GLM 智谱"
+        },
+        {
+          "x": 16,
+          "y": 384,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-minimax",
+          "label": "MiniMax"
+        },
+        {
+          "x": 16,
+          "y": 442,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi",
+          "label": "Kimi 开放平台"
+        },
+        {
+          "x": 16,
+          "y": 500,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-kimi-code",
+          "label": "Kimi Code 国内订阅"
+        },
+        {
+          "x": 16,
+          "y": 558,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-qwen",
+          "label": "通义千问"
+        },
+        {
+          "x": 16,
+          "y": 651,
+          "w": 361,
+          "h": 58,
+          "target": "provider-custom",
+          "label": "添加自定义服务商"
+        },
+        {
+          "x": 16,
+          "y": 714,
+          "w": 361,
+          "h": 62,
+          "target": "provider-configured",
+          "label": "已配置服务商"
+        }
+      ]
+    },
+    {
+      "id": "dark-mcp",
+      "module": "适配",
+      "title": "深色 · MCP 诊断",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "mcp-list",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "dark-voice",
+      "module": "适配",
+      "title": "深色 · 默认声音",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "voice",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 280,
+          "w": 361,
+          "h": 66,
+          "target": "voice",
+          "label": "示例声音 A"
+        },
+        {
+          "x": 16,
+          "y": 350,
+          "w": 361,
+          "h": 66,
+          "target": "voice-saving",
+          "label": "示例声音 B"
+        },
+        {
+          "x": 16,
+          "y": 420,
+          "w": 361,
+          "h": 66,
+          "target": "voice-saving",
+          "label": "示例声音 C"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "realtime",
+          "label": "打开实时语音"
+        }
+      ]
+    },
+    {
+      "id": "dark-hook",
+      "module": "适配",
+      "title": "深色 · 执行检查",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "home",
+          "label": "返回任务"
+        }
+      ]
+    },
+    {
+      "id": "dark-sort",
+      "module": "适配",
+      "title": "深色 · 会话筛选",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks",
+          "label": "完成"
+        }
+      ]
+    },
+    {
+      "id": "dark-image",
+      "module": "适配",
+      "title": "深色 · 图片产物",
+      "desc": "同一组 Ink 暗色令牌",
+      "mode": "dark",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "image-meta",
+          "label": "查看执行详情"
+        },
+        {
+          "x": 16,
+          "y": 165,
+          "w": 361,
+          "h": 345,
+          "target": "preview",
+          "label": "打开图片"
+        },
+        {
+          "x": 16,
+          "y": 556,
+          "w": 361,
+          "h": 66,
+          "target": "image-meta",
+          "label": "执行详情"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "preview",
+          "label": "打开原图"
+        }
+      ]
+    },
+    {
+      "id": "w360-model",
+      "module": "适配",
+      "title": "360dp · 模型选择",
+      "desc": "原生手机宽度布局抽样",
+      "mode": "light",
+      "width": 360,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 296,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 76,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 76,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 76,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 72,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading",
+          "label": "刷新目录"
+        }
+      ]
+    },
+    {
+      "id": "w360-tasks",
+      "module": "适配",
+      "title": "360dp · 任务抽屉",
+      "desc": "原生手机宽度布局抽样",
+      "mode": "light",
+      "width": 360,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 274,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 264,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 252,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 264,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 252,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 264,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 252,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 264,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 296,
+          "h": 48,
+          "target": "sort",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "w360-doc",
+      "module": "适配",
+      "title": "360dp · 文档阅读",
+      "desc": "原生手机宽度布局抽样",
+      "mode": "light",
+      "width": 360,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 306,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        },
+        {
+          "x": 215,
+          "y": 118,
+          "w": 129,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        }
+      ]
+    },
+    {
+      "id": "w411-model",
+      "module": "适配",
+      "title": "411dp · 模型选择",
+      "desc": "原生手机宽度布局抽样",
+      "mode": "light",
+      "width": 411,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 347,
+          "y": 278,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "关闭模型菜单"
+        },
+        {
+          "x": 127,
+          "y": 432,
+          "w": 256,
+          "h": 56,
+          "target": "model-default",
+          "label": "遵循默认模型"
+        },
+        {
+          "x": 127,
+          "y": 490,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected",
+          "label": "示例模型 A"
+        },
+        {
+          "x": 127,
+          "y": 548,
+          "w": 256,
+          "h": 56,
+          "target": "model-selected-b",
+          "label": "示例模型 B"
+        },
+        {
+          "x": 123,
+          "y": 617,
+          "w": 128,
+          "h": 48,
+          "target": "model-loading",
+          "label": "刷新目录"
+        }
+      ]
+    },
+    {
+      "id": "w411-tasks",
+      "module": "适配",
+      "title": "411dp · 任务抽屉",
+      "desc": "原生手机宽度布局抽样",
+      "mode": "light",
+      "width": 411,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "w411-doc",
+      "module": "适配",
+      "title": "411dp · 文档阅读",
+      "desc": "原生手机宽度布局抽样",
+      "mode": "light",
+      "width": 411,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 357,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        },
+        {
+          "x": 266,
+          "y": 118,
+          "w": 129,
+          "h": 48,
+          "target": "doc-search",
+          "label": "全文检索"
+        }
+      ]
+    },
+    {
+      "id": "large-model",
+      "module": "适配",
+      "title": "200% · 模型恢复",
+      "desc": "示例：内容可滚动、关键操作自然增高",
+      "mode": "light",
+      "width": 360,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 718,
+          "w": 328,
+          "h": 88,
+          "target": "model-loading",
+          "label": "重新读取"
+        }
+      ]
+    },
+    {
+      "id": "large-tasks",
+      "module": "适配",
+      "title": "200% · 任务列表",
+      "desc": "示例：内容可滚动、关键操作自然增高",
+      "mode": "light",
+      "width": 360,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 184,
+          "w": 328,
+          "h": 128,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 16,
+          "y": 328,
+          "w": 328,
+          "h": 128,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 16,
+          "y": 472,
+          "w": 328,
+          "h": 128,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 16,
+          "y": 718,
+          "w": 328,
+          "h": 88,
+          "target": "sort",
+          "label": "排序与筛选"
+        }
+      ]
+    },
+    {
+      "id": "large-runtime",
+      "module": "适配",
+      "title": "200% · 运行状态",
+      "desc": "示例：内容可滚动、关键操作自然增高",
+      "mode": "light",
+      "width": 360,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 718,
+          "w": 328,
+          "h": 88,
+          "target": "runtime-failed",
+          "label": "查看诊断"
+        }
+      ]
+    },
+    {
+      "id": "tasks-updated",
+      "module": "多任务",
+      "title": "更新时间 · 进行中",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-updated",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-updated-all",
+      "module": "会话排序",
+      "title": "更新时间 · 全部",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-updated-all",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-updated-all",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-updated-all",
+      "module": "多任务",
+      "title": "更新时间 · 全部",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-updated-all",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 573,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 573,
+          "w": 48,
+          "h": 73,
+          "target": "home",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-updated-running",
+      "module": "会话排序",
+      "title": "更新时间 · 执行中",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-updated-running",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-updated-running",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-updated-running",
+      "module": "多任务",
+      "title": "更新时间 · 执行中",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-updated-running",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-updated-waiting",
+      "module": "会话排序",
+      "title": "更新时间 · 待处理",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-updated-waiting",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-updated-waiting",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-updated-waiting",
+      "module": "多任务",
+      "title": "更新时间 · 待处理",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-updated-waiting",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-updated-failed",
+      "module": "会话排序",
+      "title": "更新时间 · 异常",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-updated-failed",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-updated-failed",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-updated-failed",
+      "module": "多任务",
+      "title": "更新时间 · 异常",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-updated-failed",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "home",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-created",
+      "module": "多任务",
+      "title": "创建时间 · 进行中",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-created",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-created",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-created-all",
+      "module": "会话排序",
+      "title": "创建时间 · 全部",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-created-all",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-all",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-all",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-created-all",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-created-all",
+      "module": "多任务",
+      "title": "创建时间 · 全部",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-created-all",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 488,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 488,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 573,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 573,
+          "w": 48,
+          "h": 73,
+          "target": "home",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-created-running",
+      "module": "会话排序",
+      "title": "创建时间 · 执行中",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-created-running",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-running",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-running",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-created-running",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-created-running",
+      "module": "多任务",
+      "title": "创建时间 · 执行中",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-created-running",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "stop-confirm",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-created-waiting",
+      "module": "会话排序",
+      "title": "创建时间 · 待处理",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-created-waiting",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-waiting",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-waiting",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-created-waiting",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-created-waiting",
+      "module": "多任务",
+      "title": "创建时间 · 待处理",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-created-waiting",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 403,
+          "w": 260,
+          "h": 73,
+          "target": "approval",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 403,
+          "w": 48,
+          "h": 73,
+          "target": "approval",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "sort-created-failed",
+      "module": "会话排序",
+      "title": "创建时间 · 异常",
+      "desc": "排序和筛选分别保存",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 333,
+          "y": 195,
+          "w": 48,
+          "h": 48,
+          "target": "tasks-created-failed",
+          "label": "关闭"
+        },
+        {
+          "x": 24,
+          "y": 283,
+          "w": 345,
+          "h": 48,
+          "target": "sort-failed",
+          "label": "应用排序 最近活动"
+        },
+        {
+          "x": 24,
+          "y": 331,
+          "w": 345,
+          "h": 48,
+          "target": "sort-updated-failed",
+          "label": "应用排序 更新时间"
+        },
+        {
+          "x": 24,
+          "y": 379,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "应用排序 创建时间"
+        },
+        {
+          "x": 24,
+          "y": 468,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-all",
+          "label": "筛选全部"
+        },
+        {
+          "x": 24,
+          "y": 516,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created",
+          "label": "筛选进行中"
+        },
+        {
+          "x": 24,
+          "y": 564,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-running",
+          "label": "筛选执行中"
+        },
+        {
+          "x": 24,
+          "y": 612,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-waiting",
+          "label": "筛选待处理"
+        },
+        {
+          "x": 24,
+          "y": 660,
+          "w": 345,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "筛选异常"
+        },
+        {
+          "x": 16,
+          "y": 756,
+          "w": 361,
+          "h": 48,
+          "target": "tasks-created-failed",
+          "label": "完成"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "tasks-created-failed",
+      "module": "多任务",
+      "title": "创建时间 · 异常",
+      "desc": "选定筛选、排序和会话状态保持",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "home",
+          "label": "返回"
+        },
+        {
+          "x": 282,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "new-session",
+          "label": "新建任务"
+        },
+        {
+          "x": 272,
+          "y": 184,
+          "w": 48,
+          "h": 72,
+          "target": "sort-created-failed",
+          "label": "排序与筛选"
+        },
+        {
+          "x": 16,
+          "y": 318,
+          "w": 260,
+          "h": 73,
+          "target": "home",
+          "label": "定位任务"
+        },
+        {
+          "x": 272,
+          "y": 318,
+          "w": 48,
+          "h": 73,
+          "target": "home",
+          "label": "停止或查看任务"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 304,
+          "h": 48,
+          "target": "sort-created-failed",
+          "label": "排序与筛选"
+        }
+      ],
+      "prototypeOnly": true
+    }
+  ],
+  "flows": [
+    {
+      "module": "模型目录",
+      "steps": [
+        "打开模型菜单",
+        "读取当前服务商",
+        "目录可选 / 无可用项",
+        "选择模型 → 后续任务"
+      ],
+      "notes": [
+        "读取失败 → 重试，保留原选择",
+        "旧会话服务商固定；新会话可单独选择"
+      ],
+      "screens": [
+        "model",
+        "model-loading",
+        "model",
+        "model-selected"
+      ]
+    },
+    {
+      "module": "国内模型",
+      "steps": [
+        "预置 / 自定义服务商",
+        "核对凭据并确认保存",
+        "读取目录 / 固定能力验证",
+        "回执通过 → 准入"
+      ],
+      "notes": [
+        "密钥安全写入；全局占用门禁",
+        "验证失败 → 看原因、重新验证"
+      ],
+      "screens": [
+        "provider-list",
+        "provider-form",
+        "provider-confirm",
+        "provider-verified"
+      ]
+    },
+    {
+      "module": "账号声音",
+      "steps": [
+        "账号设置",
+        "读取当前账号声音",
+        "选择并写入",
+        "回读一致 → 成功"
+      ],
+      "notes": [
+        "账号/连接切换时丢弃旧回执",
+        "实时语音入口仅跳回账号设置"
+      ],
+      "screens": [
+        "voice",
+        "voice",
+        "voice-saving",
+        "voice-saved"
+      ]
+    },
+    {
+      "module": "MCP 服务",
+      "steps": [
+        "可用目录",
+        "已就绪服务详情",
+        "查看连接诊断",
+        "返回任务处理授权"
+      ],
+      "notes": [
+        "启动失败、取消、未授权仅诊断可见",
+        "固定启动目录属核心行为，不增加独立页面"
+      ],
+      "screens": [
+        "mcp-list",
+        "mcp-detail",
+        "mcp-diagnostic",
+        "home"
+      ]
+    },
+    {
+      "module": "Hook 检查",
+      "steps": [
+        "已有用户检查策略",
+        "选择并确认保存",
+        "任务时间线收到通知",
+        "完成 / 失败 / 阻断 / 停止"
+      ],
+      "notes": [
+        "异步不允许阻断；结果严格取自内核",
+        "失败与阻断分别表达，不按策略猜测结果"
+      ],
+      "screens": [
+        "hook-settings",
+        "hook-confirm",
+        "hook-run",
+        "hook-blocked"
+      ]
+    },
+    {
+      "module": "内核恢复",
+      "steps": [
+        "等待自动恢复",
+        "回收旧内核",
+        "初始化与协议握手",
+        "真实连接成功"
+      ],
+      "notes": [
+        "异常 → 查看诊断 → 可重试",
+        "草稿和历史保留，不重发未完成指令"
+      ],
+      "screens": [
+        "runtime-waiting",
+        "runtime-retiring",
+        "runtime-starting",
+        "runtime-connected"
+      ]
+    },
+    {
+      "module": "会话排序",
+      "steps": [
+        "打开侧栏",
+        "打开排序筛选",
+        "选择排序及状态",
+        "完成并回到列表"
+      ],
+      "notes": [
+        "筛选保留查询与滚动位置",
+        "排序依据真实创建、更新或最近活动时间"
+      ],
+      "screens": [
+        "tasks",
+        "sort",
+        "sort-waiting",
+        "tasks-waiting"
+      ]
+    },
+    {
+      "module": "多任务",
+      "steps": [
+        "抽屉进行中",
+        "识别待审批与待回答",
+        "定位原任务",
+        "停止当前任务（确认）"
+      ],
+      "notes": [
+        "保留输入与会话状态",
+        "停止按回合执行，其他会话继续"
+      ],
+      "screens": [
+        "tasks",
+        "tasks-waiting",
+        "approval",
+        "stop-confirm"
+      ]
+    },
+    {
+      "module": "文件与图片",
+      "steps": [
+        "任务建议预览",
+        "本机全屏读取",
+        "全文检索 / 图片缩放",
+        "关闭恢复原任务"
+      ],
+      "notes": [
+        "读取失败 → 重新读取；定位无效提示",
+        "文件内容不经预览工具回传模型"
+      ],
+      "screens": [
+        "home",
+        "doc",
+        "doc-search",
+        "preview-zoom"
+      ]
+    },
+    {
+      "module": "图片产物",
+      "steps": [
+        "时间线图片卡片",
+        "显示已返回元数据",
+        "展开执行详情",
+        "查看原图"
+      ],
+      "notes": [
+        "透明字段缺失则不显示；未知元数据只读",
+        "文件丢失 → 提示、保留原始执行记录"
+      ],
+      "screens": [
+        "image-result",
+        "image-result",
+        "image-meta",
+        "preview"
+      ]
+    }
+  ],
+  "events": {
+    "model-loading": [
+      [
+        "目录读取成功",
+        "model"
+      ],
+      [
+        "目录返回空列表",
+        "model-empty"
+      ],
+      [
+        "目录读取失败",
+        "model-error"
+      ]
+    ],
+    "provider-saving": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog"
+      ],
+      [
+        "保存未成功",
+        "provider-form"
+      ]
+    ],
+    "provider-running": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed"
+      ]
+    ],
+    "voice-saving": [
+      [
+        "写入并回读一致",
+        "voice-saved"
+      ],
+      [
+        "同步失败，保留旧声音",
+        "voice"
+      ]
+    ],
+    "hook-run": [
+      [
+        "收到完成事件",
+        "hook-completed"
+      ],
+      [
+        "收到失败事件",
+        "hook-failed"
+      ],
+      [
+        "收到阻断事件",
+        "hook-blocked"
+      ],
+      [
+        "收到停止事件",
+        "hook-stopped"
+      ]
+    ],
+    "runtime-waiting": [
+      [
+        "旧进程开始退出",
+        "runtime-retiring"
+      ],
+      [
+        "自动恢复失败",
+        "runtime-failed"
+      ]
+    ],
+    "runtime-retiring": [
+      [
+        "旧进程已退出",
+        "runtime-starting"
+      ],
+      [
+        "旧进程退出异常",
+        "runtime-failed"
+      ]
+    ],
+    "runtime-starting": [
+      [
+        "握手成功",
+        "runtime-connected"
+      ],
+      [
+        "握手失败",
+        "runtime-failed"
+      ]
+    ],
+    "model-loading-new": [
+      [
+        "目录读取成功",
+        "model-new-session"
+      ],
+      [
+        "目录返回空列表",
+        "model-empty-new"
+      ],
+      [
+        "目录读取失败",
+        "model-error-new"
+      ]
+    ],
+    "model-loading-domestic": [
+      [
+        "目录读取成功",
+        "model-domestic-menu"
+      ],
+      [
+        "目录返回空列表",
+        "model-empty-domestic"
+      ],
+      [
+        "目录读取失败",
+        "model-error-domestic"
+      ]
+    ],
+    "provider-saving-glm": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-glm"
+      ],
+      [
+        "保存未成功",
+        "provider-form-glm"
+      ]
+    ],
+    "provider-running-glm": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-glm"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-glm"
+      ]
+    ],
+    "provider-saving-minimax": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-minimax"
+      ],
+      [
+        "保存未成功",
+        "provider-form-minimax"
+      ]
+    ],
+    "provider-running-minimax": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-minimax"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-minimax"
+      ]
+    ],
+    "provider-saving-kimi": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-kimi"
+      ],
+      [
+        "保存未成功",
+        "provider-form-kimi"
+      ]
+    ],
+    "provider-running-kimi": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-kimi"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-kimi"
+      ]
+    ],
+    "provider-saving-kimi-code": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-kimi-code"
+      ],
+      [
+        "保存未成功",
+        "provider-form-kimi-code"
+      ]
+    ],
+    "provider-running-kimi-code": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-kimi-code"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-kimi-code"
+      ]
+    ],
+    "provider-saving-qwen": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-qwen"
+      ],
+      [
+        "保存未成功",
+        "provider-form-qwen"
+      ]
+    ],
+    "provider-running-qwen": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-qwen"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-qwen"
+      ]
+    ],
+    "provider-custom-busy": [
+      [
+        "配置回读成功",
+        "provider-configured"
+      ],
+      [
+        "配置保存失败",
+        "provider-custom"
+      ]
+    ],
+    "provider-default-busy": [
+      [
+        "默认配置回读成功",
+        "provider-default-saved"
+      ],
+      [
+        "切换失败",
+        "provider-configured"
+      ]
+    ],
+    "provider-revoke-busy": [
+      [
+        "凭据移除并回读成功",
+        "provider-missing"
+      ],
+      [
+        "未能移除",
+        "provider-configured"
+      ]
+    ]
+  }
+}
