@@ -17,7 +17,16 @@ internal object DeveloperRuntime {
         val root = synchronized(lock) { prepareData(context) }
         val user = File(context.filesDir, "developer-packages")
         check(user.isDirectory || user.mkdirs()) { "无法创建开发依赖目录" }
-        env["PATH"] = "${tools.absolutePath}:/system/bin:/system/xbin"
+        val python = File(user, "python")
+        val node = File(user, "node")
+        val pythonBin = File(python, "bin")
+        val nodeBin = File(node, "bin")
+        for (dir in listOf(pythonBin, nodeBin))
+            check(dir.isDirectory || dir.mkdirs()) { "无法创建开发工具入口目录：${dir.name}" }
+        // APK-native and system commands retain priority; installed package entries are discoverable.
+        // Android may prohibit direct exec of writable scripts; use the installed interpreter for them.
+        env["PATH"] = listOf(tools.absolutePath, "/system/bin", "/system/xbin",
+            pythonBin.absolutePath, nodeBin.absolutePath).joinToString(":")
         env["SHELL"] = "/system/bin/sh"
         env["GIT_EXEC_PATH"] = tools.absolutePath
         env["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir + ":" + File(root, "git/lib").absolutePath
@@ -26,12 +35,12 @@ internal object DeveloperRuntime {
             env["GIT_CONFIG_SYSTEM"] = File(root, "git/gitconfig").absolutePath
         }
         env["PYTHONHOME"] = root.absolutePath
-        env["PYTHONUSERBASE"] = File(user, "python").absolutePath
+        env["PYTHONUSERBASE"] = python.absolutePath
         env["ANDROIDDSH_NPM_ENTRY"] = File(root, "npm/bin/npm-cli.js").absolutePath
         env["PIP_ONLY_BINARY"] = ":all:"
-        env["npm_config_prefix"] = File(user, "node").absolutePath
+        env["npm_config_prefix"] = node.absolutePath
         env["npm_config_script_shell"] = "/system/bin/sh"
-        env["NODE_PATH"] = File(user, "node/lib/node_modules").absolutePath
+        env["NODE_PATH"] = File(node, "lib/node_modules").absolutePath
         val trust = synchronized(lock) { systemTrust(context) }
         for (key in listOf("SSL_CERT_FILE", "GIT_SSL_CAINFO", "CURL_CA_BUNDLE", "PIP_CERT", "NODE_EXTRA_CA_CERTS")) {
             env[key] = trust.absolutePath

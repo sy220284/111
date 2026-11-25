@@ -12,15 +12,15 @@ import androidx.compose.ui.unit.dp
 /** Model identity and configuration stay readable on narrow phones. */
 @Composable
 internal fun RowScope.ConversationControlBar(modelName: String, effortLabel: String,
-    enabled: Boolean, onModel: () -> Unit, providerLabel: String = "") {
+    enabled: Boolean, onModel: () -> Unit, providerLabel: String = "", expanded: Boolean = false) {
     CodexTextAction(onClick = onModel, enabled = enabled,
         modifier = Modifier.weight(1f).testTag("conversation-model-control"),
         contentPadding = PaddingValues(horizontal = 2.dp)) {
         Column(Modifier.weight(1f, fill = false)) {
-            Text(modelName.ifBlank { "默认模型" }, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            Text(modelName.ifBlank { "默认模型" }, maxLines = if (expanded) 2 else 1, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelLarge, color = Ink.parchment)
             val detail = listOf(providerLabel, effortLabel).filter { it.isNotBlank() }.joinToString(" · ")
-            if (detail.isNotBlank()) Text(detail, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            if (detail.isNotBlank()) Text(detail, maxLines = if (expanded) 2 else 1, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelSmall, color = Ink.muted)
         }
         Spacer(Modifier.width(2.dp))

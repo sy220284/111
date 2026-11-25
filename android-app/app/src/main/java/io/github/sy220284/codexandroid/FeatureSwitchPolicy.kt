@@ -218,6 +218,48 @@ internal object FeatureSwitchPolicy {
         "runtime_agent_instances" to "运行时智能体实例",
         "workspace_dependencies" to "工作区依赖管理"
     )
+    enum class UseGroup(val label: String) {
+        Conversation("对话与模型"), Context("记忆与上下文"), Development("开发与执行"),
+        Extensions("工具与扩展"), Safety("权限与安全"), Experience("界面与交互"),
+        Advanced("高级与其他")
+    }
+
+    val statusFilters = listOf("all" to "全部状态", "preferred" to "安卓优先",
+        "enabled" to "已开启", "disabled" to "已关闭", "stable" to "稳定",
+        "experimental" to "实验与开发", "retired" to "历史功能")
+
+    fun group(name: String): UseGroup = when {
+        name.startsWith("guardian") || name.contains("approval") || name.contains("permission") ||
+            name.contains("credential") || name.contains("sandbox") || name.contains("auth") -> UseGroup.Safety
+        name.contains("memory") || name.contains("memories") || name.contains("context") ||
+            name.contains("compact") || name.contains("history") || name.contains("token_budget") -> UseGroup.Context
+        name.startsWith("code_mode") || name.contains("exec") || name.contains("shell") ||
+            name.contains("workspace") || name.contains("terminal") || name.contains("environment") ||
+            name.contains("file") || name.contains("dependencies") -> UseGroup.Development
+        name.contains("plugin") || name.contains("mcp") || name.contains("tool") ||
+            name.contains("apps") || name.contains("skill") || name.contains("connector") -> UseGroup.Extensions
+        name.contains("model") || name.contains("reasoning") || name.contains("agent") ||
+            name.contains("turn") || name.contains("thread") || name.contains("goal") -> UseGroup.Conversation
+        name.startsWith("in_app") || name.startsWith("tui") || name.contains("announcement") ||
+            name.contains("voice") || name.contains("display") || name.contains("ui_") -> UseGroup.Experience
+        else -> UseGroup.Advanced
+    }
+
+    fun matches(row: CoreFeatureSwitch, filter: String): Boolean = when (filter) {
+        "all" -> true
+        "preferred" -> row.name in preferred
+        "enabled" -> row.enabled
+        "disabled" -> !row.enabled
+        "stable" -> row.stage == "stable"
+        "experimental" -> row.stage in setOf("beta", "underDevelopment")
+        "retired" -> row.stage in setOf("deprecated", "removed")
+        else -> error("未知功能状态筛选：$filter")
+    }
+
+    /** Only a known presentation-only stable toggle is one tap. All other changes keep confirmation. */
+    fun needsConfirmation(row: CoreFeatureSwitch): Boolean =
+        row.stage != "stable" || row.name != "suppress_model_change_announcements"
+
     fun parse(item: JSONObject): CoreFeatureSwitch {
         val key = item.getString("name")
         require(key.isNotBlank()) { "内核返回了空功能名称" }

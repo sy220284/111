@@ -23,6 +23,23 @@ class FeatureSwitchPolicyTest {
         assertEquals("长期记忆", row("memories").title)
     }
 
+    @Test fun catalogGroupingNeverDropsUnknownOrRetiredFeatures() {
+        val rows = listOf(row("memories"), row("guardian_approval"), row("code_mode"),
+            row("recommended_plugins"), row("reasoning_effort_override"), row("in_app_voice"),
+            row("future_flag", "unknown"), row("old_flag", "removed"))
+        assertEquals(rows.size, rows.groupBy { FeatureSwitchPolicy.group(it.name) }.values.sumOf { it.size })
+        assertTrue(rows.all { FeatureSwitchPolicy.matches(it, "all") })
+        assertEquals(FeatureSwitchPolicy.UseGroup.Advanced, FeatureSwitchPolicy.group("future_flag"))
+        assertTrue(FeatureSwitchPolicy.matches(rows.last(), "retired"))
+        assertTrue(FeatureSwitchPolicy.matches(row("code_mode"), "preferred"))
+        assertTrue(FeatureSwitchPolicy.matches(row("memories", enabled = true), "enabled"))
+        assertFalse(FeatureSwitchPolicy.matches(row("memories"), "enabled"))
+        assertFalse(FeatureSwitchPolicy.needsConfirmation(row("suppress_model_change_announcements")))
+        assertTrue(FeatureSwitchPolicy.needsConfirmation(row("suppress_model_change_announcements", "beta")))
+        assertTrue(FeatureSwitchPolicy.needsConfirmation(row("memories")))
+        assertTrue(FeatureSwitchPolicy.needsConfirmation(row("future_flag")))
+    }
+
     @Test fun featureWritesOnlyOneBooleanAndReloadsUserConfiguration() {
         val params = FeatureSwitchPolicy.writeParams("memories", false, "version")
         assertEquals("version", params.getString("expectedVersion"))

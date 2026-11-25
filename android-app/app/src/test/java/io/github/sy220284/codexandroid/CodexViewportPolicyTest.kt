@@ -46,6 +46,18 @@ class CodexViewportPolicyTest {
         assertFalse(CodexViewportPolicy.fitsActions(240f, 1f, 2, 132f))
     }
 
+    @Test fun composerReservesModelAndAllTouchTargetsBeforeReflow() {
+        assertFalse(CodexViewportPolicy.composerModelOwnRow(320f, 1f, 3))
+        assertTrue(CodexViewportPolicy.composerModelOwnRow(320f, 1f, 4))
+        for (width in listOf(240f, 320f, 360f, 393f, 411f, 600f))
+            for (scale in listOf(1f, 1.25f, 1.5f, 2f))
+                for (icons in 2..4) {
+                    val available = width - 48f * icons
+                    assertEquals(available < 132f * maxOf(1f, scale),
+                        CodexViewportPolicy.composerModelOwnRow(width, scale, icons))
+                }
+    }
+
     @Test fun pageSpacingAndWorkAreaFollowActualHeight() {
         assertEquals(12f, CodexViewportPolicy.pageSpacing(320f, 720f, false).horizontal, 0f)
         assertEquals(20f, CodexViewportPolicy.pageSpacing(411f, 915f, false).vertical, 0f)

@@ -504,6 +504,1102 @@ class CoreStartupInstrumentedTest {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val tools = NativeToolInstaller.prepare(app)
         val command = """set -e
+            case ":${' 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val response = bridge.request("account/read")
+                assertNotNull(response)
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
+            }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
+        } finally {
+            bridge.close()
+        }
+    }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+}
+}PATH:" in *":${' 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val response = bridge.request("account/read")
+                assertNotNull(response)
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
+            }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
+        } finally {
+            bridge.close()
+        }
+    }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+}
+}PYTHONUSERBASE/bin:"*) ;; *) exit 91 ;; esac
+            case ":${' 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val response = bridge.request("account/read")
+                assertNotNull(response)
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
+            }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
+        } finally {
+            bridge.close()
+        }
+    }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+}
+}PATH:" in *":${' 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val response = bridge.request("account/read")
+                assertNotNull(response)
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
+            }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
+        } finally {
+            bridge.close()
+        }
+    }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+}
+}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
+            test -d "${' 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val response = bridge.request("account/read")
+                assertNotNull(response)
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
+            }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
+        } finally {
+            bridge.close()
+        }
+    }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+}
+}PYTHONUSERBASE/bin"
+            test -d "${' 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val response = bridge.request("account/read")
+                assertNotNull(response)
+                val dir = WorkspaceStorage.root(app)
+                val fixture = File(dir, "shared-storage-${UUID.randomUUID()}.txt")
+                fixture.writeText("phone-file")
+                try {
+                val shellCommand = JSONObject()
+                    .put("command", JSONArray()
+                        .put("/system/bin/sh").put("-c")
+                        .put("test \"$(cat '${fixture.name}')\" = phone-file && printf codex-write > '${fixture.name}' && printf codex-android-exec-ok"))
+                    .put("cwd", dir.absolutePath)
+                    .put("sandboxPolicy", JSONObject()
+                        .put("type", "externalSandbox")
+                        .put("networkAccess", "restricted"))
+                    .put("timeoutMs", 15_000)
+                val commandResult = bridge.request("command/exec", shellCommand)
+                assertEquals("Android shell execution failed: " +
+                    commandResult.optString("stderr"),
+                    0, commandResult.optInt("exitCode", -1))
+                assertEquals("codex-android-exec-ok",
+                    commandResult.optString("stdout").trim())
+                assertEquals("codex-write", fixture.readText())
+                } finally {
+                    fixture.delete()
+                }
+            }
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "Android Codex core start failed. ABI=" + Build.SUPPORTED_ABIS.joinToString() +
+                "; status=" + bridge.status.value +
+                "; recentStderr=" + bridge.recentStderr.value.joinToString(" / "),
+                failure
+            )
+        } finally {
+            bridge.close()
+        }
+    }
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val processId = UUID.randomUUID().toString()
+                var output = TerminalSessionState.start(processId, "read user input")
+                val ready = CompletableDeferred<Unit>()
+                val replied = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta") {
+                            val params = event.optJSONObject("params") ?: return@collect
+                            if (params.optString("processId") != processId) return@collect
+                            output = output.append(params)
+                            if (output.stdoutText.contains("ready")) ready.complete(Unit)
+                            if (output.stdoutText.contains("ack:测试")) replied.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf ready; read value; printf 'ack:%s' \"\$value\"",
+                                root.absolutePath, processId
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { ready.await() }
+                    bridge.request("command/exec/write",
+                        TerminalSessionContract.write(processId, "测试"))
+                    val result = withTimeout(20_000L) { job.await() }
+                    withTimeout(10_000L) { replied.await() }
+                    assertEquals(0, result.getInt("exitCode"))
+                    org.junit.Assert.assertTrue(output.stdoutText.contains("ack:测试"))
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                val root = WorkspaceStorage.root(app)
+                val id = UUID.randomUUID().toString()
+                val started = CompletableDeferred<Unit>()
+                val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                    bridge.events.collect { event ->
+                        if (event.optString("method") == "command/exec/outputDelta" &&
+                            event.optJSONObject("params")?.optString("processId") == id) {
+                            started.complete(Unit)
+                        }
+                    }
+                }
+                try {
+                    val job = async(Dispatchers.IO) {
+                        bridge.request("command/exec",
+                            TerminalSessionContract.execute(
+                                "printf running; sleep 60",
+                                root.absolutePath, id
+                            ), timeoutMillis = null)
+                    }
+                    withTimeout(20_000L) { started.await() }
+                    bridge.request("command/exec/terminate",
+                        TerminalSessionContract.terminate(id))
+                    val result = withTimeout(20_000L) { job.await() }
+                    org.junit.Assert.assertTrue("终止后的进程应返回非零码",
+                        result.getInt("exitCode") != 0)
+                } finally {
+                    collector.cancelAndJoin()
+                }
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+}
+}npm_config_prefix/bin"
             git --version
             curl --version
             python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'

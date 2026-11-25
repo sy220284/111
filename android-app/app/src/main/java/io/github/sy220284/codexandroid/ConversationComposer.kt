@@ -129,6 +129,21 @@ internal fun ConversationComposer(
                 }
             }
             }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val showStop = stopping || running
+                val guideVisible = running && hasInput && !stopping
+                val separateModel = CodexViewportPolicy.composerModelOwnRow(maxWidth.value,
+                    codexEffectiveFontScale(), 2 + (if (onVoice != null) 1 else 0) + (if (guideVisible) 1 else 0))
+                Column(Modifier.fillMaxWidth()) {
+                    if (separateModel) {
+                        Box(Modifier.fillMaxWidth().testTag("composer-model-own-row")) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                                ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel,
+                                    providerLabel, expanded = true)
+                            }
+                            modelMenu?.invoke()
+                        }
+                    }
             Row(
                 modifier = Modifier.fillMaxWidth().testTag("composer-primary-actions"),
                 verticalAlignment = Alignment.CenterVertically,
@@ -141,7 +156,8 @@ internal fun ConversationComposer(
                     }
                     addMenu?.invoke()
                 }
-                Box(Modifier.weight(1f)) {
+                if (separateModel) Spacer(Modifier.weight(1f))
+                else Box(Modifier.weight(1f)) {
                     Row(Modifier.fillMaxWidth()) {
                         ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel, providerLabel)
                     }
@@ -155,8 +171,7 @@ internal fun ConversationComposer(
                 }
                 // Stop stays at the same trailing edge while the user writes or sends a follow-up.
                 // The independent queue action remains outside this surface.
-                val showStop = stopping || running
-                if (running && hasInput && !stopping) {
+                if (guideVisible) {
                     CodexIconAction(onClick = onSend, enabled = canSend && !sending,
                         modifier = Modifier.size(48.dp).testTag("composer-send")
                             .explainDisabled(!canSend || sending, sendBlockReason.ifBlank { "正在提交指令" })
@@ -209,6 +224,8 @@ internal fun ConversationComposer(
                             }
                         }
                     }
+                }
+            }
                 }
             }
         }

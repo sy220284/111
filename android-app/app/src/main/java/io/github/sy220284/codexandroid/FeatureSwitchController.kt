@@ -98,17 +98,18 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         }
     }
 
-    fun change(row: CoreFeatureSwitch, enabled: Boolean) {
+    fun change(row: CoreFeatureSwitch, enabled: Boolean, expectedSession: Long) {
         val session = vm.bridge.connectedSession.value ?: return
-        if (busy || snapshot?.session != session) return
+        if (busy || expectedSession != session || snapshot?.session != session) return
+        attemptedSession = session
+        error = ""
+        receipt = ""
         if (vm.configBusy()) { error = "已有配置操作正在处理，请稍后重试"; return }
         if (DataTransferMutationGate.refuse(vm, key, "config/batchWrite")) {
             error = "本机数据传输期间不能修改设置"
             return
         }
         busy = true
-        error = ""
-        receipt = ""
         vm.configTransactionBusy.value = true
         vm.loading.value = vm.loading.value + key
         vm.viewModelScope.launch {

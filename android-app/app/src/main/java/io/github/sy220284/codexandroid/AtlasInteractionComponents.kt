@@ -313,7 +313,7 @@ fun AtlasChoiceRow(
     }
 }
 
-/** 紧凑排他操作保留一行，适合键盘展开时的输入栏。 */
+/** 排他选择优先单行；空间不足时完整显示标签与选择状态。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AtlasCompactChoice(
@@ -325,7 +325,20 @@ fun AtlasCompactChoice(
     tagPrefix: String = "",
     labelStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelMedium
 ) {
-    SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
+    if (options.isEmpty()) return
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val nominalWidth = maxOf(80f, options.maxOf { it.second.length } * 13f + 36f)
+        if (!CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(),
+                options.size, nominalWidth, gap = 0f)) {
+            Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                options.forEach { (id, label) ->
+                    AtlasExclusiveChip(selected == id, { onSelect(id) }, { Text(label, style = labelStyle) },
+                        modifier = Modifier.fillMaxWidth().let {
+                            if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
+                        }, enabled = enabled)
+                }
+            }
+        } else SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (id, label) ->
             val interaction = remember(id) { MutableInteractionSource() }
             SegmentedButton(selected = selected == id, onClick = { onSelect(id) },
@@ -339,6 +352,7 @@ fun AtlasCompactChoice(
                 modifier = Modifier.heightIn(min = 48.dp).codexActionPress(interaction, enabled, SegmentedButtonDefaults.itemShape(index, options.size)).let {
                     if (tagPrefix.isEmpty()) it else it.testTag(tagPrefix + id)
                 }) { Text(label, style = labelStyle) }
+        }
         }
     }
 }

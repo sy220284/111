@@ -24,6 +24,12 @@ internal object CodexViewportPolicy {
         return width >= count * itemWidth + (count - 1) * gap
     }
 
+    /** Reserve the full touch targets first, then protect model/provider/effort readability. */
+    fun composerModelOwnRow(width: Float, fontScale: Float, iconActions: Int): Boolean {
+        require(width >= 0 && fontScale > 0 && iconActions in 2..4)
+        return width - 48f * iconActions < 132f * maxOf(1f, fontScale)
+    }
+
     fun pageSpacing(width: Float, height: Float, compact: Boolean): CodexPageSpacing {
         require(width > 0 && height > 0)
         val horizontal = minOf(if (compact || width < 350f) 12f else 18f, width / 8f)
