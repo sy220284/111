@@ -69,7 +69,6 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val effort = drafts[vm.composerOwner(active, workspace)]?.options?.effort.orEmpty()
-    var selectingEffort by remember { mutableStateOf(false) }
     var selectingProvider by remember { mutableStateOf(false) }
     val loading by vm.loading.collectProjection { it.intersect(setOf(catalogKey)) }
     val errors by vm.errors.collectEntries(catalogKey)
@@ -85,7 +84,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val choices = remember(available) {
         available.filter { !it.optBoolean("hidden") }.map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
-            CodexChoice(id, item.optString("displayName").ifBlank { id })
+            CodexChoice(id, item.optString("displayName").ifBlank { id },
+                PresentationPolicy.meaningful(item.optString("description")))
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     }
     val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !running && !creating && !switching &&
@@ -95,34 +95,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     }.filter { it.id.isNotBlank() }
     val displayedProvider = scopedProvider ?: providerData["providers"]?.optString("defaultProviderId")
     val providerName = providerChoices.firstOrNull { it.id == displayedProvider }?.title ?: "当前服务商"
-    if (selectingProvider && active == null) {
-        CodexChoiceSheet(title = "选择新会话服务商", anchored = anchored,
-            description = "各服务商独立授权与模型目录；历史会话保持原服务商。",
-            choices = listOf(CodexChoice("", "遵循默认服务商")) + providerChoices,
-            selectedId = draftProvider.orEmpty(), enabled = selectable,
-            onSelect = { vm.chooseComposerProvider(it); selectingProvider = false },
-            onDismiss = { selectingProvider = false })
-        return
-    }
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
-    if (selectingEffort) {
-        val options = listOf("") + efforts
-        val actual = options.indexOf(effort).coerceAtLeast(0)
-        var preview by remember(actual, options) { mutableIntStateOf(actual) }
-        val content: @Composable ColumnScope.() -> Unit = {
-            Text(if (options[preview].isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(options[preview]),
-                color = Ink.copper, style = MaterialTheme.typography.titleMedium)
-            if (options.size > 1) CodexDiscreteSlider(preview, options.size, selectable,
-                onPreview = { preview = it }, onFinished = {
-                    if (selectable) vm.chooseComposerEffort(options[preview])
-                    selectingEffort = false
-                }, modifier = Modifier.testTag("composer-effort-slider"))
-            Text("松手后应用到后续任务", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-        }
-        if (anchored) CodexFloatingMenu("思考强度", { selectingEffort = false }, wide = true, content = content)
-        else CodexDetailSheet("思考强度", { selectingEffort = false }, content = content)
-        return
-    }
     CodexChoiceSheet(
         title = "选择运行模型", anchored = anchored,
         description = when {
@@ -154,15 +127,40 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 onClick = { vm.refreshComposerCatalog(forceRefresh = true) },
                 enabled = engineStatus == EngineStatus.Connected && catalogKey !in loading,
                 outlined = false, modifier = Modifier.testTag("composer-model-refresh"))
-            AtlasSettingsActionRow("模型服务商", providerName, CodexGlyph.Dns,
-                onClick = { selectingProvider = true }, enabled = selectable && active == null && providerChoices.isNotEmpty(),
-                outlined = false)
-            AtlasSettingsActionRow("思考强度",
-                if (selected.isBlank()) "先选择具体模型" else if (efforts.isEmpty()) "该模型未提供可选强度"
-                else if (effort.isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(effort),
-                CodexGlyph.Speed, onClick = { selectingEffort = true },
-                enabled = selectable && efforts.isNotEmpty(), outlined = false,
-                modifier = Modifier.testTag("composer-effort"))
+            AtlasSettingsActionRow("模型服务商", providerName,
+                CodexGlyph.Dns, onClick = { selectingProvider = !selectingProvider },
+                enabled = selectable && active == null && providerChoices.isNotEmpty(), outlined = false)
+            if (active != null) Text("此会话继续使用原服务商。新建会话时可以更换服务商。",
+                style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+            if (selectingProvider && active == null) {
+                (listOf(CodexChoice("", "遵循默认服务商")) + providerChoices).forEach { choice ->
+                    CodexFloatingMenuRow(choice.title, onClick = {
+                        vm.chooseComposerProvider(choice.id)
+                        selectingProvider = false
+                    }, selected = choice.id == draftProvider.orEmpty(), description = choice.description,
+                        enabled = selectable, modifier = Modifier.testTag("composer-provider-" + choice.id))
+                }
+            }
+            Column(Modifier.fillMaxWidth().testTag("composer-effort"),
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("思考强度", style = MaterialTheme.typography.titleSmall)
+                if (selected.isBlank()) Text("选择具体模型后可调整", color = Ink.muted,
+                    style = MaterialTheme.typography.bodySmall)
+                else if (efforts.isEmpty()) Text("该模型未提供可选强度", color = Ink.muted,
+                    style = MaterialTheme.typography.bodySmall)
+                else {
+                    val options = listOf("") + efforts
+                    val actual = options.indexOf(effort).coerceAtLeast(0)
+                    var preview by remember(actual, options) { mutableIntStateOf(actual) }
+                    Text(if (options[preview].isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(options[preview]),
+                        style = MaterialTheme.typography.bodyMedium, color = Ink.copper)
+                    CodexDiscreteSlider(preview, options.size, selectable,
+                        onPreview = { preview = it }, onFinished = {
+                            if (selectable) vm.chooseComposerEffort(options[preview])
+                        }, modifier = Modifier.testTag("composer-effort-slider"))
+                    Text("松手后应用到后续任务", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         },
         onSelect = { id -> vm.chooseComposerModel(id) },
         onDismiss = onDismiss

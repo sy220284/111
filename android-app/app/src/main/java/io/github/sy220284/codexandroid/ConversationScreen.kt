@@ -382,9 +382,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ComposerQueueAction(
                 visible = busy && thread != null && snapshot.hasInput && !stopping,
                 enabled = sendBlockReason.isBlank(),
-                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) },
-                stopEnabled = !activeTurn.isNullOrBlank() && !switching && status == EngineStatus.Connected && !restarting && !stopping,
-                onStop = stopCurrentTurn)
+                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) })
             val guideBlockReason = sendBlockReason.ifBlank {
                 if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
@@ -396,7 +394,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onDraftChange = { vm.editComposerText(draftOwner, it) },
                 attachedCount = attachedImages.size, connected = status == EngineStatus.Connected,
                 running = busy, stopping = stopping,
-                canStop = busy && !activeTurn.isNullOrBlank(),
+                canStop = busy && !activeTurn.isNullOrBlank() && !switching && !restarting && !transferBusy,
                 canSend = guideBlockReason.isBlank(), sending = sending,
                 sendBlockReason = guideBlockReason,
                 onStop = stopCurrentTurn,

@@ -562,8 +562,7 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 androidx.compose.foundation.layout.Column {
                     ComposerQueueAction(visible = runningDraft.isNotBlank(), enabled = true,
-                        onQueue = { queued = true; runningDraft = "" },
-                        stopEnabled = true, onStop = { stopped = true })
+                        onQueue = { queued = true; runningDraft = "" })
                     ConversationComposer(
                         draft = runningDraft, onDraftChange = { runningDraft = it },
                         attachedCount = 0, connected = true,
@@ -583,11 +582,10 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("composer-send-queue").assertIsDisplayed()
         rule.onNode(hasTestTag("composer-send-queue") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertDoesNotExist()
         rule.onNodeWithContentDescription("引导当前任务").assertExists()
-        rule.onNodeWithTag("composer-stop").assertDoesNotExist()
+        rule.onNodeWithTag("composer-stop").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
-        rule.onNodeWithTag("composer-stop-with-draft").assertIsDisplayed()
-        rule.onNode(hasTestTag("composer-stop-with-draft") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertDoesNotExist()
-        rule.onNodeWithTag("composer-stop-with-draft").performClick()
+        rule.onNode(hasTestTag("composer-stop") and hasAnyAncestor(hasTestTag("conversation-composer"))).assertIsDisplayed()
+        rule.onNodeWithTag("composer-stop").performClick()
         rule.runOnIdle { assertEquals(true, stopped); stopped = false }
         rule.onNodeWithTag("composer-input").assertTextContains("检查这一轮修改")
         capture("audit-composer-running-android35.png")

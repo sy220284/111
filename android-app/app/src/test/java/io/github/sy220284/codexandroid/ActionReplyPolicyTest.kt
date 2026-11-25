@@ -4,11 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ActionReplyPolicyTest {
-    @Test fun agentActionPreservesExistingDraftAndDoesNotDuplicateRequest() {
-        assertEquals("原有草稿\n\n请求配置", AgentActionDraftPolicy.append("原有草稿", "请求配置"))
-        assertEquals("原有草稿\n\n请求配置", AgentActionDraftPolicy.append("原有草稿\n\n请求配置", "请求配置"))
-        assertEquals("请求配置", AgentActionDraftPolicy.append("", "请求配置"))
-        assertEquals("原有草稿", AgentActionDraftPolicy.append("原有草稿", ""))
+    @Test fun agentActionNeverCombinesWithExistingDraft() {
+        assertTrue(AgentActionDraftPolicy.canPrepare(null, "请求配置"))
+        assertTrue(AgentActionDraftPolicy.canPrepare(ComposerDraft(), "请求配置"))
+        assertFalse(AgentActionDraftPolicy.canPrepare(ComposerDraft(text = "原有草稿"), "请求配置"))
+        assertFalse(AgentActionDraftPolicy.canPrepare(ComposerDraft(images = listOf("image.png")), "请求配置"))
+        assertFalse(AgentActionDraftPolicy.canPrepare(ComposerDraft(), ""))
     }
 
     @Test fun endpointDerivesNameOnlyFromValidatedAddress() {

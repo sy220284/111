@@ -461,7 +461,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("action-reply-input").assertDoesNotExist()
         rule.onNodeWithTag("reply-row").performClick()
         rule.onNodeWithTag("action-reply-input").performTextReplacement("新名称")
-        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("action-reply-cancel").performClick()
         rule.onNodeWithTag("reply-row").assertTextContains("原始名称")
         rule.runOnIdle { org.junit.Assert.assertEquals("原始名称", committed) }
         rule.onNodeWithTag("reply-row").performClick()

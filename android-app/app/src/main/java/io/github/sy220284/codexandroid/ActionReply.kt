@@ -1,10 +1,17 @@
 package io.github.sy220284.codexandroid
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
@@ -39,44 +46,56 @@ internal fun ActionReplyRow(
             isError = isError, confirmedValid = confirmedValid)
         return
     }
-    var open by remember { mutableStateOf(false) }
-    Row(modifier.fillMaxWidth().heightIn(min = 48.dp).codexPressable(enabled = enabled, role = Role.Button) { open = true },
-        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            label()
-            Text(value.takeIf { it.isNotBlank() } ?: "尚未提供",
-                style = MaterialTheme.typography.bodySmall, color = if (isError) Ink.red else Ink.muted,
-                maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            supportingText?.invoke()
-        }
-        Text(if (value.isBlank()) "回复" else "修改", color = Ink.muted,
-            style = MaterialTheme.typography.labelMedium)
-        CodexIcon(CodexGlyph.ChevronRight, null, modifier = Modifier.size(18.dp))
-    }
-    if (open) {
-        var draft by remember { mutableStateOf(value) }
-        val clipboard = LocalClipboardManager.current
-        var clipboardEmpty by remember { mutableStateOf(false) }
-        CodexDetailSheet("回复当前问题", onDismiss = { open = false }, startExpanded = true,
-            footer = {
-                CodexPrimaryButton(onClick = { onValueChange(draft); open = false },
-                    modifier = Modifier.fillMaxWidth().testTag("action-reply-send"), enabled = enabled) { Text("确认回复") }
-            }) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    var draft by rememberSaveable(value) { mutableStateOf(value) }
+    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val clipboard = LocalClipboardManager.current
+    var clipboardEmpty by remember { mutableStateOf(false) }
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(modifier.fillMaxWidth().heightIn(min = 48.dp).codexPressable(enabled = enabled, role = Role.Button) {
+            if (!open) draft = value
+            open = !open
+            if (!open) focus.clearFocus()
+        }, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
                 label()
+                Text(value.takeIf { it.isNotBlank() } ?: "尚未提供",
+                    style = MaterialTheme.typography.bodySmall, color = if (isError) Ink.red else Ink.muted,
+                    maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 supportingText?.invoke()
             }
-            CodexInputField(draft, { draft = it }, modifier = Modifier.fillMaxWidth().testTag("action-reply-input"),
-                placeholder = placeholder ?: { Text("回复这项操作…") },
-                enabled = enabled, keyboardOptions = keyboardOptions, singleLine = singleLine,
-                maxLines = maxLines, minLines = minLines)
-            CodexTextAction(onClick = {
-                val pasted = clipboard.getText()?.text
-                clipboardEmpty = pasted.isNullOrBlank()
-                if (!clipboardEmpty && pasted != null) draft = pasted
-            }, enabled = enabled) { Text("粘贴回复") }
-            if (clipboardEmpty) Text("剪贴板没有可用文字", color = Ink.muted)
-            if (draft.isNotEmpty()) CodexTextAction(onClick = { draft = "" }) { Text("清空回复") }
+            Text(if (open) "收起" else if (value.isBlank()) "添加" else "修改", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
+            CodexIcon(if (open) CodexGlyph.ExpandLess else CodexGlyph.ExpandMore, null,
+                modifier = Modifier.size(18.dp))
+        }
+        AnimatedVisibility(visible = open,
+            enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reduced))) +
+                fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduced))),
+            exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.release, reduced))) +
+                fadeOut(tween(CodexMotion.duration(CodexMotion.release, reduced)))) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                CodexInputField(draft, { draft = it }, modifier = Modifier.fillMaxWidth().testTag("action-reply-input"),
+                    placeholder = placeholder ?: { Text("输入内容…") },
+                    enabled = enabled && open, keyboardOptions = keyboardOptions, singleLine = singleLine,
+                    maxLines = maxLines, minLines = minLines)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    CodexTextAction(onClick = {
+                        val pasted = clipboard.getText()?.text
+                        clipboardEmpty = pasted.isNullOrBlank()
+                        if (!clipboardEmpty && pasted != null) draft = pasted
+                    }, enabled = enabled && open) { Text("粘贴") }
+                    if (draft.isNotEmpty()) CodexTextAction(onClick = { draft = "" }, enabled = enabled && open) { Text("清空") }
+                }
+                if (clipboardEmpty) Text("剪贴板没有可用文字", color = Ink.muted)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CodexTextAction(onClick = { draft = value; open = false; focus.clearFocus() },
+                        modifier = Modifier.weight(1f).testTag("action-reply-cancel")) { Text("取消") }
+                    CodexPrimaryButton(onClick = { onValueChange(draft); open = false; focus.clearFocus() },
+                        modifier = Modifier.weight(1f).testTag("action-reply-send"), enabled = enabled && open) { Text("应用") }
+                }
+            }
         }
     }
 }
@@ -123,10 +142,9 @@ internal fun ActionQuestionRow(value: String, onValueChange: (String) -> Unit,
 }
 
 internal object AgentActionDraftPolicy {
-    /** User's existing draft remains intact. Never send or change permissions from a UI shortcut. */
-    fun append(original: String, request: String): String =
-        if (request.isBlank()) original else if (original.isBlank()) request
-        else if (original.endsWith(request)) original else original + "\n\n" + request
+    /** A configuration task has its own draft. Existing text, attachments and references are never combined. */
+    fun canPrepare(target: ComposerDraft?, request: String): Boolean =
+        request.isNotBlank() && target?.hasInput != true
 }
 
 @Composable
@@ -135,9 +153,26 @@ internal fun AgentActionRow(vm: CodexViewModel, title: String, detail: String, r
     val transferring by AppDataTransfer.state.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
+    val workspace by vm.activeWorkspace.collectAsState()
+    val drafts by vm.composerDrafts.collectEntries(vm.composerOwner(null, workspace))
+    val target = drafts[vm.composerOwner(null, workspace)]
+    val canPrepare = AgentActionDraftPolicy.canPrepare(target, request)
+    var preview by rememberSaveable { mutableStateOf(false) }
+    var failure by remember { mutableStateOf("") }
     AtlasSettingsActionRow(title, detail, CodexGlyph.Edit,
-        onClick = { vm.prepareAgentAction(request) }, enabled = enabled && !transferring.busy && !switching && !creating,
+        onClick = { failure = ""; preview = true }, enabled = enabled && !transferring.busy && !switching && !creating,
         modifier = modifier, outlined = false)
+    if (preview) CodexConfirmDialog(
+        title = "交给 Codex 处理",
+        message = if (!canPrepare) "此工作区有未发送的新会话草稿。请先处理该草稿，避免混入配置任务。"
+            else failure.ifBlank { "将打开独立的新任务草稿，当前会话与任务继续保留；发送前可检查和修改内容。" },
+        detail = "工作区：" + PresentationPolicy.workspaceName(workspace) + "\\n\\n" + request,
+        confirmLabel = if (canPrepare) "打开任务草稿" else "查看已有草稿",
+        confirmEnabled = enabled && !transferring.busy && !switching && !creating,
+        onConfirm = {
+            val opened = if (canPrepare) vm.prepareAgentAction(request) else vm.openExistingAgentDraft()
+            if (opened) preview = false else failure = "当前状态发生变化，请稍后重试；草稿没有被修改。"
+        }, onDismiss = { preview = false })
 }
 
 /** Browse existing plugin directories; the original publishing contract validates again on confirmation. */
@@ -187,16 +222,21 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
     }
 }
 
-internal fun CodexViewModel.prepareAgentAction(request: String) {
-    if (request.isBlank() || AppDataTransfer.state.value.busy ||
-        threadSwitching.value || firstThreadStarting.value) return
-    if (running.value && !resetConversation(activeWorkspace.value, activeProjectId.value)) return
-    val thread = activeThread.value
-    val owner = composerOwner(thread)
-    composerDrafts.update { drafts ->
-        ThreadComposerDrafts.text(drafts, owner,
-            AgentActionDraftPolicy.append(drafts[owner]?.text.orEmpty(), request))
-    }
+internal fun CodexViewModel.openExistingAgentDraft(): Boolean {
+    if (AppDataTransfer.state.value.busy || threadSwitching.value || firstThreadStarting.value) return false
+    if (activeThread.value != null && !resetConversation(activeWorkspace.value, activeProjectId.value)) return false
     agentActionNavigation.value += 1
+    return true
 }
 
+internal fun CodexViewModel.prepareAgentAction(request: String): Boolean {
+    if (request.isBlank() || AppDataTransfer.state.value.busy ||
+        threadSwitching.value || firstThreadStarting.value) return false
+    val owner = composerOwner(null)
+    if (!AgentActionDraftPolicy.canPrepare(composerDrafts.value[owner], request)) return false
+    if (activeThread.value != null && !resetConversation(activeWorkspace.value, activeProjectId.value)) return false
+    // The UI thread owns navigation and input updates; never append into existing user text.
+    composerDrafts.update { drafts -> ThreadComposerDrafts.text(drafts, owner, request) }
+    agentActionNavigation.value += 1
+    return true
+}
