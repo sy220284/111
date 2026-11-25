@@ -153,10 +153,14 @@ def main():
                 if subprocess.run(["git", "cat-file", "-e", sha + "^{commit}"],
                                   capture_output=True).returncode:
                     break
-                selected = selector.find(repo, sha, ["arm64-v8a"])
-                if not selected:
+                recipe = selector.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
+                required_abis = ["arm64-v8a"]
+                if re.search(r"(?m)^            abi: x86_64$", recipe):
+                    required_abis.append("x86_64")
+                selected = [selector.find(repo, sha, [abi]) for abi in required_abis]
+                if not all(selected):
                     break
-                native_keep.add(int(selected))
+                native_keep.update(int(run_id) for run_id in selected)
             else:
                 native_safe = True
     if not native_safe:

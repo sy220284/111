@@ -190,7 +190,11 @@ class CodexForegroundService : Service() {
         /** Only dispatch a long terminal RPC after Android has started foreground mode. */
         suspend fun startAndAwaitReady(context: Context) {
             start(context)
-            readiness.awaitReady()
+            try { readiness.awaitReady() }
+            catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+                if (readiness.state.value == ForegroundStartState.Starting) readiness.failed("系统前台服务启动超时")
+                throw timeout
+            }
         }
     }
 }

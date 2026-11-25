@@ -21,10 +21,18 @@ fi
 adb install "$APP"
 adb shell appops set "$PKG" MANAGE_EXTERNAL_STORAGE allow
 adb install "$TEST"
+run_suite() {
+  local CLASS="$1" LOG="$2"
+  adb shell am instrument -w -r -e class "$PKG.$CLASS" "$PKG.test/androidx.test.runner.AndroidJUnitRunner" | tee "$LOG"
+  grep -Eq 'OK \([1-9][0-9]* tests?\)' "$LOG"
+  ! grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED' "$LOG"
+}
+# No Activity-owned core may share the test core's isolated CODEX_HOME.
+run_suite CoreStartupInstrumentedTest "$OUT/core.log"
+adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
-adb shell am instrument -w -r -e class "$PKG.CoreStartupInstrumentedTest,$PKG.RuntimeOwnershipInstrumentedTest" "$PKG.test/androidx.test.runner.AndroidJUnitRunner" | tee "$OUT/instrumentation.log"
-grep -Eq 'OK \([1-9][0-9]* tests?\)' "$OUT/instrumentation.log"
-! grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED' "$OUT/instrumentation.log"
+run_suite RuntimeOwnershipInstrumentedTest "$OUT/ownership.log"
+cat "$OUT/core.log" "$OUT/ownership.log" > "$OUT/instrumentation.log"
 for NAME in bundledCoreInitializesAndAnswersAccountRead realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion; do
   grep -Fq "test=$NAME" "$OUT/instrumentation.log"
 done

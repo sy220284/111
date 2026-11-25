@@ -33,8 +33,10 @@ internal const val CORE_SESSION_FIELD = "_androidCoreSession"
 sealed interface EngineStatus {
     data object Starting : EngineStatus
     data object Connected : EngineStatus
-    data class Unavailable(val reason: String) : EngineStatus
+    data class Unavailable(val reason: String, val recoverable: Boolean = true) : EngineStatus
 }
+
+private class CoreStartupRejected(message: String) : IllegalStateException(message)
 
 /** Official Codex app-server uses newline-delimited JSON-RPC without the jsonrpc field. */
 class CodexConnection internal constructor(private val appContext: Context,
@@ -110,16 +112,19 @@ class CodexConnection internal constructor(private val appContext: Context,
             }
             builder.directory(WorkspaceStorage.root(appContext))
             McpAgentSkillInstaller.install(appContext, home)
-            require(path.isFile) { "APK 中未找到当前设备 ABI 的 Codex 运行核心，请检查发布包。" }
-            require(codeModeHost.isFile) {
-                "APK 缺少当前设备 ABI 的 Code Mode Host，请安装包含完整运行组件的版本。"
-            }
+            if (!path.isFile) throw CoreStartupRejected("APK 中未找到当前设备 ABI 的 Codex 运行核心，请检查发布包。")
+            if (!codeModeHost.isFile) throw CoreStartupRejected(
+                "APK 缺少当前设备 ABI 的 Code Mode Host，请安装包含完整运行组件的版本。")
             val toolsDir = NativeToolInstaller.prepare(appContext)
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
             val child = startChild(builder)
             val channel = try { RpcProcessChannel(child) } catch (failure: Exception) {
-                child.destroyForcibly()
-                child.waitFor(RpcScheduling.RETIRE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                // Keep the child attached for the same retirement path even if pipe setup fails.
+                synchronized(ownership) { if (ownership.owns(epoch)) process = child }
+                if (!ownership.owns(epoch)) {
+                    child.destroyForcibly()
+                    child.waitFor()
+                }
                 throw failure
             }
             val attached = synchronized(ownership) {
@@ -178,7 +183,7 @@ class CodexConnection internal constructor(private val appContext: Context,
                 status.value = EngineStatus.Connected
             }
         } catch (failure: Exception) {
-            retireSession(epoch, failure.message ?: "Codex 内核启动失败")
+            retireSession(epoch, failure.message ?: "Codex 内核启动失败", recoverable = failure !is CoreStartupRejected)
             throw failure
         }
         }
@@ -418,7 +423,7 @@ class CodexConnection internal constructor(private val appContext: Context,
     }
 
     private fun retireSession(epoch: Long, reason: String, reservedRestart: Boolean = false,
-        canClose: (() -> Boolean)? = null): Boolean {
+        canClose: (() -> Boolean)? = null, recoverable: Boolean = true): Boolean {
         val retired = synchronized(ownership) {
             if (canClose?.invoke() == false) return false
             if (reservedRestart && !ownership.canRetireReserved(activeRpcRequests.value.size + if (writingState.value) 1 else 0, prompts.value.size)) return false
@@ -433,20 +438,21 @@ class CodexConnection internal constructor(private val appContext: Context,
             prompts.value = emptyList()
             recentStderr.value = emptyList()
             // Immediately show fault, but keep the old epoch until exit is proven.
-            status.value = EngineStatus.Unavailable(reason)
+            status.value = EngineStatus.Unavailable(reason, recoverable)
             Triple(token, child, channel)
         }
         fun complete() = synchronized(ownership) {
             if (ownership.completeRetirement(retired.first)) {
                 connectedSessionState.value = null
                 retirementState.value = false
-                retirementCompletion?.complete(Unit)
+                val completion = retirementCompletion
                 retirementCompletion = null
+                completion?.complete(Unit)
             }
         }
         if (terminate(retired.second, retired.third)) complete()
         else {
-            status.value = EngineStatus.Unavailable("旧内核尚未退出，请等待进程回收")
+            status.value = EngineStatus.Unavailable("旧内核尚未退出，请等待进程回收", recoverable)
             scope.launch {
                 // This wait owns only the retired child. A replacement must wait
                 // for the same completion signal and cannot overlap it.

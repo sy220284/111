@@ -47,7 +47,7 @@ internal class RuntimeConnectionController(private val vm: CodexViewModel) {
     }
 
     fun reconnectIfNeeded() {
-        if (vm.bridge.status.value is EngineStatus.Unavailable && !vm.bridge.retirementBusy.value &&
+        if ((vm.bridge.status.value as? EngineStatus.Unavailable)?.recoverable == true && !vm.bridge.retirementBusy.value &&
             !AppDataTransfer.state.value.busy && !vm.connectionRestarter.busy.value) connect()
     }
 }

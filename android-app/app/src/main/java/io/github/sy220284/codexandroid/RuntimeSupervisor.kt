@@ -40,7 +40,7 @@ internal class RuntimeSupervisor(
         }
         scope.launch {
             val eligible = combine(work, vm.bridge.status) { snapshot, status ->
-                RuntimeRecoveryPolicy.shouldRecover(foreground.value, snapshot, status is EngineStatus.Unavailable)
+                RuntimeRecoveryPolicy.shouldRecover(foreground.value, snapshot, (status as? EngineStatus.Unavailable)?.recoverable == true)
             }
             combine(foreground, work) { visible, snapshot ->
                 (visible || snapshot.requiresForegroundProtection) && !snapshot.dataTransferBusy && !snapshot.restarting
@@ -51,7 +51,7 @@ internal class RuntimeSupervisor(
                     eligible.first { it }
                     delay(interval)
                     if (!RuntimeRecoveryPolicy.shouldRecover(foreground.value, vm.globalWorkSnapshot(),
-                            vm.bridge.status.value is EngineStatus.Unavailable)) continue
+                            (vm.bridge.status.value as? EngineStatus.Unavailable)?.recoverable == true)) continue
                     vm.connect().join()
                     interval = if (vm.bridge.status.value == EngineStatus.Connected) 1_000L
                         else (interval * 2).coerceAtMost(60_000L)
