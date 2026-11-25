@@ -44,6 +44,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s .github/scripts -p 'test_ci_policy.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_retain_check_artifacts.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_repository_steward.py'
           python3 .github/scripts/ci_policy.py
   native:
     needs: plan
@@ -541,11 +543,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: 检查版本号、Shell 语法和中文发布说明
         shell: bash
         run: |
           set -euo pipefail
           grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-111\.[0-9]+$' .github/release-version
+          bash -n .github/scripts/publish-verified-release.sh
+          bash -n .github/scripts/verify-release-device.sh
           bash -n .github/scripts/prepare-release-assets.sh
           bash -n .github/scripts/prepare-android-patcher.sh
           bash -n .github/scripts/create-android-update-fixture.sh
@@ -566,12 +573,13 @@ jobs:
   release-signing-smoke:
     name: PR 内验证 Release 签名构建
     needs: plan
-    if: needs.plan.outputs.full == 'true' && github.event_name == 'pull_request'
+    if: needs.plan.outputs.full == 'true' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             android-app
             upstream/codex/codex-rs/model-provider/catalogs
@@ -634,6 +642,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
           sparse-checkout: |
             /CODEX_UPSTREAM_COMMIT
@@ -689,6 +698,7 @@ jobs:
         env:
           RESULTS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python3 - <<'PY'
@@ -698,7 +708,7 @@ jobs:
           full = jobs["plan"]["outputs"]["full"] == "true"
           runtime = jobs["plan"]["outputs"]["runtime"] == "true"
           required = {"native", "verify-ui", "ui-emulator", "build", "verify-apk", "preflight", "compatibility"} if full else set()
-          if full and os.environ["EVENT"] == "pull_request": required.add("release-signing-smoke")
+          if full and (os.environ["EVENT"] == "pull_request" or (os.environ["EVENT"] == "workflow_dispatch" and os.environ["REF"] != "refs/heads/main")): required.add("release-signing-smoke")
           if runtime: required.add("runtime-test")
           for name, result in jobs.items():
               if name == "plan": continue

@@ -58,6 +58,7 @@ class FakeRunner:
         self.git_queries = []
         self.called_api = 0
         self.last_workflow_query = []
+        self.branch = "main"
 
     def __call__(self, args):
         if args and args[0] == "git":
@@ -100,15 +101,12 @@ class FakeRunner:
                 return COMPILER_JOB
         if args[:2] == ["git", "merge-base"]:
             return args[2] if self.ancestor else "other-history"
-        if args[:3] == ["gh", "run", "list"]:
-            self.last_workflow_query = list(args)
-            return json.dumps([
-                {"databaseId": 21, "headSha": "old", "conclusion": self.run_conclusion},
-                {"databaseId": 20, "headSha": "older", "conclusion": self.run_conclusion},
-            ])
         if args[:2] == ["gh", "api"]:
             if "/actions/artifacts?name=" in args[2]:
-                return json.dumps({"artifacts": []})
+                self.last_workflow_query = list(args)
+                return json.dumps({"artifacts": [{"expired": False, "workflow_run": {"id": 21}}, {"expired": False, "workflow_run": {"id": 20}}]})
+            if args[2].endswith("/actions/runs/21") or args[2].endswith("/actions/runs/20"):
+                return json.dumps({"head_repository": {"full_name": "owner/repo"}, "head_sha": "old" if args[2].endswith("/21") else "older", "head_branch": self.branch, "conclusion": self.run_conclusion})
             if args[2].endswith("/jobs?per_page=100"):
                 return json.dumps({"jobs": [
                     {"name": f"编译 {abi} 核心",
@@ -131,6 +129,11 @@ class NativeReuseTests(unittest.TestCase):
         edited = COMPILER_JOB.replace("paths: [x]", "paths: [y]")
         edited = edited.replace("retention-days: 90", "retention-days: 30")
         self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
+
+    def test_checkout_transport_does_not_invalidate_binary(self):
+        old = COMPILER_JOB.replace("      - name: 构建", "      - name: checkout\n        uses: actions/checkout@v4\n        with:\n          sparse-checkout: |\n            upstream/codex\n      - name: 构建")
+        new = old.replace("          sparse-checkout: |", "          ref: ${{ github.event.pull_request.head.sha || github.sha }}\n          fetch-depth: 0\n          sparse-checkout: |\n            .github/scripts\n            .github/ci")
+        self.assertEqual(native_recipe(old), native_recipe(new))
 
     def test_compiler_change_invalidates_binary(self):
         edited = COMPILER_JOB.replace("cargo build --locked", "cargo build --release")
@@ -199,17 +202,16 @@ jobs:
 
     def test_feature_branch_is_scoped_to_its_own_native_build(self):
         runner = FakeRunner()
+        runner.branch = "fix/android-code-mode-host-bundle-20261122"
         self.assertEqual(ArtifactSelector(runner).find("owner/repo", "HEAD",
-            ["arm64-v8a", "x86_64"], branch="fix/android-code-mode-host-bundle-20261122"), "21")
-        index = runner.last_workflow_query.index("--branch")
-        self.assertEqual("fix/android-code-mode-host-bundle-20261122",
-            runner.last_workflow_query[index + 1])
+            ["arm64-v8a", "x86_64"], branch=runner.branch), "21")
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"], branch="other"))
 
     def test_main_can_reuse_matching_ancestor_pr_artifact(self):
         runner = FakeRunner(missing_abi=True, run_conclusion="cancelled")
         self.assertEqual(ArtifactSelector(runner).find(
             "owner/repo", "HEAD", ["arm64-v8a"], branch="main"), "21")
-        self.assertNotIn("--branch", runner.last_workflow_query)
+        self.assertIn("native-index-arm64-v8a-", runner.last_workflow_query[-1])
 
     def test_fallback_to_older_unexpired_artifacts(self):
         runner = FakeRunner(expired_first=True)

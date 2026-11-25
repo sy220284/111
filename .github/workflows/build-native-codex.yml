@@ -41,10 +41,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           filter: blob:none
           sparse-checkout: |
             .github/scripts
+            .github/ci
       - name: 查找已验证的 ARM64 手机核心及手动选定的测试核心
         id: detect
         shell: bash
@@ -109,6 +111,7 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             .github/scripts
+            .github/ci
             upstream/codex
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
@@ -309,6 +312,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             upstream/codex
       - uses: dtolnay/rust-toolchain@master

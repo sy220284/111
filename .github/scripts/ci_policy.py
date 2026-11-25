@@ -2,6 +2,7 @@
 """Authoritative CI planning and release-input classification."""
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -13,7 +14,7 @@ def matches(path, key):
     return path in group["files"] or any(path.startswith(prefix) for prefix in group["prefixes"])
 
 def maintenance_only(paths):
-    return all(matches(path, "maintenance") for path in paths)
+    return all(matches(path, "maintenance") and not matches(path, "acceptance") for path in paths)
 
 def plan(paths, force=False, runtime=False):
     paths = list(paths)
@@ -23,6 +24,8 @@ def plan(paths, force=False, runtime=False):
 def changed(base, head):
     if not base or base == "0" * 40:
         return ["<initial-or-unknown-base>"]
+    if not re.fullmatch(r"[0-9a-f]{40}", base) or not re.fullmatch(r"[0-9a-f]{40}", head):
+        raise ValueError("CI 比较必须使用完整提交 SHA")
     return [p.decode("utf-8") for p in subprocess.check_output(
         ["git", "diff", "--no-renames", "--name-only", "-z", base, head, "--"]).split(b"\0") if p]
 

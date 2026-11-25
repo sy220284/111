@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from decide_android_build import changed_paths
+from ci_policy import changed as changed_paths
 from verify_release_acceptance import REQUIRED_JOBS, find_acceptance
 
 from ci_policy import maintenance_only

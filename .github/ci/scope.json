@@ -7,10 +7,12 @@
       ".github/scripts/retain_check_artifacts.py",
       ".github/scripts/test_retain_check_artifacts.py",
       ".github/scripts/repository_steward.py",
-      ".github/scripts/test_repository_steward.py"
+      ".github/scripts/test_repository_steward.py",
+      "upstream/codex/README.md"
     ],
     "prefixes": [
-      "docs/ci-history/"
+      "docs/",
+      "upstream/codex/sdk/"
     ]
   },
   "release": {
@@ -30,6 +32,18 @@
     "prefixes": [
       "android-app/app/src/main/",
       "android-app/app/src/release/"
+    ]
+  },
+  "acceptance": {
+    "files": [
+      "docs/设计系统.md",
+      "docs/对标应用29项界面交付核对表-20261123.md",
+      "docs/第五版接口与界面组件映射矩阵.md",
+      "docs/接口协议动作清单与落地验收台账-20261122.md",
+      "docs/第五版全接口组件与功能接入说明.md"
+    ],
+    "prefixes": [
+      "docs/ui-assets/"
     ]
   }
 }

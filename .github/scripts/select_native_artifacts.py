@@ -64,6 +64,8 @@ def native_recipe(workflow, abi=None):
     if not start or not end or start.start() >= end.start():
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()
+    # Checkout transport and CI-index-only paths do not alter native inputs.
+    recipe = re.sub(r"(?m)^          (?:ref: .*github\\.event\\.pull_request\\.head\\.sha.*|fetch-depth: 0|\\.github/scripts|\\.github/ci)\\n", "", recipe)
     dynamic = "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}"
     if dynamic in recipe:
         keys = ("rust_target", "clang", "clangxx", "abi", "elf_arch")
@@ -141,69 +143,52 @@ class ArtifactSelector:
 
     def find(self, repository, target, abis, branch="main"):
         current_signatures = {abi: self.signature(target, abi) for abi in abis}
-        query = [
-            "gh", "run", "list", "--repo", repository,
-            "--workflow", "build-native-codex.yml",
-            "--limit", "200", "--json", "databaseId,headSha,conclusion",
-        ]
-        # After a merge commit, the verified PR commit becomes an ancestor
-        # of main. Include its build in the search rather than recompiling.
-        # is_ancestor() plus the exact per-ABI source/recipe signature below
-        # remain mandatory before reuse.
-        if branch != "main":
-            query.extend(["--branch", branch])
-        # Legacy artifacts remain eligible only while their exact recipe matches.
-        # New artifacts are discoverable by fingerprint without a run-history limit.
-        runs = json.loads(self.run(query))
-        indexed = []
-        for run_id in self.indexed_candidates(repository, current_signatures):
+        from pathlib import Path
+        legacy_file = Path(__file__).resolve().parents[1] / "ci" / "native-migration.json"
+        legacy = json.loads(legacy_file.read_text(encoding="utf-8"))
+        # The migration record is checked against the actual compiler checkout,
+        # full Git tree, successful regression job and immutable artifact digest.
+        historical = {item["run_id"]: item for item in legacy
+                      if item["repository"] == repository and set(abis) == {item["abi"]}}
+        ids = list(dict.fromkeys(self.indexed_candidates(repository, current_signatures) + list(historical)))
+        expected = {f"codex-android-native-{abi}" for abi in abis}
+        for run_id in ids:
             run = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}"]))
             if (run.get("head_repository") or {}).get("full_name") != repository:
                 continue
             if branch != "main" and run.get("head_branch") != branch:
                 continue
-            indexed.append({"databaseId": run_id, "headSha": run.get("head_sha"), "conclusion": run.get("conclusion")})
-        runs = indexed + [r for r in runs if r["databaseId"] not in {i["databaseId"] for i in indexed}]
-        expected = {f"codex-android-native-{abi}" for abi in abis}
-        for item in runs:
-            # The successful ARM64 job remains reusable after a separate
-            # x86_64 job fails or the parent workflow is cancelled.
-            if item.get("conclusion") == "skipped":
-                continue
-            old = item.get("headSha")
+            old = run.get("head_sha")
             if not old or not self.is_ancestor(old, target):
                 continue
             try:
                 if any(self.signature(old, abi) != current_signatures[abi] for abi in abis):
                     continue
-            except SelectionError as error:
-                # A historical workflow can predate the native build inputs.
-                # It is ineligible for reuse, but must not block later runs.
-                print(f"跳过缺少完整原生编译输入的历史构建 {old}: {error}", file=sys.stderr)
+            except SelectionError:
                 continue
-            run_id = item["databaseId"]
             response = json.loads(self.run([
-                "gh", "api",
-                f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+                "gh", "api", f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
             ]))
-            available = {
-                artifact["name"]
-                for artifact in response.get("artifacts", [])
-                if not artifact.get("expired", True)
-                and artifact.get("size_in_bytes", 0) > 0
-            }
-            if not expected <= available:
+            available = {a["name"]: a for a in response.get("artifacts", [])
+                         if not a.get("expired", True) and a.get("size_in_bytes", 0) > 0}
+            if not expected <= available.keys():
                 continue
-            # A valid artifact alone is insufficient: check that the matching
-            # compiler job actually concluded successfully.
+            if run_id in historical:
+                record = historical[run_id]
+                asset = available[f"codex-android-native-{record['abi']}"]
+                if (old != record["head_sha"] or asset.get("id") != record["artifact_id"]
+                        or asset.get("digest") != record["artifact_digest"]):
+                    continue
+                actual_tree = self.run(["git", "rev-parse", f"{old}^{{tree}}"])
+                if actual_tree != record["source_tree"]:
+                    continue
             jobs = json.loads(self.run([
                 "gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"
             ]))
-            succeeded = {
-                job.get("name", "").rsplit(" / ", 1)[-1] for job in jobs.get("jobs", [])
-                if job.get("conclusion") == "success"
-            }
-            if ({f"编译 {abi} 核心" for abi in abis} | {"国内服务商目录与模型能力 Rust 回归测试"}) <= succeeded:
+            succeeded = {job.get("name", "").rsplit(" / ", 1)[-1]
+                         for job in jobs.get("jobs", []) if job.get("conclusion") == "success"}
+            if ({f"编译 {abi} 核心" for abi in abis} |
+                    {"国内服务商目录与模型能力 Rust 回归测试"}) <= succeeded:
                 return str(run_id)
         return None
 
