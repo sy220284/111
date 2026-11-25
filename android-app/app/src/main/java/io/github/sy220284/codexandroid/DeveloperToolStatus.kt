@@ -37,7 +37,7 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
     """.trimIndent()
     MaterialPanel(Modifier.fillMaxWidth()) {
         Text("本机开发工具", style = MaterialTheme.typography.titleMedium)
-        Text("随签名应用更新，检查实际运行版本；联网能力另行验证。", color = Ink.muted,
+        Text("检查签名应用随附工具的实际运行版本。Python 包使用 python3 -m pip；Node.js 包按需通过 node 调用脚本。Android 对可写目录中的直接执行有限制，联网和第三方依赖执行需另行验证。", color = Ink.muted,
             style = MaterialTheme.typography.bodyMedium)
         CodexSecondaryButton(onClick = {
             vm.refresh(key, "command/exec", JSONObject()

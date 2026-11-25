@@ -14,6 +14,16 @@ class ExecutionEnvironmentConnectionPolicyTest {
         assertEquals("", ExecutionEnvironmentConnectionPolicy.resolvedName("wss://", ""))
     }
 
+    @Test fun registrationCannotMasqueradeAsConnection() {
+        assertFalse(ExecutionEnvironmentConnectionPolicy.supportsRemoteName(" local "))
+        assertFalse(ExecutionEnvironmentConnectionPolicy.supportsRemoteName("LOCAL"))
+        assertTrue(ExecutionEnvironmentConnectionPolicy.supportsRemoteName("工作电脑"))
+        assertEquals("已连接", ExecutionEnvironmentConnectionPolicy.statusLabel("ready"))
+        assertEquals("已登记，等待建立连接", ExecutionEnvironmentConnectionPolicy.statusLabel("pending"))
+        assertEquals("连接断开", ExecutionEnvironmentConnectionPolicy.statusLabel("disconnected"))
+        assertEquals("状态待核实", ExecutionEnvironmentConnectionPolicy.statusLabel(""))
+    }
+
     @Test fun acceptsEncryptedRemoteServiceAndExplicitLoopbackOnly() {
         assertTrue(ExecutionEnvironmentConnectionPolicy.supportsEndpoint("wss://host.example/exec"))
         assertTrue(ExecutionEnvironmentConnectionPolicy.supportsEndpoint(" wss://host.example:443/exec "))

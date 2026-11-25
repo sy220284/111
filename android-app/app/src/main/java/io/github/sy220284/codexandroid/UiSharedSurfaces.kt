@@ -42,7 +42,7 @@ fun EngineStatusSheet(
         if (status != EngineStatus.Connected) {
             AtlasSettingsActionRow("重新连接本机内核", "保持当前会话和草稿", CodexGlyph.Retry,
                 onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
-                enabled = status != EngineStatus.Starting && !retirement && !restarting, outlined = false)
+                enabled = RuntimeStatusPresentation.canReconnect(status, retirement, restarting), outlined = false)
         }
         if (terminalRunning) {
             AtlasSettingsActionRow("查看正在运行的终端", "返回命令执行现场", CodexGlyph.Terminal,

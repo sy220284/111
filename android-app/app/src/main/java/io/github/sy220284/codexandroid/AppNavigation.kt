@@ -439,7 +439,7 @@ private fun Sidebar(
     val limitsLoading by vm.loading.collectProjection { "limits" in it }
     val retiring by vm.bridge.retirementBusy.collectAsState()
     val restarting by vm.connectionRestarter.busy.collectAsState()
-    val retry by vm.bridge.recoveryDelayMs.collectAsState()
+    val retry by vm.recoveryDelayMs.collectAsState()
     val canReconnect = RuntimeStatusPresentation.canReconnect(status, retiring, restarting)
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
