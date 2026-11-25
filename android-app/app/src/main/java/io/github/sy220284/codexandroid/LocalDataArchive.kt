@@ -18,6 +18,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.asStateFlow
 
 /** Portable, on-device backup; never accesses a server or contacts a third party. */
 internal object LocalDataArchive {
@@ -31,6 +33,9 @@ internal object LocalDataArchive {
     private const val INCOMING = ".codex-restore-incoming"
     private const val RESULT_PREFS = "codex-data-transfer-status"
     private const val RESULT_KEY = "result"
+    private val regeneratedRoots = setOf("native-tools", "developer-runtime", "developer-packages", "developer-system-ca.pem")
+
+    private fun regenerated(name: String): Boolean = name in regeneratedRoots || name.startsWith("developer-system-ca.pem.")
 
     internal fun validatePath(name: String): Boolean {
         if (!name.startsWith("files/") && !name.startsWith("shared_prefs/")) return false
@@ -38,6 +43,7 @@ internal object LocalDataArchive {
         val parts = name.split('/')
         if (parts.size < 2 || parts.any { it.isBlank() || it == "." || it == ".." }) return false
         if (parts[1].startsWith(".codex-restore") || parts[1] == ".download-workspace-v1") return false
+        if (parts[0] == "files" && regenerated(parts[1])) return false
         if (parts[0] == "files" && parts[1] == "codex-home" &&
             parts.last().matches(Regex("(?i)(auth|credentials|tokens?)\\.json"))) return false
         if (parts[0] == "shared_prefs" &&
@@ -68,15 +74,18 @@ internal object LocalDataArchive {
             for ((prefix, root) in listOf("files" to privateRoot, PROJECTS_PREFIX to WorkspaceStorage.root(context), "shared_prefs" to prefsRoot)) {
                 if (!root.isDirectory) continue
                 root.walkTopDown().onEnter { directory ->
-                    !directory.name.startsWith(".codex-restore") &&
-                        !(root == privateRoot && directory == WorkspaceStorage.legacyRoot(context))
-                }.filter { it.isFile }.forEach { file ->
-                    val canonical = file.canonicalFile
-                    if (!canonical.path.startsWith(root.path + File.separator)) {
-                        throw IOException("发现超出私有目录的文件：" + file.name)
+                    if (root == privateRoot && directory.parentFile == root &&
+                        (regenerated(directory.name) || directory == WorkspaceStorage.legacyRoot(context))) false
+                    else {
+                        require(!Files.isSymbolicLink(directory.toPath())) { "备份目录包含符号链接：" + directory.name }
+                        !directory.name.startsWith(".codex-restore")
                     }
-                    val name = "$prefix/" + canonical.relativeTo(root).invariantSeparatorsPath
+                }.filter { it != root && (!it.isDirectory || Files.isSymbolicLink(it.toPath())) }.forEach { file ->
+                    val name = "$prefix/" + file.relativeTo(root).invariantSeparatorsPath
                     if (!validatePath(name)) return@forEach
+                    require(!Files.isSymbolicLink(file.toPath()) && file.isFile) { "备份包含不可移植的文件：" + file.name }
+                    val canonical = file.canonicalFile
+                    require(canonical.path.startsWith(root.path + File.separator)) { "备份文件路径越界：" + file.name }
                     if (++count > MAX_FILES) throw IOException("数据文件数量超过备份上限")
                     if (file.length() > MAX_FILE_BYTES ||
                         total + file.length() > MAX_TOTAL_BYTES) {
@@ -189,13 +198,24 @@ internal object LocalDataArchive {
                 require(validatePath(name)) { "恢复文件路径无效：" + name }
                 val target = if (name.startsWith("$PROJECTS_PREFIX/")) {
                     val root = WorkspaceStorage.root(context)
-                    File(root, name.removePrefix("$PROJECTS_PREFIX/")).canonicalFile.also {
-                        require(it.path.startsWith(root.path + File.separator)) { "恢复路径越界" }
-                    }
+                    File(root, name.removePrefix("$PROJECTS_PREFIX/"))
                 } else if (name.startsWith("files/")) {
                     require(name != PROJECTS_PREFIX) { "工作区必须是目录" }
                     File(context.filesDir, name.removePrefix("files/"))
                 } else File(prefsRoot, name.removePrefix("shared_prefs/"))
+                val targetRoot = when {
+                    name.startsWith("$PROJECTS_PREFIX/") -> WorkspaceStorage.root(context)
+                    name.startsWith("files/") -> context.filesDir
+                    else -> prefsRoot
+                }
+                val base = targetRoot.toPath().toAbsolutePath().normalize()
+                val destination = target.toPath().toAbsolutePath().normalize()
+                require(destination.startsWith(base) && destination != base) { "恢复路径越界" }
+                var current = destination
+                while (current != base) {
+                    require(!Files.isSymbolicLink(current)) { "恢复路径包含符号链接：" + current.fileName }
+                    current = current.parent
+                }
                 if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
                     throw IOException("恢复目标目录无法创建")
                 // Keep each staged source until all replacements are complete. If the
@@ -232,10 +252,32 @@ internal data class DataTransferState(
 internal object AppDataTransfer {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val state = MutableStateFlow(DataTransferState())
+    private val mutationCount = MutableStateFlow(0)
+    val localMutations = mutationCount.asStateFlow()
+
+    @Synchronized private fun beginMutation() {
+        check(!state.value.busy) { "本机数据正在备份或恢复，请完成后再操作" }
+        mutationCount.value += 1
+    }
+
+    @Synchronized private fun endMutation() {
+        check(mutationCount.value > 0)
+        mutationCount.value -= 1
+    }
+
+    suspend fun <T> mutateLocal(block: () -> T): T {
+        beginMutation()
+        try { return withContext(Dispatchers.IO) { block() } }
+        finally { endMutation() }
+    }
+
+    @Synchronized private fun beginTransfer(message: String) {
+        check(!state.value.busy && mutationCount.value == 0) { "本机文件操作尚未完成" }
+        state.value = DataTransferState(busy = true, result = message)
+    }
 
     fun export(context: Context, destination: Uri) {
-        if (state.value.busy) return
-        state.value = DataTransferState(busy = true, result = "正在导出本机工作数据…")
+        beginTransfer("正在导出本机工作数据…")
         scope.launch {
             state.value = try {
                 val output = context.contentResolver.openOutputStream(destination)
@@ -249,8 +291,7 @@ internal object AppDataTransfer {
     }
 
     fun import(context: Context, source: Uri) {
-        if (state.value.busy) return
-        state.value = DataTransferState(busy = true, result = "正在校验本机备份…")
+        beginTransfer("正在校验本机备份…")
         scope.launch {
             state.value = try {
                 val input = context.contentResolver.openInputStream(source)

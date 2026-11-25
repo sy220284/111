@@ -26,19 +26,20 @@ internal data class GlobalWorkSnapshot(
     val coreStarting: Boolean = false,
     val restarting: Boolean = false,
     val realtimeVoiceActive: Boolean = false,
-    val inFlightUserRequests: Int = 0
+    val inFlightUserRequests: Int = 0,
+    val localMutations: Int = 0
 ) {
     val hasActiveWork: Boolean
         get() = visibleTurnRunning || executingThreads > 0 ||
             creatingThread || terminalRunning || pendingApprovals > 0 ||
-            inFlightRequests > 0 || loginBusy || planApprovalBusy ||
+            inFlightRequests > 0 || localMutations > 0 || loginBusy || planApprovalBusy ||
             switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting || realtimeVoiceActive
 
     /** Foreground protection tracks deliberate work, not passive catalog polling. */
     val requiresForegroundProtection: Boolean
         get() = visibleTurnRunning || executingThreads > 0 || creatingThread || terminalRunning ||
             terminalStarting || pendingApprovals > 0 || realtimeVoiceActive || loginBusy ||
-            planApprovalBusy || securitySaveBusy || switchingThread || inFlightUserRequests > 0 || dataTransferBusy
+            planApprovalBusy || securitySaveBusy || switchingThread || inFlightUserRequests > 0 || localMutations > 0 || dataTransferBusy
 
     val canDisruptCoreOrData: Boolean
         get() = !hasActiveWork && !dataTransferBusy
@@ -49,7 +50,7 @@ internal data class GlobalWorkSnapshot(
     val blockReason: String
         get() = when {
             dataTransferBusy -> "本机数据正在备份或恢复，请完成后再操作"
-            inFlightRequests > 0 || loginBusy || planApprovalBusy ||
+            inFlightRequests > 0 || localMutations > 0 || loginBusy || planApprovalBusy ||
                 switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting ->
                 "请求或授权操作正在处理，请完成后再备份、恢复或重启"
             realtimeVoiceActive -> "实时语音尚未结束，请先结束或恢复语音连接"
@@ -75,7 +76,8 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     coreStarting = bridge.status.value == EngineStatus.Starting || bridge.retirementBusy.value,
     restarting = connectionRestarter.busy.value,
     realtimeVoiceActive = realtimeVoiceLease.active.value,
-    inFlightUserRequests = bridge.userRpcRequests.value
+    inFlightUserRequests = bridge.userRpcRequests.value,
+    localMutations = AppDataTransfer.localMutations.value
 )
 
 
@@ -83,7 +85,7 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
 internal fun CodexViewModel.globalWorkChanges(): Flow<GlobalWorkSnapshot> {
     val sources: Array<Flow<Any?>> = arrayOf(
         running, threadExecutions, firstThreadStarting, terminalSession, bridge.prompts,
-        AppDataTransfer.state, loading, bridge.activeRpcRequests, bridge.writing, bridge.userRpcRequests,
+        AppDataTransfer.state, AppDataTransfer.localMutations, loading, bridge.activeRpcRequests, bridge.writing, bridge.userRpcRequests,
         loginBusy, planApprovalBusy, threadSwitching, terminalStarting, securitySaveBusy,
         bridge.status, bridge.retirementBusy, connectionRestarter.busy, realtimeVoiceLease.active
     )

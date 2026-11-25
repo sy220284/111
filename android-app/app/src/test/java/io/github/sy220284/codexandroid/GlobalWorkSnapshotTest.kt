@@ -26,6 +26,7 @@ class GlobalWorkSnapshotTest {
             idle().copy(creatingThread = true),
             idle().copy(terminalRunning = true),
             idle().copy(pendingApprovals = 1),
+            idle().copy(localMutations = 1),
             idle().copy(dataTransferBusy = true)
         )
         states.forEach { current ->

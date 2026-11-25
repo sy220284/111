@@ -88,7 +88,7 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                         failure = null
                         scope.launch {
                             try {
-                                withContext(Dispatchers.IO) {
+                                AppDataTransfer.mutateLocal {
                                     WorkspaceFileActions.saveEditableText(root, file, expected, submitted)
                                 }
                                 original = submitted

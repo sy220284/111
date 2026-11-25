@@ -81,7 +81,7 @@ fun WorkspacePage(vm: CodexViewModel) {
         if (uri != null) scope.launch {
             val importFolder = folder.canonicalFile
             try {
-                val result = withContext(Dispatchers.IO) {
+                val result = AppDataTransfer.mutateLocal {
                     val name = ctx.contentResolver.query(
                         uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
                     )?.use { cursor ->
@@ -106,7 +106,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     LaunchedEffect(folder) {
         try {
-            withContext(Dispatchers.IO) { WorkspaceImport.cleanAbandoned(root, folder) }
+            AppDataTransfer.mutateLocal { WorkspaceImport.cleanAbandoned(root, folder) }
         } catch (failure: Exception) {
             notice = "导入缓存清理失败：" + (failure.message ?: "未知错误")
         }
@@ -272,7 +272,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     keyboardController?.hide()
                     scope.launch {
                         try {
-                            val created = withContext(Dispatchers.IO) {
+                            val created = AppDataTransfer.mutateLocal {
                                 if (requestedKind == "file")
                                     WorkspaceFileActions.createTextFile(root, requestedFolder, requestedName)
                                 else WorkspaceFileActions.createFolder(root, requestedFolder, requestedName)
@@ -438,7 +438,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         fileAction = null
                         scope.launch {
                             try {
-                                val changed = withContext(Dispatchers.IO) {
+                                val changed = AppDataTransfer.mutateLocal {
                                     WorkspaceFileActions.rename(root, target, renameName)
                                 }
                                 notice = "已重命名为：" + changed.name
@@ -481,7 +481,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         keyboardController?.hide()
                         scope.launch {
                             try {
-                                val copied = withContext(Dispatchers.IO) {
+                                val copied = AppDataTransfer.mutateLocal {
                                     WorkspaceFileActions.copy(root, target, finalFolder, finalName)
                                 }
                                 notice = "已复制：" + copied.name
@@ -513,7 +513,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     fileAction = null
                     scope.launch {
                         try {
-                            withContext(Dispatchers.IO) {
+                            AppDataTransfer.mutateLocal {
                                 WorkspaceFileActions.delete(root, target)
                             }
                             notice = "已删除：" + target.name

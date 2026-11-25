@@ -35,6 +35,7 @@ internal object DeveloperRuntime {
             env["GIT_CONFIG_SYSTEM"] = File(root, "git/gitconfig").absolutePath
         }
         env["PYTHONHOME"] = root.absolutePath
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONUSERBASE"] = python.absolutePath
         env["ANDROIDDSH_NPM_ENTRY"] = File(root, "npm/bin/npm-cli.js").absolutePath
         env["PIP_ONLY_BINARY"] = ":all:"
@@ -51,17 +52,17 @@ internal object DeveloperRuntime {
         val digest = context.assets.open("$ASSET.sha256").bufferedReader().use { it.readText().trim() }
         require(digest.matches(Regex("[a-f0-9]{64}"))) { "开发环境清单校验失败" }
         val parent = File(context.filesDir, "developer-runtime")
+        check(!java.nio.file.Files.isSymbolicLink(parent.toPath())) { "开发环境目录不能是符号链接" }
         check(parent.isDirectory || parent.mkdirs())
         val target = File(parent, digest)
         fun valid(dir: File) = File(dir, "lib/python3.13/encodings/__init__.py").isFile &&
             File(dir, "lib/python3.13/site-packages/pip/__init__.py").isFile &&
             File(dir, "npm/bin/npm-cli.js").isFile
-        if (target.isDirectory) {
-            check(valid(target)) { "开发环境数据已损坏，请重新安装应用" }
-            return target
-        }
+        if (target.isDirectory && valid(target) &&
+            context.assets.open("$ASSET.zip").use { RuntimePayloadIntegrity.matches(target, it) }) return target
+        RuntimePayloadIntegrity.removeTree(target)
         val staging = File(parent, "$digest.partial")
-        if (staging.exists()) check(staging.deleteRecursively())
+        RuntimePayloadIntegrity.removeTree(staging)
         check(staging.mkdir())
         val archive = File.createTempFile("developer-runtime", ".zip", context.cacheDir)
         try {
@@ -103,12 +104,13 @@ internal object DeveloperRuntime {
                     zip.closeEntry()
                 }
             }
-            check(valid(staging)) { "开发环境数据不完整" }
+            check(valid(staging) &&
+                archive.inputStream().use { RuntimePayloadIntegrity.matches(staging, it) }) { "开发环境数据不完整" }
             check(staging.renameTo(target)) { "无法安装开发环境数据" }
             return target
         } finally {
             archive.delete()
-            if (staging.exists()) staging.deleteRecursively()
+            RuntimePayloadIntegrity.removeTree(staging)
         }
     }
 

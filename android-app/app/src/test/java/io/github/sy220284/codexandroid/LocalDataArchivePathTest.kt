@@ -11,6 +11,13 @@ class LocalDataArchivePathTest {
         )) assertTrue(path, LocalDataArchive.validatePath(path))
     }
 
+    @Test fun runtimeAndInstalledDependenciesAreNotRestorable() {
+        for (path in listOf("files/native-tools/git", "files/developer-runtime/v/lib/python.py",
+            "files/developer-packages/node/lib/node_modules/tool.js", "files/developer-system-ca.pem",
+            "files/developer-system-ca.pem.bak")) assertFalse(path, LocalDataArchive.validatePath(path))
+        assertTrue(LocalDataArchive.validatePath("files/projects/demo/developer-runtime/main.py"))
+    }
+
     @Test fun blocksTraversalAndCredentials() {
         for (path in listOf(
             "/tmp/passwd", "files/../shared_prefs/settings.xml",
