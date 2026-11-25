@@ -7,7 +7,7 @@
 
 - [会话工作台与新建任务](01-workbench.svg)
 - [模型目录、选择与恢复 1](02-model-catalog-1.svg) / [2](02-model-catalog-2.svg)
-- [国内模型配置与授权 1](03-domestic-provider-1.svg) / [2](03-domestic-provider-2.svg)
+- [国内模型配置与授权 1](03-domestic-provider-1.svg) / [2](03-domestic-provider-2.svg) / [3](03-domestic-provider-3.svg) / [4](03-domestic-provider-4.svg)
 - [账号默认声音](04-account-voice.svg)
 - [MCP 可用目录与启动诊断](05-mcp-diagnostics.svg)
 - [Hook 检查 1](06-hook-states-1.svg) / [2](06-hook-states-2.svg)
@@ -22,7 +22,7 @@
 
 [可点击交互原型](prototype.html) 为自包含 HTML；下载后使用浏览器打开。手机画面内的操作区域可点击、键盘聚焦和 Enter/空格触发；右侧事件面板模拟账号和内核回执，**不属于真实 Android 控件**。原型中的示例模型、声音、任务、耗时和生成信息均为设计样例。原型适合评审页面归属、状态转换及返回路径；真实搜索、模型调用、身份授权、文件操作仍由原生应用实现和验证。
 
-[设计清单](manifest.json) 记录 80 个可见手机设计画面、额外 21 个原型组合状态、563 个点击区域、10 条主流程、19 类模拟事件。22 个 SVG 采用独立文本节点与矢量形状，可导入 Figma，保留命名组和同源主题；导入后应复核文本、组件化及原型连线。现有在线画板 [111 Codex Android](https://www.figma.com/design/K4FEMoNdmQbcnJZCHWr8c7/111) 仍是目标文件，本次 Figma MCP Starter 调用额度耗尽，浏览器又提示 WebGL 不支持，在线画板未能写入或回读截图。
+[设计清单](manifest.json) 记录 95 个可见手机设计画面、额外 56 个原型组合状态、699 个点击区域、10 条主流程、45 个场景回执选项。24 个 SVG 采用独立文本节点与矢量形状，可导入 Figma，保留命名组和同源主题；导入后应复核文本、组件化及原型连线。现有在线画板 [111 Codex Android](https://www.figma.com/design/K4FEMoNdmQbcnJZCHWr8c7/111) 仍是目标文件，本次 Figma MCP Starter 调用额度耗尽，浏览器又提示 WebGL 不支持，在线画板未能写入或回读截图。
 
 ## 1. 产品结构与信息来源
 
@@ -40,6 +40,8 @@
 | 多任务 | 同一抽屉内的进行中入口和状态筛选 → 定位原任务 | `SidebarSessionRow`、`GlobalWorkSnapshot.kt`、`WorkspaceTaskOperations.kt` | ThreadActivity、真实审批/回答请求；执行中、待审批、待回答、异常单独显示；按会话与回合停止，二次确认只停止选定任务；其他会话不受影响 |
 | 文件预览 | 对话附件或任务建议 → 全屏阅读 | `AttachmentPreviewDialog.kt`、`ModelDocumentPreview.kt`、`ModelPreviewController.kt` | 本机读取和真实失败；文档标题/行号/匹配定位、图片换图和缩放；返回保留任务与草稿；模型建议预览内容不回传给模型 |
 | 图片生成元数据 | 时间线图片产物 → 原图/执行详情 | `NativeTimelineMedia.kt`、`ImageGenerationPresentation.kt` | transparentBackground 明确存在才显示背景类型；imageMetadata 非空才显示数量和原始记录；不推测模型、种子、尺寸、耗时；缺失图片显示原因及可恢复动作 |
+
+国内模型登记的六类端点全部使用独立授权表单：DeepSeek、GLM、MiniMax、Kimi 开放平台、Kimi Code 国内订阅、通义千问；通义千问展示北京业务空间 ID 和只读自动生成的官方地址，切换空间需匹配密钥；Kimi Code 与开放平台凭据分开。自定义服务商填写环境变量名称而非密钥值；已配置服务商提供真实能力详情、默认切换确认及本机密钥移除回读。
 
 MCP 服务固定启动目录属于底层能力；设计仅在既有专业诊断表达实际启动记录和范围，不增目录配置页面。后续 Compose 实现时复核共享工作区、cwd 及连接代次。
 

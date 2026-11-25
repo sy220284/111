@@ -690,43 +690,67 @@
         },
         {
           "x": 16,
-          "y": 272,
+          "y": 268,
           "w": 361,
-          "h": 66,
+          "h": 58,
           "target": "provider-form",
           "label": "DeepSeek"
         },
         {
           "x": 16,
-          "y": 338,
+          "y": 326,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
+          "h": 58,
+          "target": "provider-form-glm",
           "label": "GLM 智谱"
         },
         {
           "x": 16,
-          "y": 404,
+          "y": 384,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
+          "h": 58,
+          "target": "provider-form-minimax",
           "label": "MiniMax"
         },
         {
           "x": 16,
-          "y": 470,
+          "y": 442,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
-          "label": "Kimi"
+          "h": 58,
+          "target": "provider-form-kimi",
+          "label": "Kimi 开放平台"
         },
         {
           "x": 16,
-          "y": 582,
+          "y": 500,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
+          "h": 58,
+          "target": "provider-form-kimi-code",
+          "label": "Kimi Code 国内订阅"
+        },
+        {
+          "x": 16,
+          "y": 558,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-qwen",
+          "label": "通义千问"
+        },
+        {
+          "x": 16,
+          "y": 651,
+          "w": 361,
+          "h": 58,
+          "target": "provider-custom",
           "label": "添加自定义服务商"
+        },
+        {
+          "x": 16,
+          "y": 714,
+          "w": 361,
+          "h": 62,
+          "target": "provider-configured",
+          "label": "已配置服务商"
         }
       ]
     },
@@ -991,6 +1015,1628 @@
           "h": 48,
           "target": "provider-confirm",
           "label": "重新验证"
+        }
+      ]
+    },
+    {
+      "id": "provider-form-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-glm",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-glm",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-glm",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-glm",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-glm",
+      "module": "国内模型",
+      "title": "GLM 智谱 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-glm",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-glm",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-minimax",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-minimax",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-minimax",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-minimax",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-minimax",
+      "module": "国内模型",
+      "title": "MiniMax · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-minimax",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-minimax",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-kimi",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-kimi",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-kimi",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-kimi",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-kimi",
+      "module": "国内模型",
+      "title": "Kimi 开放平台 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-kimi-code",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-kimi-code",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-kimi-code",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-kimi-code",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-kimi-code",
+      "module": "国内模型",
+      "title": "Kimi Code 国内订阅 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-kimi-code",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-kimi-code",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-form-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 授权",
+      "desc": "独立服务商凭据与实际端点",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-save-confirm-qwen",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-save-confirm-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 保存确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 456,
+          "w": 317,
+          "h": 48,
+          "target": "provider-saving-qwen",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 516,
+          "w": 317,
+          "h": 48,
+          "target": "provider-form-qwen",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-saving-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 保存连接",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-catalog-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 模型目录",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-confirm-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证确认",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 495,
+          "w": 317,
+          "h": 48,
+          "target": "provider-running-qwen",
+          "label": "开始验证"
+        },
+        {
+          "x": 38,
+          "y": 547,
+          "w": 317,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "取消"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-running-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证中",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "返回"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-verified-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证通过",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-failed-qwen",
+      "module": "国内模型",
+      "title": "通义千问 · 验证失败",
+      "desc": "独立服务商的共享状态组件",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-catalog-qwen",
+          "label": "刷新目录"
+        },
+        {
+          "x": 16,
+          "y": 351,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "验证模型工具调用"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-confirm-qwen",
+          "label": "重新验证"
+        }
+      ],
+      "prototypeOnly": true
+    },
+    {
+      "id": "provider-custom",
+      "module": "国内模型",
+      "title": "自定义服务商",
+      "desc": "地址与密钥环境变量引用",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "关闭"
+        },
+        {
+          "x": 16,
+          "y": 746,
+          "w": 361,
+          "h": 48,
+          "target": "provider-custom-confirm",
+          "label": "检查并保存"
+        }
+      ]
+    },
+    {
+      "id": "provider-custom-confirm",
+      "module": "国内模型",
+      "title": "自定义保存确认",
+      "desc": "写入前核对名称与地址",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "provider-custom-busy",
+          "label": "确认保存"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "provider-custom",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-custom-busy",
+      "module": "国内模型",
+      "title": "自定义保存中",
+      "desc": "等待有效配置回执",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": []
+    },
+    {
+      "id": "provider-configured",
+      "module": "国内模型",
+      "title": "已配置服务商管理",
+      "desc": "独立连接状态、能力、默认与凭据",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "刷新"
+        },
+        {
+          "x": 16,
+          "y": 264,
+          "w": 361,
+          "h": 66,
+          "target": "provider-catalog",
+          "label": "实时模型目录 / 授权检查"
+        },
+        {
+          "x": 16,
+          "y": 338,
+          "w": 361,
+          "h": 66,
+          "target": "provider-capabilities",
+          "label": "服务商能力"
+        },
+        {
+          "x": 16,
+          "y": 412,
+          "w": 361,
+          "h": 66,
+          "target": "provider-default-confirm",
+          "label": "设为默认服务商"
+        },
+        {
+          "x": 16,
+          "y": 486,
+          "w": 361,
+          "h": 66,
+          "target": "provider-revoke-confirm",
+          "label": "移除本机密钥"
+        }
+      ]
+    },
+    {
+      "id": "provider-capabilities",
+      "module": "国内模型",
+      "title": "服务商能力详情",
+      "desc": "声明能力与模型验证准入分开",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "返回"
+        },
+        {
+          "x": 339,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-capabilities",
+          "label": "重新读取"
+        }
+      ]
+    },
+    {
+      "id": "provider-default-confirm",
+      "module": "国内模型",
+      "title": "默认服务商切换确认",
+      "desc": "按实际 canChangeDefault 与有效回读控制",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "provider-default-busy",
+          "label": "确认切换"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-default-busy",
+      "module": "国内模型",
+      "title": "默认服务商切换中",
+      "desc": "收到有效回读后更新",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": []
+    },
+    {
+      "id": "provider-revoke-confirm",
+      "module": "国内模型",
+      "title": "密钥移除确认",
+      "desc": "最终危险确认使用红色主按钮",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 38,
+          "y": 452,
+          "w": 317,
+          "h": 48,
+          "target": "provider-revoke-busy",
+          "label": "移除本机密钥"
+        },
+        {
+          "x": 38,
+          "y": 508,
+          "w": 317,
+          "h": 48,
+          "target": "provider-configured",
+          "label": "取消"
+        }
+      ]
+    },
+    {
+      "id": "provider-revoke-busy",
+      "module": "国内模型",
+      "title": "密钥移除中",
+      "desc": "不提前更新授权状态",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": []
+    },
+    {
+      "id": "provider-missing",
+      "module": "国内模型",
+      "title": "待重新授权",
+      "desc": "凭据失效与可用目录分离",
+      "mode": "light",
+      "width": 393,
+      "height": 852,
+      "hotspots": [
+        {
+          "x": 6,
+          "y": 36,
+          "w": 48,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回"
+        },
+        {
+          "x": 16,
+          "y": 238,
+          "w": 361,
+          "h": 48,
+          "target": "provider-form",
+          "label": "重新授权"
+        },
+        {
+          "x": 16,
+          "y": 294,
+          "w": 361,
+          "h": 48,
+          "target": "provider-list",
+          "label": "返回服务商"
         }
       ]
     },
@@ -3356,43 +5002,67 @@
         },
         {
           "x": 16,
-          "y": 272,
+          "y": 268,
           "w": 361,
-          "h": 66,
+          "h": 58,
           "target": "provider-form",
           "label": "DeepSeek"
         },
         {
           "x": 16,
-          "y": 338,
+          "y": 326,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
+          "h": 58,
+          "target": "provider-form-glm",
           "label": "GLM 智谱"
         },
         {
           "x": 16,
-          "y": 404,
+          "y": 384,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
+          "h": 58,
+          "target": "provider-form-minimax",
           "label": "MiniMax"
         },
         {
           "x": 16,
-          "y": 470,
+          "y": 442,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
-          "label": "Kimi"
+          "h": 58,
+          "target": "provider-form-kimi",
+          "label": "Kimi 开放平台"
         },
         {
           "x": 16,
-          "y": 582,
+          "y": 500,
           "w": 361,
-          "h": 66,
-          "target": "provider-form",
+          "h": 58,
+          "target": "provider-form-kimi-code",
+          "label": "Kimi Code 国内订阅"
+        },
+        {
+          "x": 16,
+          "y": 558,
+          "w": 361,
+          "h": 58,
+          "target": "provider-form-qwen",
+          "label": "通义千问"
+        },
+        {
+          "x": 16,
+          "y": 651,
+          "w": 361,
+          "h": 58,
+          "target": "provider-custom",
           "label": "添加自定义服务商"
+        },
+        {
+          "x": 16,
+          "y": 714,
+          "w": 361,
+          "h": 62,
+          "target": "provider-configured",
+          "label": "已配置服务商"
         }
       ]
     },
@@ -5922,6 +7592,136 @@
       [
         "握手失败",
         "runtime-failed"
+      ]
+    ],
+    "provider-saving-glm": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-glm"
+      ],
+      [
+        "保存未成功",
+        "provider-form-glm"
+      ]
+    ],
+    "provider-running-glm": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-glm"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-glm"
+      ]
+    ],
+    "provider-saving-minimax": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-minimax"
+      ],
+      [
+        "保存未成功",
+        "provider-form-minimax"
+      ]
+    ],
+    "provider-running-minimax": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-minimax"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-minimax"
+      ]
+    ],
+    "provider-saving-kimi": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-kimi"
+      ],
+      [
+        "保存未成功",
+        "provider-form-kimi"
+      ]
+    ],
+    "provider-running-kimi": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-kimi"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-kimi"
+      ]
+    ],
+    "provider-saving-kimi-code": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-kimi-code"
+      ],
+      [
+        "保存未成功",
+        "provider-form-kimi-code"
+      ]
+    ],
+    "provider-running-kimi-code": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-kimi-code"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-kimi-code"
+      ]
+    ],
+    "provider-saving-qwen": [
+      [
+        "写入并重新连接成功",
+        "provider-catalog-qwen"
+      ],
+      [
+        "保存未成功",
+        "provider-form-qwen"
+      ]
+    ],
+    "provider-running-qwen": [
+      [
+        "身份与双轮回传验证成功",
+        "provider-verified-qwen"
+      ],
+      [
+        "真实验证失败",
+        "provider-failed-qwen"
+      ]
+    ],
+    "provider-custom-busy": [
+      [
+        "配置回读成功",
+        "provider-configured"
+      ],
+      [
+        "配置保存失败",
+        "provider-custom"
+      ]
+    ],
+    "provider-default-busy": [
+      [
+        "默认配置回读成功",
+        "provider-list"
+      ],
+      [
+        "切换失败",
+        "provider-configured"
+      ]
+    ],
+    "provider-revoke-busy": [
+      [
+        "凭据移除并回读成功",
+        "provider-missing"
+      ],
+      [
+        "未能移除",
+        "provider-configured"
       ]
     ]
   }

@@ -167,70 +167,156 @@ def model_provider(c):
  c.row(374,'国内模型','查看已配置服务商','settings',target='provider-list')
  c.btn(746,'管理服务商','provider-list','secondary')
 screen('model-provider','模型','服务商选择',model_provider,'新会话可切换；历史会话只读所属服务商')
+PRESET_UI={
+ '':('DeepSeek','开放平台 API'),
+ '-glm':('GLM 智谱','Coding Plan'),
+ '-minimax':('MiniMax','国内平台授权'),
+ '-kimi':('Kimi 开放平台','开放平台 API'),
+ '-kimi-code':('Kimi Code 国内订阅','独立订阅授权'),
+ '-qwen':('通义千问','北京业务空间'),
+}
+def provider_target(base,key=''):return base+key
 def providers(c):
  c.header('模型服务商','设置 · 模型','home',('refresh','provider-list','刷新'))
  c.rect(16,118,c.w-32,102,16,'recessed','border');c.text(30,145,'默认服务商',12,'muted');c.text(30,175,'ChatGPT',22,weight=700);c.pill(c.w-114,153,'已选择','jade');c.text(30,199,'后续新会话使用此服务商',12,'muted')
  c.section(258,'国内模型预置')
- for i,(name,sub) in enumerate([('DeepSeek','开放平台 API · 待配置'),('GLM 智谱','Coding Plan · 待配置'),('MiniMax','开放平台 · 待配置'),('Kimi','开放平台 API · 待配置')]):c.row(272+i*66,name,sub,'globe',target='provider-form')
- c.section(570,'其他服务商')
- c.row(582,'添加自定义服务商','连接地址与密钥引用','plus',target='provider-form')
- c.notice(678,'预置不等于授权',['保存凭据后仍需核验真实模型。'],'muted','info')
+ for i,(key,(name,plan)) in enumerate(PRESET_UI.items()):c.row(268+i*58,name,plan+' · 待配置','globe',target=provider_target('provider-form',key),h=58)
+ c.section(641,'服务商管理')
+ c.row(651,'添加自定义服务商','连接地址与环境变量引用','plus',target='provider-custom',h=58)
+ c.row(714,'已配置服务商','查看能力、默认设置与本机凭据','settings',target='provider-configured',h=62)
 screen('provider-list','国内模型','服务商列表',providers,'按授权与配置状态区分')
-def provider_form(c,state='form'):
- c.header('配置国内模型','DeepSeek · 官方接口','provider-list',('close','provider-list','关闭'))
- c.field(135,'服务商名称','DeepSeek')
- c.field(216,'连接地址','官方预置地址')
- c.field(297,'API 密钥','••••••••••••••••','eye')
- c.lines(24,384,['密钥保存在本机加密记录中。','连接与模型能力将在保存后分别核实。'],12)
- c.section(440,'配置影响')
- c.row(450,'新会话可选择','既有会话保留原来的服务商','info',None)
- if state=='form':c.btn(746,'检查并保存','provider-save-confirm')
+def provider_form(c,state='form',key=''):
+ name,plan=PRESET_UI[key]
+ c.header('配置国内模型',name+' · '+plan,'provider-list',('close','provider-list','关闭'))
+ c.field(135,'服务商名称',name)
+ if key=='-qwen':
+  c.field(216,'北京业务空间 ID','workspace-example')
+  c.field(297,'服务地址（自动生成）','北京业务空间专属官方地址')
+  c.field(378,'API Key','••••••••••••••••','eye')
+  c.lines(24,465,['使用该业务空间的专属密钥。','切换空间时需重新输入匹配 API Key。'],12)
+  c.section(535,'配置影响');c.row(545,'新会话可选择','历史会话保留所属服务商','info',None)
  else:
-  c.notice(539,'正在保存并重新连接',['等待旧内核退出；保留会话和草稿。'],'coral','refresh')
+  c.field(216,'服务地址（官方预置）','原生 Responses 接口')
+  c.field(297,'API Key','••••••••••••••••','eye')
+  c.lines(24,384,['Kimi Code 订阅凭据与开放平台独立。' if key=='-kimi-code' else '密钥保存在本机加密记录中。','保存后分别核实连接与模型能力。'],12)
+  c.section(440,'配置影响');c.row(450,'新会话可选择','既有会话保留原来的服务商','info',None)
+ if state=='form':c.btn(746,'检查并保存',provider_target('provider-save-confirm',key))
+ else:
+  c.notice(625 if key=='-qwen' else 539,'正在保存并重新连接',['等待旧内核退出；保留会话和草稿。'],'coral','refresh')
   c.btn(746,'正在保存…',None,'disabled')
 screen('provider-form','国内模型','授权表单',provider_form,'密钥受保护；提交前说明变更范围')
 screen('provider-saving','国内模型','保存与连接',lambda c:provider_form(c,'saving'),'锁定重复提交，等待内核重新连接')
-def provider_save_confirm(c):
- provider_form(c);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);c.rect(18,274,c.w-36,304,24,'panel')
+def provider_save_confirm(c,key=''):
+ provider_form(c,key=key);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);c.rect(18,274,c.w-36,304,24,'panel')
  c.text(38,314,'保存模型服务商',20,weight=700)
  c.lines(38,353,['凭据写入本机加密记录。','保存后需要重新连接本机内核。','检查当前任务，空闲时才允许继续。'],13,'muted',24)
- c.btn(456,'确认保存','provider-saving',x=38,w=c.w-76);c.btn(516,'取消','provider-form','secondary',x=38,w=c.w-76)
+ c.btn(456,'确认保存',provider_target('provider-saving',key),x=38,w=c.w-76);c.btn(516,'取消',provider_target('provider-form',key),'secondary',x=38,w=c.w-76)
 screen('provider-save-confirm','国内模型','保存确认',provider_save_confirm,'全局占用检查后允许保存')
 
-def catalog(c,state='ready'):
- c.header('模型目录','DeepSeek · 只读候选或账号目录','provider-list',('refresh','provider-catalog','刷新目录'))
+def catalog(c,state='ready',key=''):
+ name,_=PRESET_UI[key]
+ c.header('模型目录',name+' · 账号目录','provider-list',('refresh',provider_target('provider-catalog',key),'刷新目录'))
  c.rect(16,118,c.w-32,116,16,'recessed','border');c.text(30,148,'连接 / 授权状态',12,'muted');c.text(30,177,'已配置 · 能力待验证',19,weight=700)
  c.lines(30,200,['目录来源以当前服务商返回为准。','候选模型尚未准入当前会话。'],12,'muted',18)
  c.section(270,'候选模型 · 示例')
  c.row(282,'示例模型 A','候选 · 授权与能力待核验','globe',None)
- c.btn(351,'验证模型工具调用','provider-confirm','secondary')
+ c.btn(351,'验证模型工具调用',provider_target('provider-confirm',key),'secondary')
  if state=='verified':
   c.notice(426,'双轮验证通过',['实际模型身份已确认；以真实回执为准。'],'jade','check')
   c.btn(746,'返回服务商','provider-list')
  elif state=='failed':
   c.notice(426,'模型验证未通过',['查看原因并调整配置后重新验证。'],'red','warning')
-  c.btn(746,'重新验证','provider-confirm')
+  c.btn(746,'重新验证',provider_target('provider-confirm',key))
  else:
   c.notice(426,'验证说明',['每轮限制输出量，可能产生模型费用。','不上传项目文件或对话。'],'muted','info')
   c.btn(746,'返回服务商','provider-list','secondary')
 screen('provider-catalog','国内模型','目录与验证',catalog,'区分目录授权、候选与任务准入')
-def provider_confirm(c):
- catalog(c);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);x=18;y=277
+def provider_confirm(c,key=''):
+ catalog(c,key=key);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);x=18;y=277
  c.rect(x,y,c.w-36,334,24,'panel');c.text(x+20,y+35,'真实模型能力验证',20,weight=700)
  c.lines(x+20,y+74,['最多发送两轮固定测试推理请求。','每轮限制输出量，可能产生模型费用。','不会上传对话或项目文件，不执行真实工具。'],13,'muted',25)
  c.line(x+20,y+158,c.w-x-20,y+158)
  c.text(x+20,y+187,'待验证：示例模型 A',14,weight=600)
- c.btn(y+218,'开始验证','provider-running',x=x+20,w=c.w-2*x-40)
- c.btn(y+270,'取消','provider-catalog','secondary',x=x+20,w=c.w-2*x-40)
+ c.btn(y+218,'开始验证',provider_target('provider-running',key),x=x+20,w=c.w-2*x-40)
+ c.btn(y+270,'取消',provider_target('provider-catalog',key),'secondary',x=x+20,w=c.w-2*x-40)
 screen('provider-confirm','国内模型','验证确认',provider_confirm,'在产生费用前确认')
-def provider_running(c):
- c.header('正在验证模型','示例模型 A','provider-catalog')
+def provider_running(c,key=''):
+ name,_=PRESET_UI[key]
+ c.header('正在验证模型',name+' · 示例模型 A',provider_target('provider-catalog',key))
  c.notice(118,'正在执行固定测试',['请等待服务商返回真实结果。'],'coral','refresh')
  c.progress(220,['第一轮推理','工具结果回传','确认模型身份'],1,['收到首轮结果','等待第二轮回传','等待真实确认'])
  c.btn(746,'正在验证…',None,'disabled')
 screen('provider-running','国内模型','双轮验证过程',provider_running,'阶段按回执推进，无伪造百分比')
 screen('provider-verified','国内模型','真实验证回执',lambda c:catalog(c,'verified'),'身份和工具回传均核实后准入')
 screen('provider-failed','国内模型','验证失败',lambda c:catalog(c,'failed'),'保留候选，明确重试')
+
+# Each distinct provider has its own editable credentials design; the common state transitions
+# reuse identical primitives, while the prototype retains the selected provider throughout.
+for key,(name,plan) in PRESET_UI.items():
+ if not key:continue
+ screen('provider-form'+key,'国内模型',name+' · 授权',lambda c,key=key:provider_form(c,key=key),'独立服务商凭据与实际端点')
+ for base,title,fn in [
+  ('provider-save-confirm','保存确认',lambda c,k:provider_save_confirm(c,k)),
+  ('provider-saving','保存连接',lambda c,k:provider_form(c,'saving',k)),
+  ('provider-catalog','模型目录',lambda c,k:catalog(c,key=k)),
+  ('provider-confirm','验证确认',lambda c,k:provider_confirm(c,k)),
+  ('provider-running','验证中',lambda c,k:provider_running(c,k)),
+  ('provider-verified','验证通过',lambda c,k:catalog(c,'verified',k)),
+  ('provider-failed','验证失败',lambda c,k:catalog(c,'failed',k)),
+ ]:
+  sid=base+key
+  screen(sid,'国内模型',name+' · '+title,lambda c,fn=fn,key=key:fn(c,key),'独立服务商的共享状态组件')
+  SCREENS[sid]['prototypeOnly']=True
+def provider_custom(c):
+ c.header('添加自定义服务商','设置 · 连接配置','provider-list',('close','provider-list','关闭'))
+ c.field(135,'服务商名称','自定义服务商')
+ c.field(216,'服务地址（HTTP / HTTPS）','https://example.com/v1')
+ c.field(297,'密钥环境变量名称（可选）','MY_PROVIDER_KEY')
+ c.lines(24,384,['密钥值由本机环境管理。','这里只填写变量名称，不填写密钥值。'],12)
+ c.notice(454,'核对连接地址',['保存并回读后才显示已配置。'],'muted','info')
+ c.btn(746,'检查并保存','provider-custom-confirm')
+screen('provider-custom','国内模型','自定义服务商',provider_custom,'地址与密钥环境变量引用')
+def provider_custom_confirm(c):
+ provider_custom(c);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);c.rect(18,292,c.w-36,270,24,'panel');c.text(38,330,'保存自定义服务商',19,weight=700)
+ c.lines(38,368,['核对服务商名称和连接地址。','保存后等待核心配置回读。'],13,'muted',24);c.btn(452,'确认保存','provider-custom-busy',x=38,w=c.w-76);c.btn(508,'取消','provider-custom','secondary',x=38,w=c.w-76)
+screen('provider-custom-confirm','国内模型','自定义保存确认',provider_custom_confirm,'写入前核对名称与地址')
+def provider_custom_busy(c):
+ provider_custom(c);c.hot.clear();c.notice(540,'正在保存配置',['等待核心配置写入及回读。'],'coral','refresh');c.btn(746,'正在保存…',None,'disabled')
+screen('provider-custom-busy','国内模型','自定义保存中',provider_custom_busy,'等待有效配置回执')
+def provider_configured(c):
+ c.header('已配置服务商','设置 · 国内模型','provider-list',('refresh','provider-configured','刷新'))
+ c.rect(16,118,c.w-32,116,16,'recessed','border');c.text(30,153,'示例已配置服务商',20,weight=700);c.pill(30,170,'密钥已加载','jade');c.text(30,214,'配置与目录状态独立显示',12,'muted')
+ c.row(264,'实时模型目录 / 授权检查','从服务商读取 · 模型能力仍需验证','globe',target='provider-catalog')
+ c.row(338,'服务商能力','查看原生声明的联网、图片生成支持','info',target='provider-capabilities')
+ c.row(412,'设为默认服务商','仅影响后续新会话','settings',target='provider-default-confirm')
+ c.row(486,'移除本机密钥','历史保留 · 需重新授权后才能使用','lock',target='provider-revoke-confirm')
+screen('provider-configured','国内模型','已配置服务商管理',provider_configured,'独立连接状态、能力、默认与凭据')
+def provider_caps(c):
+ c.header('服务商能力','原生能力回执 · 示例','provider-configured',('refresh','provider-capabilities','重新读取'))
+ c.row(135,'联网搜索','已声明支持','globe','check','jade')
+ c.row(207,'图片生成','未声明','image',None,'muted')
+ c.notice(300,'能力以真实返回为准',['目录中未知模型不能自动继承这些能力。'],'muted','info')
+screen('provider-capabilities','国内模型','服务商能力详情',provider_caps,'声明能力与模型验证准入分开')
+def provider_default_confirm(c):
+ provider_configured(c);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);c.rect(18,294,c.w-36,272,24,'panel')
+ c.text(38,334,'切换默认模型服务商',19,weight=700);c.lines(38,372,['后续新会话使用选定服务商。','旧默认模型、思考档位将重新核实。','历史会话保留原服务商。'],13,'muted',23)
+ c.btn(452,'确认切换','provider-default-busy',x=38,w=c.w-76);c.btn(508,'取消','provider-configured','secondary',x=38,w=c.w-76)
+screen('provider-default-confirm','国内模型','默认服务商切换确认',provider_default_confirm,'按实际 canChangeDefault 与有效回读控制')
+def provider_default_busy(c):
+ provider_configured(c);c.hot.clear();c.notice(590,'正在切换默认服务商',['等待配置回读；原选择暂时保持。'],'coral','refresh');c.btn(746,'正在切换…',None,'disabled')
+screen('provider-default-busy','国内模型','默认服务商切换中',provider_default_busy,'收到有效回读后更新')
+def provider_revoke_confirm(c):
+ provider_configured(c);c.hot.clear();c.rect(0,0,c.w,H,0,'#111A22',opacity=.42);c.rect(18,294,c.w-36,272,24,'panel')
+ c.text(38,334,'移除本机密钥？',19,weight=700);c.lines(38,372,['先关闭持有旧密钥的内核。','历史会话保留。','重新授权后才能使用此服务商。'],13,'muted',23)
+ c.btn(452,'移除本机密钥','provider-revoke-busy','danger',38,c.w-76);c.btn(508,'取消','provider-configured','secondary',x=38,w=c.w-76)
+screen('provider-revoke-confirm','国内模型','密钥移除确认',provider_revoke_confirm,'最终危险确认使用红色主按钮')
+def provider_revoke_busy(c):
+ provider_configured(c);c.hot.clear();c.notice(590,'正在移除本机密钥',['等待旧内核关闭并确认凭据移除。'],'coral','refresh');c.btn(746,'正在移除…',None,'disabled')
+screen('provider-revoke-busy','国内模型','密钥移除中',provider_revoke_busy,'不提前更新授权状态')
+def provider_missing(c):
+ c.header('模型服务商','已配置 · 需重新授权','provider-list')
+ c.notice(118,'本机密钥未加载',['此服务商的历史会话与配置仍然保留。','完成重新授权后再使用该服务商。'],'warning','lock');c.btn(238,'重新授权','provider-form');c.btn(294,'返回服务商','provider-list','secondary')
+screen('provider-missing','国内模型','待重新授权',provider_missing,'凭据失效与可用目录分离')
 def voice(c,state='ready'):
  c.header('账号默认声音','账号设置 · ChatGPT','home',('refresh','voice','刷新'))
  c.rect(16,118,c.w-32,115,16,'recessed','border');c.icon('wave',30,140,'coral',30);c.text(75,155,'账号默认声音',18,weight=700);c.text(75,184,'当前：示例声音 B' if state=='saved' else '当前：示例声音 A',14,'muted')
@@ -587,6 +673,13 @@ EVENTS={
  'runtime-retiring':[('旧进程已退出','runtime-starting'),('旧进程退出异常','runtime-failed')],
  'runtime-starting':[('握手成功','runtime-connected'),('握手失败','runtime-failed')],
 }
+for key in PRESET_UI:
+ if key:
+  EVENTS['provider-saving'+key]=[('写入并重新连接成功','provider-catalog'+key),('保存未成功','provider-form'+key)]
+  EVENTS['provider-running'+key]=[('身份与双轮回传验证成功','provider-verified'+key),('真实验证失败','provider-failed'+key)]
+EVENTS['provider-custom-busy']=[('配置回读成功','provider-configured'),('配置保存失败','provider-custom')]
+EVENTS['provider-default-busy']=[('默认配置回读成功','provider-list'),('切换失败','provider-configured')]
+EVENTS['provider-revoke-busy']=[('凭据移除并回读成功','provider-missing'),('未能移除','provider-configured')]
 manifest={'baseline':'b6134d7eef99fe49b85689d8d46fc8d112cc9edc','tokensVersion':T['version'],'screens':[{k:v for k,v in s.items() if k!='svg'} for s in SCREENS.values()],'flows':[{'module':f[0],'steps':f[1],'notes':f[2],'screens':f[3]} for f in FLOWS],'events':EVENTS}
 (OUT/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
 # Build a compact prototype data map and accessible hotspot layer in an editable HTML file.
