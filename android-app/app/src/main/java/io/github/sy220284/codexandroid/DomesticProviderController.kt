@@ -44,8 +44,8 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
         vm.refresh("account", "account/read")
     }
 
-    fun configure(preset: DomesticModelPreset, name: String, key: String, after: () -> Unit) {
-        if (name.isBlank() || (key.isNotBlank() && !DomesticProviderCredentials.valid(key))) {
+    fun configure(preset: DomesticModelPreset, name: String, endpoint: String, key: String, after: () -> Unit) {
+        if (name.isBlank() || !preset.matchesEndpoint(endpoint) || (preset.needsWorkspace && preset.workspaceId(endpoint) == null) || (key.isNotBlank() && !DomesticProviderCredentials.valid(key))) {
             vm.errors.value = vm.errors.value + ("providerWrite" to "服务商名称或密钥格式无效")
             return
         }
@@ -63,22 +63,22 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
                 if (key.isNotBlank()) {
                     withContext(Dispatchers.IO) {
                         encryptedBefore = DomesticProviderCredentials.snapshot(context, preset)
-                        DomesticProviderCredentials.save(context, preset, key)
+                        DomesticProviderCredentials.save(context, preset, key, endpoint)
                         keySaved = true
                     }
                 } else {
-                    check(DomesticProviderCredentials.has(context, preset)) { "请先填写 API Key" }
+                    check(withContext(Dispatchers.IO) { DomesticProviderCredentials.matchesStoredEndpoint(context, preset, endpoint) }) { "业务空间或服务地址已变更，请填写该地址的 API Key" }
                 }
                 val patch = JSONObject().put("type", "customGateway")
-                    .put("name", name.trim()).put("baseUrl", preset.baseUrl).put("envKey", preset.envKey)
+                    .put("name", name.trim()).put("baseUrl", endpoint.trim().trimEnd('/')).put("envKey", preset.envKey)
                 existing?.let { patch.put("providerId", it.getString("id")) }
                 val reply = vm.bridge.request("modelProvider/config/write", JSONObject().put("settings", patch))
                 val saved = reply.getJSONObject("provider")
-                check(preset.ownsProvider(saved) && saved.optString("name") == name.trim()) {
+                check(preset.ownsProvider(saved) && saved.optString("baseUrl").trimEnd('/') == endpoint.trim().trimEnd('/') && saved.optString("name") == name.trim()) {
                     "服务商配置回读不匹配"
                 }
                 val readback = vm.bridge.request("modelProvider/list", JSONObject())
-                check(records(readback).any { it.optString("id") == saved.getString("id") && preset.ownsProvider(it) }) {
+                check(records(readback).any { it.optString("id") == saved.getString("id") && preset.ownsProvider(it) && it.optString("baseUrl").trimEnd('/') == endpoint.trim().trimEnd('/') }) {
                     "服务商未进入有效配置"
                 }
                 configVerified = true

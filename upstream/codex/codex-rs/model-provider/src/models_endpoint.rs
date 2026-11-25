@@ -221,7 +221,8 @@ impl OpenAiModelsEndpoint {
                 client_version,
             )
             .map_err(map_api_error)?,
-            None if domestic.is_some() => api_provider.url_for_path("models"),
+            None if domestic.is_some() => crate::domestic_catalog::dashscope_page_url(&api_provider.base_url, 1)
+                .unwrap_or_else(|| api_provider.url_for_path("models")),
             None => ModelsClient::<ReqwestTransport>::request_url(&api_provider, client_version),
         };
         let auth_telemetry = auth_header_telemetry(api_auth.as_ref())
@@ -248,15 +249,31 @@ impl OpenAiModelsEndpoint {
             let transport = self.transport_builder.build(http_client_factory, request_url.clone()).await?;
             let client = ModelsClient::new(transport, api_provider, api_auth)
                 .with_telemetry(Some(request_telemetry));
-            let (body, etag) = client.list_models_raw(request_url, HeaderMap::new(), Some(1024 * 1024))
-                .await.map_err(|mut error| {
-                    if let codex_api::ApiError::Transport(TransportError::Http { url, headers, body, .. }) = &mut error {
-                        *url = None;
-                        *headers = None;
-                        *body = None;
+            let redact = |mut error| {
+                if let codex_api::ApiError::Transport(TransportError::Http { url, headers, body, .. }) = &mut error {
+                    *url = None;
+                    *headers = None;
+                    *body = None;
+                }
+                map_api_error(error)
+            };
+            if let Some(base) = self.provider_info.base_url.as_deref()
+                && crate::domestic_catalog::dashscope_page_url(base, 1).is_some()
+            {
+                let mut catalog = crate::domestic_catalog::DashscopeCatalog::default();
+                for page in 1..=crate::domestic_catalog::DASHSCOPE_MAX_PAGES {
+                    let url = crate::domestic_catalog::dashscope_page_url(base, page)
+                        .ok_or_else(|| CodexErr::InvalidRequest("invalid DashScope workspace endpoint".into()))?;
+                    let (body, _) = client.list_models_raw(url, HeaderMap::new(), Some(4 * 1024 * 1024))
+                        .await.map_err(redact)?;
+                    if catalog.push_page(profile, page, &body)? {
+                        return Ok(ModelsEndpointResponse { models: catalog.finish(), etag: None, identity });
                     }
-                    map_api_error(error)
-                })?;
+                }
+                return Err(CodexErr::InvalidRequest("DashScope workspace catalog exceeds page limit".into()));
+            }
+            let (body, etag) = client.list_models_raw(request_url, HeaderMap::new(), Some(1024 * 1024))
+                .await.map_err(redact)?;
             let models = crate::domestic_catalog::decode_public_catalog(profile, &body)?;
             return Ok(ModelsEndpointResponse { models, etag, identity });
         }

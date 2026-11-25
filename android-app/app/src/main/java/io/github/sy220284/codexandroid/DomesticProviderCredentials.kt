@@ -49,12 +49,13 @@ internal object DomesticProviderCredentials {
     fun has(context: Context, preset: DomesticModelPreset): Boolean = file(context, preset).baseFile.exists()
 
     @Synchronized
-    fun save(context: Context, preset: DomesticModelPreset, value: String) {
+    fun save(context: Context, preset: DomesticModelPreset, value: String, endpoint: String = preset.baseUrl) {
+        require(preset.matchesEndpoint(endpoint)) { "密钥绑定地址无效" }
         require(valid(value)) { "请输入有效的 API Key" }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key(true))
         cipher.updateAAD(preset.id.toByteArray(Charsets.UTF_8))
-        val plain = value.toByteArray(Charsets.UTF_8)
+        val plain = (endpoint.trim().trimEnd('/') + "\n" + value).toByteArray(Charsets.UTF_8)
         val encrypted = try { cipher.doFinal(plain) } finally { plain.fill(0) }
         val target = file(context, preset)
         val out = target.startWrite()
@@ -94,17 +95,26 @@ internal object DomesticProviderCredentials {
         check(!has(context, preset)) { "无法移除本机密钥" }
     }
 
-    private fun decrypt(context: Context, preset: DomesticModelPreset): String {
+    private fun decrypt(context: Context, preset: DomesticModelPreset): Pair<String, String> {
         val bytes = file(context, preset).readFully()
-        require(bytes.size in 30..(MAX_KEY + 64) && bytes[0].toInt() == 12) { "密钥记录损坏" }
+        require(bytes.size in 30..(MAX_KEY + 512) && bytes[0].toInt() == 12) { "密钥记录损坏" }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key(false), GCMParameterSpec(128, bytes.copyOfRange(1, 13)))
         cipher.updateAAD(preset.id.toByteArray(Charsets.UTF_8))
         val plain = cipher.doFinal(bytes, 13, bytes.size - 13)
         return try {
-            String(plain, Charsets.UTF_8).also { require(valid(it)) { "密钥记录无效" } }
+            val decoded = String(plain, Charsets.UTF_8)
+            val separator = decoded.indexOf('\n')
+            val endpoint = if (separator < 0) preset.baseUrl else decoded.substring(0, separator)
+            val secret = if (separator < 0) decoded else decoded.substring(separator + 1)
+            require(preset.matchesEndpoint(endpoint) && valid(secret)) { "密钥记录无效" }
+            endpoint to secret
         } finally { plain.fill(0) }
     }
+
+    @Synchronized
+    fun matchesStoredEndpoint(context: Context, preset: DomesticModelPreset, endpoint: String): Boolean =
+        has(context, preset) && decrypt(context, preset).first == endpoint.trim().trimEnd('/')
 
     @Synchronized
     fun bootstrap(context: Context): DomesticCredentialBootstrap {
@@ -115,7 +125,8 @@ internal object DomesticProviderCredentials {
             if (!has(context, preset)) continue
             // Isolate a damaged credential to its provider and expose that failure.
             try {
-                result.put(preset.envKey, decrypt(context, preset))
+                val (endpoint, secret) = decrypt(context, preset)
+                result.put(preset.envKey, JSONObject().put("endpoint", endpoint).put("key", secret))
                 loaded.add(preset.id)
             } catch (failure: java.security.GeneralSecurityException) {
                 errors[preset.id] = "密钥无法解密，请重新授权"

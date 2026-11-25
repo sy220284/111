@@ -13,7 +13,9 @@ internal fun DomesticCatalogSheet(vm: CodexViewModel, preset: DomesticModelPrese
     val data by vm.data.collectEntries(key)
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
-    val live = preset.catalog != "manual"
+    val providers by vm.data.collectEntries("providers")
+    val endpoint = records(providers["providers"]).firstOrNull { it.optString("id") == id }?.optString("baseUrl").orEmpty()
+    val live = preset.liveCatalog(endpoint)
     fun refresh() {
         vm.refresh(key, "model/list", JSONObject().put("modelProvider", id).put("includeHidden", true))
     }

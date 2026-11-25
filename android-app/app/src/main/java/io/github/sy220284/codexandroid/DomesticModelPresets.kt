@@ -8,7 +8,16 @@ internal data class DomesticModelPreset(
     val id: String, val name: String, val baseUrl: String, val envKey: String,
     val plan: String, val protocol: String, val models: List<String>, val catalog: String = "manual"
 ) {
-    fun matchesEndpoint(value: String): Boolean = value.trim().trimEnd('/') == baseUrl
+    val needsWorkspace get() = id == "qwen-cn"
+    fun workspaceId(endpoint: String): String? {
+        if (!needsWorkspace) return null
+        return Regex("^https://([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\\.cn-beijing\\.maas\\.aliyuncs\\.com/compatible-mode/v1$")
+            .matchEntire(endpoint.trim().trimEnd('/'))?.groupValues?.get(1)
+    }
+    fun workspaceEndpoint(workspace: String): String =
+        "https://$workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    fun matchesEndpoint(value: String): Boolean = value.trim().trimEnd('/') == baseUrl || workspaceId(value) != null
+    fun liveCatalog(endpoint: String): Boolean = if (needsWorkspace) workspaceId(endpoint) != null else catalog != "manual"
 
     fun ownsProvider(value: org.json.JSONObject): Boolean =
         matchesEndpoint(value.optString("baseUrl")) &&

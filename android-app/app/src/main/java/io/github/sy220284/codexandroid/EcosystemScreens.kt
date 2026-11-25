@@ -100,6 +100,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     var customName by remember { mutableStateOf("") }
     var customUrl by remember { mutableStateOf("") }
     var customEnvKey by remember { mutableStateOf("") }
+    var customWorkspace by remember { mutableStateOf("") }
     val context = androidx.compose.ui.platform.LocalContext.current
     val domesticPresets = remember(context) { DomesticModelPresets.load(context) }
     var selectedPreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
@@ -147,7 +148,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                         selectedProviderId = configured?.optString("id")
                         customApiKey = ""
                         customName = configured?.optString("name")?.takeIf { it.isNotBlank() } ?: preset.name
-                        customUrl = preset.baseUrl
+                        customUrl = configured?.optString("baseUrl") ?: if (preset.needsWorkspace) "" else preset.baseUrl
+                        customWorkspace = preset.workspaceId(customUrl).orEmpty()
                         customEnvKey = preset.envKey
                         showCustomEditor = true
                     }
@@ -178,6 +180,12 @@ fun ProvidersPage(vm: CodexViewModel) {
                         Text("候选模型：" + preset.models.joinToString("、"), color = Ink.muted)
                     }
                     AtlasFormField(customName, { customName = it }, "服务商名称")
+                    if (selectedPreset?.needsWorkspace == true) {
+                        AtlasFormField(customWorkspace, { value ->
+                            customWorkspace = value
+                            customUrl = selectedPreset!!.workspaceEndpoint(value.trim())
+                        }, "北京业务空间 ID", helper = "在百炼控制台选择北京业务空间；使用该空间的 API Key。")
+                    }
                     AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
                         placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                         enabled = selectedPreset == null,
@@ -206,6 +214,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                         enabled = !changingCredentials && customName.isNotBlank() &&
                             ProviderAddressPolicy.valid(customUrl) &&
                             (selectedPreset?.matchesEndpoint(customUrl) != false) &&
+                            (selectedPreset?.needsWorkspace != true || selectedPreset?.workspaceId(customUrl) != null) &&
                             (preset == null || DomesticProviderCredentials.valid(customApiKey.trim()) ||
                                 (customApiKey.isBlank() && DomesticProviderCredentials.has(context, preset))),
                         modifier = Modifier.fillMaxWidth()
@@ -268,7 +277,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 }
                 domesticPresets.firstOrNull { it.ownsProvider(item) }?.let { preset ->
                     CodexSecondaryButton(onClick = { inspectCatalog = preset to item.optString("id") }, enabled = !changingCredentials) {
-                        Text(if (preset.catalog != "manual") "实时模型目录 / 授权检查" else "查看候选模型")
+                        Text(if (preset.liveCatalog(item.optString("baseUrl"))) "实时模型目录 / 授权检查" else "查看候选模型")
                     }
                 }
                 DetailToggle(item)
@@ -296,7 +305,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 customApiKey = ""; customName = ""; customUrl = ""; customEnvKey = ""
             }
             if (preset != null) {
-                vm.domesticProviders.configure(preset, customName, keyToSave, completed)
+                vm.domesticProviders.configure(preset, customName, customUrl, keyToSave, completed)
             } else vm.rpc("providerWrite", "modelProvider/config/write",
                 JSONObject().put("settings", patch),
                 after = {

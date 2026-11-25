@@ -735,7 +735,8 @@ impl ModelProvider for ConfiguredModelProvider {
             ));
         }
         if let Some(profile) = crate::domestic_catalog::profile(self.info.base_url.as_deref())
-            .filter(|profile| profile.catalog == "manual" && self.info.model_catalog_url.is_none())
+            .filter(|profile| profile.catalog == "manual" && self.info.model_catalog_url.is_none()
+                && !crate::domestic_catalog::is_domestic_live_catalog(self.info.base_url.as_deref()))
         {
             // A locally saved credential permits explicit model selection, not a claim
             // that the account has passed vendor authorization.

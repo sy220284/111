@@ -24,6 +24,18 @@ class DomesticModelPresetsTest {
         assertEquals(6, presets.map { it.envKey }.toSet().size)
     }
 
+    @Test fun workspaceBindingRejectsOtherRegionsAndExtraLabels() {
+        val preset = presets.first { it.id == "qwen-cn" }
+        val endpoint = preset.workspaceEndpoint("llm-ab12")
+        assertEquals("llm-ab12", preset.workspaceId(endpoint))
+        assertTrue(preset.liveCatalog(endpoint))
+        assertFalse(preset.liveCatalog(preset.baseUrl))
+        assertFalse(preset.matchesEndpoint(preset.workspaceEndpoint("a.b")))
+        assertFalse(preset.matchesEndpoint(preset.workspaceEndpoint("foo@bar")))
+        assertFalse(preset.matchesEndpoint(endpoint.replace("cn-beijing", "cn-hongkong")))
+        assertFalse(preset.matchesEndpoint(endpoint + "?x=1"))
+    }
+
     @Test fun endpointMatchingRejectsHostAndPathSubstitution() {
         val preset = presets.first()
         assertTrue(preset.matchesEndpoint(preset.baseUrl + "/"))

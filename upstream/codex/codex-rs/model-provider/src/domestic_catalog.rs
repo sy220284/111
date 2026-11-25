@@ -36,7 +36,9 @@ fn profiles() -> &'static [DomesticProfile] {
 
 pub(crate) fn profile(base_url: Option<&str>) -> Option<&'static DomesticProfile> {
     let base = base_url?.trim_end_matches('/');
-    profiles().iter().find(|p| p.base_url == base)
+    profiles().iter().find(|p| p.base_url == base
+        || (p.base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            && codex_model_provider_info::domestic_qwen_workspace(base).is_some()))
 }
 
 #[derive(Deserialize)]
@@ -59,7 +61,8 @@ struct PublicEffort {
 }
 
 pub fn is_domestic_live_catalog(base_url: Option<&str>) -> bool {
-    profile(base_url).is_some_and(|p| matches!(p.catalog.as_str(), "openai-list" | "codex-list"))
+    base_url.and_then(codex_model_provider_info::domestic_qwen_workspace).is_some()
+        || profile(base_url).is_some_and(|p| matches!(p.catalog.as_str(), "openai-list" | "codex-list"))
 }
 
 /// Known Responses-capable entries are selectable. New account IDs remain visible
@@ -178,6 +181,100 @@ fn decode_codex_catalog(profile: &DomesticProfile, body: &[u8]) -> Result<Vec<Mo
     Ok(models)
 }
 
+pub(crate) const DASHSCOPE_PAGE_SIZE: usize = 100;
+pub(crate) const DASHSCOPE_MAX_PAGES: usize = 100;
+
+pub(crate) fn dashscope_page_url(base: &str, page: usize) -> Option<String> {
+    let workspace = codex_model_provider_info::domestic_qwen_workspace(base)?;
+    Some(format!("https://{workspace}.cn-beijing.maas.aliyuncs.com/api/v1/models?providers=qwen&capabilities=TG&page_no={page}&page_size={DASHSCOPE_PAGE_SIZE}"))
+}
+
+#[derive(Deserialize)]
+struct DashscopeResponse {
+    success: bool,
+    output: DashscopePage,
+}
+#[derive(Deserialize)]
+struct DashscopePage {
+    total: usize,
+    page_no: usize,
+    page_size: usize,
+    models: Vec<DashscopeModel>,
+}
+#[derive(Deserialize)]
+struct DashscopeModel {
+    model: String,
+    #[serde(default)]
+    features: Vec<String>,
+    inference_metadata: Option<DashscopeModalities>,
+    model_info: Option<DashscopeContext>,
+}
+#[derive(Deserialize)]
+struct DashscopeModalities {
+    #[serde(default)]
+    request_modality: Vec<String>,
+    #[serde(default)]
+    response_modality: Vec<String>,
+}
+#[derive(Deserialize)]
+struct DashscopeContext {
+    context_window: Option<i64>,
+    max_input_tokens: Option<i64>,
+}
+
+/// A failed or inconsistent page cannot publish an incomplete catalog.
+#[derive(Default)]
+pub(crate) struct DashscopeCatalog {
+    total: Option<usize>,
+    models: Vec<ModelInfo>,
+    seen: HashSet<String>,
+}
+impl DashscopeCatalog {
+    pub(crate) fn push_page(&mut self, profile: &DomesticProfile, page: usize, body: &[u8]) -> Result<bool, CodexErr> {
+        let invalid = || CodexErr::InvalidRequest("invalid or incomplete DashScope workspace catalog".into());
+        let response: DashscopeResponse = serde_json::from_slice(body).map_err(|_| invalid())?;
+        let output = response.output;
+        if !response.success || page == 0 || page > DASHSCOPE_MAX_PAGES
+            || output.page_no != page || output.page_size != DASHSCOPE_PAGE_SIZE
+            || output.total > DASHSCOPE_PAGE_SIZE * DASHSCOPE_MAX_PAGES
+            || self.total.is_some_and(|total| total != output.total)
+            || self.models.len() != (page - 1) * DASHSCOPE_PAGE_SIZE
+            || output.models.len() != output.total.saturating_sub(self.models.len()).min(DASHSCOPE_PAGE_SIZE)
+        {
+            return Err(invalid());
+        }
+        self.total = Some(output.total);
+        for entry in output.models {
+            if entry.model.trim().is_empty() || !self.seen.insert(entry.model.clone()) {
+                return Err(invalid());
+            }
+            let known = profile.models.iter().find(|known| known.id == entry.model);
+            let mut model = known.map(model_info).unwrap_or_else(|| model_info_from_slug(&entry.model));
+            let modalities = entry.inference_metadata;
+            let text = modalities.as_ref().is_some_and(|m| m.request_modality.iter().any(|v| v.eq_ignore_ascii_case("text"))
+                && m.response_modality.iter().any(|v| v.eq_ignore_ascii_case("text")));
+            let image = modalities.as_ref().is_some_and(|m| m.request_modality.iter().any(|v| v.eq_ignore_ascii_case("image")));
+            let selectable = known.is_some() && text && entry.features.iter().any(|v| v == "function-calling");
+            let budget = entry.model_info.and_then(|m| {
+                let window = m.context_window.filter(|n| *n > 0)?;
+                Some(m.max_input_tokens.filter(|n| *n > 0).map_or(window, |n| n.min(window)))
+            });
+            model.context_window = budget.or_else(|| known.map(|m| m.context));
+            model.max_context_window = model.context_window;
+            model.visibility = if selectable { ModelVisibility::List } else { ModelVisibility::Hide };
+            model.shell_type = if selectable { ConfigShellToolType::UnifiedExec } else { ConfigShellToolType::Disabled };
+            model.input_modalities = if selectable && image { vec![InputModality::Text, InputModality::Image] } else { vec![InputModality::Text] };
+            model.supports_image_detail_original = false;
+            model.supports_reasoning_summary_parameter = false;
+            model.description = Some(if selectable { "北京业务空间目录；真实 Responses 任务待验收" } else { "业务空间发现；Responses 或工具能力待核验" }.into());
+            self.models.push(model);
+        }
+        Ok(self.models.len() == output.total)
+    }
+
+    pub(crate) fn finish(self) -> Vec<ModelInfo> { self.models }
+}
+
 /// The documented candidate list is not an account availability assertion.
 pub(crate) fn documented_candidates(profile: &DomesticProfile) -> Vec<ModelInfo> {
     profile.models.iter().map(|entry| {
@@ -229,6 +326,25 @@ mod tests {
         assert!(profile(Some("https://api.moonshot.ai/v1")).is_none());
         assert!(profile(Some("https://api.deepseek.com.evil.example")).is_none());
         assert!(profile(Some("http://api.deepseek.com")).is_none());
+    }
+
+    #[test]
+    fn dashscope_catalog_requires_complete_pages_and_declared_function_calling() {
+        let base = "https://llm-test.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
+        let p = profile(Some(base)).unwrap();
+        assert!(is_domestic_live_catalog(Some(base)));
+        assert!(!is_domestic_live_catalog(Some("https://dashscope.aliyuncs.com/compatible-mode/v1")));
+        assert!(dashscope_page_url(base, 2).unwrap().ends_with("page_no=2&page_size=100"));
+        let body = br#"{"success":true,"output":{"total":2,"page_no":1,"page_size":100,"models":[{"model":"qwen3.8-max","features":["function-calling"],"inference_metadata":{"request_modality":["Text","Image"],"response_modality":["Text"]},"model_info":{"context_window":1000000,"max_input_tokens":991808}},{"model":"unknown","features":["function-calling"]}]}}"#;
+        let mut catalog = DashscopeCatalog::default();
+        assert!(catalog.push_page(p, 1, body).unwrap());
+        let models = catalog.finish();
+        assert_eq!(models[0].visibility, ModelVisibility::List);
+        assert_eq!(models[0].context_window, Some(991808));
+        assert!(models[0].input_modalities.contains(&InputModality::Image));
+        assert_eq!(models[1].visibility, ModelVisibility::Hide);
+        let mut partial = DashscopeCatalog::default();
+        assert!(partial.push_page(p, 1, br#"{"success":true,"output":{"total":101,"page_no":1,"page_size":100,"models":[]}}"#).is_err());
     }
 
     #[test]

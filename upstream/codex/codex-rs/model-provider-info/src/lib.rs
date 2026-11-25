@@ -51,6 +51,40 @@ pub use oauth_session::OAuthSessionConfig;
 
 pub const RESIDENCY_HEADER_NAME: &str = "x-openai-internal-codex-residency";
 
+/// One exact Beijing workspace host, never an arbitrary domain or redirect.
+pub fn domestic_qwen_workspace(base_url: &str) -> Option<&str> {
+    let workspace = base_url.trim_end_matches('/')
+        .strip_prefix("https://")?
+        .strip_suffix(".cn-beijing.maas.aliyuncs.com/compatible-mode/v1")?;
+    let bytes = workspace.as_bytes();
+    if bytes.is_empty() || bytes.len() > 63
+        || !bytes[0].is_ascii_alphanumeric()
+        || !bytes[bytes.len() - 1].is_ascii_alphanumeric()
+        || !bytes.iter().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
+    {
+        return None;
+    }
+    Some(workspace)
+}
+
+#[cfg(test)]
+mod domestic_workspace_tests {
+    #[test]
+    fn binds_exact_beijing_workspace() {
+        assert_eq!(super::domestic_qwen_workspace("https://llm-ab12.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/"), Some("llm-ab12"));
+        for bad in [
+            "https://foo.bar.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "https://foo.cn-beijing.maas.aliyuncs.com.evil.example/compatible-mode/v1",
+            "https://foo@bar.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "https://foo.cn-hongkong.maas.aliyuncs.com/compatible-mode/v1",
+            "http://foo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "https://foo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1?x=1",
+        ] {
+            assert_eq!(super::domestic_qwen_workspace(bad), None);
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ResidencyRequirement {

@@ -197,17 +197,28 @@ fn read_android_provider_bootstrap() -> anyhow::Result<()> {
     anyhow::ensure!((1..=65536).contains(&length), "invalid Android provider bootstrap length");
     let mut bytes = vec![0u8; length];
     input.read_exact(&mut bytes)?;
-    let parsed = serde_json::from_slice::<HashMap<String, String>>(&bytes);
+    let parsed = serde_json::from_slice::<HashMap<String, serde_json::Value>>(&bytes);
     bytes.fill(0);
     let credentials = parsed.map_err(|_| anyhow::anyhow!("invalid Android provider bootstrap"))?;
     let profiles: Vec<serde_json::Value> = serde_json::from_str(include_str!("../../model-provider/catalogs/domestic-providers.json"))?;
     let mut bound = HashMap::new();
-    for (name, value) in credentials {
-        anyhow::ensure!(!value.is_empty() && value.len() <= 4096 && value.bytes().all(|b| (33..=126).contains(&b)), "invalid Android provider credential");
+    for (name, record) in credentials {
         let profile = profiles.iter().find(|profile| profile["envKey"].as_str() == Some(name.as_str()))
             .ok_or_else(|| anyhow::anyhow!("unknown Android provider credential reference"))?;
-        let endpoint = profile["baseUrl"].as_str().ok_or_else(|| anyhow::anyhow!("invalid bundled provider profile"))?;
-        bound.insert(name, (endpoint.to_string(), value));
+        let default_endpoint = profile["baseUrl"].as_str().ok_or_else(|| anyhow::anyhow!("invalid bundled provider profile"))?;
+        let (endpoint, value) = if let Some(key) = record.as_str() {
+            // Legacy bootstrap frames bind credentials to the original fixed endpoint.
+            (default_endpoint, key)
+        } else {
+            (record["endpoint"].as_str().ok_or_else(|| anyhow::anyhow!("invalid Android provider endpoint"))?,
+             record["key"].as_str().ok_or_else(|| anyhow::anyhow!("invalid Android provider credential"))?)
+        };
+        let endpoint = endpoint.trim_end_matches('/');
+        anyhow::ensure!(endpoint == default_endpoint ||
+            (profile["id"].as_str() == Some("qwen-cn") &&
+             codex_model_provider_info::domestic_qwen_workspace(endpoint).is_some()), "invalid Android provider endpoint binding");
+        anyhow::ensure!(!value.is_empty() && value.len() <= 4096 && value.bytes().all(|b| (33..=126).contains(&b)), "invalid Android provider credential");
+        bound.insert(name, (endpoint.to_string(), value.to_string()));
     }
     codex_model_provider_info::install_android_provider_credentials(bound)
         .map_err(|error| anyhow::anyhow!(error))
