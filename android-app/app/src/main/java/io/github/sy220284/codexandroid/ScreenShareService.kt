@@ -32,10 +32,10 @@ class ScreenShareService : Service() {
     private var worker: HandlerThread? = null
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
-    private var reader: ImageReader? = null
+    @Volatile private var reader: ImageReader? = null
     private var token: String? = null
     private var lastSample = 0L
-    private var ending = false
+    @Volatile private var ending = false
     private val callback = object : MediaProjection.Callback() {
         override fun onStop() { terminate("屏幕共享已由系统结束") }
         override fun onCapturedContentResize(width: Int, height: Int) {
@@ -58,13 +58,14 @@ class ScreenShareService : Service() {
         token = requested
         try {
             promote()
+            val request = checkNotNull(intent)
             @Suppress("DEPRECATION")
             val consent = if (Build.VERSION.SDK_INT >= 33)
-                intent.getParcelableExtra(CONSENT, Intent::class.java)
-                else intent.getParcelableExtra<Intent>(CONSENT)
+                request.getParcelableExtra(CONSENT, Intent::class.java)
+                else request.getParcelableExtra<Intent>(CONSENT)
             requireNotNull(consent) { "屏幕共享授权无效" }
             val manager = getSystemService(MediaProjectionManager::class.java)
-            val capture = manager.getMediaProjection(Activity.RESULT_OK, consent)
+            val capture = checkNotNull(manager.getMediaProjection(Activity.RESULT_OK, consent))
             projection = capture
             capture.registerCallback(callback, main)
             worker = HandlerThread("codex-screen-capture").apply { start() }
@@ -109,12 +110,13 @@ class ScreenShareService : Service() {
         if (w == old.width && h == old.height) return
         val next = newReader(w, h)
         try {
+            // Invalidate the previous reader before changing the surface; queued frames cannot republish it.
+            reader = next
             token?.let(screenShareSession::invalidate)
             display?.resize(w, h, resources.displayMetrics.densityDpi)
             display?.setSurface(next.surface)
-            reader = next
             old.close()
-        } catch (failure: Exception) { next.close(); throw failure }
+        } catch (failure: Exception) { reader = old; next.close(); throw failure }
     }
 
     private fun newReader(width: Int, height: Int): ImageReader {
@@ -126,22 +128,33 @@ class ScreenShareService : Service() {
                     val now = SystemClock.elapsedRealtime()
                     if (now - lastSample < 750L) return@use
                     lastSample = now
+                    if (reader !== source || ending) return@use
                     val plane = image.planes[0]
-                    val stride = plane.rowStride / plane.pixelStride
-                    require(plane.pixelStride == 4 && stride >= image.width && stride <= image.width + 1024)
-                    val padded = Bitmap.createBitmap(stride, image.height, Bitmap.Config.ARGB_8888)
+                    val rowBytes = Math.multiplyExact(image.width, 4)
+                    require(plane.pixelStride == 4 && plane.rowStride >= rowBytes)
+                    val pixels = java.nio.ByteBuffer.allocate(Math.multiplyExact(rowBytes, image.height))
+                    val row = ByteArray(rowBytes)
+                    val buffer = plane.buffer
+                    // Some Android implementations omit padding after the last row.
+                    // Copy only visible pixels rather than copying the padded image width.
+                    for (y in 0 until image.height) {
+                        buffer.position(Math.multiplyExact(y, plane.rowStride))
+                        buffer.get(row)
+                        pixels.put(row)
+                    }
+                    pixels.flip()
+                    val bitmap = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
                     try {
-                        plane.buffer.rewind()
-                        padded.copyPixelsFromBuffer(plane.buffer)
-                        val cropped = Bitmap.createBitmap(padded, 0, 0, image.width, image.height)
+                        bitmap.copyPixelsFromBuffer(pixels)
+                        val bytes = ByteArrayOutputStream().use { stream ->
+                            check(bitmap.compress(Bitmap.CompressFormat.JPEG, 88, stream))
+                            stream.toByteArray()
+                        }
                         try {
-                            val bytes = ByteArrayOutputStream().use { stream ->
-                                check(cropped.compress(Bitmap.CompressFormat.JPEG, 88, stream))
-                                stream.toByteArray()
-                            }
-                            try { screenShareSession.publish(sessionToken, bytes) } finally { bytes.fill(0) }
-                        } finally { if (cropped !== padded) cropped.recycle() }
-                    } finally { padded.recycle() }
+                            // Recheck source identity after encoding as a resize may have occurred.
+                            if (reader === source && !ending) screenShareSession.publish(sessionToken, bytes)
+                        } finally { bytes.fill(0) }
+                    } finally { bitmap.recycle(); row.fill(0); pixels.array().fill(0) }
                 }
             } catch (_: IllegalStateException) {
                 // A queued callback may race a reader's release. Report only if this reader still owns capture.
