@@ -33,12 +33,12 @@ class DeviceEvidenceTest(unittest.TestCase):
     def test_actual_device_parameters_are_required(self):
         from device_matrix import dimensions, CONFIG
         spec = dimensions("compact", "baseline")
-        replies = ["Physical size: 1080x2340", "Physical density: 440", str(CONFIG["api"]), str(CONFIG["android_release"]), str(CONFIG["page_size"]), "1.0"]
+        replies = ["Physical size: 1080x2340", "Physical density: 440", str(CONFIG["api"]), str(CONFIG["android_release"]), str(CONFIG["page_size"]), "test/android17/fingerprint", "1.0"]
         with patch("run_ui_device_checks.adb", side_effect=replies):
             evidence = assert_device(spec, spec)
             self.assertEqual(392.73, evidence["width_dp"])
             self.assertEqual(CONFIG["api"], evidence["android_api"])
-        for index, bad in [(0, "Physical size: 360x800\nOverride size: 1080x2340"), (1, "Physical density: 160\nOverride density: 440"), (2, "35"), (3, "15"), (4, "4096"), (5, "1.5")]:
+        for index, bad in [(0, "Physical size: 360x800\nOverride size: 1080x2340"), (1, "Physical density: 160\nOverride density: 440"), (2, "35"), (3, "15"), (4, "4096"), (5, ""), (6, "1.5")]:
             wrong = replies.copy()
             wrong[index] = bad
             with patch("run_ui_device_checks.adb", side_effect=wrong), self.assertRaises(RuntimeError):

@@ -86,6 +86,9 @@ def assert_device(spec, physical_spec):
     api = int(adb("shell", "getprop", "ro.build.version.sdk"))
     release = adb("shell", "getprop", "ro.build.version.release")
     page_size = int(adb("shell", "getconf", "PAGESIZE"))
+    build_fingerprint = adb("shell", "getprop", "ro.build.fingerprint")
+    if not build_fingerprint:
+        raise RuntimeError("Missing Android build fingerprint")
     width, height, dpi = (spec[k] for k in ("width_px", "height_px", "density_dpi"))
     if api != CONFIG["api"] or release.split(".")[0] != str(CONFIG["android_release"]) or page_size != CONFIG["page_size"]:
         raise RuntimeError("Android OS or memory page size does not match device matrix")
@@ -95,7 +98,7 @@ def assert_device(spec, physical_spec):
     measured_font = float(actual_font) if actual_font != "null" else 1.0
     if measured_font != float(spec["font_scale"]):
         raise RuntimeError("Device font scale does not match evidence label")
-    return dict(spec, android_api=api, android_release=release, page_size=page_size,
+    return dict(spec, android_api=api, android_release=release, page_size=page_size, build_fingerprint=build_fingerprint,
                 physical_size=physical_size[1], physical_density_dpi=int(physical_density[1]),
                 width_dp=round(width * 160 / dpi, 2), height_dp=round(height * 160 / dpi, 2))
 

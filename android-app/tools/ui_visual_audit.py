@@ -10,13 +10,15 @@ import json
 import os
 import subprocess
 import tempfile
+import re
+from html import escape
 from pathlib import Path
-from PIL import Image, ImageStat
+from PIL import Image, ImageStat, ImageChops
 from device_matrix import API, dimensions
 from ui_evidence_manifest import load_evidence_manifest, required_screens
 
-SIZE = (32, 64)
-VERSION = 1
+SIZE = (64, 128)
+VERSION = 2
 REQUIRED = required_screens(load_evidence_manifest(Path(__file__).resolve().parents[2]))
 
 def signature(path, metadata):
@@ -99,11 +101,13 @@ def audit(profile, root):
                 raise ValueError("Required screenshots missing")
             values = {}
             for screen in manifest["present"]:
+                if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*",screen):
+                    raise ValueError("Invalid screenshot scene name")
                 try:
                     values[screen] = signature(path/(screen+"-android.png"),manifest)
                 except (OSError,ValueError) as exc:
                     record["errors"].append(f"{mode}/{screen}: {exc}")
-            record["modes"][mode] = {"configuration": expected, "screens": values}
+            record["modes"][mode] = {"configuration": expected, "build_fingerprint":manifest["build_fingerprint"], "screens": values}
         except (OSError, ValueError, KeyError, TypeError) as exc:
             record["errors"].append(f"{mode}: {exc}")
     return record
@@ -114,14 +118,47 @@ def compare(previous,current):
     changes = []
     for mode, data in current["modes"].items():
         old = previous["modes"].get(mode)
-        if not old or old["configuration"] != data["configuration"]:
-            return {"status":"baseline_pending","reason":"Device configuration changed","changes":[]}
+        if not old or old["configuration"] != data["configuration"] or old.get("build_fingerprint") != data.get("build_fingerprint"):
+            return {"status":"baseline_pending","reason":"Device configuration or OS build changed","changes":[]}
         for name in sorted(set(data["screens"]) | set(old["screens"])):
             if name not in old["screens"] or name not in data["screens"]:
                 changes.append({"mode":mode,"screen":name,"review":True,"change":"added" if name in data["screens"] else "removed"})
             else:
                 changes.append({"mode":mode,"screen":name,**diff(old["screens"][name],data["screens"][name])})
     return {"status":"compared","baseline_commit":previous["commit"],"changes":changes}
+
+def write_gallery(previous, current, report, output):
+    if report["status"] != "compared":
+        return
+    folder = output/"review"
+    folder.mkdir(exist_ok=True)
+    cells = []
+    for x in report["changes"]:
+        if not x["review"]:
+            continue
+        mode,name=x["mode"],x["screen"]
+        old=previous["modes"][mode]["screens"].get(name)
+        new=current["modes"][mode]["screens"].get(name)
+        def image(record, suffix):
+            if record is None:
+                return None
+            data=base64.b64decode(record["rgb"],validate=True)
+            img=Image.frombytes("RGB",SIZE,data)
+            img.save(folder/f"{mode}-{name}-{suffix}.png")
+            return img
+        a,b=image(old,"old"),image(new,"new")
+        if a is not None and b is not None:
+            heat=ImageChops.difference(a,b).point(lambda n:min(255,n*4))
+            heat.save(folder/f"{mode}-{name}-diff.png")
+        thumbs=[]
+        for suffix,label,present in [("old","上次通过",a),("new","当前",b),("diff","差异",a is not None and b is not None)]:
+            if present is not None and present is not False:
+                url=f"review/{mode}-{name}-{suffix}.png"
+                thumbs.append(f'<figure><img src="{escape(url)}"><figcaption>{label}</figcaption></figure>')
+            else:
+                thumbs.append(f"<figure>{label}：无</figure>")
+        cells.append(f"<section><h3>{escape(mode+'/'+name)}</h3><p>{escape(str(x))}</p><div>"+ "".join(thumbs)+"</div></section>")
+    (output/"index.html").write_text("<!doctype html><html lang='zh-CN'><meta charset='utf-8'><title>UI 视觉变化</title><style>body{font:14px system-ui;margin:24px}section{border-top:1px solid #ccc;padding:12px}section div{display:flex;gap:12px}figure{margin:0}img{width:128px;height:256px;image-rendering:pixelated}</style><h1>同配置主分支视觉差异</h1>"+ "".join(cells)+"</html>",encoding="utf-8")
 
 def main():
     p=argparse.ArgumentParser()
@@ -133,7 +170,9 @@ def main():
     report={"structural_errors":record["errors"]}
     if not record["errors"]:
         try:
-            report.update(compare(baseline(args.repo,args.profile),record))
+            previous=baseline(args.repo,args.profile)
+            report.update(compare(previous,record))
+            write_gallery(previous,record,report,output)
         except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as exc:
             record["errors"].append("Historical visual evidence lookup failed: " + str(exc))
             report["status"] = "failed"

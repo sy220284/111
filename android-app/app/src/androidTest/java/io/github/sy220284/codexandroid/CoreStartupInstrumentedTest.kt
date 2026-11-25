@@ -585,6 +585,71 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    /** Actual command RPC, real sockets and curl: HTTP rejection and stalled
+     * response must fail with their real exit codes; the same core remains usable. */
+    @Test fun realNetworkFailureAndTimeoutRecoverOnSameCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val server = ServerSocket(0, 4, java.net.InetAddress.getByName("127.0.0.1"))
+        server.soTimeout = 30_000
+        val service = async(Dispatchers.IO) {
+            repeat(3) { index ->
+                server.accept().use { connection ->
+                    connection.soTimeout = 5_000
+                    val reader = connection.getInputStream().bufferedReader(Charsets.US_ASCII)
+                    check(reader.readLine()?.startsWith("GET /probe ") == true)
+                    while (true) {
+                        val line = reader.readLine() ?: error("Incomplete request")
+                        if (line.isEmpty()) break
+                    }
+                    if (index == 1) {
+                        // Keep the TCP connection open beyond curl's actual timeout.
+                        Thread.sleep(1_800L)
+                    } else {
+                        val body = if (index == 0) "temporarily unavailable" else "network-restored"
+                        val status = if (index == 0) "503 Service Unavailable" else "200 OK"
+                        val response = "HTTP/1.1 $status\r\nContent-Length: " +
+                            body.toByteArray(Charsets.US_ASCII).size + "\r\nConnection: close\r\n\r\n" + body
+                        connection.getOutputStream().write(response.toByteArray(Charsets.US_ASCII))
+                        connection.getOutputStream().flush()
+                    }
+                }
+            }
+        }
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                suspend fun fetch(seconds: Int): JSONObject {
+                    return bridge.request("command/exec", JSONObject()
+                        .put("command", JSONArray().put("curl").put("--noproxy").put("*")
+                            .put("--fail").put("--silent").put("--show-error")
+                            .put("--connect-timeout").put("2").put("--max-time").put(seconds.toString())
+                            .put("http://127.0.0.1:${server.localPort}/probe"))
+                        .put("cwd", WorkspaceStorage.root(app).absolutePath)
+                        .put("timeoutMs", 10_000)
+                        .put("outputBytesCap", 16_000)
+                        .put("sandboxPolicy", JSONObject().put("type", "externalSandbox")
+                            .put("networkAccess", "enabled")), timeoutMillis = 15_000L)
+                }
+                val rejected = fetch(5)
+                assertEquals(rejected.toString(), 22, rejected.getInt("exitCode"))
+                val timedOut = fetch(1)
+                assertEquals(timedOut.toString(), 28, timedOut.getInt("exitCode"))
+                val recovered = fetch(5)
+                assertEquals(recovered.toString(), 0, recovered.getInt("exitCode"))
+                assertEquals("network-restored", recovered.getString("stdout").trim())
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                assertNotNull(bridge.request("account/read"))
+                service.await()
+            }
+        } finally {
+            server.close()
+            service.cancelAndJoin()
+            bridge.close()
+        }
+    }
+
     @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
