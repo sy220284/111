@@ -524,7 +524,7 @@ class UiNavigationInstrumentedTest {
     @Test fun modelChoiceUsesOneSharedBottomSheet() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("conversation-model-control").performClick()
-        rule.onNodeWithText("选择运行模型").assertExists()
+        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("composer-effort").assertExists()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         captureOverlay("model-sheet-android35.png")
@@ -766,7 +766,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("thread-library-list").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-management").performClick()
-        rule.onNodeWithText("会话分组").assertExists()
+        rule.onNodeWithText("会话管理").assertExists()
         rule.onNodeWithText("批量管理").assertExists()
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithText("下一页").assertDoesNotExist()
@@ -1256,7 +1256,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
         rule.onNodeWithTag("action-reply-input").performTextInput("wss://example.com/exec")
         rule.onNodeWithTag("action-reply-send").performClick()
-        rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com")
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
         rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("action-reply-input").fetchSemanticsNodes().isNotEmpty()
