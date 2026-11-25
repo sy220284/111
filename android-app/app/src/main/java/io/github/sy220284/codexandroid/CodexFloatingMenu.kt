@@ -51,7 +51,7 @@ internal fun CodexFloatingMenu(
             .heightIn(max = height).testTag("codex-floating-menu")
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).testTag("codex-floating-title"),
                 style = MaterialTheme.typography.titleMedium, color = Ink.parchment)
             if (description.isNotBlank()) Text(description,
                 modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp),

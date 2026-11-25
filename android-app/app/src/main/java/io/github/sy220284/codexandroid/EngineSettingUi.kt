@@ -57,7 +57,6 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
     saveError: String? = null, saveMessage: String? = null) {
     var draft by rememberSaveable(setting.key) { mutableStateOf(setting.input(current)) }
     var edited by rememberSaveable(setting.key) { mutableStateOf(false) }
-    var search by rememberSaveable(setting.key) { mutableStateOf("") }
     LaunchedEffect(current) { if (!edited) draft = setting.input(current) }
     val parsed = runCatching { setting.parse(draft, available) }
     val value = parsed.getOrNull()
@@ -76,11 +75,9 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
         when (setting.type) {
             "choice", "reasoning", "model", "boolean" -> {
                 val choices = if (setting.type == "boolean") linkedMapOf("true" to "开启", "false" to "关闭") else available
-                if (setting.type == "model") AtlasSearchField(search, { search = it }, "搜索模型", onClear = { search = "" })
-                val visible = choices.filter { (id, label) -> search.isBlank() || id.contains(search, true) || label.contains(search, true) }
-                if (visible.isEmpty()) Text("没有匹配的可用选项", color = Ink.muted)
+                if (choices.isEmpty()) Text("暂无可用选项", color = Ink.muted)
                 Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    visible.forEach { (id, label) ->
+                    choices.forEach { (id, label) ->
                         AtlasExclusiveChip(selected = draft == id, onClick = { edited = true; draft = id }, enabled = !busy,
                             label = { Text(label) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)

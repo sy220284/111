@@ -520,7 +520,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-model-control").performClick()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("composer-effort").assertExists()
-        rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
+        rule.onNodeWithTag("codex-floating-title").assertTextEquals("选择运行模型")
         captureOverlay("model-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
@@ -747,7 +747,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("thread-library-list").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-management").performClick()
-        rule.onNodeWithText("会话管理").assertExists()
+        rule.onNodeWithTag("codex-detail-title").assertTextEquals("会话管理")
+        rule.onNodeWithTag("sidebar-manage-sections").assertHasClickAction()
         rule.onNodeWithText("批量管理").assertExists()
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithText("下一页").assertDoesNotExist()
@@ -1197,8 +1198,10 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
         rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
-        rule.onNodeWithTag("action-reply-input").performTextInput("wss://example.com/exec")
-        rule.onNodeWithTag("action-reply-send").performClick()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("action-reply-input").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("action-reply-input").performScrollTo().performTextInput("wss://example.com/exec")
+        rule.onNodeWithTag("action-reply-send").performScrollTo().performClick()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-remote-name").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
         rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
         rule.waitUntil(5_000L) {

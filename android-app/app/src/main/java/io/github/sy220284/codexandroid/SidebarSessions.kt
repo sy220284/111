@@ -204,7 +204,7 @@ internal fun SidebarSessions(
             verticalAlignment = Alignment.CenterVertically) {
             Text(section?.name ?: "全部会话", modifier = Modifier.weight(1f).padding(start = 12.dp),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            CodexIconAction(onClick = { managementOpen = true }, enabled = connected,
+            CodexIconAction(onClick = { managementOpen = true },
                 modifier = Modifier.size(48.dp).testTag("sidebar-management")) {
                 CodexIcon(CodexGlyph.MoreHoriz, "会话管理")
             }
@@ -316,7 +316,7 @@ internal fun SidebarSessions(
             })
     }
     if (managementOpen) CodexDetailSheet("会话管理", { managementOpen = false }) {
-        CodexTextAction(onClick = { managementOpen = false; managingSections = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("会话分组") }
+        CodexTextAction(onClick = { managementOpen = false; managingSections = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("sidebar-manage-sections")) { Text("会话分组") }
         CodexTextAction(onClick = { managementOpen = false; selection = true }, enabled = connected && !busy && rows.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("批量管理") }
     }
     if (managingSections || moving != null) {

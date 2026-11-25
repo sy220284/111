@@ -193,7 +193,6 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
     onDismiss: () -> Unit) {
     val canonicalRoots = remember(roots) { roots.map { it.canonicalFile }.distinct() }
     var directory by remember { mutableStateOf<java.io.File?>(null) }
-    var query by remember(directory) { mutableStateOf("") }
     val result by produceState<Result<List<java.io.File>>?>(null, directory) {
         value = null
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -220,13 +219,11 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
             CodexPrimaryButton(onClick = { onSelected(selected) }, enabled = selectable,
                 modifier = Modifier.fillMaxWidth()) { Text("使用当前插件目录") }
         }
-        AtlasSearchField(query, { query = it }, "搜索目录", onClear = { query = "" })
         val read = result
         if (read == null) AtlasOperationProgress("正在读取目录")
         else read.fold(onSuccess = { directories ->
-            val visible = directories.filter { it.name.contains(query, ignoreCase = true) }
-            if (visible.isEmpty()) Text("没有匹配的目录", color = Ink.muted)
-            visible.forEach { folder ->
+            if (directories.isEmpty()) Text("当前没有可用目录", color = Ink.muted)
+            directories.forEach { folder ->
                 AtlasSettingsActionRow(folder.name, "", CodexGlyph.Folder,
                     onClick = { directory = folder }, outlined = false)
             }

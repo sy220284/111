@@ -503,11 +503,11 @@
     },
     {
       "asset": "interaction-atlas-expanded.svg",
-      "business": "任务队列、搜索、单选、校验、结果摘要及详情操作",
+      "business": "任务队列、剪贴板检索、单选、校验、结果摘要及详情操作",
       "components": [
         [
           "AtlasInteractionComponents",
-          "AtlasSearchField"
+          "ClipboardQueryAction"
         ],
         [
           "AtlasInteractionComponents",
@@ -547,11 +547,11 @@
     },
     {
       "asset": "four-skills-interaction-v6.svg",
-      "business": "会话恢复、搜索、模型协作与扩展管理",
+      "business": "会话恢复、剪贴板检索、模型协作与扩展管理",
       "components": [
         [
           "SidebarSessions",
-          "AtlasSearchField"
+          "ClipboardQueryAction"
         ],
         [
           "UiSharedSurfaces",
@@ -573,7 +573,7 @@
     },
     {
       "asset": "状态与交互组件.svg",
-      "business": "共享图标、空态/失败、统一容器、搜索与持久反馈；实际操作由业务状态驱动",
+      "business": "共享图标、空态/失败、统一容器、剪贴板检索与持久反馈；实际操作由业务状态驱动",
       "components": [
         [
           "CodexIcon",
@@ -597,7 +597,7 @@
         ],
         [
           "SidebarSessions",
-          "AtlasSearchField"
+          "ClipboardQueryAction"
         ],
         [
           "ConversationScreen",
