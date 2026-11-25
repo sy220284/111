@@ -30,8 +30,18 @@ class UiNavigationInstrumentedTest {
         fun remaining() = (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(1L)
         // Activity creation alone does not establish that workspace preparation
         // and the Compose navigation effects have completed.
-        rule.waitUntil(remaining()) {
-            rule.onAllNodesWithTag("work-shell").fetchSemanticsNodes().size == 1
+        try {
+            rule.waitUntil(remaining()) {
+                rule.onAllNodesWithTag("work-shell").fetchSemanticsNodes().size == 1
+            }
+        } catch (timeout: androidx.compose.ui.test.ComposeTimeoutException) {
+            var diagnostic = ""
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val activity = rule.activity
+                diagnostic = "startup=${activity.workspaceStartupPhase}, lifecycle=${activity.lifecycle.currentState}, " +
+                    "focus=${activity.hasWindowFocus()}, authorized=${WorkspaceStorage.authorized(activity)}"
+            }
+            throw AssertionError("导航壳未就绪：$diagnostic", timeout)
         }
         val app = rule.activity.application as CodexApplication
         val vm = app.session
