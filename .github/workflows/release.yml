@@ -129,7 +129,8 @@ jobs:
     needs: preflight
     if: >-
       always() &&
-      ((github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success') ||
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+       needs.preflight.result == 'success') ||
        (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&

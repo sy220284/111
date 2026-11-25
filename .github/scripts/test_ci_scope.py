@@ -116,6 +116,7 @@ class AndroidCIScopeTests(unittest.TestCase):
         release = workflow("release.yml")
         self.assertIn("select_release_candidate.py", release)
         self.assertIn("--check-only", release)
+        self.assertIn("github.ref == 'refs/heads/main'", release)
 
     def test_git_abi_validation_has_one_maintained_implementation(self):
         self.assertFalse((WORKFLOWS / "verify-android-git.yml").exists())
