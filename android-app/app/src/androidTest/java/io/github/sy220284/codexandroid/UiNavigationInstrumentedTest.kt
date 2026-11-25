@@ -160,6 +160,11 @@ class UiNavigationInstrumentedTest {
         input.performTextReplacement("/$command")
         rule.onNodeWithTag("composer-shortcut-$command").assertHasClickAction().performClick()
         rule.onNodeWithTag("composer-shortcuts").assertDoesNotExist()
+        // Route entry requests IME dismissal; wait for the real window to acknowledge it.
+        rule.waitUntil(5_000L) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+        }
     }
 
     private fun assertNoWorkspaceBar() {
