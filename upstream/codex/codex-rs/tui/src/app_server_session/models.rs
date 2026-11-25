@@ -52,6 +52,7 @@ pub(super) async fn list(
                 limit: None,
                 include_hidden: Some(true),
                 model_provider: None,
+                force_refresh: None,
             },
         })
         .await

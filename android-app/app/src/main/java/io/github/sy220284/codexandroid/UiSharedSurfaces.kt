@@ -131,7 +131,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
             catalogKey in loading -> "正在读取内核可用模型…"
             errors[catalogKey] != null -> "读取模型目录失败：${errors[catalogKey]}。可手动重新加载。"
-            else -> "更改只影响后续任务；已运行任务沿用当前模型。"
+            else -> "当前可用 ${choices.size} 个模型；更改只影响后续任务。"
         },
         choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
         selectedId = selected,
@@ -139,7 +139,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         recoveryLabel = if (engineStatus != EngineStatus.Connected) "重新连接"
             else if (errors[catalogKey] != null || choices.isEmpty()) "重新读取" else null,
         onRecovery = {
-            if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog()
+            if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog(forceRefresh = true)
             else vm.connect()
         },
         recoveryMessage = when {
@@ -151,6 +151,10 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         searchable = true,
         loading = catalogKey in loading,
         extraContent = {
+            AtlasSettingsActionRow("刷新模型目录", "直接向当前服务商重新查询，不使用缓存", CodexGlyph.Retry,
+                onClick = { vm.refreshComposerCatalog(forceRefresh = true) },
+                enabled = engineStatus == EngineStatus.Connected && catalogKey !in loading,
+                outlined = false, modifier = Modifier.testTag("composer-model-refresh"))
             AtlasSettingsActionRow("模型服务商", providerName, CodexGlyph.Dns,
                 onClick = { selectingProvider = true }, enabled = selectable && active == null && providerChoices.isNotEmpty(),
                 outlined = false)

@@ -345,16 +345,17 @@ impl CatalogRequestProcessor {
             cursor,
             include_hidden,
             model_provider,
+            force_refresh,
         } = params;
-        let refresh_strategy = if model_provider.is_some() && include_hidden == Some(true)
+        let domestic = model_provider.is_some() && include_hidden == Some(true)
             && config.model_provider.model_catalog_url.is_none()
-            && codex_model_provider::is_domestic_live_catalog(config.model_provider.base_url.as_deref())
-        {
+            && codex_model_provider::is_domestic_live_catalog(config.model_provider.base_url.as_deref());
+        let refresh_strategy = if force_refresh == Some(true) || domestic {
             self.config_manager.check_thread_model_provider(&config).await
                 .map_err(|err| config_load_error(&err))?;
             models_manager.refresh_catalog_checked(config.http_client_factory()).await
                 .map_err(|err| invalid_request(match err.http_status_code_value() {
-                    Some(401 | 403) => "服务商拒绝授权，请检查 API Key 和套餐",
+                    Some(401 | 403) => "服务商拒绝授权，请检查账号、套餐或 API Key",
                     _ => "实时模型目录读取失败，请检查网络、授权及模型发现配置",
                 }))?;
             codex_models_manager::manager::RefreshStrategy::InMemory

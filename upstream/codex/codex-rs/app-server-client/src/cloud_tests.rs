@@ -168,6 +168,7 @@ async fn native_model_list_bypasses_the_cloud_command_queue() -> color_eyre::Res
                 limit: Some(2),
                 include_hidden: Some(true),
                 model_provider: None,
+                force_refresh: None,
             },
         }),
     )

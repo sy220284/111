@@ -78,10 +78,9 @@ internal fun CodexViewModel.composerCatalogKey(): String =
         else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
     )
 
-internal fun CodexViewModel.refreshComposerCatalog() {
+internal fun CodexViewModel.refreshComposerCatalog(forceRefresh: Boolean = false) {
     val key = composerCatalogKey()
-    val provider = currentComposerProvider()
-    if (key != "models" && provider != null) {
-        refresh(key, "model/list", ComposerProviderScope.request(provider))
-    } else refresh("models", "model/list")
+    if (key in loading.value) return
+    val provider = currentComposerProvider().takeIf { key != "models" }
+    refresh(key, "model/list", ComposerProviderScope.request(provider, forceRefresh))
 }

@@ -114,6 +114,7 @@ jobs:
             upstream/codex
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
+            android-app/tools/resolve_codex_catalog_version.py
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
@@ -123,6 +124,9 @@ jobs:
           set -euo pipefail
           test -f upstream/codex/codex-rs/app-server/Cargo.toml
           cat CODEX_UPSTREAM_COMMIT
+          python3 android-app/tools/resolve_codex_catalog_version.py --marker CODEX_UPSTREAM_COMMIT \
+            --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
+          grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
       - name: 配置 Android SDK/NDK
         shell: bash
         run: |
@@ -294,6 +298,7 @@ jobs:
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
+          cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting

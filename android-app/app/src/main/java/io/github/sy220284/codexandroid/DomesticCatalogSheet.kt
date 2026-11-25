@@ -26,7 +26,7 @@ internal fun DomesticCatalogSheet(vm: CodexViewModel, preset: DomesticModelPrese
     val endpoint = records(providers["providers"]).firstOrNull { it.optString("id") == id }?.optString("baseUrl").orEmpty()
     val live = preset.liveCatalog(endpoint)
     fun refresh() {
-        vm.refresh(key, "model/list", JSONObject().put("modelProvider", id).put("includeHidden", true))
+        vm.refresh(key, "model/list", ComposerProviderScope.request(id, forceRefresh = live).put("includeHidden", true))
     }
     LaunchedEffect(id, endpoint, engineStatus) {
         confirmModel = null

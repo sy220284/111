@@ -31,10 +31,10 @@ jobs:
           UPSTREAM_SHA: ${{ inputs.upstream_sha }}
         run: |
           set -euo pipefail
-          git clone --depth=1 --single-branch --branch main https://github.com/openai/codex.git "$RUNNER_TEMP/codex"
+          git clone --filter=blob:none --single-branch --branch main https://github.com/openai/codex.git "$RUNNER_TEMP/codex"
           if [ -n "$UPSTREAM_SHA" ]; then
             [[ "$UPSTREAM_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::须提供 40 位小写 SHA"; exit 1; }
-            git -C "$RUNNER_TEMP/codex" fetch --depth=1 origin "$UPSTREAM_SHA"
+            git -C "$RUNNER_TEMP/codex" fetch origin "$UPSTREAM_SHA"
             git -C "$RUNNER_TEMP/codex" checkout --detach "$UPSTREAM_SHA"
           fi
           git -C "$RUNNER_TEMP/codex" rev-parse HEAD > CODEX_UPSTREAM_COMMIT
@@ -42,6 +42,10 @@ jobs:
           echo 'https://github.com/openai/codex' >> CODEX_UPSTREAM_COMMIT
           mkdir -p upstream/codex
           rsync -a --delete --exclude=.git "$RUNNER_TEMP/codex/" upstream/codex/
+          git -C "$RUNNER_TEMP/codex" fetch --tags --filter=blob:none origin
+          python3 android-app/tools/resolve_codex_catalog_version.py \
+            --upstream "$RUNNER_TEMP/codex" --marker CODEX_UPSTREAM_COMMIT \
+            --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
           cat CODEX_UPSTREAM_COMMIT
           if find upstream/codex -type f -size +95M -print -quit | grep -q .; then
             echo "::error::存在超过 95 MB 的文件，需要 LFS 或分包"

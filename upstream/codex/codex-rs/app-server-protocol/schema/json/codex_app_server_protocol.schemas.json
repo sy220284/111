@@ -16871,6 +16871,13 @@
               "null"
             ]
           },
+          "forceRefresh": {
+            "description": "When true, request a fresh account catalog and report remote errors.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "includeHidden": {
             "description": "When true, include models that are hidden from the default picker list.",
             "type": [

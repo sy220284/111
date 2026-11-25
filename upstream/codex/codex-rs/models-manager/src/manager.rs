@@ -971,6 +971,7 @@ impl OpenAiModelsManager {
         {
             return Ok(());
         }
+        info!(client_version, model_count = models.len(), "remote model catalog refreshed");
         let refreshed = Arc::new(RefreshedModelCatalog {
             identity: identity.clone(),
             models: models.clone().into(),

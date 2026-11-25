@@ -51,7 +51,6 @@ internal object CodexNotificationDispatcher {
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
                 if (result.success) {
-                    refresh("models", "model/list")
                     catalogWarmup.accountChanged()
                     accountMetrics.accountChanged()
                     extensions.invalidate()
@@ -61,7 +60,6 @@ internal object CodexNotificationDispatcher {
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
-            refresh("models", "model/list")
             catalogWarmup.accountChanged()
             accountMetrics.accountChanged()
             extensions.invalidate()

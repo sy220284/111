@@ -6,8 +6,11 @@ import org.json.JSONObject
 internal object ComposerProviderScope {
     fun provider(raw: String?): String? = raw?.takeIf { it.isNotBlank() && it != "null" }
 
-    fun request(provider: String): JSONObject =
-        JSONObject().put("modelProvider", provider)
+    fun request(provider: String? = null, forceRefresh: Boolean = false): JSONObject =
+        JSONObject().apply {
+            provider?.let { put("modelProvider", it) }
+            if (forceRefresh) put("forceRefresh", true)
+        }
 
     fun catalogKey(provider: String?): String = if (provider == null) "models" else "composerModels:$provider"
 
