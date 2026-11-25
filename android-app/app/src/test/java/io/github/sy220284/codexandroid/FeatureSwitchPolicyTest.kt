@@ -11,7 +11,7 @@ class FeatureSwitchPolicyTest {
             .put("displayName", JSONObject.NULL).put("description", JSONObject.NULL))
 
     @Test fun allLiveStagesAndFutureNamesRemainVisible() {
-        assertTrue(row("future_flag", "underDevelopment").matches("future_flag"))
+        assertEquals("future flag", row("future_flag", "underDevelopment").title)
         assertNull(row("future_flag", "underDevelopment").restriction(emptySet()))
         assertNotNull(row("future_flag", "unknown").restriction(emptySet()))
         assertNotNull(row("old_flag", "removed").restriction(emptySet()))
@@ -20,7 +20,7 @@ class FeatureSwitchPolicyTest {
         assertNotNull(row("future.dotted", "stable").restriction(emptySet()))
         assertNotNull(row("memories").restriction(setOf("memories")))
         assertNotNull(row("respect_system_proxy", "beta").restriction(emptySet()))
-        assertTrue(row("memories").matches("长期记忆"))
+        assertEquals("长期记忆", row("memories").title)
     }
 
     @Test fun featureWritesOnlyOneBooleanAndReloadsUserConfiguration() {

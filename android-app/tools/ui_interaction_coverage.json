@@ -190,7 +190,7 @@
       "route": "features",
       "file": "FeatureSwitchPage.kt",
       "owner": "FeatureSwitchPage",
-      "component": "AtlasSearchField"
+      "component": "CodexFilterChip"
     }
   ],
   "subpages": [

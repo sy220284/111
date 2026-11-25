@@ -28,9 +28,6 @@ internal data class CoreFeatureSwitch(
         stage !in setOf("stable", "beta", "underDevelopment", "deprecated") -> "当前版本无法确认是否可修改"
         else -> null
     }
-    fun matches(query: String): Boolean = listOf(name, title, description, stageLabel).any {
-        it.contains(query.trim(), ignoreCase = true)
-    }
 }
 
 internal object FeatureSwitchPolicy {

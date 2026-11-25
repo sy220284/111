@@ -21,7 +21,6 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
     val securityBusy by vm.securitySaveBusy.collectAsState()
     val transfer by AppDataTransfer.state.collectAsState()
     val snapshot = controller.snapshot?.takeIf { it.session == session }
-    var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf("all") }
     var confirm by remember { mutableStateOf<Pair<CoreFeatureSwitch, Boolean>?>(null) }
     var detail by remember { mutableStateOf<CoreFeatureSwitch?>(null) }
@@ -33,9 +32,9 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
         if (session != null && !controller.busy && controller.attemptedSession != session) controller.refresh()
     }
     LaunchedEffect(session) { confirm = null; detail = null }
-    LaunchedEffect(query, filter) { listState.scrollToItem(0) }
+    LaunchedEffect(filter) { listState.scrollToItem(0) }
     val rows = snapshot?.rows.orEmpty()
-    val visible = rows.filter { it.matches(query) && when (filter) {
+    val visible = rows.filter { when (filter) {
         "preferred" -> it.name in FeatureSwitchPolicy.preferred
         "enabled" -> it.enabled
         "disabled" -> !it.enabled
@@ -51,8 +50,6 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "controls") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                AtlasSearchField(query, { query = it }, "搜索功能、名称或阶段",
-                    modifier = Modifier.testTag("feature-switch-search"), onClear = { query = "" })
                 if (snapshot != null) {
                     Text("全部 ${rows.size} 项 · 已开启 ${rows.count { it.enabled }} 项",
                         style = MaterialTheme.typography.titleMedium)
@@ -81,7 +78,7 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
             }
         }
         if (snapshot != null && visible.isEmpty()) item(key = "empty") {
-            Text("没有匹配的功能", color = Ink.muted)
+            Text("此分类暂无功能", color = Ink.muted)
         }
         items(visible, key = { it.name }) { row ->
             val restriction = row.restriction(snapshot?.managed.orEmpty())
