@@ -59,7 +59,9 @@ class UiPopulatedSubpagesInstrumentedTest {
                 CodexTheme {
                     Column(Modifier.fillMaxSize()) {
                         SessionTaskControls(sidebar, 2)
-                        ModelDocumentPane(preview, root, {}, Modifier.weight(1f).fillMaxHeight())
+                        var opened by remember { mutableStateOf(false) }
+                        ModelPreviewTray(listOf(preview), onOpen = { opened = true }, onDismiss = {})
+                        if (opened) ModelDocumentDialog(preview, root) { opened = false }
                     }
                 }
             }
@@ -71,11 +73,16 @@ class UiPopulatedSubpagesInstrumentedTest {
             rule.onNodeWithTag("codex-detail-close").performClick()
             rule.onNodeWithTag("sidebar-active-tasks").performClick()
             rule.runOnIdle { assertEquals(SessionTaskFilter.Active, sidebar.taskFilter) }
+            rule.onNodeWithTag("model-document-pane").assertDoesNotExist()
+            rule.onNodeWithTag("model-preview-tray").performClick()
+            rule.onNodeWithText("打开预览").performClick()
             rule.waitUntil(10000) {
                 rule.onAllNodesWithText("second line", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
             rule.onNodeWithText("定位第 2 行 · 只读预览").assertExists()
             capture("audit-model-document-preview-android35.png")
+            rule.onNodeWithContentDescription("关闭文件预览").performClick()
+            rule.onNodeWithTag("model-document-pane").assertDoesNotExist()
         } finally { root.deleteRecursively() }
     }
 

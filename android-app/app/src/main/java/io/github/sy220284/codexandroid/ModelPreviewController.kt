@@ -93,7 +93,7 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
         server ?: ModelPreviewMcpServer(::queue).also { it.launch(); server = it }
     }
 
-    suspend fun configure(params: JSONObject, effective: JSONObject): JSONObject = withContext(Dispatchers.IO) {
+    private suspend fun configure(params: JSONObject, effective: JSONObject): JSONObject = withContext(Dispatchers.IO) {
         val endpoint = host().config()
         val existing = effective.optJSONObject("config")?.optJSONObject("mcp_servers")
             ?.optJSONObject(ModelPreviewMcpServer.NAME)
@@ -107,12 +107,33 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
         copy.put("config", config.put(key, endpoint))
     }
 
-    suspend fun configureFork(params: JSONObject): JSONObject {
-        val explicit = (params.opt("cwd") as? String)?.takeIf { it.isNotBlank() }
-        val cwd = explicit ?: vm.bridge.request("thread/read", JSONObject().put("threadId", params.getString("threadId")))
-            .getJSONObject("thread").getString("cwd")
-        val directory = WorkspaceSelectionContract.validate(root, File(cwd))
-        return configure(params, vm.bridge.request("config/read", JSONObject().put("cwd", directory.absolutePath)))
+    /** Only setup is optional. The primary RPC is dispatched exactly once and its errors propagate. */
+    suspend fun request(method: String, params: JSONObject, effective: JSONObject? = null): JSONObject {
+        require(method in setOf("thread/start", "thread/resume", "thread/fork"))
+        val epoch = vm.bridge.connectedSession.value
+        val revision = vm.catalogWarmup.accountRevision.value
+        return PreviewOptionalRequest.execute(params, prepare = {
+            val configuration = effective ?: run {
+                val explicit = (params.opt("cwd") as? String)?.takeIf { it.isNotBlank() }
+                val cwd = explicit ?: vm.bridge.request("thread/read",
+                    JSONObject().put("threadId", params.getString("threadId")))
+                    .getJSONObject("thread").getString("cwd")
+                val directory = WorkspaceSelectionContract.validate(root, File(cwd))
+                vm.bridge.request("config/read", JSONObject().put("cwd", directory.absolutePath))
+            }
+            configure(params, configuration)
+        }, dispatch = { vm.bridge.request(method, it) }, unavailable = { receipt, failure ->
+            // Log only the error category: configuration and transport exceptions can contain credentials.
+            android.util.Log.w("ModelPreview", "预览服务准备失败：" + failure.javaClass.simpleName)
+            val thread = receipt.optJSONObject("thread")?.optString("id").orEmpty()
+            synchronized(lock) {
+                if (thread.isNotBlank() && !closed && epoch != null &&
+                    vm.bridge.connectedSession.value == epoch && vm.catalogWarmup.accountRevision.value == revision) {
+                    failedState.value = failedState.value + (thread to
+                        "任务文件预览暂不可用，当前会话仍可使用。任务结束后重新打开会话可重试预览服务。")
+                }
+            }
+        })
     }
 
     private fun queue(args: JSONObject, meta: JSONObject): JSONObject = runBlocking {

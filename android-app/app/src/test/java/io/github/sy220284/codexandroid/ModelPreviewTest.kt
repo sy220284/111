@@ -9,6 +9,49 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ModelPreviewTest {
+    @Test fun optionalPreviewPreparationFailureKeepsPrimaryRequestAndReportsOnce() = kotlinx.coroutines.runBlocking {
+        val original = JSONObject().put("cwd", "/workspace")
+        val preparationError = java.io.IOException("port unavailable")
+        var dispatched = 0
+        var reported = 0
+        val receipt = PreviewOptionalRequest.execute(original, prepare = { throw preparationError },
+            dispatch = { outgoing ->
+                assertSame(original, outgoing)
+                assertFalse(outgoing.has("config"))
+                dispatched++
+                "thread-created"
+            }, unavailable = { result, error ->
+                assertEquals("thread-created", result)
+                assertSame(preparationError, error)
+                reported++
+            })
+        assertEquals("thread-created", receipt)
+        assertEquals(1, dispatched)
+        assertEquals(1, reported)
+    }
+
+    @Test fun optionalPreviewNeverRetriesPrimaryFailureOrSwallowsCancellation() = kotlinx.coroutines.runBlocking {
+        var dispatched = 0
+        var reported = 0
+        val primary = IllegalStateException("core rejected request")
+        val failure = runCatching {
+            PreviewOptionalRequest.execute("original", prepare = { "configured" }, dispatch = {
+                assertEquals("configured", it)
+                dispatched++
+                throw primary
+            }, unavailable = { _: Unit, _ -> reported++ })
+        }.exceptionOrNull()
+        assertSame(primary, failure)
+        val cancelled = kotlinx.coroutines.CancellationException("cancelled")
+        val cancellation = runCatching {
+            PreviewOptionalRequest.execute("original", prepare = { throw cancelled },
+                dispatch = { dispatched++; Unit }, unavailable = { _, _ -> reported++ })
+        }.exceptionOrNull()
+        assertSame(cancelled, cancellation)
+        assertEquals(1, dispatched)
+        assertEquals(0, reported)
+    }
+
     @Test fun loopbackMcpSupportsHandshakeDiscoveryAndAuthenticatedCall() {
         val calls = java.util.concurrent.atomic.AtomicInteger()
         val host = ModelPreviewMcpServer { args, meta ->
@@ -19,6 +62,7 @@ class ModelPreviewTest {
         host.launch()
         try {
             val config = host.config()
+            assertFalse(config.getBoolean("required"))
             val token = config.getJSONObject("http_headers").getString("Authorization")
             fun post(method: String, params: JSONObject, auth: String = token): Pair<Int, JSONObject?> {
                 val connection = URL(config.getString("url")).openConnection() as HttpURLConnection

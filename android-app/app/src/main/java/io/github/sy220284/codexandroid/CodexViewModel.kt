@@ -206,8 +206,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
-                val outgoing = if (method == "thread/fork" && params != null) modelPreviews.configureFork(params) else params
-                val response = bridge.request(method, outgoing)
+                val response = if (method == "thread/fork" && params != null) modelPreviews.request(method, params)
+                    else bridge.request(method, params)
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -461,8 +461,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
                 captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread); LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
-                    val outgoing = if (method == "thread/start") modelPreviews.configure(params, permissionConfig) else params
-                    bridge.request(method, outgoing)
+                    if (method == "thread/start") modelPreviews.request(method, params, permissionConfig)
+                    else bridge.request(method, params)
                 }.submit(
                     existingThreadId = submittedThread,
                     createThreadParams = {

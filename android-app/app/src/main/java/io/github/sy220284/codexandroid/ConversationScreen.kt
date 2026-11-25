@@ -58,8 +58,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val previewFailures by vm.modelPreviews.failures.collectProjection { it[thread] }
     val previewEpoch by vm.bridge.connectedSession.collectAsState()
     val previewAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
-    val threadPreviews = remember(previewRequests, thread, previewEpoch, previewAccountRevision) {
-        previewRequests.filter { it.threadId == thread && it.epoch == previewEpoch && it.accountRevision == previewAccountRevision }
+    val threadPreviews = remember(previewRequests, thread, previewEpoch, previewAccountRevision, selectedWorkspace) {
+        previewRequests.filter { it.threadId == thread && it.epoch == previewEpoch &&
+            it.accountRevision == previewAccountRevision && it.workspace == selectedWorkspace }
     }
     var selectedPreview by remember(thread, previewEpoch, previewAccountRevision) { mutableStateOf<ModelPreviewRequest?>(null) }
     val draftOwner = vm.composerOwner(thread, selectedWorkspace)
@@ -245,24 +246,19 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
         if (previewFailures != null && !switching && status == EngineStatus.Connected)
             CodexNotice(requireNotNull(previewFailures), NoticeTone.Warning, Modifier.padding(horizontal = 14.dp))
-        if (threadPreviews.isNotEmpty() && !switching) ModelPreviewTray(threadPreviews,
-            onOpen = { selectedPreview = it }, onDismiss = { vm.modelPreviews.dismiss(it) })
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            val wide = maxWidth >= 720.dp
-            val preview = selectedPreview?.takeIf { !switching && it.workspace == selectedWorkspace && !transferBusy }
-            Row(Modifier.fillMaxSize()) {
-                key(thread) {
-                    ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
-                        compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
-                }
-                if (wide && preview != null) ModelDocumentPane(preview, File(vm.workingDirectory),
-                    onDismiss = { vm.modelPreviews.dismiss(preview); selectedPreview = null },
-                    modifier = Modifier.weight(1f).fillMaxHeight())
-            }
-            if (!wide && preview != null) ModelDocumentDialog(preview, File(vm.workingDirectory)) {
-                vm.modelPreviews.dismiss(preview)
-                selectedPreview = null
-            }
+        if (threadPreviews.isNotEmpty() && !switching && !transferBusy && status == EngineStatus.Connected)
+            ModelPreviewTray(threadPreviews,
+                onOpen = { selectedPreview = it }, onDismiss = { vm.modelPreviews.dismiss(it) })
+        key(thread) {
+            ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
+                compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+        }
+        val preview = selectedPreview?.takeIf {
+            !switching && !transferBusy && status == EngineStatus.Connected && it in threadPreviews
+        }
+        if (preview != null) ModelDocumentDialog(preview, File(vm.workingDirectory)) {
+            vm.modelPreviews.dismiss(preview)
+            selectedPreview = null
         }
         if (offerPlanApproval) {
             CodexNotice(

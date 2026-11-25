@@ -23,7 +23,7 @@ internal class ModelPreviewMcpServer(
     fun config(): JSONObject = JSONObject()
         .put("url", "http://127.0.0.1:${listeningPort}/mcp")
         .put("http_headers", JSONObject().put("Authorization", authorization))
-        .put("default_tools_approval_mode", "approve").put("startup_timeout_sec", 10)
+        .put("default_tools_approval_mode", "approve").put("required", false).put("startup_timeout_sec", 10)
         .put("tool_timeout_sec", 25)
 
     override fun serve(session: IHTTPSession): Response {

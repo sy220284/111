@@ -40,9 +40,8 @@ internal class WorkspaceTaskOperations(
                 ComposerPermissionPolicy.apply(params, AnswerWorkspaceStore.permission(workspaceRoot, selected.absolutePath, ComposerPermissionPolicy.selected(config)))
             }
         }
-        val outgoing = if (id in vm.threadExecutions.value) params else
-            vm.modelPreviews.configure(params, bridge.request("config/read", org.json.JSONObject().put("cwd", selected.absolutePath)))
-        val resumed = bridge.request("thread/resume", outgoing)
+        val resumed = if (id in vm.threadExecutions.value) bridge.request("thread/resume", params)
+            else vm.modelPreviews.request("thread/resume", params)
         if (isolated) AnswerWorkspaceStore.verifyRuntime(resumed, selected.absolutePath)
         check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == selected) {
             "运行核心未确认新工作目录，请重新打开会话"
