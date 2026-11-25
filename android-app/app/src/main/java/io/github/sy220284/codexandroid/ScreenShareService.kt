@@ -51,7 +51,7 @@ class ScreenShareService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) { terminate(); return START_NOT_STICKY }
         val requested = intent?.getStringExtra(TOKEN)
-        if (requested == null || screenShareSession.state.value.token != requested) {
+        if (requested == null || screenShareSession.state.value.token != requested || screenShareSession.state.value.stopping) {
             stopSelf(); return START_NOT_STICKY
         }
         if (token != null) return START_NOT_STICKY
@@ -196,7 +196,7 @@ class ScreenShareService : Service() {
         private const val CONSENT = "screen_consent"
 
         internal fun start(context: Context, token: String, consent: Intent) {
-            check(screenShareSession.state.value.token == token)
+            check(screenShareSession.state.value.token == token && !screenShareSession.state.value.stopping)
             ContextCompat.startForegroundService(context, Intent(context, ScreenShareService::class.java)
                 .putExtra(TOKEN, token).putExtra(CONSENT, consent))
         }

@@ -29,8 +29,12 @@ internal object QwenMediaWire {
         return "data:$mime;base64," + java.util.Base64.getEncoder().encodeToString(bytes)
     }
 
-    fun videoPart(uri: String) = JSONObject().put("type", "video_url")
-        .put("video_url", JSONObject().put("url", uri))
+    fun videoPart(uri: String): JSONObject {
+        require(uri.startsWith("data:video/mp4;base64,"))
+        // Model Studio's documented local video example uses an untyped data URL.
+        return JSONObject().put("type", "video_url")
+            .put("video_url", JSONObject().put("url", "data:;base64," + uri.substringAfter(',')))
+    }
     fun imagePart(uri: String) = JSONObject().put("type", "image_url")
         .put("image_url", JSONObject().put("url", uri))
     fun audioPart(uri: String, format: String? = null) = JSONObject().put("type", "input_audio")

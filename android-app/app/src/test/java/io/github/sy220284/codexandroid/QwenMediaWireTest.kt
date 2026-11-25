@@ -12,7 +12,7 @@ class QwenMediaWireTest {
         assertTrue(request.getBoolean("stream"))
         val part = request.getJSONArray("messages").getJSONObject(0).getJSONArray("content").getJSONObject(0)
         assertEquals("video_url", part.getString("type"))
-        assertEquals("data:video/mp4;base64,AQID", part.getJSONObject("video_url").getString("url"))
+        assertEquals("data:;base64,AQID", part.getJSONObject("video_url").getString("url"))
         val asr = QwenMediaWire.asr("data:audio/wav;base64,AQID")
         assertEquals("qwen3-asr-flash", asr.getString("model"))
         assertFalse(asr.getBoolean("stream"))

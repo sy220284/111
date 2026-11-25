@@ -23,7 +23,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
     @Volatile private var activeClient: QwenMediaAnalysis? = null
 
     fun start(owner: String, provider: String, source: String, mode: QwenMediaWire.Mode, question: String) {
-        if (job?.isActive == true || vm.composerContent.liveScreenAnalysis.state.value.running || !vm.globalWorkSnapshot().canStartNewTask) return
+        if (state.value.busy || job?.isActive == true || vm.composerContent.liveScreenAnalysis.state.value.running || !vm.globalWorkSnapshot().canStartNewTask) return
         val revision = vm.catalogWarmup.accountRevision.value
         val epoch = vm.bridge.connectedSession.value ?: return
         if (source !in vm.composerDrafts.value[owner]?.images.orEmpty()) return
@@ -49,7 +49,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
                         require(QwenMediaWire.accepts(mode, LocalMediaAttachmentPolicy.kind(file.path), file.length(),
                             LocalMediaAttachmentPolicy.kind(file.path) == "video" && LocalMediaAttachmentPolicy.hasAudio(file.path))) { "该附件不符合所选分析方式" }
                         if (mode != QwenMediaWire.Mode.NativeVideo)
-                            require(LocalMediaAttachmentPolicy.ownedPaths(file.path).all { File(it).isFile && File(it).length() > 0 }) { "解析附件缺失" }
+                            ComposerInputPolicy.validate(listOf(file.path), emptyList(), LocalImageAttachments.directory(app), File(vm.activeWorkspace.value))
                         DomesticProviderCredentials.withBoundCredential(app, preset, endpoint) { key ->
                             val client = QwenMediaAnalysis(endpoint, key) {
                                 cancellation.ensureActive()
@@ -86,25 +86,32 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
         val source = result.source ?: return
         val text = result.result ?: return
         val mode = result.mode ?: return
-        if (result.owner != owner || result.revision != vm.catalogWarmup.accountRevision.value ||
+        if (result.busy || result.owner != owner || result.revision != vm.catalogWarmup.accountRevision.value ||
             source !in vm.composerDrafts.value[owner]?.images.orEmpty()) return
+        val applying = result.copy(busy = true)
+        if (!state.compareAndSet(result, applying)) return
         vm.viewModelScope.launch {
             try {
                 if (textOnly) AppDataTransfer.withLocalMutation {
-                    LocalImageAttachments.preserveForHistory(vm.getApplication(), listOf(source))
+                    LocalImageAttachments.preserveForHistory(vm.getApplication<android.app.Application>(), listOf(source))
                 }
-                if (result.revision != vm.catalogWarmup.accountRevision.value || state.value != result) return@launch
+                check(result.revision == vm.catalogWarmup.accountRevision.value &&
+                    source in vm.composerDrafts.value[owner]?.images.orEmpty()) { "账号或原附件已变化" }
                 vm.composerDrafts.update { drafts ->
-            val original = drafts[owner] ?: return@update drafts
-            if (source !in original.images) return@update drafts
-            val evidence = "【媒体分析资料：${mode.model}，${mode.label}；仅供参考，请独立核对】\n$text\n【资料结束】"
-            val updated = ThreadComposerDrafts.text(drafts, owner, listOf(original.text, evidence).filter { it.isNotBlank() }.joinToString("\n\n"))
-            // Text-only use is explicit; preserve the original and all sidecars for history.
-            if (textOnly) ThreadComposerDrafts.images(updated, owner, original.images - source) else updated
-        }
+                    val original = drafts[owner] ?: return@update drafts
+                    if (source !in original.images) return@update drafts
+                    val evidence = "【媒体分析资料：${mode.model}，${mode.label}；仅供参考，请独立核对】\n$text\n【资料结束】"
+                    val updated = ThreadComposerDrafts.text(drafts, owner,
+                        listOf(original.text, evidence).filter { it.isNotBlank() }.joinToString("\n\n"))
+                    if (textOnly) ThreadComposerDrafts.images(updated, owner, original.images - source) else updated
+                }
                 state.value = State()
-            } catch (cancel: CancellationException) { throw cancel }
-            catch (failure: Exception) { state.update { it.copy(error = failure.message ?: "无法保留原附件") } }
+            } catch (cancel: CancellationException) {
+                state.value = result
+                throw cancel
+            } catch (failure: Exception) {
+                state.value = result.copy(error = failure.message ?: "无法保留原附件")
+            }
         }
     }
 }

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class ScreenShareSession {
     data class State(val token: String? = null, val owner: String? = null, val revision: Long = 0,
                      val capturing: Boolean = false, val hasFrame: Boolean = false, val message: String = "",
-                     val sequence: Long = 0)
+                     val sequence: Long = 0, val stopping: Boolean = false)
     data class Frame(val sequence: Long, val timeMs: Long, val bytes: ByteArray)
     private val mutableState = MutableStateFlow(State())
     val state = mutableState.asStateFlow()
@@ -23,7 +23,7 @@ internal class ScreenShareSession {
     }
     @Synchronized fun started(token: String): Boolean {
         val current = mutableState.value
-        if (current.token != token || current.capturing) return false
+        if (current.token != token || current.capturing || current.stopping) return false
         mutableState.value = current.copy(capturing = true)
         return true
     }
@@ -69,7 +69,7 @@ internal class ScreenShareSession {
         val current = mutableState.value
         if (current.token != token) return
         clearFrames()
-        mutableState.value = current.copy(capturing = false, hasFrame = false, message = message)
+        mutableState.value = current.copy(capturing = false, hasFrame = false, stopping = true, message = message.ifBlank { current.message })
     }
 
     @Synchronized fun finish(token: String, message: String = "") {

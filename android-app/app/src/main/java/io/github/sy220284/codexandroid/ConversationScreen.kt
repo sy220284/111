@@ -346,7 +346,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             }
             if (sharing.token != null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (!sharing.capturing) "等待屏幕共享授权" else if (sharing.owner != draftOwner)
+                    Text(if (sharing.stopping) "正在停止屏幕共享" else if (!sharing.capturing) "等待屏幕共享授权" else if (sharing.owner != draftOwner)
                         "其他会话正在共享屏幕" else if (sharing.hasFrame) "屏幕共享中 · 可添加最近画面"
                         else "屏幕共享中 · 等待画面", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
                     if (sharing.owner == draftOwner && sharing.hasFrame && !attachmentBusy && remote == null &&
@@ -626,9 +626,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 attachmentContent = {
                     LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
-                    if (qwenProvider != null && remote == null) MediaAnalysisActions(
+                    if ((qwenProvider != null || mediaAnalysis.owner == draftOwner) && remote == null) MediaAnalysisActions(
                         paths = attachedImages, state = mediaAnalysis, owner = draftOwner,
-                        enabled = !busy && !switching && !attachmentBusy && !transferBusy && !restarting,
+                        enabled = qwenProvider != null && !busy && !switching && !attachmentBusy && !transferBusy && !restarting,
                         onChoose = { path, mode -> mediaChoice = path to mode },
                         onCancel = { vm.composerContent.mediaAnalysis.cancel() },
                         onReview = { reviewMedia = true },

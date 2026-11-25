@@ -17,7 +17,7 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
     var confirm by remember(owner) { mutableStateOf(false) }
     var review by remember(owner) { mutableStateOf(false) }
     val mine = live.owner == owner && live.revision == revision
-    if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !live.running) {
+    if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !live.running && live.observations.isEmpty()) {
         CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }
     }
     if (mine && (live.running || live.observations.isNotEmpty() || live.message.isNotBlank())) {

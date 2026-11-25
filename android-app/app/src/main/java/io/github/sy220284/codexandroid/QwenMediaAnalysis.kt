@@ -105,6 +105,14 @@ internal class QwenMediaAnalysis(private val endpoint: String, private val secre
         }
         QwenMediaWire.Mode.SegmentedVideo -> {
             val timeline = VideoTimeline.read(file.path)
+            // Validate every segment before any billable call, not halfway through a video.
+            timeline.segments.forEachIndexed { index, segment ->
+                val paths = listOf(File(VideoTimeline.sheet(file.path, index))) +
+                    if (segment.audioStartUs != null) listOf(File(VideoTimeline.audio(file.path, index))) else emptyList()
+                require(paths.all { it.isFile && it.length() in 1..QwenMediaWire.MAX_SOURCE_BYTES }) {
+                    "存在缺失或超过7 MB的分段，请重新导入或压缩视频"
+                }
+            }
             val results = mutableListOf<String>()
             for ((index, segment) in timeline.segments.withIndex()) {
                 checkActive()
