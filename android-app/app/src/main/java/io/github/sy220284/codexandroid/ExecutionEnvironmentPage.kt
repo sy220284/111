@@ -200,12 +200,14 @@ fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
                 }
                 if (!vm.remoteBindings.permitsRegistration(remoteName.trim(), endpoint.trim()))
                     ErrorText("该连接名称已绑定历史任务，请使用原地址或选择新的名称。")
-                val binding = remember(targetId, endpoint, lastSubmittedRemote, results[infoKey], results[statusKey]) {
+                val bindingResult = remember(targetId, endpoint, lastSubmittedRemote, results[infoKey], results[statusKey]) {
                     if (lastSubmittedRemote == targetId && results[statusKey]?.optString("status") == "ready")
                         runCatching { RemoteExecutionBinding(targetId, endpoint.trim(),
-                            RemoteExecutionBinding.nativePath(requireNotNull(results[infoKey]).getString("cwd"))) }.getOrNull()
+                            RemoteExecutionBinding.nativePath(requireNotNull(results[infoKey]).getString("cwd"))) }
                     else null
                 }
+                bindingResult?.exceptionOrNull()?.let { ErrorText(it.message ?: "远端工作目录无法核对") }
+                val binding = bindingResult?.getOrNull()
                 if (binding != null) CodexPrimaryButton(onClick = {
                     if (vm.openRemoteTask(binding)) onRemoteTask()
                     else vm.errors.value = vm.errors.value + (addKey to "当前无法建立远端任务，请检查运行状态")

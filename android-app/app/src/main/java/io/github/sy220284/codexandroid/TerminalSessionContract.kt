@@ -7,7 +7,7 @@ import java.util.Base64
 
 /** A command is confirmed in the UI before this protocol request is sent. */
 object TerminalSessionContract {
-    fun execute(command: String, cwd: String, processId: String, tty: Boolean = false): JSONObject {
+    fun execute(command: String, cwd: String, processId: String, tty: Boolean = false, networkEnabled: Boolean = false): JSONObject {
         require(command.isNotBlank()) { "请输入要执行的命令" }
         require(cwd.isNotBlank()) { "工作目录不可为空" }
         require(processId.isNotBlank()) { "缺少终端会话标识" }
@@ -26,7 +26,7 @@ object TerminalSessionContract {
             }
             .put("sandboxPolicy", JSONObject()
                 .put("type", "externalSandbox")
-                .put("networkAccess", "restricted"))
+                .put("networkAccess", if (networkEnabled) "enabled" else "restricted"))
     }
 
     fun write(processId: String, line: String): JSONObject {

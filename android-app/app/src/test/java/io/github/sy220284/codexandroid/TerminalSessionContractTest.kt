@@ -25,6 +25,13 @@ class TerminalSessionContractTest {
         assertTrue(request.getBoolean("disableTimeout"))
     }
 
+    @Test fun standaloneNetworkAccessRequiresExplicitChoice() {
+        assertEquals("restricted", TerminalSessionContract.execute("curl", "/sandbox", "a")
+            .getJSONObject("sandboxPolicy").getString("networkAccess"))
+        assertEquals("enabled", TerminalSessionContract.execute("curl", "/sandbox", "b", networkEnabled = true)
+            .getJSONObject("sandboxPolicy").getString("networkAccess"))
+    }
+
     @Test fun interactiveTerminalUsesRealPtyAndSupportsResize() {
         val exec = TerminalSessionContract.execute("sh", "/sandbox/work", "pty-1", tty = true)
         assertTrue(exec.getBoolean("tty"))

@@ -61,7 +61,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val agentDraftWorkspace = MutableStateFlow<String?>(null)
     internal fun composerOwner(threadId: String?, workspace: String = activeWorkspace.value): String =
         if (threadId == null && conversationState.value.remote != null)
-            ThreadComposerDrafts.key(null, "remote:" + conversationState.value.remote!!.id + ":" + conversationState.value.remote!!.cwd)
+            ThreadComposerDrafts.key(null, "remote:" + conversationState.value.remote!!.json().toString())
         else if (threadId == null && agentDraftWorkspace.value == workspace) ThreadComposerDrafts.agentKey(workspace)
         else ThreadComposerDrafts.key(threadId, workspace)
     val composerDrafts = draftStorage.drafts.also { flow ->
@@ -614,8 +614,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startTerminalCommand(command: String, tty: Boolean = false) =
-        terminalTasks.startTerminalCommand(command, tty)
+    fun startTerminalCommand(command: String, tty: Boolean = false, networkEnabled: Boolean = false) =
+        terminalTasks.startTerminalCommand(command, tty, networkEnabled)
     fun resizeTerminal(rows: Int, cols: Int) = terminalTasks.resizeTerminal(rows, cols)
     fun sendTerminalInput(line: String, afterSent: () -> Unit = {}) =
         terminalTasks.sendTerminalInput(line, afterSent)

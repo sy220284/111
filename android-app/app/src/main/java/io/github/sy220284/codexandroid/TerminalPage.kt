@@ -45,6 +45,7 @@ import java.io.File
 fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
     var command by rememberSaveable { mutableStateOf("") }
     var interactive by rememberSaveable { mutableStateOf(false) }
+    var allowNetwork by remember { mutableStateOf(false) }
     var ttyRows by rememberSaveable { mutableStateOf("24") }
     var ttyCols by rememberSaveable { mutableStateOf("80") }
     var showTerminalSize by rememberSaveable { mutableStateOf(false) }
@@ -450,6 +451,14 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     WhiteSwitch(checked = interactive, onCheckedChange = { interactive = it },
                         enabled = !session.running && !terminalStarting)
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("本次命令允许联网", style = MaterialTheme.typography.bodyMedium)
+                        Text("下载、依赖安装等操作按需开启", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                    WhiteSwitch(checked = allowNetwork, onCheckedChange = { allowNetwork = it },
+                        enabled = !session.running && !terminalStarting)
+                }
                 CodexPrimaryButton(onClick = { confirm = true },
                     enabled = command.isNotBlank() && !session.running && !terminalStarting,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -471,7 +480,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
             File(activeWorkspace).relativeTo(File(vm.workingDirectory)).path
                 .takeIf { it != "." }?.let { "projects/" + it }.orEmpty()
                 .ifBlank { "projects/" } +
-            if (interactive) "\n交互式 PTY 终端" else "\n流式命令",
+            (if (interactive) "\n交互式 PTY 终端" else "\n流式命令") +
+            (if (allowNetwork) "\n本次允许联网" else "\n已请求限制联网（Android 系统级隔离未验证）"),
         confirmLabel = if (TerminalCommandPolicy.evaluate(command).dangerous) "确认执行高风险命令" else "确认执行",
         destructive = TerminalCommandPolicy.evaluate(command).dangerous,
         onConfirm = {
@@ -481,7 +491,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     (listOf(accepted) + recentCommands.filterNot { it == accepted }).take(10)
                 )
                 historyPosition = TerminalHistoryPosition()
-                vm.startTerminalCommand(accepted, tty = interactive)
+                vm.startTerminalCommand(accepted, tty = interactive, networkEnabled = allowNetwork)
+                allowNetwork = false
             }
             confirm = false
         },
