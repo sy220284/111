@@ -1408,7 +1408,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::CodeMode,
         key: "code_mode",
         stage: Stage::UnderDevelopment,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::CodeModeToolSearch,

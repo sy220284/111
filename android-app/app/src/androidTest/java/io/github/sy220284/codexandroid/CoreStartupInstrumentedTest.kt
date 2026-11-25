@@ -33,6 +33,61 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
+    @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val config = File(app.filesDir, "codex-home/config.toml")
+        val original = config.takeIf { it.isFile }?.readBytes()
+        val initial = CodexConnection(app)
+        var reopened: CodexConnection? = null
+        suspend fun read(bridge: CodexConnection): List<CoreFeatureSwitch> {
+            val rows = mutableListOf<CoreFeatureSwitch>()
+            val seen = mutableSetOf<String>()
+            var cursor: String? = null
+            do {
+                val response = bridge.request("experimentalFeature/list", capabilityPageParams(cursor))
+                val data = response.getJSONArray("data")
+                for (i in 0 until data.length()) rows.add(FeatureSwitchPolicy.parse(data.getJSONObject(i)))
+                cursor = response.value("nextCursor").takeIf { it.isNotBlank() }
+                check(cursor == null || seen.add(cursor))
+            } while (cursor != null)
+            assertEquals(rows.size, rows.map { it.name }.toSet().size)
+            return rows
+        }
+        try {
+            withTimeout(90_000L) {
+                initial.connect()
+                val rows = read(initial)
+                assertEquals(231, rows.size)
+                org.junit.Assert.assertTrue(rows.any { it.name == "guardianv2.thread_context" })
+                FeatureSwitchPolicy.preferred.forEach { key ->
+                    org.junit.Assert.assertTrue("Android default missing: $key", rows.single { it.name == key }.defaultEnabled)
+                }
+                val name = "suppress_model_change_announcements"
+                val target = !rows.single { it.name == name }.enabled
+                val response = initial.request("config/read", JSONObject().put("includeLayers", true))
+                val version = response.objects("layers").firstOrNull {
+                    it.optJSONObject("name")?.let { layer ->
+                        layer.optString("type") == "user" && layer.value("profile").isBlank()
+                    } == true
+                }?.value("version")?.takeIf { it.isNotBlank() }
+                assertEquals("ok", initial.request("config/batchWrite",
+                    FeatureSwitchPolicy.writeParams(name, target, version)).optString("status"))
+                assertEquals(target, read(initial).single { it.name == name }.enabled)
+                initial.close()
+                val next = CodexConnection(app)
+                reopened = next
+                next.connect()
+                assertEquals(target, read(next).single { it.name == name }.enabled)
+            }
+        } finally {
+            reopened?.close()
+            initial.close()
+            if (original != null) config.writeBytes(original) else if (config.exists()) {
+                check(config.delete()) { "test configuration cleanup failed" }
+            }
+        }
+    }
+
     @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)

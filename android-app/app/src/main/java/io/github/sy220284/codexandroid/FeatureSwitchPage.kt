@@ -26,6 +26,9 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
     var confirm by remember { mutableStateOf<Pair<CoreFeatureSwitch, Boolean>?>(null) }
     var detail by remember { mutableStateOf<CoreFeatureSwitch?>(null) }
     val listState = rememberLazyListState()
+    LaunchedEffect(session) {
+        if (session != null && !controller.busy) controller.refresh()
+    }
     LaunchedEffect(session, controller.busy) {
         if (session != null && !controller.busy && controller.attemptedSession != session) controller.refresh()
     }
@@ -108,15 +111,11 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
         )
     }
     detail?.let { row ->
-        AlertDialog(onDismissRequest = { detail = null },
-            title = { Text(row.title) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(row.stageLabel + " · 当前" + if (row.enabled) "开启" else "关闭")
-                    Text(row.description.ifBlank { FeatureSwitchPolicy.confirmation(row, !row.enabled) })
-                    Text("内核标识：${row.name}", style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                }
-            },
-            confirmButton = { CodexTextAction(onClick = { detail = null }) { Text("关闭") } })
+        FullTextReaderDialog(row.title, buildString {
+            append(row.stageLabel + " · 当前" + if (row.enabled) "开启" else "关闭")
+            append("\n\n")
+            append(row.description.ifBlank { FeatureSwitchPolicy.confirmation(row, !row.enabled) })
+            append("\n\n内核标识：${row.name}")
+        }) { detail = null }
     }
 }

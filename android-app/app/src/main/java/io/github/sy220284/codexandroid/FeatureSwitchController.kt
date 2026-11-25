@@ -13,7 +13,8 @@ internal data class FeatureSwitchSnapshot(
     val session: Long,
     val rows: List<CoreFeatureSwitch>,
     val managed: Set<String>,
-    val userVersion: String?
+    val userVersion: String?,
+    val userFeatures: JSONObject?
 )
 
 /** Complete paginated authoritative list. Optional thread scope is read-only. */
@@ -68,7 +69,8 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
             } == true
         }
         check(vm.bridge.connectedSession.value == session) { "内核已切换，请重新读取" }
-        return FeatureSwitchSnapshot(session, rows, managed, user?.value("version")?.takeIf { it.isNotBlank() })
+        return FeatureSwitchSnapshot(session, rows, managed, user?.value("version")?.takeIf { it.isNotBlank() },
+            user?.optJSONObject("config")?.optJSONObject("features"))
     }
 
     fun refresh() {
@@ -126,6 +128,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
                 val after = read(session)
                 snapshot = after
                 check(write.optString("status") == "ok") { "配置被更高优先级策略覆盖，请核对生效值" }
+                check(after.userFeatures?.opt(row.name) == enabled) { "用户配置未回读到写入值，请重新核对" }
                 check(after.rows.single { it.name == row.name }.enabled == enabled) {
                     "配置已提交，但内核实际生效值不同，请核对项目或管理策略"
                 }
@@ -154,6 +157,10 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
             if (writeAttempted && vm.bridge.connectedSession.value == session) {
                 vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
                 vm.refreshComposerPermissions()
+            }
+            if (vm.bridge.connectedSession.value == session) {
+                if (receipt.isNotBlank()) vm.actionFeedback.emit(ActionFeedbackReceipt(receipt))
+                else if (error.isNotBlank()) vm.actionFeedback.emit(ActionFeedbackReceipt(error, isError = true))
             }
         }
     }
