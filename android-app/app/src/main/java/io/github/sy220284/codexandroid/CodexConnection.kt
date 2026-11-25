@@ -37,7 +37,9 @@ sealed interface EngineStatus {
 }
 
 /** Official Codex app-server uses newline-delimited JSON-RPC without the jsonrpc field. */
-class CodexConnection(private val appContext: Context) {
+class CodexConnection internal constructor(private val appContext: Context,
+    private val startChild: (ProcessBuilder) -> Process) {
+    constructor(appContext: Context) : this(appContext, { it.start() })
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val writeScheduler = RpcWriteScheduler()
     private val requestPriorities = mutableMapOf<Long, RpcPriority>()
@@ -114,7 +116,7 @@ class CodexConnection(private val appContext: Context) {
             }
             val toolsDir = NativeToolInstaller.prepare(appContext)
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
-            val child = builder.start()
+            val child = startChild(builder)
             val channel = try { RpcProcessChannel(child) } catch (failure: Exception) {
                 child.destroyForcibly()
                 child.waitFor(RpcScheduling.RETIRE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
@@ -128,7 +130,12 @@ class CodexConnection(private val appContext: Context) {
                 }
             }
             if (!attached) {
-                terminate(child, channel)
+                // Lifecycle mutex prevents a replacement while an unpublished
+                // child is being retired, including the slow-exit case.
+                if (!terminate(child, channel)) {
+                    child.waitFor()
+                    closeWriter(channel)
+                }
                 error("内核启动已取消")
             }
             scope.launch { listen(epoch, child, channel) }

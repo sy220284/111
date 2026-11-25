@@ -63,7 +63,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             .github/scripts
-      - name: 查找已验证的 ARM64 原生核心
+      - name: 查找已验证的 ARM64 手机及 x86_64 运行验收核心
         id: detect
         shell: bash
         env:
@@ -71,13 +71,17 @@ jobs:
         run: |
           set -euo pipefail
           RESULT=0
-          python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" \
-            --abis arm64-v8a \
-            > "$RUNNER_TEMP/reused-native-run" || RESULT=$?
+          for ABI in arm64-v8a x86_64; do
+            ABI_RESULT=0
+            python3 .github/scripts/select_native_artifacts.py \
+              --repo "$GITHUB_REPOSITORY" --abis "$ABI" \
+              > "$RUNNER_TEMP/reused-native-$ABI" || ABI_RESULT=$?
+            if [ "$ABI_RESULT" -ne 0 ] && [ "$ABI_RESULT" -ne 3 ]; then exit "$ABI_RESULT"; fi
+            if [ "$ABI_RESULT" -eq 3 ]; then RESULT=3; fi
+          done
           if [ "$RESULT" -eq 0 ]; then
             echo "reuse=true" >> "$GITHUB_OUTPUT"
-            echo "复用原生构建 $(cat "$RUNNER_TEMP/reused-native-run")，跳过 Rust/NDK 重编译"
+            echo "两种验收核心均有精确匹配产物，跳过 Rust/NDK 重编译"
           elif [ "$RESULT" -eq 3 ]; then
             echo "reuse=false" >> "$GITHUB_OUTPUT"
             echo "源码、编译参数变更或可用产物缺失，启动原生编译"
@@ -100,6 +104,11 @@ jobs:
             clangxx: aarch64-linux-android29-clang++
             abi: arm64-v8a
             elf_arch: AArch64
+          - rust_target: x86_64-linux-android
+            clang: x86_64-linux-android29-clang
+            clangxx: x86_64-linux-android29-clang++
+            abi: x86_64
+            elf_arch: X86-64
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"

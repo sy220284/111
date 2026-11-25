@@ -17,6 +17,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -311,6 +312,36 @@ class CoreStartupInstrumentedTest {
         } catch (failure: Exception) {
             throw AssertionError("Offline thread lifecycle failed; status=" +
                 bridge.status.value + "; stderr=" + bridge.recentStderr.value.joinToString(" / "), failure)
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        var child: Process? = null
+        val bridge = CodexConnection(app) { builder -> builder.start().also { child = it } }
+        try {
+            withTimeout(120_000L) {
+                bridge.connect()
+                val old = checkNotNull(bridge.connectedSession.value)
+                val first = checkNotNull(child)
+                assertNotNull(bridge.request("account/read"))
+                first.destroyForcibly()
+                bridge.connectedSession.first { it == null }
+                org.junit.Assert.assertFalse(first.isAlive)
+                bridge.connect()
+                val current = checkNotNull(bridge.connectedSession.value)
+                org.junit.Assert.assertTrue(current > old)
+                org.junit.Assert.assertNotSame(first, child)
+                try {
+                    bridge.request("account/read", expectedSession = old)
+                    org.junit.Assert.fail("Retired request was redirected to the replacement core")
+                } catch (failure: IllegalStateException) {
+                    org.junit.Assert.assertTrue(failure.message.orEmpty().contains("切换"))
+                }
+                assertNotNull(bridge.request("account/read", expectedSession = current))
+            }
         } finally {
             bridge.close()
         }

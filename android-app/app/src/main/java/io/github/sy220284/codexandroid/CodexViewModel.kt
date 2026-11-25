@@ -8,9 +8,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -101,7 +98,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
     internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
-    private val mcpCatalog by lazy { McpCatalogController(this) }
+    internal val mcpCatalog by lazy { McpCatalogController(this) }
     internal val accountMetrics by lazy {
         AccountMetricsSync(viewModelScope, data, loading, errors,
             canRead = { bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy },
@@ -116,47 +113,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private var firstTurnImages: List<String> = emptyList()
 
-    private var connectJob: Job? = null
-    private var synchronizedEpoch: Long? = null
-
-    @Synchronized fun connect(): Job {
-        connectJob?.takeIf { it.isActive }?.let { return it }
-        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
-        try {
-            bridge.connect()
-            val epoch = bridge.connectedSession.value ?: return@launch
-            if (synchronizedEpoch == epoch) return@launch
-            synchronizedEpoch = epoch
-            val previousThread = activeThread.value
-            threadOrganization.invalidate()
-            mcpCatalog.reset()
-            // A new native process invalidates ephemeral status from the old session.
-            threadActivities.value = emptyMap()
-            errors.value = errors.value - "engine" - "protocol"
-            refresh("account", "account/read", JSONObject())
-            refresh("models", "model/list", JSONObject())
-            syncRecentThreads()
-            extensions.invalidate(preserveAuthorization = true)
-            extensions.refreshAfterAppAuthorization()
-            catalogWarmup.connected()
-            accountMetrics.accountChanged()
-            // Rebuild visible history after a connection loss, without resending a task.
-            if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread, forceReload = true)
-        } catch (cancel: CancellationException) {
-            throw cancel
-        } catch (failure: Exception) {
-            errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
-        }
-        }
-        connectJob = job
-        job.start()
-        return job
-    }
-
-    fun reconnectIfNeeded() {
-        if (bridge.status.value is EngineStatus.Unavailable && !bridge.retirementBusy.value &&
-            !AppDataTransfer.state.value.busy && !connectionRestarter.busy.value) connect()
-    }
+    private val runtimeConnection by lazy { RuntimeConnectionController(this) }
+    fun connect() = runtimeConnection.connect()
+    fun reconnectIfNeeded() = runtimeConnection.reconnectIfNeeded()
 
     /**
      * 同一结果键只接受最后发起的请求，避免较早的慢响应覆盖新结果。

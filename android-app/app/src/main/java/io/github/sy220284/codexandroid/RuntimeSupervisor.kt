@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,18 +39,22 @@ internal class RuntimeSupervisor(
             }
         }
         scope.launch {
-            combine(foreground, work, vm.bridge.status) { visible, snapshot, status ->
-                RuntimeRecoveryPolicy.shouldRecover(visible, snapshot, status is EngineStatus.Unavailable)
-            }.distinctUntilChanged().collectLatest { recover ->
-                if (!recover) return@collectLatest
+            val eligible = combine(work, vm.bridge.status) { snapshot, status ->
+                RuntimeRecoveryPolicy.shouldRecover(foreground.value, snapshot, status is EngineStatus.Unavailable)
+            }
+            combine(foreground, work) { visible, snapshot ->
+                (visible || snapshot.requiresForegroundProtection) && !snapshot.dataTransferBusy && !snapshot.restarting
+            }.distinctUntilChanged().collectLatest { demand ->
+                if (!demand) return@collectLatest
                 var interval = 1_000L
-                while (RuntimeRecoveryPolicy.shouldRecover(foreground.value, vm.globalWorkSnapshot(),
-                        vm.bridge.status.value is EngineStatus.Unavailable)) {
+                while (true) {
+                    eligible.first { it }
                     delay(interval)
                     if (!RuntimeRecoveryPolicy.shouldRecover(foreground.value, vm.globalWorkSnapshot(),
-                            vm.bridge.status.value is EngineStatus.Unavailable)) break
+                            vm.bridge.status.value is EngineStatus.Unavailable)) continue
                     vm.connect().join()
-                    interval = (interval * 2).coerceAtMost(60_000L)
+                    interval = if (vm.bridge.status.value == EngineStatus.Connected) 1_000L
+                        else (interval * 2).coerceAtMost(60_000L)
                 }
             }
         }
