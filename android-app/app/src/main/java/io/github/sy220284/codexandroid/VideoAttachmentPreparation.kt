@@ -147,7 +147,7 @@ internal object VideoAttachmentPreparation {
                 val time = extractor.sampleTime
                 require(time >= 0L) { "视频音频时间戳无效" }
                 val index = (time / (VideoSamplingPlan.SEGMENT_MS * 1000)).toInt().coerceAtMost(windows.lastIndex)
-                require(time < windows[index].endMs * 1000) { "音轨超出视频时间轴，请重新编码音视频" }
+                require(time < windows[index].endMs * 1000 || (index == windows.lastIndex && index == segment && time <= windows[index].endMs * 1000 + 250_000L)) { "音轨超出视频时间轴，请重新编码音视频" }
                 if (index != segment) {
                     require(index > segment) { "音轨时间戳无序" }
                     finish()
