@@ -15,7 +15,23 @@ test -x "$STRIP"
 TARGET="android-app/app/src/main/jniLibs/$ABI"
 mkdir -p "$TARGET"
 NEEDS_CPP_RUNTIME=0
-for ENTRY in "codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so" "rg:libcodex_rg.so" "git:libcodex_git.so"; do
+mapfile -t DEVELOPER_DIRS < <(find "$SRC_DIR" -type d -name development-runtime)
+test "${#DEVELOPER_DIRS[@]}" -eq 1
+DEVELOPER="${DEVELOPER_DIRS[0]}"
+test -s "$DEVELOPER/native/libpython3.14.so"
+for LIB in "$DEVELOPER"/native/*.so; do
+  test -s "$LIB"
+  readelf -h "$LIB" | grep -Fq "$ARCH"
+  mapfile -t ALIGNS < <(readelf -Wl "$LIB" | awk '$1=="LOAD" {print $NF}')
+  test "${#ALIGNS[@]}" -gt 0
+  for ALIGN in "${ALIGNS[@]}"; do (( ALIGN >= 16384 )); done
+  cp "$LIB" "$TARGET/$(basename "$LIB")"
+done
+ASSETS="android-app/app/src/main/assets/development-runtime"
+mkdir -p "$ASSETS"
+(cd "$DEVELOPER"; printf '%s  development-runtime.zip\n' "$(cat development-runtime.sha256)" | sha256sum -c -)
+cp "$DEVELOPER"/development-runtime.{zip,sha256,version} "$ASSETS/"
+for ENTRY in "codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so" "rg:libcodex_rg.so" "git:libcodex_git.so" "git-remote-http:libcodex_git_remote_http.so" "curl:libcodex_curl.so" "python:libcodex_python.so" "node:libcodex_node.so" "npm:libcodex_npm.so"; do
   NAME="${ENTRY%%:*}"; LIB="${ENTRY#*:}"
   mapfile -t MATCHES < <(find "$SRC_DIR" -type f -name "$NAME")
   if [ "${#MATCHES[@]}" -ne 1 ]; then
@@ -33,6 +49,7 @@ for ENTRY in "codex-app-server:libcodex_server.so" "codex-code-mode-host:libcode
     case "$DEP" in
       libc++_shared.so) NEEDS_CPP_RUNTIME=1 ;;
       libc.so|libm.so|libdl.so|liblog.so|libz.so|libandroid.so|libatomic.so|libaaudio.so|libOpenSLES.so|libmediandk.so) ;;
+      libpython3.14.so|lib*_python.so) test -s "$TARGET/$DEP" ;;
       *) echo "::error::$ABI $NAME has unbundled dependency: $DEP" >&2; exit 1 ;;
     esac
   done

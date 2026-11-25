@@ -13,6 +13,9 @@ on:
       - "android-app/tools/prepare_android_v8.sh"
       - "android-app/tools/adapt_android_v8_build.py"
       - "android-app/tools/build_android_git.sh"
+      - "android-app/tools/build_android_developer_runtime.sh"
+      - "android-app/tools/developer_python.c"
+      - "android-app/tools/developer_npm.c"
   pull_request:
     paths:
       # UI-only PRs must also have a complete ARM64 device candidate before merge.
@@ -34,6 +37,9 @@ on:
       - "android-app/tools/prepare_android_v8.sh"
       - "android-app/tools/adapt_android_v8_build.py"
       - "android-app/tools/build_android_git.sh"
+      - "android-app/tools/build_android_developer_runtime.sh"
+      - "android-app/tools/developer_python.c"
+      - "android-app/tools/developer_npm.c"
       - "android-app/tools/package_native_runtime.sh"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
@@ -134,6 +140,9 @@ jobs:
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
             android-app/tools/build_android_git.sh
+            android-app/tools/build_android_developer_runtime.sh
+            android-app/tools/developer_python.c
+            android-app/tools/developer_npm.c
       - name: 检查源码快照版本
         run: |
           set -euo pipefail
@@ -259,9 +268,9 @@ jobs:
             --target "$TARGET" --root "$RUNNER_TEMP/ripgrep-install" --jobs 2
           test -s "$RUNNER_TEMP/ripgrep-install/bin/rg"
           cp "$RUNNER_TEMP/ripgrep-install/bin/rg" "target/$TARGET/release/rg"
-          bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
-            "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
-          for NAME in codex-app-server codex-code-mode-host rg git; do
+          bash "$GITHUB_WORKSPACE/android-app/tools/build_android_developer_runtime.sh" \
+            "$TARGET" "$ANDROID_NDK_HOME" "target/$TARGET/release"
+          for NAME in codex-app-server codex-code-mode-host rg git git-remote-http curl python node npm; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
             file "$CORE"
@@ -286,6 +295,12 @@ jobs:
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-code-mode-host
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/rg
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/git
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/git-remote-http
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/curl
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/python
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/node
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/npm
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/development-runtime/
           if-no-files-found: error
           retention-days: 90
 

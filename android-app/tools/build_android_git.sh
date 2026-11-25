@@ -2,11 +2,11 @@
 # Build the original Git CLI for Android Bionic. Git remains an external executable
 # called through the Codex process's PATH, preserving upstream CLI behavior.
 set -euo pipefail
-if [ "$#" -ne 4 ]; then
-  echo "Usage: $0 <target-triple> <ndk-bin> <clang> <destination>" >&2
+if [ "$#" -ne 6 ]; then
+  echo "Usage: $0 <target-triple> <ndk-bin> <clang> <destination> <curl-prefix> <openssl-prefix>" >&2
   exit 2
 fi
-TARGET="$1"; BIN="$2"; CLANG="$3"; DEST="$4"
+TARGET="$1"; BIN="$2"; CLANG="$3"; DEST="$4"; CURL="$5"; SSL="$6"
 case "$TARGET" in aarch64-linux-android|x86_64-linux-android) ;; *)
   echo "Unsupported Android Git target: $TARGET" >&2; exit 2 ;;
 esac
@@ -54,28 +54,31 @@ for original, replacement in edits:
 path.write_text(source)
 print("Pinned Git 2.52 Android Bionic pthread adaptation verified")
 PY
-# Local Git operations run under the Android app UID. Keep required zlib,
-# but do not add unverified bundled curl/OpenSSL dynamic libraries.
+# Use the verified Android curl and OpenSSL archives, never host libraries.
 # Android Bionic exposes pthread APIs in libc, so pass an empty PTHREAD_LIBS
 # to prevent Git's upstream Makefile from linking unavailable -lpthread.
 # Git's Makefile uses SHELL_PATH for build-time generators AND target runtime.
 # Build generators must execute on Linux, while compiled paths and scripts must
 # retain Android's /system/bin/sh. Supply both target quoting variables explicitly.
-make -C "$SOURCE" -j 2 git \
+make -C "$SOURCE" -j 2 git git-remote-http \
   "CC=$CC" "AR=$AR" "RANLIB=$RANLIB" \
   "SHELL_PATH=/bin/sh" "SHELL_PATH_SQ=/system/bin/sh" \
   'SHELL_PATH_CQ_SQ="/system/bin/sh"' \
   "DEFAULT_EDITOR=vi" "DEFAULT_PAGER=cat" "PTHREAD_LIBS=" \
   "CFLAGS=-O2 -fPIC" \
   "LDFLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384" \
-  NO_CURL=YesPlease NO_EXPAT=YesPlease NO_GETTEXT=YesPlease \
+  "CURL_CONFIG=$CURL/bin/curl-config" "CURL_CFLAGS=-I$CURL/include" \
+  "CURL_LDFLAGS=$CURL/lib/libcurl.a $SSL/lib/libssl.a $SSL/lib/libcrypto.a -lz -ldl" \
+  NO_EXPAT=YesPlease NO_GETTEXT=YesPlease \
   NO_ICONV=YesPlease NO_OPENSSL=YesPlease \
   NO_TCLTK=YesPlease NO_PERL=YesPlease NO_NSEC=YesPlease \
   NO_INSTALL_HARDLINKS=YesPlease
 test -s "$SOURCE/git"
 mkdir -p "$(dirname "$DEST")"
 cp "$SOURCE/git" "$DEST"
+cp "$SOURCE/git-remote-http" "$(dirname "$DEST")/git-remote-http"
+test -s "$(dirname "$DEST")/git-remote-http"
 chmod 755 "$DEST"
 test -s "$DEST"
 "$BIN/llvm-readelf" -h "$DEST"
-echo "Android local Git $VERSION built from commit $COMMIT for $TARGET"
+echo "Android Git with HTTP(S) transport $VERSION built from commit $COMMIT for $TARGET"

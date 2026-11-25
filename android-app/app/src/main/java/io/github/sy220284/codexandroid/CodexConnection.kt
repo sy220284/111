@@ -119,7 +119,7 @@ class CodexConnection internal constructor(private val appContext: Context,
             if (!codeModeHost.isFile) throw CoreStartupRejected(
                 "APK 缺少当前设备 ABI 的 Code Mode Host，请安装包含完整运行组件的版本。")
             val toolsDir = NativeToolInstaller.prepare(appContext)
-            builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
+            DeveloperRuntime.configure(appContext, toolsDir, builder.environment())
             val credentialBootstrap = DomesticProviderCredentials.bootstrap(appContext)
             val providerBootstrap = credentialBootstrap.bytes
             val (child, channel) = try {

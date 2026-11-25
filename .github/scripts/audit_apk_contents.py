@@ -18,6 +18,12 @@ REQUIRED_RUNTIME = (
     "libcodex_code_mode_host.so",
     "libcodex_rg.so",
     "libcodex_git.so",
+    "libcodex_git_remote_http.so",
+    "libcodex_curl.so",
+    "libcodex_python.so",
+    "libcodex_node.so",
+    "libcodex_npm.so",
+    "libpython3.14.so",
 )
 
 
@@ -38,6 +44,8 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
             required = list(REQUIRED_ANDROID) + [f"lib/{abi}/libhpatchz.so"]
             if mode == "full":
                 required.extend(f"lib/{abi}/{binary}" for binary in REQUIRED_RUNTIME)
+            if mode == "full":
+                required.extend("assets/development-runtime/development-runtime." + ext for ext in ("zip", "sha256", "version"))
             missing = sorted(set(required) - entries.keys())
             if missing:
                 raise ApkAuditError("关键安装文件缺失：" + ", ".join(missing))

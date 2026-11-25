@@ -18,6 +18,9 @@ NATIVE_FILES = frozenset({
     "android-app/tools/prepare_android_v8.sh",
     "android-app/tools/adapt_android_v8_build.py",
     "android-app/tools/build_android_git.sh",
+    "android-app/tools/build_android_developer_runtime.sh",
+    "android-app/tools/developer_python.c",
+    "android-app/tools/developer_npm.c",
 })
 
 

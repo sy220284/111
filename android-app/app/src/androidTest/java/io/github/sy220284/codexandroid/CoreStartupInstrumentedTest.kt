@@ -445,6 +445,31 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun bundledDeveloperToolsActuallyExecute() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val tools = NativeToolInstaller.prepare(app)
+        val command = """set -e
+            git --version
+            git --exec-path
+            test -x "$(command -v git-remote-https)"
+            curl --version
+            python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
     @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)

@@ -208,6 +208,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 AtlasFieldFeedback("请选择检查状态或查看详情以获取最新信息")
             }
         }
+        DeveloperToolStatus(vm)
         EngineSettingsSection(vm, "environments", target)
     }
 }
