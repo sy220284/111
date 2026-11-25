@@ -149,6 +149,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         userAction: Boolean = false
     ) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return
+        if (userAction && AccountVoiceSettingsLease.blocks(method, loading.value)) {
+            val reason = "账号声音设置正在写入或读取，请完成后再切换账号"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
+            return
+        }
         if (userAction && method in setOf("thread/queue/add", "thread/queue/update", "thread/queue/delete", "thread/queue/reorder")) {
             val owner = params?.optString("threadId")
             if (owner.isNullOrBlank() || owner != activeThread.value || threadSwitching.value ||
@@ -629,7 +635,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Reserve the login synchronously: concurrent taps cannot replace each other's codes. */
     private fun beginLogin(type: String) {
-        if (loginBusy.value || activeLoginId.value.isNotBlank()) return
+        if (loginBusy.value || activeLoginId.value.isNotBlank() ||
+            AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) return
         loginBusy.value = true
         viewModelScope.launch {
             try {

@@ -51,6 +51,13 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
             !vm.loginBusy.value &&
             vm.activeLoginId.value.isBlank() && !AppDataTransfer.state.value.busy
 
+    fun launchAccountOperation(block: suspend () -> Unit) {
+        if (operation.busy || !ownsAccount() || !AccountVoiceSettingsLease.acquire(vm.loading)) return
+        operation.launch {
+            try { block() } finally { AccountVoiceSettingsLease.release(vm.loading) }
+        }
+    }
+
     suspend fun read(): AccountVoiceSettingsSnapshot {
         check(ownsAccount()) { "账号或内核已切换，请刷新账号状态" }
         val result = vm.capabilityRequest("account/voiceSettings/read", null,
@@ -67,13 +74,13 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
         Box {
             CodexSecondaryButton(
                 onClick = {
-                    operation.launch {
+                    launchAccountOperation {
                         snapshot = null
                         snapshot = read()
                         menu = snapshot?.voices?.isNotEmpty() == true
                     }
                 },
-                enabled = !operation.busy && ownsAccount(),
+                enabled = !operation.busy && ownsAccount() && AccountVoiceSettingsLease.key !in vm.loading.value,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 val current = snapshot
@@ -87,7 +94,7 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
                     }, onClick = {
                         menu = false
                         val current = snapshot
-                        if (current != null && option.voice != current.selected) operation.launch {
+                        if (current != null && option.voice != current.selected) launchAccountOperation {
                             val params = current.writeParams(option.voice)
                             check(ownsAccount()) { "账号已切换，请重新读取声音目录" }
                             snapshot = null

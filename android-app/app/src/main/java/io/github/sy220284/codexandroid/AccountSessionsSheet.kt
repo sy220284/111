@@ -137,7 +137,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                         target = Triple(sid, aid,
                                             PresentationPolicy.meaningful(workspace.optString("name"))
                                                 .ifEmpty { "未命名工作区" })
-                                    }, enabled = "accountSessionSwitch" !in loading) {
+                                    }, enabled = "accountSessionSwitch" !in loading && AccountVoiceSettingsLease.key !in loading) {
                                     Text("切换")
                                 }
                             }
