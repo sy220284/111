@@ -9,7 +9,6 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -18,6 +17,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 
 /** Portable, on-device backup; never accesses a server or contacts a third party. */
 internal object LocalDataArchive {
@@ -29,8 +31,12 @@ internal object LocalDataArchive {
     private const val READY = ".codex-restore-ready"
     private const val STAGED = ".codex-restore-staged"
     private const val INCOMING = ".codex-restore-incoming"
+    private const val ROLLBACK = ".codex-restore-rollback"
     private const val RESULT_PREFS = "codex-data-transfer-status"
     private const val RESULT_KEY = "result"
+    private val regeneratedRoots = setOf("native-tools", "developer-runtime", "developer-packages", "developer-system-ca.pem")
+
+    private fun regenerated(name: String): Boolean = name in regeneratedRoots || name.startsWith("developer-system-ca.pem.")
 
     internal fun validatePath(name: String): Boolean {
         if (!name.startsWith("files/") && !name.startsWith("shared_prefs/")) return false
@@ -38,6 +44,7 @@ internal object LocalDataArchive {
         val parts = name.split('/')
         if (parts.size < 2 || parts.any { it.isBlank() || it == "." || it == ".." }) return false
         if (parts[1].startsWith(".codex-restore") || parts[1] == ".download-workspace-v1") return false
+        if (parts[0] == "files" && regenerated(parts[1])) return false
         if (parts[0] == "files" && parts[1] == "codex-home" &&
             parts.last().matches(Regex("(?i)(auth|credentials|tokens?)\\.json"))) return false
         if (parts[0] == "shared_prefs" &&
@@ -68,15 +75,18 @@ internal object LocalDataArchive {
             for ((prefix, root) in listOf("files" to privateRoot, PROJECTS_PREFIX to WorkspaceStorage.root(context), "shared_prefs" to prefsRoot)) {
                 if (!root.isDirectory) continue
                 root.walkTopDown().onEnter { directory ->
-                    !directory.name.startsWith(".codex-restore") &&
-                        !(root == privateRoot && directory == WorkspaceStorage.legacyRoot(context))
-                }.filter { it.isFile }.forEach { file ->
-                    val canonical = file.canonicalFile
-                    if (!canonical.path.startsWith(root.path + File.separator)) {
-                        throw IOException("发现超出私有目录的文件：" + file.name)
+                    if (root == privateRoot && directory.parentFile == root &&
+                        (regenerated(directory.name) || directory == WorkspaceStorage.legacyRoot(context))) false
+                    else {
+                        require(!Files.isSymbolicLink(directory.toPath())) { "备份目录包含符号链接：" + directory.name }
+                        !directory.name.startsWith(".codex-restore")
                     }
-                    val name = "$prefix/" + canonical.relativeTo(root).invariantSeparatorsPath
+                }.filter { it != root && (!it.isDirectory || Files.isSymbolicLink(it.toPath())) }.forEach { file ->
+                    val name = "$prefix/" + file.relativeTo(root).invariantSeparatorsPath
                     if (!validatePath(name)) return@forEach
+                    require(!Files.isSymbolicLink(file.toPath()) && file.isFile) { "备份包含不可移植的文件：" + file.name }
+                    val canonical = file.canonicalFile
+                    require(canonical.path.startsWith(root.path + File.separator)) { "备份文件路径越界：" + file.name }
                     if (++count > MAX_FILES) throw IOException("数据文件数量超过备份上限")
                     if (file.length() > MAX_FILE_BYTES ||
                         total + file.length() > MAX_TOTAL_BYTES) {
@@ -173,71 +183,158 @@ internal object LocalDataArchive {
         }
     }
 
+    fun hasPending(context: Context): Boolean = File(context.filesDir, READY).isFile
+
+    /** Only cancel a staged import before any restore has begun in this process. */
+    fun cancelStaged(context: Context) {
+        val marker = File(context.filesDir, READY)
+        check(marker.isFile && marker.readText() == "pending") { "没有可取消的待恢复备份" }
+        check(marker.delete()) { "无法取消恢复标记，请重试" }
+        check(File(context.filesDir, STAGED).deleteRecursively()) { "恢复已取消，暂存目录清理失败" }
+        saveResult(context, "已取消待恢复备份，当前数据保持不变。")
+    }
+
     /** Called before creating a process-wide ViewModel or a native subprocess. */
     fun restoreIfPending(context: Context) {
         val marker = File(context.filesDir, READY)
-        if (!marker.isFile) return
+        val transaction = LocalRestoreTransaction(File(context.filesDir, ROLLBACK))
+        if (!marker.isFile) {
+            // A marker-free journal can only be left by post-commit cleanup.
+            if (transaction.hasJournal()) transaction.finish()
+            return
+        }
         val staged = File(context.filesDir, STAGED)
+        var targets: List<Pair<File, File>>? = null
+        var committed = false
         try {
             require(staged.isDirectory) { "已标记恢复但暂存数据缺失" }
-            val files = staged.walkTopDown().filter { it.isFile }.toList()
+            val files = Files.walk(staged.toPath()).use { paths ->
+                paths.map { path ->
+                    require(!Files.isSymbolicLink(path)) { "暂存备份包含符号链接" }
+                    path.toFile()
+                }.filter { it.isFile }.collect(java.util.stream.Collectors.toList())
+            }
             require(files.isNotEmpty() && files.size <= MAX_FILES) { "恢复数据不完整" }
             val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs")
-            var recovered = 0
-            for (file in files) {
+            val checkedTargets = files.sortedBy { it.relativeTo(staged).invariantSeparatorsPath }.map { file ->
                 val name = file.relativeTo(staged).invariantSeparatorsPath
                 require(validatePath(name)) { "恢复文件路径无效：" + name }
                 val target = if (name.startsWith("$PROJECTS_PREFIX/")) {
                     val root = WorkspaceStorage.root(context)
-                    File(root, name.removePrefix("$PROJECTS_PREFIX/")).canonicalFile.also {
-                        require(it.path.startsWith(root.path + File.separator)) { "恢复路径越界" }
-                    }
+                    File(root, name.removePrefix("$PROJECTS_PREFIX/"))
                 } else if (name.startsWith("files/")) {
                     require(name != PROJECTS_PREFIX) { "工作区必须是目录" }
                     File(context.filesDir, name.removePrefix("files/"))
                 } else File(prefsRoot, name.removePrefix("shared_prefs/"))
-                if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
-                    throw IOException("恢复目标目录无法创建")
-                // Keep each staged source until all replacements are complete. If the
-                // process exits midway, next launch replays the same verified backup.
-                val temporary = File.createTempFile(".codex-import-", ".tmp", target.parentFile)
-                try {
-                    Files.copy(file.toPath(), temporary.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING)
-                    Files.move(temporary.toPath(), target.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING,
-                        StandardCopyOption.ATOMIC_MOVE)
-                } finally {
-                    if (temporary.exists() && !temporary.delete())
-                        throw IOException("无法清理恢复临时文件：" + temporary.name)
+                val targetRoot = when {
+                    name.startsWith("$PROJECTS_PREFIX/") -> WorkspaceStorage.root(context)
+                    name.startsWith("files/") -> context.filesDir
+                    else -> prefsRoot
                 }
-                recovered++
+                val base = targetRoot.toPath().toAbsolutePath().normalize()
+                val destination = target.toPath().toAbsolutePath().normalize()
+                require(destination.startsWith(base) && destination != base) { "恢复路径越界" }
+                var current = destination
+                while (current != base) {
+                    require(!Files.isSymbolicLink(current)) { "恢复路径包含符号链接：" + current.fileName }
+                    if (current != destination && Files.exists(current))
+                        require(Files.isDirectory(current)) { "恢复父目录与文件冲突：" + current.fileName }
+                    current = current.parent
+                }
+                require(!Files.isSymbolicLink(base)) { "恢复根目录包含符号链接" }
+                require(!target.exists() || target.isFile) { "恢复目标与目录冲突：" + target.name }
+                file to target
             }
-            if (!marker.delete()) throw IOException("恢复完成但标记未清理")
-            if (!staged.deleteRecursively()) throw IOException("无法清理恢复暂存目录")
-            saveResult(context, "本地数据恢复完成（$recovered 项）。账号登录凭据已排除，请重新登录。")
+            targets = checkedTargets
+            if (transaction.hasJournal()) {
+                transaction.rollback(checkedTargets)
+                check(marker.delete()) { "恢复回滚完成但标记未清理" }
+                committed = true
+                saveResult(context, "上次恢复被中断，已完整回滚原数据。可重新选择备份恢复。")
+            } else {
+                transaction.prepare(checkedTargets)
+                transaction.apply(checkedTargets)
+                check(marker.delete()) { "恢复提交标记无法清理" }
+                committed = true
+                saveResult(context, "本地数据恢复完成（${checkedTargets.size} 项）。账号登录凭据已排除，请重新登录。")
+            }
+            transaction.finish()
+            check(staged.deleteRecursively()) { "恢复暂存目录清理失败" }
         } catch (failure: Exception) {
-            saveResult(context, "恢复未完成：" + (failure.message ?: "请检查本机存储空间") +
-                "。暂存数据已保留，下次完整启动将继续恢复。")
+            if (committed) {
+                // Live data is already committed or rolled back; cleanup failure must
+                // not cause the transaction to be replayed on another startup.
+                saveResult(context, "恢复事务已结束，暂存清理或结果记录失败：" + failure.message.orEmpty())
+                return
+            }
+            try {
+                if (transaction.hasJournal()) {
+                    transaction.rollback(requireNotNull(targets) { "恢复目标无法重新验证" })
+                }
+                check(marker.delete()) { "恢复标记无法清理" }
+            } catch (rollback: Exception) {
+                failure.addSuppressed(rollback)
+                saveResult(context, "恢复回滚未完成，原数据快照仍保留，请检查存储：" + rollback.message.orEmpty())
+                throw IOException("恢复回滚尚未完成，已阻止打开不一致的数据", failure)
+            }
+            saveResult(context, "恢复未完成，原数据已保留：" + failure.message.orEmpty())
+            transaction.finish()
+            // Keep the verified archive for diagnosis until the next explicit import.
         }
     }
 }
 
 internal data class DataTransferState(
     val busy: Boolean = false,
-    val result: String = ""
+    val result: String = "",
+    val pendingRestore: Boolean = false
 )
 
 /** Device-local operations survive leaving the settings page. */
 internal object AppDataTransfer {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val state = MutableStateFlow(DataTransferState())
+    private val mutationCount = MutableStateFlow(0)
+    val localMutations = mutationCount.asStateFlow()
 
-    fun export(context: Context, destination: Uri) {
-        if (state.value.busy) return
-        state.value = DataTransferState(busy = true, result = "正在导出本机工作数据…")
+    @Synchronized private fun tryBeginMutation(): Boolean {
+        if (state.value.busy) return false
+        mutationCount.value += 1
+        return true
+    }
+
+    @Synchronized private fun endMutation() {
+        check(mutationCount.value > 0)
+        mutationCount.value -= 1
+    }
+
+    suspend fun <T> withLocalMutation(block: suspend () -> T): T {
+        check(tryBeginMutation()) { "本机数据正在备份或恢复，请完成后再操作" }
+        try { return block() }
+        finally { endMutation() }
+    }
+
+    suspend fun <T> mutateLocal(block: () -> T): T = withLocalMutation {
+        withContext(Dispatchers.IO) { block() }
+    }
+
+    suspend fun persistDrafts(block: () -> Unit) {
+        while (!tryBeginMutation()) state.first { !it.busy }
+        try { withContext(Dispatchers.IO) { block() } }
+        finally { endMutation() }
+    }
+
+    @Synchronized private fun beginTransfer(message: String): Boolean {
+        if (state.value.busy || mutationCount.value != 0) return false
+        state.value = DataTransferState(busy = true, result = message)
+        return true
+    }
+
+    fun export(context: Context, destination: Uri, drafts: Map<String, ComposerDraft>): Boolean {
+        if (!beginTransfer("正在导出本机工作数据…")) return false
         scope.launch {
             state.value = try {
+                DraftPersistence.save(context.applicationContext, drafts)
                 val output = context.contentResolver.openOutputStream(destination)
                     ?: throw IOException("所选位置无法写入")
                 val count = output.use { LocalDataArchive.export(context.applicationContext, it) }
@@ -246,20 +343,38 @@ internal object AppDataTransfer {
                 DataTransferState(result = "导出失败：" + (failure.message ?: "无法写入备份"))
             }
         }
+        return true
     }
 
-    fun import(context: Context, source: Uri) {
-        if (state.value.busy) return
-        state.value = DataTransferState(busy = true, result = "正在校验本机备份…")
+    fun import(context: Context, source: Uri): Boolean {
+        if (!beginTransfer("正在校验本机备份…")) return false
         scope.launch {
             state.value = try {
                 val input = context.contentResolver.openInputStream(source)
                     ?: throw IOException("所选备份文件无法打开")
                 val count = input.use { LocalDataArchive.stageImport(context.applicationContext, it) }
-                DataTransferState(result = "已验证 $count 项。请完全关闭应用并重新启动以恢复数据。")
+                DataTransferState(busy = true, pendingRestore = true, result = "已验证 $count 项。关闭并重新打开应用即可恢复。")
             } catch (failure: Exception) {
-                DataTransferState(result = "导入失败：" + (failure.message ?: "备份文件无效"))
+                DataTransferState(busy = LocalDataArchive.hasPending(context), pendingRestore = LocalDataArchive.hasPending(context),
+                    result = "导入检查未完成：" + (failure.message ?: "备份文件无效"))
+            }
+        }
+        return true
+    }
+
+    @Synchronized fun cancelPending(context: Context) {
+        if (!state.value.pendingRestore) return
+        state.value = DataTransferState(busy = true, result = "正在取消待恢复备份")
+        scope.launch {
+            state.value = try {
+                LocalDataArchive.cancelStaged(context.applicationContext)
+                DataTransferState(result = "已取消待恢复备份")
+            } catch (failure: Exception) {
+                val pending = LocalDataArchive.hasPending(context)
+                DataTransferState(busy = pending, pendingRestore = pending,
+                    result = failure.message ?: "取消失败，请检查存储")
             }
         }
     }
+
 }

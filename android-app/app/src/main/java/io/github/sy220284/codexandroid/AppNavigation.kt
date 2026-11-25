@@ -55,6 +55,7 @@ val pages = listOf(
     Page("environments", "运行管理", "设置与账户", "执行设备、后台资源和终端等待", CodexGlyph.Dns, "environment/status", true),
     Page("account", "账号登录", "设置与账户", "ChatGPT 登录与会话", CodexGlyph.AccountCircle, "account/read"),
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", CodexGlyph.Tune, "modelProvider/list"),
+    Page("features", "功能开关", "设置与账户", "全部内核能力、实验功能和默认状态", CodexGlyph.Tune, "experimentalFeature/list"),
     Page("config", "开发者设置", "设置与账户", "高级配置和运行诊断", CodexGlyph.Settings, "config/read"),
     Page("personalization", "个性化设置", "设置与账户", "全局执行指令与工作偏好", CodexGlyph.AccountCircle, "config/read"),
     Page("context", "上下文管理", "设置与账户", "历史压缩与工具输出保留", CodexGlyph.Thread, "config/read"),
@@ -231,6 +232,13 @@ fun CodexShell(vm: CodexViewModel) {
             }
         }
     }
+    val agentActionNavigation by vm.agentActionNavigation.collectAsState()
+    LaunchedEffect(agentActionNavigation) {
+        if (agentActionNavigation != 0L) {
+            move("chat")
+            vm.agentActionNavigation.value = 0L
+        }
+    }
     LaunchedEffect(pendingDeepLink, status) {
         val id = pendingDeepLink
         if (id != null && status == EngineStatus.Connected) {
@@ -354,7 +362,8 @@ fun CodexShell(vm: CodexViewModel) {
                         // interactive during rapid settings / feature navigation.
                         CodexRouteEntrance(selected, reduceMotion) {
                             pageStateHolder.SaveableStateProvider(selected) {
-                                CompositionLocalProvider(LocalWorkPageTitle provides page.title) {
+                                CompositionLocalProvider(LocalWorkPageTitle provides page.title,
+                                    LocalCodexProtectedTop provides inset.calculateTopPadding()) {
                                     PageContent(selected, vm, move)
                                 }
                             }
@@ -411,7 +420,7 @@ fun CodexShell(vm: CodexViewModel) {
         if (activeSheet == "models") ModelChoiceSurface(vm) { closeSheet("models") }
         if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }
         // Archive transfer must block all foreground pages and sheets.
-        ObserveDataTransferBusyOverlay()
+        ObserveDataTransferBusyOverlay(vm)
     }
 }
 
@@ -428,12 +437,16 @@ private fun Sidebar(
     val accountData by vm.data.collectEntries("limits")
     val accountErrors by vm.errors.collectEntries("limits")
     val limitsLoading by vm.loading.collectProjection { "limits" in it }
+    val retiring by vm.bridge.retirementBusy.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val retry by vm.recoveryDelayMs.collectAsState()
+    val canReconnect = RuntimeStatusPresentation.canReconnect(status, retiring, restarting)
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(
-            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Codex", modifier = Modifier.weight(1f),
@@ -517,9 +530,9 @@ private fun Sidebar(
             }
         }
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 36.dp)
+            Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 .clickable {
-                    if (status is EngineStatus.Unavailable) vm.connect()
+                    if (canReconnect) vm.connectionRestarter.reconnect()
                     else onSelect("status")
                 }.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -528,11 +541,8 @@ private fun Sidebar(
                 tint = if (status == EngineStatus.Connected) Ink.jade else Ink.warning,
                 modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(10.dp))
-            Text(when (status) {
-                EngineStatus.Connected -> "内核已连接"
-                EngineStatus.Starting -> "正在连接本机内核"
-                is EngineStatus.Unavailable -> "连接已断开 · 点击重连"
-            },
+            Text(RuntimeStatusPresentation.label(status, retiring, restarting, retry) +
+                if (canReconnect) " · 重连" else "",
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,

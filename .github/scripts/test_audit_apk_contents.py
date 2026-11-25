@@ -30,7 +30,12 @@ class ApkAuditTests(unittest.TestCase):
             f"lib/{abi}/libhpatchz.so": elf(183 if abi == "arm64-v8a" else 62),
         }
         if core:
-            for component in REQUIRED_RUNTIME:
+            for ext in ("zip", "sha256", "version", "provenance.json"):
+                payload["assets/development-runtime/development-runtime." + ext] = b"fixture"
+            extra = ("libnode.so", "libnpm.so", "libpython3.so", "libcodex_curl.so")
+            if abi == "arm64-v8a":
+                extra += ("libcodex_git_remote_http.so",)
+            for component in REQUIRED_RUNTIME + extra:
                 if component == missing_component:
                     continue
                 machine = 62 if component == wrong_machine_component else (

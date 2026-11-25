@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
@@ -20,6 +21,75 @@ import org.junit.Test
 /** 实际模拟器验证：详情不挤动列表、可关闭，上下文菜单能完成所选动作。 */
 class CodexInteractionComponentsInstrumentedTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {
+        val chosen = mutableListOf<String>()
+        rule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                CodexTheme {
+                    Box(Modifier.width(280.dp)) {
+                        CodexAdaptiveActions(
+                            first = { modifier ->
+                                CodexSecondaryButton(onClick = { chosen.add("first") },
+                                    modifier = modifier.testTag("adaptive-action-first")) { Text("保存并继续") }
+                            },
+                            second = { modifier ->
+                                CodexSecondaryButton(onClick = { chosen.add("second") },
+                                    modifier = modifier.testTag("adaptive-action-second")) { Text("复制执行详情") }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        val first = rule.onNodeWithTag("adaptive-action-first").assertIsDisplayed()
+        val second = rule.onNodeWithTag("adaptive-action-second").assertIsDisplayed()
+        val firstBounds = first.fetchSemanticsNode().boundsInRoot
+        val secondBounds = second.fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(secondBounds.top >= firstBounds.bottom)
+        first.performClick()
+        second.performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals(listOf("first", "second"), chosen) }
+    }
+
+    @Test fun asynchronousUiStateCancelsOldOwnerAndPublishesOnMain() {
+        val request = mutableStateOf("old")
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val oldRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val newRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val cancelled = kotlinx.coroutines.CompletableDeferred<Unit>()
+        rule.setContent {
+            val owner = request.value
+            val result by produceCodexUiState("loading-" + owner, owner) {
+                try {
+                    val output = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        if (owner == "old") {
+                            started.complete(Unit)
+                            oldRelease.await()
+                        } else newRelease.await()
+                        "result-" + owner
+                    }
+                    check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+                    value = output
+                } finally {
+                    if (owner == "old") cancelled.complete(Unit)
+                }
+            }
+            Text(result, Modifier.testTag("shared-async-result"))
+        }
+        rule.waitUntil(5000L) { started.isCompleted }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("loading-old")
+        rule.runOnIdle { request.value = "new" }
+        rule.waitUntil(5000L) { cancelled.isCompleted }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("loading-new")
+        oldRelease.complete(Unit)
+        newRelease.complete(Unit)
+        rule.waitUntil(5000L) {
+            rule.onAllNodesWithText("result-new").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("result-new")
+    }
 
     @Test fun inlineModelSliderCommitsOneActualChoiceAndSupportsReset() {
         val setting = EngineSettings.byKey("model_verbosity")!!
@@ -104,28 +174,23 @@ class CodexInteractionComponentsInstrumentedTest {
     @Test fun sharedSearchSubmitsAndClearsWithoutLeakingOldQuery() {
         rule.setContent {
             var query by remember { mutableStateOf("") }
-            var output by remember { mutableStateOf("未搜索") }
-            CodexTheme {
-                Column {
-                    AtlasSearchField(
-                        value = query, onValueChange = { query = it },
-                        placeholder = "查找任务",
-                        modifier = androidx.compose.ui.Modifier.testTag("atlas-search-field"),
-                        onSubmit = { output = "已搜索：" + query },
-                        onClear = { query = ""; output = "已清空" },
-                        submitTestTag = "atlas-search-submit"
-                    )
-                    Text(output)
-                }
-            }
+            CodexTheme { Column {
+                ClipboardQueryAction("明确检索", query, { query = it }, { query = "" }, tag = "clipboard-test")
+            } }
         }
-        rule.onNodeWithTag("atlas-search-submit").assertIsNotEnabled()
-        rule.onNodeWithTag("atlas-search-field").performTextInput("新任务")
-        rule.onNodeWithTag("atlas-search-submit").assertIsEnabled().performClick()
-        rule.onNodeWithText("已搜索：新任务").assertExists()
-        rule.onNodeWithContentDescription("清除搜索词").performClick()
-        rule.onNodeWithText("已清空").assertExists()
-        rule.onNodeWithTag("atlas-search-submit").assertIsNotEnabled()
+        setQueryClipboard("新任务")
+        rule.onNodeWithTag("clipboard-test").performClick()
+        rule.onNodeWithText("新任务").assertExists()
+        rule.onNodeWithText("清除查找条件").performClick()
+        rule.onNodeWithText("新任务").assertDoesNotExist()
+    }
+
+    private fun setQueryClipboard(value: String) {
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val clipboard = instrumentation.targetContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("测试检索词", value))
+        }
     }
 
     @Test fun statusSelectorShowsActualSelectedTaskStatus() {
@@ -333,15 +398,14 @@ class CodexInteractionComponentsInstrumentedTest {
                 CodexChoiceSheet(title = "选择模型", description = "选择实际可用模型",
                     choices = listOf(CodexChoice("alpha", "Alpha"), CodexChoice("beta", "Beta")),
                     selectedId = selected, onSelect = { selected = it }, onDismiss = {},
-                    searchable = true)
+                    wide = true)
             }
         }
         rule.onNodeWithTag("choice-option-alpha").assertIsSelected()
-        rule.onNodeWithTag("choice-search").performTextInput("Beta")
-        rule.onNodeWithTag("choice-option-alpha").assertDoesNotExist()
+        rule.onNodeWithTag("choice-search").assertDoesNotExist()
+        rule.onNodeWithTag("choice-option-alpha").assertExists()
         rule.onNodeWithTag("choice-option-beta").performClick()
         rule.onNodeWithTag("choice-option-beta").assertIsSelected()
-        rule.onNodeWithContentDescription("清除搜索词").performClick()
         rule.onNodeWithTag("choice-option-alpha").assertIsNotSelected()
         rule.onNodeWithTag("choice-option-beta").assertIsSelected()
     }
@@ -364,14 +428,15 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.setContent {
             CodexTheme { FullTextReaderDialog("阅读记录", "alpha beta alpha", onDismiss = {}) }
         }
-        rule.onNodeWithTag("full-text-search").performTextInput("alpha")
+        setQueryClipboard("alpha")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("上一个匹配").performClick()
         rule.onNodeWithText("第 2 / 2 处").assertExists()
         captureComponentEvidence("audit-full-text-match-android35.png")
         rule.onNodeWithContentDescription("下一个匹配").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
-        rule.onNodeWithContentDescription("清除搜索词").performClick()
+        rule.onNodeWithText("清除查找条件").performClick()
         rule.onNodeWithText("alpha beta alpha").assertExists()
     }
 
@@ -425,7 +490,7 @@ class CodexInteractionComponentsInstrumentedTest {
             var address by remember { mutableStateOf("") }
             CodexTheme {
                 Column {
-                    AtlasFormField(address, { address = it }, "服务地址",
+                    ActionQuestionRow(address, { address = it }, "服务地址",
                         modifier = androidx.compose.ui.Modifier.testTag("test-service-address"),
                         error = if (address.isNotBlank() && !ProviderAddressPolicy.valid(address))
                             "请输入有效的 HTTP 或 HTTPS 地址" else null)
@@ -435,13 +500,40 @@ class CodexInteractionComponentsInstrumentedTest {
             }
         }
         rule.onNodeWithTag("test-save-address").assertIsNotEnabled()
-        rule.onNodeWithTag("test-service-address").performTextInput("not-an-address")
+        rule.onNodeWithTag("test-service-address").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("not-an-address")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithText("请输入有效的 HTTP 或 HTTPS 地址").assertExists()
         rule.onNodeWithTag("test-save-address").assertIsNotEnabled()
-        rule.onNodeWithContentDescription("清除服务地址").performClick()
-        rule.onNodeWithTag("test-service-address").performTextInput("https://example.com/v1")
+        rule.onNodeWithTag("test-service-address").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("https://example.com/v1")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithText("请输入有效的 HTTP 或 HTTPS 地址").assertDoesNotExist()
         rule.onNodeWithTag("test-save-address").assertIsEnabled()
+    }
+
+    @Test fun actionReplyCancellationPreservesOriginalValue() {
+        var committed = "原始名称"
+        rule.setContent {
+            var current by remember { mutableStateOf(committed) }
+            CodexTheme {
+                Column {
+                    ActionQuestionRow(current, { current = it; committed = it }, "名称",
+                        modifier = androidx.compose.ui.Modifier.testTag("reply-row"))
+                }
+            }
+        }
+        rule.onNodeWithTag("action-reply-input").assertDoesNotExist()
+        rule.onNodeWithTag("reply-row").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("新名称")
+        rule.onNodeWithTag("action-reply-cancel").performClick()
+        rule.onNodeWithTag("reply-row").assertTextContains("原始名称")
+        rule.runOnIdle { org.junit.Assert.assertEquals("原始名称", committed) }
+        rule.onNodeWithTag("reply-row").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("已确认名称")
+        rule.onNodeWithTag("action-reply-send").performClick()
+        rule.onNodeWithTag("reply-row").assertTextContains("已确认名称")
+        rule.runOnIdle { org.junit.Assert.assertEquals("已确认名称", committed) }
     }
 
     @Test fun attachmentPreviewSupportsZoomSwitchResetAndRemove() {
@@ -565,8 +657,9 @@ class CodexInteractionComponentsInstrumentedTest {
         }
         rule.onNodeWithTag("timeline-header-test-message-reader").performClick()
         rule.onNodeWithText("全文阅读").performClick()
-        rule.onNodeWithTag("full-text-search").assertExists()
-        rule.onNodeWithTag("full-text-search").performTextInput("原始")
+        rule.onNodeWithTag("full-text-search").assertDoesNotExist()
+        setQueryClipboard("原始")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
 
@@ -574,31 +667,69 @@ class CodexInteractionComponentsInstrumentedTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val root = java.io.File(context.cacheDir, "editor-test-" + java.util.UUID.randomUUID())
         check(root.mkdir())
-        val file = java.io.File(root, "notes.txt").apply { writeText("原始内容") }
-        try {
-            rule.setContent {
-                var open by remember { mutableStateOf(true) }
-                CodexTheme {
-                    if (open) FileEditor(file, root, onBack = { open = false })
-                }
-            }
+        val file = java.io.File(root, "notes-" + java.util.UUID.randomUUID() + ".txt").apply { writeText("原始内容") }
+        val store = WorkspaceEditorDraftStore(java.io.File(context.filesDir, "editor-drafts"))
+        val open = mutableStateOf(true)
+        fun waitForEditor() {
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithTag("workspace-editor-content").fetchSemanticsNodes().isNotEmpty()
             }
+        }
+        fun waitForClose() {
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithTag("workspace-file-editor").fetchSemanticsNodes().isEmpty()
+            }
+        }
+        try {
+            rule.setContent {
+                CodexTheme {
+                    if (open.value) FileEditor(file, root, onBack = { open.value = false })
+                }
+            }
+            waitForEditor()
             rule.onNodeWithTag("workspace-editor-save").assertIsNotEnabled()
             rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
             rule.onNodeWithContentDescription("返回文件列表").performClick()
-            rule.onNodeWithText("放弃未保存的修改？").assertExists()
+            rule.onNodeWithText("保留草稿并返回？").assertExists()
             captureComponentEvidence("audit-file-editor-android35.png")
             rule.onNodeWithText("取消").performClick()
+            rule.onNodeWithTag("workspace-editor-content").assertExists()
+            rule.onNodeWithTag("workspace-editor-save").assertIsEnabled()
+            org.junit.Assert.assertEquals("原始内容", file.readText())
+            org.junit.Assert.assertNull(store.read(root, file))
+
+            // Retain the edit on disk without modifying the actual file.
+            rule.onNodeWithContentDescription("返回文件列表").performClick()
+            rule.onNodeWithText("保留草稿").performClick()
+            waitForClose()
+            org.junit.Assert.assertEquals("原始内容", file.readText())
+            org.junit.Assert.assertEquals(WorkspaceEditorDraft("原始内容", "修改内容"), store.read(root, file))
+
+            // Reopening reads the persisted draft, not a remembered in-memory editor.
+            rule.runOnIdle { open.value = true }
+            waitForEditor()
+            rule.onNodeWithText("已恢复编辑草稿").assertExists()
+            rule.onNodeWithTag("workspace-editor-content").assertTextContains("修改内容")
             rule.onNodeWithTag("workspace-editor-save").assertIsEnabled().performClick()
-            rule.waitUntil(5000L) { file.readText() == "修改内容" }
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithText("已保存").fetchSemanticsNodes().isNotEmpty()
             }
-            rule.onNodeWithContentDescription("返回文件列表").performClick()
-            rule.onNodeWithTag("workspace-file-editor").assertDoesNotExist()
+            org.junit.Assert.assertEquals("修改内容", file.readText())
+            org.junit.Assert.assertNull(store.read(root, file))
+
+            // Discard remains explicit, with a separate destructive confirmation.
+            rule.onNodeWithTag("workspace-editor-content").performTextReplacement("需要放弃")
+            rule.onNodeWithTag("workspace-editor-discard").performClick()
+            rule.onNodeWithText("放弃未保存的修改？").assertExists()
+            rule.onNodeWithText("取消").performClick()
+            rule.onNodeWithTag("workspace-editor-content").assertTextContains("需要放弃")
+            rule.onNodeWithTag("workspace-editor-discard").performClick()
+            rule.onNodeWithText("放弃修改").performClick()
+            waitForClose()
+            org.junit.Assert.assertEquals("修改内容", file.readText())
+            org.junit.Assert.assertNull(store.read(root, file))
         } finally {
+            store.clear(root, file)
             root.deleteRecursively()
         }
     }
@@ -682,7 +813,8 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.setContent {
             CodexTheme { FullTextReaderDialog("长文本定位", sample, onDismiss = {}) }
         }
-        rule.onNodeWithTag("full-text-search").performTextInput("needle")
+        setQueryClipboard("needle")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         val list = rule.onNodeWithTag("full-text-reader-list")
         fun scrollValue(): Float = list.fetchSemanticsNode().config[
@@ -833,7 +965,8 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("timeline-header-final-ui").performClick()
         rule.onNodeWithText("全文阅读").performClick()
         rule.onNodeWithTag("full-text-reader").assertExists()
-        rule.onNodeWithTag("full-text-search").performTextInput("第二部分")
+        setQueryClipboard("第二部分")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
 

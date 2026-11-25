@@ -40,12 +40,32 @@ import org.json.JSONObject
 
 @Composable
 fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
+    val remote by vm.conversationState.collectProjection { it.remote }
+    val localTerminalRunning by vm.terminalSession.collectProjection { it.running }
+    if (remote != null && (id == "files" || (id == "terminal" && !localTerminalRunning))) {
+        val binding = requireNotNull(remote)
+        ScreenColumn {
+            SectionIntro(if (id == "files") "远端工作区" else "远端命令", "当前任务执行于 " + binding.id)
+            Text(binding.cwd, color = Ink.muted)
+            CodexNotice("由当前智能体在已绑定的执行环境中处理。手机文件和本机终端保持独立。", NoticeTone.Info)
+            CodexPrimaryButton(onClick = {
+                if (id == "files") {
+                    if (!appendTaskInstruction(vm, vm.activeThread.value, "请查看当前远端工作目录的文件，并列出目录内容。")) return@CodexPrimaryButton
+                }
+                navigate("chat")
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (id == "files") "让智能体查看目录" else "在当前任务中输入远端命令") }
+            CodexSecondaryButton(onClick = { if (vm.resetConversation(vm.workingDirectory, null)) navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+                Text("新建手机本机任务")
+            }
+        }
+        return
+    }
     when (id) {
         "settings" -> SettingsHubPage(vm, navigate)
         "chat" -> ConversationPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
-        "terminal" -> TerminalPage(vm)
+        "terminal" -> TerminalPage(vm, navigate = navigate)
         "review" -> ReviewPage(vm, navigate)
         "approvals" -> ApprovalsPage(vm)
         "models" -> ModelsPage(vm)
@@ -55,10 +75,11 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "modes" -> CollaborationModesPage(vm)
         "apps" -> ConnectedAppsPage(vm, navigate)
         "mcp" -> McpServicesPage(vm, navigate)
-        "environments" -> EnvironmentsPage(vm)
+        "environments" -> EnvironmentsPage(vm) { navigate("chat") }
         "diagnostics" -> EngineDiagnosticsPage(vm)
         "usage", "limits" -> AccountMetricsPage(id, vm, navigate)
         "account" -> AccountPage(vm, navigate)
+        "features" -> FeatureSwitchPage(vm)
         "config" -> ConfigPage(vm, navigate)
         "appearance" -> AppearancePage(vm)
         "personalization" -> PersonalizationPage(vm)
@@ -77,13 +98,14 @@ fun ScreenColumn(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val compact by UiPreferences.compact.collectAsState()
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        val spacing = CodexViewportPolicy.pageSpacing(maxWidth.value.coerceAtLeast(1f),
+            maxHeight.value.coerceAtLeast(1f), compact)
         Column(
             modifier = Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = if (compact) 12.dp else 18.dp,
-                    vertical = if (compact) 12.dp else 20.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 16.dp),
+                .padding(horizontal = spacing.horizontal.dp, vertical = spacing.vertical.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.gap.dp),
             content = content
         )
     }

@@ -149,7 +149,7 @@ internal fun ConversationTimelineViewport(
                 } else if (!compactWorkArea) {
                     if (!shortViewport) {
                         CodexStateArtwork(R.drawable.ic_empty_thread,
-                            Modifier.size(width = 112.dp, height = 76.dp))
+                            Modifier.size(width = 80.dp, height = 54.dp))
                     }
                     Text("今天想做什么？",
                         style = if (shortViewport) MaterialTheme.typography.titleLarge
@@ -281,10 +281,13 @@ private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
 /** Step count and kind are stable across text deltas; keep the composer out of these updates. */
 @Composable
 internal fun ConversationExecutionNotice(vm: CodexViewModel, stopping: Boolean) {
-    val progress by vm.timeline.collectProjection { it.size to it.lastOrNull()?.kind.orEmpty() }
+    val turnId by vm.activeTurn.collectAsState()
+    val progress by vm.timeline.collectProjection { items ->
+        items.lastOrNull { it.turnId == turnId && it.status in setOf("inProgress", "running", "streaming", "in_progress") }?.kind
+    }
     CodexNotice(
         if (stopping) "已请求停止任务，正在等待内核确认。"
-        else "执行中 · ${progress.first} 步 · " + PresentationPolicy.timelineKind(progress.second),
-        NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+        else progress?.let { "执行中 · " + PresentationPolicy.timelineKind(it) } ?: "任务进行中",
+        NoticeTone.Info, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
     )
 }

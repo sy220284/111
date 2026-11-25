@@ -33,6 +33,61 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
+    @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val config = File(app.filesDir, "codex-home/config.toml")
+        val original = config.takeIf { it.isFile }?.readBytes()
+        val initial = CodexConnection(app)
+        var reopened: CodexConnection? = null
+        suspend fun read(bridge: CodexConnection): List<CoreFeatureSwitch> {
+            val rows = mutableListOf<CoreFeatureSwitch>()
+            val seen = mutableSetOf<String>()
+            var cursor: String? = null
+            do {
+                val response = bridge.request("experimentalFeature/list", capabilityPageParams(cursor))
+                val data = response.getJSONArray("data")
+                for (i in 0 until data.length()) rows.add(FeatureSwitchPolicy.parse(data.getJSONObject(i)))
+                cursor = response.value("nextCursor").takeIf { it.isNotBlank() }
+                check(cursor == null || seen.add(cursor))
+            } while (cursor != null)
+            assertEquals(rows.size, rows.map { it.name }.toSet().size)
+            return rows
+        }
+        try {
+            withTimeout(90_000L) {
+                initial.connect()
+                val rows = read(initial)
+                assertEquals(231, rows.size)
+                org.junit.Assert.assertTrue(rows.any { it.name == "guardianv2.thread_context" })
+                FeatureSwitchPolicy.preferred.forEach { key ->
+                    org.junit.Assert.assertTrue("Android default missing: $key", rows.single { it.name == key }.defaultEnabled)
+                }
+                val name = "suppress_model_change_announcements"
+                val target = !rows.single { it.name == name }.enabled
+                val response = initial.request("config/read", JSONObject().put("includeLayers", true))
+                val version = response.objects("layers").firstOrNull {
+                    it.optJSONObject("name")?.let { layer ->
+                        layer.optString("type") == "user" && layer.value("profile").isBlank()
+                    } == true
+                }?.value("version")?.takeIf { it.isNotBlank() }
+                assertEquals("ok", initial.request("config/batchWrite",
+                    FeatureSwitchPolicy.writeParams(name, target, version)).optString("status"))
+                assertEquals(target, read(initial).single { it.name == name }.enabled)
+                initial.close()
+                val next = CodexConnection(app)
+                reopened = next
+                next.connect()
+                assertEquals(target, read(next).single { it.name == name }.enabled)
+            }
+        } finally {
+            reopened?.close()
+            initial.close()
+            if (original != null) config.writeBytes(original) else if (config.exists()) {
+                check(config.delete()) { "test configuration cleanup failed" }
+            }
+        }
+    }
+
     @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
@@ -441,6 +496,125 @@ class CoreStartupInstrumentedTest {
             }
         } finally {
             allowExitReceipt.countDown()
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledDeveloperToolsActuallyExecute() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val tools = NativeToolInstaller.prepare(app)
+        val command = """set -e
+            case ":${'$'}PATH:" in *":${'$'}PYTHONUSERBASE/bin:"*) ;; *) exit 91 ;; esac
+            case ":${'$'}PATH:" in *":${'$'}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
+            test -d "${'$'}PYTHONUSERBASE/bin"
+            test -d "${'$'}npm_config_prefix/bin"
+            git --version
+            curl --version
+            python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'
+            python3 -m pip --version
+            node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
+            npm --version
+            printf developer-runtime-ok
+        """.trimIndent()
+        val process = ProcessBuilder("/system/bin/sh", "-c", command)
+            .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
+            .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
+        try {
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))
+        } finally { process.destroyForcibly() }
+    }
+
+    /** Real Codex command RPC, not only a ProcessBuilder version probe. The dedicated
+     * test device uses a disposable workspace and digest-locked, pure-language packages. */
+    @Test fun bundledDeveloperPackagesAndHttpsUseRealCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val work = File(WorkspaceStorage.root(app), "runtime-probe-" + UUID.randomUUID())
+        check(work.mkdir())
+        try {
+            File(work, "python-requirements.txt").writeText(
+                "packaging==26.3 --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c\n")
+            val node = File(work, "node").apply { check(mkdir()) }
+            File(node, "package.json").writeText(JSONObject().put("name", "codex-runtime-probe")
+                .put("version", "1.0.0").put("private", true)
+                .put("dependencies", JSONObject().put("is-number", "7.0.0")).toString())
+            val dependency = JSONObject().put("version", "7.0.0")
+                .put("resolved", "https://registry.npmjs.org/is-number/-/is-number-7.0.0.tgz")
+                .put("integrity", "sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==")
+            File(node, "package-lock.json").writeText(JSONObject()
+                .put("name", "codex-runtime-probe").put("version", "1.0.0").put("lockfileVersion", 3)
+                .put("requires", true).put("packages", JSONObject()
+                    .put("", JSONObject().put("name", "codex-runtime-probe").put("version", "1.0.0")
+                        .put("dependencies", JSONObject().put("is-number", "7.0.0")))
+                    .put("node_modules/is-number", dependency)).toString())
+            val arm64 = Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a"
+            val script = """set -e
+                git init -q local
+                printf probe > local/probe.txt
+                git -C local add probe.txt
+                git -C local -c user.name=Probe -c user.email=probe@example.invalid commit -q --no-gpg-sign -m probe
+                git -C local rev-parse --verify HEAD
+                curl --fail --silent --show-error --location --proto '=https' --max-time 30 https://pypi.org/simple/packaging/ -o index.html
+                test -s index.html
+                python3 -m pip --isolated install --index-url https://pypi.org/simple --disable-pip-version-check --no-deps --only-binary=:all: --require-hashes --target python -r python-requirements.txt
+                PYTHONPATH="${'$'}PWD/python" python3 -c 'import packaging; from packaging.version import Version; assert packaging.__version__ == "26.3" and Version("2.0") > Version("1.0")'
+                (cd node && npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/ --cache="${'$'}PWD/.npm-cache")
+                node -e 'if (!require("./node/node_modules/is-number")(42) || require("./node/node_modules/is-number")("abc")) process.exit(1)'
+                ${if (arm64) "GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code https://github.com/octocat/Hello-World.git HEAD" else "printf 'x86_64 Git HTTPS not provided\\n'"}
+                printf developer-network-packages-ok
+            """.trimIndent()
+            withTimeout(240_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val result = bridge.request("command/exec", JSONObject()
+                    .put("command", JSONArray().put("/system/bin/sh").put("-c").put(script))
+                    .put("cwd", work.absolutePath).put("timeoutMs", 180_000)
+                    .put("outputBytesCap", 32_000)
+                    .put("sandboxPolicy", JSONObject().put("type", "externalSandbox").put("networkAccess", "enabled")),
+                    timeoutMillis = 200_000L)
+                val stdout = result.optString("stdout")
+                assertEquals(stdout + "\n" + result.optString("stderr"), 0, result.optInt("exitCode", -1))
+                org.junit.Assert.assertTrue(stdout, stdout.contains("developer-network-packages-ok"))
+            }
+        } finally {
+            bridge.close()
+            check(work.deleteRecursively()) { "无法清理开发工具测试工作区" }
+        }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
             bridge.close()
         }
     }

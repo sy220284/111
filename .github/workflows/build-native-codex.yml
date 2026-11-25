@@ -35,6 +35,7 @@ on:
       - "android-app/tools/adapt_android_v8_build.py"
       - "android-app/tools/build_android_git.sh"
       - "android-app/tools/package_native_runtime.sh"
+      - "android-app/tools/prepare_prebuilt_developer_runtime.py"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
     inputs:
@@ -130,6 +131,7 @@ jobs:
             android-app/tools/resolve_codex_catalog_version.py
             android-app/tools/test_resolve_codex_catalog_version.py
             android-app/tools/prepare_android_code_mode.py
+            android-app/tools/test_prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
             android-app/tools/build_android_git.sh
@@ -201,7 +203,9 @@ jobs:
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_mxc.py" --cargo-home "${CARGO_HOME:-$HOME/.cargo}"
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_code_mode.py" \
             "$GITHUB_WORKSPACE/upstream/codex/codex-rs/install-context/src/lib.rs" \
-            --host-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/code-mode-host/src/main.rs"
+            --host-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/code-mode-host/src/main.rs" \
+            --features-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/features/src/lib.rs"
+          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_code_mode.py
       - name: 准备已核验的 Android V8 沙箱库
         shell: bash
         run: |
@@ -256,9 +260,15 @@ jobs:
             --target "$TARGET" --root "$RUNNER_TEMP/ripgrep-install" --jobs 2
           test -s "$RUNNER_TEMP/ripgrep-install/bin/rg"
           cp "$RUNNER_TEMP/ripgrep-install/bin/rg" "target/$TARGET/release/rg"
-          bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
-            "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
-          for NAME in codex-app-server codex-code-mode-host rg git; do
+          COMPONENTS=(codex-app-server codex-code-mode-host rg)
+          # ARM64 shipping Git comes from the precompiled release at APK assembly.
+          # Retain the established optional x86 emulator-only local Git.
+          if [ "$TARGET" = "x86_64-linux-android" ]; then
+            bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
+              "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
+            COMPONENTS+=(git)
+          fi
+          for NAME in "${COMPONENTS[@]}"; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
             file "$CORE"

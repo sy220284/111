@@ -108,26 +108,27 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
     }
 
     /** Only setup is optional. The primary RPC is dispatched exactly once and its errors propagate. */
-    suspend fun request(method: String, params: JSONObject, effective: JSONObject? = null): JSONObject {
+    suspend fun request(method: String, params: JSONObject, effective: JSONObject? = null,
+        expectedSession: Long? = vm.bridge.connectedSession.value, sendPermit: (() -> Boolean)? = null): JSONObject {
         require(method in setOf("thread/start", "thread/resume", "thread/fork"))
-        val epoch = vm.bridge.connectedSession.value
+        val epoch = requireNotNull(expectedSession) { "运行核心尚未连接" }
         val revision = vm.catalogWarmup.accountRevision.value
         return PreviewOptionalRequest.execute(params, prepare = {
             val configuration = effective ?: run {
                 val explicit = (params.opt("cwd") as? String)?.takeIf { it.isNotBlank() }
                 val cwd = explicit ?: vm.bridge.request("thread/read",
-                    JSONObject().put("threadId", params.getString("threadId")))
+                    JSONObject().put("threadId", params.getString("threadId")), expectedSession = epoch)
                     .getJSONObject("thread").getString("cwd")
                 val directory = WorkspaceSelectionContract.validate(root, File(cwd))
-                vm.bridge.request("config/read", JSONObject().put("cwd", directory.absolutePath))
+                vm.bridge.request("config/read", JSONObject().put("cwd", directory.absolutePath), expectedSession = epoch)
             }
             configure(params, configuration)
-        }, dispatch = { vm.bridge.request(method, it) }, unavailable = { receipt, failure ->
+        }, dispatch = { vm.bridge.request(method, it, sendPermit = sendPermit, expectedSession = epoch) }, unavailable = { receipt, failure ->
             // Log only the error category: configuration and transport exceptions can contain credentials.
             android.util.Log.w("ModelPreview", "预览服务准备失败：" + failure.javaClass.simpleName)
             val thread = receipt.optJSONObject("thread")?.optString("id").orEmpty()
             synchronized(lock) {
-                if (thread.isNotBlank() && !closed && epoch != null &&
+                if (thread.isNotBlank() && !closed &&
                     vm.bridge.connectedSession.value == epoch && vm.catalogWarmup.accountRevision.value == revision) {
                     failedState.value = failedState.value + (thread to
                         "任务文件预览暂不可用，当前会话仍可使用。任务结束后重新打开会话可重试预览服务。")

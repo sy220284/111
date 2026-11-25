@@ -100,7 +100,7 @@ internal fun TimelineStepCard(
             else -> title
         }
     }
-    Box(Modifier.fillMaxWidth(), contentAlignment = if (user) Alignment.CenterEnd else Alignment.CenterStart) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         if (commentary) {
             Column(Modifier.fillMaxWidth().testTag("chat-commentary").padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -112,22 +112,24 @@ internal fun TimelineStepCard(
                 }
             }
         } else if (user || assistant) {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
-                Surface(Modifier.fillMaxWidth(if (user) .88f else 1f)
-                    .testTag(if (user) "chat-user-message" else "chat-assistant-message"),
-                    color = if (user) Ink.recessed else Ink.canvas, shape = RoundedCornerShape(16.dp)) {
-                    Column(Modifier.padding(horizontal = if (user) 13.dp else 2.dp, vertical = 8.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                // Native Codex UserHistoryCell: a leading ›, hanging indent and literal text.
+                // The mobile transcript stays on the canvas, without a chat bubble or avatar.
+                Row(Modifier.fillMaxWidth()
+                    .testTag(if (user) "chat-user-message" else "chat-assistant-message")
+                    .padding(vertical = if (user) 12.dp else 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (user) Text("›", color = Ink.muted, style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.width(14.dp).testTag("chat-user-prompt-marker"))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (assistant) NativeMessageMarkdown(shownText, streaming = active)
                         else {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.muted, modifier = Modifier.size(16.dp))
-                                Text(if (item.status == "sending") "正在发送" else "你的指令", color = Ink.muted,
-                                    style = MaterialTheme.typography.labelSmall)
-                            }
-                            Spacer(Modifier.height(5.dp))
-                            SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge) }
+                            SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge,
+                                color = Ink.parchment) }
+                            if (item.status == "sending") Text("正在发送", color = Ink.muted,
+                                style = MaterialTheme.typography.labelSmall)
+                            NativeTimelineMedia(item, raw, workspaceRoot)
                         }
-                        if (user) NativeTimelineMedia(item, raw, workspaceRoot)
                     }
                 }
                 note?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelSmall,
@@ -231,7 +233,7 @@ private fun MessageActionRow(item: TimelineItem, user: Boolean,
                     modifier = Modifier.size(19.dp))
             }
         }
-        if (hasText) {
+        if (hasText && !user) {
             CodexIconAction(onClick = {
                 val intent = Intent(Intent.ACTION_SEND).setType("text/plain")
                     .putExtra(Intent.EXTRA_TEXT, item.text)
@@ -256,6 +258,16 @@ private fun MessageActionRow(item: TimelineItem, user: Boolean,
                 if (hasText) DropdownMenuItem(text = { Text("全文阅读") },
                     leadingIcon = { CodexIcon(CodexGlyph.OpenInFull, null) },
                     onClick = { menu = false; onRead() })
+                if (hasText && user) DropdownMenuItem(text = { Text("分享消息") },
+                    leadingIcon = { CodexIcon(CodexGlyph.Share, null) },
+                    onClick = {
+                        menu = false
+                        val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, item.text)
+                        try { context.startActivity(Intent.createChooser(intent, "分享消息")) }
+                        catch (_: android.content.ActivityNotFoundException) {
+                            Toast.makeText(context, "没有可用的分享应用，请复制消息", Toast.LENGTH_LONG).show()
+                        }
+                    })
                 if (hasText && !user) DropdownMenuItem(text = { Text("复制纯文本") },
                     leadingIcon = { CodexIcon(CodexGlyph.ContentCopy, null) },
                     onClick = { menu = false; copy(item.text, CopyContentFormat.VisibleText) })

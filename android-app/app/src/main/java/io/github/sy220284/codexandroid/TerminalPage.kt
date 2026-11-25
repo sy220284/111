@@ -42,9 +42,10 @@ import org.json.JSONObject
 import java.io.File
 
 @Composable
-fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
+fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((String) -> Unit)? = null) {
     var command by rememberSaveable { mutableStateOf("") }
     var interactive by rememberSaveable { mutableStateOf(false) }
+    var allowNetwork by remember { mutableStateOf(false) }
     var ttyRows by rememberSaveable { mutableStateOf("24") }
     var ttyCols by rememberSaveable { mutableStateOf("80") }
     var showTerminalSize by rememberSaveable { mutableStateOf(false) }
@@ -196,24 +197,15 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                     subtitle = "调整行数和列数后同步到正在运行的终端",
                                     onDismiss = { showTerminalSize = false }
                                 ) {
-                                    Row(Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CodexInputField(ttyRows, {
-                                            ttyRows = it.filter(Char::isDigit).take(3)
-                                        }, label = { Text("行数") }, singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            isError = ttyRows.isNotBlank() && ttyRows.toIntOrNull() !in 2..300,
-                                            modifier = Modifier.weight(1f)
-                                                .testTag("terminal-resize-rows"),
-                                            enabled = !session.terminating)
-                                        CodexInputField(ttyCols, {
-                                            ttyCols = it.filter(Char::isDigit).take(3)
-                                        }, label = { Text("列数") }, singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            isError = ttyCols.isNotBlank() && ttyCols.toIntOrNull() !in 10..400,
-                                            modifier = Modifier.weight(1f)
-                                                .testTag("terminal-resize-cols"),
-                                            enabled = !session.terminating)
+                                    ActionNumberStepper(ttyRows, { ttyRows = it }, "行数", 2, 300, 1,
+                                        enabled = !session.terminating, modifier = Modifier.testTag("terminal-resize-rows"))
+                                    ActionNumberStepper(ttyCols, { ttyCols = it }, "列数", 10, 400, 5,
+                                        enabled = !session.terminating, modifier = Modifier.testTag("terminal-resize-cols"))
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        listOf(24 to 80, 30 to 100, 40 to 120).forEach { (rows, cols) ->
+                                            AtlasChoiceRow("$rows × $cols", "", ttyRows == rows.toString() && ttyCols == cols.toString(),
+                                                enabled = !session.terminating, onClick = { ttyRows = rows.toString(); ttyCols = cols.toString() })
+                                        }
                                     }
                                     val validSize = ttyRows.toIntOrNull() in 2..300 &&
                                         ttyCols.toIntOrNull() in 10..400
@@ -429,15 +421,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         onChoice = { choice -> command = choice.command; historyPosition = choice.position },
                         onOpenHistory = { historyVisible = true })
                     if (historyVisible) CodexFloatingMenu(
-                        title = "历史命令", wide = true, searchable = true,
+                        title = "历史命令", wide = true,
                         description = "选择后填入输入栏，执行前仍需确认",
                         onDismiss = { historyVisible = false }
                     ) {
-                        var historyQuery by remember { mutableStateOf("") }
-                        AtlasSearchField(historyQuery, { historyQuery = it }, "搜索历史命令",
-                            onClear = { historyQuery = "" })
                         recentCommands.forEachIndexed { index, previous ->
-                            if (!previous.contains(historyQuery.trim(), ignoreCase = true)) return@forEachIndexed
                             CodexSecondaryButton(
                                 onClick = {
                                     command = previous
@@ -463,6 +451,21 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     WhiteSwitch(checked = interactive, onCheckedChange = { interactive = it },
                         enabled = !session.running && !terminalStarting)
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("本次命令允许联网", style = MaterialTheme.typography.bodyMedium)
+                        Text("下载、依赖安装等操作按需开启", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                    WhiteSwitch(checked = allowNetwork, onCheckedChange = { allowNetwork = it },
+                        enabled = !session.running && !terminalStarting)
+                }
+                if (navigate != null) CodexTextAction(onClick = {
+                    val instruction = if (command.isBlank()) "请协助我检查当前工作区，提出需要执行的命令及原因。"
+                        else "请先检查以下命令的目的、风险与执行位置；根据当前任务提出执行建议：\n" + command
+                    if (appendTaskInstruction(vm, vm.activeThread.value, instruction)) navigate("chat")
+                }, enabled = !session.running && !terminalStarting, modifier = Modifier.fillMaxWidth().testTag("terminal-agent-assist")) {
+                    Text("交给 Codex 检查")
+                }
                 CodexPrimaryButton(onClick = { confirm = true },
                     enabled = command.isNotBlank() && !session.running && !terminalStarting,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -484,7 +487,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
             File(activeWorkspace).relativeTo(File(vm.workingDirectory)).path
                 .takeIf { it != "." }?.let { "projects/" + it }.orEmpty()
                 .ifBlank { "projects/" } +
-            if (interactive) "\n交互式 PTY 终端" else "\n流式命令",
+            (if (interactive) "\n交互式 PTY 终端" else "\n流式命令") +
+            (if (allowNetwork) "\n本次允许联网" else "\n已请求限制联网（Android 系统级隔离未验证）"),
         confirmLabel = if (TerminalCommandPolicy.evaluate(command).dangerous) "确认执行高风险命令" else "确认执行",
         destructive = TerminalCommandPolicy.evaluate(command).dangerous,
         onConfirm = {
@@ -494,7 +498,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     (listOf(accepted) + recentCommands.filterNot { it == accepted }).take(10)
                 )
                 historyPosition = TerminalHistoryPosition()
-                vm.startTerminalCommand(accepted, tty = interactive)
+                vm.startTerminalCommand(accepted, tty = interactive, networkEnabled = allowNetwork)
+                allowNetwork = false
             }
             confirm = false
         },

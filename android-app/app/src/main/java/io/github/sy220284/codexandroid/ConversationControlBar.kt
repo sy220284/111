@@ -9,20 +9,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** Native-style single-row model and reasoning strength. */
+/** Model identity and configuration stay readable on narrow phones. */
 @Composable
 internal fun RowScope.ConversationControlBar(modelName: String, effortLabel: String,
-    enabled: Boolean, onModel: () -> Unit) {
+    enabled: Boolean, onModel: () -> Unit, providerLabel: String = "", expanded: Boolean = false) {
     CodexTextAction(onClick = onModel, enabled = enabled,
         modifier = Modifier.weight(1f).testTag("conversation-model-control"),
         contentPadding = PaddingValues(horizontal = 2.dp)) {
-        Text(modelName.ifBlank { "默认模型" }, modifier = Modifier.weight(1f, fill = false),
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelLarge, color = Ink.muted)
-        if (effortLabel.isNotBlank()) {
-            Spacer(Modifier.width(5.dp))
-            Text(effortLabel, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+        Column(Modifier.weight(1f, fill = false)) {
+            Text(modelName.ifBlank { "默认模型" }, maxLines = if (expanded) 2 else 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelLarge, color = Ink.parchment)
+            val detail = listOf(providerLabel, effortLabel).filter { it.isNotBlank() }.joinToString(" · ")
+            if (detail.isNotBlank()) Text(detail, maxLines = if (expanded) 2 else 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
         }
         Spacer(Modifier.width(2.dp))
         CodexIcon(CodexGlyph.ExpandMore, null, Modifier.size(12.dp), tint = Ink.muted)

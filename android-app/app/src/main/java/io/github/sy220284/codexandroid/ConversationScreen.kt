@@ -39,6 +39,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val recoveryDelay by vm.recoveryDelayMs.collectAsState()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
+    val remote = conversation.remote
     val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
     var voiceOpen by remember(thread) { mutableStateOf(false) }
     val busy = conversation.running
@@ -63,8 +64,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             it.accountRevision == previewAccountRevision && it.workspace == selectedWorkspace }
     }
     var selectedPreview by remember(thread, previewEpoch, previewAccountRevision) { mutableStateOf<ModelPreviewRequest?>(null) }
-    val draftOwner = vm.composerOwner(thread, selectedWorkspace)
-    val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
+    val agentWorkspace by vm.agentDraftWorkspace.collectAsState()
+    val agentOwner = ThreadComposerDrafts.agentKey(selectedWorkspace)
+    val agentDraft = thread == null && agentWorkspace == selectedWorkspace
+    val draftOwner = if (remote != null) vm.composerOwner(thread, selectedWorkspace) else if (agentDraft) agentOwner else ThreadComposerDrafts.key(thread, selectedWorkspace)
+    val composerDrafts by vm.composerDrafts.collectEntries(draftOwner, agentOwner)
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
@@ -91,7 +95,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         imported.message else ""
 
     // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
-    val compactWorkArea = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val compactWorkArea = CodexViewportPolicy.compactWorkArea(rememberCodexViewport().height.value,
+        WindowInsets.ime.getBottom(LocalDensity.current) > 0, codexEffectiveFontScale())
     val selectedMode by vm.selectedMode.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
     val queueData = thread?.let { models["queue:$it"] }
@@ -99,8 +104,26 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
-    val modelData = models["models"]
-    val availableModels = remember(modelData) { records(modelData) }
+    val threadProvider by vm.activeModelProvider.collectAsState()
+    val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
+        else ComposerProviderScope.provider(snapshot.options.modelProvider))
+    val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread", "providers")
+    val providerId = if (thread != null) ComposerProviderScope.provider(threadProvider)
+        else ComposerProviderScope.provider(snapshot.options.modelProvider)
+            ?: ComposerProviderScope.provider(scopedCatalog["providers"]?.optString("defaultProviderId"))
+    val providerLabel = records(scopedCatalog["providers"]).firstOrNull { it.optString("id") == providerId }
+        ?.optString("name")?.takeIf { it.isNotBlank() }?.let { PresentationPolicy.providerName(it) }.orEmpty()
+    val availableModels = remember(scopedCatalog[providerKey]) { records(scopedCatalog[providerKey]) }
+    val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
+    val inheritedModel = configured?.value("model")?.takeIf { it.isNotBlank() && it != "null" }
+    val shownModel = selectedModel.ifBlank { inheritedModel.orEmpty() }
+    val shownEffort = snapshot.options.effort.ifBlank {
+        if (selectedModel.isBlank()) configured?.value("reasoningEffort")?.takeIf { it.isNotBlank() && it != "null" }.orEmpty() else ""
+    }
+    LaunchedEffect(thread, busy, status, switching) {
+        if (thread != null && !busy && !switching && status == EngineStatus.Connected)
+            vm.refresh("composerThread:$thread", "thread/read", JSONObject().put("threadId", thread))
+    }
     val diffSummary by rememberDiffSummary(latestDiff)
     LaunchedEffect(thread) {
         if (thread != null) {
@@ -322,17 +345,22 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     onManage = { keyboard?.hide(); navigate("queue") },
                     onStart = { vm.startQueuedComposer(thread) })
             }
-            val optionsEnabled = !busy && !firstThreadStarting && !switching
+            val optionsEnabled = ComposerOptionAccess.canChange(thread != null, busy, false,
+                firstThreadStarting, switching, restarting, transferBusy)
+            val modelOptionsEnabled = ComposerOptionAccess.canChange(thread != null, busy, true,
+                firstThreadStarting, switching, restarting, transferBusy)
             val tools = buildList {
                 add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
-                add(ComposerShortcut("project", "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace),
-                    "切换手机工作区中的项目与目录", CodexGlyph.Folder, enabled = optionsEnabled,
-                    onOpen = { keyboard?.hide(); composerMenu = "projects" }))
-                add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
+                add(ComposerShortcut("project", if (remote == null) "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace) else "执行设备 · " + remote.id,
+                    if (remote == null) "切换手机工作区中的项目与目录" else "查看远端运行环境", CodexGlyph.Folder, enabled = optionsEnabled,
+                    onOpen = { keyboard?.hide(); if (remote == null) composerMenu = "projects" else navigate("environments") }))
+                add(ComposerShortcut("environment", "选择执行设备", "本机或已保存的远端设备", CodexGlyph.Computer,
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); navigate("environments") }))
+                add(ComposerShortcut("terminal", if (remote == null) "项目终端" else "远端命令", if (remote == null) "打开实际命令输入" else "由当前智能体执行", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
-                    enabled = optionsEnabled, onOpen = { composerMenu = "models" }))
+                    enabled = modelOptionsEnabled, onOpen = { composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
                     enabled = optionsEnabled, onOpen = { composerMenu = "modes" }))
                 add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
@@ -351,6 +379,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     add(ComposerShortcut("compact", "整理上下文", "", CodexGlyph.Compress,
                         enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "compact" }))
                 }
+                add(ComposerShortcut("capabilities", "工具与扩展", "查看技能、插件和外部工具", CodexGlyph.Hub,
+                    enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "capabilities" }))
                 add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
                     onOpen = { keyboard?.hide(); composerMenu = "engine-status" }))
             }
@@ -382,9 +412,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             ComposerQueueAction(
                 visible = busy && thread != null && snapshot.hasInput && !stopping,
                 enabled = sendBlockReason.isBlank(),
-                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) },
-                stopEnabled = !activeTurn.isNullOrBlank() && !switching && status == EngineStatus.Connected && !restarting && !stopping,
-                onStop = stopCurrentTurn)
+                onQueue = { vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = true, expectedOwner = draftOwner) })
             val guideBlockReason = sendBlockReason.ifBlank {
                 if (busy && activeTurn.isNullOrBlank()) "正在等待执行回合" else ""
             }
@@ -396,7 +424,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onDraftChange = { vm.editComposerText(draftOwner, it) },
                 attachedCount = attachedImages.size, connected = status == EngineStatus.Connected,
                 running = busy, stopping = stopping,
-                canStop = busy && !activeTurn.isNullOrBlank(),
+                canStop = busy && !activeTurn.isNullOrBlank() && !switching && !restarting && !transferBusy,
                 canSend = guideBlockReason.isBlank(), sending = sending,
                 sendBlockReason = guideBlockReason,
                 onStop = stopCurrentTurn,
@@ -416,26 +444,55 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { composerMenu = "add" },
                 compactControls = compactWorkArea,
-                modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
-                    ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
+                modelLabel = (if (busy) "下轮 · " else "") +
+                    (ComposerModelPolicy.model(availableModels, shownModel)
+                        ?.optString("displayName")?.takeIf { it.isNotBlank() }
+                        ?: shownModel.ifBlank { if (thread == null) "默认模型" else "沿用会话模型" }),
                 modeLabel = selectedMode,
-                effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
+                effortLabel = PresentationPolicy.reasoningLabel(shownEffort),
+                providerLabel = providerLabel,
                 optionsEnabled = optionsEnabled,
+                modelOptionsEnabled = modelOptionsEnabled,
                 onModel = { composerMenu = "models" },
                 onMode = { composerMenu = "modes" },
                 onTaskOptions = { composerMenu = "tools" },
-                onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
+                onReference = if (remote == null) ({ query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" }) else null,
                 statusContent = {
+                    if (remote != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("远端 · " + remote.id, color = Ink.muted, style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).testTag("remote-task-context"))
+                        CodexTextAction(onClick = { navigate("environments") }) { Text("设备") }
+                    }
+                    if (thread == null && remote == null && (agentDraft || composerDrafts[agentOwner]?.hasInput == true)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (agentDraft) "配置任务草稿" else "另有配置任务草稿",
+                                modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                            CodexTextAction(onClick = {
+                                if (agentDraft) vm.resetConversation(selectedWorkspace, vm.activeProjectId.value)
+                                else vm.openExistingAgentDraft()
+                            }, enabled = !busy && !firstThreadStarting && !switching && !transferBusy,
+                                modifier = Modifier.testTag(if (agentDraft) "agent-draft-standard" else "agent-draft-reopen")) {
+                                Text(if (agentDraft) "返回普通草稿" else "查看")
+                            }
+                        }
+                    }
                     if (status is EngineStatus.Unavailable) {
                         CodexNotice(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay) + "，草稿已保留", NoticeTone.Warning,
-                            actionLabel = if (!retirement && !restarting) "重连" else null,
+                            actionLabel = if (RuntimeStatusPresentation.canReconnect(status, retirement, restarting)) "重连" else null,
                             onAction = { vm.connectionRestarter.reconnect() })
                     } else if (status == EngineStatus.Starting) {
-                        Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        Text(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay), color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 },
                 addMenu = {
-                    if (composerMenu == "add") CodexFloatingActionMenu(title = "添加内容",
+                    if (composerMenu == "add" && remote != null) CodexFloatingActionMenu(title = "远端任务",
+                        onDismiss = { closeComposerMenu("add") }, actions = listOf(
+                            CodexSheetAction("查看远端文件", CodexGlyph.Project, { navigate("files") },
+                                description = "由远端智能体读取；手机附件不会自动上传"),
+                            CodexSheetAction("远端命令", CodexGlyph.Terminal, { navigate("terminal") }),
+                            CodexSheetAction("工具与扩展", CodexGlyph.Hub, { composerMenu = "capabilities" })
+                        ))
+                    if (composerMenu == "add" && remote == null) CodexFloatingActionMenu(title = "添加内容",
                         showDescriptions = false, onDismiss = { closeComposerMenu("add") },
                         actions = buildList {
                             add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
@@ -491,6 +548,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
                                 enabled = it.enabled, testTag = "composer-tool-" + it.command)
                         })
+                    if (composerMenu == "capabilities") TaskCapabilitiesSheet(vm, { closeComposerMenu("capabilities") }, navigate)
                     if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
                     if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
         onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,

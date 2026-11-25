@@ -7,13 +7,29 @@ import java.nio.file.LinkOption
 
 /** Use extracted APK-native executables while keeping app-owned data non-executable. */
 object NativeToolInstaller {
-    fun prepare(context: Context): File {
+    @Synchronized fun prepare(context: Context): File {
         val nativeDir = File(context.applicationInfo.nativeLibraryDir).canonicalFile
-        val tools = File(context.filesDir, "native-tools").apply { mkdirs() }
-        val required = mapOf(
-            "rg" to "libcodex_rg.so",
-            "git" to "libcodex_git.so"
+        val tools = File(context.filesDir, "native-tools")
+        val required = linkedMapOf(
+            "rg" to "libcodex_rg.so", "git" to "libcodex_git.so",
+            "curl" to "libcodex_curl.so", "python" to "libpython3.so",
+            "python3" to "libpython3.so", "node" to "libnode.so", "npm" to "libnpm.so"
         )
+        if (android.os.Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a") {
+            required["git-remote-http"] = "libcodex_git_remote_http.so"
+            required["git-remote-https"] = "libcodex_git_remote_http.so"
+        }
+        required.values.distinct().forEach { library ->
+            require(File(nativeDir, library).isFile) { "APK 缺少开发工具：" + library }
+        }
+        val invalid = Files.isSymbolicLink(tools.toPath()) || (tools.exists() &&
+            (!tools.isDirectory || tools.list()?.any { it !in required } != false || required.any { (name, library) ->
+                val link = File(tools, name).toPath()
+                Files.exists(link, LinkOption.NOFOLLOW_LINKS) &&
+                    (!Files.isSymbolicLink(link) || Files.readSymbolicLink(link) != File(nativeDir, library).toPath())
+            }))
+        if (invalid) RuntimePayloadIntegrity.removeTree(tools)
+        check(tools.isDirectory || tools.mkdirs()) { "无法建立本机工具目录" }
         required.forEach { (name, library) ->
             val executable = File(nativeDir, library)
             require(executable.isFile) {

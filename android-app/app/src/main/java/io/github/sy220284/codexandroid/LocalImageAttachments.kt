@@ -111,12 +111,8 @@ fun LocalImageAttachmentStrip(
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             paths.forEachIndexed { idx, path ->
                 key(path) {
-                    val thumbnail by produceState<ImageBitmap?>(initialValue = null, path) {
-                        // Explicitly publish on Android Main, including dialog/test recomposition.
-                        withContext(Dispatchers.Main.immediate) {
-                            value = decodeAttachmentBitmap(path, 160)
-                        }
-                    }
+                    val image by rememberAttachmentImage(path, 160)
+                    val thumbnail = image.bitmap
                     Surface(shape = RoundedCornerShape(13.dp),
                         color = Ink.panel,
                         border = BorderStroke(1.dp, Ink.border)) {

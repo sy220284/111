@@ -39,6 +39,11 @@
         "UiNavigationInstrumentedTest.taskFirstHomeHasOnePrimaryActionAndUsefulShortcuts",
         "UiNavigationInstrumentedTest.sidebarKeepsChatAndWorkbenchAsOneNavigationPath",
         "UiNavigationInstrumentedTest.composerReferenceAndExpandedEditorPreserveDraft"
+      ],
+      "screens": [
+        "chat",
+        "chat-keyboard-open",
+        "chat-toolbar"
       ]
     },
     {
@@ -54,6 +59,11 @@
       "tests": [
         "UiNavigationInstrumentedTest.threadLibraryExposesServerBackedManagementLayout",
         "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection"
+      ],
+      "screens": [
+        "sidebar",
+        "thread-library",
+        "audit-sidebar-thread"
       ]
     },
     {
@@ -68,6 +78,10 @@
       "tests": [
         "UiNavigationInstrumentedTest.approvalsAndChildEditorsHaveReadableStates",
         "UiPopulatedSubpagesInstrumentedTest.conversationApprovalSheetRendersActualCommandAndDecision"
+      ],
+      "screens": [
+        "audit-approvals",
+        "audit-conversation-approval"
       ]
     },
     {
@@ -80,6 +94,10 @@
       "business": "搜索提交、无结果、全文查看与命中导航",
       "tests": [
         "UiNavigationInstrumentedTest.queueAndFullSearchOpenAsTaskSheets"
+      ],
+      "screens": [
+        "thread-full-search",
+        "audit-full-text-match"
       ]
     },
     {
@@ -93,6 +111,9 @@
       "tests": [
         "UiNavigationInstrumentedTest.taskSpecificSheetsAreReachableAndReadable",
         "CodexInteractionComponentsInstrumentedTest.budgetEditDialogCommitsOnlyAfterConfirmation"
+      ],
+      "screens": [
+        "audit-goals-sheet"
       ]
     },
     {
@@ -110,6 +131,9 @@
         "UiNavigationInstrumentedTest.activeThreadOpensItsQueueWithoutHistoryPicker",
         "UiNavigationInstrumentedTest.queueDraftSurvivesClosingAndReopeningSheet",
         "CodexInteractionComponentsInstrumentedTest.queueDragHandleInvokesDragRatherThanClickAndKeepsAccessibleMenu"
+      ],
+      "screens": [
+        "audit-queue"
       ]
     },
     {
@@ -126,6 +150,10 @@
         "UiNavigationInstrumentedTest.workspaceFoldersCanBeCreatedAndRemovedWithExplicitConfirmation",
         "UiNavigationInstrumentedTest.workspaceProjectManagerOpensWithoutExpandingTheFileList",
         "CodexInteractionComponentsInstrumentedTest.fileEditorProtectsUnsavedChangesAndSavesRealFile"
+      ],
+      "screens": [
+        "workspace-files",
+        "audit-file-editor"
       ]
     },
     {
@@ -137,6 +165,9 @@
       "business": "逐文件差异、无差异、审查入口",
       "tests": [
         "UiNavigationInstrumentedTest.diffReaderShowsFileFirstSummaryAndReviewAction"
+      ],
+      "screens": [
+        "diff-reader"
       ]
     },
     {
@@ -152,6 +183,10 @@
         "UiNavigationInstrumentedTest.terminalExecutionShowsReadableConfirmation",
         "CodexInteractionComponentsInstrumentedTest.terminalTouchHistoryRestoresOriginalDraftWithoutExecuting",
         "CodexInteractionComponentsInstrumentedTest.fullTextSearchScrollsToDistantMatchWithinSameChunk"
+      ],
+      "screens": [
+        "terminal-sheet",
+        "terminal-confirm"
       ]
     },
     {
@@ -164,6 +199,9 @@
       "business": "审查范围、确认、任务前置状态",
       "tests": [
         "UiNavigationInstrumentedTest.taskSpecificSheetsAreReachableAndReadable"
+      ],
+      "screens": [
+        "audit-review-sheet"
       ]
     },
     {
@@ -180,6 +218,10 @@
         "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet",
         "UiPopulatedSubpagesInstrumentedTest.modelDescriptionOpensSecondLevelWithoutChangingSelection",
         "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ],
+      "screens": [
+        "model-sheet",
+        "audit-models"
       ]
     },
     {
@@ -192,6 +234,9 @@
       "business": "真实协作模式、单选、不可用和恢复",
       "tests": [
         "UiNavigationInstrumentedTest.modeSheetRespectsRealEngineCapability"
+      ],
+      "screens": [
+        "mode-sheet"
       ]
     },
     {
@@ -204,6 +249,9 @@
       "business": "筛选、读取、无结果、写入和详情",
       "tests": [
         "UiPopulatedSubpagesInstrumentedTest.skillDescriptionAppearsOnlyAfterOpeningDetail"
+      ],
+      "screens": [
+        "audit-skills"
       ]
     },
     {
@@ -217,10 +265,14 @@
       ],
       "business": "目录、检索、安装状态、空结果与能力详情",
       "tests": [
-        "UiNavigationInstrumentedTest.pluginDiscoveryCanOpenSearchWithoutInventedResults",
+        "UiNavigationInstrumentedTest.pluginDiscoveryUsesClipboardWithoutSearchField",
         "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata",
         "UiPopulatedSubpagesInstrumentedTest.installedPluginRowsOpenDetailsWithoutInlineUninstall",
         "UiPopulatedSubpagesInstrumentedTest.discoveryRowSeparatesInstallFromDetail"
+      ],
+      "screens": [
+        "plugins",
+        "audit-plugin-detail"
       ]
     },
     {
@@ -235,6 +287,9 @@
       "tests": [
         "UiPopulatedSubpagesInstrumentedTest.connectedAppDescriptionAppearsOnlyAfterOpeningDetail",
         "UiPopulatedSubpagesInstrumentedTest.installedAppSnapshotAppearsBeforeFullDirectory"
+      ],
+      "screens": [
+        "audit-apps"
       ]
     },
     {
@@ -247,6 +302,10 @@
       "business": "智能体管理、可用目录、重读及详情",
       "tests": [
         "UiPopulatedSubpagesInstrumentedTest.mcpFullPageShowsOnlyUsableServersAndNoRegistrationInterface"
+      ],
+      "screens": [
+        "audit-mcp",
+        "audit-mcp-usable-directory"
       ]
     },
     {
@@ -260,6 +319,10 @@
       "tests": [
         "UiNavigationInstrumentedTest.executionEnvironmentDiagnosticsUseSeparateDetailSheet",
         "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ],
+      "screens": [
+        "audit-environments",
+        "audit-environment-editor"
       ]
     },
     {
@@ -273,6 +336,10 @@
       "tests": [
         "UiNavigationInstrumentedTest.accountPageExposesNarrowScreenDeviceLoginActions",
         "UiNavigationInstrumentedTest.accountSessionsExperimentHasClearOfflineState"
+      ],
+      "screens": [
+        "account",
+        "account-sessions"
       ]
     },
     {
@@ -284,6 +351,10 @@
       "business": "目录、配置、能力与错误反馈",
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchOpensPreciseProviderAndRemoteEditors"
+      ],
+      "screens": [
+        "audit-providers",
+        "audit-provider-editor"
       ]
     },
     {
@@ -296,6 +367,10 @@
       "business": "专业参数校验、写入、确认及回读；日常配置由所属页面管理",
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchDirectlyExpandsAdvancedConfig"
+      ],
+      "screens": [
+        "audit-config",
+        "audit-config-editor"
       ]
     },
     {
@@ -307,6 +382,10 @@
       "business": "实际权限方案、禁用原因、保存及失败",
       "tests": [
         "UiNavigationInstrumentedTest.permissionProfilesCanBeSelectedAndRestrictedProfilesCannot"
+      ],
+      "screens": [
+        "audit-security-selection",
+        "audit-security-profiles"
       ]
     },
     {
@@ -320,6 +399,9 @@
       "tests": [
         "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs",
         "CodexInteractionComponentsInstrumentedTest.dailyUsagePeriodSelectionDoesNotTurnMissingTokensIntoZero"
+      ],
+      "screens": [
+        "account-usage"
       ]
     },
     {
@@ -333,6 +415,9 @@
       "tests": [
         "UiNavigationInstrumentedTest.accountMetricsUsesSharedUsageAndLimitsTabs",
         "UiNavigationInstrumentedTest.sidebarQuotaOpensLimitsWithoutFooterLabels"
+      ],
+      "screens": [
+        "account-limits"
       ]
     },
     {
@@ -349,6 +434,9 @@
         "UiNavigationInstrumentedTest.settingsSearchOpensAppearanceSheetWithoutInlineExpansion",
         "UiPopulatedSubpagesInstrumentedTest.darkAppearanceWithSystemDoubleFontRemainsReachable",
         "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ],
+      "screens": [
+        "appearance"
       ]
     },
     {
@@ -362,6 +450,10 @@
       "business": "连接状态、日志、真实故障、诊断与重连",
       "tests": [
         "UiNavigationInstrumentedTest.statusButtonHasStableMeaningAndSeparatesActions"
+      ],
+      "screens": [
+        "audit-diagnostics",
+        "engine-status"
       ]
     },
     {
@@ -374,6 +466,25 @@
       "business": "版本、更新检查、真实下载进度",
       "tests": [
         "UiNavigationInstrumentedTest.directlySelectableSecurityAndAboutViewsAreCaptured"
+      ],
+      "screens": [
+        "audit-about"
+      ]
+    },
+    {
+      "route": "features",
+      "title": "功能开关",
+      "sources": [
+        "FeatureSwitchPage",
+        "FeatureSwitchController",
+        "Screens"
+      ],
+      "business": "从内核读取真实功能开关目录，按用途及状态筛选；显示偏好直接操作，其他变更经确认后写入并回读；管理策略及不适用项只读",
+      "tests": [
+        "UiNavigationInstrumentedTest.featureCatalogKeepsUserFacingRoutesOnly"
+      ],
+      "screens": [
+        "audit-features"
       ]
     },
     {
@@ -388,6 +499,9 @@
       "tests": [
         "UiNavigationInstrumentedTest.settingsSearchFindsActualOptionsByUserWording",
         "UiNavigationInstrumentedTest.globalArchiveOverlayProtectsSettingsAndRestoresThePage"
+      ],
+      "screens": [
+        "settings-hub"
       ]
     },
     {
@@ -401,6 +515,9 @@
       "business": "全局执行指令的编辑、清空和保存回读",
       "tests": [
         "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ],
+      "screens": [
+        "audit-personalization"
       ]
     },
     {
@@ -414,6 +531,9 @@
       "business": "上下文容量、自动压缩与工具输出保留",
       "tests": [
         "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ],
+      "screens": [
+        "audit-context"
       ]
     },
     {
@@ -427,6 +547,9 @@
       "business": "策略允许的搜索模式、选择和保存回读",
       "tests": [
         "UiNavigationInstrumentedTest.settingsPreferencesAreDistributedToTheirOwners"
+      ],
+      "screens": [
+        "audit-tools"
       ]
     }
   ],
@@ -503,11 +626,11 @@
     },
     {
       "asset": "interaction-atlas-expanded.svg",
-      "business": "任务队列、搜索、单选、校验、结果摘要及详情操作",
+      "business": "任务队列、剪贴板检索、单选、校验、结果摘要及详情操作",
       "components": [
         [
           "AtlasInteractionComponents",
-          "AtlasSearchField"
+          "ClipboardQueryAction"
         ],
         [
           "AtlasInteractionComponents",
@@ -527,7 +650,7 @@
         ],
         [
           "DeveloperScreens",
-          "AtlasExclusiveChip"
+          "AtlasCompactChoice"
         ],
         [
           "CodexControlPrimitives",
@@ -547,11 +670,11 @@
     },
     {
       "asset": "four-skills-interaction-v6.svg",
-      "business": "会话恢复、搜索、模型协作与扩展管理",
+      "business": "会话恢复、剪贴板检索、模型协作与扩展管理",
       "components": [
         [
           "SidebarSessions",
-          "AtlasSearchField"
+          "ClipboardQueryAction"
         ],
         [
           "UiSharedSurfaces",
@@ -573,7 +696,7 @@
     },
     {
       "asset": "状态与交互组件.svg",
-      "business": "共享图标、空态/失败、统一容器、搜索与持久反馈；实际操作由业务状态驱动",
+      "business": "共享图标、空态/失败、统一容器、剪贴板检索与持久反馈；实际操作由业务状态驱动",
       "components": [
         [
           "CodexIcon",
@@ -597,7 +720,7 @@
         ],
         [
           "SidebarSessions",
-          "AtlasSearchField"
+          "ClipboardQueryAction"
         ],
         [
           "ConversationScreen",
@@ -673,6 +796,102 @@
         "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
         "CodexInteractionComponentsInstrumentedTest.messageHeaderLongPressPreservesReaderAction"
       ]
+    },
+    {
+      "asset": "model-switch-experience.svg",
+      "business": "跨服务商模型选择、同屏思考强度、执行中下轮模型与历史会话交接确认；原型仅作设计参考，生产操作依赖真实模型目录及用户确认",
+      "components": [
+        [
+          "UiSharedSurfaces",
+          "ModelChoiceSurface"
+        ],
+        [
+          "ConversationControlBar",
+          "ConversationControlBar"
+        ],
+        [
+          "ConversationComposer",
+          "ConversationComposer"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet"
+      ]
+    },
+    {
+      "asset": "integration-deep-optimization.svg",
+      "business": "整合优化设计示意：运行中对话自适应、功能类别与状态筛选、插件用途查询；设备实测另以 CI 为准",
+      "components": [
+        [
+          "ConversationComposer",
+          "ConversationComposer"
+        ],
+        [
+          "FeatureSwitchPage",
+          "FeatureSwitchPage"
+        ],
+        [
+          "EcosystemScreens",
+          "PluginsPage"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "UiNavigationInstrumentedTest.featureCatalogKeepsUserFacingRoutesOnly",
+        "UiNavigationInstrumentedTest.pluginDiscoveryUsesClipboardWithoutSearchField"
+      ]
+    },
+    {
+      "asset": "native-task-experience.svg",
+      "business": "简洁主界面、原生指令流、按需能力入口与备份恢复保护；设计参考，实际运行以 CI 与设备证据为准",
+      "components": [
+        [
+          "ConversationTimelineViewport",
+          "ConversationTimelineViewport"
+        ],
+        [
+          "ChatTimelineComponents",
+          "TimelineStepCard"
+        ],
+        [
+          "TaskCapabilityActions",
+          "TaskCapabilitiesSheet"
+        ],
+        [
+          "GlobalWorkUi",
+          "DataTransferBusyOverlay"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatTimelineSeparatesMessagesAndExecutionSteps",
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible"
+      ]
     }
+  ],
+  "requiredStateScreens": [
+    "attachment-sheet",
+    "evidence-sheet",
+    "plugin-search",
+    "audit-permission-request",
+    "audit-thread-context",
+    "audit-thread-history",
+    "audit-advanced-timeline",
+    "audit-thread-attachments",
+    "audit-mcp-elicitation",
+    "audit-mcp-chatgpt-available",
+    "audit-mcp-service-boundary",
+    "audit-sidebar-filtered",
+    "audit-composer-running",
+    "audit-composer-edit",
+    "audit-rtl-200font-bulk",
+    "audit-backup-background-block",
+    "audit-backup-in-progress",
+    "audit-attachment-preview",
+    "audit-message-menu",
+    "audit-update-progress",
+    "engine-settings-editor"
+  ],
+  "optionalStateScreens": [
+    "audit-thread-history-transition"
   ]
 }

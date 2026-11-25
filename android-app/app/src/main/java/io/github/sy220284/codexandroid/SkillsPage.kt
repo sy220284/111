@@ -38,16 +38,11 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val readErrors = remember(groups) { groups.sumOf { it.optJSONArray("errors")?.length() ?: 0 } }
     val mutationLoading by vm.loading.collectProjection { it.intersect(setOf("skills", "skillsWrite")) }
     var filter by rememberSaveable { mutableStateOf("all") }
-    var query by rememberSaveable { mutableStateOf("") }
-    val visibleSkills = remember(skills, filter, query) { when (filter) {
+    val visibleSkills = remember(skills, filter) { when (filter) {
         "enabled" -> skills.filter { it.optBoolean("enabled") }
         "available" -> skills.filter { !it.optBoolean("enabled") }
         "errors" -> emptyList()
         else -> skills
-    }.filter { skill ->
-        val name = skill.optJSONObject("interface")?.optString("displayName").orEmpty()
-        query.isBlank() || name.contains(query.trim(), ignoreCase = true) ||
-            skill.optString("name").contains(query.trim(), ignoreCase = true)
     } }
     var confirmation by remember { mutableStateOf<Pair<JSONObject, Boolean>?>(null) }
     var selectedSkill by remember { mutableStateOf<JSONObject?>(null) }
@@ -62,8 +57,6 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         }, onDiagnostics = { navigate("diagnostics") })
         if (skills.isNotEmpty()) {
             AtlasListHeading("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用", skills.size)
-            AtlasSearchField(query, { query = it }, "搜索技能名称", onClear = { query = "" },
-                modifier = Modifier.testTag("skills-search"))
         }
         if (skills.isNotEmpty() || readErrors > 0) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -76,10 +69,6 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                         label = { Text(label) })
                 }
             }
-        }
-        if (query.isNotBlank() && filter != "errors" && visibleSkills.isEmpty()) {
-            CodexEmptyState("未找到匹配技能", "可清除搜索词或调整筛选。",
-                actionLabel = "清除搜索", onAction = { query = "" })
         }
         visibleSkills.forEach { skill ->
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
@@ -110,7 +99,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 NoticeTone.Warning)
         } else if (filter == "errors" && data["skills"] != null && "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("当前没有技能读取异常", "所有已返回的技能均已成功读取。")
-        } else if (query.isBlank() && filter in setOf("enabled", "available") &&
+        } else if (filter in setOf("enabled", "available") &&
             visibleSkills.isEmpty() && data["skills"] != null && "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
                 actionLabel = "查看全部", onAction = { filter = "all" }, artworkRes = R.drawable.ic_empty_no_results)

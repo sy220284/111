@@ -7,6 +7,20 @@ import org.junit.Test
 class ComposerProviderScopeTest {
     private val catalog = listOf(JSONObject().put("id", "deepseek-flash").put("isDefault", true))
 
+    @Test fun composerOptionAccessMatchesRuntimeAndNextTurnRules() {
+        for (hasThread in listOf(false, true))
+            for (running in listOf(false, true))
+                for (allowRunning in listOf(false, true)) {
+                    assertEquals(!running || (hasThread && allowRunning),
+                        ComposerOptionAccess.canChange(hasThread, running, allowRunning,
+                            false, false, false, false))
+                    for (blocked in 0..3) {
+                        assertFalse(ComposerOptionAccess.canChange(hasThread, running, allowRunning,
+                            blocked == 0, blocked == 1, blocked == 2, blocked == 3))
+                    }
+                }
+    }
+
     @Test fun providerOwnsModelAndThread() {
         assertEquals("deepseek", ComposerProviderScope.resolve("deepseek", null, "openai"))
         assertEquals("deepseek", ComposerProviderScope.resolve(null, "deepseek", "openai"))
@@ -34,5 +48,35 @@ class ComposerProviderScopeTest {
         assertThrows(IllegalStateException::class.java) {
             ComposerProviderScope.initialModel(emptyList(), "", null, true)
         }
+    }
+
+    @Test fun modelEffortPreferenceRoundTripsAndRespectsCurrentCatalog() {
+        val row = JSONObject().put("id", "a").put("supportedReasoningEfforts",
+            org.json.JSONArray().put(JSONObject().put("reasoningEffort", "high")))
+        val catalog = listOf(row, JSONObject().put("id", "b"))
+        val legacy = ComposerTaskOptions("a", effort = "high", modelProvider = "provider")
+        val legacyB = ComposerModelPolicy.choose(legacy, "provider", "b", catalog)
+        assertEquals("high", ComposerModelPolicy.choose(legacyB, "provider", "a", catalog).effort)
+        val a = ComposerModelPolicy.choose(ComposerTaskOptions(), "provider", "a", catalog)
+        val remembered = ComposerModelPolicy.withEffort(a, "high")
+        val b = ComposerModelPolicy.choose(remembered, "provider", "b", catalog)
+        assertEquals("", b.effort)
+        val restored = ComposerTaskOptions.decode(b.encode())
+        assertEquals("high", ComposerModelPolicy.choose(restored, "provider", "a", catalog).effort)
+        assertEquals("", ComposerModelPolicy.choose(restored, "other", "a", catalog).effort)
+        assertEquals("", ComposerModelPolicy.choose(restored, "provider", "a", listOf(JSONObject().put("id", "a"))).effort)
+    }
+
+    @Test fun recentOrderIsProviderScopedAndPersistsAcrossReopen() {
+        val catalog = listOf(JSONObject().put("id", "a"), JSONObject().put("id", "b"))
+        val a = ComposerModelPolicy.choose(ComposerTaskOptions(), "p", "a", catalog)
+        val b = ComposerModelPolicy.choose(a, "p", "b", catalog)
+        val restored = ComposerTaskOptions.decode(b.encode())
+        assertEquals(0, ComposerModelPolicy.recentRank(restored, "p", "b"))
+        assertEquals(1, ComposerModelPolicy.recentRank(restored, "p", "a"))
+        assertEquals(Int.MAX_VALUE, ComposerModelPolicy.recentRank(restored, "other", "a"))
+        val model = JSONObject().put("inputModalities", org.json.JSONArray().put("text").put("image"))
+        assertEquals(listOf("text", "image"), ComposerModelPolicy.inputKinds(model))
+        assertTrue(ComposerModelPolicy.inputKinds(JSONObject()).isEmpty())
     }
 }

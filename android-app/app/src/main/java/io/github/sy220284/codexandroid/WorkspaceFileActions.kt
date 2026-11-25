@@ -3,11 +3,23 @@ package io.github.sy220284.codexandroid
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileVisitResult
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
+
+internal fun defaultWorkspaceContentName(kind: String, occupied: Set<String>): String {
+    val prefix = if (kind == "file") "新建文件" else "新建文件夹"
+    val suffix = if (kind == "file") ".txt" else ""
+    return generateSequence(1) { it + 1 }.map { n ->
+        prefix + (if (n == 1) "" else " $n") + suffix
+    }.first { it !in occupied }
+}
+
+internal class WorkspaceNameConflict(val requestedName: String, val suggestedName: String) :
+    IOException("名称“$requestedName”已被占用，请确认其他名称后重试")
 
 /**
  * All workspace edits stay under the app-owned projects root.
@@ -24,14 +36,20 @@ object WorkspaceFileActions {
         return candidate
     }
 
+    fun nameError(name: String): String? {
+        val normalized = name.trim()
+        return when {
+            normalized.isEmpty() || normalized == "." || normalized == ".." ||
+                normalized.contains('/') || normalized.contains('\\') ||
+                normalized.contains('\u0000') -> "文件名只能包含合法的单层名称"
+            normalized.startsWith(".codex-import-") -> "该前缀为工作区导入缓存保留名称"
+            else -> null
+        }
+    }
+
     fun child(root: File, folder: File, name: String): File {
         val normalized = name.trim()
-        require(normalized.isNotEmpty() && normalized != "." && normalized != ".." &&
-            !normalized.contains('/') && !normalized.contains('\\') &&
-            !normalized.contains('\u0000')) { "文件名只能包含合法的单层名称" }
-        require(!normalized.startsWith(".codex-import-")) {
-            "该前缀为工作区导入缓存保留名称"
-        }
+        nameError(normalized)?.let { throw IllegalArgumentException(it) }
         val base = root.canonicalFile
         val parent = folder.canonicalFile
         require(parent == base || parent.path.startsWith(base.path + File.separator)) {
@@ -43,17 +61,22 @@ object WorkspaceFileActions {
         return target
     }
 
-    fun createFolder(root: File, folder: File, name: String): File {
+    private fun create(root: File, folder: File, name: String, kind: String): File {
         val target = child(root, folder, name)
-        Files.createDirectory(target.toPath())
+        try {
+            if (kind == "file") Files.createFile(target.toPath()) else Files.createDirectory(target.toPath())
+        } catch (conflict: FileAlreadyExistsException) {
+            // The actual filesystem owns uniqueness; a previous UI listing is only a suggestion.
+            val names = target.parentFile?.list()?.toSet()
+                ?: throw IOException("当前目录无法读取，无法确认可用名称", conflict)
+            throw WorkspaceNameConflict(name.trim(), defaultWorkspaceContentName(kind, names))
+        }
         return target
     }
 
-    fun createTextFile(root: File, folder: File, name: String): File {
-        val target = child(root, folder, name)
-        Files.createFile(target.toPath())
-        return target
-    }
+    fun createFolder(root: File, folder: File, name: String): File = create(root, folder, name, "folder")
+
+    fun createTextFile(root: File, folder: File, name: String): File = create(root, folder, name, "file")
 
     fun rename(root: File, target: File, name: String): File {
         val validated = source(root, target)

@@ -225,7 +225,7 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
                         previous.second + MessageMarkdown.blocks(value.substring(previous.first.length))
                     } else MessageMarkdown.blocks(value)
                 }
-                parsed = value to blocks
+                withContext(Dispatchers.Main.immediate) { parsed = value to blocks }
             }
         }
     }

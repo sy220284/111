@@ -21,7 +21,7 @@ internal fun assertControlSystemInteraction(rule: androidx.compose.ui.test.junit
                     modifier = Modifier.testTag("v7-file"))
                 AtlasExclusiveChip(chosen == "folder", { chosen = "folder" }, { Text("文件夹") },
                     modifier = Modifier.testTag("v7-folder"))
-                AtlasFormField(name, { name = it }, "名称", modifier = Modifier.testTag("v7-field"))
+                ActionQuestionRow(name, { name = it }, "名称", modifier = Modifier.testTag("v7-field"))
                 CodexSecondaryButton(onClick = { actions++ }, enabled = name.isNotBlank(),
                     modifier = Modifier.testTag("v7-save")) { Text("保存") }
                 CodexTextAction(onClick = { actions += 10 }, enabled = false,
@@ -33,9 +33,13 @@ internal fun assertControlSystemInteraction(rule: androidx.compose.ui.test.junit
     rule.onNodeWithTag("v7-folder").performClick()
     rule.onNodeWithTag("v7-folder").assertIsSelected()
     rule.onNodeWithTag("v7-file").assertIsNotSelected()
-    rule.onNodeWithContentDescription("清除名称").performClick()
+    rule.onNodeWithTag("v7-field").performClick()
+    rule.onNodeWithTag("action-reply-input").performTextClearance()
+    rule.onNodeWithTag("action-reply-send").performClick()
     rule.onNodeWithTag("v7-save").assertIsNotEnabled()
-    rule.onNodeWithTag("v7-field").performTextInput("new")
+    rule.onNodeWithTag("v7-field").performClick()
+    rule.onNodeWithTag("action-reply-input").performTextInput("new")
+    rule.onNodeWithTag("action-reply-send").performClick()
     rule.onNodeWithTag("v7-save").assertIsEnabled().performClick()
     rule.onNodeWithTag("v7-disabled").assertIsNotEnabled()
     rule.runOnIdle { assertEquals(1, actions) }

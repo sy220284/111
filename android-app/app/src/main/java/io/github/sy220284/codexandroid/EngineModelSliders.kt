@@ -43,14 +43,9 @@ internal fun EngineModelSlider(setting: EngineSetting, current: Any?, available:
     }
     val currentId = current?.toString()
     val base = remember(setting, available) { EngineSettings.sliderOptions(setting, available) }
-    var query by rememberSaveable(setting.key) { mutableStateOf("") }
-    val matching = base.filter { (id, label) ->
-        id == null || id == currentId || query.isBlank() ||
-            id.contains(query.trim(), true) || label.contains(query.trim(), true)
-    }
     // Keep a saved value visible if the provider removed it. Never write this unavailable entry.
     val options = if (currentId != null && base.none { it.first == currentId })
-        matching + (currentId to (setting.label(current, available) + " · 当前不可用")) else matching
+        base + (currentId to (setting.label(current, available) + " · 当前不可用")) else base
     val actualIndex = options.indexOfFirst { it.first == currentId }.coerceAtLeast(0)
     var preview by remember(options, actualIndex, enabled) { mutableIntStateOf(actualIndex) }
     val chosen = options[preview.coerceIn(options.indices)]
@@ -70,14 +65,6 @@ internal fun EngineModelSlider(setting: EngineSetting, current: Any?, available:
             color = if (preview != actualIndex && editable) Ink.copper else Ink.parchment,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.testTag("engine-slider-value-" + setting.key))
-        if (setting.type == "model" && (available.size > 5 || query.isNotBlank())) {
-            AtlasSearchField(query, { query = it }, "搜索模型", enabled = enabled,
-                onClear = { query = "" }, modifier = Modifier.testTag("engine-slider-model-search"))
-            if (query.isNotBlank() && available.none { (id, label) ->
-                    id.contains(query.trim(), true) || label.contains(query.trim(), true) })
-                Text("没有匹配的模型，当前配置仍保留", color = Ink.muted,
-                    style = MaterialTheme.typography.bodySmall)
-        }
         if (options.size >= 2) {
             CodexDiscreteSlider(preview, options.size, editable,
                 onPreview = { preview = it },
@@ -135,7 +122,7 @@ private fun EngineDefaultModelPicker(setting: EngineSetting, current: Any?,
             }
             if (open) CodexChoiceSheet(title = "选择默认模型", description = "使用服务目录中的可用模型；保存后用于新任务。", anchored = true,
                 choices = options.map { (key, name) -> CodexChoice(key.orEmpty(), name) },
-                selectedId = id.orEmpty(), searchable = true, enabled = enabled,
+                selectedId = id.orEmpty(), wide = true, enabled = enabled,
                 onSelect = { key ->
                     if (key != id.orEmpty()) onSave(if (key.isEmpty()) JSONObject.NULL else setting.parse(key, available))
                     open = false

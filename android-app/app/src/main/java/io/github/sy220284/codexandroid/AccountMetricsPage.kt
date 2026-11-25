@@ -36,7 +36,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     // Both tabs observe process-owned snapshots; entering or switching never clears data.
     ScreenColumn {
         AtlasCompactChoice(selectedTab, listOf("usage" to "用量", "limits" to "额度"),
-            onSelect = { selectedTab = it })
+            onSelect = { selectedTab = it }, tagPrefix = "account-metrics-tab-")
         MaterialPanel(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(if (usage) CodexGlyph.Insights else CodexGlyph.Speed,

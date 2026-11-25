@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 import xml.etree.ElementTree as ET
-from check_ui_assets import icon_paths, verify_icon, verify_artwork, path_tokens, invalid_glyph_namespace
+from check_ui_assets import icon_paths, verify_icon, verify_artwork, path_tokens, invalid_glyph_namespace, source_marker_lines
 
 def svg(path):
     return ET.fromstring('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>')
@@ -10,6 +10,14 @@ def vector(path):
     return ET.fromstring('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:pathData="'+path+'" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/></vector>')
 
 class AssetChecks(unittest.TestCase):
+    def test_source_evidence_cannot_be_satisfied_by_comment_string_or_partial_name(self):
+        source = '// AtlasSearchField()\nval note = "AtlasSearchField"\nAtlasSearchFieldOld()\nAtlasSearchField()'
+        self.assertEqual([4], source_marker_lines(source, "AtlasSearchField"))
+        self.assertEqual([], source_marker_lines(source, "MissingComponent"))
+
+    def test_multiple_source_bindings_preserve_each_line(self):
+        self.assertEqual([1, 3], source_marker_lines("CodexNotice()\nOther()\nCodexNotice()", "CodexNotice"))
+
     def test_glyph_type_namespace(self):
         self.assertTrue(invalid_glyph_namespace("icon: androidx.compose.ui.graphics.vector.CodexGlyph"))
         self.assertFalse(invalid_glyph_namespace("icon: CodexGlyph"))

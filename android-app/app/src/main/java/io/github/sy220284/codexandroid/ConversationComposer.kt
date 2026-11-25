@@ -44,6 +44,7 @@ internal fun ConversationComposer(
     modeLabel: String = "default",
     effortLabel: String = "",
     optionsEnabled: Boolean = true,
+    modelOptionsEnabled: Boolean = optionsEnabled,
     onModel: () -> Unit = {},
     onMode: () -> Unit = {},
     onTaskOptions: () -> Unit = {},
@@ -59,7 +60,8 @@ internal fun ConversationComposer(
     addMenu: (@Composable () -> Unit)? = null,
     modelMenu: (@Composable () -> Unit)? = null,
     modeMenu: (@Composable () -> Unit)? = null,
-    taskMenu: (@Composable () -> Unit)? = null
+    taskMenu: (@Composable () -> Unit)? = null,
+    providerLabel: String = ""
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var expandedEditor by remember { mutableStateOf(false) }
@@ -127,8 +129,23 @@ internal fun ConversationComposer(
                 }
             }
             }
+            BoxWithConstraints(Modifier.fillMaxWidth().testTag("composer-primary-actions")) {
+                val showStop = stopping || running
+                val guideVisible = running && hasInput && !stopping
+                val separateModel = CodexViewportPolicy.composerModelOwnRow(maxWidth.value,
+                    codexEffectiveFontScale(), 2 + (if (onVoice != null) 1 else 0) + (if (guideVisible) 1 else 0))
+                Column(Modifier.fillMaxWidth()) {
+                    if (separateModel) {
+                        Box(Modifier.fillMaxWidth().testTag("composer-model-own-row")) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                                ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel,
+                                    providerLabel, expanded = true)
+                            }
+                            modelMenu?.invoke()
+                        }
+                    }
             Row(
-                modifier = Modifier.fillMaxWidth().testTag("composer-primary-actions"),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {
@@ -139,10 +156,10 @@ internal fun ConversationComposer(
                     }
                     addMenu?.invoke()
                 }
-                if (running) Spacer(Modifier.weight(1f))
+                if (separateModel) Spacer(Modifier.weight(1f))
                 else Box(Modifier.weight(1f)) {
                     Row(Modifier.fillMaxWidth()) {
-                        ConversationControlBar(modelLabel, effortLabel, optionsEnabled, onModel)
+                        ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel, providerLabel)
                     }
                     modelMenu?.invoke()
                 }
@@ -152,15 +169,23 @@ internal fun ConversationComposer(
                         CodexIcon(CodexGlyph.Microphone, "语音输入", modifier = Modifier.size(22.dp), tint = Ink.muted)
                     }
                 }
-                // One fixed primary action: the active task owns Stop until there
-                // is a new draft. Sending and stopping both retain this same slot.
-                val showStop = stopping || (running && !hasInput)
-                val waiting = stopping || sending
-                val primaryEnabled = !waiting && if (showStop) running && canStop else canSend
+                // Stop stays at the same trailing edge while the user writes or sends a follow-up.
+                // The independent queue action remains outside this surface.
+                if (guideVisible) {
+                    CodexIconAction(onClick = onSend, enabled = canSend && !sending,
+                        modifier = Modifier.size(48.dp).testTag("composer-send")
+                            .explainDisabled(!canSend || sending, sendBlockReason.ifBlank { "正在提交指令" })
+                            .semantics { contentDescription = if (sending) "正在提交指令" else "引导当前任务" }) {
+                        if (sending) CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp, color = Ink.muted)
+                        else CodexIcon(CodexGlyph.ArrowUpward, null, modifier = Modifier.size(22.dp), tint = Ink.parchment)
+                    }
+                }
+                val waiting = if (showStop) stopping else sending
+                val primaryEnabled = !waiting && if (showStop) connected && running && canStop else canSend
                 val description = when {
                     stopping -> "正在停止任务"
-                    sending -> "正在发送指令"
                     showStop -> "停止任务"
+                    sending -> "正在发送指令"
                     running && hasInput -> "引导当前任务"
                     else -> "发送给 Codex"
                 }
@@ -172,10 +197,10 @@ internal fun ConversationComposer(
                             .testTag(if (showStop) "composer-stop" else "composer-send")
                             .explainDisabled(!primaryEnabled, when {
                                 stopping -> "已发出停止请求，等待运行核心响应"
-                                sending -> "正在发送指令，请勿重复提交"
+                                !showStop && sending -> "正在发送指令，请勿重复提交"
+                                !connected -> "运行核心尚未连接"
                                 showStop && !canStop -> "当前任务尚无可停止的执行回合"
                                 sendBlockReason.isNotBlank() -> sendBlockReason
-                                !connected -> "运行核心尚未连接"
                                 else -> "输入指令后即可发送"
                             })
                             .semantics { contentDescription = description },
@@ -199,6 +224,8 @@ internal fun ConversationComposer(
                             }
                         }
                     }
+                }
+            }
                 }
             }
         }

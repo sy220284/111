@@ -21,7 +21,11 @@ internal class TerminalTaskOperations(
         vm.rpc(key, method, params)
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
-    fun startTerminalCommand(command: String, tty: Boolean = false) {
+    fun startTerminalCommand(command: String, tty: Boolean = false, networkEnabled: Boolean = false) {
+        if (vm.conversationState.value.remote != null) {
+            errors.value = errors.value + ("terminal" to "当前为远端任务，请在对话中交给远端智能体执行命令")
+            return
+        }
         if (!vm.globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("terminal" to
                 "本机数据正在备份或恢复，完成后再执行终端命令")
@@ -43,8 +47,10 @@ internal class TerminalTaskOperations(
                 (error.message ?: "任务项目目录不可用，请重新选择"))
             return
         }
+        val epoch = bridge.connectedSession.value
+        if (epoch == null) { errors.value = errors.value + ("terminal" to "运行核心尚未连接"); return }
         val id = UUID.randomUUID().toString()
-        val args = TerminalSessionContract.execute(command, cwd, id, tty)
+        val args = TerminalSessionContract.execute(command, cwd, id, tty, networkEnabled)
         // Own the pending start synchronously: a second tap or global backup
         // cannot overtake Android's asynchronous foreground-service creation.
         vm.terminalStarting.value = true
@@ -58,7 +64,7 @@ internal class TerminalTaskOperations(
                 vm.terminalStarting.value = false
                 errors.value = errors.value - "terminal"
                 terminalTranscript.begin(id)
-                val result = bridge.request("command/exec", args, timeoutMillis = null)
+                val result = bridge.request("command/exec", args, timeoutMillis = null, expectedSession = epoch)
                 terminalTranscript.appendTail(id, result)
                 val active = terminalSession.value
                 if (active.processId == id) terminalSession.value = active.finish(result)

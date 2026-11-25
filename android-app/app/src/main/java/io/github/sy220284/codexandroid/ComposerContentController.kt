@@ -113,7 +113,7 @@ internal class ComposerContentController(private val vm: CodexViewModel) {
             try {
                 for (uri in uris) {
                     try {
-                        val reference = withContext(Dispatchers.IO) {
+                        val reference = AppDataTransfer.mutateLocal {
                             val context = vm.getApplication<android.app.Application>()
                             val root = File(vm.workingDirectory)
                             val workspace = WorkspaceSelectionContract.validate(root, File(target.workspace))

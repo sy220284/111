@@ -35,9 +35,9 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
             else -> emptyList()
         }.filter { it.isNotBlank() && it != "null" }
     }
-    var preview by remember(item.id) { mutableStateOf<String?>(null) }
-    val resolved by produceState<List<String>?>(null, candidates, workspaceRoot) {
-        withContext(Dispatchers.Main.immediate) { value = withContext(Dispatchers.IO) {
+    var preview by remember(item.id, workspaceRoot, candidates) { mutableStateOf<String?>(null) }
+    val resolved by key(item.id, workspaceRoot, candidates) {
+        loadCodexUiState<List<String>?>(null, item.id, workspaceRoot, candidates) {
             val workspace = workspaceRoot?.let { File(it).canonicalFile }
             val legacy = WorkspaceStorage.legacyRoot(context)
             val roots = listOfNotNull(context.filesDir.canonicalFile, context.cacheDir.canonicalFile, workspace)
@@ -51,7 +51,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
                 } catch (_: java.io.IOException) { null }
                 catch (_: IllegalArgumentException) { null }
             }.distinct()
-        } }
+        }
     }
     val paths = resolved
     if (paths == null) {
@@ -61,19 +61,20 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
     if (candidates.isNotEmpty()) {
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            paths.take(3).forEach { path ->
-                val bitmap by produceState<AttachmentBitmapInfo?>(null, path) {
-                    withContext(Dispatchers.Main.immediate) { value = decodeAttachmentInfo(path, 320) }
-                }
-                bitmap?.let { info ->
-                    Column {
+            paths.take(3).forEach { path -> key(path) {
+                val image by rememberAttachmentImage(path, 320)
+                val info = image.info
+                when {
+                    !image.loaded -> AtlasOperationProgress("正在读取图片")
+                    info == null -> Text("图片预览不可用", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    else -> Column {
                         Image(info.bitmap, "查看原图", Modifier.size(86.dp).clip(RoundedCornerShape(8.dp))
                             .clickable { preview = path })
                         if (item.kind == "imageGeneration")
                             Text("${info.width} × ${info.height}", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
-                } ?: Text("图片预览不可用", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-            }
+                }
+            } }
         }
         if (paths.size < candidates.size) Text("部分原图已不存在或不在本机工作区",
             style = MaterialTheme.typography.labelSmall, color = Ink.muted)

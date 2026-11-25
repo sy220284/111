@@ -38,6 +38,13 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
             required = list(REQUIRED_ANDROID) + [f"lib/{abi}/libhpatchz.so"]
             if mode == "full":
                 required.extend(f"lib/{abi}/{binary}" for binary in REQUIRED_RUNTIME)
+            if mode == "full":
+                required.extend(f"lib/{abi}/{name}" for name in
+                                ("libnode.so", "libnpm.so", "libpython3.so", "libcodex_curl.so"))
+                if abi == "arm64-v8a":
+                    required.append(f"lib/{abi}/libcodex_git_remote_http.so")
+                required.extend("assets/development-runtime/development-runtime." + ext
+                                for ext in ("zip", "sha256", "version", "provenance.json"))
             missing = sorted(set(required) - entries.keys())
             if missing:
                 raise ApkAuditError("关键安装文件缺失：" + ", ".join(missing))

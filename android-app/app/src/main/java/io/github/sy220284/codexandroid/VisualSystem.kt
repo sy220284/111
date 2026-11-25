@@ -61,6 +61,13 @@ private object InkDark {
     val red = Color(0xFFFF8C93)
 }
 
+/** Terminal surfaces retain dark contrast in both application themes. */
+internal object RuntimeConsolePalette {
+    val background get() = InkDark.recessed
+    val foreground get() = InkDark.parchment
+    val secondary get() = InkDark.muted
+}
+
 object Ink {
     val canvas: Color get() = if (UiPreferences.darkMode.value) InkDark.canvas else InkLight.canvas
     val recessed: Color get() = if (UiPreferences.darkMode.value) InkDark.recessed else InkLight.recessed
@@ -165,7 +172,7 @@ fun CodexTheme(content: @Composable () -> Unit) {
         content = {
             // Pages outside a Material Surface inherit the correct dark foreground.
             CompositionLocalProvider(LocalContentColor provides Ink.parchment) {
-                content()
+                ProvideCodexViewport(content)
             }
         }
     )

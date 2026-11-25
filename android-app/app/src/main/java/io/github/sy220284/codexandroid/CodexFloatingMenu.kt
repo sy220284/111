@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -27,33 +25,28 @@ internal fun CodexFloatingMenu(
     onDismiss: () -> Unit,
     description: String = "",
     wide: Boolean = false,
-    searchable: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val config = LocalConfiguration.current
     val density = LocalDensity.current
     val ime = with(density) { WindowInsets.ime.getBottom(density).toDp() }
-    // The visible Android window is authoritative during adjustResize; the
-    // configuration height and IME inset alone may refer to different bounds.
-    val view = LocalView.current
-    val visibleFrame = android.graphics.Rect().also(view::getWindowVisibleDisplayFrame)
-    val visibleHeight = with(density) { visibleFrame.height().toDp() }
-    val topClearance = if (ime > 0.dp) 72.dp else 0.dp
-    val height = minOf(420.dp, config.screenHeightDp.dp * .64f,
-        (visibleHeight - topClearance - 12.dp).coerceAtLeast(48.dp))
+    val viewport = rememberCodexViewport()
+    val budget = CodexViewportPolicy.menu(viewport.width.value, viewport.height.value,
+        if (ime > 0.dp) LocalCodexProtectedTop.current.value else 0f,
+        if (wide) 280f else 248f)
+    val topClearance = budget.top.dp
+    val height = budget.height.dp
     // A simple menu must not steal the existing text field's IME connection.
-    // The model search needs its own editable focus; otherwise keep the IME window.
-    val focusable = searchable || ime == 0.dp
+    val focusable = ime == 0.dp
     BackHandler(enabled = !focusable, onBack = onDismiss)
-    val menuWidth = minOf(if (wide) 280.dp else 248.dp,
-        (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp))
+    val menuWidth = budget.width.dp
     CodexPopupMenu(
         expanded = true, onDismissRequest = onDismiss, floating = true, focusable = focusable, topClearance = topClearance,
         modifier = Modifier.width(menuWidth)
             .heightIn(max = height).testTag("codex-floating-menu")
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                .testTag("codex-floating-title"),
                 style = MaterialTheme.typography.titleMedium, color = Ink.parchment)
             if (description.isNotBlank()) Text(description,
                 modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
@@ -109,9 +102,16 @@ internal fun CodexFloatingMenuRow(
 @Composable
 internal fun CodexFloatingActionMenu(title: String, actions: List<CodexSheetAction>,
     onDismiss: () -> Unit, showDescriptions: Boolean = true) {
+    var handled by remember { mutableStateOf(false) }
     CodexFloatingMenu(title, onDismiss) {
         actions.forEach { action ->
-            CodexFloatingMenuRow(action.label, onClick = { onDismiss(); action.onClick() },
+            CodexFloatingMenuRow(action.label, onClick = {
+                if (!handled) {
+                    handled = true
+                    onDismiss()
+                    action.onClick()
+                }
+            },
                 modifier = if (action.testTag == null) Modifier else Modifier.testTag(action.testTag),
                 description = if (showDescriptions) action.description else "", icon = action.icon,
                 enabled = action.enabled, destructive = action.destructive)

@@ -27,11 +27,12 @@ import androidx.compose.ui.unit.dp
 fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val diff by vm.latestDiff.collectAsState()
     val active by vm.activeThread.collectAsState()
+    val running by vm.running.collectAsState()
+    val reviewTurn by vm.timeline.collectProjection { items -> items.lastOrNull { it.kind == "exitedReviewMode" && it.status !in setOf("failed", "interrupted", "cancelled") }?.turnId }
     val prepared by rememberPreparedDiff(diff, active)
     val context = LocalContext.current
     var expandedPaths by remember(active) { mutableStateOf<Set<String>?>(null) }
     var wrapLines by remember(active) { mutableStateOf(true) }
-    var query by remember(active) { mutableStateOf("") }
     val listState = key(active) { rememberLazyListState() }
     var filePicker by remember(active) { mutableStateOf(false) }
     var pendingJump by remember(active) { mutableStateOf<String?>(null) }
@@ -65,7 +66,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }
     val clipboard = LocalClipboardManager.current
     var copied by remember(displayedDiff) { mutableStateOf(false) }
-    val visibleFiles = remember(files, query) { files.indices.filter { files[it].path.contains(query.trim(), ignoreCase = true) } }
+    val visibleFiles = files.indices.toList()
     val lineNumbers = ready.lineNumbers
     LaunchedEffect(pendingJump, expanded, visibleFiles) {
         val path = pendingJump ?: return@LaunchedEffect
@@ -107,8 +108,6 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if (updating) AtlasOperationProgress("正在整理最新差异，暂时保留当前阅读内容")
-                if (files.isNotEmpty()) AtlasSearchField(query, { query = it }, "按文件名筛选差异",
-                    onClear = { query = "" }, modifier = Modifier.testTag("diff-file-search"))
                 if (visibleFiles.isNotEmpty()) Box {
                     CodexTextAction(onClick = { filePicker = true },
                         modifier = Modifier.testTag("diff-file-jump")) { Text("定位改动文件") }
@@ -119,25 +118,34 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 updateExpanded(expanded + target)
                                 pendingJump = fileKeys[target]
                                 filePicker = false
-                            }, searchable = true, anchored = true, onDismiss = { filePicker = false })
+                            }, wide = true, anchored = true, onDismiss = { filePicker = false })
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    CodexPrimaryButton(onClick = { navigate("review") },
-                        enabled = active != null && files.isNotEmpty(),
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        CodexIcon(CodexGlyph.FactCheck, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("代码审查")
+                CodexAdaptiveActions(
+                    first = { actionModifier ->
+                        CodexPrimaryButton(onClick = { navigate("review") },
+                            enabled = active != null && files.isNotEmpty(),
+                            modifier = actionModifier.testTag("diff-reader-review")) {
+                            CodexIcon(CodexGlyph.FactCheck, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("代码审查")
+                        }
+                    },
+                    second = { actionModifier ->
+                        CodexSecondaryButton(onClick = {
+                            clipboard.setText(AnnotatedString(displayedDiff))
+                            copied = true
+                        }, enabled = displayedDiff.isNotBlank(),
+                            modifier = actionModifier.testTag("diff-reader-copy")) {
+                            CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (copied) "已复制" else "复制全部差异")
+                        }
                     }
-                    CodexSecondaryButton(onClick = {
-                        clipboard.setText(AnnotatedString(displayedDiff))
-                        copied = true
-                    }, enabled = displayedDiff.isNotBlank(),
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (copied) "已复制" else "复制全部差异")
-                    }
+                )
+                if (active != null && !reviewTurn.isNullOrBlank()) CodexTextAction(onClick = {
+                    if (appendTaskInstruction(vm, active, "请依据本次审查结果修复已确认的问题，运行相关测试并重新审查，说明验证结果。")) navigate("chat")
+                }, enabled = !running, modifier = Modifier.fillMaxWidth().testTag("diff-review-repair")) {
+                    Text("修复审查问题并复查")
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     CodexCheckBox(checked = wrapLines, onCheckedChange = { wrapLines = it },
@@ -160,10 +168,6 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 )
             }
         } else {
-            if (visibleFiles.isEmpty()) item {
-                CodexEmptyState("没有匹配的文件", "更换文件名或清除筛选。",
-                    actionLabel = "清除筛选", onAction = { query = "" })
-            }
             visibleFiles.forEach { index ->
                 val file = files[index]
                 item(key = "diff-heading-${fileKeys[index]}") {

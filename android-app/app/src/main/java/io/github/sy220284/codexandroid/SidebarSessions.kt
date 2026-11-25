@@ -31,17 +31,13 @@ internal class SidebarUiState(initialIndex: Int = 0, initialOffset: Int = 0) {
     var search by mutableStateOf("")
     var fullText by mutableStateOf(false)
     var archived by mutableStateOf(false)
-    var sort by mutableStateOf(SessionSort.Recent)
-    var taskFilter by mutableStateOf(SessionTaskFilter.All)
+    var projectOnly by mutableStateOf(false)
     val scroll = LazyListState(initialIndex, initialOffset)
-    fun resetFilter() { search = ""; fullText = false; archived = false; taskFilter = SessionTaskFilter.All }
+    fun resetFilter() { search = ""; fullText = false; archived = false; projectOnly = false }
     companion object {
         val Saver = listSaver<SidebarUiState, Int>(
-            save = { listOf(it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset, it.sort.ordinal, it.taskFilter.ordinal) },
-            restore = { SidebarUiState(it[0], it[1]).apply {
-                sort = SessionSort.entries.getOrElse(it.getOrElse(2) { 0 }) { SessionSort.Recent }
-                taskFilter = SessionTaskFilter.entries.getOrElse(it.getOrElse(3) { 0 }) { SessionTaskFilter.All }
-            } })
+            save = { listOf(it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset) },
+            restore = { SidebarUiState(it[0], it[1]) })
     }
 }
 
@@ -138,24 +134,16 @@ internal fun SidebarSessions(
             rawRows.filter { answerVersions.root(SessionListPolicy.id(it)) in matchingRoots }
         }
     }
-    val taskFilter = state.taskFilter
-    val actualActivity = remember(matching, currentActivities, executions, approvals, activeId, running) {
-        matching.associate { row ->
-            val id = SessionListPolicy.id(row)
-            id to SessionListPolicy.activity(row, currentActivities[id], id in executions || running && id == activeId, approvals[id] ?: 0)
-        }
-    }
-    val rows = remember(rawRows, matching, answerVersions, actualActivity, taskFilter) {
-        // Active filters retain individual execution identities, including a running
-        // answer version whose sibling is the currently selected historical version.
-        if (taskFilter == SessionTaskFilter.All) answerVersions.rows(rawRows, matching)
-        else matching.filter { taskFilter.matches(actualActivity[SessionListPolicy.id(it)] ?: ThreadActivity.Idle) }
-    }
-    val activeCount = remember(data["sidebarThreads"], currentActivities, executions, approvals, activeId, running) {
-        val known = records(data["sidebarThreads"]).associateBy(SessionListPolicy::id)
-        (known.keys + executions.keys + approvals.keys + currentActivities.keys).count { id ->
-            id.isNotBlank() && ThreadActivityPolicy.isActive(SessionListPolicy.activity(
-                known[id] ?: JSONObject(), currentActivities[id], id in executions || running && id == activeId, approvals[id] ?: 0))
+    val remoteState = vm.conversationState.collectProjection { it.remote }
+    val remote = remoteState.value
+    val rows = remember(rawRows, matching, answerVersions, state.projectOnly, workspace, remote) {
+        answerVersions.rows(rawRows, matching).filter { row ->
+            if (!state.projectOnly) true
+            else {
+                val bound = vm.remoteBindings.forThread(SessionListPolicy.id(row))
+                if (remote != null) bound != null && bound.id == remote.id && bound.cwd == remote.cwd
+                else bound == null && row.optString("cwd") == workspace
+            }
         }
     }
     val visiblePins = remember(pins, rows, answerVersions) { rows.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
@@ -167,7 +155,7 @@ internal fun SidebarSessions(
     var confirm by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     LaunchedEffect(state.archived, connected) { vm.sessions.showArchive(state.archived && connected) }
     DisposableEffect(vm) { onDispose { vm.sessions.showArchive(false) } }
-    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected, section?.id) {
+    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected, section?.id, state.projectOnly) {
         if (state.searching && state.fullText) {
             delay(250)
             vm.sessions.search(state.search, state.archived)
@@ -177,16 +165,6 @@ internal fun SidebarSessions(
         selectedIds = emptySet()
     }
     LaunchedEffect(completed) { selectedIds = selectedIds - completed }
-    var lastFilter by remember { mutableStateOf(state.sort to state.taskFilter) }
-    LaunchedEffect(state.sort, state.taskFilter) {
-        val next = state.sort to state.taskFilter
-        if (next != lastFilter) {
-            lastFilter = next
-            state.scroll.scrollToItem(0)
-            selection = false
-            selectedIds = emptySet()
-        }
-    }
     fun toggle(id: String) { selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id }
     fun canManage(row: JSONObject): Boolean {
         val id = SessionListPolicy.id(row)
@@ -197,24 +175,14 @@ internal fun SidebarSessions(
         moving = ids.associateWith { answerVersions.members(it).toSet() }
     }
     Column(modifier.fillMaxSize()) {
-        if (!state.fullText && !selection) Row(Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            CodexTextAction(onClick = { managingSections = true }, enabled = connected,
-                modifier = Modifier.weight(1f)) {
-                Text(section?.name ?: "会话分组", maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            CodexTextAction(onClick = { selection = true }, enabled = connected && !busy && rows.isNotEmpty()) {
-                Text("批量管理")
-            }
+        if (section != null && !state.fullText && !selection) Row(
+            Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(section?.name.orEmpty(), modifier = Modifier.weight(1f).padding(start = 12.dp),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            CodexTextAction(onClick = { section = null }) { Text("清除分组筛选") }
         }
-        if (!selection) SessionTaskControls(state, activeCount, Modifier.fillMaxWidth(), onActiveTasks = {
-            val alreadyActive = state.taskFilter == SessionTaskFilter.Active && !state.archived &&
-                section == null && !state.searching
-            section = null
-            state.searching = false
-            state.resetFilter()
-            state.taskFilter = if (alreadyActive) SessionTaskFilter.All else SessionTaskFilter.Active
-        })
         if (section != null && !state.fullText && connected) {
             if (sectionError.isNotBlank()) CodexNotice(sectionError, NoticeTone.Error,
                 actionLabel = "重试", onAction = { sectionRevision++ })
@@ -224,31 +192,25 @@ internal fun SidebarSessions(
         continuationLabel?.let { Text("选择会话后继续：$it", style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(8.dp)) }
         if (state.searching) {
-            AtlasSearchField(value = state.search, onValueChange = { state.search = it },
-                modifier = Modifier.fillMaxWidth().testTag("sidebar-search"),
-                placeholder = if (state.fullText) "搜索历史正文" else "搜索会话标题",
-                onClear = { state.search = "" },
-                onSubmit = {
-                    val term = state.search.trim()
-                    if (term.isNotBlank()) {
-                        try {
-                            if (state.fullText) recentFull = RecentThreadSearches.record(context, true, term)
-                            else recentTitle = RecentThreadSearches.record(context, false, term)
-                            historyError = ""
-                        } catch (failure: Exception) {
-                            historyError = failure.message ?: "搜索记录保存失败"
-                        }
-                        if (state.fullText) vm.sessions.search(term, state.archived)
-                    }
-                })
+            ClipboardQueryAction("使用剪贴板检索会话", state.search, onQuery = { term ->
+                state.search = term
+                try {
+                    if (state.fullText) recentFull = RecentThreadSearches.record(context, true, term)
+                    else recentTitle = RecentThreadSearches.record(context, false, term)
+                    historyError = ""
+                } catch (failure: Exception) { historyError = failure.message ?: "搜索记录保存失败" }
+            }, onClear = { state.search = "" }, tag = "sidebar-clipboard-query")
             AtlasCompactChoice(if (state.fullText) "full" else "title",
                 listOf("title" to "标题搜索", "full" to "全文搜索"),
                 onSelect = { state.fullText = it == "full" })
             AtlasCompactChoice(if (state.archived) "archived" else "active",
                 listOf("active" to "会话", "archived" to "已归档"),
                 onSelect = { state.archived = it == "archived" })
+            AtlasCompactChoice(if (state.projectOnly) "project" else "all",
+                listOf("all" to "全部项目", "project" to "当前项目"),
+                onSelect = { state.projectOnly = it == "project" })
             val recent = if (state.fullText) recentFull else recentTitle
-            if (state.search.isBlank() && recent.isNotEmpty()) {
+            if (recent.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("最近搜索", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
                     CodexTextAction(onClick = {
@@ -262,7 +224,7 @@ internal fun SidebarSessions(
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     recent.forEach { term ->
-                        CodexFilterChip(selected = false, onClick = { state.search = term },
+                        CodexFilterChip(selected = state.search == term, onClick = { state.search = term },
                             label = { Text(term, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                     }
                 }
@@ -282,8 +244,6 @@ internal fun SidebarSessions(
         }
         if (state.archived && response == null && "sidebarThreads" in loading)
             AtlasOperationProgress("正在读取归档会话")
-        if (taskFilter != SessionTaskFilter.All && rows.isEmpty() && "sidebarThreads" !in loading && !searchBusy)
-            Text("暂无符合状态的会话", color = Ink.muted, modifier = Modifier.padding(8.dp))
         SidebarSessionsContent(all = rows, modifier = Modifier.weight(1f).fillMaxWidth(),
             connected = connected, activeId = activeId, running = running, switching = busy,
             onOpenThread = { id ->
@@ -350,6 +310,8 @@ internal fun SidebarSessions(
                     if (state.archived) CodexGlyph.Unarchive else CodexGlyph.Archive, enabled = canEdit,
                     onClick = { confirm = (if (state.archived) "unarchive" else "archive") to listOf(id) },
                     testTag = "session-archive"))
+                add(CodexSheetAction("管理分组", CodexGlyph.Folder, enabled = connected && !busy && !state.fullText,
+                    onClick = { managingSections = true }, testTag = "session-manage-sections"))
                 add(CodexSheetAction("移动会话", CodexGlyph.Folder, enabled = canEdit,
                     onClick = { moveRows(listOf(id)) }, testTag = "session-move"))
                 add(CodexSheetAction("删除会话", CodexGlyph.DeleteOutline, enabled = canEdit,
@@ -358,8 +320,8 @@ internal fun SidebarSessions(
     }
     rename?.let { row ->
         CodexDialogFrame(onDismissRequest = { rename = null }, title = { Text("重命名会话") },
-            text = { CodexInputField(name, { name = it }, label = { Text("会话名称") },
-                singleLine = true, modifier = Modifier.fillMaxWidth()) },
+            text = { ActionReplyRow(name, { name = it }, label = { Text("会话名称") },
+                singleLine = true, modifier = Modifier.fillMaxWidth(), directText = true) },
             confirmButton = { CodexSecondaryButton(onClick = {
                 vm.rpc("threadLibraryAction", "thread/name/set", JSONObject()
                     .put("threadId", answerVersions.root(SessionListPolicy.id(row))).put("name", name.trim()))
@@ -393,8 +355,7 @@ internal fun SidebarSessionsContent(
     onLongPress: ((JSONObject) -> Unit)? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
-    val sort = state.sort
-    val ordered = remember(all, pinned, sort) { SessionListPolicy.ordered(all, pinned, sort) }
+    val ordered = remember(all, pinned) { SessionListPolicy.ordered(all, pinned) }
     LazyColumn(state = state.scroll, modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(3.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
         items(ordered, key = SessionListPolicy::id) { row ->

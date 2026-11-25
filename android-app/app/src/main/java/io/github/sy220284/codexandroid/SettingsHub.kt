@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,33 +18,24 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 
 /** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    var query by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val listScope = rememberCoroutineScope()
     var showAbout by remember { mutableStateOf(false) }
     val status by vm.bridge.status.collectAsState()
     val data by vm.data.collectEntries("account")
     val isAccountLoaded = data["account"] != null
     val isSignedIn = data["account"]?.optJSONObject("account") != null
     val darkMode by UiPreferences.darkMode.collectAsState()
-    val showTransfers = query.isBlank() || listOf("本地数据", "备份", "导入", "导出", "迁移", "恢复").any {
-        it.contains(query.trim(), ignoreCase = true)
-    }
-    val showUpdate = query.isBlank() ||
-        NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
             pages.firstOrNull { it.id == id &&
-                NavigationPolicy.showInSettingsGroup(id, query) &&
-                NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
+                NavigationPolicy.showInSettingsGroup(id, "") }
         }
     }.filter { (group, entries) ->
-        entries.isNotEmpty() || ("update" in group.routes && (showUpdate || showTransfers))
+        entries.isNotEmpty() || "update" in group.routes
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
@@ -53,16 +43,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        item(key = "search") {
-            AtlasSearchField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = "搜索账号、设置或扩展",
-                modifier = Modifier.testTag("settings-search"),
-                onClear = { query = "" }
-            )
-        }
-        if (query.isBlank()) item(key = "overview") {
+        item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 51.dp)
@@ -70,7 +51,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         .testTag("settings-account-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CodexIcon(CodexGlyph.AccountCircle, null, tint = Ink.copper,
+                    CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.copper,
                         modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -109,11 +90,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        if (groups.isEmpty()) {
-            item { CodexEmptyState("未找到相关设置", "试试常用名称，例如字体、API Key 或日志。",
-                    artworkRes = R.drawable.ic_empty_no_results,
-                actionLabel = "清除搜索", onAction = { query = "" }) }
-        }
         items(groups, key = { it.first.title }) { (group, entries) ->
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 9.dp),
@@ -124,18 +100,19 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
                             entries.forEach { entry ->
-                                val spot = NavigationPolicy.matchedSettingSpot(entry.id, query)
-                                SettingRouteRow(page = entry, showDetail = query.isNotBlank(), detail = spot?.label
-                                    ?: NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
+                                SettingRouteRow(page = entry, showDetail = entry.id in setOf("environments", "features", "plugins", "mcp", "config"), detail = when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "environments" -> "本机或其他设备"
                                     "models" -> "默认模型与推理偏好"
                                     "appearance" -> if (darkMode) "深色" else "浅色"
                                     "plugins" -> "安装与管理"
+                                    "features" -> "常用能力与全部内核功能"
+                                    "mcp" -> "外部工具连接"
+                                    "config" -> "高级运行设置"
                                     else -> ""
                                 }) {
-                                    SettingsDeepLink.select(entry.id, spot?.target)
+                                    SettingsDeepLink.select(entry.id, null)
                                     when(entry.id) {
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
@@ -146,8 +123,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if ("update" in group.routes) {
-                    if (showUpdate) AppUpdateCard(vm = vm)
-                    if (showTransfers) LocalDataTransferCard(vm)
+                    AppUpdateCard(vm = vm)
+                    LocalDataTransferCard(vm)
                 }
             }
         }
@@ -200,7 +177,7 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
     val lessMotion by UiPreferences.reducedMotion.collectAsState()
     val fontScale by UiPreferences.fontScale.collectAsState()
     val darkMode by UiPreferences.darkMode.collectAsState()
-    val largeTypography = androidx.compose.ui.platform.LocalDensity.current.fontScale * fontScale >= 1.55f
+    val largeTypography = codexEffectiveFontScale() >= 1.55f
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("界面配色", style = MaterialTheme.typography.titleMedium,

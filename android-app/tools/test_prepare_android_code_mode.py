@@ -9,6 +9,9 @@ from prepare_android_code_mode import (
     HOST_CLI_ANCHOR,
     HOST_MAIN_ADDITION,
     HOST_MAIN_ANCHOR,
+    FEATURE_ANCHOR,
+    FEATURE_ANDROID_DEFAULT,
+    adapt_features,
     adapt_discovery,
     adapt_host,
 )
@@ -34,8 +37,18 @@ class AndroidCodeModeAdaptationTests(unittest.TestCase):
         self.assertIn("codex-android-v8-sandbox-enabled", adapted)
         self.assertEqual(adapt_host(adapted), adapted)
 
+    def test_code_mode_default_is_android_only_and_idempotent(self):
+        other = 'key: "code_mode_only", default_enabled: false'
+        adapted = adapt_features(FEATURE_ANCHOR + "\n" + other)
+        self.assertIn(FEATURE_ANDROID_DEFAULT, adapted)
+        self.assertIn(other, adapted)
+        self.assertIn('cfg!(target_os = "android")', adapted)
+        self.assertEqual(adapt_features(adapted), adapted)
+        with self.assertRaisesRegex(ValueError, "upstream changed"):
+            adapt_features(FEATURE_ANCHOR + "\n" + FEATURE_ANCHOR)
+
     def test_outdated_upstream_causes_explicit_failure(self):
-        for adapter in (adapt_discovery, adapt_host):
+        for adapter in (adapt_discovery, adapt_host, adapt_features):
             with self.assertRaisesRegex(ValueError, "upstream changed"):
                 adapter("upstream signature changed")
 

@@ -21,8 +21,14 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val data by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
-    var noteKey by rememberSaveable(active) { mutableStateOf("") }
+    var customNoteKey by rememberSaveable(active) { mutableStateOf("") }
+    var noteSuffix by rememberSaveable(active) { mutableStateOf(java.util.UUID.randomUUID().toString().take(8)) }
+    var editNoteName by rememberSaveable(active) { mutableStateOf(false) }
     var noteText by rememberSaveable(active) { mutableStateOf("") }
+    val noteKey = customNoteKey.trim().ifBlank {
+        noteText.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(60)
+            ?.let { "$it · $noteSuffix" }.orEmpty()
+    }
     var removeTarget by remember(active) { mutableStateOf<JSONObject?>(null) }
     var reader by remember(active) { mutableStateOf<String?>(null) }
     var page by remember(active) { mutableIntStateOf(0) }
@@ -58,21 +64,28 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     contentPadding = PaddingValues(bottom = 20.dp)) {
                     item { MaterialPanel(Modifier.fillMaxWidth()) {
                     Text("添加文本备注", style = MaterialTheme.typography.titleMedium)
-                    CodexInputField(noteKey, { noteKey = it }, singleLine = true,
-                        label = { Text("备注名称") }, modifier = Modifier.fillMaxWidth())
-                    CodexInputField(noteText, { noteText = it }, minLines = 2, maxLines = 5,
-                        label = { Text("备注内容") }, modifier = Modifier.fillMaxWidth())
+                    ActionReplyRow(noteText, { noteText = it }, minLines = 2, maxLines = 5,
+                        label = { Text("添加备注内容") }, modifier = Modifier.fillMaxWidth(), directText = true)
+                    if (noteKey.isNotBlank()) Text(noteKey, color = Ink.muted)
+                    CodexTextAction(onClick = { editNoteName = !editNoteName }) { Text(if (editNoteName) "收起名称" else "自定义备注名称") }
+                    if (editNoteName) ActionReplyRow(customNoteKey, { customNoteKey = it }, singleLine = true,
+                        label = { Text("备注名称（留空自动生成）") }, modifier = Modifier.fillMaxWidth(), directText = true)
                     CodexSecondaryButton(onClick = {
                         val originalKey = noteKey.trim()
                         val originalText = noteText.trim()
+                        val originalCustomName = customNoteKey
                         vm.rpc("threadAttachmentWrite", "thread/attachment/add",
                             JSONObject().put("threadId", active)
                                 .put("attachmentType", "note")
                                 .put("identityKey", originalKey)
                                 .put("payload", JSONObject().put("text", originalText)),
                             after = {
-                                if (noteKey.trim() == originalKey) noteKey = ""
-                                if (noteText.trim() == originalText) noteText = ""
+                                if (noteText.trim() == originalText && customNoteKey == originalCustomName) {
+                                    customNoteKey = ""
+                                    noteText = ""
+                                    noteSuffix = java.util.UUID.randomUUID().toString().take(8)
+                                    editNoteName = false
+                                }
                                 refresh()
                             })
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),

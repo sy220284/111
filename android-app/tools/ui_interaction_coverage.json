@@ -10,7 +10,7 @@
       "route": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasSearchField"
+      "component": "AtlasCompactChoice"
     },
     {
       "route": "approvals",
@@ -22,7 +22,7 @@
       "route": "search",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasSearchField"
+      "component": "ClipboardQueryAction"
     },
     {
       "route": "goals",
@@ -46,7 +46,7 @@
       "route": "diff",
       "file": "DiffReaderPage.kt",
       "owner": "DiffReaderPage",
-      "component": "AtlasSearchField"
+      "component": "CodexChoiceSheet"
     },
     {
       "route": "terminal",
@@ -76,19 +76,19 @@
       "route": "skills",
       "file": "SkillsPage.kt",
       "owner": "SkillsPage",
-      "component": "AtlasSearchField"
+      "component": "WhiteSwitch"
     },
     {
       "route": "plugins",
       "file": "EcosystemScreens.kt",
       "owner": "PluginsPage",
-      "component": "AtlasSearchField"
+      "component": "AtlasCompactChoice"
     },
     {
       "route": "apps",
       "file": "IntegrationScreens.kt",
       "owner": "ConnectedAppsPage",
-      "component": "AtlasSearchField"
+      "component": "MaterialPanel"
     },
     {
       "route": "mcp",
@@ -146,7 +146,7 @@
     },
     {
       "route": "diagnostics",
-      "file": "EcosystemScreens.kt",
+      "file": "EngineDiagnosticsPage.kt",
       "owner": "EngineDiagnosticsPage",
       "component": "CodexDetailSheet"
     },
@@ -160,7 +160,7 @@
       "route": "settings",
       "file": "SettingsHub.kt",
       "owner": "SettingsHubPage",
-      "component": "AtlasSearchField"
+      "component": "SettingRouteRow"
     },
     {
       "route": "update",
@@ -185,6 +185,12 @@
       "file": "EngineSettingUi.kt",
       "owner": "SearchCapabilityPage",
       "component": "EngineSettingsSection"
+    },
+    {
+      "route": "features",
+      "file": "FeatureSwitchPage.kt",
+      "owner": "FeatureSwitchPage",
+      "component": "CodexAdaptiveActions"
     }
   ],
   "subpages": [
@@ -193,7 +199,7 @@
       "parent": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasSearchField",
+      "component": "AtlasCompactChoice",
       "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
       "screenshot": "audit-sidebar-filtered"
     },
@@ -283,7 +289,7 @@
       "parent": "terminal",
       "file": "FullTextReaderDialog.kt",
       "owner": "FullTextReaderDialog",
-      "component": "AtlasSearchField",
+      "component": "ClipboardQueryAction",
       "test": "fullTextSearchShowsFirstAndPreviousMatchesWithoutChangingOriginalText",
       "screenshot": "audit-full-text-match"
     },
@@ -328,7 +334,7 @@
       "parent": "providers",
       "file": "EcosystemScreens.kt",
       "owner": "ProvidersPage",
-      "component": "AtlasFormField",
+      "component": "ActionQuestionRow",
       "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
       "screenshot": "audit-provider-editor"
     },
@@ -337,7 +343,7 @@
       "parent": "config",
       "file": "ControlScreens.kt",
       "owner": "ConfigPage",
-      "component": "AtlasFormField",
+      "component": "AgentActionRow",
       "test": "settingsSearchDirectlyExpandsAdvancedConfig",
       "screenshot": "audit-config-editor"
     },
@@ -346,7 +352,7 @@
       "parent": "environments",
       "file": "ExecutionEnvironmentPage.kt",
       "owner": "EnvironmentsPage",
-      "component": "AtlasFormField",
+      "component": "ActionQuestionRow",
       "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
       "screenshot": "audit-environment-editor"
     },
@@ -443,7 +449,7 @@
     {
       "id": "diagnostic-logs",
       "parent": "diagnostics",
-      "file": "EcosystemScreens.kt",
+      "file": "EngineDiagnosticsPage.kt",
       "owner": "EngineDiagnosticsPage",
       "component": "FullTextReaderDialog",
       "test": "secondarySettingsPagesHaveActualDeviceScreenshots",
@@ -454,7 +460,7 @@
       "parent": "chat",
       "file": "AdvancedThreadTimelineDialog.kt",
       "owner": "AdvancedThreadTimelineDialog",
-      "component": "AtlasSearchField",
+      "component": "CodexFilterChip",
       "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": null
     },
@@ -472,7 +478,7 @@
       "parent": "files",
       "file": "DeveloperScreens.kt",
       "owner": "WorkspacePage",
-      "component": "AtlasExclusiveChip",
+      "component": "AtlasCompactChoice",
       "test": "unifiedControlSystemRetainsSingleChoiceFieldClearAndDisabledAction",
       "screenshot": null
     },

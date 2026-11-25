@@ -1408,19 +1408,19 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::CodeMode,
         key: "code_mode",
         stage: Stage::UnderDevelopment,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::CodeModeToolSearch,
         key: "code_mode_tool_search",
         stage: Stage::UnderDevelopment,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::CodeModeMcpResultDedup,
         key: "code_mode_mcp_result_dedup",
         stage: Stage::UnderDevelopment,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::CodeModeBufferedExec,
@@ -1564,7 +1564,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::MemoryTool,
         key: "memories",
         stage: Stage::Stable,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::ExternalAgentMemoryImport,
@@ -1872,7 +1872,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::McpToolListChanged,
         key: "mcp_tool_list_changed",
         stage: Stage::UnderDevelopment,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::McpConnectionSharing,
@@ -1974,7 +1974,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::SuppressModelChangeAnnouncements,
         key: "suppress_model_change_announcements",
         stage: Stage::Stable,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::PredictionPreserveParentTools,
@@ -2010,7 +2010,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::RecommendedPlugins,
         key: "recommended_plugins",
         stage: Stage::Stable,
-        default_enabled: false,
+        default_enabled: cfg!(target_os = "android"),
     },
     FeatureSpec {
         id: Feature::Plugins,

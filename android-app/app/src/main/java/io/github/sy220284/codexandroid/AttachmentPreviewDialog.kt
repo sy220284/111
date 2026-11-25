@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -24,8 +23,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /** 本地附件全屏查看：保留真实图片、支持缩放、平移、切换和移除。 */
 @Composable
@@ -51,13 +48,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
     onSelect: (String) -> Unit, onDismiss: () -> Unit, onRemove: ((String) -> Unit)?) {
     val index = paths.indexOf(path)
     var retry by remember(path) { mutableIntStateOf(0) }
-    val preview by key(path, retry) {
-        produceState<Pair<Boolean, ImageBitmap?>>(false to null) {
-            withContext(Dispatchers.Main.immediate) {
-                value = true to decodeAttachmentBitmap(path, 1600)
-            }
-        }
-    }
+    val preview by rememberAttachmentImage(path, 1600, retry)
     var scale by remember(path) { mutableFloatStateOf(1f) }
     var offset by remember(path) { mutableStateOf(Offset.Zero) }
     var animateZoom by remember(path) { mutableStateOf(false) }
@@ -96,9 +87,9 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
-                val bitmap = preview.second
+                val bitmap = preview.bitmap
                 when {
-                    !preview.first -> AtlasOperationProgress("正在载入图片")
+                    !preview.loaded -> AtlasOperationProgress("正在载入图片")
                     bitmap == null -> CodexRecoveryState("图片读取失败", "附件可能已被移动或损坏。",
                         "重新读取", { retry++ })
                     else -> Image(bitmap, "第 ${index + 1} 张附件的大图预览",
@@ -129,7 +120,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                         contentScale = ContentScale.Fit)
                 }
             }
-            if (preview.second != null) {
+            if (preview.bitmap != null) {
                 CodexTextAction(onClick = { animateZoom = true; scale = 1f; offset = Offset.Zero },
                     enabled = scale > 1f, modifier = Modifier.align(Alignment.CenterHorizontally)
                         .heightIn(min = 48.dp).testTag("attachment-preview-reset")) { Text("恢复原始大小") }

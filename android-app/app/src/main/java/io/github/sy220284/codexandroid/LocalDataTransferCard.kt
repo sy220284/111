@@ -24,11 +24,12 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
+            var reserved = false
             val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                 vm.errors.value = vm.errors.value - "dataTransfer"
-                AppDataTransfer.export(context, uri)
+                reserved = AppDataTransfer.export(context, uri, vm.composerDrafts.value)
             }
-            if (!started) vm.errors.value = vm.errors.value + ("dataTransfer" to
+            if (!started || !reserved) vm.errors.value = vm.errors.value + ("dataTransfer" to
                 vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })
         }
     }
@@ -46,7 +47,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 CodexIcon(CodexGlyph.SaveAlt, "本机备份", tint = Ink.copper)
                 Text("备份与恢复", style = MaterialTheme.typography.titleMedium)
             }
-            Text("更换安装签名、重装应用前，先导出本机项目、会话和设置。账号凭据需在恢复后重新登录。",
+            Text("更换安装签名、重装应用前，先导出本机项目、会话和设置。账号凭据需在恢复后重新登录。开发运行组件和私有已安装依赖不随备份迁移，项目依赖按声明重新安装。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexSecondaryButton(
@@ -84,11 +85,12 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
             confirmLabel = "核对并导入",
             destructive = true,
             onConfirm = {
+                var reserved = false
                 val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                     vm.errors.value = vm.errors.value - "dataTransfer"
-                    AppDataTransfer.import(context, uri)
+                    reserved = AppDataTransfer.import(context, uri)
                 }
-                if (started) pendingImport = null
+                if (started && reserved) pendingImport = null
                 else vm.errors.value = vm.errors.value + ("dataTransfer" to
                     vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })
             },

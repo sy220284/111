@@ -36,6 +36,13 @@ class UiNavigationInstrumentedTest {
             vm.composerDrafts.value = emptyMap()
             vm.errors.value = emptyMap()
         }
+        rule.runOnUiThread {
+            (rule.activity.application as CodexApplication).pendingDeepLink.value = null
+            vm.agentActionNavigation.value = 1L
+        }
+        rule.waitUntil(15_000L) {
+            rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1
+        }
         rule.waitForIdle()
     }
 
@@ -128,25 +135,22 @@ class UiNavigationInstrumentedTest {
     }
 
     private fun openSettingRoute(id: String) {
-        // 从侧栏进入设置，子页返回后等待搜索框出现；不依赖重复的底栏入口。
         if (rule.onAllNodesWithContentDescription("返回上一页").fetchSemanticsNodes().isNotEmpty()) {
             rule.onNodeWithContentDescription("返回上一页").performClick()
             rule.waitForIdle()
         }
-        if (rule.onAllNodesWithTag("settings-search").fetchSemanticsNodes().isEmpty()) {
-            openDrawerRoute("settings")
-        }
-        // 等待真实目标页面出现在语义树中，避免 Compose 重组尚未生效时断言旧标题。
-        rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("settings-search").fetchSemanticsNodes().isNotEmpty()
-        }
+        if (rule.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isEmpty()) openDrawerRoute("settings")
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("settings-list").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("screen-title").assertTextEquals("设置")
-        rule.onAllNodesWithTag("settings-search").assertCountEquals(1)
-        val search = rule.onNodeWithTag("settings-search")
-        search.performTextClearance()
-        search.performTextInput(pages.first { it.id == id }.title)
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-" + id))
-        rule.onNodeWithTag("settings-route-" + id).performClick()
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
+        if (id == "account" || id == "diagnostics") {
+            val target = if (id == "account") "settings-account-overview" else "settings-engine-overview"
+            rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag(target))
+            rule.onNodeWithTag(target).performClick()
+        } else {
+            rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-" + id))
+            rule.onNodeWithTag("settings-route-" + id).performClick()
+        }
     }
 
     @Test fun drawerOpensAndNavigatesToConversation() {
@@ -166,7 +170,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("nav-plugins").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
         rule.onNodeWithTag("sidebar-global-search").performClick()
-        rule.onNodeWithTag("sidebar-search").assertIsDisplayed()
+        rule.onNodeWithTag("sidebar-clipboard-query").assertIsDisplayed()
         rule.onNodeWithTag("sidebar-global-search").performClick()
         capture("sidebar-android35.png")
         pressSystemBack()
@@ -336,7 +340,6 @@ class UiNavigationInstrumentedTest {
         openDrawerRoute("settings")
         // The backup card lives inside a lazily composed settings group.
         // Search and scroll to the actual section before asserting child actions.
-        rule.onNodeWithTag("settings-search").performTextInput("备份")
         rule.onNodeWithTag("settings-list").performScrollToNode(
             hasTestTag("settings-backup"))
         rule.onNodeWithTag("backup-export").assertExists()
@@ -372,8 +375,7 @@ class UiNavigationInstrumentedTest {
             openDrawerRoute("settings")
             rule.onNodeWithText("重试结束").performClick()
             rule.runOnIdle { assertEquals(1, retries) }
-            rule.onNodeWithTag("settings-search").performTextInput("备份")
-            rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
+                rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
             rule.onNodeWithTag("backup-export").assertIsNotEnabled()
             rule.onNodeWithTag("backup-import").assertIsNotEnabled()
             rule.runOnUiThread { vm.realtimeVoiceLease.release(owner) }
@@ -387,7 +389,6 @@ class UiNavigationInstrumentedTest {
 
     @Test fun globalArchiveOverlayProtectsSettingsAndRestoresThePage() {
         openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("备份")
         try {
             rule.runOnUiThread {
                 AppDataTransfer.state.value = DataTransferState(
@@ -407,7 +408,7 @@ class UiNavigationInstrumentedTest {
             rule.waitForIdle()
         }
         rule.onNodeWithTag("data-transfer-busy-overlay").assertDoesNotExist()
-        rule.onNodeWithTag("settings-search").assertExists()
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
     }
 
     @Test fun sidebarKeepsChatAndWorkbenchAsOneNavigationPath() {
@@ -524,9 +525,9 @@ class UiNavigationInstrumentedTest {
     @Test fun modelChoiceUsesOneSharedBottomSheet() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("conversation-model-control").performClick()
-        rule.onNodeWithText("选择运行模型").assertExists()
-        rule.onNodeWithTag("composer-effort").assertExists()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
+        rule.onNodeWithTag("composer-effort").assertExists()
+        rule.onNodeWithTag("codex-floating-title").assertTextEquals("切换模型")
         captureOverlay("model-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
@@ -576,7 +577,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("chat-changes-summary").assertExists()
         rule.onNodeWithText("查看", substring = false).performClick()
         rule.onNodeWithText("本次改动").assertExists()
-        rule.onNodeWithText("代码审查").assertExists()
+        rule.onNodeWithTag("diff-reader-review").performScrollTo().assertIsDisplayed().assertTextContains("代码审查")
+        rule.onNodeWithTag("diff-reader-copy").performScrollTo().assertIsDisplayed().assertTextContains("复制全部差异")
         rule.onNodeWithText("src/main.kt").assertExists()
         capture("diff-reader-android35.png")
     }
@@ -648,26 +650,20 @@ class UiNavigationInstrumentedTest {
     @Test fun settingsOverviewAndLocalBackupCanBeFoundByIntent() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-overview").assertExists()
-        rule.onNodeWithTag("settings-account-overview").assertExists()
-        rule.onNodeWithTag("settings-engine-overview").assertExists()
-        rule.onNodeWithTag("settings-search").performTextInput("备份")
-        rule.onNodeWithTag("settings-overview").assertDoesNotExist()
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
         rule.onNodeWithTag("settings-backup").assertExists()
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
-        rule.onNodeWithTag("settings-search").performTextClearance()
-        rule.onNodeWithTag("settings-overview").assertExists()
     }
 
-    @Test fun settingsSearchOpensUnifiedAccountMetrics() {
-        openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("额度")
-        rule.onNodeWithTag("settings-route-usage").assertExists()
-        rule.onNodeWithTag("settings-route-limits").assertDoesNotExist()
-        rule.onNodeWithTag("settings-route-usage").performClick()
+    @Test fun settingsOpensUnifiedAccountMetricsAndSwitchesQuotaTab() {
+        openSettingRoute("usage")
         rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
-        // 搜索直接选中额度标签，无须第二次手动切换。
+        rule.onNodeWithTag("account-metrics-tab-usage").assertIsSelected()
+        rule.onNodeWithText("账号使用概况").assertExists()
+        rule.onNodeWithTag("account-metrics-tab-limits").performClick().assertIsSelected()
         rule.onNodeWithText("额度窗口").assertExists()
+        rule.onNodeWithTag("account-metrics-tab-usage").performClick().assertIsSelected()
+        rule.onNodeWithText("账号使用概况").assertExists()
     }
 
     @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
@@ -680,8 +676,6 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         captureOverlay("settings-update-sheet-android35.png")
         capture("settings-hub-android35.png")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-search"))
-        rule.onNodeWithTag("settings-search").performTextInput("外观")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-appearance"))
         rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("外观与显示")
@@ -737,12 +731,13 @@ class UiNavigationInstrumentedTest {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
         assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(30, pages.size)
-        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(pages.size, pages.map { it.id }.toSet().size)
+        assertEquals(UiFeatureCatalog.all.size, UiFeatureCatalog.byRoute.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(5, NavigationPolicy.featureGroups.size)
-        assertEquals(17, NavigationPolicy.settingsRoutes.size)
+        assertTrue(NavigationPolicy.settingsRoutes.all { it in UiFeatureCatalog.byRoute })
+        assertTrue(NavigationPolicy.settingsRoutes.containsAll(listOf("account", "providers", "models", "appearance", "config", "diagnostics", "features")))
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
@@ -750,6 +745,11 @@ class UiNavigationInstrumentedTest {
         })
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
+        openSettingRoute("features")
+        rule.onNodeWithTag("screen-title").assertTextEquals("功能开关")
+        rule.onNodeWithTag("feature-switch-list").assertExists()
+        rule.onNodeWithTag("feature-switch-search").assertDoesNotExist()
+        capture("audit-features-android35.png")
         openSettingRoute("config")
         rule.onNodeWithTag("screen-title").assertTextEquals("开发者设置")
         openSettingRoute("diagnostics")
@@ -757,20 +757,33 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun threadLibraryExposesServerBackedManagementLayout() {
-        openThreadLibrary()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-thread-list").assertExists()
+        rule.onNodeWithTag("sidebar-management").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-active-tasks").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-sort-filter").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-waiting-tasks").assertDoesNotExist()
+        rule.onNodeWithText("会话分组").assertDoesNotExist()
+        rule.onNodeWithText("批量管理").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-global-search").performClick()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
         rule.onNodeWithText("会话", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performClick()
-        rule.onNodeWithText("搜索会话标题").assertExists()
+        rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
         rule.onNodeWithText("全文搜索").assertExists()
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("thread-library-list").assertDoesNotExist()
-        rule.onNodeWithText("会话分组").assertExists()
-        rule.onNodeWithText("批量管理").assertExists()
+        rule.onNodeWithTag("sidebar-management").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-manage-sections").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-active-tasks").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-sort-filter").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-waiting-tasks").assertDoesNotExist()
+        rule.onNodeWithText("会话分组").assertDoesNotExist()
+        rule.onNodeWithText("批量管理").assertDoesNotExist()
         rule.onNodeWithText("下一页").assertDoesNotExist()
         captureOverlay("thread-library-android35.png")
         rule.onNodeWithText("全文搜索").performClick()
-        rule.onNodeWithText("搜索历史正文").assertExists()
+        rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
         captureOverlay("thread-full-search-android35.png")
     }
 
@@ -816,10 +829,16 @@ class UiNavigationInstrumentedTest {
             hasTestTag("workspace-create-toggle"))
         rule.onNodeWithTag("workspace-create-toggle").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        rule.onNodeWithTag("workspace-folder-mode").performClick()
-        rule.onNodeWithTag("workspace-new-name").performTextInput(name)
-        rule.onNodeWithTag("workspace-create").performClick()
-        rule.onNodeWithTag("workspace-new-name").assertDoesNotExist()
+        rule.onNodeWithTag("workspace-create-kind-folder").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("workspace-new-name").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("workspace-create").assertIsNotEnabled()
+        rule.onNodeWithTag("action-reply-input").performScrollTo().assertIsDisplayed().performTextReplacement(name)
+        rule.onNodeWithTag("action-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("workspace-new-name").assertTextContains(name)
+        rule.onNodeWithTag("workspace-create").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.waitUntil(10000) {
+            rule.onAllNodesWithTag("workspace-new-name").fetchSemanticsNodes().isEmpty()
+        }
         rule.waitUntil(10000) {
             rule.onAllNodesWithTag("workspace-directory-loading").fetchSemanticsNodes().isEmpty()
         }
@@ -888,9 +907,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
         pressSystemBack()
         openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("诊断")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
-        rule.onNodeWithTag("settings-route-diagnostics").performClick()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-engine-overview"))
+        rule.onNodeWithTag("settings-engine-overview").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 
@@ -905,11 +923,13 @@ class UiNavigationInstrumentedTest {
         captureOverlay("account-sessions-android35.png")
     }
 
-    @Test fun pluginDiscoveryCanOpenSearchWithoutInventedResults() {
+    @Test fun pluginDiscoveryUsesClipboardWithoutSearchField() {
         openSettingRoute("plugins")
-        rule.onNodeWithTag("plugins-tab-catalog").performClick()
-        rule.onNodeWithTag("plugins-search-heading").assertExists()
-        rule.onNodeWithText("插件名称或关键字").assertExists()
+        rule.onNodeWithTag("plugins-tab-catalog").performClick().assertIsSelected()
+        rule.onNodeWithTag("plugins-clipboard-query").performScrollTo().assertIsDisplayed()
+            .assertTextContains("使用剪贴板发现插件")
+        rule.onNodeWithText("插件名称或关键字").assertDoesNotExist()
+        rule.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         capture("plugin-search-android35.png")
     }
 
@@ -923,26 +943,18 @@ class UiNavigationInstrumentedTest {
 
 
     @Test fun settingsSearchSurvivesReturningFromDetailPage() {
-        openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performClick()
-        rule.onNodeWithTag("settings-search").performTextInput("诊断")
-        assertRealSoftKeyboardOpen()
-        rule.onNodeWithTag("settings-list")
-            .performScrollToNode(hasTestTag("settings-route-diagnostics"))
-        rule.onNodeWithTag("settings-route-diagnostics").performClick()
+        openSettingRoute("diagnostics")
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
         rule.onNodeWithContentDescription("返回上一页").performClick()
-        rule.onNodeWithTag("settings-search").assertTextContains("诊断")
-        rule.onNodeWithTag("settings-route-diagnostics").assertExists()
+        rule.onNodeWithTag("settings-list").assertExists()
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
     }
 
 
     @Test fun settingsSearchFindsActualOptionsByUserWording() {
-        openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("API Key")
-        rule.onNodeWithTag("settings-route-providers").assertExists()
-        rule.onNodeWithText("配置模型服务商").assertExists()
-        rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
+        openSettingRoute("providers")
+        rule.onNodeWithTag("screen-title").assertTextEquals("模型服务商")
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
     }
 
     @Test fun coldStartOpensChatAndKeepsDraftSafe() {
@@ -965,6 +977,7 @@ class UiNavigationInstrumentedTest {
         }
         try {
             rule.onNodeWithTag("chat-user-message").assertExists()
+            rule.onNodeWithTag("chat-user-prompt-marker", useUnmergedTree = true).assertExists()
             rule.onNodeWithTag("chat-assistant-message").assertExists()
             rule.onNodeWithTag("message-copy-ui-agent").assertExists()
             rule.onNodeWithTag("message-retry-ui-agent").assertExists()
@@ -995,36 +1008,23 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun settingsSearchOpensPreciseProviderAndRemoteEditors() {
-        openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("API Key")
-        rule.onNodeWithTag("settings-route-providers").performClick()
-        rule.waitUntil(5_000L) {
-            rule.onAllNodesWithText("服务商名称").fetchSemanticsNodes().isNotEmpty()
-        }
-        rule.onNodeWithContentDescription("返回上一页").performClick()
-        rule.onNodeWithTag("settings-search").performTextClearance()
-        rule.onNodeWithTag("settings-search").performTextInput("远程主机")
-        rule.onNodeWithTag("settings-route-environments").performClick()
-        rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("environment-endpoint").fetchSemanticsNodes().isNotEmpty()
-        }
+        openSettingRoute("providers")
+        rule.onNodeWithTag("screen-title").assertTextEquals("模型服务商")
+        openSettingRoute("environments")
+        rule.onNodeWithTag("screen-title").assertTextEquals("运行管理")
     }
 
     @Test fun settingsSearchOpensAppearanceSheetWithoutInlineExpansion() {
-        openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("字号")
-        rule.onNodeWithTag("settings-route-appearance").performClick()
+        openSettingRoute("appearance")
         rule.onNodeWithTag("screen-title").assertTextEquals("外观与显示")
         rule.onNodeWithTag("appearance-font-heading").assertExists()
         rule.onNodeWithTag("appearance-font-controls").assertExists()
         rule.onNodeWithContentDescription("返回上一页").performClick()
-        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
-        rule.onNodeWithTag("settings-search").assertExists()
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
     }
 
     @Test fun settingsSearchDirectlyOpensUpdateActions() {
         openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("检查更新")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("update-check"))
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         rule.onNodeWithTag("update-check").assertIsDisplayed()
@@ -1032,20 +1032,7 @@ class UiNavigationInstrumentedTest {
 
     @Test fun settingsSearchSeparatesDiagnosticsOverviewFromLogAction() {
         openSettingRoute("diagnostics")
-        rule.onAllNodes(isRoot()).assertCountEquals(1)
         rule.onNodeWithText("查看启动日志").assertHasClickAction()
-        rule.onNodeWithContentDescription("返回上一页").performClick()
-        rule.onNodeWithTag("settings-search").performTextClearance()
-        rule.onNodeWithTag("settings-search").performTextInput("启动日志")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
-        rule.onNodeWithTag("settings-route-diagnostics").performClick()
-        rule.waitUntil(5000L) {
-            rule.onAllNodesWithText("启动日志").fetchSemanticsNodes().isNotEmpty()
-        }
-        rule.onNodeWithText("启动日志").assertExists()
-        pressSystemBack()
-        rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
-        rule.onAllNodes(isRoot()).assertCountEquals(1)
     }
 
     @Test fun settingsPreferencesAreDistributedToTheirOwners() {
@@ -1074,18 +1061,35 @@ class UiNavigationInstrumentedTest {
     }
 
     @Test fun settingsSearchDirectlyExpandsAdvancedConfig() {
-        openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("高级配置")
-        rule.onNodeWithTag("settings-route-config").performClick()
-        rule.onNodeWithTag("codex-detail-title").assertTextEquals("高级自定义配置")
+        openSettingRoute("config")
+        rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithTag("config-agent-action").assertExists()
+    }
+
+    @Test fun advancedConfigPreparesAgentDraftWithoutSubmitting() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread { vm.editComposerText(vm.activeThread.value, "原有草稿") }
+        openSettingRoute("config")
+        rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithTag("config-agent-action").performClick()
+        rule.onNodeWithText("交给 Codex 处理").assertExists()
+        rule.onNodeWithTag("confirm-dialog-accept").performClick()
+        rule.onNodeWithTag("composer-input").assertTextContains("请帮我调整本机 Codex", substring = true)
+        rule.runOnIdle {
+            org.junit.Assert.assertFalse(vm.running.value)
+            org.junit.Assert.assertEquals("原有草稿", vm.composerDrafts.value[ThreadComposerDrafts.key(null, vm.activeWorkspace.value)]?.text)
+        }
+        rule.onNodeWithTag("agent-draft-standard").performClick()
+        rule.onNodeWithTag("composer-input").assertTextContains("原有草稿", substring = true)
+        rule.onNodeWithTag("agent-draft-reopen").performClick()
+        rule.onNodeWithTag("composer-input").assertTextContains("请帮我调整本机 Codex", substring = true)
+        rule.runOnIdle { org.junit.Assert.assertFalse(vm.running.value) }
     }
 
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-search").performTextInput("任务队列")
-        rule.onNodeWithText("未找到相关设置").assertExists()
+        rule.onNodeWithTag("settings-search").assertDoesNotExist()
         rule.onNodeWithTag("settings-route-queue").assertDoesNotExist()
-        rule.onNodeWithText("功能搜索结果").assertDoesNotExist()
     }
 
     @Test fun noSessionStillOpensProjectResourcesDirectly() {
@@ -1139,7 +1143,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
         rule.onNodeWithText("全文搜索").performClick()
-        rule.onNodeWithText("搜索历史正文").assertExists()
+        rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
         captureOverlay("thread-global-search-android35.png")
         pressSystemBack()
 
@@ -1175,9 +1179,41 @@ class UiNavigationInstrumentedTest {
             if (route == "diagnostics") {
                 // 搜索完整页面名称应停留在概览，不能误开日志对话框。
                 rule.onAllNodes(isRoot()).assertCountEquals(1)
+                rule.onNodeWithTag("diagnostics-overview").assertIsDisplayed()
+                rule.onNodeWithTag("diagnostics-connect").assertHasClickAction()
+                rule.onNodeWithTag("diagnostics-restart").assertHasClickAction()
+                rule.onNodeWithTag("diagnostics-runtime-policy").assertExists()
+                rule.onNodeWithTag("diagnostics-log-panel").assertExists()
                 rule.onNodeWithText("查看启动日志").assertHasClickAction()
                 captureVerifiedDisplayScreenshot("audit-diagnostics-android35.png")
+                rule.onNodeWithTag("diagnostics-environment").performScrollTo().assertIsDisplayed()
+                rule.onNodeWithTag("diagnostics-crash-history").performScrollTo().assertIsDisplayed()
             } else capture("audit-" + route + "-android35.png")
+        }
+    }
+
+    @Test fun engineDiagnosticsLogPreviewAndFullReaderUseSameSnapshot() {
+        openSettingRoute("diagnostics")
+        val vm = (rule.activity.application as CodexApplication).session
+        val previous = vm.bridge.recentStderr.value
+        try {
+            rule.runOnUiThread { vm.bridge.recentStderr.value = emptyList() }
+            rule.onNodeWithTag("diagnostics-log-copy").assertIsNotEnabled()
+            rule.onNodeWithTag("diagnostics-log-share").assertIsNotEnabled()
+            rule.runOnUiThread {
+                vm.bridge.recentStderr.value = (1..8).map { "诊断测试行 " + it }
+            }
+            rule.onNodeWithTag("diagnostics-log-preview").performScrollTo()
+                .assertTextContains("诊断测试行 8", substring = true)
+            rule.onNodeWithTag("diagnostics-log-copy").assertIsEnabled()
+            rule.onNodeWithTag("diagnostics-log-share").assertIsEnabled()
+            rule.onNodeWithText("查看启动日志").performScrollTo().performClick()
+            rule.onNodeWithTag("full-text-reader").assertExists()
+            rule.onNodeWithTag("full-text-chunk-0").assertTextContains("诊断测试行 1", substring = true)
+            pressSystemBack()
+            rule.onNodeWithTag("full-text-reader").assertDoesNotExist()
+        } finally {
+            rule.runOnUiThread { vm.bridge.recentStderr.value = previous }
         }
     }
 
@@ -1196,23 +1232,23 @@ class UiNavigationInstrumentedTest {
 
         openSettingRoute("providers")
         rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
-        rule.onNodeWithText("服务地址（HTTP / HTTPS）").assertExists()
+        rule.onNodeWithTag("provider-endpoint").assertExists()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         captureOverlay("audit-provider-editor-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("config")
         rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
-        rule.onNodeWithText("文本值").assertExists()
-        rule.onNodeWithText("开关").assertExists()
-        rule.onNodeWithText("高级数据").assertExists()
+        rule.onNodeWithTag("config-agent-action").assertExists()
+        rule.onNodeWithText("设置项名称").assertDoesNotExist()
+        rule.onNodeWithText("高级数据").assertDoesNotExist()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         captureOverlay("audit-config-editor-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("environments")
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
-        rule.onNodeWithTag("environment-remote-name").assertExists()
+        rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         capture("audit-environment-editor-android35.png")
     }
@@ -1226,19 +1262,42 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("本机服务标识：local").assertDoesNotExist()
 
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
-        rule.onNodeWithTag("environment-remote-name").assertExists()
+        rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
-        rule.onNodeWithTag("environment-remote-name").performTextInput("工作电脑")
-        rule.onNodeWithTag("environment-endpoint").performTextInput("wss://example.com/exec")
+        rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://example.com/exec")
+        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-remote-name").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
+        rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
+        rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("工作电脑")
+        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
 
         rule.onNodeWithTag("environment-local-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-endpoint").assertDoesNotExist()
         rule.onNodeWithTag("environment-local-option").assertExists()
-        rule.onNodeWithTag("environment-remote-option").performClick()
-        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        // Editing the address must not overwrite a user-chosen name.
+        rule.onNodeWithTag("environment-endpoint").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://other.example/exec")
+        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        // Cancel keeps the existing name; explicitly clearing it restores the derived name.
+        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("临时名称")
+        rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextClearance()
+        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("other.example", substring = true)
+        rule.onNodeWithTag("environment-connect").assertIsEnabled()
     }
 
     @Test fun directlySelectableSecurityAndAboutViewsAreCaptured() {

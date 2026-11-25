@@ -33,6 +33,7 @@ object UiFeatureCatalog {
         UiFeature("environments", FeatureSurface.Page, FeatureOwner.System, true),
         UiFeature("account", FeatureSurface.Page, FeatureOwner.Account, false),
         UiFeature("providers", FeatureSurface.Page, FeatureOwner.Account, false),
+        UiFeature("features", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("config", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("personalization", FeatureSurface.Page, FeatureOwner.System, false),
         UiFeature("context", FeatureSurface.Page, FeatureOwner.System, false),
@@ -52,7 +53,7 @@ object UiFeatureCatalog {
     val settingsGroups = listOf(
         FeatureGroup("账户与模型", listOf("account", "providers", "models", "usage")),
         FeatureGroup("个性化与显示", listOf("personalization", "appearance")),
-        FeatureGroup("工具与能力", listOf("tools", "skills", "plugins", "apps", "mcp")),
+        FeatureGroup("工具与能力", listOf("tools", "features", "skills", "plugins", "apps", "mcp")),
         FeatureGroup("运行环境", listOf("context", "environments")),
         FeatureGroup("开发者与帮助", listOf("config", "diagnostics", "about", "update"))
     )

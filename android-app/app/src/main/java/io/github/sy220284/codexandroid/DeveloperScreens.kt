@@ -60,6 +60,8 @@ fun WorkspacePage(vm: CodexViewModel) {
     var createName by remember { mutableStateOf("") }
     var createKind by remember { mutableStateOf("file") }
     var showCreate by rememberSaveable { mutableStateOf(false) }
+    var editingCreateName by rememberSaveable { mutableStateOf(false) }
+    var createError by remember { mutableStateOf("") }
     var showProjectManager by rememberSaveable { mutableStateOf(false) }
     var selectedEntry by remember(folder) { mutableStateOf<WorkspaceDirectoryEntry?>(null) }
     var fileAction by remember { mutableStateOf<Pair<String, File>?>(null) }
@@ -71,7 +73,7 @@ fun WorkspacePage(vm: CodexViewModel) {
         if (uri != null) scope.launch {
             val importFolder = folder.canonicalFile
             try {
-                val result = withContext(Dispatchers.IO) {
+                val result = AppDataTransfer.mutateLocal {
                     val name = ctx.contentResolver.query(
                         uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
                     )?.use { cursor ->
@@ -96,7 +98,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     LaunchedEffect(folder) {
         try {
-            withContext(Dispatchers.IO) { WorkspaceImport.cleanAbandoned(root, folder) }
+            AppDataTransfer.mutateLocal { WorkspaceImport.cleanAbandoned(root, folder) }
         } catch (failure: Exception) {
             notice = "导入缓存清理失败：" + (failure.message ?: "未知错误")
         }
@@ -133,27 +135,25 @@ fun WorkspacePage(vm: CodexViewModel) {
             it.path == root.path || it.path.startsWith(root.path + File.separator)
         } ?: root
     }
-    // Keep the last directory snapshot visible until its replacement is ready.
-    val directoryResult by key(folder) {
-        produceState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
-            try {
-                val entries = withContext(Dispatchers.IO) {
-                    val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }
-                    entries.asSequence()
-                        .filterNot { WorkspaceImport.isStagingName(it.name) }
-                        .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
-                        .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
-                            .thenBy { it.file.name.lowercase() }).toList()
-                }
-                value = Result.success(entries)
-            } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
-            catch (failure: Exception) { value = Result.failure(failure) }
+    // A directory and its revision own a complete, cancellable background snapshot.
+    val requestedDirectory = folder
+    val directoryResult by key(requestedDirectory) {
+        loadCodexUiState<Result<List<WorkspaceDirectoryEntry>>?>(null, requestedDirectory, refresh) {
+            codexLoadResult {
+                val entries = requireNotNull(requestedDirectory.listFiles()) { "无法读取当前目录" }
+                entries.asSequence()
+                    .filterNot { WorkspaceImport.isStagingName(it.name) }
+                    .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
+                    .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
+                        .thenBy { it.file.name.lowercase() }).toList()
+            }
         }
     }
     val children = directoryResult?.getOrNull().orEmpty()
-    var fileQuery by remember(folder) { mutableStateOf("") }
-    val visibleChildren = remember(children, fileQuery) {
-        children.filter { it.file.name.contains(fileQuery.trim(), ignoreCase = true) }
+    var directoryFilter by remember(folder) { mutableStateOf("all") }
+    val visibleChildren = if (children.size < 30) children else children.filter {
+        directoryFilter == "all" || (directoryFilter == "folders" && it.directory) ||
+            (directoryFilter == "files" && !it.directory)
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
@@ -217,8 +217,18 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
         if (actionBusy) item { AtlasOperationProgress("正在处理文件操作…") }
         item {
+            AgentActionRow(vm, "让 Codex 整理文件", "预览独立整理任务，保留当前会话",
+                "请协助我整理工作区文件。先了解我要实现的结果并核对当前目录与文件，再提供操作计划。保留已有文件，涉及覆盖或删除时先征求我的确认。",
+                enabled = !actionBusy)
+        }
+        item {
             CodexSecondaryButton(
-                onClick = { showCreate = true },
+                onClick = {
+                    createName = defaultWorkspaceContentName(createKind, children.map { it.file.name }.toSet())
+                    editingCreateName = false
+                    createError = ""
+                    showCreate = true
+                },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("workspace-create-toggle")
             ) {
@@ -228,41 +238,59 @@ fun WorkspacePage(vm: CodexViewModel) {
             }
             if (showCreate) CodexDetailSheet(
                 title = "新建项目内容",
-                subtitle = "在当前目录创建文件或文件夹",
-                onDismiss = { showCreate = false }
+                subtitle = "选择类型，确认名称后创建",
+                onDismiss = { if (!actionBusy) { showCreate = false; editingCreateName = false } }
             ) {
-                Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    AtlasExclusiveChip(selected = createKind == "file",
-                        onClick = { createKind = "file" }, label = { Text("文本文件") },
-                        leadingIcon = { CodexIcon(CodexGlyph.Description, null) })
-                    AtlasExclusiveChip(selected = createKind == "folder",
-                        onClick = { createKind = "folder" }, label = { Text("文件夹") },
-                        modifier = Modifier.testTag("workspace-folder-mode"),
-                        leadingIcon = { CodexIcon(CodexGlyph.CreateNewFolder, null) })
-                }
-                AtlasFormField(createName, { createName = it },
+                AtlasCompactChoice(createKind, listOf("file" to "文本文件", "folder" to "文件夹"),
+                    onSelect = {
+                        if (createKind != it) {
+                            createKind = it
+                            createName = defaultWorkspaceContentName(it, children.map { entry -> entry.file.name }.toSet())
+                            createError = ""
+                        }
+                    }, enabled = !editingCreateName && !actionBusy, tagPrefix = "workspace-create-kind-")
+                ActionQuestionRow(createName, { createName = it; createError = "" },
                     label = if (createKind == "file") "文件名（如 README.md）" else "文件夹名称",
+                    enabled = !actionBusy, validate = WorkspaceFileActions::nameError,
+                    expanded = editingCreateName, onExpandedChange = { editingCreateName = it },
                     modifier = Modifier.testTag("workspace-new-name"))
-                CodexSecondaryButton(onClick = {
-                    try {
-                        val created = if (createKind == "file")
-                            WorkspaceFileActions.createTextFile(root, folder, createName)
-                        else WorkspaceFileActions.createFolder(root, folder, createName)
-                        notice = "已创建：" + created.name
-                        createName = ""
-                        showCreate = false
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        refresh++
-                    } catch (failure: Exception) {
-                        notice = "创建失败：" + (failure.message ?: "未知错误")
+                if (createError.isNotBlank()) CodexNotice(createError, NoticeTone.Error)
+                CodexPrimaryButton(onClick = {
+                    val requestedFolder = folder
+                    val requestedName = createName
+                    val requestedKind = createKind
+                    actionBusy = true
+                    createError = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    scope.launch {
+                        try {
+                            val created = AppDataTransfer.mutateLocal {
+                                if (requestedKind == "file")
+                                    WorkspaceFileActions.createTextFile(root, requestedFolder, requestedName)
+                                else WorkspaceFileActions.createFolder(root, requestedFolder, requestedName)
+                            }
+                            notice = "已创建：" + created.name
+                            createName = ""
+                            showCreate = false
+                            editingCreateName = false
+                            refresh++
+                        } catch (cancel: kotlinx.coroutines.CancellationException) {
+                            throw cancel
+                        } catch (conflict: WorkspaceNameConflict) {
+                            // Never silently create under a different name than the user confirmed.
+                            createError = "同名内容已存在，建议使用“" + conflict.suggestedName + "”，修改名称后再次确认。"
+                            refresh++
+                        } catch (failure: Exception) {
+                            createError = "创建失败：" + (failure.message ?: "未知错误")
+                        } finally { actionBusy = false }
                     }
-                }, enabled = createName.isNotBlank() && !actionBusy,
+                }, enabled = !editingCreateName && !actionBusy && WorkspaceFileActions.nameError(createName) == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("workspace-create")) {
-                    CodexIcon(CodexGlyph.Add, null)
-                    Spacer(Modifier.width(7.dp))
-                    Text(if (createKind == "file") "创建文本文件" else "创建文件夹")
+                    CodexIcon(if (createKind == "file") CodexGlyph.Description else CodexGlyph.CreateNewFolder, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (actionBusy) "正在创建" else if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
             }
         }
@@ -273,18 +301,14 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Text(when {
                     directoryResult == null -> "读取中"
                     directoryResult?.isFailure == true -> "读取失败"
-                    fileQuery.isBlank() -> "${children.size} 项"
-                    else -> "${visibleChildren.size} / ${children.size} 项"
+                    else -> "${children.size} 项"
                 }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
         }
-        if (children.isNotEmpty()) item(key = "workspace-search") {
-            AtlasSearchField(fileQuery, { fileQuery = it }, "搜索当前目录",
-                onClear = { fileQuery = "" }, modifier = Modifier.testTag("workspace-file-search"))
-        }
-        if (children.isNotEmpty() && visibleChildren.isEmpty()) item {
-            CodexEmptyState("没有匹配的文件", "试试其他文件名。",
-                actionLabel = "清除搜索", onAction = { fileQuery = "" })
+        if (children.size >= 30) item(key = "workspace-directory-filter") {
+            AtlasCompactChoice(directoryFilter, listOf("all" to "全部", "folders" to "文件夹", "files" to "文件"),
+                onSelect = { directoryFilter = it }, tagPrefix = "workspace-directory-filter-")
+            if (visibleChildren.isEmpty()) Text("此类别暂无内容", color = Ink.muted)
         }
         when {
             directoryResult == null -> item(key = "workspace-directory-loading") {
@@ -407,7 +431,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("对象：" + target.name, color = Ink.muted)
-                        AtlasFormField(renameName, { renameName = it }, "新名称")
+                        ActionQuestionRow(renameName, { renameName = it }, "新名称", directText = true)
                     }
                 },
                 confirmButton = {
@@ -416,7 +440,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         fileAction = null
                         scope.launch {
                             try {
-                                val changed = withContext(Dispatchers.IO) {
+                                val changed = AppDataTransfer.mutateLocal {
                                     WorkspaceFileActions.rename(root, target, renameName)
                                 }
                                 notice = "已重命名为：" + changed.name
@@ -444,7 +468,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("来源：" + target.relativeTo(root).path,
                             color = Ink.muted)
-                        AtlasFormField(copyName, { copyName = it }, "新文件或文件夹名称")
+                        ActionQuestionRow(copyName, { copyName = it }, "新文件或文件夹名称", directText = true)
                         Text("创建独立副本；如已存在同名文件则停止操作。",
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }
@@ -459,7 +483,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                         keyboardController?.hide()
                         scope.launch {
                             try {
-                                val copied = withContext(Dispatchers.IO) {
+                                val copied = AppDataTransfer.mutateLocal {
                                     WorkspaceFileActions.copy(root, target, finalFolder, finalName)
                                 }
                                 notice = "已复制：" + copied.name
@@ -491,7 +515,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     fileAction = null
                     scope.launch {
                         try {
-                            withContext(Dispatchers.IO) {
+                            AppDataTransfer.mutateLocal {
                                 WorkspaceFileActions.delete(root, target)
                             }
                             notice = "已删除：" + target.name

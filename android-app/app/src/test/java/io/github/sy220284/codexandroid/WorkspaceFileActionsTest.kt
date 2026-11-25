@@ -25,6 +25,30 @@ class WorkspaceFileActionsTest {
         assertTrue(root.exists())
     }
 
+    @Test fun staleCreationNameReportsFreshSuggestionWithoutOverwritingOrRenaming() {
+        val root = files.newFolder("creation-conflict")
+        val original = WorkspaceFileActions.createTextFile(root, root, "新建文件.txt")
+        original.writeText("existing")
+        WorkspaceFileActions.createTextFile(root, root, "新建文件 2.txt")
+        try {
+            WorkspaceFileActions.createTextFile(root, root, "新建文件.txt")
+            fail("An already-confirmed name must never be changed silently")
+        } catch (conflict: WorkspaceNameConflict) {
+            assertEquals("新建文件.txt", conflict.requestedName)
+            assertEquals("新建文件 3.txt", conflict.suggestedName)
+        }
+        assertEquals("existing", original.readText())
+        assertFalse(File(root, "新建文件 3.txt").exists())
+        WorkspaceFileActions.createFolder(root, root, "新建文件夹")
+        try {
+            WorkspaceFileActions.createFolder(root, root, "新建文件夹")
+            fail("Existing folders must not be replaced")
+        } catch (conflict: WorkspaceNameConflict) {
+            assertEquals("新建文件夹 2", conflict.suggestedName)
+        }
+        assertFalse(File(root, "新建文件夹 2").exists())
+    }
+
     @Test fun disallowTraversalAndRootDeletion() {
         val root = files.newFolder("projects")
         for (name in listOf("../escape", "a/b", ".", "..", " ", "a\\b")) {

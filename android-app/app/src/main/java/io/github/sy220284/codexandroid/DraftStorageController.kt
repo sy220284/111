@@ -2,12 +2,10 @@ package io.github.sy220284.codexandroid
 
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** All draft restoration, debounce, local persistence and safe cleanup lives here. */
 internal class DraftStorageController(
@@ -25,7 +23,7 @@ internal class DraftStorageController(
             drafts.collectLatest { snapshot ->
                 delay(350)
                 try {
-                    withContext(Dispatchers.IO) { DraftPersistence.save(context, snapshot) }
+                    AppDataTransfer.persistDrafts { DraftPersistence.save(context, snapshot) }
                     report("drafts", null)
                 } catch (cancel: kotlinx.coroutines.CancellationException) {
                     throw cancel
@@ -38,9 +36,9 @@ internal class DraftStorageController(
         // recovery: without its references no image can safely be called orphaned.
         if (initial.warning == null) scope.launch {
             try {
-                LocalImageAttachments.cleanExpired(
-                    context, drafts.value.values.flatMap { it.images }.toSet()
-                )
+                AppDataTransfer.withLocalMutation {
+                    LocalImageAttachments.cleanExpired(context, drafts.value.values.flatMap { it.images }.toSet())
+                }
             } catch (failure: Exception) {
                 report("attachments", failure.message ?: "无引用图片清理失败")
             }

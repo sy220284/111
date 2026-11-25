@@ -57,8 +57,10 @@ jobs:
           python3 -m unittest discover -s .github/scripts -p 'test_*.py'
           python3 android-app/tools/prepare_android_code_mode.py --check \
             upstream/codex/codex-rs/install-context/src/lib.rs \
-            --host-source upstream/codex/codex-rs/code-mode-host/src/main.rs
+            --host-source upstream/codex/codex-rs/code-mode-host/src/main.rs \
+            --features-source upstream/codex/codex-rs/features/src/lib.rs
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_android_code_mode.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
           bash -n android-app/tools/package_native_runtime.sh
           bash -n android-app/tools/prepare_android_v8.sh
           bash -n android-app/tools/build_android_git.sh

@@ -65,22 +65,41 @@ def adapt_host(source: str) -> str:
                          "Code Mode Host bootstrap")
 
 
+FEATURE_ANCHOR = """        id: Feature::CodeMode,
+        key: "code_mode",
+        stage: Stage::UnderDevelopment,
+        default_enabled: false,
+    },"""
+FEATURE_ANDROID_DEFAULT = FEATURE_ANCHOR.replace("default_enabled: false",
+                                                 'default_enabled: cfg!(target_os = "android")')
+
+
+def adapt_features(source: str) -> str:
+    # Set only the platform default. Explicit user/managed settings still win.
+    # Keep code_mode_only and all multi-agent flags unchanged.
+    return replace_exact(source, FEATURE_ANCHOR, FEATURE_ANDROID_DEFAULT,
+                         "Code Mode Android default")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, help="install-context/src/lib.rs")
     parser.add_argument("--host-source", type=Path, required=True,
                         help="code-mode-host/src/main.rs")
+    parser.add_argument("--features-source", type=Path, required=True,
+                        help="features/src/lib.rs")
     parser.add_argument("--check", action="store_true", help="Validate without writing")
     args = parser.parse_args()
     for path, adapter in (
         (args.source, adapt_discovery),
         (args.host_source, adapt_host),
+        (args.features_source, adapt_features),
     ):
         original = path.read_text(encoding="utf-8")
         updated = adapter(original)
         if not args.check and updated != original:
             path.write_text(updated, encoding="utf-8")
-    print("Code Mode Host: Android executable discovery and V8 self-test verified")
+    print("Code Mode Host: Android discovery, V8 self-test and platform default verified")
 
 
 if __name__ == "__main__":
