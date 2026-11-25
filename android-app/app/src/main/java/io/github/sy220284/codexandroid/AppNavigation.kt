@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
@@ -291,6 +292,9 @@ fun CodexShell(vm: CodexViewModel) {
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { CodexOperationSnackbarHost(operationSnacks) },
                 topBar = {
+                    val pageTitleStyle = MaterialTheme.typography.titleMedium.let {
+                        it.copy(lineHeight = it.fontSize * 1.5f)
+                    }
                     if (selected == NavigationPolicy.startRoute) {
                         ChatWorkTopBar(
                             conversationTitle = conversationTitle,
@@ -301,11 +305,14 @@ fun CodexShell(vm: CodexViewModel) {
                             onNewThread = { vm.newThread(); move("chat") }
                         )
                     } else TopAppBar(
+                        expandedHeight = maxOf(64.dp, with(LocalDensity.current) {
+                            pageTitleStyle.lineHeight.toDp()
+                        } * 2 + 16.dp),
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1,
+                                Text(page.title, modifier = Modifier.fillMaxWidth().testTag("screen-title"), maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.titleMedium)
+                                    style = pageTitleStyle)
                                 // 顶栏保留当前页面，正文只呈现一次功能介绍。
                             }
                         },
@@ -588,3 +595,4 @@ private fun SidebarRoute(
         )
     )
 }
+

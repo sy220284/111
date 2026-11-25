@@ -68,9 +68,12 @@ def adb(*args):
     return subprocess.check_output(["adb", *args], text=True).strip()
 
 
-def execute_instrumentation(classes, log_path):
+def execute_instrumentation(classes, log_path, arguments=None):
     command = ["adb", "shell", "am", "instrument", "-w", "-r", "-e", "class",
-               ",".join(PACKAGE + "." + c for c in classes), RUNNER]
+               ",".join(PACKAGE + "." + c for c in classes)]
+    for key, value in (arguments or {}).items():
+        command.extend(["-e", key, str(value)])
+    command.append(RUNNER)
     with Path(log_path).open("w", encoding="utf-8") as evidence:
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, errors="replace") as process:
@@ -131,7 +134,8 @@ def run_fresh_suite(profile, mode, log, destination):
     clear_device_screens()
     run_id = uuid.uuid4().hex
     started = time.time()
-    result = execute_instrumentation(SUITE, log)
+    result = execute_instrumentation(SUITE, log, arguments={
+        "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"]})
     if result['tests'] < CONFIG['minimum_ui_tests']:
         result.update(status='failed', evidence_category='ui_test_count_below_floor', minimum_ui_tests=CONFIG['minimum_ui_tests'])
     missing, code = collect_screens(destination)
@@ -197,3 +201,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

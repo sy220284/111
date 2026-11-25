@@ -230,6 +230,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                 CodexTheme {
                     Box(Modifier.fillMaxSize()) {
                         Column(Modifier.width(360.dp).fillMaxHeight()
+                            .testTag("bulk-test-container")
                             .verticalScroll(rememberScrollState())) {
                             ThreadBulkToolbar(
                                 selectedCount = 3, archived = false, enabled = true,
@@ -250,9 +251,10 @@ class UiPopulatedSubpagesInstrumentedTest {
             .fetchSemanticsNode().boundsInRoot
         val done = rule.onNodeWithTag("thread-bulk-finish")
             .fetchSemanticsNode().boundsInRoot
-        assertTrue("Select-all and finish must fit the 360dp container",
-            selectAll.left >= 0f && done.left >= 0f &&
-                selectAll.right <= 360f && done.right <= 360f)
+        val container = rule.onNodeWithTag("bulk-test-container").fetchSemanticsNode().boundsInRoot
+        assertTrue("Select-all and finish must fit the actual 360dp RTL container",
+            selectAll.left >= container.left && done.left >= container.left &&
+                selectAll.right <= container.right && done.right <= container.right)
         assertTrue("Large-font actions must not overlap",
             selectAll.right <= done.left || done.right <= selectAll.left)
         capture("audit-rtl-200font-bulk-android.png")
@@ -867,3 +869,4 @@ class UiPopulatedSubpagesInstrumentedTest {
         capture("audit-plugin-detail-android.png")
     }
 }
+

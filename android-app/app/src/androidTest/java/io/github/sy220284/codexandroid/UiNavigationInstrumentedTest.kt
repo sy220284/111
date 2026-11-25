@@ -120,6 +120,20 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
     }
 
+    /** Wait for platform window/IME motion as well as the Compose clock before a physical tap. */
+    private fun stableClick(tag: String) {
+        var last: androidx.compose.ui.geometry.Rect? = null
+        var stableSince = 0L
+        rule.waitUntil(5_000L) {
+            val node = rule.onNodeWithTag(tag).fetchSemanticsNode()
+            val bounds = node.boundsInWindow
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (bounds != last) { last = bounds; stableSince = now }
+            bounds.width > 0 && bounds.height > 0 && now - stableSince >= 200L
+        }
+        rule.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled().performClick()
+    }
+
     /**
      * A visible input field alone does not prove keyboard usability. Verify the
      * platform IME owns real window insets before accepting screenshots/actions.
@@ -224,6 +238,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("额度窗口", substring = false).assertIsDisplayed()
         rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
@@ -617,6 +632,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         rule.onNodeWithTag("terminal-console").assertExists()
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertExists()
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
@@ -667,11 +683,13 @@ class UiNavigationInstrumentedTest {
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("terminal")
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         rule.onNodeWithTag("terminal-console").assertExists()
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
@@ -757,8 +775,13 @@ class UiNavigationInstrumentedTest {
 
     @Test fun featureCatalogKeepsUserFacingRoutesOnly() {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
-        assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
-            widthDp in setOf(360, 393, 411))
+        val args = InstrumentationRegistry.getArguments()
+        val expectedWidth = requireNotNull(args.getString("expectedWidthPx")?.toIntOrNull()) { "缺少实际设备宽度验收参数" }
+        val expectedDensity = requireNotNull(args.getString("expectedDensityDpi")?.toIntOrNull()) { "缺少实际设备密度验收参数" }
+        assertEquals(expectedWidth, rule.activity.resources.displayMetrics.widthPixels)
+        assertEquals(expectedDensity, rule.activity.resources.displayMetrics.densityDpi)
+        assertTrue("设备逻辑宽度与像素/密度不符：$widthDp",
+            kotlin.math.abs(widthDp - expectedWidth * 160.0 / expectedDensity) <= 1.0)
         assertEquals(pages.size, pages.map { it.id }.toSet().size)
         assertEquals(UiFeatureCatalog.all.size, UiFeatureCatalog.byRoute.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
@@ -1191,6 +1214,7 @@ class UiNavigationInstrumentedTest {
             rule.onAllNodesWithText("Codex 内核尚未连接").fetchSemanticsNodes().size <= 1)
         captureOverlay("audit-queue-android.png")
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertExists()
     }
 
@@ -1299,15 +1323,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
-        rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("environment-endpoint").performScrollTo()
+        stableClick("environment-endpoint")
         rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://example.com/exec")
-        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("environment-address-reply-send").performScrollTo()
+        stableClick("environment-address-reply-send")
         rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-remote-name").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
-        rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("environment-remote-name").performScrollTo()
+        stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("工作电脑")
-        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("environment-name-reply-send").performScrollTo()
+        stableClick("environment-name-reply-send")
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-name-reply-input").fetchSemanticsNodes().isEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
 
@@ -1318,18 +1347,24 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         // Editing the address must not overwrite a user-chosen name.
-        rule.onNodeWithTag("environment-endpoint").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-endpoint").performScrollTo()
+        stableClick("environment-endpoint")
         rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://other.example/exec")
-        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-address-reply-send").performScrollTo()
+        stableClick("environment-address-reply-send")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         // Cancel keeps the existing name; explicitly clearing it restores the derived name.
-        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").performScrollTo()
+        stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("临时名称")
-        rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo()
+        stableClick("environment-name-reply-cancel")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
-        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").performScrollTo()
+        stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextClearance()
-        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-send").performScrollTo()
+        stableClick("environment-name-reply-send")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("other.example", substring = true)
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
     }
@@ -1343,6 +1378,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         captureOverlay("audit-security-profiles-android.png")
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertExists()
 
         openSettingRoute("about")
@@ -1523,7 +1559,8 @@ class UiNavigationInstrumentedTest {
             pressSystemBack()
             rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
             rule.onNodeWithTag("composer-input").assertTextContains(draft)
-            rule.onNodeWithTag("composer-send").assertIsEnabled()
+            // This UI-only APK has no native runtime; preserve its real offline send gate.
+            rule.onNodeWithTag("composer-send").assertIsNotEnabled()
         }
     }
 
@@ -1557,3 +1594,4 @@ class UiNavigationInstrumentedTest {
         }
     }
 }
+
