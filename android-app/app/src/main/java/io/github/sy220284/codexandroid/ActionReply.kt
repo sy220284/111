@@ -105,7 +105,7 @@ internal fun ActionReplyRow(
                 if (clipboardEmpty) Text("剪贴板没有可用文字", color = Ink.muted)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CodexTextAction(onClick = { draft = value; setOpen(false); focus.clearFocus(); keyboard?.hide() },
-                        modifier = Modifier.weight(1f).testTag("$replyTag-cancel")) { Text("取消") }
+                        modifier = Modifier.weight(1f).testTag("$replyTag-cancel"), enabled = enabled && open) { Text("取消") }
                     CodexPrimaryButton(onClick = { onValueChange(draft); setOpen(false); focus.clearFocus(); keyboard?.hide() },
                         modifier = Modifier.weight(1f).testTag("$replyTag-send"), enabled = enabled && open && draftError == null) { Text("应用") }
                 }
