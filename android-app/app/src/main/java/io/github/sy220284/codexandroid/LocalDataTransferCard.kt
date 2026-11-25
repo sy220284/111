@@ -26,7 +26,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
         if (uri != null) {
             val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                 vm.errors.value = vm.errors.value - "dataTransfer"
-                AppDataTransfer.export(context, uri)
+                AppDataTransfer.export(context, uri, vm.composerDrafts.value)
             }
             if (!started) vm.errors.value = vm.errors.value + ("dataTransfer" to
                 vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })

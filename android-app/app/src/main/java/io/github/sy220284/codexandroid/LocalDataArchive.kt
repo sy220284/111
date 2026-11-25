@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 
 /** Portable, on-device backup; never accesses a server or contacts a third party. */
 internal object LocalDataArchive {
@@ -189,11 +190,15 @@ internal object LocalDataArchive {
         val staged = File(context.filesDir, STAGED)
         try {
             require(staged.isDirectory) { "已标记恢复但暂存数据缺失" }
-            val files = staged.walkTopDown().filter { it.isFile }.toList()
+            val files = Files.walk(staged.toPath()).use { paths ->
+                paths.map { path ->
+                    require(!Files.isSymbolicLink(path)) { "暂存备份包含符号链接" }
+                    path.toFile()
+                }.filter { it.isFile }.collect(java.util.stream.Collectors.toList())
+            }
             require(files.isNotEmpty() && files.size <= MAX_FILES) { "恢复数据不完整" }
             val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs")
-            var recovered = 0
-            for (file in files) {
+            val targets = files.map { file ->
                 val name = file.relativeTo(staged).invariantSeparatorsPath
                 require(validatePath(name)) { "恢复文件路径无效：" + name }
                 val target = if (name.startsWith("$PROJECTS_PREFIX/")) {
@@ -214,8 +219,16 @@ internal object LocalDataArchive {
                 var current = destination
                 while (current != base) {
                     require(!Files.isSymbolicLink(current)) { "恢复路径包含符号链接：" + current.fileName }
+                    if (current != destination && Files.exists(current))
+                        require(Files.isDirectory(current)) { "恢复父目录与文件冲突：" + current.fileName }
                     current = current.parent
                 }
+                require(!Files.isSymbolicLink(base)) { "恢复根目录包含符号链接" }
+                require(!target.exists() || target.isFile) { "恢复目标与目录冲突：" + target.name }
+                file to target
+            }
+            var recovered = 0
+            for ((file, target) in targets) {
                 if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
                     throw IOException("恢复目标目录无法创建")
                 // Keep each staged source until all replacements are complete. If the
@@ -239,6 +252,7 @@ internal object LocalDataArchive {
         } catch (failure: Exception) {
             saveResult(context, "恢复未完成：" + (failure.message ?: "请检查本机存储空间") +
                 "。暂存数据已保留，下次完整启动将继续恢复。")
+            throw IOException("恢复未完成，请检查存储或冲突路径；暂存数据已保留", failure)
         }
     }
 }
@@ -255,9 +269,10 @@ internal object AppDataTransfer {
     private val mutationCount = MutableStateFlow(0)
     val localMutations = mutationCount.asStateFlow()
 
-    @Synchronized private fun beginMutation() {
-        check(!state.value.busy) { "本机数据正在备份或恢复，请完成后再操作" }
+    @Synchronized private fun tryBeginMutation(): Boolean {
+        if (state.value.busy) return false
         mutationCount.value += 1
+        return true
     }
 
     @Synchronized private fun endMutation() {
@@ -265,9 +280,19 @@ internal object AppDataTransfer {
         mutationCount.value -= 1
     }
 
-    suspend fun <T> mutateLocal(block: () -> T): T {
-        beginMutation()
-        try { return withContext(Dispatchers.IO) { block() } }
+    suspend fun <T> withLocalMutation(block: suspend () -> T): T {
+        check(tryBeginMutation()) { "本机数据正在备份或恢复，请完成后再操作" }
+        try { return block() }
+        finally { endMutation() }
+    }
+
+    suspend fun <T> mutateLocal(block: () -> T): T = withLocalMutation {
+        withContext(Dispatchers.IO) { block() }
+    }
+
+    suspend fun persistDrafts(block: () -> Unit) {
+        while (!tryBeginMutation()) state.first { !it.busy }
+        try { withContext(Dispatchers.IO) { block() } }
         finally { endMutation() }
     }
 
@@ -276,10 +301,11 @@ internal object AppDataTransfer {
         state.value = DataTransferState(busy = true, result = message)
     }
 
-    fun export(context: Context, destination: Uri) {
+    fun export(context: Context, destination: Uri, drafts: Map<String, ComposerDraft>) {
         beginTransfer("正在导出本机工作数据…")
         scope.launch {
             state.value = try {
+                DraftPersistence.save(context.applicationContext, drafts)
                 val output = context.contentResolver.openOutputStream(destination)
                     ?: throw IOException("所选位置无法写入")
                 val count = output.use { LocalDataArchive.export(context.applicationContext, it) }

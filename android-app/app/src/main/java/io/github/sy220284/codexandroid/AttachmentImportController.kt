@@ -5,6 +5,8 @@ import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -76,28 +78,41 @@ internal class AttachmentImportController(
         scope.launch {
             val failures = mutableListOf<String>()
             var imported = 0
-            // At most three independent URI copies are started together. Results are
-            // committed in selection order so the draft stays predictable.
-            val tasks = accepted.map { uri ->
-                async(Dispatchers.IO) {
-                    runCatching { LocalImageAttachments.importFrom(context, uri) }
-                }
-            }
-            for (task in tasks) {
-                val result = task.await()
-                try {
-                    val path = result.getOrThrow()
-                    drafts.update { previous ->
-                        val current = previous[key]?.images.orEmpty()
-                        if (current.size >= LocalImageAttachments.MAX_FILES) previous
-                        else ThreadComposerDrafts.images(previous, owner, current + path)
+            try {
+                AppDataTransfer.withLocalMutation { coroutineScope {
+                    // At most three independent URI copies are started together. Results are
+                    // committed in selection order so the draft stays predictable.
+                    val tasks = accepted.map { uri ->
+                        async(Dispatchers.IO) {
+                            try { Result.success(LocalImageAttachments.importFrom(context, uri)) }
+                            catch (cancel: CancellationException) { throw cancel }
+                            catch (failure: Exception) { Result.failure(failure) }
+                        }
                     }
-                    if (path in drafts.value[key]?.images.orEmpty()) imported++
-                    else LocalImageAttachments.release(context, path)
-                } catch (failure: Exception) {
-                    failures += (failure.message ?: "无法导入所选图片")
-                }
-                state.value = state.value.copy(imported = imported)
+                    for (task in tasks) {
+                        val result = task.await()
+                        try {
+                            val path = result.getOrThrow()
+                            drafts.update { previous ->
+                                val current = previous[key]?.images.orEmpty()
+                                if (current.size >= LocalImageAttachments.MAX_FILES) previous
+                                else ThreadComposerDrafts.images(previous, owner, current + path)
+                            }
+                            if (path in drafts.value[key]?.images.orEmpty()) imported++
+                            else LocalImageAttachments.release(context, path)
+                        } catch (cancel: CancellationException) { throw cancel }
+                        catch (failure: Exception) {
+                            failures += (failure.message ?: "无法导入所选图片")
+                        }
+                        state.value = state.value.copy(imported = imported)
+                    }
+                } }
+            } catch (cancel: CancellationException) {
+                state.value = AttachmentImportState(threadKey = key, requested = accepted.size, imported = imported,
+                    message = "图片导入中断，已保留成功导入的图片")
+                throw cancel
+            } catch (failure: Exception) {
+                failures += (failure.message ?: "图片导入失败")
             }
             val skipped = selected.size - accepted.size
             state.value = AttachmentImportState(
@@ -123,7 +138,7 @@ internal class AttachmentImportController(
                 // executing Codex turn. The turn completion path releases it.
                 if (AttachmentRetentionPolicy.canRelease(
                         path, drafts.value.values, activeImages()
-                    )) LocalImageAttachments.release(context, path)
+                    )) AppDataTransfer.mutateLocal { LocalImageAttachments.release(context, path) }
                 errors.value = errors.value - "attachments"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("attachments" to
