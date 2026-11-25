@@ -23,9 +23,9 @@ import java.util.Collections
 class UiMotionPerformanceInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-    private fun findVisible(root: AccessibilityNodeInfo, label: String, clickable: Boolean): Rect? {
-        val matches = root.isVisibleToUser && (root.contentDescription?.toString() == label ||
-            root.text?.toString() == label) && (!clickable || root.isClickable)
+    private fun findVisible(root: AccessibilityNodeInfo, label: String, clickable: Boolean, textOnly: Boolean): Rect? {
+        val matches = root.isVisibleToUser && (root.text?.toString() == label ||
+            (!textOnly && root.contentDescription?.toString() == label)) && (!clickable || root.isClickable)
         if (matches) {
             val rect = Rect()
             root.getBoundsInScreen(rect)
@@ -34,20 +34,20 @@ class UiMotionPerformanceInstrumentedTest {
         for (i in 0 until root.childCount) {
             val child = root.getChild(i) ?: continue
             try {
-                val result = findVisible(child, label, clickable)
+                val result = findVisible(child, label, clickable, textOnly)
                 if (result != null) return result
             } finally { child.recycle() }
         }
         return null
     }
 
-    private fun waitForLabel(label: String, clickable: Boolean = false): Rect {
+    private fun waitForLabel(label: String, clickable: Boolean = false, textOnly: Boolean = false): Rect {
         val deadline = SystemClock.uptimeMillis() + 15_000L
         while (SystemClock.uptimeMillis() < deadline) {
             val root = instrumentation.uiAutomation.rootInActiveWindow
             if (root != null) {
                 try {
-                    val result = findVisible(root, label, clickable)
+                    val result = findVisible(root, label, clickable, textOnly)
                     if (result != null) return result
                 } finally { root.recycle() }
             }
@@ -98,7 +98,7 @@ class UiMotionPerformanceInstrumentedTest {
             repeat(4) {
                 physicalTap("打开侧边导航")
                 physicalTap("设置")
-                waitForLabel("设置")
+                waitForLabel("设置", textOnly = true)
                 instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
                 Thread.sleep(650)
                 waitForLabel("打开侧边导航", clickable = true)

@@ -37,7 +37,7 @@ def signature(path, metadata):
         thumb = rgb.resize(SIZE, Image.Resampling.BOX)
         colors = rgb.resize((128, 256), Image.Resampling.BOX).getcolors(128 * 256)
         deviation = max(ImageStat.Stat(thumb).stddev)
-        if len(colors) < 4 or deviation < 1.5:
+        if len(colors) < 2 or deviation < 1.5:
             raise ValueError("Blank or nearly uniform screenshot")
         return {"width": width, "height": height,
                 "rgb": base64.b64encode(thumb.tobytes()).decode(),

@@ -52,3 +52,16 @@ class VisualAuditTests(unittest.TestCase):
             write_gallery(old,new,report,root)
             self.assertTrue((root/"index.html").is_file())
             self.assertEqual(3,len(list((root/"review").glob("*.png"))))
+
+    def test_two_color_layout_is_valid_while_near_uniform_is_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/"screen.png"
+            metadata={"physical_size":"128x256","width_px":128,"height_px":256}
+            img=Image.new("RGB",(128,256),"white")
+            ImageDraw.Draw(img).rectangle((0,0,63,255),fill="black")
+            img.save(p)
+            self.assertGreaterEqual(signature(p,metadata)["color_count"],2)
+            img=Image.new("RGB",(128,256),(100,100,100))
+            ImageDraw.Draw(img).rectangle((0,0,63,255),fill=(101,101,101))
+            img.save(p)
+            with self.assertRaises(ValueError): signature(p,metadata)

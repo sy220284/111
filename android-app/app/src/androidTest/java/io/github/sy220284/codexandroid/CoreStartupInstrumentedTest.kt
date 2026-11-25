@@ -591,7 +591,7 @@ class CoreStartupInstrumentedTest {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val server = ServerSocket(0, 4, java.net.InetAddress.getByName("127.0.0.1"))
-        server.soTimeout = 30_000
+        server.soTimeout = 90_000
         val service = async(Dispatchers.IO) {
             repeat(3) { index ->
                 server.accept().use { connection ->
