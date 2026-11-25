@@ -3,6 +3,11 @@ package io.github.sy220284.codexandroid
 import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.channels.Channel
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,7 +40,9 @@ sealed interface EngineStatus {
 /** Official Codex app-server uses newline-delimited JSON-RPC without the jsonrpc field. */
 class CodexConnection(private val appContext: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val writeMutex = Mutex()
+    private val writeScheduler = RpcWriteScheduler()
+    private val requestPriorities = mutableMapOf<Long, RpcPriority>()
+    private var retirementCompletion: CompletableDeferred<Unit>? = null
     private val lifecycleMutex = Mutex()
     private val ownership = CoreSessionOwnership()
     private val sequence = AtomicLong(1)
@@ -69,6 +76,8 @@ class CodexConnection(private val appContext: Context) {
 
     suspend fun connect() = lifecycleMutex.withLock {
         withContext(Dispatchers.IO) {
+        val previousRetirement = synchronized(ownership) { retirementCompletion }
+        if (previousRetirement != null) withTimeout(RpcScheduling.RETIRE_TIMEOUT_MS) { previousRetirement.await() }
         val epoch = synchronized(ownership) {
             if (status.value == EngineStatus.Connected) return@withContext
             check(!AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
@@ -103,7 +112,11 @@ class CodexConnection(private val appContext: Context) {
             val toolsDir = NativeToolInstaller.prepare(appContext)
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
             val child = builder.start()
-            val channel = RpcProcessChannel(child)
+            val channel = try { RpcProcessChannel(child) } catch (failure: Exception) {
+                child.destroyForcibly()
+                child.waitFor(RpcScheduling.RETIRE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                throw failure
+            }
             val attached = synchronized(ownership) {
                 if (!ownership.owns(epoch)) false else {
                     process = child
@@ -148,7 +161,7 @@ class CodexConnection(private val appContext: Context) {
             val capabilities = JSONObject().put("experimentalApi", true).put("requiredHumanApproval", true)
             requestForSession("initialize", JSONObject().put("clientInfo", info)
                 .put("capabilities", capabilities), 45_000, epoch, null)
-            write(epoch, JSONObject().put("method", "initialized").put("params", JSONObject()))
+            write(epoch, JSONObject().put("method", "initialized").put("params", JSONObject()), priority = RpcPriority.Control)
             synchronized(ownership) {
                 check(child.isAlive && ownership.markReady(epoch)) { "Codex 核心在初始化后已退出" }
                 connectedSessionState.value = epoch
@@ -163,6 +176,17 @@ class CodexConnection(private val appContext: Context) {
 
     private suspend fun listen(epoch: Long, child: Process, channel: RpcProcessChannel) =
         withContext(Dispatchers.IO) {
+            // Only notifications enter the bounded queue. Replies and Host requests
+            // are consumed by the reader independently of slow screen collectors.
+            val notifications = Channel<JSONObject>(RpcScheduling.EVENT_CAPACITY)
+            val delivery = scope.launch {
+                for (message in notifications) publish(epoch, message)
+            }
+            fun enqueue(message: JSONObject) {
+                check(notifications.trySend(message).isSuccess) {
+                    "内核事件积压超过安全上限，需重新同步会话"
+                }
+            }
             try {
                 channel.readFrames { message ->
                     if (!ownership.owns(epoch)) return@readFrames
@@ -183,7 +207,7 @@ class CodexConnection(private val appContext: Context) {
                             write(epoch, JSONObject().put("id", id).put("error",
                                 JSONObject().put("code", -32601)
                                     .put("message", RpcEnvelopeRouter.unsupportedReason(method))))
-                            publish(epoch, JSONObject().put("method", "local/unsupportedServerRequest")
+                            enqueue(JSONObject().put("method", "local/unsupportedServerRequest")
                                 .put("params", JSONObject().put("method", method)
                                     .put("reason", RpcEnvelopeRouter.unsupportedReason(method))))
                         }
@@ -194,9 +218,9 @@ class CodexConnection(private val appContext: Context) {
                                     prompts.value = prompts.value.filterNot { it.id.toString() == resolved.toString() }
                                 }
                             }
-                            publish(epoch, message)
+                            enqueue(message)
                         }
-                        RpcEnvelopeKind.Event -> publish(epoch, message)
+                        RpcEnvelopeKind.Event -> enqueue(message)
                     }
                 }
                 if (ownership.owns(epoch)) {
@@ -206,6 +230,9 @@ class CodexConnection(private val appContext: Context) {
             } catch (error: Exception) {
                 retireSession(epoch, "协议连接中断：" + (error.message ?: "未知错误"))
                 if (error is CancellationException) throw error
+            } finally {
+                notifications.cancel()
+                delivery.cancel()
             }
         }
 
@@ -245,21 +272,26 @@ class CodexConnection(private val appContext: Context) {
                 "运行核心正在连接或重启，请完成后重试"
             }
             check(startupEpoch != null || !AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
+            val priority = RpcScheduling.priority(method)
+            registerRequest(id, priority)
             waiting[id] = deferred
-            activeRpcRequests.update { it + id }
             token
         }
         try {
-            write(epoch, RpcWireRequest.envelope(method, id, params), sendPermit)
-            // Long-running terminal sessions have a user-visible Stop action.
-            val response = if (timeoutMillis == null) deferred.await()
-                else withTimeout(timeoutMillis) { deferred.await() }
-            check(ownership.owns(epoch)) { "运行核心已切换，请刷新状态" }
-            return RpcResponseContract.requireResult(method, response)
+            suspend fun exchange(): JSONObject {
+                write(epoch, RpcWireRequest.envelope(method, id, params), sendPermit,
+                    priority = RpcScheduling.priority(method))
+                val response = deferred.await()
+                check(ownership.owns(epoch)) { "运行核心已切换，请刷新状态" }
+                return RpcResponseContract.requireResult(method, response)
+            }
+            // The deadline covers queue, physical write and response. Explicit
+            // long-running commands still have a separate bounded writer deadline.
+            return if (timeoutMillis == null) exchange() else withTimeout(timeoutMillis) { exchange() }
         } finally {
             synchronized(ownership) {
                 waiting.remove(id)
-                activeRpcRequests.update { it - id }
+                unregisterRequest(id)
             }
         }
     }
@@ -285,52 +317,89 @@ class CodexConnection(private val appContext: Context) {
                     "审批已过期，请刷新当前状态"
                 }
             }
-            activeRpcRequests.update { it + id }
+            registerRequest(id, RpcPriority.Control)
             token
         }
         try {
-            write(epoch, message, permit = { prompt == null || prompts.value.contains(prompt) }, requireReady = true)
+            withTimeout(RpcScheduling.WRITE_TIMEOUT_MS) {
+                write(epoch, message, permit = { prompt == null || prompts.value.contains(prompt) },
+                    requireReady = true, priority = RpcPriority.Control)
+            }
             if (prompt != null) synchronized(ownership) {
                 if (ownership.owns(epoch)) prompts.value = prompts.value.filterNot { it == prompt }
             }
         } finally {
-            synchronized(ownership) { activeRpcRequests.update { it - id } }
+            synchronized(ownership) { unregisterRequest(id) }
         }
     }
 
+    // All callers hold ownership, including one-way approvals.
+    private fun registerRequest(id: Long, priority: RpcPriority) {
+        check(requestPriorities.values.count { it == priority } < RpcScheduling.limit(priority)) {
+            "同类运行请求过多，请等待已有操作完成"
+        }
+        requestPriorities[id] = priority
+        activeRpcRequests.update { it + id }
+    }
+
+    private fun unregisterRequest(id: Long) {
+        requestPriorities.remove(id)
+        activeRpcRequests.update { it - id }
+    }
+
     private suspend fun write(epoch: Long, message: JSONObject, permit: (() -> Boolean)? = null,
-        requireReady: Boolean = false) {
-        writeMutex.withLock {
-            withContext(Dispatchers.IO) {
+        requireReady: Boolean = false, priority: RpcPriority = RpcPriority.Control) {
+        // The independent IO job owns the physical writer until the blocking
+        // flush returns. Caller cancellation cannot release a still-active pipe.
+        val task = scope.async {
+            writeScheduler.run(priority) {
                 val channel = synchronized(ownership) {
                     check(ownership.owns(epoch) && (!requireReady || ownership.acceptsUserRequest())) {
                         "运行核心已切换或正在重启"
                     }
                     wire ?: error("Codex 内核尚未连接")
                 }
-                // Last admission point after dispatcher and writer queue. The captured
-                // channel cannot be redirected to a newly connected core.
-                channel.send(message) {
-                    check(ownership.owns(epoch) && (!requireReady || ownership.acceptsUserRequest())) {
-                        "运行核心已切换或正在重启"
+                val finished = AtomicBoolean(false)
+                val watchdog = scope.launch {
+                    delay(RpcScheduling.WRITE_TIMEOUT_MS)
+                    if (!finished.get()) retireSession(epoch, "内核输入管道写入超时，正在恢复连接")
+                }
+                try {
+                    channel.send(message) {
+                        check(ownership.owns(epoch) && (!requireReady || ownership.acceptsUserRequest())) {
+                            "运行核心已切换或正在重启"
+                        }
+                        permit?.invoke() != false
                     }
-                    permit?.invoke() != false
+                } catch (failure: IOException) {
+                    retireSession(epoch, "内核输入管道中断：" + (failure.message ?: "写入失败"))
+                    throw failure
+                } finally {
+                    finished.set(true)
+                    watchdog.cancel()
                 }
             }
         }
+        try {
+            withTimeout(RpcScheduling.WRITE_TIMEOUT_MS) { task.await() }
+        } finally {
+            if (!task.isCompleted) task.cancel()
+        }
     }
 
-    private fun terminate(child: Process?, channel: RpcProcessChannel?) {
-        // Kill/reap before publishing disconnection. Destroying first also unblocks
-        // a writer stuck in a full pipe, rather than waiting on BufferedWriter.close().
+    private fun terminate(child: Process?, channel: RpcProcessChannel?): Boolean {
         child?.destroy()
         if (child != null && !child.waitFor(400, TimeUnit.MILLISECONDS)) {
             child.destroyForcibly()
-            child.waitFor()
+            if (!child.waitFor(RpcScheduling.RETIRE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) return false
         }
-        try {
-            channel?.closeWriter()
-        } catch (failure: IOException) {
+        closeWriter(channel)
+        return true
+    }
+
+    private fun closeWriter(channel: RpcProcessChannel?) {
+        try { channel?.closeWriter() }
+        catch (failure: IOException) {
             android.util.Log.w("CodexConnection", "关闭内核输入流失败", failure)
         }
     }
@@ -342,6 +411,7 @@ class CodexConnection(private val appContext: Context) {
             if (reservedRestart && !ownership.canRetireReserved(activeRpcRequests.value.size, prompts.value.size)) return false
             val token = ownership.retire(epoch) ?: return false
             retirementState.value = true
+            retirementCompletion = CompletableDeferred()
             val child = process
             val channel = wire
             process = null
@@ -349,14 +419,27 @@ class CodexConnection(private val appContext: Context) {
             failWaiting(reason)
             prompts.value = emptyList()
             recentStderr.value = emptyList()
+            // Immediately show fault, but keep the old epoch until exit is proven.
+            status.value = EngineStatus.Unavailable(reason)
             Triple(token, child, channel)
         }
-        terminate(retired.second, retired.third)
-        synchronized(ownership) {
+        fun complete() = synchronized(ownership) {
             if (ownership.completeRetirement(retired.first)) {
-                retirementState.value = false
                 connectedSessionState.value = null
-                status.value = EngineStatus.Unavailable(reason)
+                retirementState.value = false
+                retirementCompletion?.complete(Unit)
+                retirementCompletion = null
+            }
+        }
+        if (terminate(retired.second, retired.third)) complete()
+        else {
+            status.value = EngineStatus.Unavailable("旧内核尚未退出，请等待进程回收")
+            scope.launch {
+                // This wait owns only the retired child. A replacement must wait
+                // for the same completion signal and cannot overlap it.
+                retired.second?.waitFor()
+                closeWriter(retired.third)
+                complete()
             }
         }
         return true
