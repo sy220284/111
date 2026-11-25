@@ -120,7 +120,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
                         contentScale = ContentScale.Fit)
                 }
             }
-            if (preview.second != null) {
+            if (preview.bitmap != null) {
                 CodexTextAction(onClick = { animateZoom = true; scale = 1f; offset = Offset.Zero },
                     enabled = scale > 1f, modifier = Modifier.align(Alignment.CenterHorizontally)
                         .heightIn(min = 48.dp).testTag("attachment-preview-reset")) { Text("恢复原始大小") }

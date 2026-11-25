@@ -4,7 +4,6 @@ import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.key
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
@@ -13,8 +12,6 @@ import kotlinx.coroutines.withContext
 internal data class AttachmentBitmapInfo(val bitmap: ImageBitmap, val width: Int, val height: Int, val mime: String?)
 
 /** Shared bounded decoder; callers publish results on Main after the IO work. */
-internal suspend fun decodeAttachmentBitmap(path: String, maxSide: Int): ImageBitmap? = decodeAttachmentInfo(path, maxSide)?.bitmap
-
 internal suspend fun decodeAttachmentInfo(path: String, maxSide: Int): AttachmentBitmapInfo? =
     withContext(Dispatchers.IO) {
         require(maxSide > 0)
@@ -31,14 +28,14 @@ internal suspend fun decodeAttachmentInfo(path: String, maxSide: Int): Attachmen
 /** One lifecycle and publication policy for thumbnail and full-size previews.
  * A new path/retry gets a fresh state; the canceled request cannot publish to it.
  */
-internal data class AttachmentImageState(val loaded: Boolean, val bitmap: ImageBitmap?)
+internal data class AttachmentImageState(val loaded: Boolean, val info: AttachmentBitmapInfo?) {
+    val bitmap: ImageBitmap? get() = info?.bitmap
+}
 
 @Composable
 internal fun rememberAttachmentImage(path: String, maxSide: Int, retry: Int = 0): State<AttachmentImageState> =
     key(path, maxSide, retry) {
-        produceState(AttachmentImageState(false, null)) {
-            withContext(Dispatchers.Main.immediate) {
-                value = AttachmentImageState(true, decodeAttachmentBitmap(path, maxSide))
-            }
+        produceCodexUiState(AttachmentImageState(false, null)) {
+            value = AttachmentImageState(true, decodeAttachmentInfo(path, maxSide))
         }
     }

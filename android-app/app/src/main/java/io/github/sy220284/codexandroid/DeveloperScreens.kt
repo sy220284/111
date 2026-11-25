@@ -135,7 +135,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     // Keep the last directory snapshot visible until its replacement is ready.
     val directoryResult by key(folder) {
-        produceState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
+        produceCodexUiState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
             try {
                 val entries = withContext(Dispatchers.IO) {
                     val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }

@@ -6,7 +6,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +47,7 @@ internal fun rememberTerminalOutput(state: State<TerminalSessionState>, processI
         else TerminalRenderedOutput(processId, "", "")
     }
     return androidx.compose.runtime.key(processId) {
-        produceState(initial, state, processId) {
+        produceCodexUiState(initial, state, processId) {
             snapshotFlow { state.value }.collect { snapshot ->
                 if (snapshot.processId == processId) {
                     val decoded = if (snapshot.stdoutBytes.size + snapshot.stderrBytes.size <= 16384)
