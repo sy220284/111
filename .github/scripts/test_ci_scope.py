@@ -89,7 +89,13 @@ class AndroidCIScopeTests(unittest.TestCase):
         contents = workflow("import-codex.yml")
         self.assertIn("  workflow_dispatch:", contents)
         self.assertNotIn("  push:", contents)
-        self.assertIn("gh pr create --base main", contents)
+        self.assertIn('gh pr create --draft --base "$GITHUB_REF_NAME"', contents)
+        self.assertIn("merge_codex_upstream.py --target", contents)
+        self.assertIn("fetch_codex_upstream.sh", contents)
+        self.assertIn("refresh_codex_catalog_lock.sh", contents)
+        self.assertNotIn("rsync", contents)
+        self.assertNotIn("--delete", contents)
+        self.assertNotIn("  schedule:", contents)
         self.assertNotIn("git push origin HEAD:main", contents)
 
     def test_release_only_observes_main_and_checks_both_gates(self):
