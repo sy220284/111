@@ -23,20 +23,22 @@ internal suspend fun readCoreFeatureSwitches(
 ): List<CoreFeatureSwitch> {
     val rows = mutableListOf<CoreFeatureSwitch>()
     val keys = mutableSetOf<String>()
-    val seen = mutableSetOf<String>()
+    val budget = CatalogPageBudget()
     var cursor: String? = null
     do {
+        budget.beforeRequest()
         val page = vm.capabilityRequest("experimentalFeature/list",
             capabilityPageParams(cursor).apply { threadId?.let { put("threadId", it) } },
             expectedSession = session)
         val data = page.getJSONArray("data")
+        cursor = page.value("nextCursor").takeIf { it.isNotBlank() }
+        budget.accept(data.length(), cursor)
         for (i in 0 until data.length()) {
             val row = FeatureSwitchPolicy.parse(data.getJSONObject(i))
             check(keys.add(row.name)) { "内核功能目录返回重复项" }
             rows.add(row)
         }
-        cursor = page.value("nextCursor").takeIf { it.isNotBlank() }
-        check(cursor == null || seen.add(cursor)) { "内核功能目录返回重复游标" }
+        // A complete snapshot is published only after the terminal cursor.
     } while (cursor != null)
     check(rows.isNotEmpty()) { "内核未返回功能目录" }
     return rows
@@ -56,7 +58,11 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         private set
     private val key = "featureSwitchTransaction"
 
-    private suspend fun read(session: Long): FeatureSwitchSnapshot {
+    private fun current(session: Long, account: Long): Boolean =
+        vm.bridge.connectedSession.value == session && vm.catalogWarmup.accountRevision.value == account
+
+    private suspend fun read(session: Long, account: Long): FeatureSwitchSnapshot {
+        check(current(session, account)) { "配置所属账号或核心已变化，请重新读取" }
         val rows = readCoreFeatureSwitches(vm, session)
         val requirements = vm.capabilityRequest("configRequirements/read", expectedSession = session)
             .optJSONObject("requirements")?.optJSONObject("featureRequirements")
@@ -68,7 +74,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
                 name.optString("type") == "user" && name.value("profile").isBlank()
             } == true
         }
-        check(vm.bridge.connectedSession.value == session) { "内核已切换，请重新读取" }
+        check(current(session, account)) { "配置所属账号或核心已变化，请重新读取" }
         return FeatureSwitchSnapshot(session, rows, managed, user?.value("version")?.takeIf { it.isNotBlank() },
             user?.optJSONObject("config")?.optJSONObject("features"))
     }
@@ -76,6 +82,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
     fun refresh() {
         val session = vm.bridge.connectedSession.value ?: return
         if (busy) return
+        val account = vm.catalogWarmup.accountRevision.value
         attemptedSession = session
         busy = true
         error = ""
@@ -83,7 +90,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         vm.loading.value = vm.loading.value + key
         vm.viewModelScope.launch {
             try {
-                snapshot = read(session)
+                snapshot = read(session, account)
             } catch (e: CancellationException) {
                 if (e !is TimeoutCancellationException) throw e
                 snapshot = null
@@ -101,6 +108,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
     fun change(row: CoreFeatureSwitch, enabled: Boolean, expectedSession: Long) {
         val session = vm.bridge.connectedSession.value ?: return
         if (busy || expectedSession != session || snapshot?.session != session) return
+        val account = vm.catalogWarmup.accountRevision.value
         attemptedSession = session
         error = ""
         receipt = ""
@@ -115,7 +123,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
         vm.viewModelScope.launch {
             var writeAttempted = false
             try {
-                val before = read(session)
+                val before = read(session, account)
                 snapshot = before
                 val actual = before.rows.single { it.name == row.name }
                 check(actual.restriction(before.managed) == null) {
@@ -123,17 +131,21 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
                 }
                 check(actual.enabled == row.enabled) { "功能状态已变化，请根据最新状态重新操作" }
                 writeAttempted = true
-                val write = vm.capabilityRequest("config/batchWrite",
-                    FeatureSwitchPolicy.writeParams(row.name, enabled, before.userVersion),
-                    expectedSession = session)
-                val after = read(session)
-                snapshot = after
-                check(write.optString("status") == "ok") { "配置被更高优先级策略覆盖，请核对生效值" }
-                check(after.userFeatures?.opt(row.name) == enabled) { "用户配置未回读到写入值，请重新核对" }
-                check(after.rows.single { it.name == row.name }.enabled == enabled) {
-                    "配置已提交，但内核实际生效值不同，请核对项目或管理策略"
-                }
-                receipt = "${row.title}已${if (enabled) "开启" else "关闭"} · 内核已回读"
+                ConfigWriteTransaction.executeSnapshot(
+                    write = { vm.capabilityRequest("config/batchWrite",
+                        FeatureSwitchPolicy.writeParams(row.name, enabled, before.userVersion),
+                        expectedSession = session) },
+                    read = { read(session, account) },
+                    isCurrent = { current(session, account) },
+                    publish = { snapshot = it },
+                    verify = { write, after ->
+                        val applied = FeatureSwitchPolicy.verifyWrite(write,
+                            FeatureSwitchPolicy.persistedEnabled(after.userFeatures, row.name),
+                            after.rows.single { it.name == row.name }.enabled, enabled)
+                        if (applied) receipt = "${row.title}已${if (enabled) "开启" else "关闭"} · 内核已回读"
+                        else error = "用户配置已保存，但实际生效值受到其他配置层或会话状态影响。" +
+                            write.optJSONObject("overriddenMetadata")?.optString("message").orEmpty()
+                    })
             } catch (e: CancellationException) {
                 if (e !is TimeoutCancellationException) throw e
                 snapshot = null
@@ -143,7 +155,7 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
                 error = capabilityError(e)
                 if (writeAttempted) {
                     snapshot = null
-                    try { snapshot = read(session) }
+                    try { snapshot = read(session, account) }
                     catch (cancel: CancellationException) {
                         if (cancel !is TimeoutCancellationException) throw cancel
                         error += "；重新读取超时，请刷新"
@@ -155,11 +167,11 @@ internal class FeatureSwitchController(private val vm: CodexViewModel) {
                 vm.loading.value = vm.loading.value - key
                 busy = false
             }
-            if (writeAttempted && vm.bridge.connectedSession.value == session) {
+            if (writeAttempted && current(session, account)) {
                 vm.refresh("config", "config/read", JSONObject().put("includeLayers", true))
                 vm.refreshComposerPermissions()
             }
-            if (vm.bridge.connectedSession.value == session) {
+            if (current(session, account)) {
                 if (receipt.isNotBlank()) vm.actionFeedback.emit(ActionFeedbackReceipt(receipt))
                 else if (error.isNotBlank()) vm.actionFeedback.emit(ActionFeedbackReceipt(error, isError = true))
             }

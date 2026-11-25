@@ -54,4 +54,20 @@ class FeatureSwitchPolicyTest {
             FeatureSwitchPolicy.writeParams("x.other", true, null)
         }
     }
+
+    @Test fun persistedStructuredFeatureUsesNativeToggleField() {
+        val values = JSONObject().put("code_mode", JSONObject().put("enabled", true).put("other", 2))
+            .put("send_message_to_user_async", JSONObject().put("root_agent", false).put("enabled", true))
+            .put("memories", true).put("unknown", JSONObject().put("enabled", true))
+        assertEquals(true, FeatureSwitchPolicy.persistedEnabled(values, "code_mode"))
+        assertEquals(false, FeatureSwitchPolicy.persistedEnabled(values, "send_message_to_user_async"))
+        assertEquals(true, FeatureSwitchPolicy.persistedEnabled(values, "memories"))
+        assertNull(FeatureSwitchPolicy.persistedEnabled(values, "unknown"))
+        assertNull(FeatureSwitchPolicy.persistedEnabled(values, "missing"))
+        assertTrue(FeatureSwitchPolicy.verifyWrite(JSONObject().put("status", "ok"), true, true, true))
+        assertFalse(FeatureSwitchPolicy.verifyWrite(JSONObject().put("status", "okOverridden"), true, false, true))
+        assertThrows(IllegalStateException::class.java) {
+            FeatureSwitchPolicy.verifyWrite(JSONObject().put("status", "ok"), null, true, true)
+        }
+    }
 }

@@ -37,6 +37,29 @@ internal object FeatureSwitchPolicy {
     val desktopOnly = setOf("respect_system_proxy", "tui_extensions_statusline", "prevent_idle_sleep",
         "windows_sandbox_service", "powershell_shell_version", "prefer_mxc", "tui_workspace", "tui_multi_backend")
     fun isWritableName(name: String) = name.matches(Regex("[A-Za-z0-9_]+"))
+
+    /** Mirrors config/src/merge.rs and features/src/lib.rs of the locked native core.
+     * Boolean shorthand and structured tables are both valid persisted representations. */
+    internal fun persistedEnabled(features: JSONObject?, name: String): Boolean? {
+        val raw = features?.opt(name)
+        if (raw is Boolean) return raw
+        if (raw !is JSONObject) return null
+        val field = when (name) {
+            "send_message_to_user_async" -> "root_agent"
+            "code_mode", "guardianv3", "multi_agent_v2", "network_proxy",
+            "sleep_tool", "runtime_agent_instances" -> "enabled"
+            else -> return null
+        }
+        return raw.opt(field) as? Boolean
+    }
+
+    internal fun verifyWrite(write: JSONObject, persisted: Boolean?, effective: Boolean,
+                             requested: Boolean): Boolean {
+        val status = write.getString("status")
+        check(status == "ok" || status == "okOverridden") { "内核返回未知配置写入状态：$status" }
+        check(persisted == requested) { "用户配置未回读到写入值，请重新核对" }
+        return status == "ok" && effective == requested
+    }
     val names = mapOf(
         "memories" to "长期记忆",
         "recommended_plugins" to "推荐相关插件",
