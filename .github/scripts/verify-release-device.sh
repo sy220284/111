@@ -6,9 +6,11 @@ mkdir -p "$OUT"
 PKG=io.github.sy220284.codexandroid
 : "${RELEASE_VERSION:?}" "${PREVIOUS_TAG:?}"
 test -n "${ANDROID_SERIAL:-}"
+HARNESS="${CODEX_DEVICE_TEST_HARNESS:?配置专用外部设备测试工具的绝对路径}"
+test -x "$HARNESS"
 test "$(adb -s "$ANDROID_SERIAL" get-state)" = device
 test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
-test -z "$(adb shell getprop ro.kernel.qemu | tr -d '\r' | grep '^1$' || true)"
+test "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" != 1
 adb shell getprop ro.build.version.sdk | tr -d '\r' > "$OUT/api.txt"
 adb shell getprop ro.product.model | tr -d '\r' > "$OUT/model.txt"
 (cd "$DIR" && sha256sum -c SHA256SUMS.txt)
@@ -27,8 +29,6 @@ adb install "$OLD" | tee "$OUT/previous-install.log"
 grep -Fxq Success "$OUT/previous-install.log"
 # Site-owned external UI suite seeds test data, exercises the real core, account,
 # network tools, permission denial/revocation and migration. It may not use debug hooks.
-HARNESS="${CODEX_DEVICE_TEST_HARNESS:?配置专用外部设备测试工具的绝对路径}"
-test -x "$HARNESS"
 "$HARNESS" seed --package "$PKG" --output "$OUT/seed.json"
 adb install -r "$APK" | tee "$OUT/upgrade.log"
 grep -Fxq Success "$OUT/upgrade.log"
@@ -38,7 +38,7 @@ INSTALLED="$(adb shell pm path "$PKG" | tr -d '\r' | sed -n 's/^package://p' | h
 test -n "$INSTALLED"
 adb pull "$INSTALLED" "$OUT/installed.apk"
 cmp "$APK" "$OUT/installed.apk"
-"$HARNESS" verify --package "$PKG" --version "$RELEASE_VERSION" --seed "$OUT/seed.json" --output "$OUT/runtime.json"
+"$HARNESS" verify --package "$PKG" --version "$RELEASE_VERSION" --apk "$APK" --seed "$OUT/seed.json" --output "$OUT/runtime.json"
 python3 .github/scripts/verify_device_evidence.py "$OUT/runtime.json" "$RELEASE_VERSION" "$APK"
 # Store path expected by the publication job; no APK copies or account data in evidence.
 sha256sum "$APK" | sed 's#  candidate/#  .release-assets/#' > "$OUT/candidate.sha256"

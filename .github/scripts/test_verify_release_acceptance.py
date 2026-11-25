@@ -38,8 +38,8 @@ class ReleaseAcceptanceTests(unittest.TestCase):
     def test_check_last_valid_run_when_earlier_run_skipped(self):
         sha = "a" * 40
         runs = [
-            {"databaseId": 9, "headSha": sha, "conclusion": "success"},
-            {"databaseId": 8, "headSha": sha, "conclusion": "success"},
+            {"databaseId": 9, "headSha": sha, "conclusion": "success", "event": "push", "headBranch": "main"},
+            {"databaseId": 8, "headSha": sha, "conclusion": "success", "event": "push", "headBranch": "main"},
         ]
         mocked = [runs, {"jobs": [{"name": "判断是否等待原生内核",
                                    "conclusion": "success"}]},
@@ -51,7 +51,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
 
     def test_pr_branch_checks_same_sha_and_all_required_jobs(self):
         sha = "a" * 40
-        mocked = [[{"databaseId": 10, "headSha": sha, "conclusion": "success"}],
+        mocked = [[{"databaseId": 10, "headSha": sha, "conclusion": "success", "event": "push", "headBranch": "main"}],
                   {"jobs": [{"name": name, "conclusion": "success"}
                             for name in REQUIRED_JOBS["ci.yml"]]}]
         with patch("verify_release_acceptance.gh_json", side_effect=mocked) as client:

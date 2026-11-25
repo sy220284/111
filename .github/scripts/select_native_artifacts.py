@@ -65,7 +65,7 @@ def native_recipe(workflow, abi=None):
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()
     # Checkout transport and CI-index-only paths do not alter native inputs.
-    recipe = re.sub(r"(?m)^          (?:ref: .*github\\.event\\.pull_request\\.head\\.sha.*|fetch-depth: 0|\\.github/scripts|\\.github/ci)\\n", "", recipe)
+    recipe = re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", recipe)
     dynamic = "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}"
     if dynamic in recipe:
         keys = ("rust_target", "clang", "clangxx", "abi", "elf_arch")
@@ -93,6 +93,16 @@ def native_recipe(workflow, abi=None):
     return prefix + marker + found[0].rstrip("\n") + env_marker + suffix
 
 
+def provider_recipe(workflow):
+    marker = "\n  provider-contract:\n"
+    if marker not in workflow:
+        return ""
+    job = workflow.split(marker, 1)[1]
+    job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", job, maxsplit=1)[0]
+    steps = job[job.index("    runs-on:"):]
+    return re.sub(r"(?m)^          ref: .*github\.event\.pull_request\.head\.sha.*\n", "", steps).strip()
+
+
 class ArtifactSelector:
     def __init__(self, runner=command):
         self.run = runner
@@ -118,7 +128,7 @@ class ArtifactSelector:
             "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
         ])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
+        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi), provider_recipe(workflow))
 
     def is_ancestor(self, old, new):
         # Not an error: candidates from a previous main history can be skipped.

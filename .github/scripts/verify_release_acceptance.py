@@ -32,10 +32,12 @@ def find_acceptance(repo: str, sha: str, workflow: str, branch: str = "main") ->
     runs = gh_json([
         "run", "list", "--repo", repo, "--workflow", workflow,
         "--branch", branch, "--commit", sha, "--limit", "100",
-        "--json", "databaseId,headSha,conclusion",
+        "--json", "databaseId,headSha,conclusion,event,headBranch",
     ])
     for run in runs:
         if run.get("conclusion") != "success" or run.get("headSha") != sha:
+            continue
+        if branch == "main" and (run.get("event") not in {"push", "workflow_dispatch"} or run.get("headBranch") != "main"):
             continue
         run_id = run["databaseId"]
         response = gh_json(["api", f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"])

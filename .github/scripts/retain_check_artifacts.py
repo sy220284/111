@@ -18,7 +18,7 @@ CHECK_WORKFLOWS = {
     ".github/workflows/rehearse-android-upgrade.yml",
     ".github/workflows/import-codex.yml",
 }
-NATIVE = re.compile(r"^codex-android-native-(?:arm64-v8a|x86_64)$")
+NATIVE = re.compile(r"^(?:codex-android-native-(?:arm64-v8a|x86_64)|native-index-(?:arm64-v8a|x86_64)-[0-9a-f]{64})$")
 DSH = re.compile(r"^(dsh-go-)v[0-9.]+(-android-reference|-ui-evidence)$")
 CONSUMERS = CHECK_WORKFLOWS | {".github/workflows/release.yml"}
 
@@ -81,7 +81,7 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
         for a in artifacts:
             run = runs[a["workflow_run"]["id"]]
             if (not a["expired"] and NATIVE.fullmatch(a["name"])
-                    and workflow_path(run) == ".github/workflows/build-native-codex.yml"
+                    and workflow_path(run) in {".github/workflows/build-native-codex.yml", ".github/workflows/ci.yml"}
                     and run["status"] == "completed" and run["id"] not in native_keep):
                 delete.append(a)
     return sorted(delete, key=lambda a: a["id"])
@@ -158,10 +158,10 @@ def main():
                 required_abis = configured_abis(recipe)
                 if "arm64-v8a" not in required_abis:
                     break
-                selected = [selector.find(repo, sha, [abi]) for abi in required_abis]
-                if not all(selected):
+                selected = {abi: selector.find(repo, sha, [abi]) for abi in required_abis}
+                if not selected.get("arm64-v8a"):
                     break
-                native_keep.update(int(run_id) for run_id in selected)
+                native_keep.update(int(run_id) for run_id in selected.values() if run_id)
             else:
                 native_safe = True
     if not native_safe:

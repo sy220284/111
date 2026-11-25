@@ -44,6 +44,7 @@ class FakeRunner:
                  changed_parent_cargo=False):
         self.run_conclusion = run_conclusion
         self.failed_job = failed_job
+        self.failed_provider = False
         self.changed_source = changed_source
         self.changed_recipe = changed_recipe
         self.expired_first = expired_first
@@ -112,7 +113,7 @@ class FakeRunner:
                     {"name": f"编译 {abi} 核心",
                      "conclusion": "failure" if self.failed_job and abi == "arm64-v8a" else "success"}
                     for abi in ("arm64-v8a", "x86_64")
-                ] + [{"name": "国内服务商目录与模型能力 Rust 回归测试", "conclusion": "success"}]})
+                ] + [{"name": "国内服务商目录与模型能力 Rust 回归测试", "conclusion": "failure" if self.failed_provider else "success"}]})
             self.called_api += 1
             names = ["codex-android-native-arm64-v8a"]
             if not self.missing_abi:
@@ -232,6 +233,11 @@ jobs:
         runner = FakeRunner(missing_abi=True, run_conclusion="cancelled")
         self.assertEqual(ArtifactSelector(runner).find(
             "owner/repo", "HEAD", ["arm64-v8a"]), "21")
+
+    def test_failed_provider_contract_cannot_reuse_artifact(self):
+        runner = FakeRunner(missing_abi=True)
+        runner.failed_provider = True
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"]))
 
     def test_failed_native_job_cannot_reuse_artifact(self):
         runner = FakeRunner(missing_abi=True, failed_job=True)

@@ -156,7 +156,7 @@ jobs:
           echo "准备发布 $RELEASE_SHA -> v$VERSION"
 
   release:
-    name: 签名、验证并发布 ARM64 手机 APK
+    name: 签名并保存唯一 ARM64 候选 APK
     needs: check-release
     # The PR-only preflight is skipped for workflow_run. Check the actual
     # acceptance result explicitly instead of inheriting an implicit success().
@@ -164,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 65
     permissions:
-      contents: write
+      contents: read
       actions: read
       pull-requests: read
     steps:

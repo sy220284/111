@@ -12,5 +12,7 @@
 - GitHub 环境 `arm64-release` 仅允许 main，保护专用设备；专用 self-hosted Linux Runner 标签 `111-release-device`，连接隔离 ARM64 实机，配置 ANDROID_SERIAL。
 - Runner 预置独立外部设备测试工具，环境变量 CODEX_DEVICE_TEST_HARNESS 指定绝对路径。工具必须实际执行 seed/verify 命令，并输出版本、APK SHA256、每项检查真实结果。检查合同见 verify_device_evidence.py。工具及测试账号尚须设备管理员配置，禁止用伪造 JSON 替代。配置完成后才可设置仓库变量 ARM64_RELEASE_RUNNER_READY=true。
 - 缺少设备基础设施时流程保留已签名候选并明确失败，旧版本继续可用。
-- 上游导入使用手动主分支入口。GitHub token 创建 PR 后需由有权限的操作者触发 CI；未完成统一验收的 PR 不得合并。
+- 上游导入使用手动主分支入口；创建中文草稿 PR 后主动 dispatch 统一 CI，同提交签名检查纳入验收。未完成统一验收的 PR 不得合并。
 - 竞品研究工作流保持独立手动入口。不新增定时任务。
+
+原生历史迁移仅登记经编译日志、源代码树、Rust 回归和产物摘要交叉核实的 run 45568181115。新构建使用指纹索引，无历史扫描上限；Actions 产物受 90 天保留期限制，过期自动补编译。专用设备 Runner 应限制为受保护发布工作流专用，公开仓库的 PR 不能获得该 Runner 调度权限；如果仓库级 Runner 无法落实隔离，需独立的可信发布执行环境。
