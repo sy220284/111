@@ -445,6 +445,40 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                var cursor: String? = null
+                val seen = mutableSetOf<String>()
+                var codeMode: JSONObject? = null
+                var host: JSONObject? = null
+                do {
+                    val params = JSONObject().put("limit", 100)
+                    cursor?.let { params.put("cursor", it) }
+                    val response = bridge.request("experimentalFeature/list", params)
+                    val features = response.getJSONArray("data")
+                    for (i in 0 until features.length()) {
+                        val item = features.getJSONObject(i)
+                        when (item.getString("name")) {
+                            "code_mode" -> codeMode = item
+                            "code_mode_host" -> host = item
+                        }
+                    }
+                    cursor = if (response.isNull("nextCursor")) null else response.getString("nextCursor")
+                    cursor?.let { check(seen.add(it)) { "Repeated feature cursor" } }
+                } while (cursor != null)
+                assertEquals(true, checkNotNull(codeMode).getBoolean("defaultEnabled"))
+                assertEquals(true, checkNotNull(host).getBoolean("defaultEnabled"))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
     @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)

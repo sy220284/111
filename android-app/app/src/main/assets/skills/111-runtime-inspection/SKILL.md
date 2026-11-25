@@ -13,7 +13,7 @@ description: Inspect the actual Android Codex runtime, command availability, PAT
 ```sh
 printf 'cwd: '; pwd
 printf 'PATH: %s\n' "$PATH"
-for tool in sh git rg python python3 node npm java javac clang gcc make cmake go rustc cargo ssh curl wget; do
+for tool in sh git rg python python3 pip pip3 node npm java javac clang gcc make cmake go rustc cargo ssh curl wget; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         printf '%s: unavailable\n' "$tool"
         continue
@@ -31,3 +31,5 @@ printf 'Inspection finished; assess each probe above.\n'
 ```
 
 工具不存在时属于能力缺失，而非应用或任务崩溃。找到工具但版本探测失败时，必要时使用文档支持的无副作用探测确认；不得伪造成功。若用户指定必须可用的能力不可用，明确告知该能力验证失败及其影响。应用随包的 git、ripgrep 与系统 PATH、可选开发运行时是不同层次，不能把缺少 Python、Node、Java 等推断为核心故障。对话正文给出能力摘要、具体缺项和影响，原始输出留在可展开的执行记录；不要输出令牌或其他秘密。
+
+缺少 curl/wget 只说明命令行网络客户端未找到；不得据此判定应用网络或安装网络受限。Git 本地提交、Git HTTPS 传输与 SSH 分别验证，`git --version` 不能证明可克隆/拉取/推送。Code Mode 内置 V8 与 Node.js 命令是独立能力；应通过真实 feature/list 和实际 Code Mode 执行回执确认当前启用及运行情况。自检未实际执行联网或安装时，明确标注网络和安装能力未验证。
