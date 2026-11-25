@@ -60,7 +60,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val threadProvider by vm.activeModelProvider.collectAsState()
     val owner = vm.composerOwner(active, workspace)
     val drafts by vm.composerDrafts.collectEntries(owner)
-    val options = drafts[owner]?.options ?: ComposerTaskOptions()
+    val draft = drafts[owner] ?: ComposerDraft()
+    val options = draft.options
     val providerData by vm.data.collectEntries("providers")
     val draftProvider = ComposerProviderScope.provider(options.modelProvider)
     val currentProvider = if (active != null) ComposerProviderScope.provider(threadProvider)
@@ -124,14 +125,26 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         return
     }
     val selected = if (destination == null) options.model else ""
-    val choices = remember(available) {
+    val choices = remember(available, options.recentModels, scopedProvider, currentProvider, draft.images.isNotEmpty()) {
+        val provider = scopedProvider ?: currentProvider
         available.filter { !it.optBoolean("hidden") }.map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
             val name = item.optString("displayName").ifBlank { id }
-            val details = listOfNotNull(item.optString("description").takeIf { it.isNotBlank() },
+            val kinds = ComposerModelPolicy.inputKinds(item)
+            val detail = listOfNotNull(
+                "最近使用".takeIf { ComposerModelPolicy.recentRank(options, provider, id) != Int.MAX_VALUE },
+                "服务商默认".takeIf { item.optBoolean("isDefault") },
+                when {
+                    "image" in kinds -> "支持图片"
+                    kinds == listOf("text") && draft.images.isNotEmpty() -> "仅文本 · 当前草稿含图片"
+                    kinds == listOf("text") -> "仅文本"
+                    else -> null
+                },
+                "可调思考强度".takeIf { ComposerModelPolicy.efforts(available, id).isNotEmpty() },
                 id.takeIf { it != name }).joinToString(" · ")
-            CodexChoice(id, name, details)
+            CodexChoice(id, name, detail.ifBlank { item.optString("description") })
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
+            .sortedBy { ComposerModelPolicy.recentRank(options, provider, it.id) }
     }
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     CodexChoiceSheet(

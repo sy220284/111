@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import kotlinx.coroutines.flow.update
 import org.json.JSONObject
+import org.json.JSONArray
 
 /** Persist explicit overrides by conversation. Blank inherits the core's actual default. */
 data class ComposerTaskOptions(
@@ -9,10 +10,11 @@ data class ComposerTaskOptions(
     val mode: String = "default",
     val effort: String = "",
     val modelProvider: String = "",
-    val modelEfforts: Map<String, String> = emptyMap()
+    val modelEfforts: Map<String, String> = emptyMap(),
+    val recentModels: List<String> = emptyList()
 ) {
     fun encode() = JSONObject().put("model", model).put("mode", mode).put("effort", effort).put("modelProvider", modelProvider)
-        .put("modelEfforts", JSONObject(modelEfforts))
+        .put("modelEfforts", JSONObject(modelEfforts)).put("recentModels", JSONArray(recentModels))
     companion object {
         fun decode(value: JSONObject?): ComposerTaskOptions = ComposerTaskOptions(
             value?.optString("model").orEmpty(),
@@ -21,6 +23,9 @@ data class ComposerTaskOptions(
             value?.optString("modelProvider").orEmpty(),
             value?.optJSONObject("modelEfforts")?.let { map ->
                 map.keys().asSequence().associateWith { map.optString(it) }
+            }.orEmpty(),
+            value?.optJSONArray("recentModels")?.let { rows ->
+                (0 until rows.length()).map { rows.optString(it) }.filter { it.isNotBlank() }.distinct()
             }.orEmpty()
         )
     }
@@ -42,9 +47,19 @@ internal object ComposerModelPolicy {
             options.modelEfforts + ("${options.modelProvider}/${options.model}" to options.effort) else options.modelEfforts
         val remembered = history[key].orEmpty()
         val previous = if (options.model == id && options.modelProvider == provider) options.effort else remembered
-        return options.copy(model = id, modelProvider = provider, modelEfforts = history,
+        val recent = if (id.isBlank() || provider.isBlank()) options.recentModels
+            else (listOf(key) + options.recentModels.filter { it != key }).take(24)
+        return options.copy(model = id, modelProvider = provider, modelEfforts = history, recentModels = recent,
             effort = previous.takeIf { it in efforts(catalog, id) }.orEmpty())
     }
+    fun recentRank(options: ComposerTaskOptions, provider: String?, id: String): Int =
+        options.recentModels.indexOf("$provider/$id").takeIf { it >= 0 } ?: Int.MAX_VALUE
+
+    fun inputKinds(model: JSONObject): List<String> =
+        model.optJSONArray("inputModalities")?.let { array ->
+            (0 until array.length()).map { array.optString(it) }.filter { it.isNotBlank() }.distinct()
+        }.orEmpty()
+
     fun withEffort(options: ComposerTaskOptions, effort: String): ComposerTaskOptions {
         val key = "${options.modelProvider}/${options.model}"
         return options.copy(effort = effort,

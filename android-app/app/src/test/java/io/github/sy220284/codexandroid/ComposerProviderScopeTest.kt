@@ -52,4 +52,17 @@ class ComposerProviderScopeTest {
         assertEquals("", ComposerModelPolicy.choose(restored, "other", "a", catalog).effort)
         assertEquals("", ComposerModelPolicy.choose(restored, "provider", "a", listOf(JSONObject().put("id", "a"))).effort)
     }
+
+    @Test fun recentOrderIsProviderScopedAndPersistsAcrossReopen() {
+        val catalog = listOf(JSONObject().put("id", "a"), JSONObject().put("id", "b"))
+        val a = ComposerModelPolicy.choose(ComposerTaskOptions(), "p", "a", catalog)
+        val b = ComposerModelPolicy.choose(a, "p", "b", catalog)
+        val restored = ComposerTaskOptions.decode(b.encode())
+        assertEquals(0, ComposerModelPolicy.recentRank(restored, "p", "b"))
+        assertEquals(1, ComposerModelPolicy.recentRank(restored, "p", "a"))
+        assertEquals(Int.MAX_VALUE, ComposerModelPolicy.recentRank(restored, "other", "a"))
+        val model = JSONObject().put("inputModalities", org.json.JSONArray().put("text").put("image"))
+        assertEquals(listOf("text", "image"), ComposerModelPolicy.inputKinds(model))
+        assertTrue(ComposerModelPolicy.inputKinds(JSONObject()).isEmpty())
+    }
 }

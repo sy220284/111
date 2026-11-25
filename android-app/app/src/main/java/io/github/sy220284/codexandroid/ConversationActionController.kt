@@ -48,7 +48,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 val identifiers = listOfNotNull(model, targetModel?.optString("id"), targetModel?.optString("model"))
                     .filter { it.isNotBlank() }.toSet()
                 check(forked?.optString("modelProvider") == modelProvider &&
-                    forked?.optString("model") in identifiers && !newId.isNullOrBlank() && newId != id) {
+                    forked?.optString("model").orEmpty() in identifiers && !newId.isNullOrBlank() && newId != id) {
                     "新会话的模型或服务商回执不匹配，请在侧栏核对；原会话已保留"
                 }
             }
