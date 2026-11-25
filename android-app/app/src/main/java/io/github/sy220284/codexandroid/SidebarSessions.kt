@@ -134,7 +134,8 @@ internal fun SidebarSessions(
             rawRows.filter { answerVersions.root(SessionListPolicy.id(it)) in matchingRoots }
         }
     }
-    val remote by vm.conversationState.collectProjection { it.remote }
+    val remoteState = vm.conversationState.collectProjection { it.remote }
+    val remote = remoteState.value
     val rows = remember(rawRows, matching, answerVersions, state.projectOnly, workspace, remote) {
         answerVersions.rows(rawRows, matching).filter { row ->
             if (!state.projectOnly) true
