@@ -1,0 +1,35 @@
+{
+  "maintenance": {
+    "files": [
+      "AGENTS.md",
+      "README.md",
+      ".github/workflows/retain-check-artifacts.yml",
+      ".github/scripts/retain_check_artifacts.py",
+      ".github/scripts/test_retain_check_artifacts.py",
+      ".github/scripts/repository_steward.py",
+      ".github/scripts/test_repository_steward.py"
+    ],
+    "prefixes": [
+      "docs/ci-history/"
+    ]
+  },
+  "release": {
+    "files": [
+      "android-app/app/build.gradle.kts",
+      "android-app/app/proguard-rules.pro",
+      "android-app/build.gradle.kts",
+      "android-app/settings.gradle.kts",
+      "android-app/gradle.properties",
+      "android-app/tools/package_native_runtime.sh",
+      "android-app/tools/prepare_prebuilt_developer_runtime.py",
+      ".github/scripts/prepare-android-patcher.sh",
+      ".github/scripts/prepare-release-assets.sh",
+      ".github/scripts/verify_git_corresponding_source.py",
+      ".github/release-version"
+    ],
+    "prefixes": [
+      "android-app/app/src/main/",
+      "android-app/app/src/release/"
+    ]
+  }
+}

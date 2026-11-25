@@ -10,6 +10,7 @@ from urllib.parse import quote
 from select_native_artifacts import ArtifactSelector, configured_abis
 
 CHECK_WORKFLOWS = {
+    ".github/workflows/ci.yml",
     ".github/workflows/build-android.yml",
     ".github/workflows/build-native-codex.yml",
     ".github/workflows/check-android-ui.yml",

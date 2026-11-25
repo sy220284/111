@@ -122,6 +122,23 @@ class ArtifactSelector:
         # Not an error: candidates from a previous main history can be skipped.
         return self.run(["git", "merge-base", old, new]) == old
 
+    def indexed_candidates(self, repository, signatures):
+        from native_index import fingerprint
+        groups = []
+        for abi, signature in signatures.items():
+            name = f"native-index-{abi}-{fingerprint(signature)}"
+            matches = set()
+            page = 1
+            while True:
+                response = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/artifacts?name={name}&per_page=100&page={page}"]))
+                artifacts = response.get("artifacts", [])
+                matches.update(a["workflow_run"]["id"] for a in artifacts if not a.get("expired", True) and a.get("workflow_run"))
+                if len(artifacts) < 100:
+                    break
+                page += 1
+            groups.append(matches)
+        return sorted(set.intersection(*groups), reverse=True) if groups else []
+
     def find(self, repository, target, abis, branch="main"):
         current_signatures = {abi: self.signature(target, abi) for abi in abis}
         query = [
@@ -135,7 +152,18 @@ class ArtifactSelector:
         # remain mandatory before reuse.
         if branch != "main":
             query.extend(["--branch", branch])
+        # Legacy artifacts remain eligible only while their exact recipe matches.
+        # New artifacts are discoverable by fingerprint without a run-history limit.
         runs = json.loads(self.run(query))
+        indexed = []
+        for run_id in self.indexed_candidates(repository, current_signatures):
+            run = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}"]))
+            if (run.get("head_repository") or {}).get("full_name") != repository:
+                continue
+            if branch != "main" and run.get("head_branch") != branch:
+                continue
+            indexed.append({"databaseId": run_id, "headSha": run.get("head_sha"), "conclusion": run.get("conclusion")})
+        runs = indexed + [r for r in runs if r["databaseId"] not in {i["databaseId"] for i in indexed}]
         expected = {f"codex-android-native-{abi}" for abi in abis}
         for item in runs:
             # The successful ARM64 job remains reusable after a separate
@@ -172,10 +200,10 @@ class ArtifactSelector:
                 "gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"
             ]))
             succeeded = {
-                job.get("name") for job in jobs.get("jobs", [])
+                job.get("name", "").rsplit(" / ", 1)[-1] for job in jobs.get("jobs", [])
                 if job.get("conclusion") == "success"
             }
-            if {f"编译 {abi} 核心" for abi in abis} <= succeeded:
+            if ({f"编译 {abi} 核心" for abi in abis} | {"国内服务商目录与模型能力 Rust 回归测试"}) <= succeeded:
                 return str(run_id)
         return None
 

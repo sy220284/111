@@ -107,12 +107,14 @@ class FakeRunner:
                 {"databaseId": 20, "headSha": "older", "conclusion": self.run_conclusion},
             ])
         if args[:2] == ["gh", "api"]:
+            if "/actions/artifacts?name=" in args[2]:
+                return json.dumps({"artifacts": []})
             if args[2].endswith("/jobs?per_page=100"):
                 return json.dumps({"jobs": [
                     {"name": f"编译 {abi} 核心",
                      "conclusion": "failure" if self.failed_job and abi == "arm64-v8a" else "success"}
                     for abi in ("arm64-v8a", "x86_64")
-                ]})
+                ] + [{"name": "国内服务商目录与模型能力 Rust 回归测试", "conclusion": "success"}]})
             self.called_api += 1
             names = ["codex-android-native-arm64-v8a"]
             if not self.missing_abi:

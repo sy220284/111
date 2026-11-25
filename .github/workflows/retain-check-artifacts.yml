@@ -2,15 +2,9 @@ name: 仓库管家（检查产物、分支与缓存）
 
 on:
   workflow_run:
-    workflows:
-      - 安卓版本构建与验证
-      - 编译 Android 原生 Codex 核心
-      - 安卓界面与协议独立验收
-      - DSH Go 安卓安装与界面参考验收
-      - 安卓原生上游升级预演
-      - 手动同步官方 Codex 源码并创建审核 PR
-      - 111 Android 正式发布
+    workflows: ['111 统一质量验收', '111 Android 正式发布']
     types: [completed]
+    branches: [main]
   pull_request:
     paths:
       - '.github/workflows/retain-check-artifacts.yml'
@@ -53,7 +47,7 @@ jobs:
           python3 -m unittest discover -s .github/scripts -p test_retain_check_artifacts.py
           python3 -m unittest discover -s .github/scripts -p test_repository_steward.py
   retain:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: read
       actions: write

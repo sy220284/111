@@ -2,12 +2,6 @@ name: DSH Go 安卓安装与界面参考验收
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - audit/dsh-go-ui-journey-20261123
-    paths:
-      - .github/workflows/dsh-go-reference-audit.yml
-      - android-app/tools/capture_dsh_onboarding.py
 
 permissions:
   contents: read

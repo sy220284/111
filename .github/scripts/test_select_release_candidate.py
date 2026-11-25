@@ -44,11 +44,11 @@ class ReleaseCandidateTests(unittest.TestCase):
     @patch("select_release_candidate.find_acceptance")
     @patch("select_release_candidate.eligible", return_value=True)
     def test_trigger_requires_both_gates_on_trigger_sha(self, candidate, acceptance):
-        acceptance.side_effect = [123, None]
+        acceptance.side_effect = [None]
         self.assertIsNone(select("org/repo", B, A))
-        self.assertEqual([c.args[1] for c in acceptance.call_args_list], [A, A])
+        self.assertEqual([c.args[1] for c in acceptance.call_args_list], [A])
         acceptance.reset_mock(side_effect=True)
-        acceptance.side_effect = [123, 456]
+        acceptance.side_effect = [123]
         self.assertEqual(select("org/repo", B, A), A)
 
     @patch("select_release_candidate.find_acceptance")

@@ -6,22 +6,19 @@ import subprocess
 import sys
 
 REQUIRED_JOBS = {
-    "build-android.yml": frozenset({
-        "build",
-        "ARM64 手机安装包二次核验",
-    }),
-    "check-android-ui.yml": frozenset({
+    "ci.yml": frozenset({
+        "111 合并验收", "build", "ARM64 手机安装包二次核验",
         "Kotlin 编译、协议单元测试与 Android Lint",
         "Android 35 · 360dp UI 交互与截图验收",
         "Android 35 · 393dp UI 交互与截图验收",
         "Android 35 · 411dp UI 交互与截图验收",
+        "原生核心统一验收", "发布脚本回归检查", "MXC 和 Code Mode Host 源码适配预演",
     }),
 }
 
-
 def accepted(workflow: str, jobs: list[dict]) -> bool:
     required = REQUIRED_JOBS[workflow]
-    completed = {job.get("name") for job in jobs
+    completed = {job.get("name", "").rsplit(" / ", 1)[-1] for job in jobs
                  if job.get("conclusion") == "success"}
     return required.issubset(completed)
 

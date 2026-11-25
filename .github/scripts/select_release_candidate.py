@@ -7,20 +7,7 @@ import sys
 from decide_android_build import changed_paths
 from verify_release_acceptance import REQUIRED_JOBS, find_acceptance
 
-# This is an explicit allowlist, not a broad docs/ or CI exclusion.
-# These files are not Android, native, signing, release or acceptance inputs.
-MAINTENANCE_PATHS = frozenset({
-    "AGENTS.md",
-    ".github/workflows/retain-check-artifacts.yml",
-    ".github/scripts/retain_check_artifacts.py",
-    ".github/scripts/test_retain_check_artifacts.py",
-    ".github/scripts/repository_steward.py",
-    ".github/scripts/test_repository_steward.py",
-})
-
-
-def maintenance_only(paths: list[str]) -> bool:
-    return set(paths).issubset(MAINTENANCE_PATHS)
+from ci_policy import maintenance_only
 
 
 def eligible(sha: str, latest: str) -> bool:

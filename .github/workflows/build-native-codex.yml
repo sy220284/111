@@ -1,47 +1,19 @@
 name: 编译 Android 原生 Codex 核心
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/build-native-codex.yml"
-      - ".github/scripts/select_native_artifacts.py"
-      - "upstream/codex/codex-rs/**"
-      - "upstream/codex/.cargo/**"
-      - "android-app/tools/prepare_android_mxc.py"
-      - "android-app/tools/prepare_android_code_mode.py"
-      - "android-app/tools/prepare_android_v8.sh"
-      - "android-app/tools/adapt_android_v8_build.py"
-      - "android-app/tools/build_android_git.sh"
-  pull_request:
-    paths:
-      # UI-only PRs must also have a complete ARM64 device candidate before merge.
-      # The reuse job checks binary inputs, so Compose changes do not rebuild Rust.
-      - "android-app/app/**"
-      - "android-app/build.gradle.kts"
-      - "android-app/settings.gradle.kts"
-      - "android-app/gradle.properties"
-      - ".github/scripts/prepare-android-patcher.sh"
-      - ".github/scripts/create-android-update-fixture.sh"
-      - ".github/scripts/audit_apk_contents.py"
-      - ".github/workflows/build-native-codex.yml"
-      # Packaging workflow changes must also run a real PR ARM64 APK build.
-      - ".github/workflows/build-android.yml"
-      - "upstream/codex/codex-rs/**"
-      - "upstream/codex/.cargo/**"
-      - "android-app/tools/prepare_android_mxc.py"
-      - "android-app/tools/prepare_android_code_mode.py"
-      - "android-app/tools/prepare_android_v8.sh"
-      - "android-app/tools/adapt_android_v8_build.py"
-      - "android-app/tools/build_android_git.sh"
-      - "android-app/tools/package_native_runtime.sh"
-      - "android-app/tools/prepare_prebuilt_developer_runtime.py"
-      - ".github/scripts/select_native_artifacts.py"
+  workflow_call:
+    inputs:
+      include_x86:
+        type: boolean
+        default: false
+    outputs:
+      arm_run_id:
+        value: ${{ jobs.verified.outputs.arm_run_id }}
+      x86_run_id:
+        value: ${{ jobs.verified.outputs.x86_run_id }}
   workflow_dispatch:
     inputs:
       include_x86:
-        description: 同时编译 x86_64 模拟器原生核心（仅手动专项验收）
-        required: false
         type: boolean
         default: false
 
@@ -62,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     outputs:
+      arm_run_id: ${{ steps.detect.outputs.arm_run_id }}
+      x86_run_id: ${{ steps.detect.outputs.x86_run_id }}
       reuse: ${{ steps.detect.outputs.reuse }}
       matrix: ${{ steps.detect.outputs.matrix }}
     steps:
@@ -76,7 +50,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          INCLUDE_X86: ${{ github.event_name == 'workflow_dispatch' && inputs.include_x86 }}
+          INCLUDE_X86: ${{ inputs.include_x86 }}
           ABI_MATRIX_JSON: '[{"rust_target":"aarch64-linux-android","clang":"aarch64-linux-android29-clang","clangxx":"aarch64-linux-android29-clang++","abi":"arm64-v8a","elf_arch":"AArch64"},{"rust_target":"x86_64-linux-android","clang":"x86_64-linux-android29-clang","clangxx":"x86_64-linux-android29-clang++","abi":"x86_64","elf_arch":"X86-64"}]'
         run: |
           set -euo pipefail
@@ -90,6 +64,13 @@ jobs:
             python3 .github/scripts/select_native_artifacts.py \
               --repo "$GITHUB_REPOSITORY" --abis "$ABI" \
               > "$RUNNER_TEMP/reused-native-$ABI" || RESULT=$?
+            KEY=arm_run_id
+            if [ "$ABI" = x86_64 ]; then KEY=x86_run_id; fi
+            if [ "$RESULT" -eq 0 ]; then
+              echo "$KEY=$(cat "$RUNNER_TEMP/reused-native-$ABI")" >> "$GITHUB_OUTPUT"
+            elif [ "$RESULT" -eq 3 ]; then
+              echo "$KEY=$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+            fi
             case "$RESULT" in
               0) echo "$ABI 复用已验证原生内核" ;;
               3) MISSING="$(jq -c --arg abi "$ABI" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi))' <<< "$ABI_MATRIX_JSON")" ;;
@@ -124,7 +105,10 @@ jobs:
       - name: 检出已锁定的官方源码快照
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           sparse-checkout: |
+            .github/scripts
             upstream/codex
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
@@ -285,6 +269,7 @@ jobs:
             sha256sum "$CORE"
           done
       - name: 上传原生内核与构建清单
+        id: native-upload
         uses: actions/upload-artifact@v4
         with:
           name: codex-android-native-${{ matrix.abi }}
@@ -293,6 +278,20 @@ jobs:
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-code-mode-host
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/rg
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/git
+          if-no-files-found: error
+          retention-days: 90
+      - name: 生成按源码指纹索引的原生构建凭证
+        shell: bash
+        env:
+          ABI: ${{ matrix.abi }}
+          ARTIFACT_ID: ${{ steps.native-upload.outputs.artifact-id }}
+        run: |
+          python3 .github/scripts/native_index.py create --abi "$ABI" --artifact-id "$ARTIFACT_ID" --out "$RUNNER_TEMP/native-index.json" --github-output "$GITHUB_OUTPUT"
+        id: index
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-index-${{ matrix.abi }}-${{ steps.index.outputs.fingerprint }}
+          path: ${{ runner.temp }}/native-index.json
           if-no-files-found: error
           retention-days: 90
 
@@ -328,33 +327,24 @@ jobs:
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting
 
-  verify-pr-apk:
-    name: ARM64 就绪后触发同提交手机 APK 验收
+  verified:
+    name: 原生核心统一验收
     needs: [reuse, native, provider-contract]
-    if: >-
-      always() && github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      needs.reuse.result == 'success' &&
-      (needs.reuse.outputs.reuse == 'true' || (needs.native.result == 'success' && needs.provider-contract.result == 'success'))
+    if: always()
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
+    outputs:
+      arm_run_id: ${{ needs.reuse.outputs.arm_run_id }}
+      x86_run_id: ${{ needs.reuse.outputs.x86_run_id }}
     steps:
-      - name: 触发同一 PR 分支完整 Android APK 验收
-        shell: bash
+      - name: 核对真实编译或复用结果
         env:
-          GH_TOKEN: ${{ github.token }}
-          PR_BRANCH: ${{ github.head_ref }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REUSE: ${{ needs.reuse.result }}
+          REUSED: ${{ needs.reuse.outputs.reuse }}
+          NATIVE: ${{ needs.native.result }}
+          TEST: ${{ needs.provider-contract.result }}
+          ARM: ${{ needs.reuse.outputs.arm_run_id }}
         run: |
           set -euo pipefail
-          test -n "$PR_BRANCH"
-          test -n "$PR_HEAD_SHA"
-          CURRENT_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$PR_BRANCH" --jq '.object.sha')"
-          if [ "$CURRENT_HEAD" != "$PR_HEAD_SHA" ]; then
-            echo "::notice::旧版 PR 原生检查 $PR_HEAD_SHA 已被 $CURRENT_HEAD 取代，跳过 APK 重复触发"
-            exit 0
-          fi
-          gh workflow run build-android.yml --repo "$GITHUB_REPOSITORY" --ref "$PR_BRANCH" -f expected_sha="$PR_HEAD_SHA"
-          echo "PR $PR_BRANCH 的提交 $PR_HEAD_SHA 已触发 ARM64 APK 同提交验收"
+          test "$REUSE" = success
+          test -n "$ARM"
+          if [ "$REUSED" != true ]; then test "$NATIVE" = success; test "$TEST" = success; fi
