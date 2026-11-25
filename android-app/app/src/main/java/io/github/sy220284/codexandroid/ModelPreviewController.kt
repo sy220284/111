@@ -25,8 +25,8 @@ internal object ModelPreviewPolicy {
         require(args.keysSet() == setOf("target"))
         val target = args.getJSONObject("target")
         require(target.keysSet() in setOf(setOf("type", "path"), setOf("type", "path", "line")))
-        require(target.getString("type") == "file")
-        val path = target.getString("path")
+        require(target.opt("type") == "file")
+        val path = target.opt("path") as? String ?: error("路径必须为文本")
         require(path.length in 1..4096 && path.none { it.isISOControl() })
         val line = if (target.has("line")) {
             val value = target.get("line") as? Number ?: error("行号必须为正整数")
@@ -82,6 +82,8 @@ internal object ModelPreviewPolicy {
 internal class ModelPreviewController(private val vm: CodexViewModel, private val root: File) {
     private val state = MutableStateFlow<List<ModelPreviewRequest>>(emptyList())
     val requests = state.asStateFlow()
+    private val failedState = MutableStateFlow<Map<String, String>>(emptyMap())
+    val failures = failedState.asStateFlow()
     private var server: ModelPreviewMcpServer? = null
     private var closed = false
     private val lock = Any()
@@ -140,11 +142,23 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
             JSONObject().put("status", "queued").put("threadId", thread)
         }
     }
+    fun startup(epoch: Long, params: JSONObject) = synchronized(lock) {
+        if (vm.bridge.connectedSession.value == epoch) {
+            val thread = (params.opt("threadId") as? String)?.takeIf { it.isNotBlank() } ?: return@synchronized
+            failedState.value = when (params.optString("status")) {
+                "failed", "cancelled" -> failedState.value + (thread to "任务文件预览服务未就绪，请在会话空闲时重新打开会话。")
+                "starting", "ready" -> failedState.value - thread
+                else -> failedState.value
+            }
+        }
+    }
     fun dismiss(request: ModelPreviewRequest) = synchronized(lock) { state.value = state.value.filterNot { it.id == request.id } }
-    fun removeThread(thread: String) = synchronized(lock) { state.value = state.value.filterNot { it.threadId == thread } }
-    fun clear() = synchronized(lock) { state.value = emptyList() }
+    fun removeThread(thread: String) = synchronized(lock) {
+        state.value = state.value.filterNot { it.threadId == thread }; failedState.value = failedState.value - thread
+    }
+    fun clear() = synchronized(lock) { state.value = emptyList(); failedState.value = emptyMap() }
     fun close() {
-        val old = synchronized(lock) { closed = true; state.value = emptyList(); server.also { server = null } }
+        val old = synchronized(lock) { closed = true; state.value = emptyList(); failedState.value = emptyMap(); server.also { server = null } }
         old?.stop()
     }
 }

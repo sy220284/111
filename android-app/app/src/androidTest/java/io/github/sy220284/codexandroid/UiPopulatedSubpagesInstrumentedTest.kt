@@ -48,6 +48,37 @@ class UiPopulatedSubpagesInstrumentedTest {
         captureVerifiedDisplayScreenshot(name)
     }
 
+    @Test fun sessionSortControlsAndModelFilePreviewAreInteractive() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val root = File(app.cacheDir, "model-preview-" + UUID.randomUUID()).apply { mkdirs() }
+        val file = File(root, "demo.txt").apply { writeText("first line\nsecond line\nthird line") }
+        val preview = ModelPreviewRequest("fixture", "thread", 1, 1, root.absolutePath, file.name, 2)
+        val sidebar = SidebarUiState()
+        try {
+            rule.setContent {
+                CodexTheme {
+                    Column(Modifier.fillMaxSize()) {
+                        SessionTaskControls(sidebar, 2)
+                        ModelDocumentPane(preview, root, {}, Modifier.weight(1f).fillMaxHeight())
+                    }
+                }
+            }
+            rule.onNodeWithTag("sidebar-sort-filter").performClick()
+            rule.onNodeWithText("会话排序与筛选").assertExists()
+            rule.onNodeWithText("更新时间").assertExists()
+            rule.onNodeWithText("创建时间").assertExists()
+            capture("audit-session-sort-filter-android35.png")
+            rule.onNodeWithTag("codex-detail-close").performClick()
+            rule.onNodeWithTag("sidebar-active-tasks").performClick()
+            rule.runOnIdle { assertEquals(SessionTaskFilter.Active, sidebar.taskFilter) }
+            rule.waitUntil(10000) {
+                rule.onAllNodesWithText("second line", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("定位第 2 行 · 只读预览").assertExists()
+            capture("audit-model-document-preview-android35.png")
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun mcpAvailableCardShowsOnlyServiceAndAvailability() {
         val server = JSONObject()
             .put("name", "演示扩展服务")

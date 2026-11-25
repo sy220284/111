@@ -55,7 +55,7 @@ internal fun ModelPreviewTray(requests: List<ModelPreviewRequest>, onOpen: (Mode
 
 private sealed interface DocumentLoad {
     data object Loading : DocumentLoad
-    data class TextFile(val content: String) : DocumentLoad
+    data class TextFile(val source: DocumentSourceSnapshot) : DocumentLoad
     data class ImageFile(val image: ImageBitmap, val width: Int, val height: Int) : DocumentLoad
     data class Failure(val message: String) : DocumentLoad
 }
@@ -74,7 +74,7 @@ private fun load(root: File, request: ModelPreviewRequest): DocumentLoad {
     val content = try { Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString() }
         catch (_: java.nio.charset.CharacterCodingException) { error("此文件格式需要使用专用应用打开") }
     require(!content.contains('\u0000')) { "此文件格式需要使用专用应用打开" }
-    return DocumentLoad.TextFile(content)
+    return DocumentLoad.TextFile(DocumentSourceSnapshot.create(content, request.line))
 }
 
 @Composable
@@ -117,43 +117,57 @@ internal fun ModelDocumentPane(request: ModelPreviewRequest, root: File, onDismi
                     Text("${current.width} × ${current.height} 像素", color = Ink.muted)
                     Image(current.image, "工作区图片", modifier = Modifier.fillMaxWidth().weight(1f))
                 }
-                is DocumentLoad.TextFile -> DocumentSourcePane(current.content, request.line, Modifier.weight(1f))
+                is DocumentLoad.TextFile -> DocumentSourcePane(current.source, Modifier.weight(1f))
             }
         }
     }
 }
 
-@Composable
-internal fun DocumentSourcePane(text: String, line: Int?, modifier: Modifier = Modifier) {
-    val chunks = remember(text) { text.chunked(2048).ifEmpty { listOf("") } }
-    val offset = remember(text, line) {
-        if (line == null) null else {
-            var start = 0
-            var count = 1
-            while (count < line && start >= 0) {
-                val newline = text.indexOf('\n', start)
-                start = if (newline < 0) -1 else newline + 1
-                count++
+internal data class DocumentSourceSnapshot(val text: String, val chunks: List<String>, val focus: Int?,
+    val line: Int?, val highlightLength: Int) {
+    companion object {
+        fun create(text: String, line: Int?): DocumentSourceSnapshot {
+            var offset = 0
+            if (line != null) {
+                var current = 1
+                while (current < line && offset >= 0) {
+                    val newline = text.indexOf('\n', offset)
+                    offset = if (newline < 0) -1 else newline + 1
+                    current++
+                }
             }
-            start.takeIf { it >= 0 }
+            if (line == null || offset < 0) return DocumentSourceSnapshot(text,
+                text.chunked(2048).ifEmpty { listOf("") }, null, line, 0)
+            val before = text.substring(0, offset).chunked(2048)
+            val after = text.substring(offset).chunked(2048).ifEmpty { listOf("") }
+            val end = text.indexOf('\n', offset).takeIf { it >= 0 } ?: text.length
+            return DocumentSourceSnapshot(text, before + after, before.size, line, end - offset)
         }
     }
-    val end = remember(text, offset) { offset?.let { text.indexOf('\n', it).takeIf { at -> at >= 0 } ?: text.length } }
+}
+
+@Composable
+internal fun DocumentSourcePane(source: DocumentSourceSnapshot, modifier: Modifier = Modifier) {
     val list = rememberLazyListState()
-    LaunchedEffect(text, offset) { offset?.let { list.scrollToItem((it / 2048).coerceAtMost(chunks.lastIndex)) } }
-    if (line != null && offset == null) Text("指定行已不存在，显示当前文件内容", color = Ink.muted)
-    val copy = rememberConversationCopy()
-    CodexTextAction(onClick = { copy(text, CopyContentFormat.Literal) }) { Text("复制全文") }
+    var search by remember(source) { mutableStateOf(false) }
+    LaunchedEffect(source) { source.focus?.let { list.scrollToItem(it) } }
+    if (source.line != null && source.focus == null) Text("指定行已不存在，显示当前文件内容", color = Ink.muted)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        val copy = rememberConversationCopy()
+        CodexTextAction(onClick = { copy(source.text, CopyContentFormat.Literal) },
+            enabled = source.text.isNotBlank()) { Text("复制全文") }
+        CodexTextAction(onClick = { search = true }) { Text("全文检索") }
+    }
     LazyColumn(modifier.fillMaxWidth(), state = list, contentPadding = PaddingValues(bottom = 20.dp)) {
-        itemsIndexed(chunks) { index, chunk ->
+        itemsIndexed(source.chunks) { index, chunk ->
             val highlight = Ink.copper
-            val content = remember(index, chunk, offset, end, highlight) {
+            val content = remember(index, chunk, source, highlight) {
                 buildAnnotatedString {
                     append(chunk)
-                    if (offset != null && end != null) {
-                        val start = (offset - index * 2048).coerceIn(0, chunk.length)
-                        val stop = (end - index * 2048).coerceIn(0, chunk.length)
-                        if (start < stop) addStyle(SpanStyle(background = highlight.copy(alpha = .25f)), start, stop)
+                    val focus = source.focus
+                    if (focus != null && index >= focus) {
+                        val end = (source.highlightLength - (index - focus) * 2048).coerceIn(0, chunk.length)
+                        if (end > 0) addStyle(SpanStyle(background = highlight.copy(alpha = .25f)), 0, end)
                     }
                 }
             }
@@ -162,4 +176,5 @@ internal fun DocumentSourcePane(text: String, line: Int?, modifier: Modifier = M
             }
         }
     }
+    if (search) FullTextReaderDialog("文件全文", source.text) { search = false }
 }

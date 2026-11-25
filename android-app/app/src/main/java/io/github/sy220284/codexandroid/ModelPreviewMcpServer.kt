@@ -19,7 +19,7 @@ internal class ModelPreviewMcpServer(
     private val runner = BoundedRunner()
     init { setAsyncRunner(runner) }
 
-    fun launch() { start(SOCKET_READ_TIMEOUT, false) }
+    fun launch() { start(5000, false) }
     fun config(): JSONObject = JSONObject()
         .put("url", "http://127.0.0.1:${listeningPort}/mcp")
         .put("http_headers", JSONObject().put("Authorization", authorization))
@@ -34,10 +34,14 @@ internal class ModelPreviewMcpServer(
                 closeConnection(true)
             }
         if (session.uri != "/mcp") return reply(Response.Status.NOT_FOUND)
+        if (session.headers["host"] != "127.0.0.1:$listeningPort" || session.headers.containsKey("origin"))
+            return reply(Response.Status.FORBIDDEN)
         val provided = session.headers["authorization"].orEmpty()
         if (!MessageDigest.isEqual(authorization.toByteArray(), provided.toByteArray()))
             return reply(Response.Status.UNAUTHORIZED)
         if (session.method != Method.POST) return reply(Response.Status.METHOD_NOT_ALLOWED)
+        if (session.headers["content-type"]?.substringBefore(';')?.trim()?.lowercase() != "application/json")
+            return reply(Response.Status.BAD_REQUEST, "JSON required")
         val length = session.headers["content-length"]?.toLongOrNull()
         if (length == null || length !in 1..65536 || session.headers.containsKey("transfer-encoding"))
             return reply(Response.Status.BAD_REQUEST, "Invalid request length")

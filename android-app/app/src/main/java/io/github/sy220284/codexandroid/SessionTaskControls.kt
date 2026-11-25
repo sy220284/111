@@ -31,11 +31,11 @@ internal enum class SessionTaskFilter(val label: String) {
 }
 
 @Composable
-internal fun SessionTaskControls(state: SidebarUiState, activeCount: Int, modifier: Modifier = Modifier) {
+internal fun SessionTaskControls(state: SidebarUiState, activeCount: Int, modifier: Modifier = Modifier,
+    onActiveTasks: () -> Unit = { state.taskFilter = if (state.taskFilter == SessionTaskFilter.Active) SessionTaskFilter.All else SessionTaskFilter.Active }) {
     var open by remember { mutableStateOf(false) }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        CodexTextAction(onClick = { state.taskFilter = if (state.taskFilter == SessionTaskFilter.Active)
-            SessionTaskFilter.All else SessionTaskFilter.Active }, modifier = Modifier.weight(1f).testTag("sidebar-active-tasks")) {
+        CodexTextAction(onClick = onActiveTasks, modifier = Modifier.weight(1f).testTag("sidebar-active-tasks")) {
             Text("进行中 $activeCount")
         }
         CodexTextAction(onClick = { open = true }, modifier = Modifier.testTag("sidebar-sort-filter")) {

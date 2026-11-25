@@ -37,7 +37,7 @@ adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 run_suite RuntimeOwnershipInstrumentedTest "$OUT/ownership.log"
 cat "$OUT/core.log" "$OUT/ownership.log" > "$OUT/instrumentation.log"
-for NAME in bundledCoreInitializesAndAnswersAccountRead realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion; do
+for NAME in bundledCoreInitializesAndAnswersAccountRead nativeCoreDiscoversAndCallsAndroidPreviewMcp realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion; do
   grep -Fq "test=$NAME" "$OUT/instrumentation.log"
 done
 echo "真实 Android 内核、故障恢复、终端和前台服务回执通过" | tee "$OUT/result.txt"

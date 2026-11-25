@@ -24,6 +24,10 @@ internal object CodexNotificationDispatcher {
             return
         }
         if (method == "mcpServer/startupStatus/updated") {
+            if (params.optString("name") == ModelPreviewMcpServer.NAME) {
+                modelPreviews.startup(message.optLong(CORE_SESSION_FIELD, -1L), params)
+                return
+            }
             mcpCatalog.recordStartup(message.optLong(CORE_SESSION_FIELD, -1L), params)
             val targetThread = params.optString("threadId").takeIf { it.isNotBlank() }
             if ((targetThread == null || targetThread == activeThread.value) &&

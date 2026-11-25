@@ -51,7 +51,9 @@ internal object TimelineEventReducer {
                 val changes = item.optJSONArray("changes").objects()
                 "修改 ${changes.size} 个文件" + changes.take(3).joinToString("", prefix = if (changes.isEmpty()) "" else " · ") { shortPath(it.string("path")) + " " }.trimEnd()
             }
-            "mcpToolCall", "dynamicToolCall" -> listOf(item.string("server"), item.string("tool")).filter(String::isNotBlank).joinToString(" · ")
+            "mcpToolCall", "dynamicToolCall" -> if (item.string("server") == ModelPreviewMcpServer.NAME &&
+                item.string("tool") == ModelPreviewMcpServer.TOOL) "准备任务文件预览"
+                else listOf(item.string("server"), item.string("tool")).filter(String::isNotBlank).joinToString(" · ")
             "functionCallOutput" -> item.string("name")
             "webSearch" -> item.string("query")
             "imageView" -> shortPath(item.string("path"))

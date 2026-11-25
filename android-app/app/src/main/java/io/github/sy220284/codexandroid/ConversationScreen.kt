@@ -55,6 +55,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val prompts by vm.bridge.prompts.collectProjection { it.forThread(thread) }
     val selectedWorkspace = conversation.workspace
     val previewRequests by vm.modelPreviews.requests.collectAsState()
+    val previewFailures by vm.modelPreviews.failures.collectProjection { it[thread] }
     val previewEpoch by vm.bridge.connectedSession.collectAsState()
     val previewAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
     val threadPreviews = remember(previewRequests, thread, previewEpoch, previewAccountRevision) {
@@ -242,6 +243,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
+        if (previewFailures != null && !switching && status == EngineStatus.Connected)
+            CodexNotice(requireNotNull(previewFailures), NoticeTone.Warning, Modifier.padding(horizontal = 14.dp))
         if (threadPreviews.isNotEmpty() && !switching) ModelPreviewTray(threadPreviews,
             onOpen = { selectedPreview = it }, onDismiss = { vm.modelPreviews.dismiss(it) })
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {

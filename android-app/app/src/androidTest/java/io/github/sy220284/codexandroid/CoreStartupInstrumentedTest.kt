@@ -33,6 +33,47 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
+    @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val host = ModelPreviewMcpServer { args, meta ->
+            val (path, line) = ModelPreviewPolicy.target(args)
+            check(path == "demo.txt" && line == 2)
+            JSONObject().put("status", "queued").put("threadId", ModelPreviewPolicy.thread(meta))
+        }
+        try {
+            host.launch()
+            withTimeout(90000) {
+                bridge.connect()
+                val workspace = WorkspaceStorage.root(app)
+                val params = JSONObject().put("cwd", workspace.absolutePath)
+                    .put("config", JSONObject().put("mcp_servers." + ModelPreviewMcpServer.NAME, host.config()))
+                val id = bridge.request("thread/start", params).getJSONObject("thread").getString("id")
+                val statusParams = CatalogRequestContract.mcpStatus(id).put("serverName", ModelPreviewMcpServer.NAME)
+                var ready = false
+                repeat(12) {
+                    if (!ready) {
+                        val status = bridge.request("mcpServerStatus/list", statusParams)
+                        ready = records(status).any { row -> row.optString("name") == ModelPreviewMcpServer.NAME &&
+                            row.optJSONObject("tools")?.has(ModelPreviewMcpServer.TOOL) == true }
+                        if (!ready) kotlinx.coroutines.delay(500)
+                    }
+                }
+                org.junit.Assert.assertTrue("native MCP tool discovery did not find Android preview", ready)
+                val result = bridge.request("mcpServer/tool/call", JSONObject().put("threadId", id)
+                    .put("server", ModelPreviewMcpServer.NAME).put("tool", ModelPreviewMcpServer.TOOL)
+                    .put("arguments", JSONObject("""{"target":{"type":"file","path":"demo.txt","line":2}}"""))
+                    .put("_meta", JSONObject().put("threadId", id)))
+                org.junit.Assert.assertFalse(result.optBoolean("isError"))
+                assertEquals("queued", result.getJSONObject("structuredContent").getString("status"))
+                assertEquals(id, result.getJSONObject("structuredContent").getString("threadId"))
+            }
+        } finally {
+            bridge.close()
+            host.stop()
+        }
+    }
+
     @Test fun nativeDeltaPatcherLoadsAndRejectsCorruptPatch() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val library = File(app.applicationInfo.nativeLibraryDir, "libhpatchz.so")

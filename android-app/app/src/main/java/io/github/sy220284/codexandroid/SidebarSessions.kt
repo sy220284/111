@@ -132,8 +132,11 @@ internal fun SidebarSessions(
     val matching = remember(rawRows, answerVersions, fullText, archived, query, searchResult) {
         if (fullText && query.isNotBlank())
             searchResult?.takeIf { it.first == (archived to query.trim()) }?.second.orEmpty()
-        else if (fullText) emptyList() else rawRows.filter { SessionListPolicy.titleMatches(it, query) ||
-            answerVersions.root(SessionListPolicy.id(it)).let { root -> rawRows.firstOrNull { row -> SessionListPolicy.id(row) == root }?.let { row -> SessionListPolicy.titleMatches(row, query) } == true } }
+        else if (fullText) emptyList() else {
+            val matchingRoots = rawRows.filter { SessionListPolicy.titleMatches(it, query) }
+                .mapTo(hashSetOf()) { answerVersions.root(SessionListPolicy.id(it)) }
+            rawRows.filter { answerVersions.root(SessionListPolicy.id(it)) in matchingRoots }
+        }
     }
     val taskFilter = state.taskFilter
     val actualActivity = remember(matching, currentActivities, executions, approvals, activeId, running) {
@@ -148,7 +151,13 @@ internal fun SidebarSessions(
         if (taskFilter == SessionTaskFilter.All) answerVersions.rows(rawRows, matching)
         else matching.filter { taskFilter.matches(actualActivity[SessionListPolicy.id(it)] ?: ThreadActivity.Idle) }
     }
-    val activeCount = actualActivity.values.count(ThreadActivityPolicy::isActive)
+    val activeCount = remember(data["sidebarThreads"], currentActivities, executions, approvals, activeId, running) {
+        val known = records(data["sidebarThreads"]).associateBy(SessionListPolicy::id)
+        (known.keys + executions.keys + approvals.keys + currentActivities.keys).count { id ->
+            id.isNotBlank() && ThreadActivityPolicy.isActive(SessionListPolicy.activity(
+                known[id] ?: JSONObject(), currentActivities[id], id in executions || running && id == activeId, approvals[id] ?: 0))
+        }
+    }
     val visiblePins = remember(pins, rows, answerVersions) { rows.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
     var selection by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
@@ -168,10 +177,15 @@ internal fun SidebarSessions(
         selectedIds = emptySet()
     }
     LaunchedEffect(completed) { selectedIds = selectedIds - completed }
+    var lastFilter by remember { mutableStateOf(state.sort to state.taskFilter) }
     LaunchedEffect(state.sort, state.taskFilter) {
-        state.scroll.scrollToItem(0)
-        selection = false
-        selectedIds = emptySet()
+        val next = state.sort to state.taskFilter
+        if (next != lastFilter) {
+            lastFilter = next
+            state.scroll.scrollToItem(0)
+            selection = false
+            selectedIds = emptySet()
+        }
     }
     fun toggle(id: String) { selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id }
     fun canManage(row: JSONObject): Boolean {
@@ -193,7 +207,14 @@ internal fun SidebarSessions(
                 Text("批量管理")
             }
         }
-        if (!selection) SessionTaskControls(state, activeCount, Modifier.fillMaxWidth())
+        if (!selection) SessionTaskControls(state, activeCount, Modifier.fillMaxWidth(), onActiveTasks = {
+            val alreadyActive = state.taskFilter == SessionTaskFilter.Active && !state.archived &&
+                section == null && !state.searching
+            section = null
+            state.searching = false
+            state.resetFilter()
+            state.taskFilter = if (alreadyActive) SessionTaskFilter.All else SessionTaskFilter.Active
+        })
         if (section != null && !state.fullText && connected) {
             if (sectionError.isNotBlank()) CodexNotice(sectionError, NoticeTone.Error,
                 actionLabel = "重试", onAction = { sectionRevision++ })
