@@ -667,31 +667,69 @@ class CodexInteractionComponentsInstrumentedTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val root = java.io.File(context.cacheDir, "editor-test-" + java.util.UUID.randomUUID())
         check(root.mkdir())
-        val file = java.io.File(root, "notes.txt").apply { writeText("原始内容") }
-        try {
-            rule.setContent {
-                var open by remember { mutableStateOf(true) }
-                CodexTheme {
-                    if (open) FileEditor(file, root, onBack = { open = false })
-                }
-            }
+        val file = java.io.File(root, "notes-" + java.util.UUID.randomUUID() + ".txt").apply { writeText("原始内容") }
+        val store = WorkspaceEditorDraftStore(java.io.File(context.filesDir, "editor-drafts"))
+        val open = mutableStateOf(true)
+        fun waitForEditor() {
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithTag("workspace-editor-content").fetchSemanticsNodes().isNotEmpty()
             }
+        }
+        fun waitForClose() {
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithTag("workspace-file-editor").fetchSemanticsNodes().isEmpty()
+            }
+        }
+        try {
+            rule.setContent {
+                CodexTheme {
+                    if (open.value) FileEditor(file, root, onBack = { open.value = false })
+                }
+            }
+            waitForEditor()
             rule.onNodeWithTag("workspace-editor-save").assertIsNotEnabled()
             rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
             rule.onNodeWithContentDescription("返回文件列表").performClick()
-            rule.onNodeWithText("放弃未保存的修改？").assertExists()
+            rule.onNodeWithText("保留草稿并返回？").assertExists()
             captureComponentEvidence("audit-file-editor-android35.png")
             rule.onNodeWithText("取消").performClick()
+            rule.onNodeWithTag("workspace-editor-content").assertExists()
+            rule.onNodeWithTag("workspace-editor-save").assertIsEnabled()
+            org.junit.Assert.assertEquals("原始内容", file.readText())
+            org.junit.Assert.assertNull(store.read(root, file))
+
+            // Retain the edit on disk without modifying the actual file.
+            rule.onNodeWithContentDescription("返回文件列表").performClick()
+            rule.onNodeWithText("保留草稿").performClick()
+            waitForClose()
+            org.junit.Assert.assertEquals("原始内容", file.readText())
+            org.junit.Assert.assertEquals(WorkspaceEditorDraft("原始内容", "修改内容"), store.read(root, file))
+
+            // Reopening reads the persisted draft, not a remembered in-memory editor.
+            rule.runOnIdle { open.value = true }
+            waitForEditor()
+            rule.onNodeWithText("已恢复编辑草稿").assertExists()
+            rule.onNodeWithTag("workspace-editor-content").assertTextContains("修改内容")
             rule.onNodeWithTag("workspace-editor-save").assertIsEnabled().performClick()
-            rule.waitUntil(5000L) { file.readText() == "修改内容" }
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithText("已保存").fetchSemanticsNodes().isNotEmpty()
             }
-            rule.onNodeWithContentDescription("返回文件列表").performClick()
-            rule.onNodeWithTag("workspace-file-editor").assertDoesNotExist()
+            org.junit.Assert.assertEquals("修改内容", file.readText())
+            org.junit.Assert.assertNull(store.read(root, file))
+
+            // Discard remains explicit, with a separate destructive confirmation.
+            rule.onNodeWithTag("workspace-editor-content").performTextReplacement("需要放弃")
+            rule.onNodeWithTag("workspace-editor-discard").performClick()
+            rule.onNodeWithText("放弃未保存的修改？").assertExists()
+            rule.onNodeWithText("取消").performClick()
+            rule.onNodeWithTag("workspace-editor-content").assertTextContains("需要放弃")
+            rule.onNodeWithTag("workspace-editor-discard").performClick()
+            rule.onNodeWithText("放弃修改").performClick()
+            waitForClose()
+            org.junit.Assert.assertEquals("修改内容", file.readText())
+            org.junit.Assert.assertNull(store.read(root, file))
         } finally {
+            store.clear(root, file)
             root.deleteRecursively()
         }
     }
