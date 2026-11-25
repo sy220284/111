@@ -102,8 +102,9 @@ internal object DraftPersistence {
         }
         val relocated = linkedMapOf<String, ComposerDraft>()
         for ((id, draft) in decoded) {
-            val prefix = ThreadComposerDrafts.NEW_THREAD + ":"
-            val owner = if (id.startsWith(prefix))
+            val prefix = listOf(ThreadComposerDrafts.NEW_THREAD, ThreadComposerDrafts.AGENT_ACTION)
+                .map { "$it:" }.firstOrNull { id.startsWith(it) }
+            val owner = if (prefix != null)
                 prefix + WorkspaceStorage.remap(context, id.removePrefix(prefix)) else id
             val updated = draft.copy(references = draft.references.map { reference ->
                 if (reference.kind == "file") reference.copy(path = WorkspaceStorage.remap(context, reference.path))

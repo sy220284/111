@@ -69,7 +69,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text(if (accountSetup == AccountSetupState.Optional) "可选登录方式" else "选择登录方式",
                 style = MaterialTheme.typography.titleMedium)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val wide = maxWidth >= 600.dp
+                val wide = CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(), 2, 294f, 12f)
                 if (wide) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         AuthMethodTile(

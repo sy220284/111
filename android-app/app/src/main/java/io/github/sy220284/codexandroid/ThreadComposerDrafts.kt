@@ -13,6 +13,8 @@ data class ComposerDraft(
 
 object ThreadComposerDrafts {
     const val NEW_THREAD = "__new_thread__"
+    const val AGENT_ACTION = "__agent_action__"
+    fun agentKey(workspace: String): String = "$AGENT_ACTION:$workspace"
     // Never evict an unsent draft: arbitrary LRU limits silently discard user text.
     // Only remove empty entries, which contain no data the user needs to recover.
     private fun updated(

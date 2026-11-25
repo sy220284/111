@@ -90,12 +90,12 @@ internal fun ModelDocumentDialog(request: ModelPreviewRequest, root: File, onDis
 internal fun ModelDocumentPane(request: ModelPreviewRequest, root: File, onDismiss: () -> Unit,
     modifier: Modifier = Modifier) {
     var revision by remember(request.id) { mutableIntStateOf(0) }
-    var loaded by remember(request.id) { mutableStateOf<DocumentLoad>(DocumentLoad.Loading) }
-    LaunchedEffect(request, revision) {
-        loaded = DocumentLoad.Loading
-        loaded = try { withContext(Dispatchers.IO) { load(root, request) } }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { DocumentLoad.Failure(failure.message ?: "无法读取文件") }
+    val loaded by key(request, root, revision) {
+        produceCodexUiState<DocumentLoad>(DocumentLoad.Loading) {
+            value = try { withContext(Dispatchers.IO) { load(root, request) } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (failure: Exception) { DocumentLoad.Failure(failure.message ?: "无法读取文件") }
+        }
     }
     Surface(color = Ink.elevated, modifier = modifier.testTag("model-document-pane")) {
         Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

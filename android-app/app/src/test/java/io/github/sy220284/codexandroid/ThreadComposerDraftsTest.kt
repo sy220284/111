@@ -35,6 +35,20 @@ class ThreadComposerDraftsTest {
         assertTrue(drafts["B"]?.images.orEmpty().isEmpty())
     }
 
+    @Test fun configurationDraftNeverConsumesNormalNewSessionDraft() {
+        val normal = ThreadComposerDrafts.key(null, "/project/a")
+        val agent = ThreadComposerDrafts.agentKey("/project/a")
+        var drafts = ThreadComposerDrafts.text(emptyMap(), normal, "用户原有草稿")
+        drafts = ThreadComposerDrafts.text(drafts, agent, "配置任务")
+        drafts = ThreadComposerDrafts.attachNewThread(drafts, "configured", agent)
+        assertEquals("用户原有草稿", drafts[normal]?.text)
+        assertEquals("配置任务", drafts["configured"]?.text)
+        assertFalse(drafts.containsKey(agent))
+        drafts = ThreadComposerDrafts.reclaimRejectedNewThread(drafts, "configured", agent)
+        assertEquals("用户原有草稿", drafts[normal]?.text)
+        assertEquals("配置任务", drafts[agent]?.text)
+    }
+
     @Test fun firstSubmissionTransfersDraftToCreatedThread() {
         val pending = ThreadComposerDrafts.images(
             ThreadComposerDrafts.text(emptyMap(), null, "初始化项目"),

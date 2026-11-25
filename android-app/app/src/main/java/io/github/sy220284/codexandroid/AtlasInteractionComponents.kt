@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.foundation.clickable
@@ -15,8 +16,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -24,8 +23,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -34,62 +31,27 @@ import androidx.compose.ui.unit.dp
  * 组件只处理呈现和可访问操作，搜索、提交、审批、进度均由调用方的真实状态驱动。
  */
 
-/** 统一查询框：文本搜索使用搜索键提交；即时过滤可不提供 onSubmit。 */
+/** Explicit clipboard action, without a text input or keyboard. */
 @Composable
-fun AtlasSearchField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    modifier: Modifier = Modifier,
-    onSubmit: (() -> Unit)? = null,
-    onClear: (() -> Unit)? = null,
-    enabled: Boolean = true,
-    busy: Boolean = false,
-    label: String? = null,
-    submitTestTag: String? = null
+internal fun ClipboardQueryAction(
+    title: String, current: String, onQuery: (String) -> Unit, onClear: () -> Unit,
+    enabled: Boolean = true, tag: String = "clipboard-query"
 ) {
-    CodexInputField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        label = label?.let { labelText -> { Text(labelText) } },
-        placeholder = { Text(placeholder) },
-        singleLine = true,
-        enabled = enabled,
-        shape = RoundedCornerShape(18.dp),
-        leadingIcon = { CodexIcon(CodexGlyph.Search, contentDescription = null) },
-        trailingIcon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (value.isNotBlank() && onClear != null) {
-                    CodexIconAction(
-                        onClick = onClear,
-                        modifier = Modifier.size(48.dp),
-                        enabled = enabled
-                    ) { CodexIcon(CodexGlyph.Close, contentDescription = "清除搜索词") }
-                }
-                if (onSubmit != null) {
-                    CodexIconAction(
-                        onClick = onSubmit,
-                        enabled = enabled && !busy && value.isNotBlank(),
-                        modifier = Modifier.size(48.dp).let {
-                            if (submitTestTag == null) it else it.testTag(submitTestTag)
-                        }
-                    ) {
-                        if (busy) CodexActivityIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Ink.copper, strokeWidth = 2.dp
-                        ) else CodexIcon(CodexGlyph.ArrowForward, contentDescription = "开始搜索")
-                    }
-                }
-            }
-        },
-        keyboardOptions = KeyboardOptions(
-            imeAction = if (onSubmit == null) ImeAction.Done else ImeAction.Search
-        ),
-        keyboardActions = KeyboardActions(
-            onSearch = { if (onSubmit != null && enabled && !busy && value.isNotBlank()) onSubmit() }
-        )
-    )
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var error by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        CodexSecondaryButton(onClick = {
+            val term = clipboard.getText()?.text?.trim().orEmpty()
+            if (term.isBlank()) error = "请先复制要查找的文字"
+            else if (term.length > 4096) error = "复制的文字过长，请选择较短的内容"
+            else { error = ""; onQuery(term) }
+        }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)) { Text(title) }
+        if (current.isNotBlank()) {
+            Text(current, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
+            CodexTextAction(onClick = { error = ""; onClear() }, enabled = enabled) { Text("清除查找条件") }
+        }
+        if (error.isNotBlank()) Text(error, color = Ink.red, style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 /** 明确选择的是任务执行状态，而非普通内容筛选条件。 */
@@ -116,11 +78,13 @@ fun AtlasStatusSelector(
             StatusTone.Neutral -> Ink.muted
         }
     }
-    Column(
-        modifier.fillMaxWidth().selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        options.chunked(2).forEach { optionsInRow ->
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val columns = if (CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(), 2, 132f)) 2 else 1
+        Column(
+            Modifier.fillMaxWidth().selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+        options.chunked(columns).forEach { optionsInRow ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 optionsInRow.forEach { option ->
                     val chosen = selected == option.key
@@ -155,14 +119,13 @@ fun AtlasStatusSelector(
                                 option.title,
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
-                if (optionsInRow.size == 1) Spacer(Modifier.weight(1f))
+                if (columns == 2 && optionsInRow.size == 1) Spacer(Modifier.weight(1f))
             }
+        }
         }
     }
 }
@@ -382,7 +345,7 @@ fun AtlasCompactChoice(
 
 /** 独立列表滚动面板统一按当前窗口高度约束。 */
 @Composable
-fun atlasSheetHeight() = LocalConfiguration.current.screenHeightDp.dp * .88f
+fun atlasSheetHeight() = codexSheetContentLimit(.88f)
 
 @Composable
 fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {
@@ -401,9 +364,10 @@ internal fun AtlasApprovalActions(
     secondary: (@Composable (Modifier) -> Unit)? = null,
     tertiary: (@Composable (Modifier) -> Unit)? = null
 ) {
-    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val fontScale = codexEffectiveFontScale()
     BoxWithConstraints(Modifier.fillMaxWidth().testTag("approval-decision-actions")) {
-        val sideBySide = secondary != null && tertiary != null && maxWidth >= (264 * fontScale).dp
+        val sideBySide = secondary != null && tertiary != null &&
+            CodexViewportPolicy.fitsActions(maxWidth.value, fontScale, 2, 128f)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (sideBySide) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

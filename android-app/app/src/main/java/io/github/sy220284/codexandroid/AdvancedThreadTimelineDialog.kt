@@ -29,17 +29,11 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
     val pages = (0..page).mapNotNull { data[prefix + it] }
     val entries = pages.flatMap(::records).distinctBy { it.optLong("position") }
     val cursor = data[currentKey]?.optString("nextCursor").orEmpty()
-    var query by rememberSaveable(thread) { mutableStateOf("") }
     var category by rememberSaveable(thread) { mutableStateOf("") }
     val categories = entries.map { PresentationPolicy.timelineKind(it.optString("type")) }.distinct()
     val visible = entries.withIndex().filter { (_, entry) ->
         val kind = PresentationPolicy.timelineKind(entry.optString("type"))
-        (category.isBlank() || kind == category) && listOf(kind,
-            PresentationPolicy.timelineStatus(entry.optString("status")),
-            PresentationPolicy.meaningful(entry.optString("summary")),
-            PresentationPolicy.meaningful(entry.optString("text"))).any {
-                it.contains(query.trim(), ignoreCase = true)
-            }
+        category.isBlank() || kind == category
     }
     fun readPage(index: Int) {
         val id = thread ?: return
@@ -76,8 +70,6 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                         actionLabel = "重试当前页", onAction = { readPage(page) })
                 }
                 if (entries.isNotEmpty()) {
-                    AtlasSearchField(query, { query = it }, "筛选已加载事件",
-                        modifier = Modifier.testTag("timeline-event-search"), onClear = { query = "" })
                     if (categories.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         CodexFilterChip(selected = category.isBlank(), onClick = { category = "" },
@@ -105,7 +97,7 @@ fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
                         AtlasListHeading("筛选结果（已加载 ${entries.size} 项）", visible.size)
                         if (visible.isEmpty()) CodexEmptyState("未找到匹配事件",
                             "可清除筛选，或继续加载更早的记录。",
-                            actionLabel = "清除筛选", onAction = { query = ""; category = "" },
+                            actionLabel = "清除筛选", onAction = { category = "" },
                             artworkRes = R.drawable.ic_empty_no_results)
                     }
                     itemsIndexed(visible, key = { _, record -> record.value.optLong("position") }) { _, record ->

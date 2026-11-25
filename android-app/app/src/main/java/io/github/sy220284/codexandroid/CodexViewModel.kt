@@ -57,8 +57,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val liveTimelines = ConversationLiveTimeline()
     fun loadEarlierTimeline() = loadEarlierHistory()
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
+    internal val agentDraftWorkspace = MutableStateFlow<String?>(null)
     internal fun composerOwner(threadId: String?, workspace: String = activeWorkspace.value): String =
-        ThreadComposerDrafts.key(threadId, workspace)
+        if (threadId == null && agentDraftWorkspace.value == workspace) ThreadComposerDrafts.agentKey(workspace)
+        else ThreadComposerDrafts.key(threadId, workspace)
     val composerDrafts = draftStorage.drafts.also { flow ->
         flow.update { ThreadComposerDrafts.reclaimRejectedNewThread(it, ThreadComposerDrafts.NEW_THREAD, composerOwner(null)) }
     }
@@ -137,6 +139,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value - keys
         errors.value = errors.value - keys
     }
+    internal val featureSwitches by lazy { FeatureSwitchController(this) }
     internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     // Query cache ownership is independent of the ViewModel's RPC orchestration.
     private val dynamicRequestHistory by lazy {
@@ -200,7 +203,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             (method !in setOf("config/read", "configRequirements/read", "permissionProfile/list") || configOwner == configGeneration) &&
             (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
-        if (userAction || (!retainQueue && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
+        val retainModelCatalog = method == "model/list" && (key == "models" || key.startsWith("composerModels:"))
+        if (userAction || (!retainQueue && !retainModelCatalog && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
             data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key
@@ -343,7 +347,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun approvePlan(markdown: String) = workspaceTasks.approvePlan(markdown)
 
     fun newThread() { resetConversation(activeWorkspace.value, activeProjectId.value) }
-    internal fun resetConversation(workspace: String, projectId: String?): Boolean {
+    internal fun resetConversation(workspace: String, projectId: String?, agentDraft: Boolean = false): Boolean {
         if (!globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再新建会话")
             return false
@@ -364,11 +368,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         errors.value = errors.value - "conversation"
         olderServerCursor.value = null
         val epoch = ++timelineEpoch
+        agentDraftWorkspace.value = if (agentDraft) workspace else null
         conversationState.value = ActiveConversationContext(workspace, projectId)
         restoreComposerOptions(null)
         viewModelScope.launch { timelineWindow.clear(epoch) }
         return true
     }
+
+    internal val agentActionNavigation = MutableStateFlow(0L)
 
     fun editComposerText(threadId: String?, text: String) =
         attachmentController.editText(composerOwner(threadId), text)

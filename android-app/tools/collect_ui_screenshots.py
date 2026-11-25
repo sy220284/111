@@ -4,14 +4,20 @@
 The emulator runner invokes script lines independently, so all iteration and
 gallery generation must be in this single Python process.
 """
+import argparse
 from html import escape
 from pathlib import Path
 import subprocess
+import struct
+import zlib
 import json
 import re
 
-REQUIRED_SCREENS = """sidebar chat settings-hub terminal-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-environments audit-security-selection audit-config audit-diagnostics audit-queue audit-approvals audit-conversation-approval audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-elicitation audit-mcp-usable-directory audit-mcp-chatgpt-available audit-mcp-service-boundary audit-plugin-detail audit-sidebar-thread audit-sidebar-filtered audit-composer-running audit-composer-edit audit-rtl-200font-bulk audit-backup-background-block audit-backup-in-progress audit-attachment-preview audit-message-menu audit-file-editor audit-update-progress audit-full-text-match audit-models audit-personalization audit-context audit-tools engine-settings-editor""".split()
-OPTIONAL_SCREENS = ["audit-thread-history-transition"]
+from ui_evidence_manifest import load_evidence_manifest, required_screens, declared_screens
+
+EVIDENCE_MANIFEST = load_evidence_manifest(Path(__file__).resolve().parents[2])
+REQUIRED_SCREENS = required_screens(EVIDENCE_MANIFEST)
+OPTIONAL_SCREENS = [screen for screen in declared_screens(EVIDENCE_MANIFEST) if screen not in REQUIRED_SCREENS]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")
 SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android35\.png$")
@@ -39,8 +45,46 @@ def discover_device_screens() -> list[str]:
 
 
 
+def valid_png(path):
+    """Reject truncated files and corrupted chunks, not just invalid signatures."""
+    if not path.is_file():
+        return False
+    data = path.read_bytes()
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return False
+    offset, seen_header, seen_image = 8, False, False
+    while offset + 12 <= len(data):
+        length, kind = struct.unpack_from(">I4s", data, offset)
+        end = offset + 12 + length
+        if end > len(data):
+            return False
+        payload = data[offset + 8:end - 4]
+        checksum = struct.unpack_from(">I", data, end - 4)[0]
+        if zlib.crc32(kind + payload) != checksum:
+            return False
+        if not seen_header:
+            if kind != b"IHDR" or length != 13:
+                return False
+            width, height = struct.unpack_from(">II", payload)
+            if not width or not height:
+                return False
+            seen_header = True
+        elif kind == b"IDAT":
+            seen_image = True
+        elif kind == b"IEND":
+            return seen_image and length == 0 and end == len(data)
+        offset = end
+    return False
+
+
 def main():
-    DESTINATION.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--destination", type=Path, default=DESTINATION)
+    destination = parser.parse_args().destination
+    destination.mkdir(parents=True, exist_ok=True)
+    # Evidence directories belong to one run/configuration only.
+    for old in destination.glob("*.png"):
+        old.unlink()
     present = []
     missing = []
     discovered = discover_device_screens()
@@ -49,25 +93,25 @@ def main():
     for screen in sorted(set(REQUIRED_SCREENS + OPTIONAL_SCREENS + discovered)):
         name = f"{screen}-android35.png"
         result = subprocess.run(
-            ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(DESTINATION / name)],
+            ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(destination / name)],
             capture_output=True, text=True, check=False,
         )
-        output = DESTINATION / name
-        if result.returncode == 0 and output.is_file() and output.stat().st_size > 0:
+        output = destination / name
+        if result.returncode == 0 and valid_png(output):
             present.append(screen)
             print(f"SCREENSHOT_OK {screen}", flush=True)
         elif screen in REQUIRED_SCREENS:
             missing.append(screen)
             print(f"SCREENSHOT_MISSING {screen}: {result.stderr.strip()}", flush=True)
-    (DESTINATION / "missing.txt").write_text(
+    (destination / "missing.txt").write_text(
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
-    (DESTINATION / "manifest.json").write_text(
+    (destination / "manifest.json").write_text(
         json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
                     "present": present, "missing": missing},
                    ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    pngs = sorted(DESTINATION.glob("*.png"))
+    pngs = sorted(destination.glob("*.png"))
     cells = "".join(
         '<a class="card" href="' + escape(f.name) + '"><img loading="lazy" src="' +
         escape(f.name) + '" alt="' + escape(f.stem) + '"><span>' +
@@ -89,10 +133,10 @@ def main():
         ' 张，必检 ' + str(len(REQUIRED_SCREENS)) + ' 张，缺少 ' +
         str(len(missing)) + ' 张。</small><div class="grid">' + cells + '</div></html>'
     )
-    (DESTINATION / "index.html").write_text(html, encoding="utf-8")
+    (destination / "index.html").write_text(html, encoding="utf-8")
     print(f"UI_CAPTURE_COUNTS present={len(present)} missing={len(missing)}", flush=True)
-    # Caller checks ui-instrument-result.log and missing.txt after evidence was collected.
-    return 0
+    # Caller retains the manifest even when evidence is missing.
+    return int(bool(missing))
 
 
 if __name__ == "__main__":

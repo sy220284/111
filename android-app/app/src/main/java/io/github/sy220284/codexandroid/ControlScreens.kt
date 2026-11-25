@@ -151,6 +151,7 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
     }
     val question = method == "item/tool/requestUserInput"
     val answers = remember(prompt.id.toString()) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
+    var questionIndex by remember(prompt.id.toString()) { mutableIntStateOf(0) }
     var grantSession by remember(prompt.id.toString()) { mutableStateOf(false) }
     var grantPermissions by remember(prompt.id.toString()) { mutableStateOf(false) }
     var morePermissions by remember(prompt.id.toString()) { mutableStateOf(false) }
@@ -198,8 +199,12 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         }
         if (question) {
             val items = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
-            for (index in 0 until items.length()) {
-                val q = items.optJSONObject(index) ?: continue
+            val index = questionIndex.coerceIn(0, (items.length() - 1).coerceAtLeast(0))
+            val answered = (0 until items.length()).count { n ->
+                answers[items.optJSONObject(n)?.optString("id").orEmpty()]?.isNotBlank() == true
+            }
+            Text("问题 ${index + 1} / ${items.length()} · 已回答 $answered 项", color = Ink.muted)
+            items.optJSONObject(index)?.let { q ->
                 val id = q.optString("id")
                 val options = q.optJSONArray("options")
                 Text(q.optString("header").ifBlank { "问题 " + (index + 1) },
@@ -212,19 +217,27 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             val label = choice.optString("label")
                             AtlasChoiceRow(label, choice.optString("description"),
                                 selected = answers[id] == label,
-                                onClick = { answers[id] = label },
+                                onClick = {
+                                    answers[id] = label
+                                    if (index + 1 < items.length()) questionIndex = index + 1
+                                },
                                 modifier = Modifier.testTag("approval-answer-" + id + "-" + opt))
                         }
                     }
                 }
-                CodexInputField(
+                ActionReplyRow(
                     value = answers[id] ?: "", onValueChange = { answers[id] = it },
                     label = { Text(if (options == null) "输入回答" else "或者输入其他回答") },
                     visualTransformation = if (q.optBoolean("isSecret"))
                         androidx.compose.ui.text.input.PasswordVisualTransformation()
                     else androidx.compose.ui.text.input.VisualTransformation.None,
-                    modifier = Modifier.fillMaxWidth(), singleLine = !q.optBoolean("isOther")
+                    modifier = Modifier.fillMaxWidth(), singleLine = !q.optBoolean("isOther"),
+                    directText = options == null
                 )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                CodexTextAction(onClick = { questionIndex-- }, enabled = index > 0) { Text("上一个问题") }
+                CodexTextAction(onClick = { questionIndex++ }, enabled = index + 1 < items.length()) { Text("下一个问题") }
             }
         }
         val questions = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
@@ -310,17 +323,9 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var advanced by rememberSaveable { mutableStateOf(false) }
-    var rawError by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        val target = SettingsDeepLink.take("config")
-        if (target == "advanced") advanced = true
+        if (SettingsDeepLink.take("config") == "advanced") advanced = true
     }
-    var path by rememberSaveable { mutableStateOf("") }
-    var value by rememberSaveable { mutableStateOf("") }
-    var kind by rememberSaveable { mutableStateOf("text") }
-    var booleanValue by rememberSaveable { mutableStateOf(true) }
-    var showConfirm by remember { mutableStateOf(false) }
-    var parsed by remember { mutableStateOf<Any?>(null) }
     val config = data["config"]?.optJSONObject("config")
     val ready = config != null
     val saving = ENGINE_SETTING_SAVE in loading
@@ -402,96 +407,16 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             onClick = { clearSaveFeedback(); advanced = true },
             modifier = Modifier.fillMaxWidth().testTag("config-advanced-toggle")
         )
-        if (advanced) {
-            CodexDetailSheet(
-                title = "高级自定义配置", startExpanded = true,
-                subtitle = "请核对设置项和值。保存前还需确认更改范围。",
-                onDismiss = { advanced = false }
-            ) {
-                Text("仅供需要直接编辑底层参数的用户。常用设置请返回对应功能页面；复杂数据将替换整个指定配置项。",
-                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-                AtlasFormField(path, { path = it }, "设置项名称", placeholder = "例如 tool_output_token_limit")
-                Text("设置值类型", style = MaterialTheme.typography.titleSmall)
-                val types = listOf("text" to "文本", "boolean" to "开关", "number" to "数字", "json" to "高级数据")
-                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    types.chunked(2).forEach { row ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { (id, label) ->
-                                AtlasExclusiveChip(selected = kind == id, onClick = { kind = id },
-                                    label = { Text(label) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp))
-                            }
-                        }
-                    }
-                }
-                if (kind == "boolean") {
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(if (booleanValue) "已启用" else "已关闭",
-                            modifier = Modifier.weight(1f))
-                        WhiteSwitch(
-                            checked = booleanValue,
-                            onCheckedChange = { booleanValue = it }
-                        )
-                    }
-                } else {
-                    CodexInputField(
-                        value, { value = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(when (kind) {
-                            "number" -> "数字"
-                            "json" -> "结构化数据（JSON）"
-                            else -> "文本值"
-                        }) },
-                        minLines = if (kind == "json") 2 else 1,
-                        maxLines = if (kind == "json") 6 else 2,
-                        placeholder = { Text(when (kind) {
-                            "number" -> "例如 30"
-                            "json" -> "例如 {\\\"enabled\\\":true}"
-                            else -> "例如 on-request"
-                        }) }
-                    )
-                }
-                rawError?.let { ErrorText(it) }
-                saveError?.let { ErrorText(it) }
-                saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
-                if (saving) AtlasOperationProgress("正在保存并核实配置")
-                if (!enabled && !saving) Text("连接并读取当前配置后才能保存。", color = Ink.muted)
-                CodexPrimaryButton(
-                    onClick = {
-                        try {
-                            require(path.isNotBlank()) { "请填写设置项名称" }
-                            parsed = ConfigInputParser.parse(kind, value, booleanValue)
-                            rawError = null
-                            showConfirm = true
-                        } catch (failure: Exception) {
-                            rawError = failure.message ?: "设置值格式不正确"
-                        }
-                    },
-                    enabled = path.isNotBlank() &&
-                        (kind == "boolean" || value.isNotBlank()) &&
-                        enabled,
-                    modifier = Modifier.heightIn(min = 48.dp)
-                ) {
-                    Text("检查并保存")
-                }
-            }
+        if (advanced) CodexDetailSheet(
+            title = "高级自定义配置", startExpanded = true,
+            subtitle = "描述需要实现的效果，Codex 核对真实配置后处理。",
+            onDismiss = { advanced = false }
+        ) {
+            AgentActionRow(vm, "交给 Codex 配置", "保留现有设置与确认流程",
+                "请帮我调整本机 Codex 的高级配置。先了解我要实现的效果，核对当前生效配置和支持的参数；说明变更范围，待我确认后再修改，并重新读取核实。不要请求或显示密钥，不改变现有审批和安全策略。",
+                enabled = !saving && !permissionBusy, modifier = Modifier.testTag("config-agent-action"))
         }
     }
-    if (showConfirm) CodexConfirmDialog(
-        title = "保存本机设置",
-        message = "本次操作将更新 Codex 在当前设备中的运行配置。",
-        detail = "设置项：$path\n设置值：" +
-            if (kind == "boolean") (if (booleanValue) "启用" else "关闭") else value,
-        confirmLabel = "确认保存",
-        confirmEnabled = enabled,
-        onConfirm = {
-            parsed?.let { vm.saveEngineSetting(path.trim(), it, "高级配置") }
-            showConfirm = false
-        },
-        onDismiss = { showConfirm = false }
-    )
 }
 
 

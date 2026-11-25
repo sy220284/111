@@ -12,17 +12,23 @@ internal fun MemoryManagementSheet(vm: CodexViewModel, threadId: String?, onDism
     val operation = rememberCapabilityOperation(vm)
     var status by remember(threadId) { mutableStateOf<JSONObject?>(null) }
     var mode by remember(threadId) { mutableStateOf("") }
+    var effectiveMemory by remember(threadId) { mutableStateOf<Boolean?>(null) }
     var confirm by remember(threadId) { mutableStateOf<String?>(null) }
     var reader by remember(threadId) { mutableStateOf(false) }
     suspend fun refresh() {
-        status = if (threadId == null) vm.capabilityRequest("memory/status")
-        else vm.capabilityRequest("thread/memory/read", JSONObject().put("threadId", threadId))
+        val session = requireNotNull(vm.bridge.connectedSession.value) { "请先连接内核" }
+        effectiveMemory = readCoreFeatureSwitches(vm, session, threadId).single { it.name == "memories" }.enabled
+        status = if (threadId == null) vm.capabilityRequest("memory/status", expectedSession = session)
+        else vm.capabilityRequest("thread/memory/read", JSONObject().put("threadId", threadId), expectedSession = session)
     }
     LaunchedEffect(vm, threadId) { operation.launch { refresh() } }
     CodexDetailSheet(if (threadId == null) "全局记忆管理" else "会话记忆",
         onDismiss = { if (!operation.busy) onDismiss() }, startExpanded = true,
         subtitle = if (threadId == null) "查看内核记忆就绪情况及重置入口。" else "查看这条会话当前可读取的记忆摘要。") {
         CapabilityFeedback(operation, "正在同步记忆")
+        effectiveMemory?.let { enabled ->
+            Text(if (enabled) "内核记忆功能已开启" else "内核记忆功能已关闭 · 可在设置中的功能开关管理", color = Ink.muted)
+        }
         if (threadId == null) {
             status?.let {
                 Text(if (it.optBoolean("v2Ready")) "记忆已就绪" else "记忆正在积累",
@@ -44,7 +50,7 @@ internal fun MemoryManagementSheet(vm: CodexViewModel, threadId: String?, onDism
             if (mode.isNotBlank()) Text(if (mode == "enabled") "会话记忆已开启" else "会话记忆已停用")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 CodexSecondaryButton(onClick = { confirm = "enabled" },
-                    enabled = !operation.busy && mode != "enabled") { Text("开启记忆") }
+                    enabled = !operation.busy && effectiveMemory == true && mode != "enabled") { Text("开启记忆") }
                 CodexTextAction(onClick = { confirm = "disabled" },
                     enabled = !operation.busy && mode != "disabled") { Text("停用记忆") }
             }

@@ -32,7 +32,9 @@ internal enum class SessionTaskFilter(val label: String) {
 
 @Composable
 internal fun SessionTaskControls(state: SidebarUiState, activeCount: Int, modifier: Modifier = Modifier,
-    onActiveTasks: () -> Unit = { state.taskFilter = if (state.taskFilter == SessionTaskFilter.Active) SessionTaskFilter.All else SessionTaskFilter.Active }) {
+    onActiveTasks: () -> Unit = { state.taskFilter = if (state.taskFilter == SessionTaskFilter.Active) SessionTaskFilter.All else SessionTaskFilter.Active },
+    waitingCount: Int = 0,
+    onWaitingTasks: () -> Unit = { state.taskFilter = if (state.taskFilter == SessionTaskFilter.Waiting) SessionTaskFilter.All else SessionTaskFilter.Waiting }) {
     var open by remember { mutableStateOf(false) }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         CodexTextAction(onClick = onActiveTasks, modifier = Modifier.weight(1f).testTag("sidebar-active-tasks")) {
@@ -40,6 +42,11 @@ internal fun SessionTaskControls(state: SidebarUiState, activeCount: Int, modifi
         }
         CodexTextAction(onClick = { open = true }, modifier = Modifier.testTag("sidebar-sort-filter")) {
             Text(state.taskFilter.label + " · " + state.sort.label, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+    if (waitingCount > 0 || state.taskFilter == SessionTaskFilter.Waiting) {
+        CodexTextAction(onClick = onWaitingTasks, modifier = Modifier.fillMaxWidth().testTag("sidebar-waiting-tasks")) {
+            Text("待处理 $waitingCount", color = Ink.copper)
         }
     }
     if (open) CodexDetailSheet("会话排序与筛选", { open = false }) {

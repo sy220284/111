@@ -29,7 +29,8 @@ SHARED = {
     "CodexFilterChip": "CodexControlPrimitives", "CodexCheckBox": "CodexControlPrimitives",
     "CodexRadio": "CodexControlPrimitives", "CodexActivityIndicator": "CodexControlPrimitives",
     "AtlasExclusiveChip": "CodexControlPrimitives", "CodexSuggestionChip": "CodexControlPrimitives",
-    "AtlasFormField": "AtlasFormField", "AtlasSearchField": "AtlasInteractionComponents",
+    "ActionReplyRow": "ActionReply", "ActionQuestionRow": "ActionReply",
+    "ActionNumberStepper": "ActionReply", "AgentActionRow": "ActionReply",
     "AtlasChoiceRow": "AtlasInteractionComponents", "AtlasCompactChoice": "AtlasInteractionComponents",
     "AtlasOperationProgress": "AtlasInteractionComponents",
 }
@@ -46,6 +47,19 @@ def audit(sources):
     raw = {name: [] for name in RAW_OWNERS}
     for file, source in sorted(sources.items()):
         code = without_comments_and_literals(source)
+        for hit in re.finditer(r"\b(?:\w*Search(?:Bar|Field|Input|Box|View))\s*\(|\bImeAction\.Search\b", code):
+            line = code.count("\n", 0, hit.start()) + 1
+            errors.append(f"{file}:{line}: 禁止搜索输入框；使用分类、选择列表或明确的剪贴板/智能体检索动作")
+        # Window size and effective typography have one source of truth. Do not allow
+        # individual pages to restore nominal-display or system-font-only assumptions.
+        if file != "CodexViewport":
+            for hit in re.finditer(r"\b(?:screenWidthDp|screenHeightDp)\b|\bLocalDensity\s*\.\s*current\s*\.\s*fontScale\b", code):
+                line = code.count("\n", 0, hit.start()) + 1
+                errors.append(f"{file}:{line}: {hit.group()} 必须通过共享窗口与组合字号策略")
+        if file != "CodexUiAsyncState":
+            for hit in re.finditer(r"\bproduceState\s*(?:<[^\n]*?>)?\s*\(", code):
+                line = code.count("\n", 0, hit.start()) + 1
+                errors.append(f"{file}:{line}: 异步界面状态必须使用 produceCodexUiState")
         # Remove declarations; extension and ordinary declarations are treated equally.
         code = re.sub(r"\bfun\s+(?:[\w.]+\.)?(\w+)\s*\(", lambda m: " " * len(m.group()), code)
         for name in list(RAW_OWNERS) + list(SHARED):
@@ -60,6 +74,16 @@ def audit(sources):
                     calls[name].append(location)
         if re.search(r"\bfun\s+WelcomeActionCard\s*\(", source):
             errors.append(f"{file}: 旧欢迎卡片已退役")
+        if re.search(r"\bAtlasFormField\s*\(", source):
+            errors.append(f"{file}: 配置表单已退役")
+        allowed_input = {"CodexControlPrimitives", "ActionReply",
+            "ConversationComposer", "RealtimeVoiceSheet", "TerminalPage", "WorkspaceFileEditor", "EcosystemScreens"}
+        if file not in allowed_input and re.search(r"\bCodexInputField\s*\(", code):
+            errors.append(f"{file}: 非对话、编辑或密钥直接输入，改用动作组件")
+    if "EcosystemScreens" in sources:
+        provider_inputs = re.findall(r"\bCodexInputField\s*\(\s*(\w+)", sources["EcosystemScreens"])
+        if provider_inputs != ["customApiKey"]:
+            errors.append("EcosystemScreens: 服务商页面只保留密钥直接输入")
     for name, owner in SHARED.items():
         if not any(hit["file"] != owner for hit in calls[name]):
             errors.append(f"{name}: 缺少其他生产文件调用")

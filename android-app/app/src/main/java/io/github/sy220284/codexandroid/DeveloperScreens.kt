@@ -38,6 +38,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+internal fun defaultWorkspaceContentName(kind: String, occupied: Set<String>): String {
+    val prefix = if (kind == "file") "新建文件" else "新建文件夹"
+    val suffix = if (kind == "file") ".txt" else ""
+    return generateSequence(1) { it + 1 }.map { n ->
+        prefix + (if (n == 1) "" else " $n") + suffix
+    }.first { it !in occupied }
+}
+
 private data class WorkspaceDirectoryEntry(val file: File, val directory: Boolean, val bytes: Long)
 
 @Composable
@@ -135,7 +143,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     // Keep the last directory snapshot visible until its replacement is ready.
     val directoryResult by key(folder) {
-        produceState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
+        produceCodexUiState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
             try {
                 val entries = withContext(Dispatchers.IO) {
                     val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }
@@ -151,10 +159,7 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
     val children = directoryResult?.getOrNull().orEmpty()
-    var fileQuery by remember(folder) { mutableStateOf("") }
-    val visibleChildren = remember(children, fileQuery) {
-        children.filter { it.file.name.contains(fileQuery.trim(), ignoreCase = true) }
-    }
+    val visibleChildren = children
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -217,8 +222,16 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
         if (actionBusy) item { AtlasOperationProgress("正在处理文件操作…") }
         item {
+            AgentActionRow(vm, "让 Codex 整理文件", "预览独立整理任务，保留当前会话",
+                "请协助我整理工作区文件。先了解我要实现的结果并核对当前目录与文件，再提供操作计划。保留已有文件，涉及覆盖或删除时先征求我的确认。",
+                enabled = !actionBusy)
+        }
+        item {
             CodexSecondaryButton(
-                onClick = { showCreate = true },
+                onClick = {
+                    createName = defaultWorkspaceContentName(createKind, children.map { it.file.name }.toSet())
+                    showCreate = true
+                },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("workspace-create-toggle")
             ) {
@@ -233,14 +246,14 @@ fun WorkspacePage(vm: CodexViewModel) {
             ) {
                 Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     AtlasExclusiveChip(selected = createKind == "file",
-                        onClick = { createKind = "file" }, label = { Text("文本文件") },
+                        onClick = { if (createKind != "file") { createKind = "file"; createName = defaultWorkspaceContentName("file", children.map { it.file.name }.toSet()) } }, label = { Text("文本文件") },
                         leadingIcon = { CodexIcon(CodexGlyph.Description, null) })
                     AtlasExclusiveChip(selected = createKind == "folder",
-                        onClick = { createKind = "folder" }, label = { Text("文件夹") },
+                        onClick = { if (createKind != "folder") { createKind = "folder"; createName = defaultWorkspaceContentName("folder", children.map { it.file.name }.toSet()) } }, label = { Text("文件夹") },
                         modifier = Modifier.testTag("workspace-folder-mode"),
                         leadingIcon = { CodexIcon(CodexGlyph.CreateNewFolder, null) })
                 }
-                AtlasFormField(createName, { createName = it },
+                ActionQuestionRow(createName, { createName = it },
                     label = if (createKind == "file") "文件名（如 README.md）" else "文件夹名称",
                     modifier = Modifier.testTag("workspace-new-name"))
                 CodexSecondaryButton(onClick = {
@@ -273,18 +286,9 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Text(when {
                     directoryResult == null -> "读取中"
                     directoryResult?.isFailure == true -> "读取失败"
-                    fileQuery.isBlank() -> "${children.size} 项"
-                    else -> "${visibleChildren.size} / ${children.size} 项"
+                    else -> "${children.size} 项"
                 }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
-        }
-        if (children.isNotEmpty()) item(key = "workspace-search") {
-            AtlasSearchField(fileQuery, { fileQuery = it }, "搜索当前目录",
-                onClear = { fileQuery = "" }, modifier = Modifier.testTag("workspace-file-search"))
-        }
-        if (children.isNotEmpty() && visibleChildren.isEmpty()) item {
-            CodexEmptyState("没有匹配的文件", "试试其他文件名。",
-                actionLabel = "清除搜索", onAction = { fileQuery = "" })
         }
         when {
             directoryResult == null -> item(key = "workspace-directory-loading") {
@@ -407,7 +411,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Text("对象：" + target.name, color = Ink.muted)
-                        AtlasFormField(renameName, { renameName = it }, "新名称")
+                        ActionQuestionRow(renameName, { renameName = it }, "新名称", directText = true)
                     }
                 },
                 confirmButton = {
@@ -444,7 +448,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("来源：" + target.relativeTo(root).path,
                             color = Ink.muted)
-                        AtlasFormField(copyName, { copyName = it }, "新文件或文件夹名称")
+                        ActionQuestionRow(copyName, { copyName = it }, "新文件或文件夹名称", directText = true)
                         Text("创建独立副本；如已存在同名文件则停止操作。",
                             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
                     }

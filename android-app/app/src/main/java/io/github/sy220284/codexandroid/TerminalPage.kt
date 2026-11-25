@@ -196,24 +196,15 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                                     subtitle = "调整行数和列数后同步到正在运行的终端",
                                     onDismiss = { showTerminalSize = false }
                                 ) {
-                                    Row(Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CodexInputField(ttyRows, {
-                                            ttyRows = it.filter(Char::isDigit).take(3)
-                                        }, label = { Text("行数") }, singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            isError = ttyRows.isNotBlank() && ttyRows.toIntOrNull() !in 2..300,
-                                            modifier = Modifier.weight(1f)
-                                                .testTag("terminal-resize-rows"),
-                                            enabled = !session.terminating)
-                                        CodexInputField(ttyCols, {
-                                            ttyCols = it.filter(Char::isDigit).take(3)
-                                        }, label = { Text("列数") }, singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            isError = ttyCols.isNotBlank() && ttyCols.toIntOrNull() !in 10..400,
-                                            modifier = Modifier.weight(1f)
-                                                .testTag("terminal-resize-cols"),
-                                            enabled = !session.terminating)
+                                    ActionNumberStepper(ttyRows, { ttyRows = it }, "行数", 2, 300, 1,
+                                        enabled = !session.terminating, modifier = Modifier.testTag("terminal-resize-rows"))
+                                    ActionNumberStepper(ttyCols, { ttyCols = it }, "列数", 10, 400, 5,
+                                        enabled = !session.terminating, modifier = Modifier.testTag("terminal-resize-cols"))
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        listOf(24 to 80, 30 to 100, 40 to 120).forEach { (rows, cols) ->
+                                            AtlasChoiceRow("$rows × $cols", "", ttyRows == rows.toString() && ttyCols == cols.toString(),
+                                                enabled = !session.terminating, onClick = { ttyRows = rows.toString(); ttyCols = cols.toString() })
+                                        }
                                     }
                                     val validSize = ttyRows.toIntOrNull() in 2..300 &&
                                         ttyCols.toIntOrNull() in 10..400
@@ -429,15 +420,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         onChoice = { choice -> command = choice.command; historyPosition = choice.position },
                         onOpenHistory = { historyVisible = true })
                     if (historyVisible) CodexFloatingMenu(
-                        title = "历史命令", wide = true, searchable = true,
+                        title = "历史命令", wide = true,
                         description = "选择后填入输入栏，执行前仍需确认",
                         onDismiss = { historyVisible = false }
                     ) {
-                        var historyQuery by remember { mutableStateOf("") }
-                        AtlasSearchField(historyQuery, { historyQuery = it }, "搜索历史命令",
-                            onClear = { historyQuery = "" })
                         recentCommands.forEachIndexed { index, previous ->
-                            if (!previous.contains(historyQuery.trim(), ignoreCase = true)) return@forEachIndexed
                             CodexSecondaryButton(
                                 onClick = {
                                     command = previous

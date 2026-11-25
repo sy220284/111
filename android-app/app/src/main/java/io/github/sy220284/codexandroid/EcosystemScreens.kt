@@ -106,6 +106,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     var selectedPreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
     var selectedProviderId by remember { mutableStateOf<String?>(null) }
     var customApiKey by remember { mutableStateOf("") }
+    var customizeProvider by remember { mutableStateOf(false) }
     val credentials by vm.bridge.domesticCredentials.collectAsState()
     val changingCredentials by vm.connectionRestarter.busy.collectAsState()
     var revokePreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
@@ -113,7 +114,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     var confirmCustom by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        if (SettingsDeepLink.take("providers") == "custom") showCustomEditor = true
+        if (SettingsDeepLink.take("providers") == "custom") { selectedPreset = null; customizeProvider = false; showCustomEditor = true }
         vm.ensureCatalog("providers", "modelProvider/list")
     }
     ScreenColumn {
@@ -151,6 +152,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                         customUrl = configured?.optString("baseUrl") ?: if (preset.needsWorkspace) "" else preset.baseUrl
                         customWorkspace = preset.workspaceId(customUrl).orEmpty()
                         customEnvKey = preset.envKey
+                        customizeProvider = false
                         showCustomEditor = true
                     }
                 )
@@ -166,6 +168,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     selectedProviderId = null
                     customApiKey = ""
                     customName = ""; customUrl = ""; customEnvKey = ""
+                    customizeProvider = false
                     showCustomEditor = true
                 }
             )
@@ -179,24 +182,39 @@ fun ProvidersPage(vm: CodexViewModel) {
                         Text("原生 Responses · " + preset.plan, color = Ink.muted)
                         Text("候选模型：" + preset.models.joinToString("、"), color = Ink.muted)
                     }
-                    AtlasFormField(customName, { customName = it }, "服务商名称")
-                    if (selectedPreset?.needsWorkspace == true) {
-                        AtlasFormField(customWorkspace, { value ->
-                            customWorkspace = value
-                            customUrl = selectedPreset!!.workspaceEndpoint(value.trim())
-                        }, "北京业务空间 ID", helper = "在百炼控制台选择北京业务空间；使用该空间的 API Key。")
-                    }
-                    AtlasFormField(customUrl, { customUrl = it }, "服务地址（HTTP / HTTPS）",
-                        placeholder = "https://example.com/v1", keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
-                        enabled = selectedPreset == null,
-                        confirmedValid = customUrl.isNotBlank() && ProviderAddressPolicy.valid(customUrl),
-                        error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl))
-                            "请输入有效的 HTTP 或 HTTPS 服务地址" else null)
                     val preset = selectedPreset
                     if (preset == null) {
-                        AtlasFormField(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
-                            helper = "密钥值由本机环境管理；这里只填写变量名称。")
+                        ActionQuestionRow(customUrl, { address ->
+                            val oldName = ProviderAddressPolicy.defaultName(customUrl)
+                            customUrl = address
+                            if (customName.isBlank() || customName == oldName)
+                                customName = ProviderAddressPolicy.defaultName(address)
+                        }, "服务地址（HTTP / HTTPS）", placeholder = "https://example.com/v1",
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                            error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl)) "连接地址无效" else null,
+                            validate = { value -> if (value.isNotBlank() && !ProviderAddressPolicy.valid(value)) "连接地址无效" else null },
+                            modifier = Modifier.testTag("provider-endpoint"))
+                        if (customName.isNotBlank()) Text("服务商：$customName", color = Ink.muted)
+                        CodexTextAction(onClick = { customizeProvider = !customizeProvider },
+                            modifier = Modifier.testTag("provider-custom-options")) {
+                            Text(if (customizeProvider) "收起自定义选项" else "其他选项")
+                        }
+                        if (customizeProvider) {
+                            ActionQuestionRow(customName, { customName = it }, "服务商名称")
+                            ActionQuestionRow(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
+                                helper = "只提供变量名称；不要在这里输入密钥值。",
+                                error = if (!ProviderAddressPolicy.validCredentialReference(customEnvKey)) "仅接受环境变量名称" else null,
+                                validate = { value -> if (!ProviderAddressPolicy.validCredentialReference(value)) "仅接受环境变量名称" else null })
+                        }
                     } else {
+                        Text(customName.ifBlank { preset.name }, style = MaterialTheme.typography.titleMedium)
+                        if (preset.needsWorkspace) {
+                            ActionQuestionRow(customWorkspace, { value ->
+                                customWorkspace = value
+                                customUrl = preset.workspaceEndpoint(value.trim())
+                            }, "选择北京业务空间", helper = "使用百炼控制台中的北京业务空间 ID 与对应密钥。")
+                        }
+                        Text(if (customUrl.isBlank()) "等待业务空间" else "使用官方服务地址", color = Ink.muted)
                         CodexInputField(customApiKey, { customApiKey = it.take(4096) },
                             modifier = Modifier.fillMaxWidth(), label = { Text("API Key") },
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
@@ -211,7 +229,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                     }
                     CodexPrimaryButton(
                         onClick = { confirmCustom = true },
-                        enabled = !changingCredentials && customName.isNotBlank() &&
+                        enabled = !changingCredentials && customName.isNotBlank() && (preset != null || ProviderAddressPolicy.validCredentialReference(customEnvKey)) &&
                             ProviderAddressPolicy.valid(customUrl) &&
                             (selectedPreset?.matchesEndpoint(customUrl) != false) &&
                             (selectedPreset?.needsWorkspace != true || selectedPreset?.workspaceId(customUrl) != null) &&
@@ -358,11 +376,10 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var sharingPath by remember { mutableStateOf<String?>(null) }
     var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
-    var installedQuery by rememberSaveable { mutableStateOf("") }
     var searchDraft by rememberSaveable { mutableStateOf("") }
     var searchSubmitted by rememberSaveable { mutableStateOf("") }
     var searchPage by rememberSaveable { mutableIntStateOf(0) }
-    val query = if (installedOnly) installedQuery else searchDraft
+    val query = if (installedOnly) "" else searchDraft
     val searchActive = !installedOnly && searchSubmitted.isNotBlank() &&
         ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
@@ -443,21 +460,11 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             explanation = "点击插件查看能力与来源。安装和卸载由 Codex 核心执行，操作成功后更新目录。",
             refreshing = activeKey in busy, enabled = connected && !mutating,
             onRefresh = { refreshCatalog(true) })
-        if (!installedOnly || data[activeKey] != null && allCount > 0) {
-            if (!installedOnly) Text("搜索插件", modifier = Modifier.testTag("plugins-search-heading"),
-                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-            AtlasSearchField(value = query,
-                onValueChange = { if (installedOnly) installedQuery = it else searchDraft = it },
-                placeholder = if (installedOnly) "搜索已安装插件" else "插件名称或关键字",
-                enabled = if (installedOnly) true else !mutating,
-                busy = searchActive && searchKey in busy,
-                onClear = {
-                    if (installedOnly) installedQuery = "" else {
-                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
-                    }
-                },
-                onSubmit = if (installedOnly || !connected) null else ({ submitSearch() }),
-                submitTestTag = "plugins-search-submit")
+        if (!installedOnly) {
+            ClipboardQueryAction("使用剪贴板发现插件", searchDraft,
+                onQuery = { searchDraft = it; submitSearch(it) },
+                onClear = { searchDraft = ""; searchSubmitted = ""; searchPage = 0 },
+                enabled = canOperate && searchKey !in busy, tag = "plugins-clipboard-query")
         }
         ProtocolFeedback(vm, listOf("pluginMutation"))
         if (!installedOnly && connected && !installedVerified && "installedPlugins" !in busy)
@@ -524,7 +531,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             activeKey !in busy && activeKey !in errors && catalogErrors == 0 && searchSettled) {
             if (query.isNotBlank()) CodexEmptyState("没有匹配的插件", "试试其他名称或关键字。",
                 artworkRes = R.drawable.ic_empty_no_results, actionLabel = "清除搜索", onAction = {
-                    if (installedOnly) installedQuery = "" else { searchDraft = ""; searchSubmitted = ""; searchPage = 0 }
+                    searchDraft = ""; searchSubmitted = ""; searchPage = 0
                 })
             else CodexEmptyState(if (installedOnly) "暂无已安装插件" else "暂无可用插件",
                 if (installedOnly) "发现并安装所需插件后，可在这里管理。" else "当前目录未返回插件。",
