@@ -35,4 +35,18 @@ class ComposerProviderScopeTest {
             ComposerProviderScope.initialModel(emptyList(), "", null, true)
         }
     }
+
+    @Test fun modelEffortPreferenceRoundTripsAndRespectsCurrentCatalog() {
+        val row = JSONObject().put("id", "a").put("supportedReasoningEfforts",
+            org.json.JSONArray().put(JSONObject().put("reasoningEffort", "high")))
+        val catalog = listOf(row, JSONObject().put("id", "b"))
+        val a = ComposerModelPolicy.choose(ComposerTaskOptions(), "provider", "a", catalog)
+        val remembered = ComposerModelPolicy.withEffort(a, "high")
+        val b = ComposerModelPolicy.choose(remembered, "provider", "b", catalog)
+        assertEquals("", b.effort)
+        val restored = ComposerTaskOptions.decode(b.encode())
+        assertEquals("high", ComposerModelPolicy.choose(restored, "provider", "a", catalog).effort)
+        assertEquals("", ComposerModelPolicy.choose(restored, "other", "a", catalog).effort)
+        assertEquals("", ComposerModelPolicy.choose(restored, "provider", "a", listOf(JSONObject().put("id", "a"))).effort)
+    }
 }

@@ -200,7 +200,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             (method !in setOf("config/read", "configRequirements/read", "permissionProfile/list") || configOwner == configGeneration) &&
             (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
-        if (userAction || (!retainQueue && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
+        val retainModelCatalog = method == "model/list" && (key == "models" || key.startsWith("composerModels:"))
+        if (userAction || (!retainQueue && !retainModelCatalog && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
             data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key

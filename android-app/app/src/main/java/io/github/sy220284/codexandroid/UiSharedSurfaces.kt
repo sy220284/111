@@ -55,116 +55,119 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
-    val selected by vm.modelId.collectAsState()
     val active by vm.activeThread.collectAsState()
     val workspace by vm.activeWorkspace.collectAsState()
     val threadProvider by vm.activeModelProvider.collectAsState()
-    val drafts by vm.composerDrafts.collectEntries(vm.composerOwner(active, workspace))
+    val owner = vm.composerOwner(active, workspace)
+    val drafts by vm.composerDrafts.collectEntries(owner)
+    val options = drafts[owner]?.options ?: ComposerTaskOptions()
     val providerData by vm.data.collectEntries("providers")
-    val draftProvider = ComposerProviderScope.provider(drafts[vm.composerOwner(active, workspace)]?.options?.modelProvider)
-    val scopedProvider = if (active != null) ComposerProviderScope.provider(threadProvider) else draftProvider
+    val draftProvider = ComposerProviderScope.provider(options.modelProvider)
+    val currentProvider = if (active != null) ComposerProviderScope.provider(threadProvider)
+        else draftProvider ?: ComposerProviderScope.provider(providerData["providers"]?.optString("defaultProviderId"))
+    var targetProvider by remember(owner) { mutableStateOf<String?>(null) }
+    var choosingProvider by remember(owner) { mutableStateOf(false) }
+    var confirmModel by remember(owner) { mutableStateOf<String?>(null) }
+    val scopedProvider = targetProvider ?: if (active != null) currentProvider else draftProvider
     val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
     val models by vm.data.collectEntries(catalogKey)
     val running by vm.running.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val effort = drafts[vm.composerOwner(active, workspace)]?.options?.effort.orEmpty()
-    var selectingEffort by remember { mutableStateOf(false) }
-    var selectingProvider by remember { mutableStateOf(false) }
-    val loading by vm.loading.collectProjection { it.intersect(setOf(catalogKey)) }
+    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val transfer by AppDataTransfer.state.collectProjection { it.busy }
+    val loading by vm.loading.collectProjection { catalogKey in it }
     val errors by vm.errors.collectEntries(catalogKey)
     val engineStatus by vm.bridge.status.collectAsState()
-    LaunchedEffect(engineStatus, active, scopedProvider, providerData["providers"]?.optString("defaultProviderId")) {
-        if (engineStatus == EngineStatus.Connected) {
+    val connected = engineStatus == EngineStatus.Connected
+    LaunchedEffect(engineStatus, owner, scopedProvider, providerData["providers"]?.optString("defaultProviderId")) {
+        if (connected) {
             vm.ensureCatalog("providers", "modelProvider/list")
-            vm.refreshComposerCatalog()
+            vm.ensureCatalog(catalogKey, "model/list", ComposerProviderScope.request(scopedProvider))
         }
     }
-    val modelData = models[catalogKey]
-    val available = remember(modelData) { records(modelData) }
+    val available = remember(models[catalogKey]) { records(models[catalogKey]) }
+    val providers = records(providerData["providers"]).map {
+        CodexChoice(it.optString("id"), PresentationPolicy.providerName(it.optString("name")))
+    }.filter { it.id.isNotBlank() }
+    val providerName = providers.firstOrNull { it.id == (scopedProvider ?: currentProvider) }?.title
+        ?: (scopedProvider ?: currentProvider ?: "默认服务商")
+    val selectable = connected && !creating && !switching && !restarting && !transfer &&
+        (active == null || currentProvider != null) && (targetProvider == null || !running)
+    val catalogReady = selectable && models[catalogKey] != null
+    fun reload() {
+        if (connected) vm.refresh(catalogKey, "model/list", ComposerProviderScope.request(scopedProvider, true))
+        else vm.connect()
+    }
+    if (choosingProvider) {
+        CodexChoiceSheet(title = if (active == null) "选择服务商" else "切换服务商继续对话",
+            description = if (active == null) "选择已配置的服务商，再选择模型。"
+                else "跨服务商会创建保留历史的新会话，原会话与草稿保留。",
+            anchored = anchored, choices = (if (active == null) listOf(CodexChoice("", "遵循默认服务商")) else emptyList()) + providers,
+            selectedId = scopedProvider ?: currentProvider, enabled = selectable && !running,
+            onSelect = { id ->
+                if (active == null) vm.chooseComposerProvider(id)
+                else targetProvider = id.takeIf { it != currentProvider }
+                choosingProvider = false
+            }, onDismiss = { choosingProvider = false })
+        return
+    }
+    val candidate = confirmModel
+    val destination = targetProvider
+    if (candidate != null && destination != null && active != null) {
+        val source = requireNotNull(active)
+        CodexConfirmDialog(title = "使用 $candidate 继续对话？",
+            message = "将在 $providerName 下创建包含既有对话历史的新会话，后续请求可能将历史内容发送给该服务商。原会话和未发送草稿继续保留。",
+            confirmLabel = "切换并继续", confirmEnabled = catalogReady && !running,
+            onConfirm = { confirmModel = null; vm.conversationActions.fork(source, modelProvider = destination, model = candidate); onDismiss() },
+            onDismiss = { confirmModel = null })
+        return
+    }
+    val selected = if (destination == null) options.model else ""
     val choices = remember(available) {
         available.filter { !it.optBoolean("hidden") }.map { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
-            CodexChoice(id, item.optString("displayName").ifBlank { id })
+            val name = item.optString("displayName").ifBlank { id }
+            val details = listOfNotNull(item.optString("description").takeIf { it.isNotBlank() },
+                id.takeIf { it != name }).joinToString(" · ")
+            CodexChoice(id, name, details)
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     }
-    val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !running && !creating && !switching &&
-        (active == null || scopedProvider != null)
-    val providerChoices = records(providerData["providers"]).map {
-        CodexChoice(it.optString("id"), PresentationPolicy.providerName(it.optString("name")))
-    }.filter { it.id.isNotBlank() }
-    val displayedProvider = scopedProvider ?: providerData["providers"]?.optString("defaultProviderId")
-    val providerName = providerChoices.firstOrNull { it.id == displayedProvider }?.title ?: "当前服务商"
-    if (selectingProvider && active == null) {
-        CodexChoiceSheet(title = "选择新会话服务商", anchored = anchored,
-            description = "各服务商独立授权与模型目录；历史会话保持原服务商。",
-            choices = listOf(CodexChoice("", "遵循默认服务商")) + providerChoices,
-            selectedId = draftProvider.orEmpty(), enabled = selectable,
-            onSelect = { vm.chooseComposerProvider(it); selectingProvider = false },
-            onDismiss = { selectingProvider = false })
-        return
-    }
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
-    if (selectingEffort) {
-        val options = listOf("") + efforts
-        val actual = options.indexOf(effort).coerceAtLeast(0)
-        var preview by remember(actual, options) { mutableIntStateOf(actual) }
-        val content: @Composable ColumnScope.() -> Unit = {
-            Text(if (options[preview].isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(options[preview]),
-                color = Ink.copper, style = MaterialTheme.typography.titleMedium)
-            if (options.size > 1) CodexDiscreteSlider(preview, options.size, selectable,
-                onPreview = { preview = it }, onFinished = {
-                    if (selectable) vm.chooseComposerEffort(options[preview])
-                    selectingEffort = false
-                }, modifier = Modifier.testTag("composer-effort-slider"))
-            Text("松手后应用到后续任务", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-        }
-        if (anchored) CodexFloatingMenu("思考强度", { selectingEffort = false }, wide = true, content = content)
-        else CodexDetailSheet("思考强度", { selectingEffort = false }, content = content)
-        return
-    }
     CodexChoiceSheet(
-        title = "选择运行模型", anchored = anchored,
+        title = if (destination != null) "选择 $providerName 模型" else "切换模型",
+        anchored = anchored,
         description = when {
-            engineStatus != EngineStatus.Connected ->
-                "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
-            catalogKey in loading -> "正在读取内核可用模型…"
-            errors[catalogKey] != null -> "读取模型目录失败：${errors[catalogKey]}。可手动重新加载。"
-            else -> "当前可用 ${choices.size} 个模型；更改只影响后续任务。"
+            !connected -> "连接尚未恢复，可查看已有选择。"
+            running -> "当前任务保持运行；此处仅设置下一次普通发送，已排队任务不变。"
+            loading && !catalogReady -> "正在读取可用模型…"
+            errors[catalogKey] != null -> "目录更新失败，可重试；发送前会再次核验模型。"
+            destination != null -> "选择模型后确认跨服务商交接。"
+            else -> "仅影响后续任务 · $providerName"
         },
-        choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
-        selectedId = selected,
-        enabled = selectable,
-        recoveryLabel = if (engineStatus != EngineStatus.Connected) "重新连接"
-            else if (errors[catalogKey] != null || choices.isEmpty()) "重新读取" else null,
-        onRecovery = {
-            if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog(forceRefresh = true)
-            else vm.connect()
-        },
-        recoveryMessage = when {
-            engineStatus != EngineStatus.Connected -> "运行核心未连接，恢复后才可更改模型。"
-            errors[catalogKey] != null -> "模型目录读取失败，可重试。"
-            choices.isEmpty() -> "当前没有可用模型，检查服务状态后刷新。"
-            else -> "可重新读取模型目录，已选择的模型不会因此改变。"
-        },
-        searchable = true,
-        loading = catalogKey in loading,
+        choices = (if (destination == null) listOf(CodexChoice("", if (active == null) "使用默认模型" else "沿用会话模型")) else emptyList()) + choices,
+        selectedId = selected, enabled = catalogReady,
+        recoveryLabel = if (!connected) "重新连接" else if (errors[catalogKey] != null || (!loading && choices.isEmpty())) "重新读取" else null,
+        onRecovery = { reload() },
+        recoveryMessage = if (!connected) "连接恢复后可以选择模型。" else "可重新获取当前服务商目录。",
+        searchable = true, loading = loading,
         extraContent = {
-            AtlasSettingsActionRow("刷新模型目录", "直接向当前服务商重新查询，不使用缓存", CodexGlyph.Retry,
-                onClick = { vm.refreshComposerCatalog(forceRefresh = true) },
-                enabled = engineStatus == EngineStatus.Connected && catalogKey !in loading,
-                outlined = false, modifier = Modifier.testTag("composer-model-refresh"))
-            AtlasSettingsActionRow("模型服务商", providerName, CodexGlyph.Dns,
-                onClick = { selectingProvider = true }, enabled = selectable && active == null && providerChoices.isNotEmpty(),
+            AtlasSettingsActionRow("服务商", providerName, CodexGlyph.Dns,
+                onClick = { choosingProvider = true }, enabled = selectable && !running && providers.isNotEmpty(),
                 outlined = false)
-            AtlasSettingsActionRow("思考强度",
-                if (selected.isBlank()) "先选择具体模型" else if (efforts.isEmpty()) "该模型未提供可选强度"
-                else if (effort.isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(effort),
-                CodexGlyph.Speed, onClick = { selectingEffort = true },
-                enabled = selectable && efforts.isNotEmpty(), outlined = false,
-                modifier = Modifier.testTag("composer-effort"))
+            if (destination == null) {
+                Text("思考强度", style = MaterialTheme.typography.titleSmall)
+                if (efforts.isEmpty()) Text(if (selected.isBlank()) "沿用会话或默认强度" else "此模型未提供可选强度",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                else (listOf("" to "默认") + efforts.map { it to PresentationPolicy.reasoningLabel(it) }).chunked(3).forEach { group ->
+                    AtlasCompactChoice(options.effort, group, onSelect = { vm.chooseComposerEffort(it) },
+                        enabled = catalogReady, tagPrefix = "composer-effort-")
+                }
+            }
+            if (destination != null) CodexTextAction(onClick = { targetProvider = null }) { Text("返回当前服务商") }
+            else CodexTextAction(onClick = onDismiss) { Text("完成") }
         },
-        onSelect = { id -> vm.chooseComposerModel(id) },
+        onSelect = { id -> if (destination == null) vm.chooseComposerModel(id) else confirmModel = id },
         onDismiss = onDismiss
     )
 }

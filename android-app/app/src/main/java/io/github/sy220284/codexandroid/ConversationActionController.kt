@@ -26,14 +26,28 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         }
     }
 
-    fun fork(id: String, lastTurnId: String? = null) = with(vm) {
+    fun fork(id: String, lastTurnId: String? = null, modelProvider: String? = null, model: String? = null) = with(vm) {
         if (!available(id)) return@with
         val key = "threadFork:$id"
         val params = JSONObject().put("threadId", id).put("excludeTurns", true)
         if (lastTurnId != null) params.put("lastTurnId", lastTurnId)
+        if (modelProvider != null) {
+            val catalog = records(data.value[ComposerProviderScope.catalogKey(modelProvider)])
+            if (model.isNullOrBlank() || ComposerModelPolicy.model(catalog, model) == null) {
+                errors.value = errors.value + ("conversation" to "目标模型目录已变化，请重新选择")
+                return@with
+            }
+            params.put("modelProvider", modelProvider).put("model", model)
+        }
         rpc(key, "thread/fork", params, after = {
-            val newId = data.value[key]?.getJSONObject("thread")?.getString("id")
-            if (!newId.isNullOrBlank() && activeThread.value == id) chooseThread(newId)
+            val forked = data.value[key]?.optJSONObject("thread")
+            val newId = forked?.optString("id")
+            if (modelProvider != null && (forked?.optString("modelProvider") != modelProvider ||
+                    forked?.optString("model") != model || newId.isNullOrBlank() || newId == id)) {
+                val reason = "新会话的模型或服务商回执不匹配，请在侧栏核对；原会话已保留"
+                errors.value = errors.value + ("conversation" to reason)
+                actionFeedback.tryEmit(ActionFeedbackReceipt(reason, isError = true))
+            } else if (!newId.isNullOrBlank() && activeThread.value == id) chooseThread(newId)
         })
     }
 

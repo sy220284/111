@@ -99,8 +99,21 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
-    val modelData = models["models"]
-    val availableModels = remember(modelData) { records(modelData) }
+    val threadProvider by vm.activeModelProvider.collectAsState()
+    val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
+        else ComposerProviderScope.provider(snapshot.options.modelProvider))
+    val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread")
+    val availableModels = remember(scopedCatalog[providerKey]) { records(scopedCatalog[providerKey]) }
+    val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
+    val inheritedModel = ComposerProviderScope.provider(configured?.optString("model"))
+    val shownModel = selectedModel.ifBlank { inheritedModel.orEmpty() }
+    val shownEffort = snapshot.options.effort.ifBlank {
+        if (selectedModel.isBlank()) ComposerProviderScope.provider(configured?.optString("reasoningEffort")).orEmpty() else ""
+    }
+    LaunchedEffect(thread, busy, status, switching) {
+        if (thread != null && !busy && !switching && status == EngineStatus.Connected)
+            vm.refresh("composerThread:$thread", "thread/read", JSONObject().put("threadId", thread))
+    }
     val diffSummary by rememberDiffSummary(latestDiff)
     LaunchedEffect(thread) {
         if (thread != null) {
@@ -332,7 +345,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
-                    enabled = optionsEnabled, onOpen = { composerMenu = "models" }))
+                    enabled = !firstThreadStarting && !switching && !transferBusy && !restarting, onOpen = { composerMenu = "models" }))
                 add(ComposerShortcut("mode", "协作方式", "选择先计划或执行", CodexGlyph.Tune,
                     enabled = optionsEnabled, onOpen = { composerMenu = "modes" }))
                 add(ComposerShortcut("review", "代码审查", "选择审查范围并确认", CodexGlyph.FactCheck,
@@ -416,10 +429,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { composerMenu = "add" },
                 compactControls = compactWorkArea,
-                modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
-                    ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
+                modelLabel = (if (busy) "下轮 · " else "") +
+                    (ComposerModelPolicy.model(availableModels, shownModel)
+                        ?.optString("displayName")?.takeIf { it.isNotBlank() }
+                        ?: shownModel.ifBlank { if (thread == null) "默认模型" else "沿用会话模型" }),
                 modeLabel = selectedMode,
-                effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
+                effortLabel = PresentationPolicy.reasoningLabel(shownEffort),
+                modelOptionsEnabled = !firstThreadStarting && !switching && !transferBusy && !restarting,
                 optionsEnabled = optionsEnabled,
                 onModel = { composerMenu = "models" },
                 onMode = { composerMenu = "modes" },
