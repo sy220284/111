@@ -25,6 +25,8 @@ internal fun ThreadSectionSheet(
     var query by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AndroidThreadSection?>(null) }
     var remaining by remember(moving) { mutableStateOf(moving.orEmpty()) }
+    var attempt by remember(moving) { mutableStateOf<SectionMoveAttempt?>(null) }
+    var abandon by remember(moving) { mutableStateOf(false) }
     suspend fun load() {
         sections = capabilityPages { cursor ->
             vm.capabilityRequest("threadSection/list", capabilityPageParams(cursor))
@@ -33,7 +35,10 @@ internal fun ThreadSectionSheet(
             AndroidThreadSection(id, if (id == ThreadSectionContract.PINNED) "已置顶（同步分组）" else it.getString("name"))
         }
     }
-    fun move(target: String?) {
+    fun move(target: String?, label: String) {
+        if (operation.busy || remaining.isEmpty()) return
+        val destination = attempt ?: SectionMoveAttempt(target, label).also { attempt = it }
+        check(destination.accepts(target)) { "请先完成当前分组的移动" }
         operation.launch {
             val completed = mutableSetOf<String>()
             val failed = linkedMapOf<String, Set<String>>()
@@ -64,9 +69,18 @@ internal fun ThreadSectionSheet(
     }
     LaunchedEffect(vm) { operation.launch { load() } }
     CodexDetailSheet(if (moving == null) "会话分组" else "移动 ${remaining.size} 条会话",
-        onDismiss = { if (!operation.busy) onDismiss() }) {
+        onDismiss = {
+            if (!operation.busy) {
+                if (attempt != null && remaining.isNotEmpty()) abandon = true else onDismiss()
+            }
+        }) {
         CapabilityFeedback(operation, if (moving == null) "正在同步分组" else "正在处理会话分组")
-        if (sections == null && !operation.busy) {
+        attempt?.let { destination ->
+            CodexNotice("目标：${destination.label}。已成功的版本保持原结果，剩余版本仅重试此目标。", NoticeTone.Warning)
+            CodexPrimaryButton(onClick = { move(destination.target, destination.label) },
+                enabled = !operation.busy && remaining.isNotEmpty()) { Text("重试未完成移动") }
+        }
+        if (sections == null && !operation.busy && attempt == null) {
             CodexSecondaryButton(onClick = { operation.launch { load() } }) { Text("重新读取分组") }
         }
         if (moving == null) {
@@ -74,16 +88,16 @@ internal fun ThreadSectionSheet(
         }
         CodexSecondaryButton(onClick = {
             if (moving == null) onFilter(AndroidThreadSection(ThreadSectionContract.UNGROUPED, "未分组"))
-            else move(null)
-        }, enabled = !operation.busy && (moving == null || remaining.isNotEmpty())) {
+            else move(null, "未分组")
+        }, enabled = !operation.busy && attempt == null && (moving == null || remaining.isNotEmpty())) {
             Text(if (moving == null) "未分组" else "移出分组")
         }
         AtlasSearchField(query, { query = it }, "搜索分组", onClear = { query = "" })
         sections.orEmpty().filter { it.name.contains(query.trim(), ignoreCase = true) }.forEach { section ->
             Row(Modifier.fillMaxWidth()) {
                 CodexSecondaryButton(onClick = {
-                    if (moving == null) onFilter(section) else move(section.id)
-                }, enabled = !operation.busy, modifier = Modifier.weight(1f)) { Text(section.name) }
+                    if (moving == null) onFilter(section) else move(section.id, section.name)
+                }, enabled = !operation.busy && attempt == null, modifier = Modifier.weight(1f)) { Text(section.name) }
                 if (moving == null && section.id != ThreadSectionContract.PINNED) {
                     CodexIconAction(onClick = { editing = section; name = section.name }, enabled = !operation.busy) {
                         CodexIcon(CodexGlyph.Edit, "重命名 ${section.name}")
@@ -95,9 +109,12 @@ internal fun ThreadSectionSheet(
             }
         }
         CodexTextAction(onClick = { editing = AndroidThreadSection("", ""); name = "" },
-            enabled = !operation.busy) { Text("新建分组") }
+            enabled = !operation.busy && attempt == null) { Text("新建分组") }
 
     }
+    if (abandon) CodexConfirmDialog("结束本次移动", "仍有会话版本未移动完成。已成功的版本会保留；以后重新选中该会话，可将所有版本一起移动到同一分组。",
+        confirmLabel = "结束本次移动", onConfirm = { abandon = false; onDismiss() },
+        onDismiss = { abandon = false })
     editing?.let { section ->
         CodexEditDialog(if (section.id.isEmpty()) "新建分组" else "重命名分组",
             "为会话分组设置清晰名称。", "保存分组",

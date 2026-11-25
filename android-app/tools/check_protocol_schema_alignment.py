@@ -85,10 +85,11 @@ def verify(source: str, schema_dir: Path, thread_source: str,
     if 'Initialize => "initialize" {' not in source or (
             'client_notification_definitions! {' not in source):
         errors.append("官方初始化握手声明缺失")
-    initialize = connection_source.find('request("initialize",')
-    initialized = connection_source.find('notify("initialized",')
-    if initialize == -1 or initialized == -1 or initialize >= initialized:
-        errors.append("Android 必须先完成 initialize 请求，再发送 initialized 通知")
+    initialize = connection_source.find('requestForSession("initialize",')
+    initialized = connection_source.find('write(epoch, JSONObject().put("method", "initialized")')
+    ready = connection_source.find('ownership.markReady(epoch)')
+    if min(initialize, initialized, ready) == -1 or not initialize < initialized < ready:
+        errors.append("Android 必须在同一连接完成 initialize 请求、initialized 通知后才开放普通请求")
 
     if '.put("experimentalApi", true)' not in connection_source:
         errors.append("Android 未声明实验协议能力")

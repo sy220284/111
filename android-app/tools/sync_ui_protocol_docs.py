@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import re
 from pathlib import Path
 import sys
+
+from protocol_contract import request_method_names
 
 PREFIX = ["# UI V5 接口到组件全量映射","","> 自动生成文件：修改接口归属时编辑 `android-app/tools/ui_surface_policy.json`，然后运行 `python3 android-app/tools/sync_ui_protocol_docs.py --write`。CI 会检查差异。以锁定的 Rust App Server 协议及 Kotlin `UiProtocolMatrix.kt` 为执行契约。","","## 当前协议职责分类","","分类控制功能展示责任。表中接口出现仅证明已登记；实际调用、参数与设备端执行另行验收。",""]
 CATEGORY_DESCRIPTIONS = [["直接操作","页面、快捷入口与用户明确操作"],["上下文操作","选中当前会话、文件或其他对象后使用的动作"],["高级按需","能力探测、业务需要和授权满足后展示"],["后台内部","智能体、内核、事件、流传输及 Host 请求，按需展示审批"],["平台不适用","Android 无适用运行环境"]]
@@ -15,7 +18,7 @@ FOOTER = ["","## UI 与后台能力边界","","- 直接及上下文操作按「�
 CATEGORIES = [name for name, _ in CATEGORY_DESCRIPTIONS]
 
 
-def render_document(policy: dict) -> str:
+def category_counts(policy: dict) -> dict[str, int]:
     methods = policy["methods"]
     if not isinstance(methods, dict) or not methods:
         raise ValueError("协议分层清单缺少 methods 对象")
@@ -27,6 +30,12 @@ def render_document(policy: dict) -> str:
         if record.get("flag") not in ("实验", "常规/内部"):
             raise ValueError(f"无效实验标记：{method}")
         counts[category] += 1
+    return counts
+
+
+def render_document(policy: dict) -> str:
+    methods = policy["methods"]
+    counts = category_counts(policy)
     lines = PREFIX + [
         f"**总数 {len(methods)}：直接 {counts['直接操作']}、上下文 {counts['上下文操作']}、高级 {counts['高级按需']}、后台 {counts['后台内部']}、平台不适用 {counts['平台不适用']}。**",
         "",
@@ -46,6 +55,39 @@ def render_document(policy: dict) -> str:
     lines += FOOTER
     return "\n".join(lines) + "\n"
 
+
+
+def render_ledger(ledger: str, policy: dict, clients: set[str], hosts: set[str]) -> str:
+    """Update only current summary counts; historical evidence and per-method notes stay intact."""
+    counts = category_counts(policy)
+    if clients & hosts or clients | hosts != set(policy["methods"]):
+        raise ValueError("权威台账统计：官方请求集合与 UI 策略不一致")
+    rows = {
+        "客户端→Codex 服务端请求": len(clients),
+        "Codex 服务端→Android Host 请求": len(hosts),
+        "协议方法合计": len(policy["methods"]),
+        **counts,
+    }
+    # A missing or duplicate row is a real documentation error, not a reason
+    # to silently generate a second summary or touch a historical section.
+    for label, count in rows.items():
+        pattern = r"(?m)^(\| " + re.escape(label) + r" \| )\d+( \|.*)$"
+        ledger, changed = re.subn(pattern, lambda m: m[1] + str(count) + m[2], ledger)
+        if changed != 1:
+            raise ValueError(f"权威台账统计行缺失或重复：{label}")
+    labels = {"用户可直接操作": "直接操作", "对象操作": "上下文操作",
+              "高级按需": "高级按需", "智能体/内核后台": "后台内部",
+              "平台不适用": "平台不适用"}
+    for label, category in labels.items():
+        pattern = r"(?m)^(- \*\*" + re.escape(label) + r"（)\d+(）\*\*：.*)$"
+        ledger, changed = re.subn(pattern, lambda m: m[1] + str(counts[category]) + m[2], ledger)
+        if changed != 1:
+            raise ValueError(f"权威台账职责行缺失或重复：{label}")
+    ledger, changed = re.subn(r"不在上述 \d+ 项带斜杠方法中",
+                              f"不在上述 {len(policy['methods'])} 项带斜杠方法中", ledger)
+    if changed != 1:
+        raise ValueError("权威台账握手边界说明缺失或重复")
+    return ledger
 
 
 SURFACE_TO_KOTLIN = {"直接操作":"Direct","上下文操作":"Contextual","高级按需":"Advanced","后台内部":"Internal","平台不适用":"Unsupported"}
@@ -79,15 +121,20 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=Path("docs/第五版接口与界面组件映射矩阵.md"))
     parser.add_argument("--matrix", type=Path, default=Path(
         "android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt"))
+    parser.add_argument("--ledger", type=Path, default=Path("docs/接口协议动作清单与落地验收台账-20261122.md"))
+    parser.add_argument("--official", type=Path, default=Path(
+        "upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs"))
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--write", action="store_true")
     args = parser.parse_args()
     try:
         policy = json.loads(args.policy.read_text(encoding="utf-8"))
+        clients, hosts = request_method_names(args.official.read_text(encoding="utf-8"))
         artifacts = {
             args.output: render_document(policy),
             args.matrix: render_kotlin(policy),
+            args.ledger: render_ledger(args.ledger.read_text(encoding="utf-8"), policy, clients, hosts),
         }
         if args.write:
             for path, content in artifacts.items():
@@ -111,7 +158,7 @@ def main() -> int:
         print("协议资产有漂移，请重新运行 --write：" +
               "，".join(map(str, stale)), file=sys.stderr)
         return 1
-    print("UI 协议 Kotlin 目录与组件文档均和唯一策略完全一致")
+    print("UI 协议 Kotlin 目录、组件文档和权威台账统计均与官方协议及唯一策略一致")
     return 0
 
 

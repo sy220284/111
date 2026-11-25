@@ -19,7 +19,8 @@ internal class TimelineDeltaBatch(private val first: JSONObject) {
         value.optString("turnId"), value.optString("itemId"), value.optString("summaryIndex"))
     fun append(next: JSONObject): Boolean {
         val incoming = next.optJSONObject("params") ?: return false
-        if (next.optString("method") != method || identity(incoming) != key ||
+        if (next.optLong(CORE_SESSION_FIELD, -1L) != first.optLong(CORE_SESSION_FIELD, -1L) ||
+            next.optString("method") != method || identity(incoming) != key ||
             text.length + incoming.optString("delta").length > 65536) return false
         text.append(incoming.optString("delta"))
         return true

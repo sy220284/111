@@ -49,6 +49,16 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             self.assertEqual(find_acceptance("org/repo", sha, "build-android.yml"), 8)
             self.assertEqual(client.call_count, 3)
 
+    def test_pr_branch_checks_same_sha_and_all_required_jobs(self):
+        sha = "a" * 40
+        mocked = [[{"databaseId": 10, "headSha": sha, "conclusion": "success"}],
+                  {"jobs": [{"name": name, "conclusion": "success"}
+                            for name in REQUIRED_JOBS["check-android-ui.yml"]]}]
+        with patch("verify_release_acceptance.gh_json", side_effect=mocked) as client:
+            self.assertEqual(find_acceptance("org/repo", sha, "check-android-ui.yml", "fix/pr"), 10)
+            self.assertIn("fix/pr", client.call_args_list[0].args[0])
+            self.assertIn(sha, client.call_args_list[0].args[0])
+
     def test_other_sha_is_never_validated(self):
         sha = "a" * 40
         with patch("verify_release_acceptance.gh_json") as client:

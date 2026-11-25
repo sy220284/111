@@ -110,6 +110,7 @@ internal fun RealtimeVoiceSheet(
             RealtimeVoiceController.State.Starting -> "正在连接实时语音"
             RealtimeVoiceController.State.Live -> if (controller.muted) "麦克风已静音" else "麦克风正在工作"
             RealtimeVoiceController.State.Stopping -> "正在结束语音"
+            RealtimeVoiceController.State.StopFailed -> "语音结束尚未确认"
         }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
             CodexIconAction(onClick = { expanded = !expanded }) {

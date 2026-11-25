@@ -21,7 +21,7 @@ NOTIFICATION_METHOD = re.compile(r'=>\s*"([^"]+/[^"]+)"\s*\(')
 SERDE_NOTIFICATION = re.compile(r'(?m)^\s*#\[serde\(rename\s*=\s*"([^"]+/[^"]+)"\)\]')
 LITERAL = re.compile(r'"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"')
 CALL = re.compile(
-    r'\b(?:request\s*\(\s*|(?:rpc|refresh|ensureCatalog)\s*\(\s*'
+    r'\b(?:(?:request|capabilityRequest|requestForSession)\s*\(\s*|(?:rpc|refresh|ensureCatalog)\s*\(\s*'
     r'(?:[A-Za-z_][A-Za-z0-9_]*|"[^"\n]*")\s*,\s*)'
     r'"(?P<method>[A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"',
 )

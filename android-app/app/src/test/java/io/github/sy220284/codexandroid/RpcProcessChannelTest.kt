@@ -29,6 +29,25 @@ private class MockCodexProcess(lines: List<String>) : Process() {
 }
 
 class RpcProcessChannelTest {
+    @Test fun revokedAudioNeverWritesAnyBytesToNativeProcess() {
+        val process = MockCodexProcess(emptyList())
+        val channel = RpcProcessChannel(process)
+        val voice = VoiceUploadGate()
+        val revision = voice.revision
+        val frame = JSONObject().put("id", 1).put("method", "thread/realtime/appendAudio")
+        voice.setMuted(true)
+        try {
+            channel.send(frame) { voice.accepts(revision) }
+            fail("静音后待写入的音频必须被拒绝")
+        } catch (_: RpcWriteRevoked) {
+            assertTrue(process.writes().isEmpty())
+        }
+        voice.setMuted(false)
+        channel.send(frame) { voice.accepts(voice.revision) }
+        assertEquals(1, process.writes().size)
+        channel.closeWriter()
+    }
+
     @Test fun readsAllKindsOfNativeFramesInOrderAndWritesOneJsonPerLine() = runBlocking {
         val lines = listOf(
             """{"id":12,"result":{"thread":{"id":"real-01"}}}""",

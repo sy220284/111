@@ -106,6 +106,9 @@ class TimelineReconcilerTest {
         val batch = TimelineDeltaBatch(first)
         org.junit.Assert.assertTrue(batch.append(second))
         org.junit.Assert.assertFalse(batch.append(delta("other", "c")))
+        val oldEpoch = TimelineDeltaBatch(delta("answer", "old").put(CORE_SESSION_FIELD, 1L))
+        org.junit.Assert.assertFalse(oldEpoch.append(delta("answer", "new").put(CORE_SESSION_FIELD, 2L)))
+        assertEquals(1L, oldEpoch.notification().getLong(CORE_SESSION_FIELD))
         val sequential = TimelineEventReducer.reduce("item/agentMessage/delta", second.getJSONObject("params"),
             TimelineEventReducer.reduce("item/agentMessage/delta", first.getJSONObject("params"), emptyList()))
         assertEquals(sequential, TimelineEventReducer.reduce("item/agentMessage/delta",

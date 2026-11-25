@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -32,8 +33,14 @@ internal fun CodexFloatingMenu(
     val config = LocalConfiguration.current
     val density = LocalDensity.current
     val ime = with(density) { WindowInsets.ime.getBottom(density).toDp() }
+    // The visible Android window is authoritative during adjustResize; the
+    // configuration height and IME inset alone may refer to different bounds.
+    val view = LocalView.current
+    val visibleFrame = android.graphics.Rect().also(view::getWindowVisibleDisplayFrame)
+    val visibleHeight = with(density) { visibleFrame.height().toDp() }
+    val topClearance = if (ime > 0.dp) 72.dp else 0.dp
     val height = minOf(420.dp, config.screenHeightDp.dp * .64f,
-        (config.screenHeightDp.dp - ime - 24.dp).coerceAtLeast(120.dp))
+        (visibleHeight - topClearance - 12.dp).coerceAtLeast(48.dp))
     // A simple menu must not steal the existing text field's IME connection.
     // The model search needs its own editable focus; otherwise keep the IME window.
     val focusable = searchable || ime == 0.dp
@@ -41,7 +48,7 @@ internal fun CodexFloatingMenu(
     val menuWidth = minOf(if (wide) 280.dp else 248.dp,
         (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp))
     CodexPopupMenu(
-        expanded = true, onDismissRequest = onDismiss, floating = true, focusable = focusable,
+        expanded = true, onDismissRequest = onDismiss, floating = true, focusable = focusable, topClearance = topClearance,
         modifier = Modifier.width(menuWidth)
             .heightIn(max = height).testTag("codex-floating-menu")
     ) {

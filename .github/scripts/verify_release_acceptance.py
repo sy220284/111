@@ -31,10 +31,10 @@ def gh_json(args: list[str]):
     return json.loads(result.stdout)
 
 
-def find_acceptance(repo: str, sha: str, workflow: str) -> int | None:
+def find_acceptance(repo: str, sha: str, workflow: str, branch: str = "main") -> int | None:
     runs = gh_json([
         "run", "list", "--repo", repo, "--workflow", workflow,
-        "--branch", "main", "--commit", sha, "--limit", "100",
+        "--branch", branch, "--commit", sha, "--limit", "100",
         "--json", "databaseId,headSha,conclusion",
     ])
     for run in runs:
@@ -51,10 +51,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--sha", required=True)
+    parser.add_argument("--branch", default="main", help="PR 候选分支或默认 main")
     args = parser.parse_args()
     try:
         for workflow in REQUIRED_JOBS:
-            run_id = find_acceptance(args.repo, args.sha, workflow)
+            run_id = find_acceptance(args.repo, args.sha, workflow, args.branch)
             if run_id is None:
                 print(f"提交 {args.sha} 尚未完成 {workflow} 的全部设备级验收")
                 return 3

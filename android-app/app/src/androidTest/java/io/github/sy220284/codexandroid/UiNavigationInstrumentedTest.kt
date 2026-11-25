@@ -51,6 +51,17 @@ class UiNavigationInstrumentedTest {
         }
         val x = center.x + screen[0] - window[0]
         val y = center.y + screen[1] - window[1]
+        val popup = rule.onNodeWithTag("codex-floating-menu").fetchSemanticsNode()
+        rule.runOnIdle {
+            val coords = popup.layoutInfo.coordinates
+            val origin = coords.localToScreen(androidx.compose.ui.geometry.Offset.Zero)
+            val bounds = androidx.compose.ui.geometry.Rect(origin.x, origin.y,
+                origin.x + coords.size.width, origin.y + coords.size.height)
+            check(origin.x.isFinite() && origin.y.isFinite()) { "浮动菜单尚未获得真实屏幕坐标" }
+            check(!bounds.contains(androidx.compose.ui.geometry.Offset(x, y))) {
+                "顶部关闭区域被菜单覆盖：tap=($x,$y), popup=$bounds"
+            }
+        }
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val downTime = android.os.SystemClock.uptimeMillis()
         for (action in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {
@@ -344,6 +355,32 @@ class UiNavigationInstrumentedTest {
             capture("audit-backup-background-block-android35.png")
         } finally {
             rule.runOnUiThread { vm.threadExecutions.value = emptyMap() }
+            rule.waitForIdle()
+        }
+    }
+
+    @Test fun failedVoiceStopRemainsRecoverableOnSettingsAndBlocksDataTransfer() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val owner = Any()
+        var retries = 0
+        try {
+            rule.runOnUiThread {
+                check(vm.realtimeVoiceLease.acquire(owner))
+                vm.realtimeVoiceLease.markFailed(owner, "未收到关闭回执") { retries++ }
+            }
+            rule.onNodeWithText("重试结束").assertIsDisplayed()
+            openDrawerRoute("settings")
+            rule.onNodeWithText("重试结束").performClick()
+            rule.runOnIdle { assertEquals(1, retries) }
+            rule.onNodeWithTag("settings-search").performTextInput("备份")
+            rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-backup"))
+            rule.onNodeWithTag("backup-export").assertIsNotEnabled()
+            rule.onNodeWithTag("backup-import").assertIsNotEnabled()
+            rule.runOnUiThread { vm.realtimeVoiceLease.release(owner) }
+            rule.waitForIdle()
+            rule.onNodeWithText("重试结束").assertDoesNotExist()
+        } finally {
+            rule.runOnUiThread { vm.realtimeVoiceLease.release(owner) }
             rule.waitForIdle()
         }
     }

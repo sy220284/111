@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 from collections import defaultdict
+from urllib.parse import quote
 
 from select_native_artifacts import ArtifactSelector
 
@@ -85,13 +86,31 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
     return sorted(delete, key=lambda a: a["id"])
 
 
-def active_consumers(repo):
+def active_runs(repo, branch=None):
     # Unfiltered first page is insufficient when many checks have run.
+    scope = "" if branch is None else "&branch=" + quote(branch, safe="")
     for status in ("queued", "in_progress", "waiting", "requested", "pending"):
-        for run in pages(repo, f"actions/runs?status={status}", "workflow_runs"):
-            if workflow_path(run) in CONSUMERS:
-                return True
-    return False
+        yield from pages(repo, f"actions/runs?status={status}{scope}", "workflow_runs")
+
+
+def active_consumers(repo):
+    return any(workflow_path(run) in CONSUMERS for run in active_runs(repo))
+
+
+def pr_head_signature(prs):
+    return frozenset((p["number"], (p["head"].get("repo") or {}).get("full_name"),
+                      p["head"]["ref"], p["head"]["sha"], p["base"]["ref"])
+                     for p in prs)
+
+
+def deletion_boundary_unchanged(repo, original_prs, main_sha, native):
+    if active_consumers(repo):
+        return False
+    if pr_head_signature(list(pages(repo, "pulls?state=open"))) != original_prs:
+        return False
+    if native and api(repo, "branches/main")["commit"]["sha"] != main_sha:
+        return False
+    return True
 
 
 def main():
@@ -119,13 +138,15 @@ def main():
     open_heads = {(p["head"]["repo"]["full_name"], p["head"]["ref"])
                   for p in prs if p["head"].get("repo")}
 
+    original_prs = pr_head_signature(prs)
+    main_sha = api(repo, "branches/main")["commit"]["sha"]
     native_keep = set()
     native_safe = False
     if any(NATIVE.fullmatch(a["name"]) for a in artifacts) and not active_consumers(repo):
         # Current main and every open PR must have a verified matching core.
         # If a new core is still needed, defer native removal to the next event.
         selector = ArtifactSelector()
-        targets = [api(repo, "branches/main")["commit"]["sha"]]
+        targets = [main_sha]
         targets += [p["head"]["sha"] for p in prs]
         if all((p["head"].get("repo") or {}).get("full_name") == repo for p in prs):
             for sha in dict.fromkeys(targets):
@@ -142,22 +163,18 @@ def main():
         print("原生内核暂缓清理：构建/发布仍在运行或当前源码缺少已验证内核。")
 
     candidates = plan(artifacts, runs, open_heads, native_keep, native_safe)
-    native_deferred = False
     removed = 0
-    checked_runs = {}
     for a in candidates:
         rid = a["workflow_run"]["id"]
-        # A rerun can begin after the initial snapshot.
-        if rid not in checked_runs:
-            checked_runs[rid] = api(repo, f"actions/runs/{rid}")
-        current = checked_runs[rid]
+        native = bool(NATIVE.fullmatch(a["name"]))
+        # Re-read the run for every artifact, even siblings from the same run.
+        current = api(repo, f"actions/runs/{rid}")
         if current["status"] != "completed" or current["run_attempt"] != runs[rid]["run_attempt"]:
             print(f"跳过已重新运行的检查 {rid}")
             continue
-        if NATIVE.fullmatch(a["name"]):
-            if native_deferred or active_consumers(repo):
-                native_deferred = True
-                continue
+        if args.apply and not deletion_boundary_unchanged(repo, original_prs, main_sha, native):
+            print("检查任务、开放 PR 或原生输入基线已变化，本次剩余清理暂缓")
+            break
         print(f"{'删除' if args.apply else '预览'}: {a['id']} {a['name']} (run {rid})")
         if args.apply:
             gh("api", "--method", "DELETE", f"repos/{repo}/actions/artifacts/{a['id']}")

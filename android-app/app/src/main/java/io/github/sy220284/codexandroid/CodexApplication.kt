@@ -63,8 +63,11 @@ class CodexApplication : Application() {
                 // core. Idle background sessions release native child resources.
                 if (activityCount == 0 && holder.isInitialized()) {
                     val current = holder.value
-                    if (current.globalWorkSnapshot().canDisruptCoreOrData)
-                        current.bridge.close()
+                    val closed = current.bridge.closeIfIdle {
+                        activityCount == 0 && current.globalWorkSnapshot().canDisruptCoreOrData
+                    }
+                    // Foreground can return while the old process is being reaped.
+                    if (closed && activityCount > 0) current.reconnectIfNeeded()
                 }
             }
         }

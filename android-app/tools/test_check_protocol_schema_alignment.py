@@ -41,10 +41,16 @@ class SchemaAlignmentTest(unittest.TestCase):
         self.assertTrue(any("缺少 collaborationMode" in e for e in errors))
 
     def test_initialization_handshake_order_is_enforced(self):
-        broken = self.connection.replace('notify("initialized",', 'notify("removed",')
+        broken = self.connection.replace('write(epoch, JSONObject().put("method", "initialized")', 'write(epoch, JSONObject().put("method", "removed")')
         errors, _ = verify(self.protocol, self.schemas, self.thread,
                            self.project, broken, self.turn, self.turn_contract)
         self.assertTrue(any("initialize" in e and "initialized" in e for e in errors))
+
+    def test_business_requests_cannot_open_before_handshake(self):
+        broken = self.connection.replace('ownership.markReady(epoch)', 'ownership.owns(epoch)')
+        errors, _ = verify(self.protocol, self.schemas, self.thread,
+                           self.project, broken, self.turn, self.turn_contract)
+        self.assertTrue(any("才开放普通请求" in e for e in errors))
 
     def test_missing_experimental_capability_is_detected(self):
         errors, _ = verify(self.protocol, self.schemas, self.thread,

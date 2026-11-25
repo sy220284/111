@@ -5,7 +5,8 @@ import re
 import subprocess
 import os
 from datetime import datetime, timezone, timedelta
-from retain_check_artifacts import api, pages, gh
+from urllib.parse import quote
+from retain_check_artifacts import api, pages, gh, active_runs
 
 KEEP = {"main", "master", "develop", "audit/dsh-go-ui-journey-20261123"}
 
@@ -46,10 +47,48 @@ def snapshot(repo):
     prs = list(pages(repo, "pulls?state=open"))
     closed = list(pages(repo, "pulls?state=closed"))
     branches = list(pages(repo, "branches"))
-    active = [r for status in ("queued", "in_progress", "waiting", "requested", "pending")
-              for r in pages(repo, "actions/runs?status=" + status, "workflow_runs")
+    active = [r for r in active_runs(repo)
               if r["id"] != int(os.environ.get("GITHUB_RUN_ID", "0"))]
     return prs, closed, branches, active
+
+
+def branch_deletion_still_safe(repo, name, main_sha):
+    prs = list(pages(repo, "pulls?state=open"))
+    active = [r for r in active_runs(repo)
+              if r["id"] != int(os.environ.get("GITHUB_RUN_ID", "0"))]
+    return (name not in protected_refs(prs, active)
+            and api(repo, "branches/main")["commit"]["sha"] == main_sha)
+
+
+def current_cache_candidate(repo, candidate, now):
+    # Query only this cache and its owner, not every historical PR and branch.
+    ref = candidate["ref"]
+    matching = [c for c in pages(repo, "actions/caches?ref=" + quote(ref, safe=""),
+                                 "actions_caches") if c["id"] == candidate["id"]]
+    if not matching:
+        return None
+    current = matching[0]
+    accessed = datetime.fromisoformat(current["last_accessed_at"].replace("Z", "+00:00"))
+    if now - accessed < timedelta(hours=24):
+        return None
+    own_run = int(os.environ.get("GITHUB_RUN_ID", "0"))
+    match = re.fullmatch(r"refs/pull/(\d+)/merge", ref)
+    if match:
+        pr = api(repo, "pulls/" + match[1])
+        if pr["state"] != "closed" or any(r["id"] != own_run for r in active_runs(repo)):
+            return None
+        return current
+    if not ref.startswith("refs/heads/") or ref[11:] in KEEP:
+        return None
+    name = ref[11:]
+    if any(r["id"] != own_run for r in active_runs(repo, branch=name)):
+        return None
+    result = subprocess.run(["git", "ls-remote", "--exit-code", "--heads", "origin", ref],
+                            capture_output=True)
+    if result.returncode == 2:  # exact remote ref absent; other errors must abort
+        return current
+    result.check_returncode()
+    return None
 
 
 def main():
@@ -75,8 +114,9 @@ def main():
         check.check_returncode()
         print(f"{'删除' if args.apply else '预览'}已合并分支：{name}")
         if args.apply:
-            prs_now = list(pages(repo, "pulls?state=open"))
-            if name in protected_refs(prs_now, []):
+            if not branch_deletion_still_safe(repo, name, head):
+                print(f"分支或主线状态已变化，暂缓删除：{name}")
+                deferred += 1
                 continue
             # Compare-and-delete prevents erasing commits pushed after the snapshot.
             ref = "refs/heads/" + name
@@ -90,9 +130,13 @@ def main():
     for c in candidates:
         print(f"{'删除' if args.apply else '预览'}失效缓存：{c['id']} ({c['size_in_bytes']} bytes)")
         if args.apply:
+            current = current_cache_candidate(repo, c, datetime.now(timezone.utc))
+            if current is None:
+                print(f"缓存状态已变化，暂缓删除：{c['id']}")
+                continue
             gh("api", "--method", "DELETE", f"repos/{repo}/actions/caches/{c['id']}")
             cache_count += 1
-            cache_bytes += c["size_in_bytes"]
+            cache_bytes += current["size_in_bytes"]
     summary = (f"已删除分支 {removed}；保留独立历史 {deferred}；"
                f"失效缓存候选 {len(candidates)}，删除 {cache_count}，释放 {cache_bytes} 字节。"
                "正式 Release、标签及有效缓存保持原样。")

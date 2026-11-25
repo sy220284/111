@@ -6,6 +6,19 @@ import org.junit.Test
 class GlobalWorkSnapshotTest {
     private fun idle() = GlobalWorkSnapshot(false, 0, false, false, 0, false)
 
+    @Test fun voiceOccupancyBlocksMaintenanceEvenWithoutWireRequests() {
+        val voice = idle().copy(realtimeVoiceActive = true)
+        assertTrue(voice.hasActiveWork)
+        assertFalse(voice.canDisruptCoreOrData)
+        assertTrue(voice.canStartNewTask)
+        assertTrue(voice.blockReason.contains("实时语音"))
+        assertFalse(ConnectionRestartPolicy.canRecoverVoice(voice, false))
+        assertTrue(ConnectionRestartPolicy.canRecoverVoice(voice, true))
+        assertFalse(ConnectionRestartPolicy.canRecoverVoice(voice.copy(executingThreads = 1), true))
+        assertFalse(ConnectionRestartPolicy.canRecoverVoice(voice.copy(dataTransferBusy = true), true))
+        assertFalse(ConnectionRestartPolicy.canRecoverVoice(voice.copy(inFlightRequests = 1), true))
+    }
+
     @Test fun everyLiveOperationPreventsDataReplacementAndInstallerHandoff() {
         val states = listOf(
             idle().copy(visibleTurnRunning = true),
