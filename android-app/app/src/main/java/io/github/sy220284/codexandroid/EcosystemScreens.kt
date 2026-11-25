@@ -192,6 +192,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                         }, "服务地址（HTTP / HTTPS）", placeholder = "https://example.com/v1",
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                             error = if (customUrl.isNotBlank() && !ProviderAddressPolicy.valid(customUrl)) "连接地址无效" else null,
+                            validate = { value -> if (value.isNotBlank() && !ProviderAddressPolicy.valid(value)) "连接地址无效" else null },
                             modifier = Modifier.testTag("provider-endpoint"))
                         if (customName.isNotBlank()) Text("服务商：$customName", color = Ink.muted)
                         CodexTextAction(onClick = { customizeProvider = !customizeProvider },
@@ -202,7 +203,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                             ActionQuestionRow(customName, { customName = it }, "服务商名称")
                             ActionQuestionRow(customEnvKey, { customEnvKey = it }, "密钥环境变量名称（可选）",
                                 helper = "只提供变量名称；不要在这里输入密钥值。",
-                                error = if (!ProviderAddressPolicy.validCredentialReference(customEnvKey)) "仅接受环境变量名称" else null)
+                                error = if (!ProviderAddressPolicy.validCredentialReference(customEnvKey)) "仅接受环境变量名称" else null,
+                                validate = { value -> if (!ProviderAddressPolicy.validCredentialReference(value)) "仅接受环境变量名称" else null })
                         }
                     } else {
                         Text(customName.ifBlank { preset.name }, style = MaterialTheme.typography.titleMedium)

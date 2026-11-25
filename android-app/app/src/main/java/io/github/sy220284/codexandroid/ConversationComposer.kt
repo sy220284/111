@@ -159,9 +159,10 @@ internal fun ConversationComposer(
                 if (running && hasInput && !stopping) {
                     CodexIconAction(onClick = onSend, enabled = canSend && !sending,
                         modifier = Modifier.size(48.dp).testTag("composer-send")
-                            .explainDisabled(!canSend || sending, sendBlockReason.ifBlank { "正在提交指令" })) {
+                            .explainDisabled(!canSend || sending, sendBlockReason.ifBlank { "正在提交指令" })
+                            .semantics { contentDescription = if (sending) "正在提交指令" else "引导当前任务" }) {
                         if (sending) CodexActivityIndicator(Modifier.size(21.dp), strokeWidth = 2.dp, color = Ink.muted)
-                        else CodexIcon(CodexGlyph.ArrowUpward, "引导当前任务", modifier = Modifier.size(22.dp), tint = Ink.parchment)
+                        else CodexIcon(CodexGlyph.ArrowUpward, null, modifier = Modifier.size(22.dp), tint = Ink.parchment)
                     }
                 }
                 val waiting = if (showStop) stopping else sending

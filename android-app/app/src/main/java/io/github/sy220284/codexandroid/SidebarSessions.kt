@@ -94,6 +94,7 @@ internal fun SidebarSessions(
     var sectionError by remember { mutableStateOf("") }
     var sectionRevision by remember { mutableIntStateOf(0) }
     var managingSections by remember { mutableStateOf(false) }
+    var managementOpen by remember { mutableStateOf(false) }
     var moving by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
     val rawRows = remember(section, state.fullText, response, sectionRows) {
@@ -151,13 +152,15 @@ internal fun SidebarSessions(
         if (taskFilter == SessionTaskFilter.All) answerVersions.rows(rawRows, matching)
         else matching.filter { taskFilter.matches(actualActivity[SessionListPolicy.id(it)] ?: ThreadActivity.Idle) }
     }
-    val activeCount = remember(data["sidebarThreads"], currentActivities, executions, approvals, activeId, running) {
+    val globalActivities = remember(data["sidebarThreads"], currentActivities, executions, approvals, activeId, running) {
         val known = records(data["sidebarThreads"]).associateBy(SessionListPolicy::id)
-        (known.keys + executions.keys + approvals.keys + currentActivities.keys).count { id ->
-            id.isNotBlank() && ThreadActivityPolicy.isActive(SessionListPolicy.activity(
-                known[id] ?: JSONObject(), currentActivities[id], id in executions || running && id == activeId, approvals[id] ?: 0))
+        (known.keys + executions.keys + approvals.keys + currentActivities.keys).filter { it.isNotBlank() }.associateWith { id ->
+            SessionListPolicy.activity(known[id] ?: JSONObject(), currentActivities[id],
+                id in executions || running && id == activeId, approvals[id] ?: 0)
         }
     }
+    val activeCount = globalActivities.values.count { ThreadActivityPolicy.isActive(it) }
+    val waitingCount = globalActivities.values.count { SessionTaskFilter.Waiting.matches(it) }
     val visiblePins = remember(pins, rows, answerVersions) { rows.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
     var selection by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
@@ -198,13 +201,12 @@ internal fun SidebarSessions(
     }
     Column(modifier.fillMaxSize()) {
         if (!state.fullText && !selection) Row(Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            CodexTextAction(onClick = { managingSections = true }, enabled = connected,
-                modifier = Modifier.weight(1f)) {
-                Text(section?.name ?: "会话分组", maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            CodexTextAction(onClick = { selection = true }, enabled = connected && !busy && rows.isNotEmpty()) {
-                Text("批量管理")
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(section?.name ?: "全部会话", modifier = Modifier.weight(1f).padding(start = 12.dp),
+                style = MaterialTheme.typography.labelMedium, color = Ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            CodexIconAction(onClick = { managementOpen = true }, enabled = connected,
+                modifier = Modifier.size(48.dp).testTag("sidebar-management")) {
+                CodexIcon(CodexGlyph.MoreHoriz, "会话管理")
             }
         }
         if (!selection) SessionTaskControls(state, activeCount, Modifier.fillMaxWidth(), onActiveTasks = {
@@ -214,6 +216,12 @@ internal fun SidebarSessions(
             state.searching = false
             state.resetFilter()
             state.taskFilter = if (alreadyActive) SessionTaskFilter.All else SessionTaskFilter.Active
+        }, waitingCount = waitingCount, onWaitingTasks = {
+            val alreadyWaiting = state.taskFilter == SessionTaskFilter.Waiting && !state.archived && section == null && !state.searching
+            section = null
+            state.searching = false
+            state.resetFilter()
+            state.taskFilter = if (alreadyWaiting) SessionTaskFilter.All else SessionTaskFilter.Waiting
         })
         if (section != null && !state.fullText && connected) {
             if (sectionError.isNotBlank()) CodexNotice(sectionError, NoticeTone.Error,
@@ -315,6 +323,10 @@ internal fun SidebarSessions(
                     else -> confirm = kind to selectedIds.toList()
                 }
             })
+    }
+    if (managementOpen) CodexDetailSheet("会话管理", { managementOpen = false }) {
+        CodexTextAction(onClick = { managementOpen = false; managingSections = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("会话分组") }
+        CodexTextAction(onClick = { managementOpen = false; selection = true }, enabled = connected && !busy && rows.isNotEmpty(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("批量管理") }
     }
     if (managingSections || moving != null) {
         ThreadSectionSheet(vm, section, moving,
