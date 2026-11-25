@@ -32,7 +32,9 @@ class LocalMutationAdmissionTest {
         val previous = AppDataTransfer.state.value
         AppDataTransfer.state.value = DataTransferState(busy = true)
         try {
-            assertTrue(runCatching { AppDataTransfer.withLocalMutation { error("不应执行") } }.isFailure)
+            var invoked = false
+            assertTrue(runCatching { AppDataTransfer.withLocalMutation { invoked = true } }.isFailure)
+            assertFalse("备份时不得进入本机写入", invoked)
             val persisted = CompletableDeferred<Unit>()
             val pending = async { AppDataTransfer.persistDrafts { persisted.complete(Unit) } }
             kotlinx.coroutines.yield()
