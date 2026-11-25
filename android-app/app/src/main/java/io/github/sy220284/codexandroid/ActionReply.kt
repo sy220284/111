@@ -207,21 +207,18 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
     onDismiss: () -> Unit) {
     val canonicalRoots = remember(roots) { roots.map { it.canonicalFile }.distinct() }
     var directory by remember { mutableStateOf<java.io.File?>(null) }
-    val result by produceCodexUiState<Result<List<java.io.File>>?>(null, directory) {
-        value = null
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val base = directory
-                Result.success(if (base == null) canonicalRoots else {
-                    require(canonicalRoots.any { base.toPath().startsWith(it.toPath()) })
-                    requireNotNull(base.listFiles()) { "无法读取此目录" }
-                        .filter { it.isDirectory && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
-                        .map { it.canonicalFile }
-                        .filter { child -> canonicalRoots.any { child.toPath().startsWith(it.toPath()) } }
-                        .sortedBy { it.name.lowercase() }
-                })
-            } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
-            catch (failure: Exception) { Result.failure(failure) }
+    val selectedDirectory = directory
+    val result by loadCodexUiState<Result<List<java.io.File>>?>(null, selectedDirectory, canonicalRoots) {
+        codexLoadResult {
+            val base = selectedDirectory
+            if (base == null) canonicalRoots else {
+                require(canonicalRoots.any { base.toPath().startsWith(it.toPath()) })
+                requireNotNull(base.listFiles()) { "无法读取此目录" }
+                    .filter { it.isDirectory && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
+                    .map { it.canonicalFile }
+                    .filter { child -> canonicalRoots.any { child.toPath().startsWith(it.toPath()) } }
+                    .sortedBy { it.name.lowercase() }
+            }
         }
     }
     val selected = directory

@@ -35,7 +35,7 @@ internal data class AttachmentImageState(val loaded: Boolean, val info: Attachme
 @Composable
 internal fun rememberAttachmentImage(path: String, maxSide: Int, retry: Int = 0): State<AttachmentImageState> =
     key(path, maxSide, retry) {
-        produceCodexUiState(AttachmentImageState(false, null)) {
-            value = AttachmentImageState(true, decodeAttachmentInfo(path, maxSide))
+        loadCodexUiState(AttachmentImageState(false, null), path, maxSide, retry) {
+            AttachmentImageState(true, decodeAttachmentInfo(path, maxSide))
         }
     }

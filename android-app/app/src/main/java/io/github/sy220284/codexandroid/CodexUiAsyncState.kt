@@ -23,3 +23,23 @@ internal fun <T> produceCodexUiState(
     }
     return state
 }
+
+/** One-shot data loaders never run blocking file/CPU work in the UI producer.
+ * The key owns the result, and withContext checks cancellation before publishing. */
+@Composable
+internal fun <T> loadCodexUiState(
+    initialValue: T, vararg keys: Any?,
+    dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
+    load: suspend () -> T
+): State<T> = produceCodexUiState(initialValue, *keys) {
+    value = withContext(dispatcher) { load() }
+}
+
+/** Expected I/O failures belong to the owning result; cancellation is control flow. */
+internal suspend fun <T> codexLoadResult(load: suspend () -> T): Result<T> = try {
+    Result.success(load())
+} catch (cancel: kotlinx.coroutines.CancellationException) {
+    throw cancel
+} catch (failure: Exception) {
+    Result.failure(failure)
+}

@@ -91,10 +91,10 @@ internal fun ModelDocumentPane(request: ModelPreviewRequest, root: File, onDismi
     modifier: Modifier = Modifier) {
     var revision by remember(request.id) { mutableIntStateOf(0) }
     val loaded by key(request, root, revision) {
-        produceCodexUiState<DocumentLoad>(DocumentLoad.Loading) {
-            value = try { withContext(Dispatchers.IO) { load(root, request) } }
-                catch (cancelled: CancellationException) { throw cancelled }
-                catch (failure: Exception) { DocumentLoad.Failure(failure.message ?: "无法读取文件") }
+        loadCodexUiState<DocumentLoad>(DocumentLoad.Loading, request, root, revision) {
+            codexLoadResult { load(root, request) }.fold(
+                onSuccess = { it },
+                onFailure = { DocumentLoad.Failure(it.message ?: "无法读取文件") })
         }
     }
     Surface(color = Ink.elevated, modifier = modifier.testTag("model-document-pane")) {

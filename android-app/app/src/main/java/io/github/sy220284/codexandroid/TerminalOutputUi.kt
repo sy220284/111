@@ -9,6 +9,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -48,7 +49,7 @@ internal fun rememberTerminalOutput(state: State<TerminalSessionState>, processI
     }
     return androidx.compose.runtime.key(processId) {
         produceCodexUiState(initial, state, processId) {
-            snapshotFlow { state.value }.collect { snapshot ->
+            snapshotFlow { state.value }.collectLatest { snapshot ->
                 if (snapshot.processId == processId) {
                     val decoded = if (snapshot.stdoutBytes.size + snapshot.stderrBytes.size <= 16384)
                         TerminalRenderedOutput.from(snapshot)

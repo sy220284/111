@@ -42,6 +42,9 @@ internal suspend fun readCoreFeatureSwitches(
         }
         // A complete snapshot is published only after the terminal cursor.
     } while (cursor != null)
+    check(vm.bridge.connectedSession.value == session && vm.catalogWarmup.accountRevision.value == account) {
+        "配置所属账号或核心已变化，请重新读取"
+    }
     check(rows.isNotEmpty()) { "内核未返回功能目录" }
     return rows
 }

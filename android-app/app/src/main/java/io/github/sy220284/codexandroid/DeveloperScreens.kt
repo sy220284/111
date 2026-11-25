@@ -143,21 +143,18 @@ fun WorkspacePage(vm: CodexViewModel) {
             it.path == root.path || it.path.startsWith(root.path + File.separator)
         } ?: root
     }
-    // Keep the last directory snapshot visible until its replacement is ready.
-    val directoryResult by key(folder) {
-        produceCodexUiState<Result<List<WorkspaceDirectoryEntry>>?>(null, folder, refresh) {
-            try {
-                val entries = withContext(Dispatchers.IO) {
-                    val entries = requireNotNull(folder.listFiles()) { "无法读取当前目录" }
-                    entries.asSequence()
-                        .filterNot { WorkspaceImport.isStagingName(it.name) }
-                        .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
-                        .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
-                            .thenBy { it.file.name.lowercase() }).toList()
-                }
-                value = Result.success(entries)
-            } catch (cancel: kotlinx.coroutines.CancellationException) { throw cancel }
-            catch (failure: Exception) { value = Result.failure(failure) }
+    // A directory and its revision own a complete, cancellable background snapshot.
+    val requestedDirectory = folder
+    val directoryResult by key(requestedDirectory) {
+        loadCodexUiState<Result<List<WorkspaceDirectoryEntry>>?>(null, requestedDirectory, refresh) {
+            codexLoadResult {
+                val entries = requireNotNull(requestedDirectory.listFiles()) { "无法读取当前目录" }
+                entries.asSequence()
+                    .filterNot { WorkspaceImport.isStagingName(it.name) }
+                    .map { WorkspaceDirectoryEntry(it, it.isDirectory, it.length()) }
+                    .sortedWith(compareBy<WorkspaceDirectoryEntry> { !it.directory }
+                        .thenBy { it.file.name.lowercase() }).toList()
+            }
         }
     }
     val children = directoryResult?.getOrNull().orEmpty()

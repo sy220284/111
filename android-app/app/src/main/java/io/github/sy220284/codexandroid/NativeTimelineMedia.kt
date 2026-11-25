@@ -37,8 +37,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
     }
     var preview by remember(item.id, workspaceRoot, candidates) { mutableStateOf<String?>(null) }
     val resolved by key(item.id, workspaceRoot, candidates) {
-        produceCodexUiState<List<String>?>(null) {
-            value = withContext(Dispatchers.IO) {
+        loadCodexUiState<List<String>?>(null, item.id, workspaceRoot, candidates) {
             val workspace = workspaceRoot?.let { File(it).canonicalFile }
             val legacy = WorkspaceStorage.legacyRoot(context)
             val roots = listOfNotNull(context.filesDir.canonicalFile, context.cacheDir.canonicalFile, workspace)
@@ -52,7 +51,6 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
                 } catch (_: java.io.IOException) { null }
                 catch (_: IllegalArgumentException) { null }
             }.distinct()
-            }
         }
     }
     val paths = resolved

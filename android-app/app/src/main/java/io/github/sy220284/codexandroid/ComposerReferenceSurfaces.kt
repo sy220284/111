@@ -78,10 +78,12 @@ internal object ComposerFileSearch {
 internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, initialQuery: String,
                                         onSelect: (ComposerReference) -> Unit, onDismiss: () -> Unit) {
     var query by remember(workspace, initialQuery) { mutableStateOf(initialQuery) }
-    val result by key(workspace, query) {
-        produceCodexUiState<ComposerFileSearchResult?>(null, workspace, query) {
+    val requestedQuery = query
+    val workspaceRoot = vm.workingDirectory
+    val result by key(workspace, requestedQuery) {
+        loadCodexUiState<ComposerFileSearchResult?>(null, workspaceRoot, workspace, requestedQuery) {
             delay(150)
-            value = ComposerFileSearch.search(File(vm.workingDirectory), File(workspace), query)
+            ComposerFileSearch.search(File(workspaceRoot), File(workspace), requestedQuery)
         }
     }
     CodexFloatingMenu(title = "引用项目文件", onDismiss = onDismiss, description = PresentationPolicy.workspaceName(workspace), wide = true) {
@@ -157,16 +159,14 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
     val root = remember { File(vm.workingDirectory).canonicalFile }
     var directory by remember { mutableStateOf(File(workspace)) }
     var error by remember { mutableStateOf<String?>(null) }
-    val result by produceCodexUiState<Result<List<File>>?>(null, directory) {
-        value = null
-        value = withContext(Dispatchers.IO) {
-            runCatching {
-                val base = WorkspaceSelectionContract.validate(root, directory)
-                val children = base.listFiles() ?: error("无法读取目录")
-                children.filter { it.isDirectory && !it.name.startsWith(".") && !Files.isSymbolicLink(it.toPath()) }
-                    .map { WorkspaceSelectionContract.validate(root, it) }
-                    .distinct().sortedBy { it.name.lowercase() }
-            }
+    val requestedDirectory = directory
+    val result by loadCodexUiState<Result<List<File>>?>(null, root, requestedDirectory) {
+        codexLoadResult {
+            val base = WorkspaceSelectionContract.validate(root, requestedDirectory)
+            val children = base.listFiles() ?: error("无法读取目录")
+            children.filter { it.isDirectory && !it.name.startsWith(".") && !Files.isSymbolicLink(it.toPath()) }
+                .map { WorkspaceSelectionContract.validate(root, it) }
+                .distinct().sortedBy { it.name.lowercase() }
         }
     }
     CodexFloatingMenu(title = "选择工作区", onDismiss = onDismiss, wide = true,
