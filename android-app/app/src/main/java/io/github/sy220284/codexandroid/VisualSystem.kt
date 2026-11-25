@@ -165,7 +165,7 @@ fun CodexTheme(content: @Composable () -> Unit) {
         content = {
             // Pages outside a Material Surface inherit the correct dark foreground.
             CompositionLocalProvider(LocalContentColor provides Ink.parchment) {
-                content()
+                ProvideCodexViewport(content)
             }
         }
     )

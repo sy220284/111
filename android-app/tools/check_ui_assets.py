@@ -6,6 +6,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from check_component_system import without_comments_and_literals
 
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 PACKAGE = "io/github/sy220284/codexandroid"
@@ -91,6 +92,13 @@ def invalid_glyph_namespace(source):
     """CodexGlyph is an application enum, never an Android/Compose vector type."""
     return bool(re.search(r"\bandroidx?\.[\w.]*\bCodexGlyph\b", source))
 
+def source_marker_lines(source, marker):
+    """Exact source evidence, excluding comments and text literals."""
+    code = without_comments_and_literals(source)
+    pattern = r"(?<!\w)" + re.escape(marker) + r"(?!\w)" if re.fullmatch(r"\w+", marker) else re.escape(marker)
+    return [code.count("\n", 0, hit.start()) + 1 for hit in re.finditer(pattern, code)]
+
+
 def audit(root):
     errors, assets = [], []
     design = root/"docs/ui-assets"
@@ -105,8 +113,12 @@ def audit(root):
         if len(parts) != 2 or parts[1] not in tests.get(parts[0], set()):
             errors.append("不存在的测试声明："+ref)
     def source_ref(file, marker):
-        if marker not in sources.get(file, ""):
-            errors.append("缺少源码证据："+file+"."+marker)
+        lines = source_marker_lines(sources.get(file, ""), marker)
+        if not lines:
+            candidates = [name for name, code in sources.items() if name != file and source_marker_lines(code, marker)]
+            hint = "；实际候选："+", ".join(candidates[:8]) if candidates else "；生产源码中已不存在"
+            errors.append("缺少源码证据："+file+"."+marker+hint)
+        return lines
     def matching(pattern, exclude=()):
         return {name:[i for i,l in enumerate(text.splitlines(),1) if re.search(pattern,l)]
                 for name,text in sources.items() if name not in exclude and re.search(pattern,text)}
@@ -120,7 +132,8 @@ def audit(root):
     route_ids = set(re.findall(r'^\s*Page\("([^"]+)"', sources.get("AppNavigation",""), re.M))
     listed = [x["route"] for x in routes]
     if set(listed) != route_ids or len(set(listed)) != len(listed):
-        errors.append("路由接入清单必须覆盖真实 AppNavigation 路由且无重复")
+        duplicates = sorted({route for route in listed if listed.count(route) > 1})
+        errors.append("路由接入清单必须覆盖真实 AppNavigation 路由且无重复；新增未登记："+str(sorted(route_ids-set(listed)))+"；已删除仍登记："+str(sorted(set(listed)-route_ids))+"；重复："+str(duplicates))
     for entry in routes:
         for file in entry["sources"]:
             if file not in sources:
@@ -190,13 +203,18 @@ def audit(root):
         original=design/entry["asset"]
         atlas_files.add(original)
         checked_xml(original, lambda svg: None if tag(svg)=="svg" and len(svg) else (_ for _ in ()).throw(ValueError("空图谱")))
+        bindings = {}
         for file,marker in entry["components"]:
-            source_ref(file,marker)
+            identity = file+"."+marker
+            if identity in bindings:
+                errors.append("图谱组件重复登记："+entry["asset"]+":"+identity)
+            bindings[identity] = source_ref(file,marker)
         for test in entry["tests"]:
             test_ref(test)
-        assets.append({"asset":str(original.relative_to(root)),"component":"设计参考图谱（不作运行时贴图）","callsites":dict(entry["components"]),"business":[entry["business"]],"tests":entry["tests"]})
-    if atlas_files != set(design.glob("*.svg")):
-        errors.append("设计图谱有遗漏或未登记")
+        assets.append({"asset":str(original.relative_to(root)),"component":"设计参考图谱（不作运行时贴图）","callsites":bindings,"business":[entry["business"]],"tests":entry["tests"]})
+    actual_atlases = set(design.glob("*.svg"))
+    if atlas_files != actual_atlases:
+        errors.append("设计图谱有遗漏或未登记；新增未登记："+str(sorted(x.name for x in actual_atlases-atlas_files))+"；缺失仍登记："+str(sorted(x.name for x in atlas_files-actual_atlases)))
     return errors, {"status":"failed" if errors else "source_verified","figma":manifest["figma"],"route_count":len(routes),"icon_count":len(registry),"artwork_count":len(manifest["artwork"]),"asset_count":len(assets),"routes":routes,"assets":assets,"errors":errors,"evidence":"静态核查与设备测试声明；真实设备结果以当前 CI 测试报告及截图为准"}
 
 def main():

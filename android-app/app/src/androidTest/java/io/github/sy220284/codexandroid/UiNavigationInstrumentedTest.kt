@@ -524,7 +524,7 @@ class UiNavigationInstrumentedTest {
     @Test fun modelChoiceUsesOneSharedBottomSheet() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithTag("conversation-model-control").performClick()
-        rule.onNodeWithText("选择运行模型").assertExists()
+        rule.onNodeWithTag("codex-floating-title").assertTextEquals("选择运行模型")
         rule.onNodeWithTag("composer-effort").assertExists()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         captureOverlay("model-sheet-android35.png")
