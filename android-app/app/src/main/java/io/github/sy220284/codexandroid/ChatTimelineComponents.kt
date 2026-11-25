@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 internal enum class MessageTurnAction { Fork, Retry, Revert }
 
 private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming", "sending")
-private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "declined", "interrupted", "cancelled")
+private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "blocked", "declined", "interrupted", "cancelled")
 
 @Composable
 internal fun TimelineActivityGroup(
@@ -34,7 +34,7 @@ internal fun TimelineActivityGroup(
     forceActivity: Boolean = false, note: String? = null
 ) {
     if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
-            "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity")) {
+            "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
             showMessageActions, actionItem, note)
         return

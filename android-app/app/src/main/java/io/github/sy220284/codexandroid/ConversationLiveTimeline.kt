@@ -26,7 +26,7 @@ internal class ConversationLiveTimeline {
     fun remove(threadId: String) { sessions.remove(threadId) }
 
     companion object {
-        private val terminal = setOf("completed", "failed", "declined", "interrupted", "cancelled")
+        private val terminal = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled")
         fun merge(saved: List<TimelineItem>, live: List<TimelineItem>): List<TimelineItem> {
             val byId = live.associateBy { it.id }
             val existing = saved.mapTo(hashSetOf()) { it.id }

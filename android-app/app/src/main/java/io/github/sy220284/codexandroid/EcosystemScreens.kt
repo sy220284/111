@@ -581,6 +581,8 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
         if (SettingsDeepLink.take("diagnostics") == "logs") showLogs = true
     }
     val restarting by vm.connectionRestarter.busy.collectAsState()
+    val retirement by vm.bridge.retirementBusy.collectAsState()
+    val retry by vm.recoveryDelayMs.collectAsState()
     val work = observeGlobalWorkSnapshot(vm)
     var showCrashes by remember { mutableStateOf(false) }
     var showCrashReader by remember { mutableStateOf(false) }
@@ -595,16 +597,11 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("本机运行服务", style = MaterialTheme.typography.titleMedium)
-                    StatusPill(if (status == EngineStatus.Connected) "已连接" else "连接异常", status == EngineStatus.Connected)
+                    StatusPill(RuntimeStatusPresentation.label(status, retirement, restarting, retry), status == EngineStatus.Connected && !retirement && !restarting)
                 }
             }
-            val statusSnapshot = status
-            Text(when (statusSnapshot) {
-                EngineStatus.Starting -> "正在启动运行服务。"
-                EngineStatus.Connected -> "运行服务正常，可以继续处理任务。"
-                is EngineStatus.Unavailable ->
-                    "本机内核连接失败，可尝试重新连接或查看启动日志。"
-            }, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            Text(RuntimeStatusPresentation.detail(status, retirement, restarting, retry),
+                color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
             DividerLine()
             val stderr by vm.bridge.recentStderr.collectAsState()
             CodexDetailTrigger("查看启动日志", onClick = { showLogs = true })

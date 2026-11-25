@@ -28,22 +28,21 @@ fun EngineStatusSheet(
 ) {
     val status by vm.bridge.status.collectAsState()
     val terminalRunning by vm.terminalSession.collectProjection { it.running }
+    val retirement by vm.bridge.retirementBusy.collectAsState()
+    val retry by vm.recoveryDelayMs.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsState()
     CodexDetailSheet(title = "运行状态", onDismiss = onDismiss) {
-        val label = when (status) {
-            EngineStatus.Connected -> "本机内核已连接"
-            EngineStatus.Starting -> "内核正在启动"
-            is EngineStatus.Unavailable -> "内核连接异常"
-        }
+        val label = RuntimeStatusPresentation.label(status, retirement, restarting, retry)
         StatusPill(label, tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning)
-        if (status is EngineStatus.Unavailable) {
+        if (retirement || restarting || status == EngineStatus.Starting || (status is EngineStatus.Unavailable && retry != null)) {
+            AtlasOperationProgress(RuntimeStatusPresentation.detail(status, retirement, restarting, retry))
+        } else if (status is EngineStatus.Unavailable) {
             AtlasFieldFeedback(PresentationPolicy.readableError((status as EngineStatus.Unavailable).reason), isError = true)
-        } else if (status == EngineStatus.Starting) {
-            AtlasOperationProgress("正在连接本机运行核心")
         }
         if (status != EngineStatus.Connected) {
             AtlasSettingsActionRow("重新连接本机内核", "保持当前会话和草稿", CodexGlyph.Retry,
                 onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
-                enabled = status != EngineStatus.Starting, outlined = false)
+                enabled = status != EngineStatus.Starting && !retirement && !restarting, outlined = false)
         }
         if (terminalRunning) {
             AtlasSettingsActionRow("查看正在运行的终端", "返回命令执行现场", CodexGlyph.Terminal,

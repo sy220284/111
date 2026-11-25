@@ -24,6 +24,7 @@ internal object CodexNotificationDispatcher {
             return
         }
         if (method == "mcpServer/startupStatus/updated") {
+            mcpCatalog.recordStartup(message.optLong(CORE_SESSION_FIELD, -1L), params)
             val targetThread = params.optString("threadId").takeIf { it.isNotBlank() }
             if ((targetThread == null || targetThread == activeThread.value) &&
                 params.optString("status") in setOf("ready", "failed", "cancelled")) {
@@ -61,6 +62,7 @@ internal object CodexNotificationDispatcher {
         } else if (method == "account/updated") {
             refresh("account", "account/read")
             catalogWarmup.accountChanged()
+            mcpCatalog.clearStartup()
             accountMetrics.accountChanged()
             extensions.invalidate()
             refreshMcpServices()

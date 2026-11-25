@@ -115,6 +115,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private var firstTurnImages: List<String> = emptyList()
 
+    internal val recoveryDelayMs = MutableStateFlow<Long?>(null)
     private val runtimeConnection by lazy { RuntimeConnectionController(this) }
     fun connect() = runtimeConnection.connect()
     fun reconnectIfNeeded() = runtimeConnection.reconnectIfNeeded()

@@ -9,7 +9,7 @@ internal object TimelineEventReducer {
         "item/plan/delta", "item/reasoning/summaryTextDelta", "item/reasoning/summaryPartAdded",
         "item/commandExecution/outputDelta", "item/commandExecution/terminalInteraction",
         "item/fileChange/outputDelta", "item/fileChange/patchUpdated",
-        "item/mcpToolCall/progress", "turn/plan/updated", "turn/completed")
+        "item/mcpToolCall/progress", "hook/started", "hook/completed", "turn/plan/updated", "turn/completed")
 
     private fun JSONObject.string(key: String) = if (isNull(key)) "" else optString(key)
     private fun JSONArray?.objects() = if (this == null) emptyList() else
@@ -102,6 +102,13 @@ internal object TimelineEventReducer {
             val clientId = if (next.kind == "user" && next.evidence.isNotBlank())
                 JSONObject(next.evidence).string("clientId") else ""
             items = items.put(next, clientId)
+        }
+        if (method == "hook/started" || method == "hook/completed") {
+            val hook = HookRunPresentation.project(params) ?: return current
+            val prior = items.byId(hook.id)
+            if (prior != null && prior.status != "running" && hook.status == "running") return current
+            put(hook)
+            return items
         }
         if (method == "turn/completed") {
             val turn = params.getJSONObject("turn")

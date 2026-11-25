@@ -396,6 +396,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             CodexDetailTrigger("诊断与日志", { navigate("diagnostics") }, Modifier.fillMaxWidth())
         }
         Text("专业配置", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
+        HookPolicySettings(vm, data["config"], enabled)
         CodexDetailTrigger(
             label = "高级自定义配置",
             onClick = { clearSaveFeedback(); advanced = true },
