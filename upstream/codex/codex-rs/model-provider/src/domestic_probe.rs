@@ -18,6 +18,18 @@ fn verified_models() -> &'static Mutex<VerifiedModels> {
     VERIFIED.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
+/// A catalog originator identifies a client surface, not an authenticated principal.
+pub(crate) fn probe_identity(info: &ModelProviderInfo) -> Result<String> {
+    let mut scoped = info.clone();
+    if let Some(headers) = &mut scoped.http_headers {
+        headers.retain(|name, _| !name.eq_ignore_ascii_case("originator"));
+    }
+    if let Some(headers) = &mut scoped.env_http_headers {
+        headers.retain(|name, _| !name.eq_ignore_ascii_case("originator"));
+    }
+    crate::models_identity::identity(&scoped, None)
+}
+
 fn failure(message: &str) -> CodexErr {
     CodexErr::InvalidRequest(message.to_owned())
 }
@@ -128,14 +140,15 @@ pub async fn verify_domestic_model(
     result_challenge: &str,
     factory: HttpClientFactory,
 ) -> Result<DomesticProbeResult> {
-    if !crate::is_domestic_live_catalog(info.base_url.as_deref())
+    if model.len() > 256 || model.trim().is_empty()
+        || !crate::is_domestic_live_catalog(info.base_url.as_deref())
         || info.model_catalog_url.is_some() || info.requires_openai_auth
         || info.auth.is_some() || info.gateway_oauth.is_some()
         || (info.env_key.is_none() && info.experimental_bearer_token.is_none())
     {
         return Err(failure("仅支持使用独立 API Key 的国内实时目录服务商"));
     }
-    let identity = crate::models_identity::identity(&info, None)
+    let identity = probe_identity(&info)
         .map_err(|_| failure("服务商凭据不可用，请重新授权"))?;
     // A failed re-verification must not retain an earlier admission.
     verified_models().lock().map_err(|_| failure("验证状态不可用"))?

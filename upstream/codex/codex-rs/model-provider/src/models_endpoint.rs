@@ -338,7 +338,8 @@ impl OpenAiModelsEndpoint {
 impl ModelsEndpointClient for OpenAiModelsEndpoint {
     fn refine_catalog<'a>(&self, models: &'a [codex_protocol::openai_models::ModelInfo]) -> std::borrow::Cow<'a, [codex_protocol::openai_models::ModelInfo]> {
         if crate::is_domestic_live_catalog(self.provider_info.base_url.as_deref()) {
-            return crate::domestic_probe::refine_catalog(self.identity().as_deref(), models);
+            return crate::domestic_probe::refine_catalog(
+                crate::domestic_probe::probe_identity(&self.provider_info).ok().as_deref(), models);
         }
         std::borrow::Cow::Borrowed(models)
     }

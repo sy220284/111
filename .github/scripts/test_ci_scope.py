@@ -39,7 +39,11 @@ class AndroidCIScopeTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(f'- "{path}"', pr_paths)
         self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", native)
-        self.assertIn("needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success'", native)
+        self.assertIn("needs.reuse.outputs.reuse == 'true' || (needs.native.result == 'success' && needs.provider-contract.result == 'success')", native)
+        self.assertIn("needs: [reuse, native, provider-contract]", native)
+        self.assertIn("cargo test --locked -p codex-model-provider --lib domestic_", native)
+        self.assertIn("cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests", native)
+        self.assertIn("cargo test --locked -p codex-api --lib body_model_reporting", native)
         self.assertIn('-f expected_sha="$PR_HEAD_SHA"', native)
 
     def test_android_build_and_ui_share_unit_test_gate(self):

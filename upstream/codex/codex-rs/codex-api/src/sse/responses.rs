@@ -1737,6 +1737,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn body_model_reporting_is_opt_in_and_reports_mismatch() {
+        for enabled in [false, true] {
+            let mut headers = HeaderMap::new();
+            headers.insert(OPENAI_MODEL_HEADER, HeaderValue::from_static("header-model"));
+            let created = json!({"type":"response.created","response":{"id":"r","model":"body-model"}});
+            let completed = json!({"type":"response.completed","response":{"id":"r","model":"body-model"}});
+            let sse = format!("event: response.created\ndata: {created}\n\nevent: response.completed\ndata: {completed}\n\n");
+            let bytes = stream::iter(vec![Ok(Bytes::from(sse))]);
+            let mut response = spawn_response_stream_with_model_reporting(
+                StreamResponse { status: StatusCode::OK, headers, bytes: Box::pin(bytes) },
+                idle_timeout(), None, None, enabled,
+            );
+            let mut reported = Vec::new();
+            while let Some(event) = response.rx_event.recv().await {
+                if let ResponseEvent::ServerModel(model) = event.unwrap() {
+                    reported.push(model);
+                }
+            }
+            let expected = if enabled { vec!["header-model", "body-model"] } else { vec!["header-model"] };
+            assert_eq!(reported, expected);
+        }
+    }
+
+    #[tokio::test]
     async fn process_sse_ignores_response_model_field_in_payload() {
         let events = run_sse(vec![
             json!({
