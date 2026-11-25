@@ -28,13 +28,12 @@ internal fun DomesticCatalogSheet(vm: CodexViewModel, preset: DomesticModelPrese
     LaunchedEffect(id) { refresh() }
     confirmModel?.let { model ->
         CodexConfirmDialog(title = "真实模型能力验证",
-            message = "将发送两轮固定测试请求，可能产生模型费用。不上传对话、项目文件或执行真实工具。",
+            message = "最多发送两轮固定测试推理请求，每轮限制输出量，可能产生模型费用。不上传对话、项目文件或执行真实工具。",
             detail = model, confirmLabel = "开始验证",
             onConfirm = {
                 confirmModel = null
                 testedModel = model
-                vm.refresh(probeKey, "modelProvider/model/verify", JSONObject().put("modelProvider", id)
-                    .put("model", model).put("confirmPaidRequest", true)) { refresh() }
+                vm.rpc(probeKey, "modelProvider/model/verify", DomesticProbeContract.params(id, model, confirmed = true)) { refresh() }
             }, onDismiss = { confirmModel = null })
     }
     CodexDetailSheet(title = preset.name + " · 模型目录", startExpanded = true, onDismiss = dismiss) {

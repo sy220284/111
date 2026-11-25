@@ -140,25 +140,32 @@ pub async fn verify_domestic_model(
     // A failed re-verification must not retain an earlier admission.
     verified_models().lock().map_err(|_| failure("验证状态不可用"))?
         .remove(&(identity.clone(), model.to_owned()));
+    let mut info = info;
+    info.request_max_retries = Some(0);
+    info.stream_max_retries = Some(0);
     let provider = crate::create_model_provider(info, None);
     let outcome = tokio::time::timeout(Duration::from_secs(45), async {
         let resolved = crate::resolve_request(provider.as_ref(), None, None, factory).await
             .map_err(|_| failure("无法解析独立服务商授权"))?;
         let transport = resolved.http_transport("responses").map_err(|_| failure("无法连接模型服务商"))?;
-        let client = ResponsesClient::new(transport, resolved.api_provider, resolved.api_auth);
+        let mut api_provider = resolved.api_provider;
+        api_provider.retry.retry_429 = false;
+        api_provider.retry.retry_5xx = false;
+        api_provider.retry.retry_transport = false;
+        let client = ResponsesClient::new(transport, api_provider, resolved.api_auth).with_body_model_reporting();
         let tools = json!([{"type":"function","name":"codex_probe_echo",
             "description":"Return a synthetic verification token; no external action.",
             "parameters":{"type":"object","properties":{"value":{"type":"string"}},"required":["value"],"additionalProperties":false}}]);
         let mut input = vec![json!({"type":"message","role":"user","content":[{"type":"input_text",
             "text":format!("Call codex_probe_echo exactly once with value {challenge}. After receiving its result, output exactly the returned text, with no extra characters.")}]})];
-        let first = client.stream(json!({"model":model,"input":input,"tools":tools,"stream":true,"store":false}),
+        let first = client.stream(json!({"model":model,"input":input,"tools":tools,"stream":true,"store":false,"max_output_tokens":1024}),
             http::HeaderMap::new(), Compression::None, None).await
             .map_err(|_| failure("第一轮 Responses 请求失败"))?;
         let first = collect(first, model).await?;
         let call_id = first_call(&first.items, challenge)?.to_owned();
         input.extend(first.items);
         input.push(json!({"type":"function_call_output","call_id":call_id,"output":result_challenge}));
-        let second = client.stream(json!({"model":model,"input":input,"tools":tools,"stream":true,"store":false}),
+        let second = client.stream(json!({"model":model,"input":input,"tools":tools,"stream":true,"store":false,"max_output_tokens":1024}),
             http::HeaderMap::new(), Compression::None, None).await
             .map_err(|_| failure("第二轮工具结果回传请求失败"))?;
         let second = collect(second, model).await?;
@@ -196,6 +203,22 @@ mod tests {
         let mut extra = response;
         extra.extend(items);
         assert!(!accepts_result(&extra, "result"));
+    }
+
+    #[tokio::test]
+    async fn completed_stream_collects_model_and_output_delta() {
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        tx.send(Ok(ResponseEvent::ServerModel("probe".into()))).await.unwrap();
+        tx.send(Ok(ResponseEvent::OutputTextDelta("verified".into()))).await.unwrap();
+        tx.send(Ok(ResponseEvent::Completed {
+            response_id: "test".into(), token_usage: None, usage_metadata: None,
+            reasoning_removals: None, end_turn: Some(true),
+        })).await.unwrap();
+        drop(tx);
+        let stream = ResponseStream { routing_affinity: None, rx_event: rx, upstream_request_id: None, interrupt: None };
+        let round = collect(stream, "probe").await.unwrap();
+        assert!(round.model_confirmed && round.text_delta && !round.model_mismatch);
+        assert!(!round.usage_reported);
     }
 
     #[test]

@@ -44,6 +44,16 @@ pub fn spawn_response_stream(
     telemetry: Option<Arc<dyn SseTelemetry>>,
     turn_state: Option<Arc<OnceLock<String>>>,
 ) -> ResponseStream {
+    spawn_response_stream_with_model_reporting(stream_response, idle_timeout, telemetry, turn_state, false)
+}
+
+pub(crate) fn spawn_response_stream_with_model_reporting(
+    stream_response: StreamResponse,
+    idle_timeout: Duration,
+    telemetry: Option<Arc<dyn SseTelemetry>>,
+    turn_state: Option<Arc<OnceLock<String>>>,
+    report_body_model: bool,
+) -> ResponseStream {
     let rate_limit_snapshots = parse_all_rate_limits(&stream_response.headers);
     let models_etag = stream_response
         .headers
@@ -96,6 +106,7 @@ pub fn spawn_response_stream(
             idle_timeout,
             telemetry,
             safety_buffering_treatment,
+            report_body_model,
         )
         .await;
     });
@@ -600,6 +611,7 @@ pub async fn process_sse(
         idle_timeout,
         telemetry,
         SafetyBufferingTreatment::default(),
+        false,
     )
     .await;
 }
@@ -610,6 +622,7 @@ async fn process_sse_with_treatment(
     idle_timeout: Duration,
     telemetry: Option<Arc<dyn SseTelemetry>>,
     safety_buffering_treatment: SafetyBufferingTreatment,
+    report_body_model: bool,
 ) {
     let mut stream = stream.eventsource();
     let mut last_server_model: Option<String> = None;
@@ -679,6 +692,18 @@ async fn process_sse_with_treatment(
                 return;
             }
             last_server_model = Some(model);
+        }
+        // The ordinary Codex routing path continues to trust its established headers only.
+        // Explicit verification also checks the vendor's response-body model and can reject
+        // inconsistent identity evidence across the header and response body.
+        if report_body_model
+            && let Some(model) = event.response.as_ref().and_then(|r| r.get("model")).and_then(Value::as_str)
+            && !model.is_empty() && last_server_model.as_deref() != Some(model)
+        {
+            if tx_event.send(Ok(ResponseEvent::ServerModel(model.to_owned()))).await.is_err() {
+                return;
+            }
+            last_server_model = Some(model.to_owned());
         }
         for metadata_event in metadata_events {
             if tx_event.send(Ok(metadata_event)).await.is_err() {

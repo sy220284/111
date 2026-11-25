@@ -253,10 +253,12 @@ impl CatalogRequestProcessor {
         }
         let manager = self.thread_manager.temporary_models_manager_for_config(
             &config, &codex_models_manager::manager::ModelCatalogSettings::default());
-        let catalog = self.list_models(ModelListParams {
-            model_provider: Some(params.model_provider.clone()),
-            include_hidden: Some(true), ..Default::default()
-        }, config.clone(), manager).await?;
+        let catalog = tokio::time::timeout(std::time::Duration::from_secs(60),
+            self.list_models(ModelListParams {
+                model_provider: Some(params.model_provider.clone()),
+                include_hidden: Some(true), ..Default::default()
+            }, config.clone(), manager))
+            .await.map_err(|_| invalid_request("实时目录检查超时，未发送付费验证请求"))??;
         if !catalog.data.iter().any(|model| model.id == params.model) {
             return Err(invalid_request("所选模型不在当前账号的实时目录中"));
         }

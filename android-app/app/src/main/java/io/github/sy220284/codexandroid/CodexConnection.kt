@@ -225,7 +225,7 @@ class CodexConnection(private val appContext: Context) {
         method: String,
         params: JSONObject? = JSONObject(),
         timeoutMillis: Long? = when (method) {
-            "thread/read", "thread/resume", "app/list", "app/installed", "plugin/list", "plugin/installed" -> 120_000L
+            "thread/read", "thread/resume", "app/list", "app/installed", "plugin/list", "plugin/installed", "modelProvider/model/verify" -> 120_000L
             else -> 45_000L
         }
     ): JSONObject {
