@@ -155,6 +155,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val twoImagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(2)
     ) { selected -> vm.importPickedImages(selected) }
+    val sharing by screenShareSession.state.collectAsState()
+    val screenConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        vm.composerContent.finishScreenShare(if (result.resultCode == android.app.Activity.RESULT_OK) result.data else null)
+    }
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         vm.importPickedImages(uris)
     }
@@ -331,6 +335,20 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             if (attachmentBusy) {
                 AtlasOperationProgress("正在导入媒体 ${imported.imported}/${imported.requested}…",
                     progress = if (imported.requested > 0) imported.imported.toFloat() / imported.requested else null)
+            }
+            if (sharing.token != null) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (!sharing.capturing) "等待屏幕共享授权" else if (sharing.owner != draftOwner)
+                        "其他会话正在共享屏幕" else if (sharing.hasFrame) "屏幕共享中 · 可添加最近画面"
+                        else "屏幕共享中 · 等待画面", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                    if (sharing.owner == draftOwner && sharing.hasFrame && !attachmentBusy && remote == null &&
+                        sharing.revision == previewAccountRevision && attachedImages.size < LocalImageAttachments.MAX_FILES) {
+                        TextButton(onClick = { vm.composerContent.attachSharedScreen(draftOwner) }) { Text("添加画面") }
+                    }
+                    TextButton(onClick = { vm.composerContent.stopScreenShare() }) { Text("停止") }
+                }
+            } else if (sharing.message.isNotBlank()) {
+                CodexNotice(sharing.message, NoticeTone.Warning)
             }
             if (documentBusy) AtlasOperationProgress("正在导入本机文件")
             errors["composerDocuments"]?.let { ErrorText(it) }
@@ -512,6 +530,18 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 }
                             }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
                                 description = "音频直接发送；MP4 视频智能抽帧、分段及音画对齐", testTag = "composer-add-media"))
+                            add(CodexSheetAction("共享屏幕", CodexGlyph.Photo, onClick = {
+                                if (sharing.token == null) vm.composerContent.beginScreenShare(draftOwner)?.let { request ->
+                                    try { screenConsent.launch(request) }
+                                    catch (failure: Exception) {
+                                        vm.composerContent.finishScreenShare(null)
+                                        vm.composerContent.pickerFailure(failure)
+                                    }
+                                }
+                                else if (sharing.owner == draftOwner) vm.composerContent.attachSharedScreen(draftOwner)
+                            }, enabled = sharing.token == null || (sharing.owner == draftOwner && sharing.hasFrame &&
+                                attachedImages.size < LocalImageAttachments.MAX_FILES),
+                                description = "实时本地采集，手动添加画面后随消息分析", testTag = "composer-share-screen"))
                             add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
                                 if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
                                     try { documentPicker.launch(arrayOf("*/*")) }
