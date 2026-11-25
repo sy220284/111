@@ -185,6 +185,12 @@
       "file": "EngineSettingUi.kt",
       "owner": "SearchCapabilityPage",
       "component": "EngineSettingsSection"
+    },
+    {
+      "route": "features",
+      "file": "FeatureSwitchPage.kt",
+      "owner": "FeatureSwitchPage",
+      "component": "AtlasSearchField"
     }
   ],
   "subpages": [

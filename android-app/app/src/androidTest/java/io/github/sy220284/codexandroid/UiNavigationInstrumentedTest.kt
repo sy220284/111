@@ -737,12 +737,12 @@ class UiNavigationInstrumentedTest {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
         assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(30, pages.size)
-        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(31, pages.size)
+        assertEquals(30, UiFeatureCatalog.legacyRoutes.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(5, NavigationPolicy.featureGroups.size)
-        assertEquals(17, NavigationPolicy.settingsRoutes.size)
+        assertEquals(18, NavigationPolicy.settingsRoutes.size)
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
@@ -750,6 +750,9 @@ class UiNavigationInstrumentedTest {
         })
         openSettingRoute("plugins")
         rule.onNodeWithTag("screen-title").assertTextEquals("插件")
+        openSettingRoute("features")
+        rule.onNodeWithTag("screen-title").assertTextEquals("功能开关")
+        rule.onNodeWithTag("feature-switch-search").assertExists()
         openSettingRoute("config")
         rule.onNodeWithTag("screen-title").assertTextEquals("开发者设置")
         openSettingRoute("diagnostics")
